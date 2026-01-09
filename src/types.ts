@@ -26,6 +26,7 @@ export interface CandidateMove {
   winRate: number; // 0-1
   scoreLead: number;
   visits: number;
+  pointsLost: number; // relative to best move
   order: number; // 0 for best move
 }
 

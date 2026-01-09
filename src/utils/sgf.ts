@@ -1,4 +1,4 @@
-import type { GameState, Move, BoardState, Player } from "../types";
+import type { GameState, BoardState, Player } from "../types";
 import { BOARD_SIZE } from "../types";
 
 // Helper to convert SGF coord (e.g. "pd") to {x,y}
@@ -88,8 +88,6 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
 
     let i = 0;
     const len = sgfContent.length;
-
-    let currentNodeProps: Record<string, string[]> = {};
 
     // Helpers
     const skipWhitespace = () => {

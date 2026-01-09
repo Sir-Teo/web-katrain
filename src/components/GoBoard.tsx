@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { BOARD_SIZE } from '../types';
+import { BOARD_SIZE, type CandidateMove } from '../types';
 
 export const GoBoard: React.FC = () => {
   const { board, playMove, moveHistory, analysisData, isAnalysisMode } = useGameStore();
+  const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
+
   const cellSize = 30; // pixels
   const padding = 30;
   // Increase board size to accommodate coordinates
@@ -32,6 +34,11 @@ export const GoBoard: React.FC = () => {
     if (col >= 0 && col < BOARD_SIZE && row >= 0 && row < BOARD_SIZE) {
       playMove(col, row);
     }
+  };
+
+  const handleAnalysisClick = (e: React.MouseEvent, move: CandidateMove) => {
+      e.stopPropagation();
+      playMove(move.x, move.y);
   };
 
   // Derived from moveHistory or currentNode from store
@@ -175,33 +182,68 @@ export const GoBoard: React.FC = () => {
       )}
 
       {/* Analysis Overlay */}
-      {isAnalysisMode && analysisData && analysisData.moves.map((move, i) => {
-          const isBest = i === 0;
-          const color = isBest ? 'bg-blue-500' : (move.winRate > 0.4 ? 'bg-green-500' : (move.winRate > 0.2 ? 'bg-yellow-500' : 'bg-red-500'));
-          const opacity = isBest ? 0.9 : 0.7;
+      {isAnalysisMode && analysisData && analysisData.moves.map((move) => {
+          const isBest = move.order === 0;
+
+          let bgColor = 'bg-gray-500';
+          let textColor = 'text-white';
+
+          if (isBest) {
+              bgColor = 'bg-blue-500';
+          } else if (move.pointsLost < 0.5) {
+              bgColor = 'bg-green-500';
+          } else if (move.pointsLost < 2.0) {
+              bgColor = 'bg-yellow-400';
+              textColor = 'text-black';
+          } else {
+              bgColor = 'bg-red-500';
+          }
+
+          const opacity = isBest ? 0.9 : 0.8;
+          const size = cellSize * 0.75; // slightly larger for readability
 
           return (
               <div
                   key={`analysis-${move.x}-${move.y}`}
-                  className={`absolute rounded-full flex items-center justify-center text-white text-[10px] font-bold group z-10 ${color}`}
+                  className={`absolute rounded-full flex items-center justify-center text-[10px] font-bold z-10 cursor-pointer transition-transform hover:scale-110 ${bgColor} ${textColor}`}
                   style={{
-                      width: cellSize * 0.6,
-                      height: cellSize * 0.6,
-                      left: padding + move.x * cellSize - (cellSize * 0.3),
-                      top: padding + move.y * cellSize - (cellSize * 0.3),
+                      width: size,
+                      height: size,
+                      left: padding + move.x * cellSize - (size / 2),
+                      top: padding + move.y * cellSize - (size / 2),
                       opacity: opacity,
-                      pointerEvents: 'none', // Allow clicking through to board
                   }}
+                  onClick={(e) => handleAnalysisClick(e, move)}
+                  onMouseEnter={() => setHoveredMove(move)}
+                  onMouseLeave={() => setHoveredMove(null)}
               >
-                  {isBest && <span className="text-[9px]">{move.scoreLead > 0 ? '+' : ''}{move.scoreLead}</span>}
-
-                  {/* Tooltip on hover (needs pointer-events-auto if we want to hover specifically, but clicking board is priority.
-                      Maybe show best move info by default or use a global overlay for hover?
-                      For now, simple visual indication.
-                   */}
+                  <span className="text-[9px] pointer-events-none">
+                    {isBest
+                       ? (move.scoreLead > 0 ? `+${move.scoreLead.toFixed(1)}` : move.scoreLead.toFixed(1))
+                       : `-${move.pointsLost.toFixed(1)}`
+                    }
+                  </span>
               </div>
           );
       })}
+
+      {/* Tooltip */}
+      {isAnalysisMode && hoveredMove && (
+         <div
+             className="absolute z-20 bg-gray-900 text-white text-xs p-2 rounded shadow-lg pointer-events-none border border-gray-700"
+             style={{
+                 left: padding + hoveredMove.x * cellSize + 20,
+                 top: padding + hoveredMove.y * cellSize - 20,
+                 minWidth: '120px'
+             }}
+         >
+             <div className="font-bold mb-1">Move: {String.fromCharCode(65 + (hoveredMove.x >= 8 ? hoveredMove.x + 1 : hoveredMove.x))}{19 - hoveredMove.y}</div>
+             <div>Win Rate: {(hoveredMove.winRate * 100).toFixed(1)}%</div>
+             <div>Score: {hoveredMove.scoreLead > 0 ? '+' : ''}{hoveredMove.scoreLead.toFixed(1)}</div>
+             <div>Points Lost: {hoveredMove.pointsLost.toFixed(1)}</div>
+             <div>Visits: {hoveredMove.visits}</div>
+         </div>
+      )}
 
     </div>
   );
