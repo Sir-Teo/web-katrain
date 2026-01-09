@@ -388,7 +388,6 @@ const makeRandomMove = (store: GameStore) => {
     if (store.board[y][x] === null) {
        store.playMove(x, y);
        // Check if move was accepted (player changed)
-       const nextPlayer = store.currentPlayer; // currentPlayer is updated *after* playMove in the store, but wait.
        // store.currentPlayer inside playMove is "old" -> playMove updates store.
        // But `store` passed here is the *snapshot* from `get()`.
        // We need to check if the store state actually changed.
