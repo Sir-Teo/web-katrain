@@ -3,7 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { BOARD_SIZE } from '../types';
 
 export const GoBoard: React.FC = () => {
-  const { board, playMove, moveHistory } = useGameStore();
+  const { board, playMove, moveHistory, analysisData, isAnalysisMode } = useGameStore();
   const cellSize = 30; // pixels
   const padding = 30;
   // Increase board size to accommodate coordinates
@@ -172,6 +172,35 @@ export const GoBoard: React.FC = () => {
           );
         })
       )}
+
+      {/* Analysis Overlay */}
+      {isAnalysisMode && analysisData && analysisData.moves.map((move, i) => {
+          const isBest = i === 0;
+          const color = isBest ? 'bg-blue-500' : (move.winRate > 0.4 ? 'bg-green-500' : (move.winRate > 0.2 ? 'bg-yellow-500' : 'bg-red-500'));
+          const opacity = isBest ? 0.9 : 0.7;
+
+          return (
+              <div
+                  key={`analysis-${move.x}-${move.y}`}
+                  className={`absolute rounded-full flex items-center justify-center text-white text-[10px] font-bold group z-10 ${color}`}
+                  style={{
+                      width: cellSize * 0.6,
+                      height: cellSize * 0.6,
+                      left: padding + move.x * cellSize - (cellSize * 0.3),
+                      top: padding + move.y * cellSize - (cellSize * 0.3),
+                      opacity: opacity,
+                      pointerEvents: 'none', // Allow clicking through to board
+                  }}
+              >
+                  {isBest && <span className="text-[9px]">{move.scoreLead > 0 ? '+' : ''}{move.scoreLead}</span>}
+
+                  {/* Tooltip on hover (needs pointer-events-auto if we want to hover specifically, but clicking board is priority.
+                      Maybe show best move info by default or use a global overlay for hover?
+                      For now, simple visual indication.
+                   */}
+              </div>
+          );
+      })}
 
     </div>
   );
