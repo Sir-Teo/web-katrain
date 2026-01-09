@@ -1,12 +1,13 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
-import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaUndo, FaSave } from 'react-icons/fa';
-import { downloadSgf } from '../utils/sgf';
+import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaUndo, FaSave, FaFolderOpen } from 'react-icons/fa';
+import { downloadSgf, parseSgf } from '../utils/sgf';
 import type { GameState } from '../types';
 
 export const Layout: React.FC = () => {
-  const { resetGame, passTurn, capturedBlack, capturedWhite, toggleAi, isAiPlaying, undoMove, ...storeRest } = useGameStore();
+  const { resetGame, passTurn, capturedBlack, capturedWhite, toggleAi, isAiPlaying, undoMove, loadGame, ...storeRest } = useGameStore();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
       // Reconstruct simple GameState
@@ -20,13 +21,44 @@ export const Layout: React.FC = () => {
       downloadSgf(gameState);
   };
 
+  const handleLoadClick = () => {
+      fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const text = await file.text();
+      try {
+          const parsed = parseSgf(text);
+          loadGame(parsed);
+      } catch (error) {
+          console.error("Failed to parse SGF", error);
+          alert("Failed to parse SGF file");
+      }
+
+      // Reset input
+      e.target.value = '';
+  };
+
   return (
     <div className="flex h-screen bg-gray-900 text-gray-200 font-sans overflow-hidden">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept=".sgf"
+      />
       {/* Sidebar - Settings and Controls */}
       <div className="w-16 flex flex-col items-center py-4 bg-gray-800 border-r border-gray-700 space-y-6">
         <div className="text-2xl font-bold text-green-500 mb-4">Ka</div>
         <button className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="New Game" onClick={resetGame}>
           <FaPlay />
+        </button>
+        <button className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="Load SGF" onClick={handleLoadClick}>
+          <FaFolderOpen />
         </button>
         <button
           className={`p-2 hover:bg-gray-700 rounded ${isAiPlaying ? 'text-green-500' : 'text-gray-400'} hover:text-white`}

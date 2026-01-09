@@ -2,16 +2,18 @@ import { create } from 'zustand';
 import { BOARD_SIZE, type GameState, type BoardState, type Player } from '../types';
 import { checkCaptures, getLiberties } from '../utils/gameLogic';
 import { playStoneSound } from '../utils/sound';
+import type { ParsedSgf } from '../utils/sgf';
 
 interface GameStore extends GameState {
   pastStates: GameState[]; // Store full state for undo/ko
   isAiPlaying: boolean;
   aiColor: Player | null;
   toggleAi: (color: Player) => void;
-  playMove: (x: number, y: number) => void;
+  playMove: (x: number, y: number, isLoad?: boolean) => void;
   makeAiMove: () => void;
   undoMove: () => void;
   resetGame: () => void;
+  loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
 }
 
@@ -25,13 +27,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   moveHistory: [],
   capturedBlack: 0,
   capturedWhite: 0,
+  komi: 6.5,
   isAiPlaying: false,
   aiColor: null,
   pastStates: [],
 
   toggleAi: (color) => set({ isAiPlaying: true, aiColor: color }),
 
-  playMove: (x: number, y: number) => {
+  playMove: (x: number, y: number, isLoad = false) => {
     const state = get();
     // Check boundaries or existing stones
     if (state.board[y][x] !== null) return; // Illegal move (occupied)
@@ -63,7 +66,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // Play sound
-    playStoneSound();
+    if (!isLoad) {
+      playStoneSound();
+    }
 
     // Update captured counts
     const newCapturedBlack = state.capturedBlack + (state.currentPlayer === 'white' ? captured.length : 0);
@@ -78,7 +83,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentPlayer: state.currentPlayer,
         moveHistory: state.moveHistory,
         capturedBlack: state.capturedBlack,
-        capturedWhite: state.capturedWhite
+        capturedWhite: state.capturedWhite,
+        komi: state.komi,
     };
 
     set({
@@ -91,11 +97,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
 
     // Trigger AI move if needed
-    const newState = get();
-    if (newState.isAiPlaying && newState.currentPlayer === newState.aiColor) {
-      setTimeout(() => {
-        get().makeAiMove();
-      }, 500);
+    if (!isLoad) {
+      const newState = get();
+      if (newState.isAiPlaying && newState.currentPlayer === newState.aiColor) {
+        setTimeout(() => {
+          get().makeAiMove();
+        }, 500);
+      }
     }
   },
 
@@ -126,10 +134,45 @@ export const useGameStore = create<GameStore>((set, get) => ({
     moveHistory: [],
     capturedBlack: 0,
     capturedWhite: 0,
+    komi: 6.5,
     isAiPlaying: false,
     aiColor: null,
     pastStates: [],
   }),
+
+  loadGame: (sgf: ParsedSgf) => {
+    // Reset first
+    get().resetGame();
+
+    // Set Komi
+    if (sgf.komi !== undefined) {
+      set({ komi: sgf.komi });
+    }
+
+    // Set initial board (handicap)
+    if (sgf.initialBoard) {
+        set({ board: sgf.initialBoard });
+    }
+
+    // Replay moves
+    sgf.moves.forEach(move => {
+        if (move.x === -1) {
+            get().passTurn();
+        } else {
+            // Force the current player to match the move player?
+            // Usually SGF moves alternate, but handicap or edits might change that.
+            // For now, assume alternation or rely on game logic to switch.
+            // But if the SGF says 'W' played, but our state thinks it's 'B', we should sync it?
+
+            const state = get();
+            if (state.currentPlayer !== move.player) {
+                // Force player switch if out of sync (e.g. handicap black played multiple, or white started)
+                set({ currentPlayer: move.player });
+            }
+            get().playMove(move.x, move.y, true);
+        }
+    });
+  },
 
   passTurn: () => set((state) => {
     const currentGameState: GameState = {
@@ -137,7 +180,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentPlayer: state.currentPlayer,
         moveHistory: state.moveHistory,
         capturedBlack: state.capturedBlack,
-        capturedWhite: state.capturedWhite
+        capturedWhite: state.capturedWhite,
+        komi: state.komi
     };
 
     return {

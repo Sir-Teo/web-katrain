@@ -11,4 +11,5 @@ export interface GameState {
   moveHistory: { x: number; y: number; player: Player }[];
   capturedBlack: number;
   capturedWhite: number;
+  komi: number;
 }
