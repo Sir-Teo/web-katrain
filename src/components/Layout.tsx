@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { WinRateGraph } from './WinRateGraph';
+import { SettingsModal } from './SettingsModal';
 import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaArrowLeft, FaArrowRight, FaSave, FaFolderOpen, FaMicrochip } from 'react-icons/fa';
 import { downloadSgf, parseSgf } from '../utils/sgf';
 import type { GameState, CandidateMove } from '../types';
@@ -25,6 +26,7 @@ export const Layout: React.FC = () => {
   } = useGameStore();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -79,6 +81,9 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-200 font-sans overflow-hidden">
+      {isSettingsOpen && (
+          <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+      )}
       <input
         type="file"
         ref={fileInputRef}
@@ -112,7 +117,11 @@ export const Layout: React.FC = () => {
         <button className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="Save SGF" onClick={handleSave}>
           <FaSave />
         </button>
-        <button className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="Settings">
+        <button
+            className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white"
+            title="Settings"
+            onClick={() => setIsSettingsOpen(true)}
+        >
           <FaCog />
         </button>
         <div className="flex-grow" />

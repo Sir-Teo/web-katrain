@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { BOARD_SIZE, type CandidateMove } from '../types';
+import { BOARD_SIZE, type CandidateMove, type GameNode } from '../types';
 
 interface GoBoardProps {
     hoveredMove: CandidateMove | null;
@@ -8,7 +8,7 @@ interface GoBoardProps {
 }
 
 export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) => {
-  const { board, playMove, moveHistory, analysisData, isAnalysisMode, currentPlayer } = useGameStore();
+  const { board, playMove, moveHistory, analysisData, isAnalysisMode, currentPlayer, settings, currentNode } = useGameStore();
 
   const cellSize = 30; // pixels
   const padding = 30;
@@ -48,73 +48,119 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
   // Derived from moveHistory or currentNode from store
   const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
 
+  // Compute past mistakes to display on board
+  const pastMistakes = useMemo(() => {
+      if (!isAnalysisMode || settings.showLastNMistakes === 0) return [];
+
+      const mistakes: { x: number, y: number, pointsLost: number }[] = [];
+      let node: GameNode | null = currentNode;
+      let count = 0;
+
+      while (node && node.parent && count < settings.showLastNMistakes) {
+          const move = node.move;
+          const parentAnalysis = node.parent.analysis;
+
+          if (move && parentAnalysis) {
+              // Find the move in parent's analysis
+              const candidate = parentAnalysis.moves.find(m => m.x === move.x && m.y === move.y);
+              if (candidate && candidate.pointsLost > 0.5) { // Only show significant mistakes
+                  mistakes.push({
+                      x: move.x,
+                      y: move.y,
+                      pointsLost: candidate.pointsLost
+                  });
+              }
+          }
+          node = node.parent;
+          count++;
+      }
+      return mistakes;
+  }, [currentNode, isAnalysisMode, settings.showLastNMistakes]);
+
+  // Theme styling
+  const boardColor = settings.boardTheme === 'dark' ? '#333' : (settings.boardTheme === 'flat' ? '#eebb77' : '#DCB35C');
+  const lineColor = settings.boardTheme === 'dark' ? '#888' : '#000';
+  const labelColor = settings.boardTheme === 'dark' ? '#ccc' : '#000';
+
   return (
     <div
-      className="relative bg-[#DCB35C] shadow-lg rounded-sm cursor-pointer select-none"
-      style={{ width: boardSizePixels, height: boardSizePixels }}
+      className="relative shadow-lg rounded-sm cursor-pointer select-none"
+      style={{
+          width: boardSizePixels,
+          height: boardSizePixels,
+          backgroundColor: boardColor,
+      }}
       onClick={handleClick}
     >
       {/* Coordinates */}
-      {/* Top Labels */}
-      {xLabels.map((label, i) => (
-        <div
-           key={`top-${i}`}
-           className="absolute text-xs font-bold text-black"
-           style={{
-             left: padding + i * cellSize - 4,
-             top: 5,
-             width: 10,
-             textAlign: 'center'
-           }}
-        >
-          {label}
-        </div>
-      ))}
-      {/* Bottom Labels */}
-      {xLabels.map((label, i) => (
-         <div
-            key={`bottom-${i}`}
-            className="absolute text-xs font-bold text-black"
-            style={{
-              left: padding + i * cellSize - 4,
-              bottom: 5,
-              width: 10,
-              textAlign: 'center'
-            }}
-         >
-           {label}
-         </div>
-       ))}
-       {/* Left Labels */}
-       {yLabels.map((label, i) => (
-         <div
-            key={`left-${i}`}
-            className="absolute text-xs font-bold text-black"
-            style={{
-              left: 5,
-              top: padding + i * cellSize - 8,
-              width: 15,
-              textAlign: 'center'
-            }}
-         >
-           {label}
-         </div>
-       ))}
-       {/* Right Labels */}
-       {yLabels.map((label, i) => (
-         <div
-            key={`right-${i}`}
-            className="absolute text-xs font-bold text-black"
-            style={{
-              right: 5,
-              top: padding + i * cellSize - 8,
-              width: 15,
-              textAlign: 'center'
-            }}
-         >
-           {label}
-         </div>
-       ))}
+      {settings.showCoordinates && (
+          <>
+            {/* Top Labels */}
+            {xLabels.map((label, i) => (
+                <div
+                key={`top-${i}`}
+                className="absolute text-xs font-bold"
+                style={{
+                    left: padding + i * cellSize - 4,
+                    top: 5,
+                    width: 10,
+                    textAlign: 'center',
+                    color: labelColor
+                }}
+                >
+                {label}
+                </div>
+            ))}
+            {/* Bottom Labels */}
+            {xLabels.map((label, i) => (
+                <div
+                    key={`bottom-${i}`}
+                    className="absolute text-xs font-bold"
+                    style={{
+                    left: padding + i * cellSize - 4,
+                    bottom: 5,
+                    width: 10,
+                    textAlign: 'center',
+                    color: labelColor
+                    }}
+                >
+                {label}
+                </div>
+            ))}
+            {/* Left Labels */}
+            {yLabels.map((label, i) => (
+                <div
+                    key={`left-${i}`}
+                    className="absolute text-xs font-bold"
+                    style={{
+                    left: 5,
+                    top: padding + i * cellSize - 8,
+                    width: 15,
+                    textAlign: 'center',
+                    color: labelColor
+                    }}
+                >
+                {label}
+                </div>
+            ))}
+            {/* Right Labels */}
+            {yLabels.map((label, i) => (
+                <div
+                    key={`right-${i}`}
+                    className="absolute text-xs font-bold"
+                    style={{
+                    right: 5,
+                    top: padding + i * cellSize - 8,
+                    width: 15,
+                    textAlign: 'center',
+                    color: labelColor
+                    }}
+                >
+                {label}
+                </div>
+            ))}
+          </>
+      )}
 
 
       {/* Grid Lines */}
@@ -122,22 +168,24 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
         <React.Fragment key={i}>
           {/* Vertical lines */}
           <div
-            className="absolute bg-black"
+            className="absolute"
             style={{
               left: padding + i * cellSize,
               top: padding,
               width: 1,
-              height: cellSize * (BOARD_SIZE - 1)
+              height: cellSize * (BOARD_SIZE - 1),
+              backgroundColor: lineColor
             }}
           />
           {/* Horizontal lines */}
           <div
-            className="absolute bg-black"
+            className="absolute"
             style={{
               left: padding,
               top: padding + i * cellSize,
               width: cellSize * (BOARD_SIZE - 1),
-              height: 1
+              height: 1,
+              backgroundColor: lineColor
             }}
           />
         </React.Fragment>
@@ -147,12 +195,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
       {hoshiPoints.map(([hx, hy], idx) => (
         <div
           key={`hoshi-${idx}`}
-          className="absolute bg-black rounded-full"
+          className="absolute rounded-full"
           style={{
             width: 8,
             height: 8,
             left: padding + hx * cellSize - 4,
             top: padding + hy * cellSize - 4,
+            backgroundColor: lineColor
           }}
         />
       ))}
@@ -185,6 +234,27 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
         })
       )}
 
+      {/* Past Mistakes Overlay */}
+      {pastMistakes.map((mistake, i) => {
+          let color = 'bg-yellow-400';
+          if (mistake.pointsLost > 5) color = 'bg-red-600';
+          else if (mistake.pointsLost > 2) color = 'bg-orange-500';
+
+          return (
+              <div
+                  key={`mistake-${mistake.x}-${mistake.y}`}
+                  className={`absolute rounded-full ${color} z-10 pointer-events-none`}
+                  style={{
+                      width: 10,
+                      height: 10,
+                      left: padding + mistake.x * cellSize - 5,
+                      top: padding + mistake.y * cellSize - 5,
+                      border: '1px solid white'
+                  }}
+              />
+          );
+      })}
+
       {/* Ghost Stone (Hover) */}
       {isAnalysisMode && hoveredMove && (
           <div
@@ -203,7 +273,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
           />
       )}
 
-      {/* Analysis Overlay */}
+      {/* Analysis Overlay (Next Moves) */}
       {isAnalysisMode && analysisData && analysisData.moves.map((move) => {
           const isBest = move.order === 0;
 

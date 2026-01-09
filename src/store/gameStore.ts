@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BOARD_SIZE, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move } from '../types';
+import { BOARD_SIZE, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings } from '../types';
 import { checkCaptures, getLiberties } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound } from '../utils/sound';
 import type { ParsedSgf } from '../utils/sgf';
@@ -15,6 +15,7 @@ interface GameStore extends GameState {
   aiColor: Player | null;
   isAnalysisMode: boolean;
   analysisData: AnalysisResult | null;
+  settings: GameSettings;
 
   // Actions
   toggleAi: (color: Player) => void;
@@ -29,6 +30,7 @@ interface GameStore extends GameState {
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
   runAnalysis: () => void;
+  updateSettings: (newSettings: Partial<GameSettings>) => void;
 }
 
 const createEmptyBoard = (): BoardState => {
@@ -64,6 +66,13 @@ const initialGameState: GameState = {
 };
 const initialRoot = createNode(null, null, initialGameState, 'root');
 
+const defaultSettings: GameSettings = {
+  soundEnabled: true,
+  showCoordinates: true,
+  boardTheme: 'bamboo',
+  showLastNMistakes: 3,
+};
+
 export const useGameStore = create<GameStore>((set, get) => ({
   // Flat properties (mirrored from currentNode.gameState for easy access)
   board: initialGameState.board,
@@ -81,6 +90,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   aiColor: null,
   isAnalysisMode: false,
   analysisData: null,
+  settings: defaultSettings,
 
   toggleAi: (color) => set({ isAiPlaying: true, aiColor: color }),
 
@@ -111,6 +121,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       set({ analysisData: analysis });
   },
+
+  updateSettings: (newSettings) => set((state) => ({
+      settings: { ...state.settings, ...newSettings }
+  })),
 
   playMove: (x: number, y: number, isLoad = false) => {
     const state = get();
@@ -151,9 +165,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     if (!isLoad) {
-      playStoneSound();
-      if (captured.length > 0) {
-          setTimeout(() => playCaptureSound(captured.length), 100);
+      if (state.settings.soundEnabled) {
+          playStoneSound();
+          if (captured.length > 0) {
+              setTimeout(() => playCaptureSound(captured.length), 100);
+          }
       }
     }
 
@@ -308,7 +324,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   passTurn: () => {
       const state = get();
-      playPassSound();
+      if (state.settings.soundEnabled) {
+        playPassSound();
+      }
       const move: Move = { x: -1, y: -1, player: state.currentPlayer };
 
       // Check for existing pass child

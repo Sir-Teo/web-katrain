@@ -45,3 +45,10 @@ export interface GameNode {
   analysis?: AnalysisResult | null;
   properties?: Record<string, string[]>;
 }
+
+export interface GameSettings {
+  soundEnabled: boolean;
+  showCoordinates: boolean;
+  boardTheme: 'bamboo' | 'flat' | 'dark';
+  showLastNMistakes: number; // 0 to disable
+}
