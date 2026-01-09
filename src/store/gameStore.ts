@@ -24,6 +24,7 @@ interface GameStore extends GameState {
   undoMove: () => void; // Go back
   navigateBack: () => void;
   navigateForward: () => void; // Go forward (main branch)
+  jumpToNode: (node: GameNode) => void; // Navigate to arbitrary node
   resetGame: () => void;
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
@@ -101,7 +102,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           return;
       }
 
-      const analysis = generateMockAnalysis(state.board, state.currentPlayer);
+      // Pass parent analysis for continuity
+      const parentAnalysis = state.currentNode.parent?.analysis;
+      const analysis = generateMockAnalysis(state.board, state.currentPlayer, parentAnalysis);
 
       // Store analysis in node
       state.currentNode.analysis = analysis;
@@ -118,25 +121,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         child.move && child.move.x === x && child.move.y === y && child.move.player === state.currentPlayer
     );
 
-    if (existingChild && !isLoad) { // If loading, we force creation usually, or just follow? SGF might have dups?
-       // Actually for SGF loading we might want to just follow if it matches exactly.
-       // But 'playMove' is called by user click.
-
+    if (existingChild && !isLoad) {
        // Navigate to existing child
-       set({
-           currentNode: existingChild,
-           board: existingChild.gameState.board,
-           currentPlayer: existingChild.gameState.currentPlayer,
-           moveHistory: existingChild.gameState.moveHistory,
-           capturedBlack: existingChild.gameState.capturedBlack,
-           capturedWhite: existingChild.gameState.capturedWhite,
-           komi: existingChild.gameState.komi,
-           analysisData: existingChild.analysis || null
-       });
-
-       if (state.isAnalysisMode && !existingChild.analysis) {
-           setTimeout(() => get().runAnalysis(), 500);
-       }
+       get().jumpToNode(existingChild);
        return;
     }
 
@@ -156,35 +143,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // Ko check
-    // We need to check the path back to root for repetition
-    // Actually standard Ko is just previous state.
-    // Superko checks all past states.
-    // Let's implement simple Ko (immediate previous state check)
-    // Actually, `moveHistory` path has all states.
-    // But we need to check the boards.
-    // Optimization: Just check `state.currentNode.gameState.board`? No that's current.
-    // Check `state.currentNode.parent.gameState.board`? That's the one before current move.
-    // We need to check if `newBoard` == `state.currentNode.parent.gameState.board`? (This is impossible, just reversed move).
-    // Ko is: new state == state before previous move.
-
-    // Let's check against `moveHistory`. But `moveHistory` is just moves.
-    // We can traverse up the tree to check Ko.
-    let node: GameNode | null = state.currentNode;
-    let koFound = false;
     // Simple Ko: Check just the state from 2 moves ago?
     // Let's traverse up one step (parent).
-    if (node.parent && JSON.stringify(newBoard) === JSON.stringify(node.parent.gameState.board)) {
-        // This is immediate reversal (Snapback is fine, but Ko rule...?)
-        // Wait, if I play, capture, and the board looks exactly like it did before my opponent played...
-        // Yes, checking parent is wrong. Parent is state *before* I play this move.
-        // I need to check if `newBoard` equals `node.parent.gameState.board`.
-        // If it does, then I just reversed the last move (which is allowed unless it's Ko).
-        // Standard Ko: A stone is captured, and the capturer cannot immediately recapture.
-        // This manifests as repeating the board position.
-        koFound = true;
+    if (state.currentNode.parent && JSON.stringify(newBoard) === JSON.stringify(state.currentNode.parent.gameState.board)) {
+        // Found Ko, illegal move
+        return;
     }
-
-    if (koFound) return;
 
     if (!isLoad) {
       playStoneSound();
@@ -239,8 +203,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   undoMove: () => get().navigateBack(),
 
   navigateBack: () => set((state) => {
-    if (!state.currentNode.parent) return state;
-
+    if (!state.currentNode.parent) return {};
     const prevNode = state.currentNode.parent;
     return {
         currentNode: prevNode,
@@ -271,6 +234,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
   }),
 
+  jumpToNode: (node: GameNode) => set(() => {
+      // Just set current node and sync state
+      return {
+          currentNode: node,
+          board: node.gameState.board,
+          currentPlayer: node.gameState.currentPlayer,
+          moveHistory: node.gameState.moveHistory,
+          capturedBlack: node.gameState.capturedBlack,
+          capturedWhite: node.gameState.capturedWhite,
+          analysisData: node.analysis || null,
+      };
+  }),
+
   resetGame: () => set({
     board: createEmptyBoard(),
     currentPlayer: 'black',
@@ -290,8 +266,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadGame: (sgf: ParsedSgf) => {
     // Reset first
     get().resetGame();
-    // We need to recreate the root if SGF has handicap/initial setup
-    // But `resetGame` sets it to clean root.
 
     let currentBoard = createEmptyBoard();
     if (sgf.initialBoard) {
@@ -300,11 +274,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const rootState: GameState = {
         board: currentBoard,
-        currentPlayer: 'black', // SGF usually implies Black starts unless HA is set?
-        // If HA (Handicap), Black stones are placed, and White plays first (usually).
-        // But our `parseSgf` returns initialBoard.
-        // We need to set current player correctly?
-        // For now default Black.
+        currentPlayer: 'black',
         moveHistory: [],
         capturedBlack: 0,
         capturedWhite: 0,
@@ -347,15 +317,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       );
 
       if (existingChild) {
-           set({
-               currentNode: existingChild,
-               board: existingChild.gameState.board,
-               currentPlayer: existingChild.gameState.currentPlayer,
-               moveHistory: existingChild.gameState.moveHistory,
-               capturedBlack: existingChild.gameState.capturedBlack,
-               capturedWhite: existingChild.gameState.capturedWhite,
-               analysisData: existingChild.analysis || null
-           });
+           get().jumpToNode(existingChild);
            return;
       }
 
@@ -391,19 +353,8 @@ const makeRandomMove = (store: GameStore) => {
 
     if (store.board[y][x] === null) {
        store.playMove(x, y);
-       // Check if move was accepted (player changed)
-       // store.currentPlayer inside playMove is "old" -> playMove updates store.
-       // But `store` passed here is the *snapshot* from `get()`.
-       // We need to check if the store state actually changed.
-       // However, `playMove` is synchronous.
-
-       // Actually, we can just check if playMove returns success?
-       // It returns void.
-       // We can check if `store.board[y][x]` is now the player color?
-       // But `store` is old snapshot. We need `useGameStore.getState()`.
 
        const currentStore = useGameStore.getState();
-       // Check if the move we just tried is in history
        const lastMove = currentStore.moveHistory[currentStore.moveHistory.length - 1];
        if (lastMove && lastMove.x === x && lastMove.y === y) {
            moveMade = true;
