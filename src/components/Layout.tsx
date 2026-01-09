@@ -1,12 +1,13 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
-import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaUndo, FaSave, FaFolderOpen } from 'react-icons/fa';
+import { WinRateGraph } from './WinRateGraph';
+import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaUndo, FaSave, FaFolderOpen, FaMicrochip } from 'react-icons/fa';
 import { downloadSgf, parseSgf } from '../utils/sgf';
 import type { GameState } from '../types';
 
 export const Layout: React.FC = () => {
-  const { resetGame, passTurn, capturedBlack, capturedWhite, toggleAi, isAiPlaying, undoMove, loadGame, ...storeRest } = useGameStore();
+  const { resetGame, passTurn, capturedBlack, capturedWhite, toggleAi, isAiPlaying, undoMove, loadGame, toggleAnalysisMode, isAnalysisMode, analysisData, ...storeRest } = useGameStore();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
@@ -67,6 +68,13 @@ export const Layout: React.FC = () => {
         >
           <FaRobot />
         </button>
+        <button
+          className={`p-2 hover:bg-gray-700 rounded ${isAnalysisMode ? 'text-blue-500' : 'text-gray-400'} hover:text-white`}
+          title="Toggle Analysis Mode"
+          onClick={toggleAnalysisMode}
+        >
+          <FaMicrochip />
+        </button>
         <button className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="Save SGF" onClick={handleSave}>
           <FaSave />
         </button>
@@ -115,21 +123,27 @@ export const Layout: React.FC = () => {
           <h2 className="text-lg font-semibold mb-4 flex items-center">
             <FaChartBar className="mr-2" /> Analysis
           </h2>
-          <div className="bg-gray-900 h-40 rounded flex items-center justify-center text-gray-500">
-             Win Rate Graph Placeholder
+          <div className="bg-gray-900 h-40 rounded flex items-center justify-center text-gray-500 overflow-hidden">
+             <WinRateGraph />
           </div>
           <div className="mt-4 space-y-2">
             <div className="flex justify-between text-sm">
                <span>Win Rate (Black):</span>
-               <span className="text-green-400">50.0%</span>
+               <span className="text-green-400">
+                   {analysisData ? `${(analysisData.rootWinRate * 100).toFixed(1)}%` : '-'}
+               </span>
             </div>
             <div className="flex justify-between text-sm">
                <span>Score Lead:</span>
-               <span className="text-blue-400">+0.0</span>
+               <span className="text-blue-400">
+                   {analysisData ? `${analysisData.rootScoreLead > 0 ? '+' : ''}${analysisData.rootScoreLead.toFixed(1)}` : '-'}
+               </span>
             </div>
              <div className="flex justify-between text-sm">
                <span>Visits:</span>
-               <span className="text-yellow-400">0</span>
+               <span className="text-yellow-400">
+                   {analysisData ? Math.max(...analysisData.moves.map(m => m.visits)) : '-'}
+               </span>
             </div>
           </div>
         </div>

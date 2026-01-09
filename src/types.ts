@@ -13,3 +13,18 @@ export interface GameState {
   capturedWhite: number;
   komi: number;
 }
+
+export interface CandidateMove {
+  x: number;
+  y: number;
+  winRate: number; // 0-1
+  scoreLead: number;
+  visits: number;
+  order: number; // 0 for best move
+}
+
+export interface AnalysisResult {
+  rootWinRate: number;
+  rootScoreLead: number;
+  moves: CandidateMove[];
+}

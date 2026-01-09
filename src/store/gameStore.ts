@@ -1,20 +1,25 @@
 import { create } from 'zustand';
-import { BOARD_SIZE, type GameState, type BoardState, type Player } from '../types';
+import { BOARD_SIZE, type GameState, type BoardState, type Player, type AnalysisResult } from '../types';
 import { checkCaptures, getLiberties } from '../utils/gameLogic';
 import { playStoneSound } from '../utils/sound';
 import type { ParsedSgf } from '../utils/sgf';
+import { generateMockAnalysis } from '../utils/mockAnalysis';
 
 interface GameStore extends GameState {
   pastStates: GameState[]; // Store full state for undo/ko
   isAiPlaying: boolean;
   aiColor: Player | null;
+  isAnalysisMode: boolean;
+  analysisData: AnalysisResult | null;
   toggleAi: (color: Player) => void;
+  toggleAnalysisMode: () => void;
   playMove: (x: number, y: number, isLoad?: boolean) => void;
   makeAiMove: () => void;
   undoMove: () => void;
   resetGame: () => void;
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
+  runAnalysis: () => void;
 }
 
 const createEmptyBoard = (): BoardState => {
@@ -31,8 +36,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isAiPlaying: false,
   aiColor: null,
   pastStates: [],
+  isAnalysisMode: false,
+  analysisData: null,
 
   toggleAi: (color) => set({ isAiPlaying: true, aiColor: color }),
+
+  toggleAnalysisMode: () => set((state) => {
+      const newMode = !state.isAnalysisMode;
+      if (newMode) {
+          // Trigger analysis immediately when turning on
+          setTimeout(() => get().runAnalysis(), 0);
+      }
+      return { isAnalysisMode: newMode, analysisData: null };
+  }),
+
+  runAnalysis: () => {
+      const state = get();
+      if (!state.isAnalysisMode) return;
+
+      const analysis = generateMockAnalysis(state.board, state.currentPlayer);
+      set({ analysisData: analysis });
+  },
 
   playMove: (x: number, y: number, isLoad = false) => {
     const state = get();
@@ -104,6 +128,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
           get().makeAiMove();
         }, 500);
       }
+
+      if (newState.isAnalysisMode) {
+          // Clear old analysis immediately
+          set({ analysisData: null });
+          // Run new analysis
+          setTimeout(() => get().runAnalysis(), 500);
+      }
     }
   },
 
@@ -138,6 +169,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isAiPlaying: false,
     aiColor: null,
     pastStates: [],
+    analysisData: null,
   }),
 
   loadGame: (sgf: ParsedSgf) => {
