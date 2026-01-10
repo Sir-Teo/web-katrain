@@ -30,7 +30,7 @@ export const WinRateGraph: React.FC = () => {
             if (node.move && node.parent && node.parent.analysis) {
                  const move = node.move;
                  const candidate = node.parent.analysis.moves.find(m => m.x === move.x && m.y === move.y);
-                 if (candidate && candidate.pointsLost >= (settings.mistakeThreshold ?? 2.0)) {
+                 if (candidate && candidate.pointsLost >= (settings.mistakeThreshold ?? 3.0)) {
                      isMistake = true;
                  }
             }

@@ -149,11 +149,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                  min="0.5"
                                  max="10"
                                  step="0.5"
-                                 value={settings.mistakeThreshold ?? 2.0}
+                                 value={settings.mistakeThreshold ?? 3.0}
                                  onChange={(e) => updateSettings({ mistakeThreshold: parseFloat(e.target.value) })}
                                  className="flex-grow"
                              />
-                             <span className="text-white font-mono w-8 text-right">{(settings.mistakeThreshold ?? 2.0).toFixed(1)}</span>
+                             <span className="text-white font-mono w-8 text-right">{(settings.mistakeThreshold ?? 3.0).toFixed(1)}</span>
                          </div>
                          <p className="text-xs text-gray-500">
                              Minimum points lost to consider a move a mistake for navigation.
