@@ -17,6 +17,8 @@ export const Layout: React.FC = () => {
     isAiPlaying,
     navigateBack,
     navigateForward,
+    navigateStart,
+    navigateEnd,
     loadGame,
     toggleAnalysisMode,
     isAnalysisMode,
@@ -27,6 +29,22 @@ export const Layout: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+        setTimer(t => t + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,7 +65,7 @@ export const Layout: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigateBack, navigateForward]);
+  }, [navigateBack, navigateForward, navigateStart, navigateEnd]);
 
   const handleSave = () => {
       // Reconstruct simple GameState
@@ -140,7 +158,44 @@ export const Layout: React.FC = () => {
 
       {/* Main Content - Board */}
       <div className="flex-grow flex flex-col relative">
-        {/* Top Bar (Optional status) */}
+        {/* Top Bar (Status) */}
+        <div className="h-12 bg-gray-800 border-b border-gray-700 flex items-center px-4 justify-between select-none">
+             <div className="flex items-center space-x-6">
+                 {/* Player Indicator */}
+                 <div className="flex items-center space-x-2">
+                     <div className={`w-4 h-4 rounded-full border ${storeRest.currentPlayer === 'black' ? 'bg-black border-gray-600' : 'bg-white border-gray-400'}`}></div>
+                     <span className="font-semibold text-gray-300">{storeRest.currentPlayer === 'black' ? 'Black' : 'White'} to play</span>
+                 </div>
+                 {/* Move Count */}
+                 <div className="text-gray-400 text-sm">
+                     Move: <span className="text-white font-mono">{storeRest.moveHistory.length}</span>
+                 </div>
+                 {/* Captures */}
+                 <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center space-x-1" title="Prisoners taken by Black">
+                          <div className="w-3 h-3 rounded-full bg-white border border-gray-500"></div>
+                          <span className="text-gray-400">Captured:</span>
+                          <span className="text-white font-mono">{capturedWhite}</span>
+                      </div>
+                      <div className="flex items-center space-x-1" title="Prisoners taken by White">
+                          <div className="w-3 h-3 rounded-full bg-black border border-gray-600"></div>
+                          <span className="text-gray-400">Captured:</span>
+                          <span className="text-white font-mono">{capturedBlack}</span>
+                      </div>
+                 </div>
+             </div>
+
+             <div className="flex items-center space-x-6">
+                 {/* Komi */}
+                 <div className="text-gray-400 text-sm">
+                     Komi: <span className="text-white font-mono">{storeRest.komi}</span>
+                 </div>
+                 {/* Timer (Visual) */}
+                 <div className="font-mono text-xl text-gray-300 bg-gray-900 px-3 py-1 rounded border border-gray-700">
+                     {formatTime(timer)}
+                 </div>
+             </div>
+        </div>
 
         <div className="flex-grow flex items-center justify-center bg-gray-900 overflow-auto p-4">
            <GoBoard
@@ -151,13 +206,9 @@ export const Layout: React.FC = () => {
 
         {/* Bottom Control Bar */}
         <div className="h-16 bg-gray-800 border-t border-gray-700 flex items-center px-6 justify-between">
-           <div className="flex items-center space-x-4">
-              <div className="text-sm">
-                 <span className="text-gray-400">Black Captures:</span> <span className="text-white font-mono">{capturedBlack}</span>
-              </div>
-              <div className="text-sm">
-                 <span className="text-gray-400">White Captures:</span> <span className="text-white font-mono">{capturedWhite}</span>
-              </div>
+           {/* Left side empty or status text */}
+           <div className="text-sm text-gray-500">
+               {isAiPlaying ? "AI is active" : "Manual Mode"}
            </div>
 
            <div className="flex items-center space-x-2">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 import { FaTimes } from 'react-icons/fa';
+import type { GameSettings } from '../types';
 
 interface SettingsModalProps {
     onClose: () => void;
@@ -57,7 +58,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         <label className="text-gray-300 block">Board Theme</label>
                         <select
                             value={settings.boardTheme}
-                            onChange={(e) => updateSettings({ boardTheme: e.target.value as any })}
+                            onChange={(e) => updateSettings({ boardTheme: e.target.value as GameSettings['boardTheme'] })}
                             className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none"
                         >
                             <option value="bamboo">Bamboo (Classic)</option>
