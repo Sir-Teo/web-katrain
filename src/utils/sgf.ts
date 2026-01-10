@@ -1,5 +1,6 @@
 import type { GameNode, GameState, BoardState, Player } from "../types";
 import { BOARD_SIZE } from "../types";
+import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './katrainSgfAnalysis';
 
 // Helper to convert SGF coord (e.g. "pd") to {x,y}
 const sgfCoordToXy = (coord: string): { x: number, y: number } => {
@@ -147,6 +148,7 @@ function serializeMoveNode(node: GameNode): string {
     const props = cloneProps(node.properties);
     delete props.B;
     delete props.W;
+    if (node.analysis) props.KT = encodeKaTrainKtFromAnalysis({ analysis: node.analysis });
 
     const key = move.player === 'black' ? 'B' : 'W';
     const coord = move.x < 0 || move.y < 0 ? '' : coordinateToSgf(move.x, move.y);
@@ -182,6 +184,7 @@ export const generateSgfFromTree = (rootNode: GameNode): string => {
     props.CA = ['UTF-8'];
     props.AP = props.AP?.length ? props.AP : ['WebKatrain:0.1'];
     props.ST = props.ST?.length ? props.ST : ['2'];
+    props.KTV = props.KTV?.length ? props.KTV : [KATRAIN_ANALYSIS_FORMAT_VERSION];
     props.SZ = [String(BOARD_SIZE)];
     props.KM = [rootNode.gameState.komi.toFixed(1)];
     if (!props.DT?.length) props.DT = [date];
@@ -189,6 +192,8 @@ export const generateSgfFromTree = (rootNode: GameNode): string => {
     const placements = rootPlacementsFromBoard(rootNode.gameState.board);
     if (placements.AB) props.AB = placements.AB;
     if (placements.AW) props.AW = placements.AW;
+
+    if (rootNode.analysis) props.KT = encodeKaTrainKtFromAnalysis({ analysis: rootNode.analysis });
 
     let sgf = `(;${serializeProps(props)}`;
 

@@ -4,6 +4,7 @@ import { checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/game
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import type { ParsedSgf } from '../utils/sgf';
 import { getKataGoEngineClient } from '../engine/katago/client';
+import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katrainSgfAnalysis';
 
 interface GameStore extends GameState {
   // Tree State
@@ -873,10 +874,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       delete rootPropsCopy.B;
       delete rootPropsCopy.W;
       newRoot.properties = rootPropsCopy;
+      const rootMove = extractMove(sgf.tree.props);
+      if (!rootMove && sgf.tree.props['KT'] && !newRoot.analysis) {
+        const decoded = decodeKaTrainKt({ kt: sgf.tree.props['KT'] });
+        if (decoded) newRoot.analysis = kaTrainAnalysisToAnalysisResult({ analysis: decoded, currentPlayer: rootState.currentPlayer });
+      }
 
       const buildFromSgfNode = (parent: GameNode, node: NonNullable<ParsedSgf['tree']>) => {
         const move = extractMove(node.props);
         if (!move) {
+          if (node.props['KT'] && !parent.analysis) {
+            const decoded = decodeKaTrainKt({ kt: node.props['KT'] });
+            if (decoded) parent.analysis = kaTrainAnalysisToAnalysisResult({ analysis: decoded, currentPlayer: parent.gameState.currentPlayer });
+          }
           mergeProps(parent.properties ?? (parent.properties = {}), node.props);
           for (const child of node.children) buildFromSgfNode(parent, child);
           return;
@@ -885,16 +895,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const childNode = applyMoveToNode(parent, move);
         if (!childNode) return;
         childNode.properties = cloneProps(node.props);
+        if (node.props['KT'] && !childNode.analysis) {
+          const decoded = decodeKaTrainKt({ kt: node.props['KT'] });
+          if (decoded) childNode.analysis = kaTrainAnalysisToAnalysisResult({ analysis: decoded, currentPlayer: childNode.gameState.currentPlayer });
+        }
         parent.children.push(childNode);
 
         for (const child of node.children) buildFromSgfNode(childNode, child);
       };
 
-      const rootMove = extractMove(sgf.tree.props);
       if (rootMove) {
         const first = applyMoveToNode(newRoot, rootMove);
         if (first) {
           first.properties = cloneProps(sgf.tree.props);
+          if (sgf.tree.props['KT'] && !first.analysis) {
+            const decoded = decodeKaTrainKt({ kt: sgf.tree.props['KT'] });
+            if (decoded) first.analysis = kaTrainAnalysisToAnalysisResult({ analysis: decoded, currentPlayer: first.gameState.currentPlayer });
+          }
           newRoot.children.push(first);
           for (const child of sgf.tree.children) buildFromSgfNode(first, child);
         }
@@ -924,7 +941,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       capturedBlack: current.gameState.capturedBlack,
       capturedWhite: current.gameState.capturedWhite,
       komi: rootState.komi,
-      analysisData: null,
+      analysisData: current.analysis || null,
       treeVersion: state.treeVersion + 1,
     }));
   },
