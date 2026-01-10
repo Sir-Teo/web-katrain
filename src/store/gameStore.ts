@@ -14,12 +14,16 @@ interface GameStore extends GameState {
   isAiPlaying: boolean;
   aiColor: Player | null;
   isAnalysisMode: boolean;
+  isTeachMode: boolean;
+  notification: { message: string, type: 'info' | 'error' | 'success' } | null;
   analysisData: AnalysisResult | null;
   settings: GameSettings;
 
   // Actions
   toggleAi: (color: Player) => void;
   toggleAnalysisMode: () => void;
+  toggleTeachMode: () => void;
+  clearNotification: () => void;
   playMove: (x: number, y: number, isLoad?: boolean) => void;
   makeAiMove: () => void;
   undoMove: () => void; // Go back
@@ -92,6 +96,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isAiPlaying: false,
   aiColor: null,
   isAnalysisMode: false,
+  isTeachMode: false,
+  notification: null,
   analysisData: null,
   settings: defaultSettings,
 
@@ -104,6 +110,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       return { isAnalysisMode: newMode, analysisData: state.currentNode.analysis || null };
   }),
+
+  toggleTeachMode: () => set((state) => {
+      const newMode = !state.isTeachMode;
+      if (newMode) {
+           // Teach mode implies analysis
+           setTimeout(() => get().runAnalysis(), 0);
+      }
+      return {
+          isTeachMode: newMode,
+          // If turning on Teach Mode, ensure Analysis Mode is also on (usually)
+          isAnalysisMode: newMode ? true : state.isAnalysisMode
+      };
+  }),
+
+  clearNotification: () => set({ notification: null }),
 
   runAnalysis: () => {
       const state = get();
@@ -147,6 +168,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // New Move Logic
     // Validate
     if (state.board[y][x] !== null) return;
+
+    // Teach Mode Check
+    if (state.isTeachMode && !isLoad) {
+        let analysis = state.currentNode.analysis;
+
+        // If no analysis exists, try to generate it synchronously (mock)
+        // In a real engine, we might have to wait or just skip.
+        if (!analysis) {
+             const parentAnalysis = state.currentNode.parent?.analysis;
+             analysis = generateMockAnalysis(state.board, state.currentPlayer, parentAnalysis);
+             state.currentNode.analysis = analysis; // Cache it
+        }
+
+        // Check against candidates
+        if (analysis) {
+            const candidate = analysis.moves.find(m => m.x === x && m.y === y);
+            // Default to "bad" if not found in top moves (mock returns top ~8)
+            const pointsLost = candidate ? candidate.pointsLost : 5.0;
+
+            if (pointsLost > 2.0) {
+                 // Reject move
+                 set({
+                     notification: {
+                         message: `Bad move! You lost ${pointsLost.toFixed(1)} points. Try again.`,
+                         type: 'error'
+                     }
+                 });
+                 // Clear notification after 3s
+                 setTimeout(() => set({ notification: null }), 3000);
+                 return;
+            } else {
+                 // Good move, maybe give positive feedback or silence
+                 set({ notification: null });
+            }
+        }
+    }
 
     const tentativeBoard = state.board.map((row) => [...row]);
     tentativeBoard[y][x] = state.currentPlayer;
@@ -249,7 +306,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           moveHistory: nextNode.gameState.moveHistory,
           capturedBlack: nextNode.gameState.capturedBlack,
           capturedWhite: nextNode.gameState.capturedWhite,
-          analysisData: node.analysis || null,
+          analysisData: nextNode.analysis || null,
       };
   }),
 

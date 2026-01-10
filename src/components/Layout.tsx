@@ -3,7 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { WinRateGraph } from './WinRateGraph';
 import { SettingsModal } from './SettingsModal';
-import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaArrowLeft, FaArrowRight, FaSave, FaFolderOpen, FaMicrochip } from 'react-icons/fa';
+import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaArrowLeft, FaArrowRight, FaSave, FaFolderOpen, FaMicrochip, FaGraduationCap, FaTimes } from 'react-icons/fa';
 import { downloadSgf, parseSgf } from '../utils/sgf';
 import type { GameState, CandidateMove } from '../types';
 
@@ -22,6 +22,10 @@ export const Layout: React.FC = () => {
     loadGame,
     toggleAnalysisMode,
     isAnalysisMode,
+    toggleTeachMode,
+    isTeachMode,
+    notification,
+    clearNotification,
     analysisData,
     playMove,
     ...storeRest
@@ -140,6 +144,13 @@ export const Layout: React.FC = () => {
         >
           <FaMicrochip />
         </button>
+        <button
+          className={`p-2 hover:bg-gray-700 rounded ${isTeachMode ? 'text-purple-500' : 'text-gray-400'} hover:text-white`}
+          title="Teach Mode"
+          onClick={toggleTeachMode}
+        >
+          <FaGraduationCap />
+        </button>
         <button className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="Save SGF" onClick={handleSave}>
           <FaSave />
         </button>
@@ -197,7 +208,13 @@ export const Layout: React.FC = () => {
              </div>
         </div>
 
-        <div className="flex-grow flex items-center justify-center bg-gray-900 overflow-auto p-4">
+        <div className="flex-grow flex items-center justify-center bg-gray-900 overflow-auto p-4 relative">
+           {notification && (
+               <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+                    <span>{notification.message}</span>
+                    <button onClick={clearNotification} className="hover:text-gray-200"><FaTimes /></button>
+               </div>
+           )}
            <GoBoard
                hoveredMove={hoveredMove}
                onHoverMove={setHoveredMove}
@@ -255,6 +272,7 @@ export const Layout: React.FC = () => {
                 {/* Top Moves List */}
                 <div className="flex-grow flex flex-col overflow-hidden bg-gray-850">
                    <div className="px-4 py-2 bg-gray-900 border-b border-gray-700 text-xs font-semibold text-gray-400 flex sticky top-0 z-10">
+                       <span className="w-6 text-center">#</span>
                        <span className="w-12">Move</span>
                        <span className="w-20 text-center">Win%</span>
                        <span className="w-14 text-right">Score</span>
@@ -271,6 +289,9 @@ export const Layout: React.FC = () => {
                                    onMouseLeave={() => setHoveredMove(null)}
                                    onClick={() => handleAnalysisClick(move)}
                                >
+                                   <span className="w-6 text-center font-mono text-gray-500 text-xs mr-2">
+                                       {String.fromCharCode(65 + move.order)}
+                                   </span>
                                    <span className={`w-12 font-bold font-mono ${move.order===0 ? 'text-blue-400' : (move.pointsLost < 0.5 ? 'text-green-400' : (move.pointsLost < 2 ? 'text-yellow-400' : 'text-red-400'))}`}>
                                        {String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x))}{19 - move.y}
                                    </span>
