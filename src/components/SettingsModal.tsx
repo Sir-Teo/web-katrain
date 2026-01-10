@@ -203,8 +203,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 <option value="scoreloss">ScoreLoss (weaker)</option>
                                 <option value="policy">Policy</option>
                                 <option value="weighted">Policy Weighted</option>
+                                <option value="rank">Rank (KaTrain)</option>
                             </select>
                         </div>
+
+                        {settings.aiStrategy === 'rank' && (
+                            <div className="mt-3 space-y-1">
+                                <label className="text-gray-300 block text-sm">Kyu Rank</label>
+                                <input
+                                    type="number"
+                                    step={0.5}
+                                    value={settings.aiRankKyu}
+                                    onChange={(e) => updateSettings({ aiRankKyu: parseFloat(e.target.value || '0') })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    KaTrain’s calibrated rank-based policy picking (e.g. 4 = 4k, 0 = 1d, -3 = 4d).
+                                </p>
+                            </div>
+                        )}
 
                         {settings.aiStrategy === 'scoreloss' && (
                             <div className="mt-3 space-y-1">

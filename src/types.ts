@@ -82,7 +82,8 @@ export interface GameSettings {
   katagoOwnershipMode: 'root' | 'tree';
   teachNumUndoPrompts: number[]; // KaTrain trainer/num_undo_prompts
 
-  aiStrategy: 'default' | 'scoreloss' | 'policy' | 'weighted';
+  aiStrategy: 'default' | 'scoreloss' | 'policy' | 'weighted' | 'rank';
+  aiRankKyu: number; // KaTrain ai:p:rank/kyu_rank
   aiScoreLossStrength: number; // KaTrain ai:scoreloss/strength
   aiPolicyOpeningMoves: number; // KaTrain ai:policy/opening_moves
   aiWeightedPickOverride: number; // KaTrain ai:p:weighted/pick_override

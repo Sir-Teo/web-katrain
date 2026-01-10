@@ -126,7 +126,8 @@ const defaultSettings: GameSettings = {
   katagoOwnershipMode: 'root',
   teachNumUndoPrompts: [1, 1, 1, 0.5, 0, 0],
 
-  aiStrategy: 'default',
+  aiStrategy: 'rank',
+  aiRankKyu: 4.0,
   aiScoreLossStrength: 0.2,
   aiPolicyOpeningMoves: 22,
   aiWeightedPickOverride: 1.0,
@@ -565,6 +566,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
             return items.length > 0 ? items[items.length - 1]!.value : null;
           };
 
+          const weightedSampleWithoutReplacement = <T,>(
+            items: T[],
+            n: number,
+            weightFn: (item: T) => number
+          ): T[] => {
+            const scored = items.map((item) => {
+              const w = Math.max(1e-18, weightFn(item));
+              const u = Math.random();
+              const key = Math.log(Math.max(1e-18, u)) / w;
+              return { key, item };
+            });
+            scored.sort((a, b) => b.key - a.key);
+            return scored.slice(0, Math.min(Math.max(0, n), scored.length)).map((s) => s.item);
+          };
+
           const chooseByStrategy = (): { x: number; y: number; thoughts: string } | null => {
             const strategy = settings.aiStrategy;
             const candidates = analysisWithTerritory.moves ?? [];
@@ -630,6 +646,60 @@ export const useGameStore = create<GameStore>((set, get) => ({
               }
               return null;
             };
+
+            if (strategy === 'rank') {
+              const kyuRank = settings.aiRankKyu;
+              const boardSquares = BOARD_SIZE * BOARD_SIZE;
+              const legalPolicyMoves = policyMoves.filter((m) => !m.isPass && m.prob > 0);
+              const normLegMoves = legalPolicyMoves.length / boardSquares;
+
+              const origCalibAveModRank =
+                0.063015 + (0.7624 * boardSquares) / Math.pow(10, -0.05737 * kyuRank + 1.9482);
+
+              const exponentTerm =
+                3.002 * normLegMoves * normLegMoves - normLegMoves - 0.034889 * kyuRank - 0.5097;
+
+              const modifiedCalibAveModRank =
+                (0.3931 +
+                  0.6559 * normLegMoves * Math.exp(-1 * exponentTerm * exponentTerm) -
+                  0.01093 * kyuRank) *
+                origCalibAveModRank;
+
+              const denominator = 1.31165 * (modifiedCalibAveModRank + 1) - 0.082653;
+              const nMoves = Math.max(1, Math.round((boardSquares * normLegMoves) / denominator));
+
+              const ratio = (boardSquares - legalPolicyMoves.length) / boardSquares;
+              const override = 0.8 * (1 - 0.5 * ratio);
+              const overridetwo = 0.85 + Math.max(0, 0.02 * (kyuRank - 8));
+
+              const forced = shouldPlayTopMove(override, overridetwo);
+              if (forced) return { x: forced.move.x, y: forced.move.y, thoughts: forced.thoughts };
+
+              const sampled = weightedSampleWithoutReplacement(legalPolicyMoves, nMoves, () => 1);
+              sampled.sort((a, b) => b.prob - a.prob);
+              const picked = sampled[0] ?? null;
+
+              if (!picked) {
+                const top = policyMoves[0]!;
+                return { x: top.x, y: top.y, thoughts: 'Rank: no legal policy moves; playing top policy move.' };
+              }
+
+              const passProb = policy?.[BOARD_SIZE * BOARD_SIZE] ?? -1;
+              if (passProb > picked.prob) {
+                const top = policyMoves[0]!;
+                return {
+                  x: top.x,
+                  y: top.y,
+                  thoughts: `Rank: pass prob ${(passProb * 100).toFixed(1)}% > picked ${(picked.prob * 100).toFixed(1)}%; playing top policy move.`,
+                };
+              }
+
+              return {
+                x: picked.x,
+                y: picked.y,
+                thoughts: `Rank picked from ${Math.min(nMoves, legalPolicyMoves.length)} sampled moves (kyu ${kyuRank}).`,
+              };
+            }
 
             if (strategy === 'policy') {
               const openingMoves = Math.max(0, settings.aiPolicyOpeningMoves);
