@@ -49,11 +49,13 @@ export interface KataGoAnalyzeResponse {
       x: number;
       y: number;
       winRate: number;
+      winRateLost: number;
       scoreLead: number;
       scoreSelfplay: number;
       scoreStdev: number;
       visits: number;
       pointsLost: number;
+      relativePointsLost: number;
       order: number;
       prior: number;
       pv: string[];

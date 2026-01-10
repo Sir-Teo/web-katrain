@@ -591,6 +591,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
                <div>Score Stdev: {hoveredMove.scoreStdev.toFixed(1)}</div>
              )}
              <div>Points Lost: {hoveredMove.pointsLost.toFixed(1)}</div>
+             {typeof hoveredMove.relativePointsLost === 'number' && (
+               <div>Rel. Points Lost: {hoveredMove.relativePointsLost.toFixed(1)}</div>
+             )}
+             {typeof hoveredMove.winRateLost === 'number' && (
+               <div>Winrate Lost: {(hoveredMove.winRateLost * 100).toFixed(1)}%</div>
+             )}
              {typeof hoveredMove.prior === 'number' && (
                <div>Prior: {(hoveredMove.prior * 100).toFixed(1)}%</div>
              )}

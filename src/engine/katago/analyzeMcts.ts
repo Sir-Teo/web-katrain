@@ -976,11 +976,13 @@ export class MctsSearch {
       x: number;
       y: number;
       winRate: number;
+      winRateLost: number;
       scoreLead: number;
       scoreSelfplay: number;
       scoreStdev: number;
       visits: number;
       pointsLost: number;
+      relativePointsLost: number;
       order: number;
       prior: number;
       pv: string[];
@@ -1034,15 +1036,13 @@ export class MctsSearch {
 
     const topMoves = moveRows.slice(0, Math.min(topK, moveRows.length));
     const best = topMoves[0] ?? null;
-    const bestScore = best ? best.scoreLead : rootScoreLead;
+    const bestScoreLead = best ? best.scoreLead : rootScoreLead;
+    const sign = this.currentPlayer === 'black' ? 1 : -1;
 
     const moves = topMoves.map((m) => {
-      const pointsLost =
-        !best
-          ? 0
-          : this.currentPlayer === 'black'
-            ? Math.max(0, bestScore - m.scoreLead)
-            : Math.max(0, m.scoreLead - bestScore);
+      const pointsLost = sign * (rootScoreLead - m.scoreLead);
+      const relativePointsLost = sign * (bestScoreLead - m.scoreLead);
+      const winRateLost = sign * (rootWinRate - m.winRate);
 
       const x = m.move === PASS_MOVE ? -1 : m.move % BOARD_SIZE;
       const y = m.move === PASS_MOVE ? -1 : (m.move / BOARD_SIZE) | 0;
@@ -1051,11 +1051,13 @@ export class MctsSearch {
         x,
         y,
         winRate: m.winRate,
+        winRateLost,
         scoreLead: m.scoreLead,
         scoreSelfplay: m.scoreSelfplay,
         scoreStdev: m.scoreStdev,
         visits: m.visits,
         pointsLost,
+        relativePointsLost,
         order: 0,
         prior: m.prior,
         pv: m.pv,
@@ -1108,11 +1110,13 @@ export async function analyzeMcts(args: {
     x: number;
     y: number;
     winRate: number;
+    winRateLost: number;
     scoreLead: number;
     scoreSelfplay: number;
     scoreStdev: number;
     visits: number;
     pointsLost: number;
+    relativePointsLost: number;
     order: number;
     prior: number;
     pv: string[];
@@ -1422,15 +1426,13 @@ export async function analyzeMcts(args: {
 
   const topMoves = moveRows.slice(0, Math.min(topK, moveRows.length));
   const best = topMoves[0] ?? null;
-  const bestScore = best ? best.scoreLead : rootScoreLead;
+  const bestScoreLead = best ? best.scoreLead : rootScoreLead;
+  const sign = args.currentPlayer === 'black' ? 1 : -1;
 
   const moves = topMoves.map((m) => {
-    const pointsLost =
-      !best
-        ? 0
-        : args.currentPlayer === 'black'
-          ? Math.max(0, bestScore - m.scoreLead)
-          : Math.max(0, m.scoreLead - bestScore);
+    const pointsLost = sign * (rootScoreLead - m.scoreLead);
+    const relativePointsLost = sign * (bestScoreLead - m.scoreLead);
+    const winRateLost = sign * (rootWinRate - m.winRate);
 
     const x = m.move === PASS_MOVE ? -1 : m.move % BOARD_SIZE;
     const y = m.move === PASS_MOVE ? -1 : (m.move / BOARD_SIZE) | 0;
@@ -1439,11 +1441,13 @@ export async function analyzeMcts(args: {
       x,
       y,
       winRate: m.winRate,
+      winRateLost,
       scoreLead: m.scoreLead,
       scoreSelfplay: m.scoreSelfplay,
       scoreStdev: m.scoreStdev,
       visits: m.visits,
       pointsLost,
+      relativePointsLost,
       order: 0,
       prior: m.prior,
       pv: m.pv,

@@ -24,11 +24,13 @@ export interface CandidateMove {
   x: number;
   y: number;
   winRate: number; // 0-1
+  winRateLost?: number; // positive = worse for side to play
   scoreLead: number;
   scoreSelfplay?: number;
   scoreStdev?: number;
   visits: number;
-  pointsLost: number; // relative to best move
+  pointsLost: number; // relative to root eval (KaTrain-like)
+  relativePointsLost?: number; // relative to top move (KaTrain-like)
   order: number; // 0 for best move
   prior?: number; // policy prior probability (0..1)
   pv?: string[]; // principal variation, GTP coords (e.g. ["D4","Q16",...])

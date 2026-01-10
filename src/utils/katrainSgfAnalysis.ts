@@ -247,24 +247,6 @@ function ownershipToGrid(ownership: ArrayLike<number> | null, boardSize: number)
   return grid;
 }
 
-function bestScoreLeadForMoves(moves: CandidateMove[], rootScoreLead: number): number {
-  const top = moves.find((m) => m.order === 0);
-  if (top) return top.scoreLead;
-  let best = rootScoreLead;
-  for (const m of moves) {
-    if (m.visits <= 0) continue;
-    if (m.order === 0) return m.scoreLead;
-    if (m.scoreLead > best) best = m.scoreLead;
-  }
-  return best;
-}
-
-function computePointsLost(args: { currentPlayer: Player; bestScoreLead: number; scoreLead: number }): number {
-  return args.currentPlayer === 'black'
-    ? args.bestScoreLead - args.scoreLead
-    : args.scoreLead - args.bestScoreLead;
-}
-
 export function kaTrainAnalysisToAnalysisResult(args: {
   analysis: KaTrainSgfAnalysis;
   currentPlayer: Player;
@@ -302,22 +284,28 @@ export function kaTrainAnalysisToAnalysisResult(args: {
         order: typeof m.order === 'number' ? m.order : 999,
         visits: typeof m.visits === 'number' ? m.visits : 0,
         winRate: typeof m.winrate === 'number' ? m.winrate : rootWinRate,
+        winRateLost: 0,
         scoreLead: typeof m.scoreLead === 'number' ? m.scoreLead : rootScoreLead,
         scoreSelfplay: typeof m.scoreSelfplay === 'number' ? m.scoreSelfplay : rootScoreSelfplay,
         scoreStdev: typeof m.scoreStdev === 'number' ? m.scoreStdev : rootScoreStdev,
         pointsLost: 0,
+        relativePointsLost: 0,
         prior: typeof m.prior === 'number' ? m.prior : undefined,
         pv: Array.isArray(m.pv) ? m.pv : undefined,
       };
     })
     .filter((m) => m.x === -1 || (m.x >= 0 && m.x < boardSize && m.y >= 0 && m.y < boardSize));
 
-  moves.sort((x, y) => x.order - y.order || y.visits - x.visits);
-
-  const bestScoreLead = bestScoreLeadForMoves(moves, rootScoreLead);
+  const sign = args.currentPlayer === 'black' ? 1 : -1;
+  const topMove = moves.find((m) => m.order === 0) ?? null;
+  const topScoreLead = topMove ? topMove.scoreLead : rootScoreLead;
   for (const m of moves) {
-    m.pointsLost = computePointsLost({ currentPlayer: args.currentPlayer, bestScoreLead, scoreLead: m.scoreLead });
+    m.pointsLost = sign * (rootScoreLead - m.scoreLead);
+    m.relativePointsLost = sign * (topScoreLead - m.scoreLead);
+    m.winRateLost = sign * (rootWinRate - m.winRate);
   }
+
+  moves.sort((a, b) => a.order - b.order || (a.pointsLost ?? 0) - (b.pointsLost ?? 0));
 
   return {
     rootWinRate,
