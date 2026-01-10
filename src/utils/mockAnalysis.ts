@@ -21,7 +21,8 @@ export const generateMockAnalysis = (
         return {
             rootWinRate: 0.5,
             rootScoreLead: 0,
-            moves: []
+            moves: [],
+            territory: calculateTerritory(board)
         };
     }
 

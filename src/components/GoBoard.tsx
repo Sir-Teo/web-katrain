@@ -336,11 +336,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
                   onMouseEnter={() => onHoverMove(move)}
                   onMouseLeave={() => onHoverMove(null)}
               >
-                  <span className="text-[9px] pointer-events-none">
-                    {isBest
-                       ? (move.scoreLead > 0 ? `+${move.scoreLead.toFixed(1)}` : move.scoreLead.toFixed(1))
-                       : `-${move.pointsLost.toFixed(1)}`
-                    }
+                  <span className="text-[12px] font-bold font-mono pointer-events-none">
+                    {String.fromCharCode(65 + move.order)}
                   </span>
               </div>
           );
