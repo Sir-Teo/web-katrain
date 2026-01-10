@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { parseSgf } from '../src/utils/sgf';
-import { BOARD_SIZE } from '../src/types';
 
 describe('SGF Parser', () => {
   it('parses a simple SGF with moves', () => {
@@ -35,5 +34,22 @@ describe('SGF Parser', () => {
       const result = parseSgf(sgf);
       expect(result.moves).toHaveLength(1);
       expect(result.komi).toBe(6.5);
+  });
+
+  it('parses variations into a tree', () => {
+      const sgf = '(;GM[1]SZ[19];B[pd](;W[dd])(;W[dp]))';
+      const result = parseSgf(sgf);
+
+      expect(result.moves).toHaveLength(2);
+      expect(result.moves[0]).toEqual({ x: 15, y: 3, player: 'black' });
+      expect(result.moves[1]).toEqual({ x: 3, y: 3, player: 'white' });
+
+      expect(result.tree).toBeTruthy();
+      const root = result.tree!;
+      const bNode = root.children[0]!;
+      expect(bNode.props['B']?.[0]).toBe('pd');
+      expect(bNode.children).toHaveLength(2);
+      expect(bNode.children[0]!.props['W']?.[0]).toBe('dd');
+      expect(bNode.children[1]!.props['W']?.[0]).toBe('dp');
   });
 });

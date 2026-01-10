@@ -4,10 +4,12 @@ const getAudioContext = () => {
     if (typeof window === 'undefined') return null; // Handle SSR/Test environment
     if (audioCtx) return audioCtx;
 
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return null;
+    const AudioContextCtor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return null;
 
-    audioCtx = new AudioContext();
+    audioCtx = new AudioContextCtor();
     return audioCtx;
 };
 

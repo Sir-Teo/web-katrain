@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# KataGo models (fetched via script)
+public/models/*.bin.gz
+public/models/*.txt.gz
+public/tfjs/*.wasm
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -3,14 +3,16 @@ import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { WinRateGraph } from './WinRateGraph';
 import { SettingsModal } from './SettingsModal';
+import { MoveTree } from './MoveTree';
 import { FaPlay, FaCog, FaChartBar, FaEllipsisH, FaRobot, FaArrowLeft, FaArrowRight, FaSave, FaFolderOpen, FaMicrochip, FaGraduationCap, FaTimes } from 'react-icons/fa';
-import { downloadSgf, parseSgf } from '../utils/sgf';
-import type { GameState, CandidateMove } from '../types';
+import { downloadSgfFromTree, generateSgfFromTree, parseSgf } from '../utils/sgf';
+import type { CandidateMove } from '../types';
 
 export const Layout: React.FC = () => {
   const {
     resetGame,
     passTurn,
+    makeAiMove,
     capturedBlack,
     capturedWhite,
     toggleAi,
@@ -19,8 +21,13 @@ export const Layout: React.FC = () => {
     navigateForward,
     navigateStart,
     navigateEnd,
-    navigateNextMistake,
-    navigatePrevMistake,
+    switchBranch,
+    undoToBranchPoint,
+    undoToMainBranch,
+    makeCurrentNodeMainBranch,
+    findMistake,
+    deleteCurrentNode,
+    pruneCurrentBranch,
     loadGame,
     toggleAnalysisMode,
     isAnalysisMode,
@@ -30,6 +37,9 @@ export const Layout: React.FC = () => {
     clearNotification,
     analysisData,
     playMove,
+    settings,
+    updateSettings,
+    rootNode,
     ...storeRest
   } = useGameStore();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -54,36 +64,262 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'ArrowLeft') {
+        const active = document.activeElement as HTMLElement | null;
+        const isTyping =
+            !!active &&
+            (active.tagName === 'INPUT' ||
+                active.tagName === 'TEXTAREA' ||
+                active.tagName === 'SELECT' ||
+                active.isContentEditable);
+        if (isTyping) return;
+
+        const ctrl = e.ctrlKey || e.metaKey;
+        const shift = e.shiftKey;
+        const key = e.key;
+        const keyLower = key.toLowerCase();
+
+        const toast = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+            useGameStore.setState({ notification: { message, type } });
+            window.setTimeout(() => useGameStore.setState({ notification: null }), 2500);
+        };
+
+        const jumpBack = (n: number) => {
+            for (let i = 0; i < n; i++) navigateBack();
+        };
+        const jumpForward = (n: number) => {
+            for (let i = 0; i < n; i++) navigateForward();
+        };
+
+        const copySgfToClipboard = async () => {
+            const sgf = generateSgfFromTree(rootNode);
+            try {
+                await navigator.clipboard.writeText(sgf);
+                toast('Copied SGF to clipboard.', 'success');
+            } catch {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = sgf;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    toast('Copied SGF to clipboard.', 'success');
+                } catch {
+                    toast('Copy failed (clipboard unavailable).', 'error');
+                }
+            }
+        };
+
+        const pasteSgfFromClipboard = async () => {
+            let text: string | null = null;
+            try {
+                text = await navigator.clipboard.readText();
+            } catch {
+                // Fallback prompt for non-secure contexts.
+                text = window.prompt('Paste SGF here:') ?? null;
+            }
+            if (!text) return;
+            try {
+                const parsed = parseSgf(text);
+                loadGame(parsed);
+                toast('Loaded SGF from clipboard.', 'success');
+            } catch {
+                toast('Failed to parse SGF from clipboard.', 'error');
+            }
+        };
+
+        // Global shortcuts (KaTrain-like)
+        if (ctrl && keyLower === 's') {
+            e.preventDefault();
+            downloadSgfFromTree(rootNode);
+            return;
+        }
+        if (ctrl && keyLower === 'l') {
+            e.preventDefault();
+            fileInputRef.current?.click();
+            return;
+        }
+        if (ctrl && keyLower === 'c') {
+            e.preventDefault();
+            void copySgfToClipboard();
+            return;
+        }
+        if (ctrl && keyLower === 'v') {
+            e.preventDefault();
+            void pasteSgfFromClipboard();
+            return;
+        }
+        if (ctrl && keyLower === 'n') {
+            e.preventDefault();
+            resetGame();
+            return;
+        }
+
+        if ((key === 'Backspace' || key === 'Delete') && ctrl) {
+            e.preventDefault();
+            deleteCurrentNode();
+            return;
+        }
+
+        if (key === 'Delete' && shift && ctrl) {
+            e.preventDefault();
+            pruneCurrentBranch();
+            return;
+        }
+
+        if ((key === 'Backspace' || key === 'Delete') && !ctrl) {
+            e.preventDefault();
             navigateBack();
-        } else if (e.key === 'ArrowRight') {
-            navigateForward();
-        } else if (e.key === 'ArrowUp' || e.key === 'Home') {
+            return;
+        }
+
+        if (key === 'Tab') {
+            e.preventDefault();
+            toggleAnalysisMode();
+            return;
+        }
+
+        if (key === 'Home') {
+            e.preventDefault();
             navigateStart();
-        } else if (e.key === 'ArrowDown' || e.key === 'End') {
+            return;
+        }
+        if (key === 'End') {
+            e.preventDefault();
             navigateEnd();
-        } else if (e.key === 'Backspace' || e.key === 'Delete') {
-             // If input focused, don't trigger
-             if (document.activeElement?.tagName === 'INPUT') return;
-             navigateBack();
+            return;
+        }
+        if (key === 'PageUp') {
+            e.preventDefault();
+            makeCurrentNodeMainBranch();
+            return;
+        }
+
+        if (key === 'ArrowUp') {
+            e.preventDefault();
+            switchBranch(-1);
+            return;
+        }
+        if (key === 'ArrowDown') {
+            e.preventDefault();
+            switchBranch(1);
+            return;
+        }
+
+        if (key === 'ArrowLeft' || keyLower === 'z') {
+            e.preventDefault();
+            if (ctrl) navigateStart();
+            else if (shift) jumpBack(10);
+            else navigateBack();
+            return;
+        }
+        if (key === 'ArrowRight' || keyLower === 'x') {
+            e.preventDefault();
+            if (ctrl) navigateEnd();
+            else if (shift) jumpForward(10);
+            else navigateForward();
+            return;
+        }
+
+        if (key === 'Enter') {
+            e.preventDefault();
+            makeAiMove();
+            return;
+        }
+        if (keyLower === 'p') {
+            e.preventDefault();
+            passTurn();
+            return;
+        }
+        if (keyLower === 'k') {
+            e.preventDefault();
+            updateSettings({ showCoordinates: !settings.showCoordinates });
+            return;
+        }
+        if (keyLower === 'm') {
+            e.preventDefault();
+            updateSettings({ showMoveNumbers: !settings.showMoveNumbers });
+            return;
+        }
+        if (keyLower === 'q') {
+            e.preventDefault();
+            updateSettings({ analysisShowChildren: !settings.analysisShowChildren });
+            return;
+        }
+        if (keyLower === 'w') {
+            e.preventDefault();
+            updateSettings({ analysisShowEval: !settings.analysisShowEval });
+            return;
+        }
+        if (keyLower === 'e') {
+            e.preventDefault();
+            updateSettings({ analysisShowHints: !settings.analysisShowHints });
+            return;
+        }
+        if (keyLower === 'r') {
+            e.preventDefault();
+            updateSettings({ analysisShowPolicy: !settings.analysisShowPolicy });
+            return;
+        }
+        if (keyLower === 't') {
+            e.preventDefault();
+            updateSettings({ analysisShowOwnership: !settings.analysisShowOwnership });
+            return;
+        }
+        if (keyLower === 'b') {
+            e.preventDefault();
+            if (shift) undoToMainBranch();
+            else undoToBranchPoint();
+            return;
+        }
+        if (keyLower === 'n') {
+            e.preventDefault();
+            findMistake(shift ? 'undo' : 'redo');
+            return;
         }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigateBack, navigateForward, navigateStart, navigateEnd]);
+  }, [
+      navigateBack,
+      navigateForward,
+      navigateStart,
+      navigateEnd,
+      switchBranch,
+      undoToBranchPoint,
+      undoToMainBranch,
+      makeCurrentNodeMainBranch,
+      findMistake,
+      toggleAnalysisMode,
+      resetGame,
+      passTurn,
+      makeAiMove,
+      capturedBlack,
+      capturedWhite,
+      storeRest.board,
+      storeRest.currentPlayer,
+      storeRest.moveHistory,
+      storeRest.komi,
+      rootNode,
+      loadGame,
+      settings.showCoordinates,
+      settings.showMoveNumbers,
+      settings.analysisShowChildren,
+      settings.analysisShowEval,
+      settings.analysisShowHints,
+      settings.analysisShowPolicy,
+      settings.analysisShowOwnership,
+      updateSettings,
+      deleteCurrentNode,
+      pruneCurrentBranch,
+  ]);
 
   const handleSave = () => {
-      // Reconstruct simple GameState
-      const gameState: GameState = {
-          board: storeRest.board,
-          currentPlayer: storeRest.currentPlayer,
-          moveHistory: storeRest.moveHistory,
-          capturedBlack: capturedBlack,
-          capturedWhite: capturedWhite,
-          komi: storeRest.komi,
-      };
-      downloadSgf(gameState);
+      downloadSgfFromTree(rootNode);
   };
 
   const handleLoadClick = () => {
@@ -108,7 +344,11 @@ export const Layout: React.FC = () => {
   };
 
   const handleAnalysisClick = (move: CandidateMove) => {
-      playMove(move.x, move.y);
+      if (move.x === -1 || move.y === -1) {
+          passTurn();
+      } else {
+          playMove(move.x, move.y);
+      }
   };
 
   return (
@@ -231,17 +471,11 @@ export const Layout: React.FC = () => {
            </div>
 
            <div className="flex items-center space-x-2">
-              <button className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigatePrevMistake} title="Previous Mistake (Shift+N)">
-                  <span className="text-red-400 font-bold mr-1">Mistake</span> <FaArrowLeft />
-              </button>
               <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigateBack}>
                   <FaArrowLeft className="mr-2"/> Prev
               </button>
               <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigateForward}>
                   Next <FaArrowRight className="ml-2"/>
-              </button>
-              <button className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigateNextMistake} title="Next Mistake (N)">
-                  <FaArrowRight className="mr-1"/> <span className="text-red-400 font-bold">Mistake</span>
               </button>
               <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium ml-4" onClick={passTurn}>
                   Pass
@@ -255,23 +489,67 @@ export const Layout: React.FC = () => {
         {isAnalysisMode ? (
             <div className="flex-grow flex flex-col h-full">
                 <div className="border-b border-gray-700 p-4">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center">
-                    <FaChartBar className="mr-2" /> Analysis
-                  </h2>
-                  <div className="bg-gray-900 h-32 rounded flex items-center justify-center text-gray-500 overflow-hidden mb-4">
-                     <WinRateGraph />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                       <span>Win Rate (Black):</span>
-                       <span className={`font-mono ${analysisData && analysisData.rootWinRate > 0.5 ? 'text-green-400' : 'text-red-400'}`}>
-                           {analysisData ? `${(analysisData.rootWinRate * 100).toFixed(1)}%` : '-'}
+	                  <h2 className="text-lg font-semibold mb-4 flex items-center">
+	                    <FaChartBar className="mr-2" /> Analysis
+	                  </h2>
+	                  <div className="bg-gray-900 h-32 rounded flex items-center justify-center text-gray-500 overflow-hidden mb-4">
+	                     <WinRateGraph />
+	                  </div>
+	                  <div className="flex flex-wrap gap-2 mb-4">
+	                      <button
+	                          className={`px-2 py-1 rounded text-xs font-semibold border ${settings.analysisShowChildren ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
+	                          onClick={() => updateSettings({ analysisShowChildren: !settings.analysisShowChildren })}
+	                          title="Toggle show children (Q)"
+	                      >
+	                          Q Children
+	                      </button>
+	                      <button
+	                          className={`px-2 py-1 rounded text-xs font-semibold border ${settings.analysisShowEval ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
+	                          onClick={() => updateSettings({ analysisShowEval: !settings.analysisShowEval })}
+	                          title="Toggle evaluation dots (W)"
+	                      >
+	                          W Dots
+	                      </button>
+	                      <button
+	                          className={`px-2 py-1 rounded text-xs font-semibold border ${settings.analysisShowHints ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'} ${settings.analysisShowPolicy ? 'opacity-50 cursor-not-allowed' : ''}`}
+	                          disabled={settings.analysisShowPolicy}
+	                          onClick={() => updateSettings({ analysisShowHints: !settings.analysisShowHints })}
+	                          title={settings.analysisShowPolicy ? 'Disabled while Policy is enabled' : 'Toggle top moves (E)'}
+	                      >
+	                          E Top Moves
+	                      </button>
+	                      <button
+	                          className={`px-2 py-1 rounded text-xs font-semibold border ${settings.analysisShowPolicy ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
+	                          onClick={() => updateSettings({ analysisShowPolicy: !settings.analysisShowPolicy })}
+	                          title="Toggle policy (R)"
+	                      >
+	                          R Policy
+	                      </button>
+	                      <button
+	                          className={`px-2 py-1 rounded text-xs font-semibold border ${settings.analysisShowOwnership ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
+	                          onClick={() => updateSettings({ analysisShowOwnership: !settings.analysisShowOwnership })}
+	                          title="Toggle ownership/territory (T)"
+	                      >
+	                          T Ownership
+	                      </button>
+	                  </div>
+	                  <div className="space-y-2">
+	                    <div className="flex justify-between text-sm">
+	                       <span>Win Rate (Black):</span>
+	                       <span className={`font-mono ${analysisData && analysisData.rootWinRate > 0.5 ? 'text-green-400' : 'text-red-400'}`}>
+	                           {analysisData ? `${(analysisData.rootWinRate * 100).toFixed(1)}%` : '-'}
                        </span>
                     </div>
                     <div className="flex justify-between text-sm">
                        <span>Score Lead:</span>
                        <span className={`font-mono ${analysisData && analysisData.rootScoreLead > 0 ? 'text-blue-400' : 'text-white'}`}>
                            {analysisData ? `${analysisData.rootScoreLead > 0 ? '+' : ''}${analysisData.rootScoreLead.toFixed(1)}` : '-'}
+                       </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                       <span>Score Stdev:</span>
+                       <span className="font-mono text-gray-300">
+                           {analysisData && typeof analysisData.rootScoreStdev === 'number' ? analysisData.rootScoreStdev.toFixed(1) : '-'}
                        </span>
                     </div>
                   </div>
@@ -289,11 +567,17 @@ export const Layout: React.FC = () => {
                    </div>
                    <div className="overflow-y-auto flex-grow p-0 scrollbar-thin scrollbar-thumb-gray-700">
                        {analysisData ? (
-                           analysisData.moves.map((move, i) => (
+                           analysisData.moves.map((move, i) => {
+                               const isPass = move.x === -1 || move.y === -1;
+                               const moveLabel = isPass
+                                   ? 'Pass'
+                                   : `${String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x))}${19 - move.y}`;
+
+                               return (
                                <div
                                    key={i}
                                    className={`group flex items-center px-4 py-2 text-sm border-b border-gray-700/50 hover:bg-gray-700 cursor-pointer transition-colors ${move.order === 0 ? 'bg-gray-800' : ''}`}
-                                   onMouseEnter={() => setHoveredMove(move)}
+                                   onMouseEnter={() => setHoveredMove(isPass ? null : move)}
                                    onMouseLeave={() => setHoveredMove(null)}
                                    onClick={() => handleAnalysisClick(move)}
                                >
@@ -301,7 +585,7 @@ export const Layout: React.FC = () => {
                                        {String.fromCharCode(65 + move.order)}
                                    </span>
                                    <span className={`w-12 font-bold font-mono ${move.order===0 ? 'text-blue-400' : (move.pointsLost < 0.5 ? 'text-green-400' : (move.pointsLost < 2 ? 'text-yellow-400' : 'text-red-400'))}`}>
-                                       {String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x))}{19 - move.y}
+                                       {moveLabel}
                                    </span>
 
                                    {/* Win Rate Bar */}
@@ -321,7 +605,8 @@ export const Layout: React.FC = () => {
                                    <span className="w-14 text-right text-red-300 font-mono">{move.order === 0 ? '-' : move.pointsLost.toFixed(1)}</span>
                                    <span className="flex-grow text-right text-gray-500 font-mono text-xs">{move.visits.toLocaleString()}</span>
                                </div>
-                           ))
+                               );
+                           })
                        ) : (
                            <div className="p-4 text-center text-gray-500 text-sm animate-pulse">Processing...</div>
                        )}
@@ -331,14 +616,12 @@ export const Layout: React.FC = () => {
         ) : (
             /* Normal Game Info when not analyzing */
             <div className="h-full p-4 flex flex-col">
-               <h2 className="text-lg font-semibold mb-2">Move History</h2>
-               <div className="flex-grow bg-gray-900 rounded p-2 text-sm font-mono overflow-y-auto">
-                  <div>Game started.</div>
-                  {storeRest.moveHistory.map((move, i) => (
-                      <div key={i}>
-                          {i + 1}. {move.player} ({move.x === -1 ? 'Pass' : `${String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x))}${19 - move.y}`})
-                      </div>
-                  ))}
+               <h2 className="text-lg font-semibold mb-2">Move Tree</h2>
+               <div className="flex-grow bg-gray-900 rounded overflow-hidden border border-gray-700">
+                  <MoveTree />
+               </div>
+               <div className="mt-2 text-[11px] text-gray-500">
+                  z/← undo · x/→ redo · ↑/↓ switch branch · Ctrl+Delete delete · Ctrl+Shift+Delete prune
                </div>
             </div>
         )}

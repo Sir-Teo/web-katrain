@@ -1,4 +1,4 @@
-import type { GameState, BoardState, Player } from "../types";
+import type { GameNode, GameState, BoardState, Player } from "../types";
 import { BOARD_SIZE } from "../types";
 
 // Helper to convert SGF coord (e.g. "pd") to {x,y}
@@ -27,7 +27,7 @@ export const generateSgf = (gameState: GameState): string => {
   const date = new Date().toISOString().split('T')[0];
 
   let sgf = `(;GM[1]FF[4]CA[UTF-8]AP[WebKatrain:0.1]ST[2]\n`;
-  sgf += `SZ[${BOARD_SIZE}]KM[6.5]\n`; // Komi hardcoded for now
+  sgf += `SZ[${BOARD_SIZE}]KM[${gameState.komi.toFixed(1)}]\n`;
   sgf += `DT[${date}]\n`;
   // Add other metadata?
 
@@ -61,10 +61,170 @@ export const downloadSgf = (gameState: GameState) => {
     URL.revokeObjectURL(url);
 };
 
+function escapeSgfValue(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/]/g, '\\]').replace(/\r?\n/g, '\\\n');
+}
+
+function cloneProps(props: Record<string, string[]> | undefined): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    if (!props) return out;
+    for (const [k, v] of Object.entries(props)) out[k] = [...v];
+    return out;
+}
+
+function serializeProps(props: Record<string, string[]>): string {
+    const preferred = [
+        'GM',
+        'FF',
+        'CA',
+        'AP',
+        'ST',
+        'RU',
+        'SZ',
+        'KM',
+        'DT',
+        'PB',
+        'PW',
+        'BR',
+        'WR',
+        'RE',
+        'EV',
+        'GN',
+        'SO',
+        'US',
+        'GC',
+        'PC',
+        'TM',
+        'OT',
+        'HA',
+        'AB',
+        'AW',
+        'AE',
+        'PL',
+        'C',
+        'N',
+    ] as const;
+    const preferredSet = new Set<string>(preferred);
+
+    const keys = Object.keys(props);
+    const ordered = [
+        ...preferred.filter((k) => keys.includes(k)),
+        ...keys.filter((k) => !preferredSet.has(k)).sort(),
+    ];
+
+    let out = '';
+    for (const key of ordered) {
+        const values = props[key] ?? [];
+        if (values.length === 0) {
+            out += `${key}[]`;
+            continue;
+        }
+        for (const value of values) out += `${key}[${escapeSgfValue(value)}]`;
+    }
+    return out;
+}
+
+function rootPlacementsFromBoard(board: BoardState): { AB?: string[]; AW?: string[] } {
+    const ab: string[] = [];
+    const aw: string[] = [];
+    for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+            const v = board[y]?.[x] ?? null;
+            if (v === 'black') ab.push(coordinateToSgf(x, y));
+            else if (v === 'white') aw.push(coordinateToSgf(x, y));
+        }
+    }
+    const out: { AB?: string[]; AW?: string[] } = {};
+    if (ab.length > 0) out.AB = ab;
+    if (aw.length > 0) out.AW = aw;
+    return out;
+}
+
+function serializeMoveNode(node: GameNode): string {
+    const move = node.move;
+    if (!move) return '';
+
+    const props = cloneProps(node.properties);
+    delete props.B;
+    delete props.W;
+
+    const key = move.player === 'black' ? 'B' : 'W';
+    const coord = move.x < 0 || move.y < 0 ? '' : coordinateToSgf(move.x, move.y);
+    props[key] = [coord];
+
+    return `;${serializeProps(props)}`;
+}
+
+function serializeSequence(node: GameNode): string {
+    let out = serializeMoveNode(node);
+    if (!out) return '';
+
+    const children = node.children;
+    if (children.length === 0) return out;
+    if (children.length === 1) return out + serializeSequence(children[0]!);
+
+    for (const child of children) out += `(${serializeSequence(child)})`;
+    return out;
+}
+
+export const generateSgfFromTree = (rootNode: GameNode): string => {
+    const date = new Date().toISOString().split('T')[0];
+
+    const props = cloneProps(rootNode.properties);
+    delete props.B;
+    delete props.W;
+    delete props.AB;
+    delete props.AW;
+    delete props.AE;
+
+    props.GM = ['1'];
+    props.FF = ['4'];
+    props.CA = ['UTF-8'];
+    props.AP = props.AP?.length ? props.AP : ['WebKatrain:0.1'];
+    props.ST = props.ST?.length ? props.ST : ['2'];
+    props.SZ = [String(BOARD_SIZE)];
+    props.KM = [rootNode.gameState.komi.toFixed(1)];
+    if (!props.DT?.length) props.DT = [date];
+
+    const placements = rootPlacementsFromBoard(rootNode.gameState.board);
+    if (placements.AB) props.AB = placements.AB;
+    if (placements.AW) props.AW = placements.AW;
+
+    let sgf = `(;${serializeProps(props)}`;
+
+    const children = rootNode.children;
+    if (children.length === 1) sgf += serializeSequence(children[0]!);
+    else if (children.length > 1) {
+        for (const child of children) sgf += `(${serializeSequence(child)})`;
+    }
+
+    sgf += ')';
+    return sgf;
+};
+
+export const downloadSgfFromTree = (rootNode: GameNode) => {
+    const sgfContent = generateSgfFromTree(rootNode);
+    const blob = new Blob([sgfContent], { type: 'application/x-go-sgf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `game_${new Date().getTime()}.sgf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+export interface ParsedSgfNode {
+    props: Record<string, string[]>;
+    children: ParsedSgfNode[];
+}
+
 export interface ParsedSgf {
     moves: { x: number, y: number, player: Player }[];
     initialBoard: BoardState;
     komi: number;
+    tree?: ParsedSgfNode;
 }
 
 export const parseSgf = (sgfContent: string): ParsedSgf => {
@@ -72,107 +232,148 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
     const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
     let komi = 6.5;
 
-    // Very basic tokenizer/parser
-    // Remove newlines and whitespace outside of []
-    // Actually, SGF is robust to whitespace.
+    type SgfNode = ParsedSgfNode;
 
-    // 1. Extract the main branch content. Assume (...) wraps the whole game.
-    // Inside, we have ;NODE ;NODE ...
-
-    // We will just regex for properties for now, as full parsing is complex.
-    // But we need to handle sequences.
-
-    // Split by ';' to get nodes.
-    // Note: This fails if ';' is inside a comment, but typical SGFs don't do that often for simple move lists.
-    // A better approach is to iterate char by char.
-
-    let i = 0;
+    // Find the first game tree.
+    let i = sgfContent.indexOf('(');
+    if (i < 0) return { moves, initialBoard, komi };
     const len = sgfContent.length;
 
-    // Helpers
     const skipWhitespace = () => {
-        while (i < len && /\s/.test(sgfContent[i])) i++;
+        while (i < len && /\s/.test(sgfContent[i]!)) i++;
     };
 
-    // Parse Property Value: [Value]
     const parseValue = (): string => {
         if (sgfContent[i] !== '[') return '';
         i++; // skip [
         let value = '';
-        let escaped = false;
         while (i < len) {
-            const char = sgfContent[i];
-            if (escaped) {
-                value += char;
-                escaped = false;
-            } else if (char === '\\') {
-                escaped = true;
-            } else if (char === ']') {
-                break;
-            } else {
-                value += char;
+            const char = sgfContent[i]!;
+            if (char === '\\') {
+                // Escape next char (including ] or \). SGF also allows escaping newlines.
+                i++;
+                if (i < len) value += sgfContent[i]!;
+                i++;
+                continue;
             }
+            if (char === ']') break;
+            value += char;
             i++;
         }
-        i++; // skip ]
+        if (sgfContent[i] === ']') i++; // skip ]
         return value;
     };
 
-    // Main loop
-    while (i < len) {
-        const char = sgfContent[i];
-
-        if (char === ';') {
-            // New Node
-            // Process previous node properties if any (specifically AB, AW, B, W)
-             // But actually we process as we find them.
-             i++;
-        } else if (char === '(' || char === ')') {
-            // Variation start/end. For now, we just continue linearly.
-            // If we hit '(', we go in. If ')', we might stop if we only want main line?
-            // If we just want the first variation (main line), we can ignore '(' but treat ')' as potentially end of branch?
-            // But usually the file ends with ')' too.
+    const parsePropIdent = (): string => {
+        let key = '';
+        while (i < len && /[A-Za-z]/.test(sgfContent[i]!)) {
+            key += sgfContent[i]!;
             i++;
-        } else if (/[A-Z]/.test(char)) {
-            // Property Key
-            let key = '';
-            while (i < len && /[A-Z]/.test(sgfContent[i])) {
-                key += sgfContent[i];
-                i++;
-            }
+        }
+        // Normalize legacy properties like SiZe -> SZ.
+        return key.replace(/[a-z]/g, '');
+    };
 
-            // Property Values
+    const parseNode = (): SgfNode => {
+        const props: Record<string, string[]> = {};
+        skipWhitespace();
+        while (i < len && /[A-Za-z]/.test(sgfContent[i]!)) {
+            const key = parsePropIdent();
+            if (!key) break;
             skipWhitespace();
+            const values: string[] = [];
             while (i < len && sgfContent[i] === '[') {
-                const val = parseValue();
-
-                // Handle known properties immediately
-                if (key === 'B') {
-                    const { x, y } = sgfCoordToXy(val);
-                    moves.push({ x, y, player: 'black' });
-                } else if (key === 'W') {
-                     const { x, y } = sgfCoordToXy(val);
-                     moves.push({ x, y, player: 'white' });
-                } else if (key === 'AB') {
-                    const { x, y } = sgfCoordToXy(val);
-                    if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
-                        initialBoard[y][x] = 'black';
-                    }
-                } else if (key === 'AW') {
-                    const { x, y } = sgfCoordToXy(val);
-                     if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
-                        initialBoard[y][x] = 'white';
-                    }
-                } else if (key === 'KM') {
-                    komi = parseFloat(val);
-                }
-
+                values.push(parseValue());
                 skipWhitespace();
             }
-        } else {
-            i++;
+            if (values.length > 0) {
+                props[key] = props[key] ? props[key]!.concat(values) : values;
+            } else if (!props[key]) {
+                props[key] = [];
+            }
+            skipWhitespace();
+        }
+        return { props, children: [] };
+    };
+
+    const parseSequence = (): { root: SgfNode; last: SgfNode } => {
+        skipWhitespace();
+        let root: SgfNode | null = null;
+        let last: SgfNode | null = null;
+        while (i < len && sgfContent[i] === ';') {
+            i++; // skip ;
+            const node = parseNode();
+            if (!root) root = node;
+            if (last) last.children.push(node); // continuation of the main line
+            last = node;
+            skipWhitespace();
+        }
+        if (!root || !last) throw new Error('Invalid SGF: missing node sequence');
+        return { root, last };
+    };
+
+    const parseGameTree = (): SgfNode => {
+        skipWhitespace();
+        if (sgfContent[i] !== '(') throw new Error('Invalid SGF: expected "("');
+        i++; // skip (
+        const { root, last } = parseSequence();
+        skipWhitespace();
+        while (i < len && sgfContent[i] === '(') {
+            const childTree = parseGameTree();
+            last.children.push(childTree);
+            skipWhitespace();
+        }
+        if (sgfContent[i] !== ')') throw new Error('Invalid SGF: expected ")"');
+        i++; // skip )
+        return root;
+    };
+
+    let root: SgfNode;
+    try {
+        root = parseGameTree();
+    } catch {
+        return { moves, initialBoard, komi };
+    }
+
+    const rootKomi = root.props['KM']?.[0];
+    if (rootKomi) {
+        const k = parseFloat(rootKomi);
+        if (!Number.isNaN(k)) komi = k;
+    }
+
+    const applyPlacement = (player: Player, coords: string[]) => {
+        for (const coord of coords) {
+            const { x, y } = sgfCoordToXy(coord);
+            if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
+                initialBoard[y][x] = player;
+            }
+        }
+    };
+    if (root.props['AB']) applyPlacement('black', root.props['AB']);
+    if (root.props['AW']) applyPlacement('white', root.props['AW']);
+    if (root.props['AE']) {
+        for (const coord of root.props['AE']) {
+            const { x, y } = sgfCoordToXy(coord);
+            if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
+                initialBoard[y][x] = null;
+            }
         }
     }
 
-    return { moves, initialBoard, komi };
+    // Follow the main branch (first-child chain). Variations are ignored for this basic loader.
+    let node: SgfNode | null = root;
+    while (node) {
+        const b = node.props['B']?.[0];
+        const w = node.props['W']?.[0];
+        if (typeof b === 'string') {
+            const { x, y } = sgfCoordToXy(b);
+            moves.push({ x, y, player: 'black' });
+        } else if (typeof w === 'string') {
+            const { x, y } = sgfCoordToXy(w);
+            moves.push({ x, y, player: 'white' });
+        }
+        node = node.children[0] ?? null;
+    }
+
+    return { moves, initialBoard, komi, tree: root };
 };

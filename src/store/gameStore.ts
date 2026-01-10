@@ -3,12 +3,13 @@ import { BOARD_SIZE, type GameState, type BoardState, type Player, type Analysis
 import { checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import type { ParsedSgf } from '../utils/sgf';
-import { generateMockAnalysis } from '../utils/mockAnalysis';
+import { getKataGoEngineClient } from '../engine/katago/client';
 
 interface GameStore extends GameState {
   // Tree State
   rootNode: GameNode;
   currentNode: GameNode;
+  treeVersion: number;
 
   // Settings & Modes
   isAiPlaying: boolean;
@@ -18,6 +19,8 @@ interface GameStore extends GameState {
   notification: { message: string, type: 'info' | 'error' | 'success' } | null;
   analysisData: AnalysisResult | null;
   settings: GameSettings;
+  engineStatus: 'idle' | 'loading' | 'ready' | 'error';
+  engineError: string | null;
 
   // Actions
   toggleAi: (color: Player) => void;
@@ -31,6 +34,13 @@ interface GameStore extends GameState {
   navigateForward: () => void; // Go forward (main branch)
   navigateStart: () => void;
   navigateEnd: () => void;
+  switchBranch: (direction: 1 | -1) => void;
+  undoToBranchPoint: () => void;
+  undoToMainBranch: () => void;
+  makeCurrentNodeMainBranch: () => void;
+  findMistake: (direction: 'undo' | 'redo') => void;
+  deleteCurrentNode: () => void;
+  pruneCurrentBranch: () => void;
   jumpToNode: (node: GameNode) => void; // Navigate to arbitrary node
   navigateNextMistake: () => void;
   navigatePrevMistake: () => void;
@@ -43,6 +53,19 @@ interface GameStore extends GameState {
 
 const createEmptyBoard = (): BoardState => {
   return Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+};
+
+const ownershipToTerritoryGrid = (ownership: ArrayLike<number>): number[][] => {
+  const territory: number[][] = Array(BOARD_SIZE)
+    .fill(0)
+    .map(() => Array(BOARD_SIZE).fill(0));
+  for (let y = 0; y < BOARD_SIZE; y++) {
+    for (let x = 0; x < BOARD_SIZE; x++) {
+      const v = ownership[y * BOARD_SIZE + x];
+      territory[y][x] = typeof v === 'number' ? v : 0;
+    }
+  }
+  return territory;
 };
 
 const createNode = (
@@ -77,10 +100,21 @@ const initialRoot = createNode(null, null, initialGameState, 'root');
 const defaultSettings: GameSettings = {
   soundEnabled: true,
   showCoordinates: true,
+  showMoveNumbers: false,
   boardTheme: 'bamboo',
   showLastNMistakes: 3,
-  showTerritory: false,
   mistakeThreshold: 2.0,
+  analysisShowChildren: true,
+  analysisShowEval: false,
+  analysisShowHints: true,
+  analysisShowPolicy: false,
+  analysisShowOwnership: false,
+  katagoModelUrl: '/models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz',
+  katagoVisits: 256,
+  katagoMaxTimeMs: 800,
+  katagoBatchSize: 16,
+  katagoMaxChildren: 361,
+  katagoTopK: 10,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -95,6 +129,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // Tree State
   rootNode: initialRoot,
   currentNode: initialRoot,
+  treeVersion: 0,
 
   isAiPlaying: false,
   aiColor: null,
@@ -103,6 +138,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   notification: null,
   analysisData: null,
   settings: defaultSettings,
+  engineStatus: 'idle',
+  engineError: null,
 
   toggleAi: (color) => set({ isAiPlaying: true, aiColor: color }),
 
@@ -139,19 +176,89 @@ export const useGameStore = create<GameStore>((set, get) => ({
           return;
       }
 
-      // Pass parent analysis for continuity
-      const parentAnalysis = state.currentNode.parent?.analysis;
-      const analysis = generateMockAnalysis(state.board, state.currentPlayer, parentAnalysis);
+	      const node = state.currentNode;
+	      const parentBoard = node.parent?.gameState.board;
+	      const grandparentBoard = node.parent?.parent?.gameState.board;
+	      const modelUrl = state.settings.katagoModelUrl;
 
-      // Store analysis in node
-      state.currentNode.analysis = analysis;
+      if (state.engineStatus === 'idle') set({ engineStatus: 'loading', engineError: null });
 
-      set({ analysisData: analysis });
+      void getKataGoEngineClient()
+	        .analyze({
+	          modelUrl,
+	          board: state.board,
+	          previousBoard: parentBoard,
+	          previousPreviousBoard: grandparentBoard,
+	          currentPlayer: state.currentPlayer,
+	          moveHistory: state.moveHistory,
+	          komi: state.komi,
+	          topK: state.settings.katagoTopK,
+          visits: state.settings.katagoVisits,
+          maxTimeMs: state.settings.katagoMaxTimeMs,
+          batchSize: state.settings.katagoBatchSize,
+          maxChildren: state.settings.katagoMaxChildren,
+        })
+        .then((analysis) => {
+          const analysisWithTerritory: AnalysisResult = {
+            rootWinRate: analysis.rootWinRate,
+            rootScoreLead: analysis.rootScoreLead,
+            rootScoreSelfplay: analysis.rootScoreSelfplay,
+            rootScoreStdev: analysis.rootScoreStdev,
+            moves: analysis.moves,
+            territory: ownershipToTerritoryGrid(analysis.ownership),
+            policy: analysis.policy,
+            ownershipStdev: analysis.ownershipStdev,
+          };
+
+          // Store analysis in node even if user navigated elsewhere.
+          node.analysis = analysisWithTerritory;
+
+          const latest = get();
+          if (latest.currentNode.id === node.id) {
+            set({ analysisData: analysisWithTerritory, engineStatus: 'ready', engineError: null });
+          } else {
+            set({ engineStatus: 'ready', engineError: null });
+          }
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          set({
+            engineStatus: 'error',
+            engineError: msg,
+            notification: { message: `Analysis error: ${msg}`, type: 'error' },
+          });
+          setTimeout(() => set({ notification: null }), 3000);
+        });
   },
 
-  updateSettings: (newSettings) => set((state) => ({
-      settings: { ...state.settings, ...newSettings }
-  })),
+  updateSettings: (newSettings) =>
+    set((state) => {
+      const nextSettings: GameSettings = { ...state.settings, ...newSettings };
+      const engineKeys: Array<keyof GameSettings> = [
+        'katagoModelUrl',
+        'katagoVisits',
+        'katagoMaxTimeMs',
+        'katagoBatchSize',
+        'katagoMaxChildren',
+        'katagoTopK',
+      ];
+
+      const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
+      if (!engineChanged) return { settings: nextSettings };
+
+      const clearAnalysis = (node: GameNode) => {
+        node.analysis = null;
+        for (const child of node.children) clearAnalysis(child);
+      };
+      clearAnalysis(state.rootNode);
+
+      return {
+        settings: nextSettings,
+        analysisData: null,
+        engineStatus: 'idle',
+        engineError: null,
+      };
+    }),
 
   playMove: (x: number, y: number, isLoad = false) => {
     const state = get();
@@ -174,37 +281,37 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Teach Mode Check
     if (state.isTeachMode && !isLoad) {
-        let analysis = state.currentNode.analysis;
+        const analysis = state.currentNode.analysis;
 
-        // If no analysis exists, try to generate it synchronously (mock)
-        // In a real engine, we might have to wait or just skip.
         if (!analysis) {
-             const parentAnalysis = state.currentNode.parent?.analysis;
-             analysis = generateMockAnalysis(state.board, state.currentPlayer, parentAnalysis);
-             state.currentNode.analysis = analysis; // Cache it
+             // Trigger analysis and block move until it's ready.
+             set({
+               notification: { message: 'Analyzing position...', type: 'info' }
+             });
+             setTimeout(() => set({ notification: null }), 1500);
+             setTimeout(() => get().runAnalysis(), 0);
+             return;
         }
 
         // Check against candidates
-        if (analysis) {
-            const candidate = analysis.moves.find(m => m.x === x && m.y === y);
-            // Default to "bad" if not found in top moves (mock returns top ~8)
-            const pointsLost = candidate ? candidate.pointsLost : 5.0;
+        const candidate = analysis.moves.find(m => m.x === x && m.y === y);
+        // Default to "bad" if not found in top moves
+        const pointsLost = candidate ? candidate.pointsLost : 5.0;
 
-            if (pointsLost > 2.0) {
-                 // Reject move
-                 set({
-                     notification: {
-                         message: `Bad move! You lost ${pointsLost.toFixed(1)} points. Try again.`,
-                         type: 'error'
-                     }
-                 });
-                 // Clear notification after 3s
-                 setTimeout(() => set({ notification: null }), 3000);
-                 return;
-            } else {
-                 // Good move, maybe give positive feedback or silence
-                 set({ notification: null });
-            }
+        if (pointsLost > 2.0) {
+             // Reject move
+             set({
+                 notification: {
+                     message: `Bad move! You lost ${pointsLost.toFixed(1)} points. Try again.`,
+                     type: 'error'
+                 }
+             });
+             // Clear notification after 3s
+             setTimeout(() => set({ notification: null }), 3000);
+             return;
+        } else {
+             // Good move, maybe give positive feedback or silence
+             set({ notification: null });
         }
     }
 
@@ -275,8 +382,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  makeAiMove: () => {
-      makeHeuristicMove(get());
+	  makeAiMove: () => {
+	      const state = get();
+	      const parentBoard = state.currentNode.parent?.gameState.board;
+	      const grandparentBoard = state.currentNode.parent?.parent?.gameState.board;
+	      const modelUrl = state.settings.katagoModelUrl;
+
+      void getKataGoEngineClient()
+	        .analyze({
+	          modelUrl,
+	          board: state.board,
+	          previousBoard: parentBoard,
+	          previousPreviousBoard: grandparentBoard,
+	          currentPlayer: state.currentPlayer,
+	          moveHistory: state.moveHistory,
+	          komi: state.komi,
+	          topK: state.settings.katagoTopK,
+          visits: state.settings.katagoVisits,
+          maxTimeMs: state.settings.katagoMaxTimeMs,
+          batchSize: state.settings.katagoBatchSize,
+          maxChildren: state.settings.katagoMaxChildren,
+        })
+        .then((analysis) => {
+          const best = analysis.moves[0];
+          if (!best) {
+            makeHeuristicMove(get());
+            return;
+          }
+          if (best.x === -1 || best.y === -1) get().passTurn();
+          else get().playMove(best.x, best.y);
+        })
+        .catch(() => {
+          makeHeuristicMove(get());
+        });
   },
 
   undoMove: () => get().navigateBack(),
@@ -343,6 +481,184 @@ export const useGameStore = create<GameStore>((set, get) => ({
           capturedWhite: node.gameState.capturedWhite,
           analysisData: node.analysis || null,
       };
+  }),
+
+  switchBranch: (direction) => set((state) => {
+      // Mirror KaTrain move tree behavior: switch between nodes at the same depth "column".
+      const movePos = new Map<GameNode, { x: number; y: number }>();
+      movePos.set(state.rootNode, { x: 0, y: 0 });
+
+      const stack: GameNode[] = [...state.rootNode.children].reverse();
+      const nextY = new Map<number, number>();
+      const getNextY = (x: number) => nextY.get(x) ?? 0;
+
+      while (stack.length > 0) {
+          const node = stack.pop()!;
+          const parent = node.parent;
+          if (!parent) continue;
+          const parentPos = movePos.get(parent);
+          if (!parentPos) continue;
+
+          const x = parentPos.x + 1;
+          const y = Math.max(getNextY(x), parentPos.y);
+          nextY.set(x, y + 1);
+          nextY.set(x - 1, Math.max(nextY.get(x) ?? 0, getNextY(x - 1)));
+          movePos.set(node, { x, y });
+
+          for (let i = node.children.length - 1; i >= 0; i--) {
+              stack.push(node.children[i]!);
+          }
+      }
+
+      const curPos = movePos.get(state.currentNode);
+      if (!curPos) return {};
+
+      const sameX: Array<{ y: number; node: GameNode }> = [];
+      for (const [node, pos] of movePos.entries()) {
+          if (pos.x === curPos.x) sameX.push({ y: pos.y, node });
+      }
+      sameX.sort((a, b) => a.y - b.y);
+      const idx = sameX.findIndex((n) => n.node.id === state.currentNode.id);
+      if (idx < 0) return {};
+
+      const next = sameX[idx + direction]?.node;
+      if (!next) return {};
+
+      return {
+          currentNode: next,
+          board: next.gameState.board,
+          currentPlayer: next.gameState.currentPlayer,
+          moveHistory: next.gameState.moveHistory,
+          capturedBlack: next.gameState.capturedBlack,
+          capturedWhite: next.gameState.capturedWhite,
+          analysisData: next.analysis || null,
+      };
+  }),
+
+  undoToBranchPoint: () => set((state) => {
+      let node = state.currentNode;
+      while (node.parent) {
+          node = node.parent;
+          if (node.children.length > 1) break;
+      }
+      if (node.id === state.currentNode.id) return {};
+      return {
+          currentNode: node,
+          board: node.gameState.board,
+          currentPlayer: node.gameState.currentPlayer,
+          moveHistory: node.gameState.moveHistory,
+          capturedBlack: node.gameState.capturedBlack,
+          capturedWhite: node.gameState.capturedWhite,
+          analysisData: node.analysis || null,
+      };
+  }),
+
+  undoToMainBranch: () => set((state) => {
+      let node = state.currentNode;
+      let lastBranchingNode = node;
+      while (node.parent) {
+          const prev = node;
+          node = node.parent;
+          if (node.children.length > 1 && node.children[0] !== prev) {
+              lastBranchingNode = node;
+          }
+      }
+      if (lastBranchingNode.id === state.currentNode.id) return {};
+      return {
+          currentNode: lastBranchingNode,
+          board: lastBranchingNode.gameState.board,
+          currentPlayer: lastBranchingNode.gameState.currentPlayer,
+          moveHistory: lastBranchingNode.gameState.moveHistory,
+          capturedBlack: lastBranchingNode.gameState.capturedBlack,
+          capturedWhite: lastBranchingNode.gameState.capturedWhite,
+          analysisData: lastBranchingNode.analysis || null,
+      };
+  }),
+
+  makeCurrentNodeMainBranch: () => set((state) => {
+      const selected = state.currentNode;
+      let node: GameNode | null = selected;
+      while (node && node.parent) {
+          const parent: GameNode = node.parent;
+          const nodeId = node.id;
+          const idx = parent.children.findIndex((c: GameNode) => c.id === nodeId);
+          if (idx > 0) {
+              parent.children.splice(idx, 1);
+              parent.children.unshift(node);
+          }
+          node = parent;
+      }
+      return { treeVersion: state.treeVersion + 1 };
+  }),
+
+  findMistake: (direction) => set((state) => {
+      const threshold = 3.0; // Mirrors KaTrain default "orange or worse" threshold (trainer/eval_thresholds[-4])
+      const isMistake = (node: GameNode): boolean => {
+          const move = node.move;
+          const parentAnalysis = node.parent?.analysis;
+          if (!move || !parentAnalysis || move.x < 0 || move.y < 0) return false;
+          const candidate = parentAnalysis.moves.find((m) => m.x === move.x && m.y === move.y);
+          const pointsLost = candidate ? candidate.pointsLost : 5.0;
+          return pointsLost >= threshold;
+      };
+
+      let node: GameNode | null = state.currentNode;
+      if (direction === 'redo') {
+          while (node && node.children.length > 0) {
+              const next: GameNode = node.children[0]!;
+              if (isMistake(next)) break; // stop one move before the mistake
+              node = next;
+          }
+      } else {
+          while (node && node.parent) {
+              if (isMistake(node)) {
+                  node = node.parent;
+                  break;
+              }
+              node = node.parent;
+          }
+      }
+
+      if (!node || node.id === state.currentNode.id) return {};
+      return {
+          currentNode: node,
+          board: node.gameState.board,
+          currentPlayer: node.gameState.currentPlayer,
+          moveHistory: node.gameState.moveHistory,
+          capturedBlack: node.gameState.capturedBlack,
+          capturedWhite: node.gameState.capturedWhite,
+          analysisData: node.analysis || null,
+      };
+  }),
+
+  deleteCurrentNode: () => set((state) => {
+      const node = state.currentNode;
+      if (!node.parent) return {};
+
+      const parent = node.parent;
+      const idx = parent.children.findIndex((c) => c.id === node.id);
+      if (idx >= 0) parent.children.splice(idx, 1);
+
+      return {
+          currentNode: parent,
+          board: parent.gameState.board,
+          currentPlayer: parent.gameState.currentPlayer,
+          moveHistory: parent.gameState.moveHistory,
+          capturedBlack: parent.gameState.capturedBlack,
+          capturedWhite: parent.gameState.capturedWhite,
+          analysisData: parent.analysis || null,
+          treeVersion: state.treeVersion + 1,
+      };
+  }),
+
+  pruneCurrentBranch: () => set((state) => {
+      let node: GameNode | null = state.currentNode;
+      while (node && node.parent) {
+          const parent: GameNode = node.parent;
+          parent.children = [node];
+          node = parent;
+      }
+      return { treeVersion: state.treeVersion + 1 };
   }),
 
   jumpToNode: (node: GameNode) => set(() => {
@@ -460,43 +776,167 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Reset first
     get().resetGame();
 
-    let currentBoard = createEmptyBoard();
-    if (sgf.initialBoard) {
-        currentBoard = sgf.initialBoard;
-    }
+    const currentBoard = sgf.initialBoard ? sgf.initialBoard : createEmptyBoard();
+
+    const sgfProps = sgf.tree?.props;
+    const plRaw = sgfProps?.['PL']?.[0]?.toUpperCase();
+    const pl: Player | null = plRaw === 'B' ? 'black' : plRaw === 'W' ? 'white' : null;
+    const firstMovePlayer = sgf.moves[0]?.player;
+    const ha = parseInt(sgfProps?.['HA']?.[0] ?? '0', 10);
+    const rootPlayer: Player = pl ?? firstMovePlayer ?? (Number.isFinite(ha) && ha >= 2 ? 'white' : 'black');
 
     const rootState: GameState = {
-        board: currentBoard,
-        currentPlayer: 'black',
-        moveHistory: [],
-        capturedBlack: 0,
-        capturedWhite: 0,
-        komi: sgf.komi || 6.5
+      board: currentBoard,
+      currentPlayer: rootPlayer,
+      moveHistory: [],
+      capturedBlack: 0,
+      capturedWhite: 0,
+      komi: sgf.komi || 6.5,
     };
 
     const newRoot = createNode(null, null, rootState, 'root');
 
-    set({
-        rootNode: newRoot,
-        currentNode: newRoot,
-        board: rootState.board,
-        komi: rootState.komi,
-        currentPlayer: rootState.currentPlayer
-    });
+    const cloneProps = (props: Record<string, string[]> | undefined): Record<string, string[]> => {
+      const out: Record<string, string[]> = {};
+      if (!props) return out;
+      for (const [k, v] of Object.entries(props)) out[k] = [...v];
+      return out;
+    };
 
-    // Replay moves
-    sgf.moves.forEach(move => {
-        if (move.x === -1) {
-            get().passTurn();
-        } else {
-            const state = get();
-            if (state.currentPlayer !== move.player) {
-                // Force sync
-                set({ currentPlayer: move.player });
-            }
-            get().playMove(move.x, move.y, true);
+    const mergeProps = (target: Record<string, string[]>, src: Record<string, string[]>) => {
+      for (const [k, v] of Object.entries(src)) {
+        if (!target[k]) target[k] = [...v];
+        else target[k] = target[k]!.concat(v);
+      }
+    };
+
+    const sgfCoordToXy = (coord: string): { x: number; y: number } => {
+      if (!coord || coord.length < 2) return { x: -1, y: -1 };
+      if (coord === 'tt') return { x: -1, y: -1 };
+      const aCode = 'a'.charCodeAt(0);
+      return { x: coord.charCodeAt(0) - aCode, y: coord.charCodeAt(1) - aCode };
+    };
+
+    const extractMove = (props: Record<string, string[]>): Move | null => {
+      const b = props['B']?.[0];
+      if (typeof b === 'string') {
+        const { x, y } = sgfCoordToXy(b);
+        return { x, y, player: 'black' };
+      }
+      const w = props['W']?.[0];
+      if (typeof w === 'string') {
+        const { x, y } = sgfCoordToXy(w);
+        return { x, y, player: 'white' };
+      }
+      return null;
+    };
+
+    const applyMoveToNode = (parent: GameNode, move: Move): GameNode | null => {
+      const parentState = parent.gameState;
+      const nextPlayer: Player = move.player === 'black' ? 'white' : 'black';
+
+      if (move.x < 0 || move.y < 0) {
+        const passMove: Move = { x: -1, y: -1, player: move.player };
+        const newGameState: GameState = {
+          board: parentState.board,
+          currentPlayer: nextPlayer,
+          moveHistory: [...parentState.moveHistory, passMove],
+          capturedBlack: parentState.capturedBlack,
+          capturedWhite: parentState.capturedWhite,
+          komi: parentState.komi,
+        };
+        return createNode(parent, passMove, newGameState);
+      }
+
+      if (parentState.board[move.y]?.[move.x] !== null) return null;
+
+      const tentativeBoard = parentState.board.map((row) => [...row]);
+      tentativeBoard[move.y]![move.x] = move.player;
+      const { captured, newBoard } = checkCaptures(tentativeBoard, move.x, move.y, move.player);
+
+      if (captured.length === 0) {
+        const { liberties } = getLiberties(newBoard, move.x, move.y);
+        if (liberties === 0) return null;
+      }
+
+      if (parent.parent && JSON.stringify(newBoard) === JSON.stringify(parent.parent.gameState.board)) {
+        return null;
+      }
+
+      const newCapturedBlack = parentState.capturedBlack + (move.player === 'white' ? captured.length : 0);
+      const newCapturedWhite = parentState.capturedWhite + (move.player === 'black' ? captured.length : 0);
+
+      const newMove: Move = { x: move.x, y: move.y, player: move.player };
+      const newGameState: GameState = {
+        board: newBoard,
+        currentPlayer: nextPlayer,
+        moveHistory: [...parentState.moveHistory, newMove],
+        capturedBlack: newCapturedBlack,
+        capturedWhite: newCapturedWhite,
+        komi: parentState.komi,
+      };
+      return createNode(parent, newMove, newGameState);
+    };
+
+    if (sgf.tree) {
+      const rootPropsCopy = cloneProps(sgf.tree.props);
+      delete rootPropsCopy.B;
+      delete rootPropsCopy.W;
+      newRoot.properties = rootPropsCopy;
+
+      const buildFromSgfNode = (parent: GameNode, node: NonNullable<ParsedSgf['tree']>) => {
+        const move = extractMove(node.props);
+        if (!move) {
+          mergeProps(parent.properties ?? (parent.properties = {}), node.props);
+          for (const child of node.children) buildFromSgfNode(parent, child);
+          return;
         }
-    });
+
+        const childNode = applyMoveToNode(parent, move);
+        if (!childNode) return;
+        childNode.properties = cloneProps(node.props);
+        parent.children.push(childNode);
+
+        for (const child of node.children) buildFromSgfNode(childNode, child);
+      };
+
+      const rootMove = extractMove(sgf.tree.props);
+      if (rootMove) {
+        const first = applyMoveToNode(newRoot, rootMove);
+        if (first) {
+          first.properties = cloneProps(sgf.tree.props);
+          newRoot.children.push(first);
+          for (const child of sgf.tree.children) buildFromSgfNode(first, child);
+        }
+      } else {
+        for (const child of sgf.tree.children) buildFromSgfNode(newRoot, child);
+      }
+    } else {
+      // Legacy: just the main line (no SGF tree provided)
+      let cursor: GameNode = newRoot;
+      for (const mv of sgf.moves) {
+        const child = applyMoveToNode(cursor, { x: mv.x, y: mv.y, player: mv.player });
+        if (!child) break;
+        cursor.children.push(child);
+        cursor = child;
+      }
+    }
+
+    let current = newRoot;
+    while (current.children.length > 0) current = current.children[0]!;
+
+    set((state) => ({
+      rootNode: newRoot,
+      currentNode: current,
+      board: current.gameState.board,
+      currentPlayer: current.gameState.currentPlayer,
+      moveHistory: current.gameState.moveHistory,
+      capturedBlack: current.gameState.capturedBlack,
+      capturedWhite: current.gameState.capturedWhite,
+      komi: rootState.komi,
+      analysisData: null,
+      treeVersion: state.treeVersion + 1,
+    }));
   },
 
   passTurn: () => {
