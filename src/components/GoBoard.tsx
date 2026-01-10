@@ -262,7 +262,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
       )}
 
       {/* Past Mistakes Overlay */}
-      {pastMistakes.map((mistake, i) => {
+      {pastMistakes.map((mistake) => {
           let color = 'bg-yellow-400';
           if (mistake.pointsLost > 5) color = 'bg-red-600';
           else if (mistake.pointsLost > 2) color = 'bg-orange-500';

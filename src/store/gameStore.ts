@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { BOARD_SIZE, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings } from '../types';
-import { checkCaptures, getLiberties } from '../utils/gameLogic';
+import { checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import type { ParsedSgf } from '../utils/sgf';
 import { generateMockAnalysis } from '../utils/mockAnalysis';
@@ -216,7 +216,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   makeAiMove: () => {
-      makeRandomMove(get());
+      makeHeuristicMove(get());
   },
 
   undoMove: () => get().navigateBack(),
@@ -249,7 +249,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           moveHistory: nextNode.gameState.moveHistory,
           capturedBlack: nextNode.gameState.capturedBlack,
           capturedWhite: nextNode.gameState.capturedWhite,
-          analysisData: nextNode.analysis || null,
+          analysisData: node.analysis || null,
       };
   }),
 
@@ -402,27 +402,109 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }
 }));
 
-const makeRandomMove = (store: GameStore) => {
-  let attempts = 0;
-  let moveMade = false;
+const makeHeuristicMove = (store: GameStore) => {
+    const { board, currentPlayer, currentNode } = store;
+    const parentBoard = currentNode.parent ? currentNode.parent.gameState.board : undefined;
 
-  while (attempts < 100 && !moveMade) {
-    const x = Math.floor(Math.random() * BOARD_SIZE);
-    const y = Math.floor(Math.random() * BOARD_SIZE);
+    // 1. Get all legal moves
+    const legalMoves = getLegalMoves(board, currentPlayer, parentBoard);
 
-    if (store.board[y][x] === null) {
-       store.playMove(x, y);
-
-       const currentStore = useGameStore.getState();
-       const lastMove = currentStore.moveHistory[currentStore.moveHistory.length - 1];
-       if (lastMove && lastMove.x === x && lastMove.y === y) {
-           moveMade = true;
-       }
+    if (legalMoves.length === 0) {
+        store.passTurn();
+        return;
     }
-    attempts++;
-  }
 
-  if (!moveMade) {
-      store.passTurn();
-  }
+    // Heuristics
+    // Score each move
+    let bestMove = legalMoves[0];
+    let bestScore = -Infinity;
+
+    // Helper: simulate move
+    const simulate = (x: number, y: number) => {
+        const tentativeBoard = board.map(row => [...row]);
+        tentativeBoard[y][x] = currentPlayer;
+        const { captured, newBoard } = checkCaptures(tentativeBoard, x, y, currentPlayer);
+        return { captured, newBoard };
+    };
+
+    for (const move of legalMoves) {
+        let score = Math.random() * 5; // Base random score to break ties
+        const { x, y } = move;
+
+        // A. Don't fill own eyes
+        if (isEye(board, x, y, currentPlayer)) {
+            score -= 1000;
+        }
+
+        const { captured, newBoard } = simulate(x, y);
+
+        // B. Capture Groups (Atari)
+        if (captured.length > 0) {
+            score += 100 * captured.length;
+        }
+
+        // C. Avoid Self-Atari (unless capturing)
+        const { liberties } = getLiberties(newBoard, x, y);
+        if (liberties === 1) {
+            // Is it a snapback? Or just dumb?
+            // If we captured something, maybe okay. If not, bad.
+            if (captured.length === 0) {
+                score -= 50;
+            }
+        }
+
+        // D. Save own stones in Atari
+        // Check neighbors
+        const neighbors = [
+            {x: x+1, y}, {x: x-1, y}, {x, y: y+1}, {x, y: y-1}
+        ];
+        for (const n of neighbors) {
+            if (n.x >= 0 && n.x < BOARD_SIZE && n.y >= 0 && n.y < BOARD_SIZE) {
+                if (board[n.y][n.x] === currentPlayer) {
+                    const groupLiberties = getLiberties(board, n.x, n.y).liberties;
+                    if (groupLiberties === 1) {
+                        // Playing here saves it?
+                         const newLibs = getLiberties(newBoard, x, y).liberties;
+                         if (newLibs > 1) {
+                             score += 80; // Saving throw
+                         }
+                    }
+                }
+            }
+        }
+
+        // E. Opening Heuristics (Corners > Edges > Center)
+        if (store.moveHistory.length < 30) {
+             const distToCenter = Math.abs(x - 9) + Math.abs(y - 9); // Used indirectly
+             // Prefer lines 3 and 4
+             const onLine3or4 = (x === 2 || x === 3 || x === 15 || x === 16) || (y === 2 || y === 3 || y === 15 || y === 16);
+
+             if (onLine3or4) score += 5;
+
+             // Avoid 1-1, 2-2 early on
+             if (x <= 1 || x >= 17 || y <= 1 || y >= 17) score -= 5;
+
+             // Add small bias for center if not on line 3/4
+             if (!onLine3or4 && distToCenter < 6) score += 1;
+        }
+
+        // F. Proximity to last move (Local response)
+        const lastMove = store.moveHistory.length > 0 ? store.moveHistory[store.moveHistory.length - 1] : null;
+        if (lastMove && lastMove.x !== -1) {
+            const dist = Math.abs(lastMove.x - x) + Math.abs(lastMove.y - y);
+            if (dist <= 3) score += 5;
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+    }
+
+    if (bestScore < -500) {
+        // If best move is terrible (e.g. filling eye), pass.
+        store.passTurn();
+    } else {
+        store.playMove(bestMove.x, bestMove.y);
+    }
 };
