@@ -31,12 +31,17 @@ export const Layout: React.FC = () => {
     loadGame,
     toggleAnalysisMode,
     isAnalysisMode,
+    isContinuousAnalysis,
+    toggleContinuousAnalysis,
+    stopAnalysis,
     toggleTeachMode,
     isTeachMode,
     notification,
     clearNotification,
     analysisData,
     playMove,
+    currentNode,
+    runAnalysis,
     settings,
     updateSettings,
     rootNode,
@@ -61,6 +66,11 @@ export const Layout: React.FC = () => {
       if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
       return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  useEffect(() => {
+    if (!isAnalysisMode) return;
+    void runAnalysis();
+  }, [currentNode.id, isAnalysisMode, runAnalysis]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -155,6 +165,18 @@ export const Layout: React.FC = () => {
         if (ctrl && keyLower === 'n') {
             e.preventDefault();
             resetGame();
+            return;
+        }
+
+        if (key === 'Escape') {
+            e.preventDefault();
+            stopAnalysis();
+            return;
+        }
+
+        if (key === ' ' || key === 'Spacebar') {
+            e.preventDefault();
+            toggleContinuousAnalysis(shift);
             return;
         }
 
@@ -294,29 +316,25 @@ export const Layout: React.FC = () => {
       undoToMainBranch,
       makeCurrentNodeMainBranch,
       findMistake,
-      toggleAnalysisMode,
-      resetGame,
-      passTurn,
-      makeAiMove,
-      capturedBlack,
-      capturedWhite,
-      storeRest.board,
-      storeRest.currentPlayer,
-      storeRest.moveHistory,
-      storeRest.komi,
-      rootNode,
-      loadGame,
-      settings.showCoordinates,
-      settings.showMoveNumbers,
+	      toggleAnalysisMode,
+	      resetGame,
+	      passTurn,
+	      makeAiMove,
+	      rootNode,
+	      loadGame,
+	      settings.showCoordinates,
+	      settings.showMoveNumbers,
       settings.analysisShowChildren,
-      settings.analysisShowEval,
-      settings.analysisShowHints,
-      settings.analysisShowPolicy,
-      settings.analysisShowOwnership,
-      updateSettings,
-      deleteCurrentNode,
-      pruneCurrentBranch,
-  ]);
+	      settings.analysisShowEval,
+	      settings.analysisShowHints,
+	      settings.analysisShowPolicy,
+	      settings.analysisShowOwnership,
+	      toggleContinuousAnalysis,
+	      stopAnalysis,
+	      updateSettings,
+	      deleteCurrentNode,
+	      pruneCurrentBranch,
+	  ]);
 
   const handleSave = () => {
       downloadSgfFromTree(rootNode);
@@ -494,12 +512,19 @@ export const Layout: React.FC = () => {
 	                  </h2>
 	                  <div className="bg-gray-900 h-32 rounded flex items-center justify-center text-gray-500 overflow-hidden mb-4">
 	                     <WinRateGraph />
-	                  </div>
-	                  <div className="flex flex-wrap gap-2 mb-4">
-	                      <button
-	                          className={`px-2 py-1 rounded text-xs font-semibold border ${settings.analysisShowChildren ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
-	                          onClick={() => updateSettings({ analysisShowChildren: !settings.analysisShowChildren })}
-	                          title="Toggle show children (Q)"
+		                  </div>
+		                  <div className="flex flex-wrap gap-2 mb-4">
+		                      <button
+		                          className={`px-2 py-1 rounded text-xs font-semibold border ${isContinuousAnalysis ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
+		                          onClick={() => toggleContinuousAnalysis()}
+		                          title="Toggle continuous analysis (Space)"
+		                      >
+		                          Space Ponder
+		                      </button>
+		                      <button
+		                          className={`px-2 py-1 rounded text-xs font-semibold border ${settings.analysisShowChildren ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
+		                          onClick={() => updateSettings({ analysisShowChildren: !settings.analysisShowChildren })}
+		                          title="Toggle show children (Q)"
 	                      >
 	                          Q Children
 	                      </button>

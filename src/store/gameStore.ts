@@ -15,6 +15,7 @@ interface GameStore extends GameState {
   isAiPlaying: boolean;
   aiColor: Player | null;
   isAnalysisMode: boolean;
+  isContinuousAnalysis: boolean;
   isTeachMode: boolean;
   notification: { message: string, type: 'info' | 'error' | 'success' } | null;
   analysisData: AnalysisResult | null;
@@ -25,6 +26,8 @@ interface GameStore extends GameState {
   // Actions
   toggleAi: (color: Player) => void;
   toggleAnalysisMode: () => void;
+  toggleContinuousAnalysis: (quiet?: boolean) => void;
+  stopAnalysis: () => void;
   toggleTeachMode: () => void;
   clearNotification: () => void;
   playMove: (x: number, y: number, isLoad?: boolean) => void;
@@ -47,7 +50,7 @@ interface GameStore extends GameState {
   resetGame: () => void;
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
-  runAnalysis: () => void;
+  runAnalysis: (opts?: { force?: boolean; visits?: number; maxTimeMs?: number }) => Promise<void>;
   updateSettings: (newSettings: Partial<GameSettings>) => void;
 }
 
@@ -110,12 +113,15 @@ const defaultSettings: GameSettings = {
   analysisShowPolicy: false,
   analysisShowOwnership: false,
   katagoModelUrl: '/models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz',
-  katagoVisits: 256,
-  katagoMaxTimeMs: 800,
+  katagoVisits: 500,
+  katagoMaxTimeMs: 8000,
   katagoBatchSize: 16,
   katagoMaxChildren: 361,
   katagoTopK: 10,
 };
+
+let continuousToken = 0;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export const useGameStore = create<GameStore>((set, get) => ({
   // Flat properties (mirrored from currentNode.gameState for easy access)
@@ -134,6 +140,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isAiPlaying: false,
   aiColor: null,
   isAnalysisMode: false,
+  isContinuousAnalysis: false,
   isTeachMode: false,
   notification: null,
   analysisData: null,
@@ -146,16 +153,61 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleAnalysisMode: () => set((state) => {
       const newMode = !state.isAnalysisMode;
       if (newMode) {
-          setTimeout(() => get().runAnalysis(), 0);
+          setTimeout(() => void get().runAnalysis(), 0);
       }
-      return { isAnalysisMode: newMode, analysisData: state.currentNode.analysis || null };
+      return { isAnalysisMode: newMode, isContinuousAnalysis: newMode ? state.isContinuousAnalysis : false, analysisData: state.currentNode.analysis || null };
   }),
+
+  toggleContinuousAnalysis: (quiet = false) => {
+      const next = !get().isContinuousAnalysis;
+      set((state) => ({ isContinuousAnalysis: next, isAnalysisMode: next ? true : state.isAnalysisMode }));
+      if (!quiet) {
+          set({ notification: { message: next ? 'Continuous analysis on' : 'Continuous analysis off', type: 'info' } });
+          setTimeout(() => set({ notification: null }), 1200);
+      }
+      if (!next) {
+          continuousToken++;
+          return;
+      }
+
+      const token = ++continuousToken;
+      void (async () => {
+          let nodeId: string | null = null;
+          let visits = 0;
+
+          while (true) {
+              const state = get();
+              if (token !== continuousToken) return;
+              if (!state.isContinuousAnalysis) return;
+              if (!state.isAnalysisMode) return;
+
+              const target = Math.max(16, state.settings.katagoVisits);
+              if (state.currentNode.id !== nodeId) {
+                  nodeId = state.currentNode.id;
+                  visits = Math.min(64, target);
+              } else if (visits < target) {
+                  visits = Math.min(target, Math.max(visits + 1, visits * 2));
+              } else {
+                  await sleep(500);
+                  continue;
+              }
+
+              await get().runAnalysis({ force: true, visits });
+              await sleep(50);
+          }
+      })();
+  },
+
+  stopAnalysis: () => {
+      continuousToken++;
+      set({ isContinuousAnalysis: false });
+  },
 
   toggleTeachMode: () => set((state) => {
       const newMode = !state.isTeachMode;
       if (newMode) {
            // Teach mode implies analysis
-           setTimeout(() => get().runAnalysis(), 0);
+           setTimeout(() => void get().runAnalysis(), 0);
       }
       return {
           isTeachMode: newMode,
@@ -166,24 +218,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   clearNotification: () => set({ notification: null }),
 
-  runAnalysis: () => {
+  runAnalysis: async (opts) => {
       const state = get();
       if (!state.isAnalysisMode) return;
 
       // Check if current node already has analysis
-      if (state.currentNode.analysis) {
+      if (!opts?.force && state.currentNode.analysis) {
           set({ analysisData: state.currentNode.analysis });
           return;
       }
 
-	      const node = state.currentNode;
-	      const parentBoard = node.parent?.gameState.board;
-	      const grandparentBoard = node.parent?.parent?.gameState.board;
-	      const modelUrl = state.settings.katagoModelUrl;
+		      const node = state.currentNode;
+		      const parentBoard = node.parent?.gameState.board;
+		      const grandparentBoard = node.parent?.parent?.gameState.board;
+		      const modelUrl = state.settings.katagoModelUrl;
 
-      if (state.engineStatus === 'idle') set({ engineStatus: 'loading', engineError: null });
+      set({ engineStatus: 'loading', engineError: null });
 
-      void getKataGoEngineClient()
+      return getKataGoEngineClient()
 	        .analyze({
 	          modelUrl,
 	          board: state.board,
@@ -193,8 +245,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          moveHistory: state.moveHistory,
 	          komi: state.komi,
 	          topK: state.settings.katagoTopK,
-          visits: state.settings.katagoVisits,
-          maxTimeMs: state.settings.katagoMaxTimeMs,
+          visits: opts?.visits ?? state.settings.katagoVisits,
+          maxTimeMs: opts?.maxTimeMs ?? state.settings.katagoMaxTimeMs,
           batchSize: state.settings.katagoBatchSize,
           maxChildren: state.settings.katagoMaxChildren,
         })
@@ -285,13 +337,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         if (!analysis) {
              // Trigger analysis and block move until it's ready.
-             set({
-               notification: { message: 'Analyzing position...', type: 'info' }
-             });
-             setTimeout(() => set({ notification: null }), 1500);
-             setTimeout(() => get().runAnalysis(), 0);
-             return;
-        }
+	             set({
+	               notification: { message: 'Analyzing position...', type: 'info' }
+	             });
+	             setTimeout(() => set({ notification: null }), 1500);
+	             setTimeout(() => void get().runAnalysis(), 0);
+	             return;
+	        }
 
         // Check against candidates
         const candidate = analysis.moves.find(m => m.x === x && m.y === y);
@@ -376,11 +428,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (newState.isAiPlaying && newState.currentPlayer === newState.aiColor) {
         setTimeout(() => get().makeAiMove(), 500);
       }
-      if (newState.isAnalysisMode) {
-          setTimeout(() => get().runAnalysis(), 500);
-      }
-    }
-  },
+	      if (newState.isAnalysisMode) {
+	          setTimeout(() => void get().runAnalysis(), 500);
+	      }
+	    }
+	  },
 
 	  makeAiMove: () => {
 	      const state = get();
