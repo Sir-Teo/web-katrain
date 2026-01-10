@@ -53,4 +53,5 @@ export interface GameSettings {
   boardTheme: 'bamboo' | 'flat' | 'dark';
   showLastNMistakes: number; // 0 to disable
   showTerritory: boolean;
+  mistakeThreshold: number; // Points lost to consider a mistake
 }

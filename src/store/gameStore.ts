@@ -32,6 +32,8 @@ interface GameStore extends GameState {
   navigateStart: () => void;
   navigateEnd: () => void;
   jumpToNode: (node: GameNode) => void; // Navigate to arbitrary node
+  navigateNextMistake: () => void;
+  navigatePrevMistake: () => void;
   resetGame: () => void;
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
@@ -78,6 +80,7 @@ const defaultSettings: GameSettings = {
   boardTheme: 'bamboo',
   showLastNMistakes: 3,
   showTerritory: false,
+  mistakeThreshold: 2.0,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -354,6 +357,82 @@ export const useGameStore = create<GameStore>((set, get) => ({
           analysisData: node.analysis || null,
       };
   }),
+
+  navigateNextMistake: () => {
+      const state = get();
+      let node = state.currentNode;
+
+      while (node.children.length > 0) {
+          // Advance first
+          node = node.children[0];
+          const parent = node.parent;
+          if (!parent) continue;
+
+          // Check for analysis
+          let analysis = parent.analysis;
+          if (!analysis) {
+              // Generate mock analysis if missing (since it's fast)
+               analysis = generateMockAnalysis(parent.gameState.board, parent.gameState.currentPlayer, parent.parent?.analysis);
+               parent.analysis = analysis;
+          }
+
+          // Identify the move that led to 'node'
+          const move = node.move;
+          if (move) {
+              const candidate = analysis.moves.find(m => m.x === move.x && m.y === move.y);
+              // Threshold from settings
+              const threshold = state.settings.mistakeThreshold;
+              if (candidate && candidate.pointsLost >= threshold) {
+                  // Found a mistake! Jump to the PARENT (state before the mistake)
+                  get().jumpToNode(parent);
+                  // Ensure analysis is visible
+                  set({ isAnalysisMode: true, analysisData: analysis });
+                  return;
+              }
+          }
+      }
+      set({ notification: { message: "No more mistakes found.", type: 'info' } });
+      setTimeout(() => set({ notification: null }), 2000);
+  },
+
+  navigatePrevMistake: () => {
+      const state = get();
+      let cursor = state.currentNode;
+
+      // If we are currently looking at a position, we want to find an EARLIER position where a mistake was made.
+      // So we iterate back.
+      while (cursor.parent) {
+          const moveWasBad = (() => {
+               const parent = cursor.parent;
+               if (!parent) return false;
+
+               let analysis = parent.analysis;
+               if (!analysis) {
+                   analysis = generateMockAnalysis(parent.gameState.board, parent.gameState.currentPlayer, parent.parent?.analysis);
+                   parent.analysis = analysis;
+               }
+
+               const move = cursor.move;
+               if (!move) return false;
+
+               const candidate = analysis.moves.find(m => m.x === move.x && m.y === move.y);
+               const threshold = state.settings.mistakeThreshold;
+               return candidate && candidate.pointsLost >= threshold;
+          })();
+
+          if (moveWasBad) {
+               // Found it. Jump to parent.
+               get().jumpToNode(cursor.parent!);
+               set({ isAnalysisMode: true, analysisData: cursor.parent!.analysis });
+               return;
+          }
+
+          cursor = cursor.parent;
+      }
+
+      set({ notification: { message: "No previous mistakes.", type: 'info' } });
+      setTimeout(() => set({ notification: null }), 2000);
+  },
 
   resetGame: () => {
     const state = get();

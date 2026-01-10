@@ -3,7 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import type { GameNode } from '../types';
 
 export const WinRateGraph: React.FC = () => {
-    const { currentNode, jumpToNode } = useGameStore();
+    const { currentNode, jumpToNode, settings } = useGameStore();
     const svgRef = useRef<SVGSVGElement>(null);
     const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -22,12 +22,22 @@ export const WinRateGraph: React.FC = () => {
     const dataPoints = useMemo(() => {
         return nodePath.map((node) => {
             const winRate = node.analysis ? node.analysis.rootWinRate : 0.5;
-            // Maybe handle score lead too? Graph typically shows win rate.
-            // Katrain shows win rate line and score lead bars (sometimes).
-            // Let's stick to win rate line for now.
-            return { winRate, node };
+            let isMistake = false;
+
+            // Check if this move was a mistake
+            // We need to compare with parent analysis or check current move properties
+            // Ideally we check if the move played (to get here) lost points.
+            if (node.move && node.parent && node.parent.analysis) {
+                 const move = node.move;
+                 const candidate = node.parent.analysis.moves.find(m => m.x === move.x && m.y === move.y);
+                 if (candidate && candidate.pointsLost >= (settings.mistakeThreshold ?? 2.0)) {
+                     isMistake = true;
+                 }
+            }
+
+            return { winRate, node, isMistake };
         });
-    }, [nodePath]);
+    }, [nodePath, settings.mistakeThreshold]);
 
     const width = 300;
     const height = 100;
@@ -120,6 +130,14 @@ export const WinRateGraph: React.FC = () => {
                         <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
                     </linearGradient>
                 </defs>
+
+                {/* Mistake Indicators */}
+                {dataPoints.map((pt, i) => {
+                    if (!pt.isMistake) return null;
+                    const x = i * step;
+                    const y = height - (pt.winRate * height);
+                    return <circle key={i} cx={x} cy={y} r="2" fill="#EF4444" stroke="none" />;
+                })}
 
                 {/* Current Move Indicator */}
                 <circle cx={currentX} cy={currentY} r="3" fill="white" stroke="none" />

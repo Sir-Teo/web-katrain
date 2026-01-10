@@ -19,6 +19,8 @@ export const Layout: React.FC = () => {
     navigateForward,
     navigateStart,
     navigateEnd,
+    navigateNextMistake,
+    navigatePrevMistake,
     loadGame,
     toggleAnalysisMode,
     isAnalysisMode,
@@ -229,11 +231,17 @@ export const Layout: React.FC = () => {
            </div>
 
            <div className="flex items-center space-x-2">
+              <button className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigatePrevMistake} title="Previous Mistake (Shift+N)">
+                  <span className="text-red-400 font-bold mr-1">Mistake</span> <FaArrowLeft />
+              </button>
               <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigateBack}>
                   <FaArrowLeft className="mr-2"/> Prev
               </button>
               <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigateForward}>
                   Next <FaArrowRight className="ml-2"/>
+              </button>
+              <button className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium flex items-center" onClick={navigateNextMistake} title="Next Mistake (N)">
+                  <FaArrowRight className="mr-1"/> <span className="text-red-400 font-bold">Mistake</span>
               </button>
               <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium ml-4" onClick={passTurn}>
                   Pass

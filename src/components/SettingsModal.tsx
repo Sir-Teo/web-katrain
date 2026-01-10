@@ -85,6 +85,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                              Shows colored dots on the last {settings.showLastNMistakes} moves indicating points lost.
                          </p>
                     </div>
+
+                    {/* Mistake Threshold */}
+                    <div className="space-y-2">
+                         <label className="text-gray-300 block">Mistake Threshold (Points)</label>
+                         <div className="flex items-center space-x-2">
+                             <input
+                                 type="range"
+                                 min="0.5"
+                                 max="10"
+                                 step="0.5"
+                                 value={settings.mistakeThreshold ?? 2.0}
+                                 onChange={(e) => updateSettings({ mistakeThreshold: parseFloat(e.target.value) })}
+                                 className="flex-grow"
+                             />
+                             <span className="text-white font-mono w-8 text-right">{(settings.mistakeThreshold ?? 2.0).toFixed(1)}</span>
+                         </div>
+                         <p className="text-xs text-gray-500">
+                             Minimum points lost to consider a move a mistake for navigation.
+                         </p>
+                    </div>
                 </div>
                 <div className="p-4 bg-gray-900 flex justify-end">
                     <button
