@@ -161,6 +161,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     </div>
 
                     <div className="pt-2 border-t border-gray-700">
+                        <h3 className="text-sm font-semibold text-gray-200 mb-2">Teach Mode</h3>
+                        <p className="text-xs text-gray-500 mb-3">
+                            KaTrain-style auto-undo after analysis based on points lost. Values &lt; 1 are treated as a probability; values ≥ 1 are
+                            treated as a max variation count.
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-3">
+                            {[12, 6, 3, 1.5, 0.5, 0].map((thr, i) => (
+                                <div key={thr} className="space-y-1">
+                                    <label className="text-gray-300 block text-sm">≥ {thr}</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={0.1}
+                                        value={settings.teachNumUndoPrompts?.[i] ?? 0}
+                                        onChange={(e) => {
+                                            const v = Math.max(0, parseFloat(e.target.value || '0'));
+                                            const next = [...(settings.teachNumUndoPrompts ?? [])];
+                                            next[i] = v;
+                                            updateSettings({ teachNumUndoPrompts: next });
+                                        }}
+                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-700">
                         <h3 className="text-sm font-semibold text-gray-200 mb-3">KataGo</h3>
 
                         <div className="space-y-2">

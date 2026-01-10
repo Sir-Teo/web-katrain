@@ -127,6 +127,7 @@ export const MoveTree: React.FC = () => {
 
         {nodes.map(({ node, x, y }) => {
           const isCurrent = node.id === currentNode.id;
+          const isAutoUndone = node.autoUndo === true;
           const move = node.move;
           const isRoot = !move;
           const isBlack = move?.player === 'black';
@@ -135,8 +136,11 @@ export const MoveTree: React.FC = () => {
 
           return (
             <g key={node.id} style={{ cursor: isRoot ? 'default' : 'pointer' }}>
+              {isAutoUndone && (
+                <circle cx={x} cy={y} r={layout.r + 4} fill="none" stroke="#EF4444" strokeWidth="2" />
+              )}
               {isCurrent && (
-                <circle cx={x} cy={y} r={layout.r + 3} fill="none" stroke="#FACC15" strokeWidth="2" />
+                <circle cx={x} cy={y} r={layout.r + 7} fill="none" stroke="#FACC15" strokeWidth="2" />
               )}
               <circle
                 cx={x}

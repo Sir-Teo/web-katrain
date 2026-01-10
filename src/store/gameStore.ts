@@ -85,6 +85,8 @@ const createNode = (
         move,
         gameState,
         analysis: null,
+        autoUndo: null,
+        undoThreshold: Math.random(),
         properties: {}
     };
 };
@@ -121,6 +123,7 @@ const defaultSettings: GameSettings = {
   katagoTopK: 10,
   katagoReuseTree: true,
   katagoOwnershipMode: 'root',
+  teachNumUndoPrompts: [1, 1, 1, 0.5, 0, 0],
 };
 
 let continuousToken = 0;
@@ -271,12 +274,67 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // Store analysis in node even if user navigated elsewhere.
           node.analysis = analysisWithTerritory;
 
+          const maybeApplyTeachUndo = () => {
+            const latestState = get();
+            if (!latestState.isTeachMode) return;
+
+            const current = latestState.currentNode;
+            const move = current.move;
+            const parent = current.parent;
+            if (!move || !parent) return;
+            if (current.autoUndo !== null && current.autoUndo !== undefined) return;
+            if (latestState.isAiPlaying && latestState.aiColor === move.player) return;
+
+            const parentScore = parent.analysis?.rootScoreLead;
+            const childScore = current.analysis?.rootScoreLead;
+            if (typeof parentScore !== 'number' || typeof childScore !== 'number') return;
+
+            const pointsLost = (move.player === 'black' ? 1 : -1) * (parentScore - childScore);
+            const thresholds = [12, 6, 3, 1.5, 0.5, 0] as const;
+
+            let i = 0;
+            while (i < thresholds.length && pointsLost < thresholds[i]!) i++;
+            const numUndos = latestState.settings.teachNumUndoPrompts[i] ?? 0;
+
+            let undo = false;
+            if (numUndos === 0) {
+              undo = false;
+            } else if (numUndos < 1) {
+              const r = typeof current.undoThreshold === 'number' ? current.undoThreshold : Math.random();
+              current.undoThreshold = r;
+              undo = r < numUndos && parent.children.length === 1;
+            } else {
+              undo = parent.children.length <= numUndos;
+            }
+
+            current.autoUndo = undo;
+            set((s) => ({ treeVersion: s.treeVersion + 1 }));
+
+            if (!undo) return;
+
+            const moveLabel =
+              move.x < 0 || move.y < 0
+                ? 'Pass'
+                : `${String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x))}${19 - move.y}`;
+
+            set({
+              notification: {
+                message: `Teaching undo: ${moveLabel} (${pointsLost.toFixed(1)} points lost)`,
+                type: 'info',
+              },
+            });
+            setTimeout(() => set({ notification: null }), 3000);
+            latestState.navigateBack();
+          };
+
           const latest = get();
           if (latest.currentNode.id === node.id) {
             set({ analysisData: analysisWithTerritory, engineStatus: 'ready', engineError: null });
           } else {
             set({ engineStatus: 'ready', engineError: null });
           }
+
+          maybeApplyTeachUndo();
         })
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
@@ -337,42 +395,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // New Move Logic
     // Validate
     if (state.board[y][x] !== null) return;
-
-    // Teach Mode Check
-    if (state.isTeachMode && !isLoad) {
-        const analysis = state.currentNode.analysis;
-
-        if (!analysis) {
-             // Trigger analysis and block move until it's ready.
-	             set({
-	               notification: { message: 'Analyzing position...', type: 'info' }
-	             });
-	             setTimeout(() => set({ notification: null }), 1500);
-	             setTimeout(() => void get().runAnalysis(), 0);
-	             return;
-	        }
-
-        // Check against candidates
-        const candidate = analysis.moves.find(m => m.x === x && m.y === y);
-        // Default to "bad" if not found in top moves
-        const pointsLost = candidate ? candidate.pointsLost : 5.0;
-
-        if (pointsLost > 2.0) {
-             // Reject move
-             set({
-                 notification: {
-                     message: `Bad move! You lost ${pointsLost.toFixed(1)} points. Try again.`,
-                     type: 'error'
-                 }
-             });
-             // Clear notification after 3s
-             setTimeout(() => set({ notification: null }), 3000);
-             return;
-        } else {
-             // Good move, maybe give positive feedback or silence
-             set({ notification: null });
-        }
-    }
 
     const tentativeBoard = state.board.map((row) => [...row]);
     tentativeBoard[y][x] = state.currentPlayer;

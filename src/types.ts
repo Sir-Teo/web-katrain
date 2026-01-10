@@ -52,6 +52,8 @@ export interface GameNode {
   move: Move | null;
   gameState: GameState;
   analysis?: AnalysisResult | null;
+  autoUndo?: boolean | null; // Teach-mode auto-undo (KaTrain-like). null = not decided yet.
+  undoThreshold?: number; // Random [0,1) used for fractional auto-undos.
   properties?: Record<string, string[]>;
 }
 
@@ -75,4 +77,5 @@ export interface GameSettings {
   katagoTopK: number;
   katagoReuseTree: boolean;
   katagoOwnershipMode: 'root' | 'tree';
+  teachNumUndoPrompts: number[]; // KaTrain trainer/num_undo_prompts
 }
