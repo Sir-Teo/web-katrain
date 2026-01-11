@@ -25,6 +25,7 @@ export interface KataGoAnalyzeRequest {
   moveHistory: Move[];
   komi: number;
   topK?: number;
+  includeMovesOwnership?: boolean;
   visits?: number;
   maxTimeMs?: number;
   batchSize?: number;
@@ -59,6 +60,7 @@ export interface KataGoAnalyzeResponse {
       order: number;
       prior: number;
       pv: string[];
+      ownership?: number[]; // len 361, +1 black owns, -1 white owns (position after this move)
     }>;
   };
   error?: string;

@@ -34,6 +34,7 @@ export interface CandidateMove {
   order: number; // 0 for best move
   prior?: number; // policy prior probability (0..1)
   pv?: string[]; // principal variation, GTP coords (e.g. ["D4","Q16",...])
+  ownership?: number[]; // optional per-move ownership (KaTrain includeMovesOwnership)
 }
 
 export interface AnalysisResult {
@@ -83,7 +84,20 @@ export interface GameSettings {
   katagoOwnershipMode: 'root' | 'tree';
   teachNumUndoPrompts: number[]; // KaTrain trainer/num_undo_prompts
 
-  aiStrategy: 'default' | 'scoreloss' | 'policy' | 'weighted' | 'rank' | 'pick' | 'local' | 'tenuki' | 'influence' | 'territory';
+  aiStrategy:
+    | 'default'
+    | 'rank'
+    | 'scoreloss'
+    | 'policy'
+    | 'weighted'
+    | 'pick'
+    | 'local'
+    | 'tenuki'
+    | 'territory'
+    | 'influence'
+    | 'jigo'
+    | 'simple'
+    | 'settle';
   aiRankKyu: number; // KaTrain ai:p:rank/kyu_rank
   aiScoreLossStrength: number; // KaTrain ai:scoreloss/strength
   aiPolicyOpeningMoves: number; // KaTrain ai:policy/opening_moves
@@ -120,4 +134,13 @@ export interface GameSettings {
   aiTerritoryThreshold: number; // KaTrain ai:p:territory/threshold
   aiTerritoryLineWeight: number; // KaTrain ai:p:territory/line_weight
   aiTerritoryEndgame: number; // KaTrain ai:p:territory/endgame
+
+  aiJigoTargetScore: number; // KaTrain ai:jigo/target_score
+
+  aiOwnershipMaxPointsLost: number; // KaTrain ai:simple/max_points_lost
+  aiOwnershipSettledWeight: number; // KaTrain ai:simple/settled_weight
+  aiOwnershipOpponentFac: number; // KaTrain ai:simple/opponent_fac
+  aiOwnershipMinVisits: number; // KaTrain ai:simple/min_visits
+  aiOwnershipAttachPenalty: number; // KaTrain ai:simple/attach_penalty
+  aiOwnershipTenukiPenalty: number; // KaTrain ai:simple/tenuki_penalty
 }

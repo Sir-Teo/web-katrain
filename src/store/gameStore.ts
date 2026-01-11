@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BOARD_SIZE, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings } from '../types';
+import { BOARD_SIZE, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove } from '../types';
 import { checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import { extractKaTrainUserNoteFromSgfComment, type ParsedSgf } from '../utils/sgf';
@@ -165,6 +165,15 @@ const defaultSettings: GameSettings = {
   aiTerritoryThreshold: 3.5,
   aiTerritoryLineWeight: 2,
   aiTerritoryEndgame: 0.4,
+
+  aiJigoTargetScore: 0.5,
+
+  aiOwnershipMaxPointsLost: 1.75,
+  aiOwnershipSettledWeight: 1.0,
+  aiOwnershipOpponentFac: 0.5,
+  aiOwnershipMinVisits: 3,
+  aiOwnershipAttachPenalty: 1.0,
+  aiOwnershipTenukiPenalty: 0.5,
 };
 
 let continuousToken = 0;
@@ -530,6 +539,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	      const parentBoard = node.parent?.gameState.board;
 	      const grandparentBoard = node.parent?.parent?.gameState.board;
 	      const modelUrl = state.settings.katagoModelUrl;
+        const aiNeedsMovesOwnership = state.settings.aiStrategy === 'simple' || state.settings.aiStrategy === 'settle';
+        const aiOwnershipMode = aiNeedsMovesOwnership ? 'tree' : state.settings.katagoOwnershipMode;
 
       void getKataGoEngineClient()
 	        .analyze({
@@ -545,12 +556,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	            state.settings.aiStrategy === 'default'
 	              ? state.settings.katagoTopK
 	              : Math.max(state.settings.katagoTopK, 30),
+            includeMovesOwnership: aiNeedsMovesOwnership,
           visits: state.settings.katagoVisits,
           maxTimeMs: state.settings.katagoMaxTimeMs,
           batchSize: state.settings.katagoBatchSize,
           maxChildren: state.settings.katagoMaxChildren,
           reuseTree: state.settings.katagoReuseTree,
-          ownershipMode: state.settings.katagoOwnershipMode,
+          ownershipMode: aiOwnershipMode,
         })
         .then((analysis) => {
           const latest = get();
@@ -658,6 +670,183 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 x: picked.x,
                 y: picked.y,
                 thoughts: `ScoreLoss picked ${label} (pointsLost ${picked.pointsLost.toFixed(1)}, strength ${c}).`,
+              };
+            }
+
+            if (strategy === 'jigo') {
+              if (candidates.length === 0) return null;
+              const target = settings.aiJigoTargetScore;
+              const sign = playerAtStart === 'black' ? 1 : -1;
+
+              let bestCand = candidates[0]!;
+              let bestDiff = Math.abs(sign * bestCand.scoreLead - target);
+              for (const m of candidates) {
+                const diff = Math.abs(sign * m.scoreLead - target);
+                if (diff < bestDiff) {
+                  bestDiff = diff;
+                  bestCand = m;
+                }
+              }
+              const label =
+                bestCand.x < 0 || bestCand.y < 0
+                  ? 'pass'
+                  : `${String.fromCharCode(65 + (bestCand.x >= 8 ? bestCand.x + 1 : bestCand.x))}${19 - bestCand.y}`;
+              return {
+                x: bestCand.x,
+                y: bestCand.y,
+                thoughts: `Jigo picked ${label} (target ${target}, diff ${bestDiff.toFixed(1)}).`,
+              };
+            }
+
+            if (strategy === 'simple' || strategy === 'settle') {
+              const modeName = strategy === 'simple' ? 'ai:simple' : 'ai:settle';
+
+              if (candidates.length === 0) return null;
+              const topCand = candidates[0]!;
+              if (topCand.x < 0 || topCand.y < 0) {
+                return { x: topCand.x, y: topCand.y, thoughts: `${modeName}: top move is pass.` };
+              }
+
+              const nextPlayer = playerAtStart;
+              const lastMovePlayer = latest.currentNode.move?.player ?? null;
+
+              const xyToGtp = (x: number, y: number): string => {
+                if (x < 0 || y < 0) return 'pass';
+                const col = x >= 8 ? x + 1 : x;
+                const letter = String.fromCharCode(65 + col);
+                return `${letter}${BOARD_SIZE - y}`;
+              };
+
+              const inBounds = (x: number, y: number) => x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
+
+              const isAttachment = (x: number, y: number): boolean => {
+                if (x < 0 || y < 0) return false;
+                // KaTrain: self.cn.player is last mover; if none, no attachment penalty.
+                if (!lastMovePlayer) return false;
+
+                const opp = lastMovePlayer;
+                let attachOpp = 0;
+                const dirs: Array<[number, number]> = [
+                  [1, 0],
+                  [-1, 0],
+                  [0, 1],
+                  [0, -1],
+                ];
+                for (const [dx, dy] of dirs) {
+                  const nx = x + dx;
+                  const ny = y + dy;
+                  if (!inBounds(nx, ny)) continue;
+                  if (latest.board[ny]?.[nx] === opp) attachOpp++;
+                }
+
+                let nearbyOwn = 0;
+                // NOTE: Mirrors KaTrain upstream exactly (including its odd ranges).
+                const dxs = [-2, 0, 1, 2];
+                const dys = [-3, 0, 1, 2];
+                for (const dx of dxs) {
+                  for (const dy of dys) {
+                    if (Math.abs(dx) + Math.abs(dy) > 2) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (!inBounds(nx, ny)) continue;
+                    if (latest.board[ny]?.[nx] === nextPlayer) nearbyOwn++;
+                  }
+                }
+
+                return attachOpp >= 1 && nearbyOwn === 0;
+              };
+
+              const isTenuki = (x: number, y: number): boolean => {
+                if (x < 0 || y < 0) return false;
+                const a = latest.currentNode;
+                const b = latest.currentNode.parent;
+                if (!a || !a.move || a.move.x < 0 || a.move.y < 0) return false;
+                if (!b || !b.move || b.move.x < 0 || b.move.y < 0) return false;
+
+                const cheb = (m: Move) => Math.max(Math.abs(m.x - x), Math.abs(m.y - y));
+                return cheb(a.move) >= 5 && cheb(b.move) >= 5;
+              };
+
+              const settledness = (ownership: number[], player: Player): number => {
+                if (strategy === 'simple') {
+                  const sign = player === 'black' ? 1 : -1;
+                  let sum = 0;
+                  for (const o of ownership) {
+                    if (sign * o > 0) sum += Math.abs(o);
+                  }
+                  return sum;
+                }
+
+                // settle: sum |ownership| for existing stones of the player
+                let sum = 0;
+                for (let yy = 0; yy < BOARD_SIZE; yy++) {
+                  for (let xx = 0; xx < BOARD_SIZE; xx++) {
+                    if (latest.board[yy]?.[xx] !== player) continue;
+                    const v = ownership[yy * BOARD_SIZE + xx] ?? 0;
+                    sum += Math.abs(v);
+                  }
+                }
+                return sum;
+              };
+
+              const maxPointsLost = settings.aiOwnershipMaxPointsLost;
+              const settledWeight = settings.aiOwnershipSettledWeight;
+              const opponentFac = settings.aiOwnershipOpponentFac;
+              const minVisits = settings.aiOwnershipMinVisits;
+              const attachPenalty = settings.aiOwnershipAttachPenalty;
+              const tenukiPenalty = settings.aiOwnershipTenukiPenalty;
+
+              type Scored = {
+                move: CandidateMove;
+                ownSettled: number;
+                oppSettled: number;
+                attach: boolean;
+                tenuki: boolean;
+                score: number;
+              };
+              const scored: Scored[] = [];
+
+              for (const m of candidates) {
+                if (m.pointsLost >= maxPointsLost) continue;
+                if (!m.ownership || m.ownership.length < BOARD_SIZE * BOARD_SIZE) continue;
+                if (!(m.order <= 1 || m.visits >= minVisits)) continue;
+                const isPass = m.x < 0 || m.y < 0;
+                if (isPass && m.pointsLost > 0.75) continue;
+
+                const ownSettled = settledness(m.ownership, nextPlayer);
+                const oppSettled =
+                  strategy === 'settle'
+                    ? lastMovePlayer
+                      ? settledness(m.ownership, lastMovePlayer)
+                      : 0
+                    : settledness(m.ownership, nextPlayer === 'black' ? 'white' : 'black');
+                const attach = isAttachment(m.x, m.y);
+                const tenuki = isTenuki(m.x, m.y);
+                const score =
+                  m.pointsLost +
+                  attachPenalty * (attach ? 1 : 0) +
+                  tenukiPenalty * (tenuki ? 1 : 0) -
+                  settledWeight * (ownSettled + opponentFac * oppSettled);
+
+                scored.push({ move: m, ownSettled, oppSettled, attach, tenuki, score });
+              }
+
+              scored.sort((a, b) => a.score - b.score);
+              const best = scored[0]?.move ?? candidates[0]!;
+              if (scored.length === 0) {
+                return { x: best.x, y: best.y, thoughts: `${modeName}: no moves with ownership; playing top move.` };
+              }
+
+              const top5 = scored.slice(0, 5).map((s) => {
+                const mv = s.move;
+                const label = xyToGtp(mv.x, mv.y);
+                return `${label} (${mv.pointsLost.toFixed(1)} pt lost, ${mv.visits} visits, ${s.ownSettled.toFixed(1)} settledness, ${s.oppSettled.toFixed(1)} opponent settledness${s.attach ? ', attachment' : ''}${s.tenuki ? ', tenuki' : ''})`;
+              });
+
+              return {
+                x: scored[0]!.move.x,
+                y: scored[0]!.move.y,
+                thoughts: `${modeName} strategy. Top 5 Candidates ${top5.join(', ')} `,
               };
             }
 

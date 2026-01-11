@@ -50,6 +50,7 @@ class KataGoEngineClient {
     moveHistory: Move[];
     komi: number;
     topK?: number;
+    includeMovesOwnership?: boolean;
     visits?: number;
     maxTimeMs?: number;
     batchSize?: number;
@@ -70,6 +71,7 @@ class KataGoEngineClient {
       moveHistory: args.moveHistory,
       komi: args.komi,
       topK: args.topK,
+      includeMovesOwnership: args.includeMovesOwnership,
       visits: args.visits,
       maxTimeMs: args.maxTimeMs,
       batchSize: args.batchSize,

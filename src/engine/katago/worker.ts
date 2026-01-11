@@ -124,6 +124,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const maxChildren = Math.max(4, Math.min(msg.maxChildren ?? 64, 361));
     const topK = Math.max(1, Math.min(msg.topK ?? 10, 50));
     const ownershipMode: OwnershipMode = msg.ownershipMode ?? 'root';
+    const includeMovesOwnership = msg.includeMovesOwnership === true;
 
     const canReuse =
       msg.reuseTree === true &&
@@ -164,7 +165,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     }
 
     await search!.run({ visits: maxVisits, maxTimeMs, batchSize });
-    const analysis = search!.getAnalysis({ topK });
+    const analysis = search!.getAnalysis({ topK, includeMovesOwnership });
 
     post({
       type: 'katago:analyze_result',

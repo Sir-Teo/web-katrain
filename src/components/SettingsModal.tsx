@@ -201,9 +201,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                             >
                                 <option value="default">Default (engine top move)</option>
                                 <option value="rank">Rank (KaTrain)</option>
+                                <option value="simple">Simple Ownership (KaTrain)</option>
+                                <option value="settle">Settle Stones (KaTrain)</option>
                                 <option value="scoreloss">ScoreLoss (weaker)</option>
                                 <option value="policy">Policy</option>
                                 <option value="weighted">Policy Weighted</option>
+                                <option value="jigo">Jigo (KaTrain)</option>
                                 <option value="pick">Pick (KaTrain)</option>
                                 <option value="local">Local (KaTrain)</option>
                                 <option value="tenuki">Tenuki (KaTrain)</option>
@@ -242,6 +245,96 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 <p className="text-xs text-gray-500">
                                     Higher = plays closer to best move; lower = more random among worse moves.
                                 </p>
+                            </div>
+                        )}
+
+                        {settings.aiStrategy === 'jigo' && (
+                            <div className="mt-3 space-y-1">
+                                <label className="text-gray-300 block text-sm">Target Score</label>
+                                <input
+                                    type="number"
+                                    step={0.1}
+                                    value={settings.aiJigoTargetScore}
+                                    onChange={(e) => updateSettings({ aiJigoTargetScore: parseFloat(e.target.value || '0') })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    Chooses the move whose <span className="font-mono">scoreLead</span> is closest to this (for the side to play).
+                                </p>
+                            </div>
+                        )}
+
+                        {(settings.aiStrategy === 'simple' || settings.aiStrategy === 'settle') && (
+                            <div className="mt-3 grid grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-gray-300 block text-sm">Max Pt Lost</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={0.25}
+                                        value={settings.aiOwnershipMaxPointsLost}
+                                        onChange={(e) => updateSettings({ aiOwnershipMaxPointsLost: Math.max(0, parseFloat(e.target.value || '0')) })}
+                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-gray-300 block text-sm">Settled Wt</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={0.25}
+                                        value={settings.aiOwnershipSettledWeight}
+                                        onChange={(e) => updateSettings({ aiOwnershipSettledWeight: Math.max(0, parseFloat(e.target.value || '0')) })}
+                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-gray-300 block text-sm">Opp Fac</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={0.1}
+                                        value={settings.aiOwnershipOpponentFac}
+                                        onChange={(e) => updateSettings({ aiOwnershipOpponentFac: Math.max(0, parseFloat(e.target.value || '0')) })}
+                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-gray-300 block text-sm">Min Visits</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={1}
+                                        value={settings.aiOwnershipMinVisits}
+                                        onChange={(e) => updateSettings({ aiOwnershipMinVisits: Math.max(0, parseInt(e.target.value || '0', 10)) })}
+                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-gray-300 block text-sm">Attach Pen</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={0.25}
+                                        value={settings.aiOwnershipAttachPenalty}
+                                        onChange={(e) => updateSettings({ aiOwnershipAttachPenalty: Math.max(0, parseFloat(e.target.value || '0')) })}
+                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-gray-300 block text-sm">Tenuki Pen</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={0.25}
+                                        value={settings.aiOwnershipTenukiPenalty}
+                                        onChange={(e) => updateSettings({ aiOwnershipTenukiPenalty: Math.max(0, parseFloat(e.target.value || '0')) })}
+                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div className="col-span-3 text-xs text-gray-500">
+                                    KaTrain {settings.aiStrategy}: uses per-move ownership (slower) to favor “settled” outcomes.
+                                </div>
                             </div>
                         )}
 

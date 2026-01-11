@@ -964,7 +964,7 @@ export class MctsSearch {
     }
   }
 
-  getAnalysis(args: { topK: number }): {
+  getAnalysis(args: { topK: number; includeMovesOwnership?: boolean }): {
     rootWinRate: number;
     rootScoreLead: number;
     rootScoreSelfplay: number;
@@ -986,9 +986,11 @@ export class MctsSearch {
       order: number;
       prior: number;
       pv: string[];
+      ownership?: number[];
     }>;
   } {
     const topK = Math.max(1, Math.min(args.topK, 50));
+    const includeMovesOwnership = args.includeMovesOwnership === true;
 
     const rootQ = this.rootNode.visits > 0 ? this.rootNode.valueSum / this.rootNode.visits : 0;
     const rootWinRate = (rootQ + 1) * 0.5;
@@ -1061,6 +1063,8 @@ export class MctsSearch {
         order: 0,
         prior: m.prior,
         pv: m.pv,
+        ownership:
+          includeMovesOwnership && m.edge.child?.ownership ? Array.from(m.edge.child.ownership) : undefined,
       };
     });
 
