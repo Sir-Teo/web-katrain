@@ -4,6 +4,7 @@ export const KOMI = 6.5;
 export type Player = 'black' | 'white';
 export type Intersection = Player | null;
 export type BoardState = Intersection[][];
+export type GameRules = 'japanese' | 'chinese';
 
 export interface Move {
     x: number;
@@ -70,6 +71,7 @@ export interface GameSettings {
   showLastNMistakes: number; // KaTrain-like eval dots: 0 disables, else show last N moves
   mistakeThreshold: number; // Points lost to consider a mistake (WinRateGraph + mistake nav)
   loadSgfRewind: boolean; // KaTrain general/load_sgf_rewind
+  gameRules: GameRules; // KataGo rules preset (KaTrain default: japanese)
   analysisShowChildren: boolean; // Q
   analysisShowEval: boolean; // W
   analysisShowHints: boolean; // E

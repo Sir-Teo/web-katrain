@@ -64,6 +64,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         />
                     </div>
 
+                    <div className="space-y-1">
+                        <label className="text-gray-300 block text-sm">Rules</label>
+                        <select
+                            value={settings.gameRules}
+                            onChange={(e) => updateSettings({ gameRules: e.target.value as GameSettings['gameRules'] })}
+                            className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm"
+                        >
+                            <option value="japanese">Japanese (KaTrain default)</option>
+                            <option value="chinese">Chinese</option>
+                        </select>
+                    </div>
+
                     <div className="pt-2 border-t border-gray-700">
                         <h3 className="text-sm font-semibold text-gray-200 mb-3">Analysis Overlays</h3>
 

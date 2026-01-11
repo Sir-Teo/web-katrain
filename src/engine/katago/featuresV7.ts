@@ -1,4 +1,4 @@
-import { BOARD_SIZE, type BoardState, type Move, type Player } from '../../types';
+import { BOARD_SIZE, type BoardState, type GameRules, type Move, type Player } from '../../types';
 import { getOpponent } from '../../utils/gameLogic';
 
 const INPUT_SPATIAL_CHANNELS_V7 = 22;
@@ -16,8 +16,10 @@ export function extractInputsV7(args: {
   currentPlayer: Player;
   moveHistory: Move[];
   komi: number;
+  rules?: GameRules;
 }): KataGoInputsV7 {
   const { board, currentPlayer, moveHistory, komi } = args;
+  const rules: GameRules = args.rules ?? 'japanese';
   const pla = currentPlayer;
   const opp = getOpponent(pla);
 
@@ -133,28 +135,34 @@ export function extractInputsV7(args: {
   const selfKomi = pla === 'white' ? komi : -komi;
   global[5] = selfKomi / 20.0;
 
+  if (rules === 'japanese') {
+    global[9] = 1.0;
+    global[10] = 1.0;
+  }
+
   // passWouldEndPhase: in simple rules, if previous move was pass, another pass ends the game.
   const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
   global[14] = lastMove && (lastMove.x === -1 || lastMove.y === -1) ? 1.0 : 0.0;
 
-  // Komi parity wave (area scoring, 19x19).
-  const boardAreaIsEven = (BOARD_SIZE * BOARD_SIZE) % 2 === 0;
-  const drawableKomisAreEven = boardAreaIsEven;
+  if (rules === 'chinese') {
+    // Komi parity wave (area scoring, 19x19).
+    const boardAreaIsEven = (BOARD_SIZE * BOARD_SIZE) % 2 === 0;
+    const drawableKomisAreEven = boardAreaIsEven;
 
-  let komiFloor: number;
-  if (drawableKomisAreEven) komiFloor = Math.floor(selfKomi / 2.0) * 2.0;
-  else komiFloor = Math.floor((selfKomi - 1.0) / 2.0) * 2.0 + 1.0;
+    let komiFloor: number;
+    if (drawableKomisAreEven) komiFloor = Math.floor(selfKomi / 2.0) * 2.0;
+    else komiFloor = Math.floor((selfKomi - 1.0) / 2.0) * 2.0 + 1.0;
 
-  let delta = selfKomi - komiFloor;
-  if (delta < 0.0) delta = 0.0;
-  if (delta > 2.0) delta = 2.0;
+    let delta = selfKomi - komiFloor;
+    if (delta < 0.0) delta = 0.0;
+    if (delta > 2.0) delta = 2.0;
 
-  let wave: number;
-  if (delta < 0.5) wave = delta;
-  else if (delta < 1.5) wave = 1.0 - delta;
-  else wave = delta - 2.0;
-  global[18] = wave;
+    let wave: number;
+    if (delta < 0.5) wave = delta;
+    else if (delta < 1.5) wave = 1.0 - delta;
+    else wave = delta - 2.0;
+    global[18] = wave;
+  }
 
   return { spatial, global };
 }
-

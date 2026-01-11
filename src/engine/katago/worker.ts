@@ -7,6 +7,7 @@ import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import pako from 'pako';
 
 import type { KataGoWorkerRequest, KataGoWorkerResponse } from './types';
+import type { GameRules } from '../../types';
 import { parseKataGoModelV8 } from './loadModelV8';
 import { KataGoModelV8Tf } from './modelV8';
 import { MctsSearch, type OwnershipMode } from './analyzeMcts';
@@ -26,6 +27,7 @@ let searchKey: {
   komi: number;
   currentPlayer: 'black' | 'white';
   wideRootNoise: number;
+  rules: GameRules;
 } | null = null;
 
 async function initBackend(): Promise<void> {
@@ -128,6 +130,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const includeMovesOwnership = msg.includeMovesOwnership === true;
     const analysisPvLen = Math.max(0, Math.min(msg.analysisPvLen ?? 15, 60));
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
+    const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : 'japanese';
 
     const canReuse =
       msg.reuseTree === true &&
@@ -140,7 +143,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.ownershipMode === ownershipMode &&
       searchKey.komi === msg.komi &&
       searchKey.currentPlayer === msg.currentPlayer &&
-      searchKey.wideRootNoise === wideRootNoise;
+      searchKey.wideRootNoise === wideRootNoise &&
+      searchKey.rules === rules;
 
     if (!canReuse) {
       search = await MctsSearch.create({
@@ -151,6 +155,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         currentPlayer: msg.currentPlayer,
         moveHistory: msg.moveHistory,
         komi: msg.komi,
+        rules,
         maxChildren,
         ownershipMode,
         wideRootNoise,
@@ -164,6 +169,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           komi: msg.komi,
           currentPlayer: msg.currentPlayer,
           wideRootNoise,
+          rules,
         };
       } else {
         searchKey = null;

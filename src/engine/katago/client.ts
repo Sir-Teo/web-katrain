@@ -1,5 +1,5 @@
 import type { KataGoWorkerRequest, KataGoWorkerResponse } from './types';
-import type { BoardState, Move, Player } from '../../types';
+import type { BoardState, GameRules, Move, Player } from '../../types';
 
 type Analysis = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:analyze_result' }>['analysis']>;
 
@@ -49,6 +49,7 @@ class KataGoEngineClient {
     currentPlayer: Player;
     moveHistory: Move[];
     komi: number;
+    rules?: GameRules;
     topK?: number;
     analysisPvLen?: number;
     includeMovesOwnership?: boolean;
@@ -72,6 +73,7 @@ class KataGoEngineClient {
       currentPlayer: args.currentPlayer,
       moveHistory: args.moveHistory,
       komi: args.komi,
+      rules: args.rules,
       topK: args.topK,
       analysisPvLen: args.analysisPvLen,
       includeMovesOwnership: args.includeMovesOwnership,

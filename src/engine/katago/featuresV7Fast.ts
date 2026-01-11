@@ -1,4 +1,4 @@
-import { BOARD_SIZE, type Player } from '../../types';
+import { BOARD_SIZE, type GameRules, type Player } from '../../types';
 import { getOpponent } from '../../utils/gameLogic';
 import { BLACK, WHITE, EMPTY, PASS_MOVE, computeLibertyMap, computeAreaMapV7KataGo, type StoneColor } from './fastBoard';
 
@@ -27,6 +27,7 @@ export function extractInputsV7Fast(args: {
   currentPlayer: Player;
   recentMoves: RecentMove[]; // chronological order, last item is most recent
   komi: number;
+  rules?: GameRules;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable
@@ -35,6 +36,7 @@ export function extractInputsV7Fast(args: {
   ladderWorkingMoves?: Uint8Array; // V7 plane 17, 1 where moves are ladder-capturing
 }): KataGoInputsV7 {
   const { stones, koPoint, currentPlayer, recentMoves, komi } = args;
+  const rules: GameRules = args.rules ?? 'japanese';
   const pla = currentPlayer;
   const opp = getOpponent(pla);
   const plaColor = playerToColor(pla);
@@ -89,13 +91,15 @@ export function extractInputsV7Fast(args: {
     }
   }
 
-  const area = args.areaMap ?? computeAreaMapV7KataGo(stones);
-  for (let y = 0; y < BOARD_SIZE; y++) {
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      const pos = y * BOARD_SIZE + x;
-      const v = area[pos] as StoneColor;
-      if (v === plaColor) spatial[idxNHWC(x, y, 18)] = 1.0;
-      else if (v === oppColor) spatial[idxNHWC(x, y, 19)] = 1.0;
+  if (rules === 'chinese') {
+    const area = args.areaMap ?? computeAreaMapV7KataGo(stones);
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        const pos = y * BOARD_SIZE + x;
+        const v = area[pos] as StoneColor;
+        if (v === plaColor) spatial[idxNHWC(x, y, 18)] = 1.0;
+        else if (v === oppColor) spatial[idxNHWC(x, y, 19)] = 1.0;
+      }
     }
   }
 
@@ -118,25 +122,33 @@ export function extractInputsV7Fast(args: {
   const selfKomi = pla === 'white' ? komi : -komi;
   global[5] = selfKomi / 20.0;
 
+  if (rules === 'japanese') {
+    // KataGo "Japanese": territory scoring + seki tax.
+    global[9] = 1.0; // scoring: territory
+    global[10] = 1.0; // tax: seki
+  }
+
   const lastMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
   global[14] = lastMove && lastMove.move === PASS_MOVE ? 1.0 : 0.0;
 
-  const boardAreaIsEven = (BOARD_SIZE * BOARD_SIZE) % 2 === 0;
-  const drawableKomisAreEven = boardAreaIsEven;
+  if (rules === 'chinese') {
+    const boardAreaIsEven = (BOARD_SIZE * BOARD_SIZE) % 2 === 0;
+    const drawableKomisAreEven = boardAreaIsEven;
 
-  let komiFloor: number;
-  if (drawableKomisAreEven) komiFloor = Math.floor(selfKomi / 2.0) * 2.0;
-  else komiFloor = Math.floor((selfKomi - 1.0) / 2.0) * 2.0 + 1.0;
+    let komiFloor: number;
+    if (drawableKomisAreEven) komiFloor = Math.floor(selfKomi / 2.0) * 2.0;
+    else komiFloor = Math.floor((selfKomi - 1.0) / 2.0) * 2.0 + 1.0;
 
-  let delta = selfKomi - komiFloor;
-  if (delta < 0.0) delta = 0.0;
-  if (delta > 2.0) delta = 2.0;
+    let delta = selfKomi - komiFloor;
+    if (delta < 0.0) delta = 0.0;
+    if (delta > 2.0) delta = 2.0;
 
-  let wave: number;
-  if (delta < 0.5) wave = delta;
-  else if (delta < 1.5) wave = 1.0 - delta;
-  else wave = delta - 2.0;
-  global[18] = wave;
+    let wave: number;
+    if (delta < 0.5) wave = delta;
+    else if (delta < 1.5) wave = 1.0 - delta;
+    else wave = delta - 2.0;
+    global[18] = wave;
+  }
 
   return { spatial, global };
 }

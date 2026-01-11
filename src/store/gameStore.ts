@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BOARD_SIZE, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove } from '../types';
+import { BOARD_SIZE, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove } from '../types';
 import { checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import { extractKaTrainUserNoteFromSgfComment, type ParsedSgf } from '../utils/sgf';
@@ -60,6 +60,24 @@ const createEmptyBoard = (): BoardState => {
   return Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
 };
 
+const rulesToSgfRu = (rules: GameRules): string => {
+  switch (rules) {
+    case 'japanese':
+      return 'Japanese';
+    case 'chinese':
+      return 'Chinese';
+  }
+};
+
+const parseSgfRu = (ru: string | undefined): GameRules | null => {
+  if (!ru) return null;
+  const v = ru.trim().toLowerCase();
+  if (!v) return null;
+  if (v === 'jp' || v.includes('japanese') || v === 'ko' || v.includes('korean')) return 'japanese';
+  if (v === 'cn' || v.includes('chinese')) return 'chinese';
+  return null;
+};
+
 const ownershipToTerritoryGrid = (ownership: ArrayLike<number>): number[][] => {
   const territory: number[][] = Array(BOARD_SIZE)
     .fill(0)
@@ -105,6 +123,7 @@ const initialGameState: GameState = {
     komi: 6.5
 };
 const initialRoot = createNode(null, null, initialGameState, 'root');
+initialRoot.properties = { RU: [rulesToSgfRu('japanese')] };
 
 const defaultSettings: GameSettings = {
   soundEnabled: true,
@@ -114,6 +133,7 @@ const defaultSettings: GameSettings = {
   showLastNMistakes: 3,
   mistakeThreshold: 3.0,
   loadSgfRewind: true,
+  gameRules: 'japanese',
   analysisShowChildren: true,
   analysisShowEval: false,
   analysisShowHints: true,
@@ -299,6 +319,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 		      const parentBoard = node.parent?.gameState.board;
 		      const grandparentBoard = node.parent?.parent?.gameState.board;
 		      const modelUrl = state.settings.katagoModelUrl;
+          const rules = state.settings.gameRules;
           const analysisPvLen = state.settings.katagoAnalysisPvLen;
           const wideRootNoise = state.settings.katagoWideRootNoise;
 
@@ -314,6 +335,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
 	          komi: state.komi,
+            rules,
 	          topK: state.settings.katagoTopK,
             analysisPvLen,
             wideRootNoise,
@@ -425,6 +447,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         'katagoOwnershipMode',
         'katagoWideRootNoise',
         'katagoAnalysisPvLen',
+        'gameRules',
       ];
 
       const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
@@ -436,11 +459,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
       clearAnalysis(state.rootNode);
 
+      const rulesChanged = newSettings.gameRules !== undefined && newSettings.gameRules !== state.settings.gameRules;
+      if (rulesChanged) {
+        state.rootNode.properties = state.rootNode.properties ?? {};
+        state.rootNode.properties['RU'] = [rulesToSgfRu(nextSettings.gameRules)];
+      }
+
       return {
         settings: nextSettings,
         analysisData: null,
         engineStatus: 'idle',
         engineError: null,
+        treeVersion: rulesChanged ? state.treeVersion + 1 : state.treeVersion,
       };
     }),
 
@@ -548,6 +578,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	      const parentBoard = node.parent?.gameState.board;
 	      const grandparentBoard = node.parent?.parent?.gameState.board;
 	      const modelUrl = state.settings.katagoModelUrl;
+        const rules = state.settings.gameRules;
         const analysisPvLen = state.settings.katagoAnalysisPvLen;
         const wideRootNoise = state.settings.katagoWideRootNoise;
         const aiNeedsMovesOwnership = state.settings.aiStrategy === 'simple' || state.settings.aiStrategy === 'settle';
@@ -563,6 +594,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
 	          komi: state.komi,
+            rules,
 	          topK:
 	            state.settings.aiStrategy === 'default'
 	              ? state.settings.katagoTopK
@@ -1460,20 +1492,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.settings.soundEnabled) {
         playNewGameSound();
     }
-    set({
+    const rootState: GameState = {
       board: createEmptyBoard(),
       currentPlayer: 'black',
       moveHistory: [],
       capturedBlack: 0,
       capturedWhite: 0,
       komi: 6.5,
+    };
+    const newRoot = createNode(null, null, rootState, 'root');
+    newRoot.properties = { RU: [rulesToSgfRu(state.settings.gameRules)] };
+    set({
+      board: rootState.board,
+      currentPlayer: rootState.currentPlayer,
+      moveHistory: rootState.moveHistory,
+      capturedBlack: rootState.capturedBlack,
+      capturedWhite: rootState.capturedWhite,
+      komi: rootState.komi,
       isAiPlaying: false,
       aiColor: null,
       analysisData: null,
 
       // Reset Tree
-      rootNode: initialRoot,
-      currentNode: initialRoot
+      rootNode: newRoot,
+      currentNode: newRoot,
+      treeVersion: state.treeVersion + 1,
     });
   },
 
@@ -1489,6 +1532,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const firstMovePlayer = sgf.moves[0]?.player;
     const ha = parseInt(sgfProps?.['HA']?.[0] ?? '0', 10);
     const rootPlayer: Player = pl ?? firstMovePlayer ?? (Number.isFinite(ha) && ha >= 2 ? 'white' : 'black');
+    const rules = parseSgfRu(sgfProps?.['RU']?.[0]) ?? get().settings.gameRules;
 
     const rootState: GameState = {
       board: currentBoard,
@@ -1500,6 +1544,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     const newRoot = createNode(null, null, rootState, 'root');
+    newRoot.properties = { RU: [rulesToSgfRu(rules)] };
 
     const cloneProps = (props: Record<string, string[]> | undefined): Record<string, string[]> => {
       const out: Record<string, string[]> = {};
@@ -1590,6 +1635,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const rootNote = extractKaTrainUserNoteFromSgfComment(rootPropsCopy['C']);
       if (rootNote) newRoot.note = rootNote;
       delete rootPropsCopy['C'];
+      if (!rootPropsCopy['RU']?.length) rootPropsCopy['RU'] = [rulesToSgfRu(rules)];
       newRoot.properties = rootPropsCopy;
       const rootMove = extractMove(sgf.tree.props);
       if (!rootMove && sgf.tree.props['KT'] && !newRoot.analysis) {
@@ -1674,6 +1720,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       komi: rootState.komi,
       analysisData: current.analysis || null,
       treeVersion: state.treeVersion + 1,
+      settings: { ...state.settings, gameRules: rules },
     }));
   },
 

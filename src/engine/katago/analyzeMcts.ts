@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
-import type { BoardState, Move, Player } from '../../types';
+import type { BoardState, GameRules, Move, Player } from '../../types';
 import { postprocessKataGoV8 } from './evalV8';
 import type { KataGoModelV8Tf } from './modelV8';
 import { expectedWhiteScoreValue, SQRT_BOARD_AREA } from './scoreValue';
@@ -534,6 +534,7 @@ function buildPv(edge: Edge, maxDepth: number): string[] {
 async function evaluateBatch(args: {
   model: KataGoModelV8Tf;
   includeOwnership?: boolean;
+  rules: GameRules;
   states: Array<{
     stones: Uint8Array;
     koPoint: number;
@@ -561,15 +562,18 @@ async function evaluateBatch(args: {
 > {
   const { model, states } = args;
   const includeOwnership = args.includeOwnership === true;
+  const rules = args.rules;
+  const includeAreaFeature = rules === 'chinese';
   const batch = states.length;
   const spatialBatch = new Float32Array(batch * BOARD_AREA * 22);
   const globalBatch = new Float32Array(batch * 19);
   const libertyMaps: Uint8Array[] = new Array(batch);
   const areaMaps: Uint8Array[] = new Array(batch);
+  const emptyAreaMap = new Uint8Array(BOARD_AREA);
 
   for (let i = 0; i < batch; i++) {
     const libertyMap = computeLibertyMap(states[i]!.stones);
-    const areaMap = computeAreaMapV7KataGo(states[i]!.stones);
+    const areaMap = includeAreaFeature ? computeAreaMapV7KataGo(states[i]!.stones) : emptyAreaMap;
     const ladder = computeLadderFeaturesV7KataGo({
       stones: states[i]!.stones,
       koPoint: states[i]!.koPoint,
@@ -588,8 +592,9 @@ async function evaluateBatch(args: {
       currentPlayer: states[i]!.currentPlayer,
       recentMoves: states[i]!.recentMoves,
       komi: states[i]!.komi,
+      rules,
       libertyMap,
-      areaMap,
+      areaMap: includeAreaFeature ? areaMap : undefined,
       ladderedStones: ladder.ladderedStones,
       ladderWorkingMoves: ladder.ladderWorkingMoves,
       prevLadderedStones,
@@ -668,6 +673,7 @@ export class MctsSearch {
   readonly maxChildren: number;
   readonly currentPlayer: Player;
   readonly komi: number;
+  readonly rules: GameRules;
   readonly wideRootNoise: number;
 
   private readonly rootStones: Uint8Array;
@@ -688,6 +694,7 @@ export class MctsSearch {
     maxChildren: number;
     currentPlayer: Player;
     komi: number;
+    rules: GameRules;
     wideRootNoise: number;
     rootStones: Uint8Array;
     rootKoPoint: number;
@@ -705,6 +712,7 @@ export class MctsSearch {
     this.maxChildren = args.maxChildren;
     this.currentPlayer = args.currentPlayer;
     this.komi = args.komi;
+    this.rules = args.rules;
     this.wideRootNoise = args.wideRootNoise;
 
     this.rootStones = args.rootStones;
@@ -728,6 +736,7 @@ export class MctsSearch {
     currentPlayer: Player;
     moveHistory: Move[];
     komi: number;
+    rules: GameRules;
     maxChildren: number;
     ownershipMode: OwnershipMode;
     wideRootNoise: number;
@@ -755,6 +764,7 @@ export class MctsSearch {
       await evaluateBatch({
         model: args.model,
         includeOwnership: true,
+        rules: args.rules,
         states: [
           {
             stones: rootPos.stones,
@@ -816,6 +826,7 @@ export class MctsSearch {
       maxChildren: args.maxChildren,
       currentPlayer: args.currentPlayer,
       komi: args.komi,
+      rules: args.rules,
       wideRootNoise: args.wideRootNoise,
       rootStones,
       rootKoPoint,
@@ -954,6 +965,7 @@ export class MctsSearch {
       const evals = await evaluateBatch({
         model: this.model,
         includeOwnership,
+        rules: this.rules,
         states: jobs.map((j) => ({
           stones: j.stones,
           koPoint: j.koPoint,
@@ -1153,6 +1165,7 @@ export async function analyzeMcts(args: {
   topK?: number;
   analysisPvLen?: number;
   wideRootNoise?: number;
+  rules?: GameRules;
   visits?: number;
   maxTimeMs?: number;
   batchSize?: number;
@@ -1188,6 +1201,7 @@ export async function analyzeMcts(args: {
   const topK = Math.max(1, Math.min(args.topK ?? 10, 50));
   const analysisPvLen = Math.max(0, Math.min(args.analysisPvLen ?? 15, 60));
   const wideRootNoise = Math.max(0, Math.min(args.wideRootNoise ?? 0.04, 5));
+  const rules: GameRules = args.rules ?? 'japanese';
   const pvDepth = 1 + analysisPvLen;
   const rand = new Rand();
 
@@ -1214,6 +1228,7 @@ export async function analyzeMcts(args: {
     await evaluateBatch({
       model: args.model,
       includeOwnership: true,
+      rules,
       states: [
         {
           stones: rootPos.stones,
@@ -1385,6 +1400,7 @@ export async function analyzeMcts(args: {
     const evals = await evaluateBatch({
       model: args.model,
       includeOwnership: true,
+      rules,
       states: jobs.map((j) => ({
         stones: j.stones,
         koPoint: j.koPoint,
