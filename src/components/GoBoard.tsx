@@ -24,6 +24,8 @@ const OWNERSHIP_GAMMA = 1.33;
 const EVAL_DOT_MIN_SIZE = 0.25;
 const EVAL_DOT_MAX_SIZE = 0.5;
 const STONE_SIZE = 0.505; // KaTrain Theme.STONE_SIZE
+const STONE_MIN_ALPHA = 0.85; // KaTrain Theme.STONE_MIN_ALPHA
+const MARK_SIZE = 0.42; // KaTrain Theme.MARK_SIZE
 const APPROX_BOARD_COLOR = [0.95, 0.75, 0.47, 1] as const;
 const HINTS_LO_ALPHA = 0.6;
 const HINTS_ALPHA = 0.8;
@@ -97,6 +99,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
   } = useGameStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const ownershipCanvasRef = useRef<HTMLCanvasElement>(null);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -383,42 +386,53 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
         ? boardColor
         : rgba(APPROX_BOARD_COLOR);
 
-  const ownershipOverlay = useMemo(() => {
-      if (!isAnalysisMode || !settings.analysisShowOwnership) return [];
-      const territory = analysisData?.territory ?? currentNode.parent?.analysis?.territory;
-      if (!territory) return [];
+  const territory = analysisData?.territory ?? currentNode.parent?.analysis?.territory ?? null;
 
-      const out: React.ReactNode[] = [];
-      for (let y = 0; y < BOARD_SIZE; y++) {
-          for (let x = 0; x < BOARD_SIZE; x++) {
-              const val = territory[y]?.[x] ?? 0;
-              const mag = Math.abs(val);
-              if (mag < 0.01) continue;
-              const a = Math.pow(Math.min(1, mag), 1 / OWNERSHIP_GAMMA);
-              const base = val > 0 ? OWNERSHIP_COLORS.black : OWNERSHIP_COLORS.white;
-              const alpha = base[3] * a;
-              if (alpha <= 0.001) continue;
-              const d = toDisplay(x, y);
+  const ownershipTexture = useMemo(() => {
+    if (!isAnalysisMode || !settings.analysisShowOwnership) return null;
+    if (!territory) return null;
 
-              out.push(
-                  <div
-                      key={`own-${x}-${y}`}
-                      className="absolute pointer-events-none"
-                      style={{
-                          width: cellSize,
-                          height: cellSize,
-                          left: originX + d.x * cellSize - cellSize / 2,
-                          top: originY + d.y * cellSize - cellSize / 2,
-                          backgroundColor: rgba(base, alpha),
-                          borderRadius: 2,
-                          filter: 'blur(0.2px)',
-                      }}
-                  />
-              );
-          }
+    const width = BOARD_SIZE + 2;
+    const height = BOARD_SIZE + 2;
+    const bytes = new Uint8ClampedArray(width * height * 4);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const displayX = x - 1;
+        const displayY = y - 1;
+
+        const inBoard = displayX >= 0 && displayX < BOARD_SIZE && displayY >= 0 && displayY < BOARD_SIZE;
+        const clampedDisplayX = Math.max(0, Math.min(displayX, BOARD_SIZE - 1));
+        const clampedDisplayY = Math.max(0, Math.min(displayY, BOARD_SIZE - 1));
+        const internal = toInternal(clampedDisplayX, clampedDisplayY);
+
+        const val = territory[internal.y]?.[internal.x] ?? 0;
+        const base = val > 0 ? OWNERSHIP_COLORS.black : OWNERSHIP_COLORS.white;
+        let alpha = inBoard ? Math.abs(val) : 0;
+        if (alpha > 1) alpha = 1;
+        alpha = alpha ** (1 / OWNERSHIP_GAMMA);
+        alpha = base[3] * alpha;
+
+        const idx = 4 * (y * width + x);
+        bytes[idx] = Math.round(base[0] * 255);
+        bytes[idx + 1] = Math.round(base[1] * 255);
+        bytes[idx + 2] = Math.round(base[2] * 255);
+        bytes[idx + 3] = Math.round(alpha * 255);
       }
-      return out;
-  }, [analysisData, currentNode, isAnalysisMode, settings.analysisShowOwnership, cellSize, originX, originY, toDisplay]);
+    }
+
+    return { width, height, bytes };
+  }, [isAnalysisMode, settings.analysisShowOwnership, territory, toInternal]);
+
+  useEffect(() => {
+    const canvas = ownershipCanvasRef.current;
+    if (!canvas || !ownershipTexture) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    canvas.width = ownershipTexture.width;
+    canvas.height = ownershipTexture.height;
+    ctx.putImageData(new ImageData(ownershipTexture.bytes, ownershipTexture.width, ownershipTexture.height), 0, 0);
+  }, [ownershipTexture]);
 
   const policyOverlay = useMemo(() => {
       if (!isAnalysisMode || !settings.analysisShowPolicy) return [];
@@ -442,32 +456,57 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
               const col = KATRAN_EVAL_COLORS[Math.min(5, polOrder)]!;
               const showText = p > textLb;
               const scale = showText ? 0.95 : 0.5;
-              const size = cellSize * 0.9 * scale;
+              const stoneRadius = cellSize * STONE_SIZE;
+              const bgRadius = stoneRadius * HINT_SCALE * 0.98;
+              const coloredRadius = stoneRadius * HINT_SCALE * scale;
+              const bgSize = 2 * bgRadius;
+              const size = 2 * coloredRadius;
               const isBest = best > 0 && p === best;
 
-              out.push(
+              if (showText) {
+                out.push(
                   <div
-                      key={`pol-${x}-${y}`}
-                      className="absolute pointer-events-none flex items-center justify-center font-mono"
-                      style={{
-                          width: size,
-                          height: size,
-                          left: originX + d.x * cellSize - size / 2,
-                          top: originY + d.y * cellSize - size / 2,
-                          borderRadius: '50%',
-                          backgroundColor: rgba(col, 0.5),
-                          boxShadow: isBest ? '0 0 0 2px rgba(10,200,250,0.55)' : undefined,
-                          color: 'black',
-                          fontSize: 9,
-                      }}
-                  >
-                      {showText ? `${(p * 100).toFixed(2).slice(0, 4)}%` : null}
-                  </div>
+                    key={`pol-bg-${x}-${y}`}
+                    className="absolute pointer-events-none rounded-full"
+                    style={{
+                      width: bgSize,
+                      height: bgSize,
+                      left: originX + d.x * cellSize - bgSize / 2,
+                      top: originY + d.y * cellSize - bgSize / 2,
+                      backgroundColor: approxBoardColor,
+                      zIndex: 15,
+                    }}
+                  />
+                );
+              }
+
+              const labelRaw = `${(100 * p).toFixed(2)}`.slice(0, 4) + '%';
+              out.push(
+                <div
+                  key={`pol-${x}-${y}`}
+                  className="absolute pointer-events-none flex items-center justify-center font-mono rounded-full"
+                  style={{
+                    width: size,
+                    height: size,
+                    left: originX + d.x * cellSize - size / 2,
+                    top: originY + d.y * cellSize - size / 2,
+                    backgroundColor: rgba(col, 0.5),
+                    border: isBest ? `2px solid ${rgba(TOP_MOVE_BORDER_COLOR, 0.5)}` : undefined,
+                    boxSizing: 'border-box',
+                    zIndex: 16,
+                    color: 'black',
+                    fontSize: cellSize / 4,
+                    lineHeight: 1,
+                    textAlign: 'center',
+                  }}
+                >
+                  {showText ? labelRaw : null}
+                </div>
               );
           }
       }
       return out;
-  }, [analysisData, isAnalysisMode, settings.analysisShowPolicy, cellSize, originX, originY, toDisplay]);
+  }, [analysisData, approxBoardColor, cellSize, isAnalysisMode, originX, originY, settings.analysisShowPolicy, toDisplay]);
 
   const pvOverlay = useMemo(() => {
       const pv = hoveredMove?.pv;
@@ -535,6 +574,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
             backgroundImage: settings.boardTheme === 'bamboo' ? "url('/katrain/board.png')" : undefined,
             backgroundSize: settings.boardTheme === 'bamboo' ? '100% 100%' : undefined,
             backgroundRepeat: settings.boardTheme === 'bamboo' ? 'no-repeat' : undefined,
+            overflow: 'hidden',
         }}
         onClick={handleClick}
         onPointerDown={handlePointerDown}
@@ -646,7 +686,19 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
       })}
 
       {/* Ownership / Territory Overlay (KaTrain-style) */}
-      {ownershipOverlay}
+      {ownershipTexture && (
+        <canvas
+          ref={ownershipCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: originX - cellSize * 1.5,
+            top: originY - cellSize * 1.5,
+            width: cellSize * (BOARD_SIZE + 2),
+            height: cellSize * (BOARD_SIZE + 2),
+            zIndex: 3,
+          }}
+        />
+      )}
 
       {/* Policy Overlay (KaTrain-style) */}
       {policyOverlay}
@@ -657,6 +709,30 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
           if (!cell) return null;
           const d = toDisplay(x, y);
           const stoneDiameter = 2 * (cellSize * STONE_SIZE);
+          const ownershipVal = isAnalysisMode && settings.analysisShowOwnership && territory ? (territory[y]?.[x] ?? 0) : null;
+          const ownershipAbs = ownershipVal !== null ? Math.min(1, Math.abs(ownershipVal)) : 0;
+          const owner =
+            ownershipVal !== null
+              ? ownershipVal > 0
+                ? 'black'
+                : 'white'
+              : null;
+          const stoneAlpha =
+            ownershipVal !== null && owner
+              ? cell === owner
+                ? STONE_MIN_ALPHA + (1 - STONE_MIN_ALPHA) * ownershipAbs
+                : STONE_MIN_ALPHA
+              : 1;
+          const showMark = ownershipVal !== null && owner && cell !== owner && ownershipAbs > 0;
+          const markSize = Math.max(0, MARK_SIZE * ownershipAbs * stoneDiameter);
+          const markColor = owner === 'black' ? STONE_COLORS.black : STONE_COLORS.white;
+          const otherColor = owner === 'black' ? STONE_COLORS.white : STONE_COLORS.black;
+          const outlineColor = [
+            (markColor[0] + otherColor[0]) / 2,
+            (markColor[1] + otherColor[1]) / 2,
+            (markColor[2] + otherColor[2]) / 2,
+            1,
+          ] as const;
           return (
             <div
               key={`${x}-${y}`}
@@ -666,15 +742,37 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
                 height: stoneDiameter,
                 left: originX + d.x * cellSize - stoneDiameter / 2,
                 top: originY + d.y * cellSize - stoneDiameter / 2,
-                backgroundImage: `url('/katrain/${cell === 'black' ? 'B_stone.png' : 'W_stone.png'}')`,
-                backgroundSize: 'contain',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
                 borderRadius: '50%',
-                opacity: 1,
                 boxSizing: 'border-box',
               }}
             >
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url('/katrain/${cell === 'black' ? 'B_stone.png' : 'W_stone.png'}')`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  opacity: stoneAlpha,
+                }}
+              />
+
+              {showMark && markSize > 0 && (
+                <div
+                  className="absolute"
+                  style={{
+                    width: markSize,
+                    height: markSize,
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: rgba(markColor),
+                    border: `1px solid ${rgba(outlineColor)}`,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              )}
+
               {settings.showMoveNumbers && moveNumbers?.[y]?.[x] !== null && (
                   <div
                     className="font-bold font-mono"

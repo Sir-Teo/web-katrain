@@ -25,7 +25,7 @@ import {
   FaTimes,
 } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf } from '../utils/sgf';
-import type { CandidateMove, GameNode, Player } from '../types';
+import { BOARD_SIZE, type CandidateMove, type GameNode, type Player } from '../types';
 
 type UiMode = 'play' | 'analyze';
 
@@ -56,6 +56,20 @@ type UiState = {
 };
 
 const UI_STATE_KEY = 'web-katrain:ui_state:v1';
+const KATRAN_EVAL_COLORS = [
+  [0.447, 0.129, 0.42, 1],
+  [0.8, 0, 0, 1],
+  [0.9, 0.4, 0.1, 1],
+  [0.95, 0.95, 0, 1],
+  [0.67, 0.9, 0.18, 1],
+  [0.117, 0.588, 0, 1],
+] as const;
+const GHOST_ALPHA = 0.6;
+
+function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
+  const a = typeof alphaOverride === 'number' ? alphaOverride : color[3];
+  return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${a})`;
+}
 
 function defaultUiState(): UiState {
   // Mirrors KaTrain `config.json` defaults for `ui_state`.
@@ -742,6 +756,17 @@ export const Layout: React.FC = () => {
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
   const scoreLead = analysisData?.rootScoreLead ?? currentNode.analysis?.rootScoreLead;
+  const passPolicyColor = useMemo(() => {
+    if (!isAnalysisMode || !settings.analysisShowPolicy) return null;
+    const policy = analysisData?.policy;
+    if (!policy) return null;
+    const passPolicy = policy[BOARD_SIZE * BOARD_SIZE];
+    if (!Number.isFinite(passPolicy)) return null;
+    const polOrder = 5 - Math.trunc(-Math.log10(Math.max(1e-9, passPolicy - 1e-9)));
+    if (polOrder < 0) return null;
+    const col = KATRAN_EVAL_COLORS[Math.min(5, Math.max(0, polOrder))]!;
+    return rgba(col, GHOST_ALPHA);
+  }, [analysisData, isAnalysisMode, settings.analysisShowPolicy]);
 
   const renderPlayerInfo = (player: Player) => {
     const isTurn = currentPlayer === player;
@@ -1242,13 +1267,21 @@ export const Layout: React.FC = () => {
 
         {/* Board controls bar (KaTrain-like) */}
         <div className="h-16 bg-gray-800 border-t border-gray-700 flex items-center px-3 justify-between select-none">
-          <button
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-semibold"
-            onClick={passTurn}
-            title="Pass (P)"
-          >
-            Pass
-          </button>
+          <div className="relative">
+            {passPolicyColor && (
+              <div
+                className="absolute inset-y-0 left-1/2 -translate-x-1/2 pointer-events-none rounded-full"
+                style={{ height: '100%', aspectRatio: '1 / 1', backgroundColor: passPolicyColor }}
+              />
+            )}
+            <button
+              className="relative px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-semibold"
+              onClick={passTurn}
+              title="Pass (P)"
+            >
+              Pass
+            </button>
+          </div>
 
           <div className="flex items-center gap-1">
             <IconButton
