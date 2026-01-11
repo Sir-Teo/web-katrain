@@ -4,6 +4,12 @@ import type { GameNode } from '../types';
 
 const SCORE_GRANULARITY = 5;
 const WINRATE_GRANULARITY = 10;
+const KATRAN_BOX_BG = 'rgb(46, 65, 88)';
+const KATRAN_SCORE_COLOR = 'rgb(77, 179, 230)'; // Theme.SCORE_COLOR (BLUE)
+const KATRAN_WINRATE_COLOR = 'rgb(26, 204, 26)'; // Theme.WINRATE_COLOR (GREEN)
+const KATRAN_GRAPH_DOT_COLOR = 'rgb(217, 77, 77)'; // Theme.GRAPH_DOT_COLOR
+const KATRAN_SCORE_MARKER_COLOR = 'rgb(51, 153, 204)'; // Theme.SCORE_MARKER_COLOR
+const KATRAN_WINRATE_MARKER_COLOR = 'rgb(13, 179, 13)'; // Theme.WINRATE_MARKER_COLOR
 
 function computeSymmetricScale(values: number[], granularity: number): number {
   const finite = values.filter((v) => Number.isFinite(v));
@@ -145,33 +151,56 @@ export const ScoreWinrateGraph: React.FC<{ showScore: boolean; showWinrate: bool
 
   return (
     <div
-      className="w-full h-full bg-gray-900 relative border border-gray-700 rounded overflow-hidden cursor-crosshair"
+      className="w-full h-full relative border border-gray-700 rounded overflow-hidden cursor-crosshair"
+      style={{
+        backgroundColor: KATRAN_BOX_BG,
+        backgroundImage: "url('/katrain/graph_bg.png')",
+        backgroundSize: '100% 100%',
+        backgroundRepeat: 'no-repeat',
+      }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
     >
       <svg ref={svgRef} width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-        {/* Center line (50% / jigo) */}
-        <line x1="0" y1={height / 2} x2={width} y2={height / 2} stroke="#444" strokeDasharray="4" strokeWidth="1" />
-
         {/* Lines */}
         {showScore && (
-          <path d={scorePath} fill="none" stroke="#60A5FA" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <path
+            d={scorePath}
+            fill="none"
+            stroke={KATRAN_SCORE_COLOR}
+            strokeWidth="1.1"
+            vectorEffect="non-scaling-stroke"
+          />
         )}
         {showWinrate && (
-          <path d={winratePath} fill="none" stroke="#10B981" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <path
+            d={winratePath}
+            fill="none"
+            stroke={KATRAN_WINRATE_COLOR}
+            strokeWidth="1.1"
+            vectorEffect="non-scaling-stroke"
+          />
         )}
 
         {/* Current dot */}
-        {showScore && <circle cx={currentX} cy={currentScoreY} r="3" fill="white" stroke="none" />}
-        {showWinrate && <circle cx={currentX} cy={currentWinY} r="3" fill="white" stroke="none" />}
+        {showScore && <circle cx={currentX} cy={currentScoreY} r="3" fill={KATRAN_GRAPH_DOT_COLOR} stroke="none" />}
+        {showWinrate && <circle cx={currentX} cy={currentWinY} r="3" fill={KATRAN_GRAPH_DOT_COLOR} stroke="none" />}
 
         {/* Hover indicator */}
         {hoverIndex !== null && (
           <g>
-            <line x1={hoverX} y1="0" x2={hoverX} y2={height} stroke="rgba(255,255,255,0.2)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-            {showScore && <circle cx={hoverX} cy={hoverScoreY} r="4" fill="#3B82F6" stroke="white" strokeWidth="1" />}
-            {showWinrate && <circle cx={hoverX} cy={hoverWinY} r="4" fill="#10B981" stroke="white" strokeWidth="1" />}
+            <line
+              x1={hoverX}
+              y1="0"
+              x2={hoverX}
+              y2={height}
+              stroke="rgb(128,128,128)"
+              strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+            />
+            {showScore && <circle cx={hoverX} cy={hoverScoreY} r="3" fill={KATRAN_GRAPH_DOT_COLOR} stroke="none" />}
+            {showWinrate && <circle cx={hoverX} cy={hoverWinY} r="3" fill={KATRAN_GRAPH_DOT_COLOR} stroke="none" />}
           </g>
         )}
       </svg>
@@ -179,17 +208,34 @@ export const ScoreWinrateGraph: React.FC<{ showScore: boolean; showWinrate: bool
       {/* Score ticks (KaTrain-like) */}
       {showScore && (
         <>
-          <div className="absolute top-1 right-1 text-[9px] text-blue-200/70 pointer-events-none">{`B+${scoreScale}`}</div>
-          <div className="absolute top-1/2 right-1 -translate-y-1/2 text-[9px] text-blue-200/60 pointer-events-none">Jigo</div>
-          <div className="absolute bottom-1 right-1 text-[9px] text-blue-200/70 pointer-events-none">{`W+${scoreScale}`}</div>
+          <div
+            className="absolute top-1 right-1 text-[9px] pointer-events-none"
+            style={{ color: KATRAN_SCORE_MARKER_COLOR }}
+          >{`B+${scoreScale}`}</div>
+          <div
+            className="absolute top-1/2 right-1 -translate-y-1/2 text-[9px] pointer-events-none"
+            style={{ color: KATRAN_SCORE_MARKER_COLOR }}
+          >
+            Jigo
+          </div>
+          <div
+            className="absolute bottom-1 right-1 text-[9px] pointer-events-none"
+            style={{ color: KATRAN_SCORE_MARKER_COLOR }}
+          >{`W+${scoreScale}`}</div>
         </>
       )}
 
       {/* Winrate ticks (KaTrain-like) */}
       {showWinrate && (
         <>
-          <div className="absolute top-1 left-1 text-[9px] text-green-200/70 pointer-events-none">{`${50 + winrateScale}%`}</div>
-          <div className="absolute bottom-1 left-1 text-[9px] text-green-200/70 pointer-events-none">{`${50 - winrateScale}%`}</div>
+          <div
+            className="absolute top-1 left-1 text-[9px] pointer-events-none"
+            style={{ color: KATRAN_WINRATE_MARKER_COLOR }}
+          >{`${50 + winrateScale}%`}</div>
+          <div
+            className="absolute bottom-1 left-1 text-[9px] pointer-events-none"
+            style={{ color: KATRAN_WINRATE_MARKER_COLOR }}
+          >{`${50 - winrateScale}%`}</div>
         </>
       )}
 
