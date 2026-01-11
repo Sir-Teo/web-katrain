@@ -173,7 +173,7 @@ const defaultSettings: GameSettings = {
   katagoMaxChildren: 361,
   katagoTopK: 10,
   katagoReuseTree: true,
-  katagoOwnershipMode: 'root',
+  katagoOwnershipMode: 'tree',
   katagoWideRootNoise: 0.04,
   katagoAnalysisPvLen: 15,
   katagoNnRandomize: true,
@@ -364,7 +364,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       set({ engineStatus: 'loading', engineError: null });
 
-      return getKataGoEngineClient()
+	      return getKataGoEngineClient()
 	        .analyze({
 	          positionId: node.id,
 	          modelUrl,
@@ -376,6 +376,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          komi: state.komi,
             rules,
 	          topK: state.settings.katagoTopK,
+            includeMovesOwnership: state.settings.katagoOwnershipMode === 'tree',
             analysisPvLen,
             wideRootNoise,
             nnRandomize,

@@ -834,11 +834,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     onChange={(e) => updateSettings({ katagoOwnershipMode: e.target.value as 'root' | 'tree' })}
                                     className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm"
                                 >
+                                    <option value="tree">Tree-averaged (KaTrain)</option>
                                     <option value="root">Root-only (faster)</option>
-                                    <option value="tree">Tree-averaged (slower)</option>
                                 </select>
                                 <p className="text-xs text-gray-500">
-                                    Root-only matches KaTrain and avoids expensive per-node ownership reads.
+                                    KaTrain uses tree-averaged ownership; root-only disables per-move ownership for speed.
                                 </p>
                             </div>
                             <div className="space-y-1">
