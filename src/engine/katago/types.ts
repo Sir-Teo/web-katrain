@@ -30,6 +30,7 @@ export interface KataGoAnalyzeRequest {
   includeMovesOwnership?: boolean;
   wideRootNoise?: number;
   nnRandomize?: boolean;
+  conservativePass?: boolean;
   visits?: number;
   maxTimeMs?: number;
   batchSize?: number;

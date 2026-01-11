@@ -55,6 +55,7 @@ class KataGoEngineClient {
     includeMovesOwnership?: boolean;
     wideRootNoise?: number;
     nnRandomize?: boolean;
+    conservativePass?: boolean;
     visits?: number;
     maxTimeMs?: number;
     batchSize?: number;
@@ -80,6 +81,7 @@ class KataGoEngineClient {
       includeMovesOwnership: args.includeMovesOwnership,
       wideRootNoise: args.wideRootNoise,
       nnRandomize: args.nnRandomize,
+      conservativePass: args.conservativePass,
       visits: args.visits,
       maxTimeMs: args.maxTimeMs,
       batchSize: args.batchSize,

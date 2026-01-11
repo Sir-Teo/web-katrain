@@ -29,6 +29,7 @@ let searchKey: {
   wideRootNoise: number;
   rules: GameRules;
   nnRandomize: boolean;
+  conservativePass: boolean;
 } | null = null;
 
 async function initBackend(): Promise<void> {
@@ -133,6 +134,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
     const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
+    const conservativePass = msg.conservativePass !== false;
 
     const canReuse =
       msg.reuseTree === true &&
@@ -147,7 +149,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.currentPlayer === msg.currentPlayer &&
       searchKey.wideRootNoise === wideRootNoise &&
       searchKey.rules === rules &&
-      searchKey.nnRandomize === nnRandomize;
+      searchKey.nnRandomize === nnRandomize &&
+      searchKey.conservativePass === conservativePass;
 
     if (!canReuse) {
       search = await MctsSearch.create({
@@ -160,6 +163,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         komi: msg.komi,
         rules,
         nnRandomize,
+        conservativePass,
         maxChildren,
         ownershipMode,
         wideRootNoise,
@@ -175,6 +179,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           wideRootNoise,
           rules,
           nnRandomize,
+          conservativePass,
         };
       } else {
         searchKey = null;

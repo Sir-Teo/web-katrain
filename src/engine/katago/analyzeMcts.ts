@@ -580,6 +580,7 @@ async function evaluateBatch(args: {
     currentPlayer: Player;
     recentMoves: RecentMove[];
     komi: number;
+    conservativePassAndIsRoot?: boolean;
   }>;
 }): Promise<
   Array<{
@@ -630,6 +631,7 @@ async function evaluateBatch(args: {
       recentMoves: states[i]!.recentMoves,
       komi: states[i]!.komi,
       rules,
+      conservativePassAndIsRoot: states[i]!.conservativePassAndIsRoot,
       libertyMap,
       areaMap: includeAreaFeature ? areaMap : undefined,
       ladderedStones: ladder.ladderedStones,
@@ -755,6 +757,7 @@ export class MctsSearch {
   readonly komi: number;
   readonly rules: GameRules;
   readonly nnRandomize: boolean;
+  readonly conservativePass: boolean;
   readonly wideRootNoise: number;
 
   private readonly rootStones: Uint8Array;
@@ -777,6 +780,7 @@ export class MctsSearch {
     komi: number;
     rules: GameRules;
     nnRandomize: boolean;
+    conservativePass: boolean;
     wideRootNoise: number;
     rootStones: Uint8Array;
     rootKoPoint: number;
@@ -796,6 +800,7 @@ export class MctsSearch {
     this.komi = args.komi;
     this.rules = args.rules;
     this.nnRandomize = args.nnRandomize;
+    this.conservativePass = args.conservativePass;
     this.wideRootNoise = args.wideRootNoise;
 
     this.rootStones = args.rootStones;
@@ -821,6 +826,7 @@ export class MctsSearch {
     komi: number;
     rules: GameRules;
     nnRandomize: boolean;
+    conservativePass: boolean;
     maxChildren: number;
     ownershipMode: OwnershipMode;
     wideRootNoise: number;
@@ -861,6 +867,7 @@ export class MctsSearch {
             currentPlayer: args.currentPlayer,
             recentMoves: takeRecentMoves(rootMoves, [], 5),
             komi: args.komi,
+            conservativePassAndIsRoot: args.conservativePass,
           },
         ],
       })
@@ -913,6 +920,7 @@ export class MctsSearch {
       komi: args.komi,
       rules: args.rules,
       nnRandomize: args.nnRandomize,
+      conservativePass: args.conservativePass,
       wideRootNoise: args.wideRootNoise,
       rootStones,
       rootKoPoint,

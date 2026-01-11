@@ -17,6 +17,7 @@ export function extractInputsV7(args: {
   moveHistory: Move[];
   komi: number;
   rules?: GameRules;
+  conservativePassAndIsRoot?: boolean;
 }): KataGoInputsV7 {
   const { board, currentPlayer, moveHistory, komi } = args;
   const rules: GameRules = args.rules ?? 'japanese';
@@ -115,19 +116,25 @@ export function extractInputsV7(args: {
     }
   }
 
+  const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
+  const passWouldEndGame = !!lastMove && (lastMove.x === -1 || lastMove.y === -1);
+  const suppressHistory = args.conservativePassAndIsRoot === true && passWouldEndGame;
+
   // History planes 9-13 and pass globals 0-4.
   // Match KataGo v7 behavior: only include if players alternate correctly from perspective of current player.
   const historyPlanes = [9, 10, 11, 12, 13] as const;
   const passGlobals = [0, 1, 2, 3, 4] as const;
   const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
-  for (let i = 0; i < 5; i++) {
-    const m = moveHistory[moveHistory.length - 1 - i];
-    if (!m) break;
-    if (m.player !== expectedPlayers[i]) break;
-    if (m.x === -1 || m.y === -1) {
-      global[passGlobals[i]] = 1.0;
-    } else {
-      spatial[idxNHWC(m.x, m.y, historyPlanes[i])] = 1.0;
+  if (!suppressHistory) {
+    for (let i = 0; i < 5; i++) {
+      const m = moveHistory[moveHistory.length - 1 - i];
+      if (!m) break;
+      if (m.player !== expectedPlayers[i]) break;
+      if (m.x === -1 || m.y === -1) {
+        global[passGlobals[i]] = 1.0;
+      } else {
+        spatial[idxNHWC(m.x, m.y, historyPlanes[i])] = 1.0;
+      }
     }
   }
 
@@ -141,8 +148,8 @@ export function extractInputsV7(args: {
   }
 
   // passWouldEndPhase: in simple rules, if previous move was pass, another pass ends the game.
-  const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
-  global[14] = lastMove && (lastMove.x === -1 || lastMove.y === -1) ? 1.0 : 0.0;
+  // KataGo conservativePassAndIsRoot suppresses this signal at the root.
+  global[14] = !suppressHistory && passWouldEndGame ? 1.0 : 0.0;
 
   if (rules === 'chinese') {
     // Komi parity wave (area scoring, 19x19).

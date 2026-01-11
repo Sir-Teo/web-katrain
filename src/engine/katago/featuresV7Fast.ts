@@ -28,6 +28,7 @@ export function extractInputsV7Fast(args: {
   recentMoves: RecentMove[]; // chronological order, last item is most recent
   komi: number;
   rules?: GameRules;
+  conservativePassAndIsRoot?: boolean;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable
@@ -103,19 +104,27 @@ export function extractInputsV7Fast(args: {
     }
   }
 
+  // KataGo conservativePassAndIsRoot: if a pass now would end the game, suppress history features and also
+  // suppress the passWouldEndPhase global so the net doesn't treat the game as ending.
+  const lastMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
+  const passWouldEndGame = lastMove?.move === PASS_MOVE;
+  const suppressHistory = args.conservativePassAndIsRoot === true && passWouldEndGame;
+
   const historyPlanes = [9, 10, 11, 12, 13] as const;
   const passGlobals = [0, 1, 2, 3, 4] as const;
   const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
-  for (let i = 0; i < 5; i++) {
-    const m = recentMoves[recentMoves.length - 1 - i];
-    if (!m) break;
-    if (m.player !== expectedPlayers[i]) break;
-    if (m.move === PASS_MOVE) {
-      global[passGlobals[i]] = 1.0;
-    } else {
-      const x = m.move % BOARD_SIZE;
-      const y = (m.move / BOARD_SIZE) | 0;
-      spatial[idxNHWC(x, y, historyPlanes[i])] = 1.0;
+  if (!suppressHistory) {
+    for (let i = 0; i < 5; i++) {
+      const m = recentMoves[recentMoves.length - 1 - i];
+      if (!m) break;
+      if (m.player !== expectedPlayers[i]) break;
+      if (m.move === PASS_MOVE) {
+        global[passGlobals[i]] = 1.0;
+      } else {
+        const x = m.move % BOARD_SIZE;
+        const y = (m.move / BOARD_SIZE) | 0;
+        spatial[idxNHWC(x, y, historyPlanes[i])] = 1.0;
+      }
     }
   }
 
@@ -128,8 +137,7 @@ export function extractInputsV7Fast(args: {
     global[10] = 1.0; // tax: seki
   }
 
-  const lastMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
-  global[14] = lastMove && lastMove.move === PASS_MOVE ? 1.0 : 0.0;
+  global[14] = !suppressHistory && passWouldEndGame ? 1.0 : 0.0;
 
   if (rules === 'chinese') {
     const boardAreaIsEven = (BOARD_SIZE * BOARD_SIZE) % 2 === 0;

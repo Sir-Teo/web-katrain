@@ -872,6 +872,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 Matches KataGo defaults; disable for deterministic/stable analysis.
                             </p>
                         </div>
+
+                        <div className="mt-3 space-y-1">
+                            <label className="text-gray-300 block text-sm">Conservative Pass</label>
+                            <label className="flex items-center space-x-2 text-sm text-gray-300">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.katagoConservativePass}
+                                    onChange={(e) => updateSettings({ katagoConservativePass: e.target.checked })}
+                                    className="rounded"
+                                />
+                                <span>Enable (conservativePass)</span>
+                            </label>
+                            <p className="text-xs text-gray-500">
+                                KaTrain default: suppresses “pass ends game” features at the root.
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <div className="p-4 bg-gray-900 flex justify-end">

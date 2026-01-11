@@ -89,6 +89,7 @@ export interface GameSettings {
   katagoWideRootNoise: number; // KataGo/KaTrain wideRootNoise
   katagoAnalysisPvLen: number; // KataGo analysisPVLen (moves after the first)
   katagoNnRandomize: boolean; // KataGo nnRandomize (random symmetries)
+  katagoConservativePass: boolean; // KataGo conservativePass (KaTrain default: true)
   teachNumUndoPrompts: number[]; // KaTrain trainer/num_undo_prompts
 
   aiStrategy:
