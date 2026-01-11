@@ -142,7 +142,7 @@ export function extractInputsV7(args: {
   const selfKomi = pla === 'white' ? komi : -komi;
   global[5] = selfKomi / 20.0;
 
-  if (rules === 'japanese') {
+  if (rules === 'japanese' || rules === 'korean') {
     global[9] = 1.0;
     global[10] = 1.0;
   }

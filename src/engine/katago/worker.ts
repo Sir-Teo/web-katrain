@@ -132,7 +132,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const includeMovesOwnership = msg.includeMovesOwnership === true;
     const analysisPvLen = Math.max(0, Math.min(msg.analysisPvLen ?? 15, 60));
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
-    const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : 'japanese';
+    const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
     const conservativePass = msg.conservativePass !== false;
 

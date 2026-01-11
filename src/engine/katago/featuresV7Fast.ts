@@ -131,7 +131,7 @@ export function extractInputsV7Fast(args: {
   const selfKomi = pla === 'white' ? komi : -komi;
   global[5] = selfKomi / 20.0;
 
-  if (rules === 'japanese') {
+  if (rules === 'japanese' || rules === 'korean') {
     // KataGo "Japanese": territory scoring + seki tax.
     global[9] = 1.0; // scoring: territory
     global[10] = 1.0; // tax: seki

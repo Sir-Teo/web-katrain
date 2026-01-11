@@ -73,6 +73,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         >
                             <option value="japanese">Japanese (KaTrain default)</option>
                             <option value="chinese">Chinese</option>
+                            <option value="korean">Korean</option>
                         </select>
                     </div>
 

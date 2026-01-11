@@ -89,6 +89,8 @@ const rulesToSgfRu = (rules: GameRules): string => {
       return 'Japanese';
     case 'chinese':
       return 'Chinese';
+    case 'korean':
+      return 'Korean';
   }
 };
 
@@ -96,7 +98,8 @@ const parseSgfRu = (ru: string | undefined): GameRules | null => {
   if (!ru) return null;
   const v = ru.trim().toLowerCase();
   if (!v) return null;
-  if (v === 'jp' || v.includes('japanese') || v === 'ko' || v.includes('korean')) return 'japanese';
+  if (v === 'jp' || v.includes('japanese')) return 'japanese';
+  if (v === 'ko' || v.includes('korean')) return 'korean';
   if (v === 'cn' || v.includes('chinese')) return 'chinese';
   return null;
 };

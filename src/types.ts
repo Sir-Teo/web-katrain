@@ -4,7 +4,7 @@ export const KOMI = 6.5;
 export type Player = 'black' | 'white';
 export type Intersection = Player | null;
 export type BoardState = Intersection[][];
-export type GameRules = 'japanese' | 'chinese';
+export type GameRules = 'japanese' | 'chinese' | 'korean';
 
 export interface Move {
     x: number;
