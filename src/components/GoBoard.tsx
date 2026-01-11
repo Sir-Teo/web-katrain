@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { BOARD_SIZE, type CandidateMove, type GameNode } from '../types';
 
@@ -55,8 +55,21 @@ interface GoBoardProps {
 }
 
 export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) => {
-  const { board, playMove, passTurn, moveHistory, analysisData, isAnalysisMode, currentPlayer, settings, currentNode, boardRotation } =
-    useGameStore();
+  const {
+    board,
+    playMove,
+    passTurn,
+    moveHistory,
+    analysisData,
+    isAnalysisMode,
+    currentPlayer,
+    settings,
+    currentNode,
+    boardRotation,
+    regionOfInterest,
+    isSelectingRegionOfInterest,
+    setRegionOfInterest,
+  } = useGameStore();
 
   const cellSize = 30; // pixels
   const padding = 30;
@@ -101,7 +114,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
     return { x, y };
   };
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const [roiDrag, setRoiDrag] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(
+    null
+  );
+
+  const eventToInternal = (
+    e: { clientX: number; clientY: number; currentTarget: HTMLDivElement }
+  ): { x: number; y: number } | null => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left - padding;
     const y = e.clientY - rect.top - padding;
@@ -112,9 +131,54 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
 
     if (displayCol >= 0 && displayCol < BOARD_SIZE && displayRow >= 0 && displayRow < BOARD_SIZE) {
       const { x: col, y: row } = toInternal(displayCol, displayRow);
-      if (col < 0 || col >= BOARD_SIZE || row < 0 || row >= BOARD_SIZE) return;
-      playMove(col, row);
+      if (col < 0 || col >= BOARD_SIZE || row < 0 || row >= BOARD_SIZE) return null;
+      return { x: col, y: row };
     }
+    return null;
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isSelectingRegionOfInterest) return;
+    const pt = eventToInternal(e);
+    if (!pt) return;
+    playMove(pt.x, pt.y);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSelectingRegionOfInterest) return;
+    if (e.button !== 0) return;
+    const pt = eventToInternal(e);
+    if (!pt) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setRoiDrag({ start: pt, end: pt });
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSelectingRegionOfInterest) return;
+    if (!roiDrag) return;
+    const pt = eventToInternal(e);
+    if (!pt) return;
+    setRoiDrag((prev) => (prev ? { ...prev, end: pt } : prev));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSelectingRegionOfInterest) return;
+    if (!roiDrag) return;
+    const pt = eventToInternal(e) ?? roiDrag.end;
+    setRoiDrag(null);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore.
+    }
+
+    const xMin = Math.min(roiDrag.start.x, pt.x);
+    const xMax = Math.max(roiDrag.start.x, pt.x);
+    const yMin = Math.min(roiDrag.start.y, pt.y);
+    const yMax = Math.max(roiDrag.start.y, pt.y);
+    setRegionOfInterest({ xMin, xMax, yMin, yMax });
   };
 
   const handleAnalysisClick = (e: React.MouseEvent, move: CandidateMove) => {
@@ -314,6 +378,31 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
       return moves;
   }, [hoveredMove, isAnalysisMode, currentPlayer, rotation]);
 
+  const roiRect = useMemo(() => {
+    const roi =
+      roiDrag
+        ? {
+            xMin: Math.min(roiDrag.start.x, roiDrag.end.x),
+            xMax: Math.max(roiDrag.start.x, roiDrag.end.x),
+            yMin: Math.min(roiDrag.start.y, roiDrag.end.y),
+            yMax: Math.max(roiDrag.start.y, roiDrag.end.y),
+          }
+        : regionOfInterest;
+    if (!roi) return null;
+    const a = toDisplay(roi.xMin, roi.yMin);
+    const b = toDisplay(roi.xMax, roi.yMax);
+    const minX = Math.min(a.x, b.x);
+    const maxX = Math.max(a.x, b.x);
+    const minY = Math.min(a.y, b.y);
+    const maxY = Math.max(a.y, b.y);
+    return {
+      left: padding + minX * cellSize - cellSize / 2,
+      top: padding + minY * cellSize - cellSize / 2,
+      width: (maxX - minX + 1) * cellSize,
+      height: (maxY - minY + 1) * cellSize,
+    };
+  }, [cellSize, padding, regionOfInterest, roiDrag, rotation]);
+
   return (
     <div
       className="relative shadow-lg rounded-sm cursor-pointer select-none"
@@ -323,7 +412,26 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
           backgroundColor: boardColor,
       }}
       onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
     >
+      {/* Region of interest (KaTrain-style) */}
+      {roiRect && (
+        <div
+          className="absolute pointer-events-none z-30"
+          style={{
+            left: roiRect.left,
+            top: roiRect.top,
+            width: roiRect.width,
+            height: roiRect.height,
+            border: roiDrag ? '2px dashed rgba(34,197,94,0.95)' : '2px solid rgba(34,197,94,0.95)',
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.35) inset',
+            background: roiDrag ? 'rgba(34,197,94,0.08)' : 'rgba(34,197,94,0.04)',
+          }}
+        />
+      )}
+
       {/* Coordinates */}
       {settings.showCoordinates && (
           <>

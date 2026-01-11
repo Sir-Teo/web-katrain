@@ -244,15 +244,31 @@ export const Layout: React.FC = () => {
     navigateForward,
     navigateStart,
     navigateEnd,
+    switchBranch,
+    undoToBranchPoint,
+    undoToMainBranch,
+    makeCurrentNodeMainBranch,
     findMistake,
     loadGame,
     stopAnalysis,
+    analyzeExtra,
+    resetCurrentAnalysis,
     toggleAnalysisMode,
     isAnalysisMode,
     isContinuousAnalysis,
     toggleContinuousAnalysis,
     toggleTeachMode,
     isTeachMode,
+    regionOfInterest,
+    isSelectingRegionOfInterest,
+    startSelectRegionOfInterest,
+    cancelSelectRegionOfInterest,
+    setRegionOfInterest,
+    isInsertMode,
+    toggleInsertMode,
+    isSelfplayToEnd,
+    selfplayToEnd,
+    stopSelfplayToEnd,
     notification,
     clearNotification,
     analysisData,
@@ -432,7 +448,8 @@ export const Layout: React.FC = () => {
 
       if (key === 'Escape') {
         e.preventDefault();
-        stopAnalysis();
+        if (isSelectingRegionOfInterest) cancelSelectRegionOfInterest();
+        analyzeExtra('stop');
         setAnalysisMenuOpen(false);
         setMenuOpen(false);
         return;
@@ -493,6 +510,58 @@ export const Layout: React.FC = () => {
         return;
       }
 
+      if (keyLower === 'a') {
+        e.preventDefault();
+        analyzeExtra('extra');
+        return;
+      }
+      if (keyLower === 's') {
+        e.preventDefault();
+        analyzeExtra('equalize');
+        return;
+      }
+      if (keyLower === 'd') {
+        e.preventDefault();
+        analyzeExtra('sweep');
+        return;
+      }
+      if (keyLower === 'f') {
+        e.preventDefault();
+        analyzeExtra('alternative');
+        return;
+      }
+      if (keyLower === 'g') {
+        e.preventDefault();
+        startSelectRegionOfInterest();
+        return;
+      }
+      if (keyLower === 'h') {
+        e.preventDefault();
+        resetCurrentAnalysis();
+        return;
+      }
+      if (keyLower === 'i') {
+        e.preventDefault();
+        toggleInsertMode();
+        return;
+      }
+      if (keyLower === 'l') {
+        e.preventDefault();
+        selfplayToEnd();
+        return;
+      }
+
+      if (keyLower === 'b') {
+        e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
+        if (shift) undoToMainBranch();
+        else undoToBranchPoint();
+        return;
+      }
+
       if (keyLower === 'n') {
         e.preventDefault();
         findMistake(shift ? 'undo' : 'redo');
@@ -507,12 +576,39 @@ export const Layout: React.FC = () => {
 
       if (key === 'Home') {
         e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
         navigateStart();
         return;
       }
       if (key === 'End') {
         e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
         navigateEnd();
+        return;
+      }
+
+      if (key === 'ArrowUp') {
+        e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
+        switchBranch(-1);
+        return;
+      }
+      if (key === 'ArrowDown') {
+        e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
+        switchBranch(1);
         return;
       }
 
@@ -525,9 +621,23 @@ export const Layout: React.FC = () => {
       }
       if (key === 'ArrowRight' || keyLower === 'x') {
         e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
         if (ctrl) navigateEnd();
         else if (shift) jumpForward(10);
         else navigateForward();
+        return;
+      }
+
+      if (key === 'PageUp') {
+        e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
+        makeCurrentNodeMainBranch();
         return;
       }
 
@@ -563,6 +673,19 @@ export const Layout: React.FC = () => {
     rootNode,
     loadGame,
     findMistake,
+    analyzeExtra,
+    resetCurrentAnalysis,
+    startSelectRegionOfInterest,
+    cancelSelectRegionOfInterest,
+    isSelectingRegionOfInterest,
+    isInsertMode,
+    toggleInsertMode,
+    selfplayToEnd,
+    stopSelfplayToEnd,
+    switchBranch,
+    undoToBranchPoint,
+    undoToMainBranch,
+    makeCurrentNodeMainBranch,
   ]);
 
   const engineDot = useMemo(() => {
@@ -574,13 +697,19 @@ export const Layout: React.FC = () => {
 
   const statusText = engineError
     ? `Engine error: ${engineError}`
-    : notification?.message
-      ? notification.message
-      : isContinuousAnalysis
-        ? 'Pondering… (Space)'
-        : isAnalysisMode
-          ? 'Analysis mode on (Tab toggles)'
-          : 'Ready';
+    : isSelfplayToEnd
+      ? 'Selfplay to end… (Esc to stop)'
+      : isSelectingRegionOfInterest
+        ? 'Select region of interest (drag on board, Esc cancels)'
+        : notification?.message
+          ? notification.message
+          : isInsertMode
+            ? 'Insert mode (I to finish)'
+            : isContinuousAnalysis
+              ? 'Pondering… (Space)'
+              : isAnalysisMode
+                ? 'Analysis mode on (Tab toggles)'
+                : 'Ready';
 
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
@@ -805,6 +934,24 @@ export const Layout: React.FC = () => {
 
           <div className="flex-grow" />
 
+          <div className="flex items-center gap-2">
+            {regionOfInterest && (
+              <button
+                type="button"
+                className="px-2 py-1 rounded border bg-green-900/30 border-green-600 text-green-200 text-xs font-semibold hover:bg-green-900/50"
+                title="Region of interest active (click to clear)"
+                onClick={() => setRegionOfInterest(null)}
+              >
+                ROI
+              </button>
+            )}
+            {isInsertMode && (
+              <div className="px-2 py-1 rounded border bg-purple-900/30 border-purple-600 text-purple-200 text-xs font-semibold">
+                Insert
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -833,6 +980,125 @@ export const Layout: React.FC = () => {
                   <button
                     className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
                     onClick={() => {
+                      analyzeExtra('extra');
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaRobot /> Extra analysis
+                    </span>
+                    <span className="text-xs text-gray-400">A</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      analyzeExtra('equalize');
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaRobot /> Equalize
+                    </span>
+                    <span className="text-xs text-gray-400">S</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      analyzeExtra('sweep');
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaRobot /> Sweep
+                    </span>
+                    <span className="text-xs text-gray-400">D</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      analyzeExtra('alternative');
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaRobot /> Alternative
+                    </span>
+                    <span className="text-xs text-gray-400">F</span>
+                  </button>
+
+                  <div className="h-px bg-gray-700 my-1" />
+
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      startSelectRegionOfInterest();
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaRobot /> Select region
+                    </span>
+                    <span className="text-xs text-gray-400">G</span>
+                  </button>
+                  {regionOfInterest && (
+                    <button
+                      className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                      onClick={() => {
+                        setRegionOfInterest(null);
+                        setAnalysisMenuOpen(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <FaTimes /> Clear region
+                      </span>
+                      <span className="text-xs text-gray-400">—</span>
+                    </button>
+                  )}
+
+                  <div className="h-px bg-gray-700 my-1" />
+
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      resetCurrentAnalysis();
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaStop /> Reset analysis
+                    </span>
+                    <span className="text-xs text-gray-400">H</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      toggleInsertMode();
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaPlay /> Insert mode
+                    </span>
+                    <span className="text-xs text-gray-400">I {isInsertMode ? 'on' : 'off'}</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      selfplayToEnd();
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaPlay /> Selfplay to end
+                    </span>
+                    <span className="text-xs text-gray-400">L</span>
+                  </button>
+
+                  <div className="h-px bg-gray-700 my-1" />
+
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
                       toggleContinuousAnalysis();
                       setAnalysisMenuOpen(false);
                     }}
@@ -857,7 +1123,7 @@ export const Layout: React.FC = () => {
                   <button
                     className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
                     onClick={() => {
-                      stopAnalysis();
+                      analyzeExtra('stop');
                       setAnalysisMenuOpen(false);
                     }}
                   >
@@ -920,13 +1186,18 @@ export const Layout: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-1">
-            <IconButton title="Previous mistake (N)" onClick={() => findMistake('undo')} className="text-red-300">
+            <IconButton
+              title="Previous mistake (N)"
+              onClick={() => findMistake('undo')}
+              disabled={isInsertMode}
+              className="text-red-300"
+            >
               <FaExclamationTriangle />
             </IconButton>
-            <IconButton title="Start (Home)" onClick={navigateStart}>
+            <IconButton title="Start (Home)" onClick={navigateStart} disabled={isInsertMode}>
               <FaStepBackward />
             </IconButton>
-            <IconButton title="Back 10 (Shift+←)" onClick={() => jumpBack(10)}>
+            <IconButton title="Back 10 (Shift+←)" onClick={() => jumpBack(10)} disabled={isInsertMode}>
               <FaFastBackward />
             </IconButton>
             <IconButton title="Back (←)" onClick={navigateBack}>
@@ -941,16 +1212,21 @@ export const Layout: React.FC = () => {
               <span className="text-white">{moveHistory.length}</span>
             </div>
 
-            <IconButton title="Forward (→)" onClick={navigateForward}>
+            <IconButton title="Forward (→)" onClick={navigateForward} disabled={isInsertMode}>
               <FaChevronRight />
             </IconButton>
-            <IconButton title="Forward 10 (Shift+→)" onClick={() => jumpForward(10)}>
+            <IconButton title="Forward 10 (Shift+→)" onClick={() => jumpForward(10)} disabled={isInsertMode}>
               <FaFastForward />
             </IconButton>
-            <IconButton title="End (End)" onClick={navigateEnd}>
+            <IconButton title="End (End)" onClick={navigateEnd} disabled={isInsertMode}>
               <FaStepForward />
             </IconButton>
-            <IconButton title="Next mistake (Shift+N)" onClick={() => findMistake('redo')} className="text-red-300">
+            <IconButton
+              title="Next mistake (Shift+N)"
+              onClick={() => findMistake('redo')}
+              disabled={isInsertMode}
+              className="text-red-300"
+            >
               <FaExclamationTriangle />
             </IconButton>
             <IconButton title="Rotate (O)" onClick={rotateBoard}>

@@ -43,7 +43,7 @@ function layoutMoveTree(root: GameNode): Map<GameNode, NodePos> {
 }
 
 export const MoveTree: React.FC = () => {
-  const { rootNode, currentNode, jumpToNode, treeVersion } = useGameStore();
+  const { rootNode, currentNode, jumpToNode, treeVersion, isInsertMode } = useGameStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const layout = useMemo(() => {
@@ -135,7 +135,7 @@ export const MoveTree: React.FC = () => {
           const stroke = isRoot ? '#9CA3AF' : isBlack ? '#F9FAFB' : '#0B0B0B';
 
           return (
-            <g key={node.id} style={{ cursor: isRoot ? 'default' : 'pointer' }}>
+            <g key={node.id} style={{ cursor: isRoot || isInsertMode ? 'default' : 'pointer' }}>
               {isAutoUndone && (
                 <circle cx={x} cy={y} r={layout.r + 4} fill="none" stroke="#EF4444" strokeWidth="2" />
               )}
@@ -150,6 +150,7 @@ export const MoveTree: React.FC = () => {
                 stroke={stroke}
                 strokeWidth="1"
                 onClick={() => {
+                  if (isInsertMode) return;
                   if (!isRoot) jumpToNode(node);
                 }}
               >

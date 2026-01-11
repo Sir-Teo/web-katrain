@@ -49,6 +49,8 @@ export interface AnalysisResult {
   ownershipStdev?: number[]; // len 361
 }
 
+export type RegionOfInterest = { xMin: number; xMax: number; yMin: number; yMax: number };
+
 export interface GameNode {
   id: string;
   parent: GameNode | null;
@@ -56,6 +58,7 @@ export interface GameNode {
   move: Move | null;
   gameState: GameState;
   analysis?: AnalysisResult | null;
+  analysisVisitsRequested?: number; // KaTrain-like: requested visits for this node analysis.
   autoUndo?: boolean | null; // Teach-mode auto-undo (KaTrain-like). null = not decided yet.
   undoThreshold?: number; // Random [0,1) used for fractional auto-undos.
   aiThoughts?: string;

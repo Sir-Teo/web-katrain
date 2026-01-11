@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BOARD_SIZE, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove } from '../types';
+import { BOARD_SIZE, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest } from '../types';
 import { checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import { extractKaTrainUserNoteFromSgfComment, type ParsedSgf } from '../utils/sgf';
@@ -14,6 +14,12 @@ interface GameStore extends GameState {
 
   // Settings & Modes
   boardRotation: 0 | 1 | 2 | 3; // 0,90,180,270 degrees clockwise (KaTrain rotate)
+  regionOfInterest: RegionOfInterest | null;
+  isSelectingRegionOfInterest: boolean;
+  isInsertMode: boolean;
+  insertAfterNodeId: string | null; // Main-branch continuation to copy after insert.
+  insertAnchorNodeId: string | null; // Where insert mode started.
+  isSelfplayToEnd: boolean;
   isAiPlaying: boolean;
   aiColor: Player | null;
   isAnalysisMode: boolean;
@@ -52,7 +58,27 @@ interface GameStore extends GameState {
   resetGame: () => void;
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
-  runAnalysis: (opts?: { force?: boolean; visits?: number; maxTimeMs?: number }) => Promise<void>;
+  runAnalysis: (opts?: {
+    force?: boolean;
+    visits?: number;
+    maxTimeMs?: number;
+    batchSize?: number;
+    maxChildren?: number;
+    topK?: number;
+    analysisPvLen?: number;
+    wideRootNoise?: number;
+    nnRandomize?: boolean;
+    conservativePass?: boolean;
+    reuseTree?: boolean;
+  }) => Promise<void>;
+  analyzeExtra: (mode: 'extra' | 'equalize' | 'sweep' | 'alternative' | 'stop') => void;
+  resetCurrentAnalysis: () => void;
+  startSelectRegionOfInterest: () => void;
+  cancelSelectRegionOfInterest: () => void;
+  setRegionOfInterest: (roi: RegionOfInterest | null) => void;
+  toggleInsertMode: () => void;
+  selfplayToEnd: () => void;
+  stopSelfplayToEnd: () => void;
   updateSettings: (newSettings: Partial<GameSettings>) => void;
   setCurrentNodeNote: (note: string) => void;
   rotateBoard: () => void;
@@ -119,6 +145,27 @@ const ownershipToTerritoryGrid = (ownership: ArrayLike<number>): number[][] => {
   return territory;
 };
 
+const isPassMove = (m: Move | null | undefined): boolean => !!m && (m.x < 0 || m.y < 0);
+
+const moveKey = (m: Move): string => `${m.player}:${m.x},${m.y}`;
+
+const normalizeRegionOfInterest = (roi: RegionOfInterest | null): RegionOfInterest | null => {
+  if (!roi) return null;
+  const xMin = Math.max(0, Math.min(BOARD_SIZE - 1, Math.min(roi.xMin, roi.xMax)));
+  const xMax = Math.max(0, Math.min(BOARD_SIZE - 1, Math.max(roi.xMin, roi.xMax)));
+  const yMin = Math.max(0, Math.min(BOARD_SIZE - 1, Math.min(roi.yMin, roi.yMax)));
+  const yMax = Math.max(0, Math.min(BOARD_SIZE - 1, Math.max(roi.yMin, roi.yMax)));
+  const isSinglePoint = xMin === xMax && yMin === yMax;
+  const isWholeBoard = xMin === 0 && yMin === 0 && xMax === BOARD_SIZE - 1 && yMax === BOARD_SIZE - 1;
+  if (isSinglePoint || isWholeBoard) return null; // KaTrain semantics.
+  return { xMin, xMax, yMin, yMax };
+};
+
+const isMoveInRegion = (m: CandidateMove, roi: RegionOfInterest): boolean => {
+  if (m.x < 0 || m.y < 0) return true; // Pass always allowed.
+  return m.x >= roi.xMin && m.x <= roi.xMax && m.y >= roi.yMin && m.y <= roi.yMax;
+};
+
 const createNode = (
     parent: GameNode | null,
     move: Move | null,
@@ -132,12 +179,24 @@ const createNode = (
         move,
         gameState,
         analysis: null,
+        analysisVisitsRequested: 0,
         autoUndo: null,
         undoThreshold: Math.random(),
         aiThoughts: '',
         note: '',
         properties: {}
     };
+};
+
+const findNodeById = (root: GameNode, id: string): GameNode | null => {
+  if (root.id === id) return root;
+  const stack: GameNode[] = [...root.children];
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    if (n.id === id) return n;
+    for (let i = 0; i < n.children.length; i++) stack.push(n.children[i]!);
+  }
+  return null;
 };
 
 // Initial state helpers
@@ -236,6 +295,7 @@ const initialSettings: GameSettings = {
 };
 
 let continuousToken = 0;
+let selfplayToken = 0;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -253,6 +313,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   treeVersion: 0,
 
   boardRotation: 0,
+  regionOfInterest: null,
+  isSelectingRegionOfInterest: false,
+  isInsertMode: false,
+  insertAfterNodeId: null,
+  insertAnchorNodeId: null,
+  isSelfplayToEnd: false,
   isAiPlaying: false,
   aiColor: null,
   isAnalysisMode: false,
@@ -345,6 +411,302 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   clearNotification: () => set({ notification: null }),
 
+  startSelectRegionOfInterest: () =>
+    set(() => ({
+      isSelectingRegionOfInterest: true,
+    })),
+
+  cancelSelectRegionOfInterest: () =>
+    set(() => ({
+      isSelectingRegionOfInterest: false,
+    })),
+
+  setRegionOfInterest: (roi) => {
+    const normalized = normalizeRegionOfInterest(roi);
+    set((state) => ({
+      regionOfInterest: normalized,
+      isSelectingRegionOfInterest: false,
+      treeVersion: state.treeVersion + 1,
+    }));
+    if (get().isAnalysisMode) setTimeout(() => void get().runAnalysis({ force: true }), 0);
+  },
+
+  resetCurrentAnalysis: () => {
+    const s = get();
+    s.currentNode.analysis = null;
+    s.currentNode.analysisVisitsRequested = 0;
+    set((state) => ({ analysisData: null, treeVersion: state.treeVersion + 1 }));
+    if (get().isAnalysisMode) setTimeout(() => void get().runAnalysis({ force: true }), 0);
+  },
+
+  analyzeExtra: (mode) => {
+    const s = get();
+    if (mode === 'stop') {
+      s.stopAnalysis();
+      s.stopSelfplayToEnd();
+      return;
+    }
+
+    if (!s.isAnalysisMode) set({ isAnalysisMode: true });
+
+    const longTimeMs = 60_000;
+
+    const toast = (message: string) => {
+      set({ notification: { message, type: 'info' } });
+      setTimeout(() => set({ notification: null }), 1600);
+    };
+
+    if (mode === 'extra') {
+      const base = Math.max(16, Math.min(s.settings.katagoVisits, 5000));
+      const prev = Math.max(0, Math.min(s.currentNode.analysisVisitsRequested ?? base, 5000));
+      const visits = Math.max(16, Math.min(prev + base, 5000));
+      toast(`Extra analysis: ${visits} visits`);
+      void s.runAnalysis({ force: true, visits, maxTimeMs: longTimeMs });
+      return;
+    }
+
+    if (mode === 'equalize') {
+      const analysis = s.currentNode.analysis;
+      if (!analysis || analysis.moves.length === 0) {
+        toast('Equalize: wait for analysis first.');
+        return;
+      }
+      const maxMoveVisits = analysis.moves.reduce((acc, cur) => Math.max(acc, cur.visits), 1);
+      const target = Math.max(maxMoveVisits * analysis.moves.length, s.currentNode.analysisVisitsRequested ?? s.settings.katagoVisits);
+      const visits = Math.max(16, Math.min(target, 5000));
+      toast(`Equalize: ${visits} visits`);
+      void s.runAnalysis({ force: true, visits, maxTimeMs: longTimeMs });
+      return;
+    }
+
+    if (mode === 'sweep') {
+      const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, 5000));
+      toast(`Sweep: ${visits} visits, maxChildren 361`);
+      void s.runAnalysis({
+        force: true,
+        visits,
+        maxChildren: 361,
+        topK: Math.max(s.settings.katagoTopK, 20),
+        reuseTree: false,
+        maxTimeMs: longTimeMs,
+      });
+      return;
+    }
+
+    if (mode === 'alternative') {
+      const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, 5000));
+      const wideRootNoise = Math.max(s.settings.katagoWideRootNoise, 0.12);
+      toast(`Alternative: ${visits} visits, noise ${wideRootNoise.toFixed(2)}`);
+      void s.runAnalysis({
+        force: true,
+        visits,
+        wideRootNoise,
+        reuseTree: false,
+        maxTimeMs: longTimeMs,
+      });
+    }
+  },
+
+  toggleInsertMode: () => {
+    const s = get();
+    if (!s.isInsertMode) {
+      if (s.currentNode.children.length === 0) {
+        set({ notification: { message: 'Insert mode: no continuation to insert into.', type: 'error' } });
+        setTimeout(() => set({ notification: null }), 2000);
+        return;
+      }
+      const insertAfter = s.currentNode.children[0]!;
+      set((state) => ({
+        isInsertMode: true,
+        insertAfterNodeId: insertAfter.id,
+        insertAnchorNodeId: state.currentNode.id,
+        treeVersion: state.treeVersion + 1,
+      }));
+      return;
+    }
+
+    const insertAfterId = s.insertAfterNodeId;
+    const anchorId = s.insertAnchorNodeId;
+    if (!insertAfterId || !anchorId) {
+      set({ isInsertMode: false, insertAfterNodeId: null, insertAnchorNodeId: null });
+      return;
+    }
+
+    const insertAfter = findNodeById(s.rootNode, insertAfterId);
+    const anchor = findNodeById(s.rootNode, anchorId);
+    if (!insertAfter || !anchor || insertAfter.parent?.id !== anchor.id) {
+      set({ isInsertMode: false, insertAfterNodeId: null, insertAnchorNodeId: null, treeVersion: s.treeVersion + 1 });
+      return;
+    }
+
+    if (s.currentNode.id === anchor.id) {
+      set((state) => ({
+        isInsertMode: false,
+        insertAfterNodeId: null,
+        insertAnchorNodeId: null,
+        treeVersion: state.treeVersion + 1,
+      }));
+      return;
+    }
+
+    // Copy continuation from insertAfter down its mainline onto the inserted branch.
+    const insertedMoves = new Set<string>();
+    {
+      const above = new Set<string>();
+      let n: GameNode | null = insertAfter;
+      while (n) {
+        above.add(n.id);
+        n = n.parent;
+      }
+      let cur: GameNode | null = s.currentNode;
+      while (cur && !above.has(cur.id)) {
+        if (cur.move) insertedMoves.add(moveKey(cur.move));
+        cur = cur.parent;
+      }
+    }
+
+    let numCopied = 0;
+    let from: GameNode | null = insertAfter;
+    let to: GameNode = s.currentNode;
+
+    const tryCreateChild = (parent: GameNode, move: Move): GameNode | null => {
+      const st = parent.gameState;
+      if (st.currentPlayer !== move.player) return null;
+
+      if (isPassMove(move)) {
+        const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
+        const nextState: GameState = {
+          board: st.board,
+          currentPlayer: nextPlayer,
+          moveHistory: [...st.moveHistory, move],
+          capturedBlack: st.capturedBlack,
+          capturedWhite: st.capturedWhite,
+          komi: st.komi,
+        };
+        const child = createNode(parent, move, nextState);
+        parent.children.push(child);
+        return child;
+      }
+
+      if (st.board[move.y]?.[move.x] !== null) return null;
+      const tentativeBoard = st.board.map((row) => [...row]);
+      tentativeBoard[move.y]![move.x] = st.currentPlayer;
+      const { captured, newBoard } = checkCaptures(tentativeBoard, move.x, move.y, st.currentPlayer);
+      if (captured.length === 0) {
+        const { liberties } = getLiberties(newBoard, move.x, move.y);
+        if (liberties === 0) return null;
+      }
+      if (parent.parent && JSON.stringify(newBoard) === JSON.stringify(parent.parent.gameState.board)) return null;
+
+      const newCapturedBlack = st.capturedBlack + (st.currentPlayer === 'white' ? captured.length : 0);
+      const newCapturedWhite = st.capturedWhite + (st.currentPlayer === 'black' ? captured.length : 0);
+      const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
+      const nextState: GameState = {
+        board: newBoard,
+        currentPlayer: nextPlayer,
+        moveHistory: [...st.moveHistory, move],
+        capturedBlack: newCapturedBlack,
+        capturedWhite: newCapturedWhite,
+        komi: st.komi,
+      };
+
+      const child = createNode(parent, move, nextState);
+      parent.children.push(child);
+      return child;
+    };
+
+    while (from) {
+      const move = from.move;
+      if (!move) break;
+      if (!insertedMoves.has(moveKey(move))) {
+        const child = tryCreateChild(to, move);
+        if (!child) break;
+        to = child;
+        numCopied++;
+      }
+      from = from.children[0] ?? null;
+    }
+
+    set((state) => ({
+      isInsertMode: false,
+      insertAfterNodeId: null,
+      insertAnchorNodeId: null,
+      treeVersion: state.treeVersion + 1,
+      notification: numCopied > 0 ? { message: `Insert mode ended: copied ${numCopied} moves.`, type: 'info' } : state.notification,
+    }));
+    if (numCopied > 0) setTimeout(() => set({ notification: null }), 1800);
+  },
+
+  selfplayToEnd: () => {
+    const token = ++selfplayToken;
+    set({ isSelfplayToEnd: true });
+
+    void (async () => {
+      let safety = 0;
+      while (true) {
+        const s = get();
+        if (token !== selfplayToken) return;
+        if (!s.isSelfplayToEnd) return;
+
+        const mh = s.moveHistory;
+        const last = mh[mh.length - 1];
+        const prev = mh[mh.length - 2];
+        if (isPassMove(last) && isPassMove(prev)) {
+          set({ isSelfplayToEnd: false });
+          return;
+        }
+        if (safety++ > 2000) {
+          set({ isSelfplayToEnd: false, notification: { message: 'Selfplay stopped (move limit).', type: 'error' } });
+          setTimeout(() => set({ notification: null }), 2000);
+          return;
+        }
+
+        try {
+          const node = s.currentNode;
+          const parentBoard = node.parent?.gameState.board;
+          const grandparentBoard = node.parent?.parent?.gameState.board;
+          const analysis = await getKataGoEngineClient().analyze({
+            positionId: node.id,
+            modelUrl: s.settings.katagoModelUrl,
+            board: s.board,
+            previousBoard: parentBoard,
+            previousPreviousBoard: grandparentBoard,
+            currentPlayer: s.currentPlayer,
+            moveHistory: s.moveHistory,
+            komi: s.komi,
+            rules: s.settings.gameRules,
+            topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
+            analysisPvLen: Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 30)),
+            includeMovesOwnership: false,
+            wideRootNoise: 0.0,
+            nnRandomize: false,
+            conservativePass: s.settings.katagoConservativePass,
+            visits: Math.max(16, Math.min(s.settings.katagoFastVisits, 5000)),
+            maxTimeMs: Math.max(250, Math.min(s.settings.katagoMaxTimeMs, 60_000)),
+            batchSize: s.settings.katagoBatchSize,
+            maxChildren: s.settings.katagoMaxChildren,
+            reuseTree: false,
+            ownershipMode: 'root',
+          });
+
+          const best = analysis.moves[0] ?? null;
+          if (!best || best.x < 0 || best.y < 0) s.passTurn();
+          else s.playMove(best.x, best.y);
+        } catch {
+          // Fall back to heuristics if engine fails.
+          makeHeuristicMove(get());
+        }
+
+        await sleep(50);
+      }
+    })();
+  },
+
+  stopSelfplayToEnd: () => {
+    selfplayToken++;
+    set({ isSelfplayToEnd: false });
+  },
+
   runAnalysis: async (opts) => {
       const state = get();
       if (!state.isAnalysisMode) return;
@@ -360,12 +722,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 		      const grandparentBoard = node.parent?.parent?.gameState.board;
 		      const modelUrl = state.settings.katagoModelUrl;
           const rules = state.settings.gameRules;
-          const analysisPvLen = state.settings.katagoAnalysisPvLen;
-          const wideRootNoise = state.settings.katagoWideRootNoise;
-          const nnRandomize = state.settings.katagoNnRandomize;
-          const conservativePass = state.settings.katagoConservativePass;
+          const analysisPvLen = opts?.analysisPvLen ?? state.settings.katagoAnalysisPvLen;
+          const wideRootNoise = opts?.wideRootNoise ?? state.settings.katagoWideRootNoise;
+          const nnRandomize = opts?.nnRandomize ?? state.settings.katagoNnRandomize;
+          const conservativePass = opts?.conservativePass ?? state.settings.katagoConservativePass;
+          const visits = Math.max(16, Math.min(opts?.visits ?? state.settings.katagoVisits, 5000));
+          const maxTimeMs = Math.max(25, Math.min(opts?.maxTimeMs ?? state.settings.katagoMaxTimeMs, 60_000));
+          const batchSize = Math.max(1, Math.min(opts?.batchSize ?? state.settings.katagoBatchSize, 64));
+          const maxChildren = Math.max(4, Math.min(opts?.maxChildren ?? state.settings.katagoMaxChildren, 361));
+          const topK = Math.max(1, Math.min(opts?.topK ?? state.settings.katagoTopK, 50));
+          const reuseTree = opts?.reuseTree ?? state.settings.katagoReuseTree;
 
       set({ engineStatus: 'loading', engineError: null });
+      node.analysisVisitsRequested = visits;
 
 	      return getKataGoEngineClient()
 	        .analyze({
@@ -378,21 +747,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          moveHistory: state.moveHistory,
 	          komi: state.komi,
             rules,
-	          topK: state.settings.katagoTopK,
+	          topK,
             includeMovesOwnership: state.settings.katagoOwnershipMode === 'tree',
             analysisPvLen,
             wideRootNoise,
             nnRandomize,
             conservativePass,
-          visits: opts?.visits ?? state.settings.katagoVisits,
-          maxTimeMs: opts?.maxTimeMs ?? state.settings.katagoMaxTimeMs,
-          batchSize: state.settings.katagoBatchSize,
-          maxChildren: state.settings.katagoMaxChildren,
-          reuseTree: state.settings.katagoReuseTree,
+          visits,
+          maxTimeMs,
+          batchSize,
+          maxChildren,
+          reuseTree,
           ownershipMode: state.settings.katagoOwnershipMode,
         })
         .then((analysis) => {
-          const analysisWithTerritory: AnalysisResult = {
+          let analysisWithTerritory: AnalysisResult = {
             rootWinRate: analysis.rootWinRate,
             rootScoreLead: analysis.rootScoreLead,
             rootScoreSelfplay: analysis.rootScoreSelfplay,
@@ -402,6 +771,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
             policy: analysis.policy,
             ownershipStdev: analysis.ownershipStdev,
           };
+
+          const roi = get().regionOfInterest;
+          if (roi) {
+            analysisWithTerritory = {
+              ...analysisWithTerritory,
+              moves: analysisWithTerritory.moves.filter((m) => isMoveInRegion(m, roi)),
+              policy: analysisWithTerritory.policy
+                ? (() => {
+                    const p = [...analysisWithTerritory.policy];
+                    for (let y = 0; y < BOARD_SIZE; y++) {
+                      for (let x = 0; x < BOARD_SIZE; x++) {
+                        if (x >= roi.xMin && x <= roi.xMax && y >= roi.yMin && y <= roi.yMax) continue;
+                        p[y * BOARD_SIZE + x] = -1;
+                      }
+                    }
+                    return p;
+                  })()
+                : analysisWithTerritory.policy,
+            };
+          }
 
           // Store analysis in node even if user navigated elsewhere.
           node.analysis = analysisWithTerritory;
@@ -608,7 +997,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (newState.isAiPlaying && newState.currentPlayer === newState.aiColor) {
         setTimeout(() => get().makeAiMove(), 500);
       }
-	      if (newState.isAnalysisMode) {
+	      if (newState.isAnalysisMode && !newState.isSelfplayToEnd) {
 	          setTimeout(() => void get().runAnalysis(), 500);
 	      }
 	    }
@@ -1277,6 +1666,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
   undoMove: () => get().navigateBack(),
 
   navigateBack: () => set((state) => {
+    if (state.isInsertMode && state.currentNode.parent && state.insertAfterNodeId) {
+      const insertAfter = findNodeById(state.rootNode, state.insertAfterNodeId);
+      if (insertAfter) {
+        const above = new Set<string>();
+        let n: GameNode | null = insertAfter;
+        while (n) {
+          above.add(n.id);
+          n = n.parent;
+        }
+	        if (!above.has(state.currentNode.id)) {
+	          const node = state.currentNode;
+	          const parent = node.parent!;
+	          const idx = parent.children.findIndex((c) => c.id === node.id);
+	          if (idx >= 0) parent.children.splice(idx, 1);
+	          return {
+	            currentNode: parent,
+            board: parent.gameState.board,
+            currentPlayer: parent.gameState.currentPlayer,
+            moveHistory: parent.gameState.moveHistory,
+            capturedBlack: parent.gameState.capturedBlack,
+            capturedWhite: parent.gameState.capturedWhite,
+            analysisData: parent.analysis || null,
+            treeVersion: state.treeVersion + 1,
+          };
+        }
+      }
+    }
     if (!state.currentNode.parent) return {};
     const prevNode = state.currentNode.parent;
     return {
@@ -1541,6 +1957,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   resetGame: () => {
     const state = get();
+    get().stopSelfplayToEnd();
     if (state.settings.soundEnabled) {
         playNewGameSound();
     }
@@ -1562,6 +1979,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       capturedWhite: rootState.capturedWhite,
       komi: rootState.komi,
       boardRotation: 0,
+      regionOfInterest: null,
+      isSelectingRegionOfInterest: false,
+      isInsertMode: false,
+      insertAfterNodeId: null,
+      insertAnchorNodeId: null,
+      isSelfplayToEnd: false,
       isAiPlaying: false,
       aiColor: null,
       analysisData: null,
@@ -1813,7 +2236,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
           currentPlayer: newGameState.currentPlayer,
           moveHistory: newGameState.moveHistory,
           // board doesn't change
+          analysisData: null,
       });
+
+      const after = get();
+      if (after.isAnalysisMode && !after.isSelfplayToEnd) {
+        setTimeout(() => void after.runAnalysis(), 0);
+      }
   },
 
   rotateBoard: () =>
