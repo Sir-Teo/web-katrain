@@ -75,6 +75,22 @@ export interface GameSettings {
   mistakeThreshold: number; // Points lost to consider a mistake (WinRateGraph + mistake nav)
   loadSgfRewind: boolean; // KaTrain general/load_sgf_rewind
   gameRules: GameRules; // KataGo rules preset (KaTrain default: japanese)
+  trainerLowVisits: number; // KaTrain trainer/low_visits
+  trainerTopMovesShow:
+    | 'top_move_score'
+    | 'top_move_delta_score'
+    | 'top_move_winrate'
+    | 'top_move_delta_winrate'
+    | 'top_move_visits'
+    | 'top_move_nothing'; // KaTrain trainer/top_moves_show
+  trainerTopMovesShowSecondary:
+    | 'top_move_score'
+    | 'top_move_delta_score'
+    | 'top_move_winrate'
+    | 'top_move_delta_winrate'
+    | 'top_move_visits'
+    | 'top_move_nothing'; // KaTrain trainer/top_moves_show_secondary
+  trainerExtraPrecision: boolean; // KaTrain trainer/extra_precision
   analysisShowChildren: boolean; // Q
   analysisShowEval: boolean; // W
   analysisShowHints: boolean; // E

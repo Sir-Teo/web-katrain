@@ -19,6 +19,13 @@ const OWNERSHIP_COLORS = {
 const OWNERSHIP_GAMMA = 1.33;
 const EVAL_DOT_MIN_SIZE = 0.25;
 const EVAL_DOT_MAX_SIZE = 0.5;
+const APPROX_BOARD_COLOR = [0.95, 0.75, 0.47, 1] as const;
+const HINTS_LO_ALPHA = 0.6;
+const HINTS_ALPHA = 0.8;
+const HINT_SCALE = 0.98;
+const UNCERTAIN_HINT_SCALE = 0.7;
+const TOP_MOVE_BORDER_COLOR = [10 / 255, 200 / 255, 250 / 255, 1] as const;
+const HINT_TEXT_COLOR = 'black';
 
 function evaluationClass(pointsLost: number): number {
   let i = 0;
@@ -38,17 +45,28 @@ function formatVisits(n: number): string {
   return `${Math.round(n / 1_000_000)}M`;
 }
 
-function formatLoss(x: number): string {
+function formatLoss(x: number, extraPrecision: boolean): string {
+  if (extraPrecision) {
+    if (Math.abs(x) < 0.005) return '0.0';
+    if (0 < x && x <= 0.995) return `+${x.toFixed(2).slice(1)}`;
+    if (-0.995 <= x && x < 0) return `-${x.toFixed(2).slice(2)}`;
+  }
   const v = x.toFixed(1);
   return x >= 0 ? `+${v}` : v;
 }
 
-function textColorForBackground(rgb: readonly [number, number, number, number]): string {
-  const r = rgb[0];
-  const g = rgb[1];
-  const b = rgb[2];
-  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-  return luminance > 0.6 ? 'black' : 'white';
+function formatScore(x: number): string {
+  return x.toFixed(1);
+}
+
+function formatWinrate(x: number): string {
+  return (x * 100).toFixed(1);
+}
+
+function formatDeltaWinrate(x: number): string {
+  const pct = x * 100;
+  const sign = pct >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(pct).toFixed(1)}%`;
 }
 
 interface GoBoardProps {
@@ -119,6 +137,16 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
   const [roiDrag, setRoiDrag] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(
     null
   );
+
+  const childMoveCoords = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of currentNode.children) {
+      const m = c.move;
+      if (!m || m.x < 0 || m.y < 0) continue;
+      set.add(`${m.x},${m.y}`);
+    }
+    return set;
+  }, [currentNode]);
 
   const eventToInternal = (
     e: { clientX: number; clientY: number; currentTarget: HTMLDivElement }
@@ -290,6 +318,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
   const boardColor = settings.boardTheme === 'dark' ? '#333' : (settings.boardTheme === 'flat' ? '#eebb77' : '#DCB35C');
   const lineColor = settings.boardTheme === 'dark' ? '#888' : '#000';
   const labelColor = settings.boardTheme === 'dark' ? '#ccc' : '#000';
+  const approxBoardColor =
+    settings.boardTheme === 'dark'
+      ? boardColor
+      : settings.boardTheme === 'flat'
+        ? boardColor
+        : rgba(APPROX_BOARD_COLOR);
 
   const ownershipOverlay = useMemo(() => {
       if (!isAnalysisMode || !settings.analysisShowOwnership) return [];
@@ -683,47 +717,113 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove }) =>
         analysisData.moves.filter((m) => m.x >= 0 && m.y >= 0).map((move) => {
           const d = toDisplay(move.x, move.y);
           const isBest = move.order === 0;
-          const lowVisitsThreshold = 25;
-          const uncertain = move.visits < lowVisitsThreshold && !isBest;
+          const lowVisitsThreshold = Math.max(1, settings.trainerLowVisits);
+          const uncertain = move.visits < lowVisitsThreshold && !isBest && !childMoveCoords.has(`${move.x},${move.y}`);
+          const scale = uncertain ? UNCERTAIN_HINT_SCALE : HINT_SCALE;
+          const textOn = !uncertain;
+          const alpha = uncertain ? HINTS_LO_ALPHA : HINTS_ALPHA;
+          if (scale <= 0) return null;
 
           const cls = evaluationClass(move.pointsLost);
           const col = KATRAN_EVAL_COLORS[cls]!;
-          const bg = rgba(col, uncertain ? 0.6 : 0.8);
-          const textColor = textColorForBackground(col);
+          const bg = rgba(col, alpha);
 
-          const scale = uncertain ? 0.7 : 0.95;
-          const size = cellSize * 0.9 * scale;
-          const border = isBest ? '2px solid rgba(10,200,250,0.9)' : '1px solid rgba(0,0,0,0.15)';
+          const primary = settings.trainerTopMovesShow;
+          const secondary = settings.trainerTopMovesShowSecondary;
+          const show = [primary, secondary].filter((opt) => opt !== 'top_move_nothing');
+
+          const sign = currentPlayer === 'black' ? 1 : -1;
+          const playerWinRate = currentPlayer === 'black' ? move.winRate : 1 - move.winRate;
+          const winRateLost = move.winRateLost ?? sign * (analysisData.rootWinRate - move.winRate);
+
+          const getLabel = (opt: typeof primary): string => {
+            switch (opt) {
+              case 'top_move_delta_score':
+                return formatLoss(-move.pointsLost, settings.trainerExtraPrecision);
+              case 'top_move_score':
+                return formatScore(sign * move.scoreLead);
+              case 'top_move_winrate':
+                return formatWinrate(playerWinRate);
+              case 'top_move_delta_winrate':
+                return formatDeltaWinrate(-winRateLost);
+              case 'top_move_visits':
+                return formatVisits(move.visits);
+              case 'top_move_nothing':
+                return '';
+            }
+          };
+
+          const stoneRadius = (cellSize - 2) * 0.5;
+          const evalSize = stoneRadius * scale;
+          const size = 2 * evalSize;
+          const showText = textOn && show.length > 0;
 
           return (
-              <div
-                  key={`hint-${move.x}-${move.y}`}
-                  className="absolute rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110"
+              <div key={`hint-${move.x}-${move.y}`}>
+                {showText && (
+                  <div
+                    className="absolute pointer-events-none rounded-full"
+                    style={{
+                      width: size * 0.98,
+                      height: size * 0.98,
+                      left: padding + d.x * cellSize - (size * 0.98) / 2,
+                      top: padding + d.y * cellSize - (size * 0.98) / 2,
+                      backgroundColor: approxBoardColor,
+                      zIndex: 15,
+                    }}
+                  />
+                )}
+
+                <div
+                  className="absolute flex items-center justify-center cursor-pointer"
                   style={{
-                      width: size,
-                      height: size,
-                      left: padding + d.x * cellSize - size / 2,
-                      top: padding + d.y * cellSize - size / 2,
-                      backgroundColor: bg,
-                      border,
-                      zIndex: 16,
-                      color: textColor,
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                      fontWeight: 700,
-                      fontSize: 10,
-                      lineHeight: 1.05,
-                      textAlign: 'center',
+                    width: size,
+                    height: size,
+                    left: padding + d.x * cellSize - size / 2,
+                    top: padding + d.y * cellSize - size / 2,
+                    backgroundColor: bg,
+                    backgroundImage: "url('/katrain/topmove.png')",
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundBlendMode: 'multiply',
+                    maskImage: "url('/katrain/topmove.png')",
+                    WebkitMaskImage: "url('/katrain/topmove.png')",
+                    maskSize: 'contain',
+                    WebkitMaskSize: 'contain',
+                    maskPosition: 'center',
+                    WebkitMaskPosition: 'center',
+                    maskRepeat: 'no-repeat',
+                    WebkitMaskRepeat: 'no-repeat',
+                    border: isBest ? `2px solid ${rgba(TOP_MOVE_BORDER_COLOR)}` : undefined,
+                    borderRadius: '50%',
+                    boxSizing: 'border-box',
+                    zIndex: 16,
+                    color: HINT_TEXT_COLOR,
+                    fontFamily:
+                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                    fontWeight: 700,
+                    fontSize: show.length === 1 ? 10 : 10,
+                    lineHeight: 0.9,
+                    textAlign: 'center',
                   }}
                   onClick={(e) => handleAnalysisClick(e, move)}
                   onMouseEnter={() => onHoverMove(move)}
                   onMouseLeave={() => onHoverMove(null)}
-              >
-                  {uncertain ? null : (
-                      <div className="pointer-events-none select-none">
-                          <div>{formatLoss(-move.pointsLost)}</div>
-                          <div className="text-[9px] opacity-90">{formatVisits(move.visits)}</div>
-                      </div>
+                >
+                  {showText && (
+                    <div className="pointer-events-none select-none">
+                      {show.length === 1 ? (
+                        <div>{getLabel(show[0] as typeof primary)}</div>
+                      ) : (
+                        <>
+                          <div>{getLabel(show[0] as typeof primary)}</div>
+                          <div className="text-[9px] opacity-90">{getLabel(show[1] as typeof primary)}</div>
+                        </>
+                      )}
+                    </div>
                   )}
+                </div>
               </div>
           );
       })}

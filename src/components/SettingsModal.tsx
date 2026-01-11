@@ -11,16 +11,25 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const { settings, updateSettings, engineBackend, engineModelName } = useGameStore();
 
+    const TOP_MOVE_OPTIONS: Array<{ value: GameSettings['trainerTopMovesShow']; label: string }> = [
+        { value: 'top_move_delta_score', label: 'Δ Score (points lost)' },
+        { value: 'top_move_visits', label: 'Visits' },
+        { value: 'top_move_score', label: 'Score' },
+        { value: 'top_move_winrate', label: 'Winrate' },
+        { value: 'top_move_delta_winrate', label: 'Δ Winrate' },
+        { value: 'top_move_nothing', label: 'Nothing' },
+    ];
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-gray-800 rounded-lg shadow-xl w-96 overflow-hidden">
+            <div className="bg-gray-800 rounded-lg shadow-xl w-96 max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between p-4 border-b border-gray-700">
                     <h2 className="text-lg font-semibold text-white">Settings</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white">
                         <FaTimes />
                     </button>
                 </div>
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 overflow-y-auto">
                     {/* Sound */}
                     <div className="flex items-center justify-between">
                         <label className="text-gray-300">Sound Effects</label>
@@ -129,6 +138,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 onChange={(e) => updateSettings({ analysisShowOwnership: e.target.checked })}
                                 className="toggle"
                             />
+                        </div>
+
+                        <div className="pt-3 border-t border-gray-700 space-y-3">
+                            <h4 className="text-xs font-semibold text-gray-300 tracking-wide">KaTrain Hint Labels</h4>
+
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Low Visits Threshold</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={settings.trainerLowVisits}
+                                    onChange={(e) => updateSettings({ trainerLowVisits: Math.max(1, parseInt(e.target.value || '1', 10)) })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Primary Label</label>
+                                <select
+                                    value={settings.trainerTopMovesShow}
+                                    onChange={(e) => updateSettings({ trainerTopMovesShow: e.target.value as GameSettings['trainerTopMovesShow'] })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm"
+                                >
+                                    {TOP_MOVE_OPTIONS.map((o) => (
+                                        <option key={o.value} value={o.value}>
+                                            {o.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Secondary Label</label>
+                                <select
+                                    value={settings.trainerTopMovesShowSecondary}
+                                    onChange={(e) =>
+                                        updateSettings({ trainerTopMovesShowSecondary: e.target.value as GameSettings['trainerTopMovesShowSecondary'] })
+                                    }
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm"
+                                >
+                                    {TOP_MOVE_OPTIONS.map((o) => (
+                                        <option key={o.value} value={o.value}>
+                                            {o.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <label className="text-gray-300">Extra Precision</label>
+                                <input
+                                    type="checkbox"
+                                    checked={settings.trainerExtraPrecision}
+                                    onChange={(e) => updateSettings({ trainerExtraPrecision: e.target.checked })}
+                                    className="toggle"
+                                />
+                            </div>
                         </div>
                     </div>
 
