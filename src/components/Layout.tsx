@@ -6,6 +6,8 @@ import { SettingsModal } from './SettingsModal';
 import { MoveTree } from './MoveTree';
 import { NotesPanel } from './NotesPanel';
 import { Timer } from './Timer';
+import { GameAnalysisModal } from './GameAnalysisModal';
+import { GameReportModal } from './GameReportModal';
 import {
   FaBars,
   FaChevronDown,
@@ -339,6 +341,8 @@ export const Layout: React.FC = () => {
   const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number } | null>(null);
   const [pvAnimNowMs, setPvAnimNowMs] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGameAnalysisOpen, setIsGameAnalysisOpen] = useState(false);
+  const [isGameReportOpen, setIsGameReportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
@@ -628,6 +632,9 @@ export const Layout: React.FC = () => {
         e.preventDefault();
         if (isSelectingRegionOfInterest) cancelSelectRegionOfInterest();
         analyzeExtra('stop');
+        setIsSettingsOpen(false);
+        setIsGameAnalysisOpen(false);
+        setIsGameReportOpen(false);
         setAnalysisMenuOpen(false);
         setMenuOpen(false);
         return;
@@ -834,6 +841,17 @@ export const Layout: React.FC = () => {
         makeAiMove();
         return;
       }
+
+      if (key === 'F2') {
+        e.preventDefault();
+        setIsGameAnalysisOpen(true);
+        return;
+      }
+      if (key === 'F3') {
+        e.preventDefault();
+        setIsGameReportOpen(true);
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1017,6 +1035,8 @@ export const Layout: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-900 text-gray-200 font-sans overflow-hidden">
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+      {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
+      {isGameReportOpen && <GameReportModal onClose={() => setIsGameReportOpen(false)} />}
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".sgf" />
 
@@ -1349,6 +1369,30 @@ export const Layout: React.FC = () => {
                     <span className="text-xs text-gray-400">
                       {isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
                     </span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      setIsGameAnalysisOpen(true);
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaRobot /> Re-analyze game…
+                    </span>
+                    <span className="text-xs text-gray-400">F2</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    onClick={() => {
+                      setIsGameReportOpen(true);
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaRobot /> Game report…
+                    </span>
+                    <span className="text-xs text-gray-400">F3</span>
                   </button>
 
                   <div className="h-px bg-gray-700 my-1" />

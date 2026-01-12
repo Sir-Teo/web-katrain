@@ -22,7 +22,7 @@ interface GameStore extends GameState {
   insertAnchorNodeId: string | null; // Where insert mode started.
   isSelfplayToEnd: boolean;
   isGameAnalysisRunning: boolean;
-  gameAnalysisType: 'quick' | 'fast' | null;
+  gameAnalysisType: 'quick' | 'fast' | 'full' | null;
   gameAnalysisDone: number;
   gameAnalysisTotal: number;
   isAiPlaying: boolean;
@@ -95,6 +95,7 @@ interface GameStore extends GameState {
   stopSelfplayToEnd: () => void;
   startQuickGameAnalysis: () => void;
   startFastGameAnalysis: () => void;
+  startFullGameAnalysis: (opts: { visits: number; moveRange?: [number, number] | null; mistakesOnly?: boolean }) => void;
   stopGameAnalysis: () => void;
   updateSettings: (newSettings: Partial<GameSettings>) => void;
   setCurrentNodeNote: (note: string) => void;
@@ -167,6 +168,31 @@ const ownershipToTerritoryGrid = (ownership: ArrayLike<number>): number[][] => {
 const isPassMove = (m: Move | null | undefined): boolean => !!m && (m.x < 0 || m.y < 0);
 
 const moveKey = (m: Move): string => `${m.player}:${m.x},${m.y}`;
+
+const collectNodesInTree = (root: GameNode): GameNode[] => {
+  const out: GameNode[] = [];
+  const stack: GameNode[] = [root];
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    out.push(n);
+    for (let i = n.children.length - 1; i >= 0; i--) stack.push(n.children[i]!);
+  }
+  return out;
+};
+
+const computePointsLostForNode = (node: GameNode): number | null => {
+  const move = node.move;
+  const parent = node.parent;
+  if (!move || !parent) return null;
+
+  const parentScore = parent.analysis?.rootScoreLead;
+  const childScore = node.analysis?.rootScoreLead;
+  if (typeof parentScore === 'number' && typeof childScore === 'number') {
+    const sign = move.player === 'black' ? 1 : -1;
+    return sign * (parentScore - childScore);
+  }
+  return null;
+};
 
 const normalizeRegionOfInterest = (roi: RegionOfInterest | null): RegionOfInterest | null => {
   if (!roi) return null;
@@ -972,6 +998,147 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })();
   },
 
+  startFullGameAnalysis: (opts) => {
+    const token = ++gameAnalysisToken;
+    const state = get();
+
+    const visits = Math.max(16, Math.min(Math.floor(opts.visits || 0), ENGINE_MAX_VISITS));
+    const moveRangeRaw = opts.moveRange ?? null;
+    const moveRange: [number, number] | null = moveRangeRaw
+      ? [Math.min(moveRangeRaw[0]!, moveRangeRaw[1]!), Math.max(moveRangeRaw[0]!, moveRangeRaw[1]!)]
+      : null;
+    const mistakesOnly = opts.mistakesOnly === true;
+
+    const nodes = collectNodesInTree(state.rootNode);
+    const total = nodes.length;
+    if (total <= 1) {
+      set({ isGameAnalysisRunning: false, gameAnalysisType: null, gameAnalysisDone: 0, gameAnalysisTotal: total });
+      return;
+    }
+
+    set({ isGameAnalysisRunning: true, gameAnalysisType: 'full', gameAnalysisDone: 0, gameAnalysisTotal: total });
+
+    void (async () => {
+      let done = 0;
+      let lastUiUpdate = performance.now();
+      let metaSynced = false;
+
+      const thresholds = get().settings.trainerEvalThresholds?.length ? get().settings.trainerEvalThresholds : [12, 6, 3, 1.5, 0.5, 0];
+      const mistakesThreshold =
+        thresholds.length >= 4 ? thresholds[thresholds.length - 4]! : 3;
+
+      for (const node of nodes) {
+        if (token !== gameAnalysisToken) return;
+        if (!get().isGameAnalysisRunning) return;
+        if (get().gameAnalysisType !== 'full') return;
+
+        // If interactive analysis is running/queued, pause bulk analysis.
+        while (get().engineStatus === 'loading') {
+          if (token !== gameAnalysisToken) return;
+          if (!get().isGameAnalysisRunning) return;
+          if (get().gameAnalysisType !== 'full') return;
+          await sleep(50);
+        }
+
+        const moveIndex = node.gameState.moveHistory.length - 1;
+        if (moveRange && !(moveIndex >= moveRange[0] && moveIndex <= moveRange[1])) {
+          done++;
+          continue;
+        }
+
+        if (mistakesOnly) {
+          let maxLoss = Math.max(0, computePointsLostForNode(node) ?? 0);
+          for (const child of node.children) {
+            maxLoss = Math.max(maxLoss, Math.max(0, computePointsLostForNode(child) ?? 0));
+          }
+          if (maxLoss <= mistakesThreshold) {
+            done++;
+            continue;
+          }
+        }
+
+        const already = node.analysis && (node.analysisVisitsRequested ?? 0) >= visits;
+        if (!already) {
+          try {
+            const s = get();
+            const parentBoard = node.parent?.gameState.board;
+            const grandparentBoard = node.parent?.parent?.gameState.board;
+            const maxTimeMs = ENGINE_MAX_TIME_MS;
+            const batchSize = Math.max(1, Math.min(s.settings.katagoBatchSize, 64));
+            const maxChildren = Math.max(4, Math.min(s.settings.katagoMaxChildren, 361));
+            const topK = Math.max(5, Math.min(s.settings.katagoTopK, 50));
+            const analysisPvLen = Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 60));
+
+            const analysis = await getKataGoEngineClient().analyze({
+              positionId: node.id,
+              modelUrl: s.settings.katagoModelUrl,
+              board: node.gameState.board,
+              previousBoard: parentBoard,
+              previousPreviousBoard: grandparentBoard,
+              currentPlayer: node.gameState.currentPlayer,
+              moveHistory: node.gameState.moveHistory,
+              komi: node.gameState.komi,
+              rules: s.settings.gameRules,
+              topK,
+              analysisPvLen,
+              includeMovesOwnership: s.settings.katagoOwnershipMode === 'tree',
+              wideRootNoise: s.settings.katagoWideRootNoise,
+              nnRandomize: s.settings.katagoNnRandomize,
+              conservativePass: s.settings.katagoConservativePass,
+              visits,
+              maxTimeMs,
+              batchSize,
+              maxChildren,
+              reuseTree: false,
+              ownershipMode: s.settings.katagoOwnershipMode,
+            });
+
+            if (!metaSynced) {
+              const engineInfo = getKataGoEngineClient().getEngineInfo();
+              set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName });
+              metaSynced = true;
+            }
+
+            node.analysis = {
+              rootWinRate: analysis.rootWinRate,
+              rootScoreLead: analysis.rootScoreLead,
+              rootScoreSelfplay: analysis.rootScoreSelfplay,
+              rootScoreStdev: analysis.rootScoreStdev,
+              moves: analysis.moves,
+              territory: ownershipToTerritoryGrid(analysis.ownership),
+              policy: analysis.policy,
+              ownershipStdev: analysis.ownershipStdev,
+            };
+            node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, visits);
+          } catch {
+            // Ignore failures for bulk analysis; individual node analysis can still run later.
+          }
+        }
+
+        done++;
+
+        const now = performance.now();
+        if (now - lastUiUpdate > 120 || done === total) {
+          set(() => ({
+            gameAnalysisDone: done,
+            gameAnalysisTotal: total,
+          }));
+          lastUiUpdate = now;
+        }
+
+        await sleep(0);
+      }
+
+      if (token !== gameAnalysisToken) return;
+      set(() => ({
+        isGameAnalysisRunning: false,
+        gameAnalysisType: null,
+        gameAnalysisDone: done,
+        gameAnalysisTotal: total,
+      }));
+    })();
+  },
+
   stopGameAnalysis: () => {
     gameAnalysisToken++;
     set({ isGameAnalysisRunning: false, gameAnalysisType: null });
@@ -1086,11 +1253,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (typeof parentScore !== 'number' || typeof childScore !== 'number') return;
 
             const pointsLost = (move.player === 'black' ? 1 : -1) * (parentScore - childScore);
-            const thresholds = [12, 6, 3, 1.5, 0.5, 0] as const;
+            const thresholds = latestState.settings.trainerEvalThresholds?.length
+              ? latestState.settings.trainerEvalThresholds
+              : ([12, 6, 3, 1.5, 0.5, 0] as const);
 
             let i = 0;
-            while (i < thresholds.length && pointsLost < thresholds[i]!) i++;
-            const numUndos = latestState.settings.teachNumUndoPrompts[i] ?? 0;
+            while (i < thresholds.length - 1 && pointsLost < thresholds[i]!) i++;
+            const undoPrompts = latestState.settings.teachNumUndoPrompts ?? [];
+            const idx = Math.max(0, Math.min(i, undoPrompts.length - 1));
+            const numUndos = undoPrompts[idx] ?? 0;
 
             let undo = false;
             if (numUndos === 0) {
