@@ -10,6 +10,7 @@
     "prebuild": "npm run copy:tfjs-wasm && npm run fetch:model",
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "vitest run",
     "lint": "eslint .",
     "preview": "vite preview"
   },

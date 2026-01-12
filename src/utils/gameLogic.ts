@@ -2,6 +2,17 @@ import { BOARD_SIZE, type BoardState, type Player } from '../types';
 
 export const getOpponent = (player: Player): Player => player === 'black' ? 'white' : 'black';
 
+export const boardsEqual = (a: BoardState, b: BoardState): boolean => {
+  for (let y = 0; y < BOARD_SIZE; y++) {
+    const rowA = a[y];
+    const rowB = b[y];
+    for (let x = 0; x < BOARD_SIZE; x++) {
+      if (rowA?.[x] !== rowB?.[x]) return false;
+    }
+  }
+  return true;
+};
+
 export const getLiberties = (board: BoardState, x: number, y: number): { liberties: number, group: {x: number, y: number}[] } => {
   const player = board[y][x];
   if (!player) return { liberties: 0, group: [] };
@@ -93,18 +104,7 @@ export const isValidMove = (board: BoardState, x: number, y: number, player: Pla
 
     // 5. Ko Check (Simple Ko)
     if (previousBoard) {
-        // Simple comparison
-        let isSame = true;
-        for(let r=0; r<BOARD_SIZE; r++) {
-            for(let c=0; c<BOARD_SIZE; c++) {
-                if (newBoard[r][c] !== previousBoard[r][c]) {
-                    isSame = false;
-                    break;
-                }
-            }
-            if (!isSame) break;
-        }
-        if (isSame) return false;
+        if (boardsEqual(newBoard, previousBoard)) return false;
     }
 
     return true;

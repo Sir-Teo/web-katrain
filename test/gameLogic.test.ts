@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getLiberties, checkCaptures } from '../src/utils/gameLogic';
+import { boardsEqual, getLiberties, checkCaptures } from '../src/utils/gameLogic';
 import { BOARD_SIZE, BoardState } from '../src/types';
 
 const createEmptyBoard = (): BoardState => {
@@ -7,6 +7,14 @@ const createEmptyBoard = (): BoardState => {
 };
 
 describe('Game Logic', () => {
+  it('should compare boards efficiently', () => {
+    const a = createEmptyBoard();
+    const b = createEmptyBoard();
+    expect(boardsEqual(a, b)).toBe(true);
+    b[0][0] = 'black';
+    expect(boardsEqual(a, b)).toBe(false);
+  });
+
   it('should calculate liberties correctly', () => {
     const board = createEmptyBoard();
     board[0][0] = 'black';

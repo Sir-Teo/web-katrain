@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { BOARD_SIZE, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest } from '../types';
-import { checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/gameLogic';
+import { boardsEqual, checkCaptures, getLiberties, getLegalMoves, isEye } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import { extractKaTrainUserNoteFromSgfComment, type ParsedSgf } from '../utils/sgf';
 import { getKataGoEngineClient } from '../engine/katago/client';
@@ -620,7 +620,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const { liberties } = getLiberties(newBoard, move.x, move.y);
         if (liberties === 0) return null;
       }
-      if (parent.parent && JSON.stringify(newBoard) === JSON.stringify(parent.parent.gameState.board)) return null;
+      if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) return null;
 
       const newCapturedBlack = st.capturedBlack + (st.currentPlayer === 'white' ? captured.length : 0);
       const newCapturedWhite = st.capturedWhite + (st.currentPlayer === 'black' ? captured.length : 0);
@@ -1212,7 +1212,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Ko check
     // Simple Ko: Check just the state from 2 moves ago?
     // Let's traverse up one step (parent).
-    if (state.currentNode.parent && JSON.stringify(newBoard) === JSON.stringify(state.currentNode.parent.gameState.board)) {
+    if (state.currentNode.parent && boardsEqual(newBoard, state.currentNode.parent.gameState.board)) {
         // Found Ko, illegal move
         return;
     }
@@ -2363,7 +2363,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (liberties === 0) return null;
       }
 
-      if (parent.parent && JSON.stringify(newBoard) === JSON.stringify(parent.parent.gameState.board)) {
+      if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) {
         return null;
       }
 
