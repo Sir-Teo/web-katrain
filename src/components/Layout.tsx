@@ -40,6 +40,7 @@ type AnalysisControlsState = {
 
 type GraphOptions = { score: boolean; winrate: boolean };
 type StatsOptions = { score: boolean; winrate: boolean; points: boolean };
+type NotesOptions = { info: boolean; infoDetails: boolean; notes: boolean };
 
 type UiState = {
   mode: UiMode;
@@ -52,6 +53,7 @@ type UiState = {
       statsOpen: boolean;
       stats: StatsOptions;
       notesOpen: boolean;
+      notes: NotesOptions;
     }
   >;
 };
@@ -101,6 +103,7 @@ function defaultUiState(): UiState {
         statsOpen: true,
         stats: { score: true, winrate: true, points: true },
         notesOpen: true,
+        notes: { info: true, infoDetails: false, notes: false },
       },
       analyze: {
         graphOpen: true,
@@ -108,6 +111,7 @@ function defaultUiState(): UiState {
         statsOpen: true,
         stats: { score: true, winrate: true, points: true },
         notesOpen: true,
+        notes: { info: true, infoDetails: true, notes: false },
       },
     },
   };
@@ -127,9 +131,23 @@ function loadUiState(): UiState {
       play: { ...d.analysisControls.play, ...(parsed.analysisControls?.play ?? {}) },
       analyze: { ...d.analysisControls.analyze, ...(parsed.analysisControls?.analyze ?? {}) },
     };
+
+    const mergePanel = (m: UiMode): UiState['panels'][UiMode] => {
+      const src = parsed.panels?.[m];
+      const fallback = d.panels[m];
+      return {
+        graphOpen: typeof src?.graphOpen === 'boolean' ? src.graphOpen : fallback.graphOpen,
+        graph: { ...fallback.graph, ...(src?.graph ?? {}) },
+        statsOpen: typeof src?.statsOpen === 'boolean' ? src.statsOpen : fallback.statsOpen,
+        stats: { ...fallback.stats, ...(src?.stats ?? {}) },
+        notesOpen: typeof src?.notesOpen === 'boolean' ? src.notesOpen : fallback.notesOpen,
+        notes: { ...fallback.notes, ...(src?.notes ?? {}) },
+      };
+    };
+
     const panels = {
-      play: { ...d.panels.play, ...(parsed.panels?.play ?? {}) },
-      analyze: { ...d.panels.analyze, ...(parsed.panels?.analyze ?? {}) },
+      play: mergePanel('play'),
+      analyze: mergePanel('analyze'),
     };
     return { mode, analysisControls, panels };
   } catch {
@@ -1674,9 +1692,33 @@ export const Layout: React.FC = () => {
             >
               Info & Notes
             </button>
-            <div className="text-[11px] text-gray-400 font-mono flex items-center gap-2">
-              <span className={['inline-block h-2.5 w-2.5 rounded-full', engineDot].join(' ')} />
-              <span title={engineMetaTitle}>{engineMeta}</span>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                <PanelHeaderButton
+                  label="Info"
+                  colorClass="bg-gray-700"
+                  active={modePanels.notes.info}
+                  onClick={() => updatePanels({ notes: { ...modePanels.notes, info: !modePanels.notes.info } })}
+                />
+                <PanelHeaderButton
+                  label="Details"
+                  colorClass="bg-gray-700"
+                  active={modePanels.notes.infoDetails}
+                  onClick={() =>
+                    updatePanels({ notes: { ...modePanels.notes, infoDetails: !modePanels.notes.infoDetails } })
+                  }
+                />
+                <PanelHeaderButton
+                  label="Notes"
+                  colorClass="bg-purple-600/30"
+                  active={modePanels.notes.notes}
+                  onClick={() => updatePanels({ notes: { ...modePanels.notes, notes: !modePanels.notes.notes } })}
+                />
+              </div>
+              <div className="text-[11px] text-gray-400 font-mono flex items-center gap-2">
+                <span className={['inline-block h-2.5 w-2.5 rounded-full', engineDot].join(' ')} />
+                <span title={engineMetaTitle}>{engineMeta}</span>
+              </div>
             </div>
           </div>
           {modePanels.notesOpen && (
@@ -1692,8 +1734,12 @@ export const Layout: React.FC = () => {
               <div className="px-3 py-2 border-b border-gray-800 text-xs text-gray-400">
                 {statusText}
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <NotesPanel />
+              <div className="flex-1 min-h-0">
+                <NotesPanel
+                  showInfo={modePanels.notes.info || modePanels.notes.infoDetails}
+                  detailed={modePanels.notes.infoDetails}
+                  showNotes={modePanels.notes.notes}
+                />
               </div>
             </div>
           )}

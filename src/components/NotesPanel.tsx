@@ -34,7 +34,13 @@ function policyRanking(policy: number[]): PolicyMove[] {
   return out;
 }
 
-export const NotesPanel: React.FC = () => {
+type NotesPanelProps = {
+  showInfo: boolean;
+  detailed: boolean;
+  showNotes: boolean;
+};
+
+export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes }) => {
   const { currentNode, setCurrentNodeNote } = useGameStore();
 
   const move = currentNode.move;
@@ -42,18 +48,8 @@ export const NotesPanel: React.FC = () => {
   const parentPolicy = parent?.analysis?.policy;
   const depth = currentNode.gameState.moveHistory.length;
   const label = moveToLabel(move);
-  const scoreLead = currentNode.analysis?.rootScoreLead;
-  const winRate = currentNode.analysis?.rootWinRate;
-
-  const pointsLost = useMemo(() => {
-    if (!move || !parent) return null;
-    const parentScore = parent.analysis?.rootScoreLead;
-    const childScore = currentNode.analysis?.rootScoreLead;
-    if (typeof parentScore !== 'number' || typeof childScore !== 'number') return null;
-    return (move.player === 'black' ? 1 : -1) * (parentScore - childScore);
-  }, [currentNode.analysis?.rootScoreLead, move, parent]);
-
   const policyStats = useMemo(() => {
+    if (!detailed) return null;
     if (!move || !parentPolicy) return null;
     const policy = parentPolicy;
     const rankList = policyRanking(policy);
@@ -69,7 +65,7 @@ export const NotesPanel: React.FC = () => {
       ) + 1;
     const best = rankList[0] ?? null;
     return { rank: rank > 0 ? rank : null, prob, best };
-  }, [move, parentPolicy]);
+  }, [detailed, move, parentPolicy]);
 
   const topMove = useMemo(() => bestMoveFromCandidates(parent?.analysis?.moves), [parent?.analysis?.moves]);
   const topMoveLabel =
@@ -79,65 +75,88 @@ export const NotesPanel: React.FC = () => {
         ? 'Pass'
         : `${String.fromCharCode(65 + (topMove.x >= 8 ? topMove.x + 1 : topMove.x))}${BOARD_SIZE - topMove.y}`;
 
-  return (
-    <div className="flex-grow flex flex-col h-full">
-      <div className="border-b border-gray-700 p-4">
-        <h2 className="text-lg font-semibold mb-3">Notes</h2>
-        <div className="text-xs text-gray-400 space-y-1">
-          <div>
-            Move <span className="font-mono text-gray-200">{depth}</span>: <span className="font-mono text-gray-200">{label}</span>{' '}
-            {move ? `(${playerToShort(move.player)})` : ''}
-          </div>
-          <div>
-            Score: <span className="font-mono text-gray-200">{typeof scoreLead === 'number' ? `${scoreLead > 0 ? '+' : ''}${scoreLead.toFixed(1)}` : '-'}</span>{' '}
-            · Win% (B): <span className="font-mono text-gray-200">{typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}</span>
-          </div>
-          <div>
-            Points lost:{' '}
-            <span className={`font-mono ${typeof pointsLost === 'number' ? (pointsLost > 0.5 ? 'text-red-300' : 'text-gray-200') : 'text-gray-500'}`}>
-              {typeof pointsLost === 'number' ? `${pointsLost.toFixed(1)}` : '-'}
-            </span>
-          </div>
-          {topMove && (
-            <div>
-              Top move: <span className="font-mono text-gray-200">{topMoveLabel}</span>{' '}
-              <span className="font-mono text-gray-500">({topMove.scoreLead > 0 ? '+' : ''}{topMove.scoreLead.toFixed(1)})</span>
-            </div>
-          )}
-          {topMove?.pv && topMove.pv.length > 0 && (
-            <div className="text-gray-500">
-              PV: <span className="font-mono text-gray-300">{move ? playerToShort(move.player) : ''} {topMove.pv.join(' ')}</span>
-            </div>
-          )}
-          {policyStats && (
-            <div className="text-gray-500">
-              Policy rank: <span className="font-mono text-gray-300">#{policyStats.rank ?? '-'}</span>{' '}
-              <span className="font-mono text-gray-400">({(policyStats.prob * 100).toFixed(2)}%)</span>
-              {policyStats.best && policyStats.rank !== 1 && (
-                <span className="ml-2">
-                  best <span className="font-mono text-gray-300">{policyStats.best.isPass ? 'Pass' : moveToLabel({ x: policyStats.best.x, y: policyStats.best.y, player: move?.player ?? 'black' })}</span>{' '}
-                  <span className="font-mono text-gray-400">({(policyStats.best.prob * 100).toFixed(2)}%)</span>
-                </span>
-              )}
-            </div>
-          )}
-          {currentNode.autoUndo === true && <div className="text-purple-300">Teaching undo triggered for this move.</div>}
-          {currentNode.aiThoughts && <div className="text-gray-500">AI thoughts: {currentNode.aiThoughts}</div>}
-        </div>
-      </div>
+  const showInfoBlock = showInfo || detailed;
+  const showNotesBlock = showNotes;
 
-      <div className="p-4 flex-grow flex flex-col gap-2 overflow-y-auto">
-        <label className="text-xs font-semibold text-gray-400">User Note (SGF C)</label>
-        <textarea
-          value={currentNode.note ?? ''}
-          onChange={(e) => setCurrentNodeNote(e.target.value)}
-          placeholder="Write a note for this position…"
-          className="w-full flex-grow bg-gray-900 text-gray-100 rounded p-3 border border-gray-700 focus:border-green-500 outline-none text-sm font-mono resize-none"
-        />
-        <div className="text-[11px] text-gray-500">
-          Saved to SGF `C` and KaTrain-style comment markers are preserved on export.
+  const infoText = useMemo(() => {
+    if (!showInfoBlock) return '';
+
+    if (!move || !parent) {
+      const rulesRaw = currentNode.properties?.RU?.[0];
+      const rules = typeof rulesRaw === 'string' && rulesRaw.trim() ? rulesRaw.trim() : 'Japanese';
+      return `Komi: ${currentNode.gameState.komi.toFixed(1)}\nRuleset: ${rules}\n`;
+    }
+
+    if (!currentNode.analysis) return 'Analyzing move...';
+
+    let text = `Move ${depth}: ${playerToShort(move.player)} ${label}\n`;
+
+    if (detailed && topMove && topMoveLabel) {
+      const topScore = typeof topMove.scoreLead === 'number' ? `${topMove.scoreLead > 0 ? '+' : ''}${topMove.scoreLead.toFixed(1)}` : '?';
+      if (topMoveLabel !== label) text += `Top move: ${topMoveLabel} (${topScore})\n`;
+      else text += 'Best move\n';
+      if (topMove.pv && topMove.pv.length > 0) text += `PV: ${playerToShort(move.player)} ${topMove.pv.join(' ')}\n`;
+    }
+
+    if (detailed && policyStats?.rank) {
+      text += `Policy rank: #${policyStats.rank} (${(policyStats.prob * 100).toFixed(2)}%)\n`;
+      if (policyStats.rank !== 1 && policyStats.best) {
+        text += `Policy best: ${policyStats.best.isPass ? 'Pass' : moveToLabel({ x: policyStats.best.x, y: policyStats.best.y, player: move.player })} (${(policyStats.best.prob * 100).toFixed(2)}%)\n`;
+      }
+    }
+
+    if (detailed && currentNode.aiThoughts) text += `\nAI thoughts: ${currentNode.aiThoughts}`;
+
+    return text;
+  }, [
+    currentNode.aiThoughts,
+    currentNode.analysis,
+    currentNode.gameState.komi,
+    currentNode.properties,
+    depth,
+    detailed,
+    label,
+    move,
+    parent,
+    policyStats,
+    showInfoBlock,
+    topMove,
+    topMoveLabel,
+  ]);
+
+  if (!showInfoBlock && !showNotesBlock) return null;
+
+  return (
+    <div className="flex flex-col h-full">
+      {showInfoBlock && (
+        <div
+          className={[
+            showInfoBlock && showNotesBlock ? 'flex-[1]' : 'flex-1',
+            'p-3 text-xs text-gray-300 whitespace-pre-wrap font-mono overflow-y-auto',
+          ].join(' ')}
+        >
+          {infoText || (currentNode.analysis ? '' : 'Analyzing move...')}
         </div>
-      </div>
+      )}
+
+      {showNotesBlock && (
+        <div
+          className={[
+            showInfoBlock && showNotesBlock ? 'flex-[2]' : 'flex-1',
+            showInfoBlock ? 'border-t border-gray-800' : '',
+            'p-3 flex flex-col gap-2 min-h-0',
+          ].join(' ')}
+        >
+          <label className="text-xs font-semibold text-gray-400">User Note (SGF C)</label>
+          <textarea
+            value={currentNode.note ?? ''}
+            onChange={(e) => setCurrentNodeNote(e.target.value)}
+            placeholder="Write a note for this position…"
+            className="w-full flex-1 min-h-0 bg-gray-900 text-gray-100 rounded p-3 border border-gray-700 focus:border-green-500 outline-none text-sm font-mono resize-none"
+          />
+          <div className="text-[11px] text-gray-500">Saved to SGF `C` and KaTrain-style comment markers are preserved on export.</div>
+        </div>
+      )}
     </div>
   );
 };
