@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { GameNode } from '../types';
+import { publicUrl } from '../utils/publicUrl';
 
 const SCORE_GRANULARITY = 5;
 const WINRATE_GRANULARITY = 10;
@@ -8,6 +9,7 @@ const KATRAN_BOX_BG = 'rgb(46, 65, 88)';
 const KATRAN_SCORE_COLOR = 'rgb(77, 179, 230)'; // Theme.SCORE_COLOR (BLUE)
 const KATRAN_WINRATE_COLOR = 'rgb(26, 204, 26)'; // Theme.WINRATE_COLOR (GREEN)
 const KATRAN_GRAPH_DOT_COLOR = 'rgb(217, 77, 77)'; // Theme.GRAPH_DOT_COLOR
+const KATRAN_GRAPH_BG_URL = publicUrl('katrain/graph_bg.png');
 const KATRAN_SCORE_MARKER_COLOR = 'rgb(51, 153, 204)'; // Theme.SCORE_MARKER_COLOR
 const KATRAN_WINRATE_MARKER_COLOR = 'rgb(13, 179, 13)'; // Theme.WINRATE_MARKER_COLOR
 
@@ -154,7 +156,7 @@ export const ScoreWinrateGraph: React.FC<{ showScore: boolean; showWinrate: bool
       className="w-full h-full relative border border-gray-700 rounded overflow-hidden cursor-crosshair"
       style={{
         backgroundColor: KATRAN_BOX_BG,
-        backgroundImage: "url('/katrain/graph_bg.png')",
+        backgroundImage: `url('${KATRAN_GRAPH_BG_URL}')`,
         backgroundSize: '100% 100%',
         backgroundRepeat: 'no-repeat',
       }}

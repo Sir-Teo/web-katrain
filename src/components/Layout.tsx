@@ -32,6 +32,7 @@ import { BOARD_SIZE, type CandidateMove, type GameNode, type Player } from '../t
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
+import { publicUrl } from '../utils/publicUrl';
 
 type UiMode = 'play' | 'analyze';
 
@@ -1512,7 +1513,7 @@ export const Layout: React.FC = () => {
 	                <div
 	                  className="absolute inset-0"
 	                  style={{
-	                    backgroundImage: `url('/katrain/${passPv.player === 'black' ? 'B_stone.png' : 'W_stone.png'}')`,
+	                    backgroundImage: `url('${publicUrl(`katrain/${passPv.player === 'black' ? 'B_stone.png' : 'W_stone.png'}`)}')`,
 	                    backgroundSize: 'contain',
 	                    backgroundPosition: 'center',
 	                    backgroundRepeat: 'no-repeat',

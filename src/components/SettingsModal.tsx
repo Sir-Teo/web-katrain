@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { FaTimes } from 'react-icons/fa';
 import type { GameSettings } from '../types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
+import { publicUrl } from '../utils/publicUrl';
 
 interface SettingsModalProps {
     onClose: () => void;
@@ -14,6 +15,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
     const DEFAULT_ANIM_PV_TIME = 0.5;
+    const DEFAULT_MODEL_URL = publicUrl('models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz');
+    const SMALL_MODEL_URL = publicUrl('models/katago-small.bin.gz');
 
     const TOP_MOVE_OPTIONS: Array<{ value: GameSettings['trainerTopMovesShow']; label: string }> = [
         { value: 'top_move_delta_score', label: 'Δ Score (points lost)' },
@@ -981,7 +984,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 <button
                                     type="button"
                                     className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-xs font-mono text-white border border-gray-600"
-                                    onClick={() => updateSettings({ katagoModelUrl: '/models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz' })}
+                                    onClick={() => updateSettings({ katagoModelUrl: DEFAULT_MODEL_URL })}
                                     title="KaTrain default weights"
                                 >
                                     KaTrain Default
@@ -989,7 +992,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 <button
                                     type="button"
                                     className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-xs font-mono text-white border border-gray-600"
-                                    onClick={() => updateSettings({ katagoModelUrl: '/models/katago-small.bin.gz' })}
+                                    onClick={() => updateSettings({ katagoModelUrl: SMALL_MODEL_URL })}
                                     title="Small KataGo test model"
                                 >
                                     Small Test
@@ -1000,10 +1003,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 value={settings.katagoModelUrl}
                                 onChange={(e) => updateSettings({ katagoModelUrl: e.target.value })}
                                 className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-xs font-mono"
-                                placeholder="/models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz"
+                                placeholder={DEFAULT_MODEL_URL}
                             />
                             <p className="text-xs text-gray-500">
-                                Use a local path under <span className="font-mono">/models/</span> or a full URL (must allow CORS).
+                                Use a local path under <span className="font-mono">{publicUrl('models/')}</span> or a full URL (must allow CORS).
                             </p>
                             <p className="text-xs text-gray-500">
                                 Engine: <span className="font-mono">{engineBackend ?? 'not loaded'}</span>

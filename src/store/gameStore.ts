@@ -6,6 +6,7 @@ import { extractKaTrainUserNoteFromSgfComment, type ParsedSgf } from '../utils/s
 import { getKataGoEngineClient } from '../engine/katago/client';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katrainSgfAnalysis';
+import { publicUrl } from '../utils/publicUrl';
 
 interface GameStore extends GameState {
   // Tree State
@@ -292,7 +293,7 @@ const defaultSettings: GameSettings = {
   analysisShowHints: true,
   analysisShowPolicy: false,
   analysisShowOwnership: true,
-  katagoModelUrl: '/models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz',
+  katagoModelUrl: publicUrl('models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz'),
   katagoVisits: 500,
   katagoFastVisits: 25,
   katagoMaxTimeMs: 8000,

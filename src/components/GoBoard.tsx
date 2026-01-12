@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { BOARD_SIZE, type CandidateMove, type GameNode } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
+import { publicUrl } from '../utils/publicUrl';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 
@@ -34,6 +35,12 @@ const HINT_SCALE = 0.98;
 const UNCERTAIN_HINT_SCALE = 0.7;
 const TOP_MOVE_BORDER_COLOR = [10 / 255, 200 / 255, 250 / 255, 1] as const;
 const HINT_TEXT_COLOR = 'black';
+const BOARD_URL = publicUrl('katrain/board.png');
+const DOT_URL = publicUrl('katrain/dot.png');
+const INNER_URL = publicUrl('katrain/inner.png');
+const TOPMOVE_URL = publicUrl('katrain/topmove.png');
+const BLACK_STONE_URL = publicUrl('katrain/B_stone.png');
+const WHITE_STONE_URL = publicUrl('katrain/W_stone.png');
 
 function evaluationClass(pointsLost: number, thresholds: readonly number[] = KATRAN_EVAL_THRESHOLDS, colorsLen = 6): number {
   let i = 0;
@@ -641,7 +648,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
             width: boardWidth,
             height: boardHeight,
             backgroundColor: boardColor,
-            backgroundImage: settings.boardTheme === 'bamboo' ? "url('/katrain/board.png')" : undefined,
+            backgroundImage: settings.boardTheme === 'bamboo' ? `url('${BOARD_URL}')` : undefined,
             backgroundSize: settings.boardTheme === 'bamboo' ? '100% 100%' : undefined,
             backgroundRepeat: settings.boardTheme === 'bamboo' ? 'no-repeat' : undefined,
             overflow: 'hidden',
@@ -820,7 +827,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
               <div
                 className="absolute inset-0"
                 style={{
-                  backgroundImage: `url('/katrain/${cell === 'black' ? 'B_stone.png' : 'W_stone.png'}')`,
+                  backgroundImage: `url('${cell === 'black' ? BLACK_STONE_URL : WHITE_STONE_URL}')`,
                   backgroundSize: 'contain',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
@@ -871,7 +878,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
                   left: originX + d.x * cellSize - d.size / 2,
                   top: originY + d.y * cellSize - d.size / 2,
                   backgroundColor: d.color,
-                  backgroundImage: "url('/katrain/dot.png')",
+                  backgroundImage: `url('${DOT_URL}')`,
                   backgroundSize: 'contain',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
@@ -893,8 +900,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
             left: lastMoveMark.left,
             top: lastMoveMark.top,
             backgroundColor: lastMoveMark.color,
-            maskImage: "url('/katrain/inner.png')",
-            WebkitMaskImage: "url('/katrain/inner.png')",
+            maskImage: `url('${INNER_URL}')`,
+            WebkitMaskImage: `url('${INNER_URL}')`,
             maskSize: 'contain',
             WebkitMaskSize: 'contain',
             maskPosition: 'center',
@@ -919,7 +926,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
 	                height: stoneDiameter,
 	                left: originX + d.x * cellSize - stoneDiameter / 2,
 	                top: originY + d.y * cellSize - stoneDiameter / 2,
-	                backgroundImage: `url('/katrain/${currentPlayer === 'black' ? 'B_stone.png' : 'W_stone.png'}')`,
+	                backgroundImage: `url('${currentPlayer === 'black' ? BLACK_STONE_URL : WHITE_STONE_URL}')`,
 	                backgroundSize: 'contain',
 	                backgroundPosition: 'center',
 	                backgroundRepeat: 'no-repeat',
@@ -944,7 +951,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
                   height: stoneDiameter,
                   left: originX + d.x * cellSize - stoneDiameter / 2,
                   top: originY + d.y * cellSize - stoneDiameter / 2,
-                  backgroundImage: `url('/katrain/${currentPlayer === 'black' ? 'B_stone.png' : 'W_stone.png'}')`,
+                  backgroundImage: `url('${currentPlayer === 'black' ? BLACK_STONE_URL : WHITE_STONE_URL}')`,
                   backgroundSize: 'contain',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
@@ -976,7 +983,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
 	                  <div
 	                    className="absolute inset-0"
 	                    style={{
-	                      backgroundImage: `url('/katrain/${m.player === 'black' ? 'B_stone.png' : 'W_stone.png'}')`,
+	                      backgroundImage: `url('${m.player === 'black' ? BLACK_STONE_URL : WHITE_STONE_URL}')`,
 	                      backgroundSize: 'contain',
 	                      backgroundPosition: 'center',
 	                      backgroundRepeat: 'no-repeat',
@@ -1143,13 +1150,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
                     left: originX + d.x * cellSize - size / 2,
                     top: originY + d.y * cellSize - size / 2,
                     backgroundColor: bg,
-                    backgroundImage: "url('/katrain/topmove.png')",
+                    backgroundImage: `url('${TOPMOVE_URL}')`,
                     backgroundSize: 'contain',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat',
                     backgroundBlendMode: 'multiply',
-                    maskImage: "url('/katrain/topmove.png')",
-                    WebkitMaskImage: "url('/katrain/topmove.png')",
+                    maskImage: `url('${TOPMOVE_URL}')`,
+                    WebkitMaskImage: `url('${TOPMOVE_URL}')`,
                     maskSize: 'contain',
                     WebkitMaskSize: 'contain',
                     maskPosition: 'center',
