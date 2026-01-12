@@ -83,6 +83,10 @@ export interface GameSettings {
   loadSgfRewind: boolean; // KaTrain general/load_sgf_rewind
   gameRules: GameRules; // KataGo rules preset (KaTrain default: japanese)
   trainerLowVisits: number; // KaTrain trainer/low_visits
+  trainerEvalThresholds: number[]; // KaTrain trainer/eval_thresholds
+  trainerShowDots: boolean[]; // KaTrain trainer/show_dots
+  trainerSaveFeedback: boolean[]; // KaTrain trainer/save_feedback
+  trainerEvalShowAi: boolean; // KaTrain trainer/eval_show_ai
   trainerTopMovesShow:
     | 'top_move_score'
     | 'top_move_delta_score'
@@ -98,6 +102,9 @@ export interface GameSettings {
     | 'top_move_visits'
     | 'top_move_nothing'; // KaTrain trainer/top_moves_show_secondary
   trainerExtraPrecision: boolean; // KaTrain trainer/extra_precision
+  trainerSaveAnalysis: boolean; // KaTrain trainer/save_analysis
+  trainerSaveMarks: boolean; // KaTrain trainer/save_marks
+  trainerLockAi: boolean; // KaTrain trainer/lock_ai
   analysisShowChildren: boolean; // Q
   analysisShowEval: boolean; // W
   analysisShowHints: boolean; // E

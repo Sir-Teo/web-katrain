@@ -10,6 +10,9 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const { settings, updateSettings, engineBackend, engineModelName } = useGameStore();
+    const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
+    const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
+    const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
 
     const TOP_MOVE_OPTIONS: Array<{ value: GameSettings['trainerTopMovesShow']; label: string }> = [
         { value: 'top_move_delta_score', label: 'Δ Score (points lost)' },
@@ -264,6 +267,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     className="toggle"
                                 />
                             </div>
+
+                            <div className="flex items-center justify-between">
+                                <label className="text-gray-300">Show AI Dots</label>
+                                <input
+                                    type="checkbox"
+                                    checked={settings.trainerEvalShowAi}
+                                    onChange={(e) => updateSettings({ trainerEvalShowAi: e.target.checked })}
+                                    className="toggle"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <label className="text-gray-300">Cache analysis to SGF</label>
+                                <input
+                                    type="checkbox"
+                                    checked={settings.trainerSaveAnalysis}
+                                    onChange={(e) => updateSettings({ trainerSaveAnalysis: e.target.checked })}
+                                    className="toggle"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <label className="text-gray-300">Save SGF marks (X / square)</label>
+                                <input
+                                    type="checkbox"
+                                    checked={settings.trainerSaveMarks}
+                                    onChange={(e) => updateSettings({ trainerSaveMarks: e.target.checked })}
+                                    className="toggle"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <label className="text-gray-300">Lock AI details (Play mode)</label>
+                                <input
+                                    type="checkbox"
+                                    checked={settings.trainerLockAi}
+                                    onChange={(e) => updateSettings({ trainerLockAi: e.target.checked })}
+                                    className="toggle"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -327,25 +370,83 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                             treated as a max variation count.
                         </p>
 
-                        <div className="grid grid-cols-3 gap-3">
-                            {[12, 6, 3, 1.5, 0.5, 0].map((thr, i) => (
-                                <div key={thr} className="space-y-1">
-                                    <label className="text-gray-300 block text-sm">≥ {thr}</label>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        step={0.1}
-                                        value={settings.teachNumUndoPrompts?.[i] ?? 0}
-                                        onChange={(e) => {
-                                            const v = Math.max(0, parseFloat(e.target.value || '0'));
-                                            const next = [...(settings.teachNumUndoPrompts ?? [])];
-                                            next[i] = v;
-                                            updateSettings({ teachNumUndoPrompts: next });
-                                        }}
-                                        className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
-                                    />
-                                </div>
-                            ))}
+                        <div className="space-y-2">
+                            {DEFAULT_EVAL_THRESHOLDS.map((fallbackThr, i) => {
+                                const thr = settings.trainerEvalThresholds?.[i] ?? fallbackThr;
+                                const undo = settings.teachNumUndoPrompts?.[i] ?? 0;
+                                const showDot = settings.trainerShowDots?.[i] ?? true;
+                                const saveFeedback = settings.trainerSaveFeedback?.[i] ?? false;
+
+                                return (
+                                    <div key={`teach-${i}`} className="grid grid-cols-4 gap-2 items-center">
+                                        <div className="space-y-1">
+                                            <label className="text-gray-300 block text-xs">≥ Threshold</label>
+                                            <input
+                                                type="number"
+                                                step={0.1}
+                                                value={thr}
+                                                onChange={(e) => {
+                                                    const v = parseFloat(e.target.value || '0');
+                                                    const next = [...(settings.trainerEvalThresholds ?? DEFAULT_EVAL_THRESHOLDS)];
+                                                    next[i] = v;
+                                                    updateSettings({ trainerEvalThresholds: next });
+                                                }}
+                                                className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-gray-300 block text-xs">Undo</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                step={0.1}
+                                                value={undo}
+                                                onChange={(e) => {
+                                                    const v = Math.max(0, parseFloat(e.target.value || '0'));
+                                                    const next = [...(settings.teachNumUndoPrompts ?? [])];
+                                                    next[i] = v;
+                                                    updateSettings({ teachNumUndoPrompts: next });
+                                                }}
+                                                className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-gray-300 text-xs">Show dots</label>
+                                            <input
+                                                type="checkbox"
+                                                checked={showDot}
+                                                onChange={(e) => {
+                                                    const next = [
+                                                        ...(settings.trainerShowDots?.length ? settings.trainerShowDots : DEFAULT_SHOW_DOTS),
+                                                    ];
+                                                    next[i] = e.target.checked;
+                                                    updateSettings({ trainerShowDots: next });
+                                                }}
+                                                className="toggle"
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-gray-300 text-xs">Save SGF</label>
+                                            <input
+                                                type="checkbox"
+                                                checked={saveFeedback}
+                                                onChange={(e) => {
+                                                    const next = [
+                                                        ...(settings.trainerSaveFeedback?.length ? settings.trainerSaveFeedback : DEFAULT_SAVE_FEEDBACK),
+                                                    ];
+                                                    next[i] = e.target.checked;
+                                                    updateSettings({ trainerSaveFeedback: next });
+                                                }}
+                                                className="toggle"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            <p className="text-xs text-gray-500">
+                                Matches KaTrain’s teacher config: thresholds define dot color classes; “Save SGF” controls auto-feedback comments.
+                            </p>
                         </div>
                     </div>
 

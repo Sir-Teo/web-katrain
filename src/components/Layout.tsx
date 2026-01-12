@@ -25,7 +25,7 @@ import {
   FaStop,
   FaTimes,
 } from 'react-icons/fa';
-import { downloadSgfFromTree, generateSgfFromTree, parseSgf } from '../utils/sgf';
+import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { BOARD_SIZE, type CandidateMove, type GameNode, type Player } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
@@ -349,6 +349,34 @@ export const Layout: React.FC = () => {
   const mode = uiState.mode;
   const modeControls = uiState.analysisControls[mode];
   const modePanels = uiState.panels[mode];
+  const lockAiDetails = mode === 'play' && settings.trainerLockAi;
+
+  const sgfExportOptions = useMemo<KaTrainSgfExportOptions>(() => {
+    const saveCommentsPlayer =
+      settings.trainerEvalShowAi
+        ? { black: true, white: true }
+        : {
+            black: !(isAiPlaying && aiColor === 'black'),
+            white: !(isAiPlaying && aiColor === 'white'),
+          };
+    return {
+      trainer: {
+        evalThresholds: settings.trainerEvalThresholds,
+        saveFeedback: settings.trainerSaveFeedback,
+        saveCommentsPlayer,
+        saveAnalysis: settings.trainerSaveAnalysis,
+        saveMarks: settings.trainerSaveMarks,
+      },
+    };
+  }, [
+    aiColor,
+    isAiPlaying,
+    settings.trainerEvalShowAi,
+    settings.trainerEvalThresholds,
+    settings.trainerSaveAnalysis,
+    settings.trainerSaveFeedback,
+    settings.trainerSaveMarks,
+  ]);
 
   const endResult = (() => {
     const nodeEnd = currentNode.endState;
@@ -530,7 +558,7 @@ export const Layout: React.FC = () => {
       };
 
       const copySgfToClipboard = async () => {
-        const sgf = generateSgfFromTree(rootNode);
+        const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
         try {
           await navigator.clipboard.writeText(sgf);
           toast('Copied SGF to clipboard.', 'success');
@@ -572,7 +600,7 @@ export const Layout: React.FC = () => {
 
       if (ctrl && keyLower === 's') {
         e.preventDefault();
-        downloadSgfFromTree(rootNode);
+        downloadSgfFromTree(rootNode, sgfExportOptions);
         return;
       }
       if (ctrl && keyLower === 'l') {
@@ -847,6 +875,7 @@ export const Layout: React.FC = () => {
     undoToBranchPoint,
     undoToMainBranch,
     makeCurrentNodeMainBranch,
+    sgfExportOptions,
   ]);
 
   const engineDot = useMemo(() => {
@@ -1019,7 +1048,7 @@ export const Layout: React.FC = () => {
               <button
                 className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-700"
                 onClick={() => {
-                  downloadSgfFromTree(rootNode);
+                  downloadSgfFromTree(rootNode, sgfExportOptions);
                   setMenuOpen(false);
                 }}
               >
@@ -1801,7 +1830,7 @@ export const Layout: React.FC = () => {
               <div className="flex-1 min-h-0">
                 <NotesPanel
                   showInfo={modePanels.notes.info || modePanels.notes.infoDetails}
-                  detailed={modePanels.notes.infoDetails}
+                  detailed={modePanels.notes.infoDetails && !lockAiDetails}
                   showNotes={modePanels.notes.notes}
                 />
               </div>
