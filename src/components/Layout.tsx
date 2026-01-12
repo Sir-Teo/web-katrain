@@ -1400,7 +1400,7 @@ export const Layout: React.FC = () => {
               </button>
             </div>
           )}
-          <GoBoard hoveredMove={hoveredMove} onHoverMove={setHoveredMove} pvUpToMove={pvUpToMove} />
+          <GoBoard hoveredMove={hoveredMove} onHoverMove={setHoveredMove} pvUpToMove={pvUpToMove} uiMode={mode} />
         </div>
 
         {/* Board controls bar (KaTrain-like) */}

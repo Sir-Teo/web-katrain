@@ -88,9 +88,10 @@ interface GoBoardProps {
     hoveredMove: CandidateMove | null;
     onHoverMove: (move: CandidateMove | null) => void;
     pvUpToMove: number | null;
+    uiMode: 'play' | 'analyze';
 }
 
-export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUpToMove }) => {
+export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUpToMove, uiMode }) => {
   const {
     board,
     playMove,
@@ -105,11 +106,20 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     regionOfInterest,
     isSelectingRegionOfInterest,
     setRegionOfInterest,
+    timerPaused,
+    timerMainTimeUsedSeconds,
+    isAiPlaying,
+    aiColor,
   } = useGameStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const ownershipCanvasRef = useRef<HTMLCanvasElement>(null);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info') => {
+    useGameStore.setState({ notification: { message, type } });
+    if (typeof window !== 'undefined') window.setTimeout(() => useGameStore.setState({ notification: null }), 2500);
+  }, []);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -227,6 +237,20 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     if (isSelectingRegionOfInterest) return;
     const pt = eventToInternal(e);
     if (!pt) return;
+
+    // KaTrain minimal_time_use enforcement in byo-yomi (Play mode only).
+    const isAiTurn = isAiPlaying && aiColor === currentPlayer;
+    if (uiMode === 'play' && !isAiTurn && !timerPaused && currentNode.children.length === 0) {
+      const mainSeconds = Math.max(0, Math.floor((settings.timerMainTimeMinutes ?? 0) * 60));
+      const mainRemaining = mainSeconds - Math.max(0, timerMainTimeUsedSeconds ?? 0);
+      const minUse = Math.max(0, Math.floor(settings.timerMinimalUseSeconds ?? 0));
+      const used = Math.max(0, currentNode.timeUsedSeconds ?? 0);
+      if (minUse > 0 && mainRemaining <= 0 && used < minUse) {
+        toast(`Think for at least ${minUse} seconds before playing.`, 'info');
+        return;
+      }
+    }
+
     playMove(pt.x, pt.y);
   };
 
