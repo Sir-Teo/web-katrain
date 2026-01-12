@@ -31,6 +31,7 @@ import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExpo
 import { BOARD_SIZE, type CandidateMove, type GameNode, type Player } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
+import { getKaTrainEvalColors } from '../utils/katrainTheme';
 
 type UiMode = 'play' | 'analyze';
 
@@ -63,16 +64,7 @@ type UiState = {
 };
 
 const UI_STATE_KEY = 'web-katrain:ui_state:v1';
-const KATRAN_EVAL_COLORS = [
-  [0.447, 0.129, 0.42, 1],
-  [0.8, 0, 0, 1],
-  [0.9, 0.4, 0.1, 1],
-  [0.95, 0.95, 0, 1],
-  [0.67, 0.9, 0.18, 1],
-  [0.117, 0.588, 0, 1],
-] as const;
 const GHOST_ALPHA = 0.6;
-const PV_ANIM_TIME_S = 0.5;
 const STONE_SIZE = 0.505;
 
 function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
@@ -460,14 +452,20 @@ export const Layout: React.FC = () => {
     return `${currentNode.id}|${pv.join(' ')}`;
   }, [currentNode.id, hoveredMove, isAnalysisMode]);
 
+  const evalColors = useMemo(() => getKaTrainEvalColors(settings.trainerTheme), [settings.trainerTheme]);
+  const pvAnimTimeS = useMemo(() => {
+    const t = settings.animPvTimeSeconds;
+    return typeof t === 'number' && Number.isFinite(t) ? t : 0.5;
+  }, [settings.animPvTimeSeconds]);
+
   useEffect(() => {
-    if (!pvKey) {
+    if (!pvKey || pvAnimTimeS <= 0) {
       setPvAnim(null);
       return;
     }
     setPvAnim((prev) => (prev?.key === pvKey ? prev : { key: pvKey, startMs: performance.now() }));
     setPvAnimNowMs(performance.now());
-  }, [pvKey]);
+  }, [pvKey, pvAnimTimeS]);
 
   const pvLen = hoveredMove?.pv?.length ?? 0;
   useEffect(() => {
@@ -475,7 +473,7 @@ export const Layout: React.FC = () => {
     if (!pvKey || pvKey !== pvAnim.key) return;
     if (pvLen <= 0) return;
 
-    const delayMs = Math.max(PV_ANIM_TIME_S, 0.1) * 1000;
+    const delayMs = Math.max(pvAnimTimeS, 0.1) * 1000;
     let raf = 0;
     const tick = () => {
       const now = performance.now();
@@ -485,15 +483,16 @@ export const Layout: React.FC = () => {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [pvAnim, pvKey, pvLen]);
+  }, [pvAnim, pvAnimTimeS, pvKey, pvLen]);
 
   const pvUpToMove = useMemo(() => {
     const pv = hoveredMove?.pv;
     if (!isAnalysisMode || !pv || pv.length === 0) return null;
+    if (pvAnimTimeS <= 0) return pv.length;
     if (!pvAnim || pvAnim.key !== pvKey) return pv.length;
-    const delayMs = Math.max(PV_ANIM_TIME_S, 0.1) * 1000;
+    const delayMs = Math.max(pvAnimTimeS, 0.1) * 1000;
     return Math.min(pv.length, (pvAnimNowMs - pvAnim.startMs) / delayMs);
-  }, [hoveredMove, isAnalysisMode, pvAnim, pvAnimNowMs, pvKey]);
+  }, [hoveredMove, isAnalysisMode, pvAnim, pvAnimNowMs, pvAnimTimeS, pvKey]);
 
   const passPv = useMemo(() => {
     const pv = hoveredMove?.pv;
@@ -852,6 +851,11 @@ export const Layout: React.FC = () => {
         setIsGameReportOpen(true);
         return;
       }
+      if (key === 'F8') {
+        e.preventDefault();
+        setIsSettingsOpen(true);
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -949,9 +953,9 @@ export const Layout: React.FC = () => {
     if (!Number.isFinite(passPolicy)) return null;
     const polOrder = 5 - Math.trunc(-Math.log10(Math.max(1e-9, passPolicy - 1e-9)));
     if (polOrder < 0) return null;
-    const col = KATRAN_EVAL_COLORS[Math.min(5, Math.max(0, polOrder))]!;
+    const col = evalColors[Math.min(evalColors.length - 1, Math.max(0, polOrder))]!;
     return rgba(col, GHOST_ALPHA);
-  }, [analysisData, isAnalysisMode, settings.analysisShowPolicy]);
+  }, [analysisData, evalColors, isAnalysisMode, settings.analysisShowPolicy]);
 
   const renderPlayerInfo = (player: Player) => {
     const isTurn = currentPlayer === player;

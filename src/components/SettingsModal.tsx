@@ -13,6 +13,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
+    const DEFAULT_ANIM_PV_TIME = 0.5;
 
     const TOP_MOVE_OPTIONS: Array<{ value: GameSettings['trainerTopMovesShow']; label: string }> = [
         { value: 'top_move_delta_score', label: 'Δ Score (points lost)' },
@@ -146,6 +147,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     </div>
 
                     <div className="space-y-1">
+                        <label className="text-gray-300 block text-sm">PV Animation Time (sec)</label>
+                        <input
+                            type="number"
+                            min={0}
+                            step={0.05}
+                            value={settings.animPvTimeSeconds ?? DEFAULT_ANIM_PV_TIME}
+                            onChange={(e) =>
+                                updateSettings({
+                                    animPvTimeSeconds: Math.max(0, parseFloat(e.target.value || String(DEFAULT_ANIM_PV_TIME))),
+                                })
+                            }
+                            className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                        />
+                        <p className="text-xs text-gray-500">KaTrain-style PV animation speed (0 disables animation).</p>
+                    </div>
+
+                    <div className="space-y-1">
                         <label className="text-gray-300 block text-sm">Rules</label>
                         <select
                             value={settings.gameRules}
@@ -213,6 +231,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                         <div className="pt-3 border-t border-gray-700 space-y-3">
                             <h4 className="text-xs font-semibold text-gray-300 tracking-wide">KaTrain Hint Labels</h4>
+
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Evaluation Theme</label>
+                                <select
+                                    value={settings.trainerTheme ?? 'theme:normal'}
+                                    onChange={(e) => updateSettings({ trainerTheme: e.target.value as GameSettings['trainerTheme'] })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm"
+                                >
+                                    <option value="theme:normal">Normal</option>
+                                    <option value="theme:red-green-colourblind">Red/Green colourblind</option>
+                                </select>
+                            </div>
 
                             <div className="space-y-1">
                                 <label className="text-gray-300 block text-sm">Low Visits Threshold</label>

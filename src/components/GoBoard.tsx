@@ -2,16 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../store/gameStore';
 import { BOARD_SIZE, type CandidateMove, type GameNode } from '../types';
 import { parseGtpMove } from '../lib/gtp';
+import { getKaTrainEvalColors } from '../utils/katrainTheme';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
-const KATRAN_EVAL_COLORS = [
-  [0.447, 0.129, 0.42, 1],
-  [0.8, 0, 0, 1],
-  [0.9, 0.4, 0.1, 1],
-  [0.95, 0.95, 0, 1],
-  [0.67, 0.9, 0.18, 1],
-  [0.117, 0.588, 0, 1],
-] as const;
 
 const OWNERSHIP_COLORS = {
   black: [0.0, 0.0, 0.1, 0.75],
@@ -42,10 +35,10 @@ const UNCERTAIN_HINT_SCALE = 0.7;
 const TOP_MOVE_BORDER_COLOR = [10 / 255, 200 / 255, 250 / 255, 1] as const;
 const HINT_TEXT_COLOR = 'black';
 
-function evaluationClass(pointsLost: number, thresholds: readonly number[] = KATRAN_EVAL_THRESHOLDS): number {
+function evaluationClass(pointsLost: number, thresholds: readonly number[] = KATRAN_EVAL_THRESHOLDS, colorsLen = 6): number {
   let i = 0;
   while (i < thresholds.length - 1 && pointsLost < thresholds[i]!) i++;
-  return Math.max(0, Math.min(i, KATRAN_EVAL_COLORS.length - 1));
+  return Math.max(0, Math.min(i, colorsLen - 1));
 }
 
 function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
@@ -117,6 +110,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   const evalThresholds: readonly number[] = settings.trainerEvalThresholds?.length ? settings.trainerEvalThresholds : KATRAN_EVAL_THRESHOLDS;
+  const evalColors = useMemo(() => getKaTrainEvalColors(settings.trainerTheme), [settings.trainerTheme]);
   const showEvalDotsForPlayer = useMemo(() => {
     if (settings.trainerEvalShowAi) return { black: true, white: true };
     return {
@@ -398,15 +392,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
               if (candidate) pointsLost = candidate.pointsLost;
           }
 
-          if (pointsLost !== null) {
-              const cls = evaluationClass(pointsLost, evalThresholds);
-              if (settings.trainerShowDots?.[cls] === false) {
-                  realizedPointsLost = parentRealizedPointsLost(node);
-                  node = node.parent;
-                  count++;
-                  continue;
-              }
-              const color = rgba(KATRAN_EVAL_COLORS[cls]!);
+	          if (pointsLost !== null) {
+	              const cls = evaluationClass(pointsLost, evalThresholds, evalColors.length);
+	              if (settings.trainerShowDots?.[cls] === false) {
+	                  realizedPointsLost = parentRealizedPointsLost(node);
+	                  node = node.parent;
+	                  count++;
+	                  continue;
+	              }
+	              const color = rgba(evalColors[cls]!);
               let evalScale = 1;
               if (pointsLost && realizedPointsLost) {
                   if (pointsLost <= 0.5 && realizedPointsLost <= 1.5) evalScale = 0;
@@ -425,14 +419,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
           count++;
       }
       return dots;
-  }, [
-      board,
-      cellSize,
-      currentNode,
-      evalThresholds,
-      isAnalysisMode,
-      settings.analysisShowEval,
-      settings.showLastNMistakes,
+	  }, [
+	      board,
+	      cellSize,
+	      currentNode,
+	      evalColors,
+	      evalThresholds,
+	      isAnalysisMode,
+	      settings.analysisShowEval,
+	      settings.showLastNMistakes,
       settings.trainerShowDots,
       showEvalDotsForPlayer,
       toDisplay,
@@ -522,8 +517,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
               const p = policy[y * BOARD_SIZE + x] ?? -1;
               if (p < 0) continue;
               const d = toDisplay(x, y);
-              const polOrder = Math.max(0, 5 + Math.trunc(Math.log10(Math.max(1e-9, p - 1e-9))));
-              const col = KATRAN_EVAL_COLORS[Math.min(5, polOrder)]!;
+	              const polOrder = Math.max(0, 5 + Math.trunc(Math.log10(Math.max(1e-9, p - 1e-9))));
+	              const col = evalColors[Math.min(evalColors.length - 1, polOrder)]!;
               const showText = p > textLb;
               const scale = showText ? 0.95 : 0.5;
               const stoneRadius = cellSize * STONE_SIZE;
@@ -576,7 +571,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
           }
       }
       return out;
-  }, [analysisData, approxBoardColor, cellSize, isAnalysisMode, originX, originY, settings.analysisShowPolicy, toDisplay]);
+	  }, [analysisData, approxBoardColor, cellSize, evalColors, isAnalysisMode, originX, originY, settings.analysisShowPolicy, toDisplay]);
 
 	  const pvOverlay = useMemo(() => {
 	      const pv = hoveredMove?.pv;
@@ -1087,9 +1082,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
           const alpha = uncertain ? HINTS_LO_ALPHA : HINTS_ALPHA;
           if (scale <= 0) return null;
 
-          const cls = evaluationClass(move.pointsLost, evalThresholds);
-          const col = KATRAN_EVAL_COLORS[cls]!;
-          const bg = rgba(col, alpha);
+	          const cls = evaluationClass(move.pointsLost, evalThresholds, evalColors.length);
+	          const col = evalColors[cls]!;
+	          const bg = rgba(col, alpha);
 
           const primary = settings.trainerTopMovesShow;
           const secondary = settings.trainerTopMovesShowSecondary;
