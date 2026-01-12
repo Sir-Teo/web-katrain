@@ -3,7 +3,7 @@
 import * as tf from '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgpu';
 import '@tensorflow/tfjs-backend-wasm';
-import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
+import { setThreadsCount, setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import pako from 'pako';
 
 import type { KataGoWorkerRequest, KataGoWorkerResponse } from './types';
@@ -47,6 +47,14 @@ async function initBackend(): Promise<void> {
   try {
     // Vite serves `public/` at the site root.
     setWasmPaths('/tfjs/');
+    // Use a reasonable thread count for XNNPACK when cross-origin isolated (SharedArrayBuffer).
+    // Without COOP/COEP headers, browsers disable threads and TFJS will fall back to single-threaded wasm.
+    const isCrossOriginIsolated = (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
+    if (isCrossOriginIsolated) {
+      const hc = (globalThis as unknown as { navigator?: { hardwareConcurrency?: number } }).navigator?.hardwareConcurrency ?? 1;
+      const numThreads = Math.max(1, Math.min(8, Math.floor(hc)));
+      setThreadsCount(numThreads);
+    }
     await tf.setBackend('wasm');
     await tf.ready();
     return;
