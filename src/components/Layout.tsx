@@ -270,6 +270,7 @@ export const Layout: React.FC = () => {
   const {
     resetGame,
     passTurn,
+    resign,
     makeAiMove,
     toggleAi,
     isAiPlaying,
@@ -345,6 +346,16 @@ export const Layout: React.FC = () => {
   const mode = uiState.mode;
   const modeControls = uiState.analysisControls[mode];
   const modePanels = uiState.panels[mode];
+
+  const endResult = (() => {
+    const nodeEnd = currentNode.endState;
+    if (nodeEnd && nodeEnd.includes('+')) return nodeEnd;
+    const rootEnd = rootNode.properties?.RE?.[0];
+    if (rootEnd && rootEnd.includes('+')) return rootEnd;
+    const pass = (n: GameNode | null | undefined) => !!n?.move && (n.move.x < 0 || n.move.y < 0);
+    if (pass(currentNode) && pass(currentNode.parent)) return 'Game ended';
+    return null;
+  })();
 
   // Persist UI state.
   useEffect(() => {
@@ -1531,6 +1542,12 @@ export const Layout: React.FC = () => {
                   B:{capturedWhite} · W:{capturedBlack}
                 </div>
               </div>
+              {endResult && (
+                <div className="flex items-center justify-between mt-1">
+                  <div className="text-xs text-gray-400">Result</div>
+                  <div className="font-mono text-sm text-gray-200">{endResult}</div>
+                </div>
+              )}
               <div className="flex gap-2 mt-3">
                 <button
                   className="flex-1 px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-sm font-semibold"
@@ -1541,7 +1558,11 @@ export const Layout: React.FC = () => {
                 </button>
                 <button
                   className="flex-1 px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-sm font-semibold"
-                  onClick={() => toast('Resign not implemented yet.', 'info')}
+                  onClick={() => {
+                    const result = currentPlayer === 'black' ? 'W+R' : 'B+R';
+                    resign();
+                    toast(`Result: ${result}`, 'info');
+                  }}
                 >
                   Resign
                 </button>

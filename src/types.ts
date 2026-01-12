@@ -57,6 +57,7 @@ export interface GameNode {
   children: GameNode[];
   move: Move | null;
   gameState: GameState;
+  endState?: string | null; // KaTrain-like: e.g. "B+R" for resignation, applied at this node.
   analysis?: AnalysisResult | null;
   analysisVisitsRequested?: number; // KaTrain-like: requested visits for this node analysis.
   autoUndo?: boolean | null; // Teach-mode auto-undo (KaTrain-like). null = not decided yet.

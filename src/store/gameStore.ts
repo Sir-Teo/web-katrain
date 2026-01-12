@@ -65,6 +65,7 @@ interface GameStore extends GameState {
   resetGame: () => void;
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
+  resign: () => void;
   runAnalysis: (opts?: {
     force?: boolean;
     visits?: number;
@@ -190,6 +191,7 @@ const createNode = (
         children: [],
         move,
         gameState,
+        endState: null,
         analysis: null,
         analysisVisitsRequested: 0,
         autoUndo: null,
@@ -2525,6 +2527,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (after.isAnalysisMode && !after.isSelfplayToEnd) {
         setTimeout(() => void after.runAnalysis(), 0);
       }
+  },
+
+  resign: () => {
+    const state = get();
+    const winner = state.currentPlayer === 'black' ? 'W' : 'B';
+    const endState = `${winner}+R`;
+    state.currentNode.endState = endState;
+
+    if (!state.rootNode.properties) state.rootNode.properties = {};
+    state.rootNode.properties.RE = [endState];
+
+    get().stopSelfplayToEnd();
+
+    set((s) => ({
+      isAiPlaying: false,
+      aiColor: null,
+      treeVersion: s.treeVersion + 1,
+    }));
   },
 
   rotateBoard: () =>
