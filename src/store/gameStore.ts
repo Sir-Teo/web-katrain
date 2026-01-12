@@ -38,6 +38,11 @@ interface GameStore extends GameState {
   engineBackend: string | null;
   engineModelName: string | null;
 
+  // Timer (KaTrain-like)
+  timerPaused: boolean;
+  timerMainTimeUsedSeconds: number; // Shared main time used (KaTrain semantics)
+  timerPeriodsUsed: { black: number; white: number }; // Byo-yomi periods used per player
+
   // Actions
   toggleAi: (color: Player) => void;
   toggleAnalysisMode: () => void;
@@ -45,6 +50,7 @@ interface GameStore extends GameState {
   stopAnalysis: () => void;
   toggleTeachMode: () => void;
   clearNotification: () => void;
+  toggleTimerPaused: () => void;
   playMove: (x: number, y: number, isLoad?: boolean) => void;
   makeAiMove: () => void;
   undoMove: () => void; // Go back
@@ -192,6 +198,7 @@ const createNode = (
         move,
         gameState,
         endState: null,
+        timeUsedSeconds: 0,
         analysis: null,
         analysisVisitsRequested: 0,
         autoUndo: null,
@@ -231,6 +238,11 @@ const defaultSettings: GameSettings = {
   showCoordinates: true,
   showMoveNumbers: false,
   boardTheme: 'bamboo',
+  timerSound: true,
+  timerMainTimeMinutes: 0,
+  timerByoLengthSeconds: 30,
+  timerByoPeriods: 5,
+  timerMinimalUseSeconds: 0,
   showLastNMistakes: 3,
   mistakeThreshold: 3.0,
   loadSgfRewind: true,
@@ -355,6 +367,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   engineBackend: null,
   engineModelName: null,
 
+  timerPaused: true,
+  timerMainTimeUsedSeconds: 0,
+  timerPeriodsUsed: { black: 0, white: 0 },
+
   toggleAi: (color) => {
     const s = get();
     const nextOn = !(s.isAiPlaying && s.aiColor === color);
@@ -435,6 +451,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }),
 
   clearNotification: () => set({ notification: null }),
+
+  toggleTimerPaused: () => set((state) => ({ timerPaused: !state.timerPaused })),
 
   startSelectRegionOfInterest: () =>
     set(() => ({
@@ -2258,6 +2276,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isAiPlaying: false,
       aiColor: null,
       analysisData: null,
+      timerPaused: true,
+      timerMainTimeUsedSeconds: 0,
+      timerPeriodsUsed: { black: 0, white: 0 },
 
       // Reset Tree
       rootNode: newRoot,

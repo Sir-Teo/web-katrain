@@ -5,6 +5,7 @@ import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { SettingsModal } from './SettingsModal';
 import { MoveTree } from './MoveTree';
 import { NotesPanel } from './NotesPanel';
+import { Timer } from './Timer';
 import {
   FaBars,
   FaChevronDown,
@@ -1567,6 +1568,7 @@ export const Layout: React.FC = () => {
         <div className="px-3 pb-3">
           {mode === 'play' ? (
             <div className="bg-gray-900 border border-gray-700 rounded p-3">
+              <Timer />
               <div className="flex items-center justify-between">
                 <div className="text-xs text-gray-400">Komi</div>
                 <div className="font-mono text-sm text-gray-200">{komi}</div>

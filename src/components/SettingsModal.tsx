@@ -41,6 +41,74 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         />
                     </div>
 
+                    <div className="pt-2 border-t border-gray-700">
+                        <h3 className="text-sm font-semibold text-gray-200 mb-3">Timer</h3>
+
+                        <div className="flex items-center justify-between">
+                            <label className="text-gray-300">Timer Sound</label>
+                            <input
+                                type="checkbox"
+                                checked={settings.timerSound}
+                                onChange={(e) => updateSettings({ timerSound: e.target.checked })}
+                                className="toggle"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Main Time (min)</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={settings.timerMainTimeMinutes}
+                                    onChange={(e) => updateSettings({ timerMainTimeMinutes: Math.max(0, parseInt(e.target.value || '0', 10)) })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Byo Length (sec)</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={settings.timerByoLengthSeconds}
+                                    onChange={(e) => updateSettings({ timerByoLengthSeconds: Math.max(1, parseInt(e.target.value || '1', 10)) })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Byo Periods</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={settings.timerByoPeriods}
+                                    onChange={(e) => updateSettings({ timerByoPeriods: Math.max(1, parseInt(e.target.value || '1', 10)) })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-gray-300 block text-sm">Minimal Use (sec)</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={settings.timerMinimalUseSeconds}
+                                    onChange={(e) => updateSettings({ timerMinimalUseSeconds: Math.max(0, parseInt(e.target.value || '0', 10)) })}
+                                    className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-sm font-mono"
+                                />
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-gray-500 mt-2">
+                            KaTrain-style clock (main time, then byo-yomi periods). Timer runs only in Play mode and only for human turns.
+                        </p>
+                    </div>
+
                     {/* Coordinates */}
                     <div className="flex items-center justify-between">
                         <label className="text-gray-300">Show Coordinates</label>

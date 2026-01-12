@@ -58,6 +58,7 @@ export interface GameNode {
   move: Move | null;
   gameState: GameState;
   endState?: string | null; // KaTrain-like: e.g. "B+R" for resignation, applied at this node.
+  timeUsedSeconds?: number; // KaTrain-like: time used on this move (for timer/byo-yomi).
   analysis?: AnalysisResult | null;
   analysisVisitsRequested?: number; // KaTrain-like: requested visits for this node analysis.
   autoUndo?: boolean | null; // Teach-mode auto-undo (KaTrain-like). null = not decided yet.
@@ -72,6 +73,11 @@ export interface GameSettings {
   showCoordinates: boolean;
   showMoveNumbers: boolean;
   boardTheme: 'bamboo' | 'flat' | 'dark';
+  timerSound: boolean; // KaTrain timer/sound
+  timerMainTimeMinutes: number; // KaTrain timer/main_time (minutes)
+  timerByoLengthSeconds: number; // KaTrain timer/byo_length (seconds)
+  timerByoPeriods: number; // KaTrain timer/byo_periods
+  timerMinimalUseSeconds: number; // KaTrain timer/minimal_use (seconds)
   showLastNMistakes: number; // KaTrain-like eval dots: 0 disables, else show last N moves
   mistakeThreshold: number; // Points lost to consider a mistake (WinRateGraph + mistake nav)
   loadSgfRewind: boolean; // KaTrain general/load_sgf_rewind
