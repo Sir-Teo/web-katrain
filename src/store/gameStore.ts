@@ -110,6 +110,22 @@ const createEmptyBoard = (): BoardState => {
 const EMPTY_TERRITORY: number[][] = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => 0));
 
 const SETTINGS_STORAGE_KEY = 'web-katrain:settings:v1';
+const SMALL_MODEL_URL = 'models/katago-small.bin.gz';
+const KATRAIN_DEFAULT_MODEL_URL = 'models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz';
+
+const normalizeModelUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/')) {
+    if (trimmed.startsWith('/models/')) return publicUrl(trimmed.slice(1));
+    return trimmed;
+  }
+  if (trimmed.startsWith('models/')) return publicUrl(trimmed);
+  return trimmed;
+};
+
 const loadStoredSettings = (): Partial<GameSettings> | null => {
   if (typeof localStorage === 'undefined') return null;
   try {
@@ -117,6 +133,14 @@ const loadStoredSettings = (): Partial<GameSettings> | null => {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
+    if ('katagoModelUrl' in parsed) {
+      const normalized = normalizeModelUrl((parsed as { katagoModelUrl?: unknown }).katagoModelUrl);
+      if (normalized) {
+        const oldDefault = publicUrl(KATRAIN_DEFAULT_MODEL_URL);
+        (parsed as { katagoModelUrl: string }).katagoModelUrl =
+          normalized === oldDefault ? publicUrl(SMALL_MODEL_URL) : normalized;
+      }
+    }
     return parsed as Partial<GameSettings>;
   } catch {
     return null;
@@ -293,7 +317,7 @@ const defaultSettings: GameSettings = {
   analysisShowHints: true,
   analysisShowPolicy: false,
   analysisShowOwnership: true,
-  katagoModelUrl: publicUrl('models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz'),
+  katagoModelUrl: publicUrl(SMALL_MODEL_URL),
   katagoVisits: 500,
   katagoFastVisits: 25,
   katagoMaxTimeMs: 8000,

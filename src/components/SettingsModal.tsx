@@ -15,7 +15,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
     const DEFAULT_ANIM_PV_TIME = 0.5;
-    const DEFAULT_MODEL_URL = publicUrl('models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz');
+    const KATRAIN_DEFAULT_MODEL_URL = publicUrl('models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz');
     const SMALL_MODEL_URL = publicUrl('models/katago-small.bin.gz');
 
     const TOP_MOVE_OPTIONS: Array<{ value: GameSettings['trainerTopMovesShow']; label: string }> = [
@@ -984,7 +984,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 <button
                                     type="button"
                                     className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-xs font-mono text-white border border-gray-600"
-                                    onClick={() => updateSettings({ katagoModelUrl: DEFAULT_MODEL_URL })}
+                                    onClick={() => updateSettings({ katagoModelUrl: KATRAIN_DEFAULT_MODEL_URL })}
                                     title="KaTrain default weights"
                                 >
                                     KaTrain Default
@@ -995,7 +995,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     onClick={() => updateSettings({ katagoModelUrl: SMALL_MODEL_URL })}
                                     title="Small KataGo test model"
                                 >
-                                    Small Test
+                                    Small Model
                                 </button>
                             </div>
                             <input
@@ -1003,7 +1003,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 value={settings.katagoModelUrl}
                                 onChange={(e) => updateSettings({ katagoModelUrl: e.target.value })}
                                 className="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 focus:border-green-500 outline-none text-xs font-mono"
-                                placeholder={DEFAULT_MODEL_URL}
+                                placeholder={SMALL_MODEL_URL}
                             />
                             <p className="text-xs text-gray-500">
                                 Use a local path under <span className="font-mono">{publicUrl('models/')}</span> or a full URL (must allow CORS).
