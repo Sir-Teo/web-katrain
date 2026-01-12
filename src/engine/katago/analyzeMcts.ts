@@ -63,7 +63,7 @@ function colorToPlayer(c: StoneColor): Player {
   return c === BLACK ? 'black' : 'white';
 }
 
-function boardStateToStones(board: BoardState): Uint8Array {
+function boardStateToStones(board: BoardState): Uint8Array<ArrayBuffer> {
   const stones = new Uint8Array(BOARD_AREA);
   for (let y = 0; y < BOARD_SIZE; y++) {
     for (let x = 0; x < BOARD_SIZE; x++) {
@@ -766,9 +766,9 @@ export class MctsSearch {
   readonly wideRootNoise: number;
   private readonly outputScaleMultiplier: number;
 
-  private readonly rootStones: Uint8Array;
+  private readonly rootStones: Uint8Array<ArrayBuffer>;
   private readonly rootKoPoint: number;
-  private readonly rootPrevStones: Uint8Array;
+  private readonly rootPrevStones: Uint8Array<ArrayBuffer>;
   private readonly rootPrevKoPoint: number;
   private readonly rootMoves: RecentMove[];
 
@@ -788,9 +788,9 @@ export class MctsSearch {
     nnRandomize: boolean;
     conservativePass: boolean;
     wideRootNoise: number;
-    rootStones: Uint8Array;
+    rootStones: Uint8Array<ArrayBuffer>;
     rootKoPoint: number;
-    rootPrevStones: Uint8Array;
+    rootPrevStones: Uint8Array<ArrayBuffer>;
     rootPrevKoPoint: number;
     rootMoves: RecentMove[];
     rootNode: Node;
@@ -1026,23 +1026,37 @@ export class MctsSearch {
         let prevKoPoint = leafKoPoint;
         let prevPrevStones = leafStones;
         let prevPrevKoPoint = leafKoPoint;
+        const leafPlayer = colorToPlayer(player);
 
         if (undoMoves.length >= 1) {
-          const tmpPos: SimPosition = { stones: leafStones.slice(), koPoint: leafKoPoint };
-          const tmpCaps = captureStack.slice();
           const lastIdx = undoMoves.length - 1;
-          undoMove(tmpPos, undoMoves[lastIdx]!, undoPlayers[lastIdx]!, undoSnapshots[lastIdx]!, tmpCaps);
-          prevStones = tmpPos.stones.slice();
-          prevKoPoint = tmpPos.koPoint;
+          undoMove(sim, undoMoves[lastIdx]!, undoPlayers[lastIdx]!, undoSnapshots[lastIdx]!, captureStack);
 
-          if (undoMoves.length >= 2) {
-            const secondIdx = undoMoves.length - 2;
-            undoMove(tmpPos, undoMoves[secondIdx]!, undoPlayers[secondIdx]!, undoSnapshots[secondIdx]!, tmpCaps);
-            prevPrevStones = tmpPos.stones.slice();
-            prevPrevKoPoint = tmpPos.koPoint;
-          } else {
-            prevPrevStones = new Uint8Array(this.rootPrevStones);
+          if (lastIdx === 0) {
+            // Leaf is a child of the root: prev state is the root, and prev-prev is the pre-root position.
+            prevStones = this.rootStones;
+            prevKoPoint = this.rootKoPoint;
+            prevPrevStones = this.rootPrevStones;
             prevPrevKoPoint = this.rootPrevKoPoint;
+          } else {
+            prevStones = sim.stones.slice();
+            prevKoPoint = sim.koPoint;
+
+            const secondIdx = undoMoves.length - 2;
+            undoMove(sim, undoMoves[secondIdx]!, undoPlayers[secondIdx]!, undoSnapshots[secondIdx]!, captureStack);
+
+            if (secondIdx === 0) {
+              // Leaf is depth 2: prev-prev is the root.
+              prevPrevStones = this.rootStones;
+              prevPrevKoPoint = this.rootKoPoint;
+            } else {
+              prevPrevStones = sim.stones.slice();
+              prevPrevKoPoint = sim.koPoint;
+            }
+
+            for (let i = secondIdx - 1; i >= 0; i--) {
+              undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
+            }
           }
         }
 
@@ -1055,13 +1069,9 @@ export class MctsSearch {
           prevKoPoint,
           prevPrevStones,
           prevPrevKoPoint,
-          currentPlayer: colorToPlayer(player),
+          currentPlayer: leafPlayer,
           recentMoves: takeRecentMoves(this.rootMoves, pathMoves, 5),
         });
-
-        for (let i = undoMoves.length - 1; i >= 0; i--) {
-          undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
-        }
       }
 
       if (jobs.length === 0) break;
@@ -1469,23 +1479,35 @@ export async function analyzeMcts(args: {
       let prevKoPoint = leafKoPoint;
       let prevPrevStones = leafStones;
       let prevPrevKoPoint = leafKoPoint;
+      const leafPlayer = colorToPlayer(player);
 
       if (undoMoves.length >= 1) {
-        const tmpPos: SimPosition = { stones: leafStones.slice(), koPoint: leafKoPoint };
-        const tmpCaps = captureStack.slice();
         const lastIdx = undoMoves.length - 1;
-        undoMove(tmpPos, undoMoves[lastIdx]!, undoPlayers[lastIdx]!, undoSnapshots[lastIdx]!, tmpCaps);
-        prevStones = tmpPos.stones.slice();
-        prevKoPoint = tmpPos.koPoint;
+        undoMove(sim, undoMoves[lastIdx]!, undoPlayers[lastIdx]!, undoSnapshots[lastIdx]!, captureStack);
 
-        if (undoMoves.length >= 2) {
-          const secondIdx = undoMoves.length - 2;
-          undoMove(tmpPos, undoMoves[secondIdx]!, undoPlayers[secondIdx]!, undoSnapshots[secondIdx]!, tmpCaps);
-          prevPrevStones = tmpPos.stones.slice();
-          prevPrevKoPoint = tmpPos.koPoint;
-        } else {
-          prevPrevStones = new Uint8Array(rootPrevStones);
+        if (lastIdx === 0) {
+          prevStones = rootStones;
+          prevKoPoint = rootKoPoint;
+          prevPrevStones = rootPrevStones;
           prevPrevKoPoint = rootPrevKoPoint;
+        } else {
+          prevStones = sim.stones.slice();
+          prevKoPoint = sim.koPoint;
+
+          const secondIdx = undoMoves.length - 2;
+          undoMove(sim, undoMoves[secondIdx]!, undoPlayers[secondIdx]!, undoSnapshots[secondIdx]!, captureStack);
+
+          if (secondIdx === 0) {
+            prevPrevStones = rootStones;
+            prevPrevKoPoint = rootKoPoint;
+          } else {
+            prevPrevStones = sim.stones.slice();
+            prevPrevKoPoint = sim.koPoint;
+          }
+
+          for (let i = secondIdx - 1; i >= 0; i--) {
+            undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
+          }
         }
       }
 
@@ -1498,13 +1520,9 @@ export async function analyzeMcts(args: {
         prevKoPoint,
         prevPrevStones,
         prevPrevKoPoint,
-        currentPlayer: colorToPlayer(player),
+        currentPlayer: leafPlayer,
         recentMoves: takeRecentMoves(rootMoves, pathMoves, 5),
       });
-
-      for (let i = undoMoves.length - 1; i >= 0; i--) {
-        undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
-      }
     }
 
     if (jobs.length === 0) break;
