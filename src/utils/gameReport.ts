@@ -1,4 +1,4 @@
-import type { CandidateMove, GameNode, Player } from '../types';
+import { BOARD_SIZE, type CandidateMove, type GameNode, type Player } from '../types';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
 
@@ -58,8 +58,17 @@ export type GameReport = {
   stats: Record<Player, PlayerReportStats>;
 };
 
-export function computeGameReport(args: { currentNode: GameNode; thresholds: number[] }): GameReport {
+export function computeGameReport(args: {
+  currentNode: GameNode;
+  thresholds: number[];
+  depthFilter?: [number, number] | null;
+}): GameReport {
   const thresholds = args.thresholds?.length ? args.thresholds : [12, 6, 3, 1.5, 0.5, 0];
+  const depthFilter = args.depthFilter ?? null;
+  const [fromFrac, toFrac] = depthFilter ?? [0, 1e9]; // KaTrain uses fractions of board area.
+  const boardSquares = BOARD_SIZE * BOARD_SIZE;
+  const fromDepth = Math.ceil(fromFrac * boardSquares);
+  const toDepth = Math.ceil(toFrac * boardSquares);
 
   const labels = thresholds.map((t, i) => {
     if (i === thresholds.length - 1) return `< ${thresholds[thresholds.length - 2]}`;
@@ -72,9 +81,12 @@ export function computeGameReport(args: { currentNode: GameNode; thresholds: num
   const playerPtLoss: Record<Player, number[]> = { black: [], white: [] };
   const weights: Record<Player, Array<{ weight: number; adj: number }>> = { black: [], white: [] };
 
-  const seq = nodesForCurrentBranch(args.currentNode).filter((n) => !!n.move && !!n.parent);
-  for (const n of seq) {
-    const move = n.move!;
+  const seq = nodesForCurrentBranch(args.currentNode);
+  for (let depth = 0; depth < seq.length; depth++) {
+    const n = seq[depth]!;
+    const move = n.move;
+    if (!move || !n.parent) continue;
+    if (depth < fromDepth || depth >= toDepth) continue;
     const pointsLostRaw = computePointsLostStrict(n);
     if (pointsLostRaw == null) continue;
     const pointsLost = Math.max(0, pointsLostRaw);

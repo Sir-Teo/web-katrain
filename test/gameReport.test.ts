@@ -69,5 +69,38 @@ describe('computeGameReport', () => {
     expect(blackTotal).toBe(1);
     expect(whiteTotal).toBe(1);
   });
-});
 
+  it('supports KaTrain-style depth_filter fractions', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+
+    store.playMove(0, 0); // B (depth 1)
+    store.playMove(1, 0); // W (depth 2)
+
+    const root = useGameStore.getState().rootNode;
+    const n1 = root.children[0]!;
+    const n2 = n1.children[0]!;
+
+    root.analysis = analysis({
+      rootScoreLead: 0,
+      rootWinRate: 0.5,
+      moves: [{ x: 0, y: 0, winRate: 0.55, scoreLead: 0.0, visits: 100, pointsLost: 0, order: 0, prior: 1.0 }],
+    });
+    n1.analysis = analysis({ rootScoreLead: -5, rootWinRate: 0.5 });
+    n2.analysis = analysis({ rootScoreLead: -6, rootWinRate: 0.5 });
+
+    const thresholds = [12, 6, 3, 1.5, 0.5, 0];
+    const boardSquares = 19 * 19;
+    const depthFilter: [number, number] = [0.1 / boardSquares, 1.1 / boardSquares]; // ceil -> [1,2), includes only depth 1.
+    const report = computeGameReport({ currentNode: root, thresholds, depthFilter });
+
+    expect(report.stats.black.numMoves).toBe(1);
+    expect(report.stats.white.numMoves).toBe(0);
+    expect(report.stats.black.aiTopMove).toBe(1);
+
+    const blackTotal = report.histogram.reduce((acc, row) => acc + row.black, 0);
+    const whiteTotal = report.histogram.reduce((acc, row) => acc + row.white, 0);
+    expect(blackTotal).toBe(1);
+    expect(whiteTotal).toBe(0);
+  });
+});
