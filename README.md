@@ -9,6 +9,8 @@ Browser-based KaTrain-style UI with in-browser KataGo analysis using TensorFlow.
 - Weights load from `public/models/` or a URL/upload set in Settings.
 - Analysis results feed the UI (policy, ownership, winrate/score graphs).
 
+For detailed architecture diagrams and flow explanations, see [docs/diagram.md](docs/diagram.md).
+
 ## Development
 
 - Install: `npm install`
