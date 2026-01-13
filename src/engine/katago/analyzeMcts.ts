@@ -1339,7 +1339,8 @@ export class MctsSearch {
     const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
 
     const edges = this.rootNode.edges ?? [];
-    const moveRows: Array<{
+    const EMPTY_PV: string[] = [];
+    const topMoves: Array<{
       edge: Edge;
       move: number;
       visits: number;
@@ -1349,7 +1350,22 @@ export class MctsSearch {
       scoreStdev: number;
       prior: number;
       pv: string[];
+      orderIndex: number;
     }> = [];
+    let orderIndex = 0;
+    let minIdx = -1;
+
+    const isBetter = (a: (typeof topMoves)[number], b: (typeof topMoves)[number]) =>
+      a.visits > b.visits || (a.visits === b.visits && a.orderIndex < b.orderIndex);
+    const isWorse = (a: (typeof topMoves)[number], b: (typeof topMoves)[number]) =>
+      a.visits < b.visits || (a.visits === b.visits && a.orderIndex > b.orderIndex);
+
+    const updateMinIdx = () => {
+      minIdx = 0;
+      for (let i = 1; i < topMoves.length; i++) {
+        if (isWorse(topMoves[i]!, topMoves[minIdx]!)) minIdx = i;
+      }
+    };
 
     for (const e of edges) {
       const child = e.child;
@@ -1360,7 +1376,7 @@ export class MctsSearch {
       const scoreSelfplay = child.scoreMeanSum / child.visits;
       const scoreMeanSq = child.scoreMeanSqSum / child.visits;
       const scoreStdev = Math.sqrt(Math.max(0, scoreMeanSq - scoreSelfplay * scoreSelfplay));
-      moveRows.push({
+      const row = {
         edge: e,
         move: e.move,
         visits: child.visits,
@@ -1369,18 +1385,30 @@ export class MctsSearch {
         scoreSelfplay,
         scoreStdev,
         prior: e.prior,
-        pv: buildPv(e, pvDepth),
-      });
+        pv: EMPTY_PV,
+        orderIndex: orderIndex++,
+      };
+      if (topMoves.length < topK) {
+        topMoves.push(row);
+        if (topMoves.length === topK) updateMinIdx();
+      } else if (minIdx >= 0 && isBetter(row, topMoves[minIdx]!)) {
+        topMoves[minIdx] = row;
+        updateMinIdx();
+      }
     }
 
-    moveRows.sort((a, b) => b.visits - a.visits);
+    topMoves.sort((a, b) => {
+      const diff = b.visits - a.visits;
+      if (diff !== 0) return diff;
+      return a.orderIndex - b.orderIndex;
+    });
+    for (const row of topMoves) row.pv = buildPv(row.edge, pvDepth);
 
-    const topMoves = moveRows.slice(0, Math.min(topK, moveRows.length));
     const best = topMoves[0] ?? null;
     const bestScoreLead = best ? best.scoreLead : rootScoreLead;
     const sign = this.currentPlayer === 'black' ? 1 : -1;
 
-    const moves = topMoves.map((m) => {
+    const moves = topMoves.map((m, i) => {
       const pointsLost = sign * (rootScoreLead - m.scoreLead);
       const relativePointsLost = sign * (bestScoreLead - m.scoreLead);
       const winRateLost = sign * (rootWinRate - m.winRate);
@@ -1399,16 +1427,13 @@ export class MctsSearch {
         visits: m.visits,
         pointsLost,
         relativePointsLost,
-        order: 0,
+        order: i,
         prior: m.prior,
         pv: m.pv,
         ownership:
           includeMovesOwnership && m.edge.child?.ownership ? Array.from(m.edge.child.ownership) : undefined,
       };
     });
-
-    moves.sort((a, b) => b.visits - a.visits);
-    moves.forEach((m, i) => (m.order = i));
 
     const { ownership, ownershipStdev } =
       this.ownershipMode === 'tree'
