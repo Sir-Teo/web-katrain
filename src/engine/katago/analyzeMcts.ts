@@ -17,8 +17,8 @@ import {
   opponentOf,
   playMove,
   undoMove,
-  computeLadderFeaturesV7KataGo,
-  computeLadderedStonesV7KataGo,
+  computeLadderFeaturesV7KataGoInto,
+  computeLadderedStonesV7KataGoInto,
   computeAreaMapV7KataGoInto,
   computeLibertyMap,
   computeLibertyMapInto,
@@ -580,6 +580,10 @@ type EvalBatchScratch = {
   globalBatch: Float32Array;
   libertyMapScratch: Uint8Array;
   areaMapScratch: Uint8Array | null;
+  ladderedStonesScratch: Uint8Array;
+  ladderWorkingMovesScratch: Uint8Array;
+  prevLadderedStonesScratch: Uint8Array;
+  prevPrevLadderedStonesScratch: Uint8Array;
   symmetries: Uint8Array;
   spatialScratch: Float32Array;
   globalScratch: Float32Array;
@@ -613,6 +617,10 @@ function getEvalScratch(args: { batch: number; includeAreaFeature: boolean }): E
     globalBatch: new Float32Array(neededGlobal),
     libertyMapScratch: new Uint8Array(neededMaps),
     areaMapScratch: includeAreaFeature ? new Uint8Array(neededMaps) : null,
+    ladderedStonesScratch: new Uint8Array(BOARD_AREA),
+    ladderWorkingMovesScratch: new Uint8Array(BOARD_AREA),
+    prevLadderedStonesScratch: new Uint8Array(BOARD_AREA),
+    prevPrevLadderedStonesScratch: new Uint8Array(BOARD_AREA),
     symmetries: new Uint8Array(batch),
     spatialScratch: new Float32Array(BOARD_AREA * 22),
     globalScratch: new Float32Array(19),
@@ -676,15 +684,22 @@ async function evaluateBatch(args: {
     const areaMap = includeAreaFeature
       ? computeAreaMapV7KataGoInto(states[i]!.stones, areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA))
       : EMPTY_AREA_MAP;
-    const ladder = computeLadderFeaturesV7KataGo({
+    computeLadderFeaturesV7KataGoInto({
       stones: states[i]!.stones,
       koPoint: states[i]!.koPoint,
       currentPlayer: playerToColor(states[i]!.currentPlayer),
+      outLadderedStones: scratch.ladderedStonesScratch,
+      outLadderWorkingMoves: scratch.ladderWorkingMovesScratch,
     });
-    const prevLadderedStones = computeLadderedStonesV7KataGo({ stones: states[i]!.prevStones, koPoint: states[i]!.prevKoPoint });
-    const prevPrevLadderedStones = computeLadderedStonesV7KataGo({
+    computeLadderedStonesV7KataGoInto({
+      stones: states[i]!.prevStones,
+      koPoint: states[i]!.prevKoPoint,
+      outLadderedStones: scratch.prevLadderedStonesScratch,
+    });
+    computeLadderedStonesV7KataGoInto({
       stones: states[i]!.prevPrevStones,
       koPoint: states[i]!.prevPrevKoPoint,
+      outLadderedStones: scratch.prevPrevLadderedStonesScratch,
     });
 
     fillInputsV7Fast({
@@ -697,10 +712,10 @@ async function evaluateBatch(args: {
       conservativePassAndIsRoot: states[i]!.conservativePassAndIsRoot,
       libertyMap,
       areaMap: includeAreaFeature ? areaMap : undefined,
-      ladderedStones: ladder.ladderedStones,
-      ladderWorkingMoves: ladder.ladderWorkingMoves,
-      prevLadderedStones,
-      prevPrevLadderedStones,
+      ladderedStones: scratch.ladderedStonesScratch,
+      ladderWorkingMoves: scratch.ladderWorkingMovesScratch,
+      prevLadderedStones: scratch.prevLadderedStonesScratch,
+      prevPrevLadderedStones: scratch.prevPrevLadderedStonesScratch,
       outSpatial: spatialScratch,
       outGlobal: globalScratch,
     });

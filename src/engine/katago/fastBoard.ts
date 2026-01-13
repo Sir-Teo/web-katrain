@@ -1203,18 +1203,37 @@ export type KataGoLadderFeaturesV7 = {
   ladderWorkingMoves: Uint8Array; // plane 17
 };
 
-export function computeLadderFeaturesV7KataGo(args: { stones: Uint8Array; koPoint: number; currentPlayer: StoneColor }): KataGoLadderFeaturesV7 {
-  const { stones, koPoint, currentPlayer } = args;
-  const ladderedStones = new Uint8Array(BOARD_AREA);
-  const ladderWorkingMoves = new Uint8Array(BOARD_AREA);
+type KataGoLadderFeaturesScratchV7 = {
+  copyPos: SimPosition;
+  groupStones: Int16Array;
+  workingMoves: number[];
+};
+
+const LADDER_FEATURES_SCRATCH_V7: KataGoLadderFeaturesScratchV7 = {
+  copyPos: { stones: new Uint8Array(BOARD_AREA), koPoint: -1 },
+  groupStones: new Int16Array(BOARD_AREA),
+  workingMoves: [],
+};
+
+export function computeLadderFeaturesV7KataGoInto(args: {
+  stones: Uint8Array;
+  koPoint: number;
+  currentPlayer: StoneColor;
+  outLadderedStones: Uint8Array;
+  outLadderWorkingMoves: Uint8Array;
+}): void {
+  const { stones, koPoint, currentPlayer, outLadderedStones, outLadderWorkingMoves } = args;
+  outLadderedStones.fill(0);
+  outLadderWorkingMoves.fill(0);
 
   const opp = opponentOf(currentPlayer);
 
   ladderGroupSeenStamp++;
   const seenStamp = ladderGroupSeenStamp;
 
-  const copyPos: SimPosition = { stones: new Uint8Array(BOARD_AREA), koPoint: -1 };
-  const workingMoves: number[] = [];
+  const copyPos = LADDER_FEATURES_SCRATCH_V7.copyPos;
+  const groupStones = LADDER_FEATURES_SCRATCH_V7.groupStones;
+  const workingMoves = LADDER_FEATURES_SCRATCH_V7.workingMoves;
 
   for (let p = 0; p < BOARD_AREA; p++) {
     const c = stones[p] as StoneColor;
@@ -1226,7 +1245,6 @@ export function computeLadderFeaturesV7KataGo(args: { stones: Uint8Array; koPoin
 
     if (g.liberties !== 1 && g.liberties !== 2) continue;
 
-    const groupStones = new Int16Array(g.groupLen);
     groupStones.set(GROUP_BUF.subarray(0, g.groupLen));
 
     copyPos.stones.set(stones);
@@ -1243,24 +1261,31 @@ export function computeLadderFeaturesV7KataGo(args: { stones: Uint8Array; koPoin
 
     if (!laddered) continue;
 
-    for (let i = 0; i < groupStones.length; i++) ladderedStones[groupStones[i]!] = 1;
+    for (let i = 0; i < g.groupLen; i++) outLadderedStones[groupStones[i]!] = 1;
     if (g.liberties === 2 && c === opp && workingMoves.length > 0) {
-      for (let i = 0; i < workingMoves.length; i++) ladderWorkingMoves[workingMoves[i]!] = 1;
+      for (let i = 0; i < workingMoves.length; i++) outLadderWorkingMoves[workingMoves[i]!] = 1;
     }
   }
+}
+
+export function computeLadderFeaturesV7KataGo(args: { stones: Uint8Array; koPoint: number; currentPlayer: StoneColor }): KataGoLadderFeaturesV7 {
+  const ladderedStones = new Uint8Array(BOARD_AREA);
+  const ladderWorkingMoves = new Uint8Array(BOARD_AREA);
+  computeLadderFeaturesV7KataGoInto({ ...args, outLadderedStones: ladderedStones, outLadderWorkingMoves: ladderWorkingMoves });
 
   return { ladderedStones, ladderWorkingMoves };
 }
 
-export function computeLadderedStonesV7KataGo(args: { stones: Uint8Array; koPoint: number }): Uint8Array {
-  const { stones, koPoint } = args;
-  const laddered = new Uint8Array(BOARD_AREA);
+export function computeLadderedStonesV7KataGoInto(args: { stones: Uint8Array; koPoint: number; outLadderedStones: Uint8Array }): void {
+  const { stones, koPoint, outLadderedStones } = args;
+  outLadderedStones.fill(0);
 
   ladderGroupSeenStamp++;
   const seenStamp = ladderGroupSeenStamp;
 
-  const copyPos: SimPosition = { stones: new Uint8Array(BOARD_AREA), koPoint: -1 };
-  const workingMoves: number[] = [];
+  const copyPos = LADDER_FEATURES_SCRATCH_V7.copyPos;
+  const groupStones = LADDER_FEATURES_SCRATCH_V7.groupStones;
+  const workingMoves = LADDER_FEATURES_SCRATCH_V7.workingMoves;
 
   for (let p = 0; p < BOARD_AREA; p++) {
     const c = stones[p] as StoneColor;
@@ -1272,20 +1297,24 @@ export function computeLadderedStonesV7KataGo(args: { stones: Uint8Array; koPoin
 
     if (g.liberties !== 1 && g.liberties !== 2) continue;
 
-    const groupStones = new Int16Array(g.groupLen);
     groupStones.set(GROUP_BUF.subarray(0, g.groupLen));
 
     copyPos.stones.set(stones);
     copyPos.koPoint = koPoint;
     LADDER_SCRATCH.captureStack.length = 0;
 
+    workingMoves.length = 0;
     let ladderedGroup = false;
     if (g.liberties === 1) ladderedGroup = searchIsLadderCaptured(copyPos, p, true, LADDER_SCRATCH);
     else ladderedGroup = searchIsLadderCapturedAttackerFirst2Libs(copyPos, p, LADDER_SCRATCH, workingMoves);
 
     if (!ladderedGroup) continue;
-    for (let i = 0; i < groupStones.length; i++) laddered[groupStones[i]!] = 1;
+    for (let i = 0; i < g.groupLen; i++) outLadderedStones[groupStones[i]!] = 1;
   }
+}
 
+export function computeLadderedStonesV7KataGo(args: { stones: Uint8Array; koPoint: number }): Uint8Array {
+  const laddered = new Uint8Array(BOARD_AREA);
+  computeLadderedStonesV7KataGoInto({ ...args, outLadderedStones: laddered });
   return laddered;
 }
