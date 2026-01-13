@@ -326,6 +326,234 @@ function computeBlackUtilityFromEval(args: {
   return -whiteUtility;
 }
 
+const VALUE_WEIGHT_EXPONENT = 0.25;
+const USE_NOISE_PRUNING = true;
+const NOISE_PRUNE_UTILITY_SCALE = 0.15;
+const NOISE_PRUNING_CAP = 1e50;
+
+type ChildWeightStats = {
+  weightAdjusted: number;
+  selfUtility: number;
+  policy: number;
+  value: number;
+  scoreLead: number;
+  scoreMean: number;
+  scoreMeanSq: number;
+};
+
+type RootSelfStats = {
+  value: number;
+  scoreLead: number;
+  scoreMean: number;
+  scoreMeanSq: number;
+  utility: number;
+  weight: number;
+};
+
+const SQRT_3 = Math.sqrt(3);
+
+function tDistCdf3(z: number): number {
+  const u = z / SQRT_3;
+  const term = u / (1 + u * u);
+  return 0.5 + (Math.atan(u) + term) / Math.PI;
+}
+
+function pruneNoiseWeight(stats: ChildWeightStats[]): number {
+  if (stats.length <= 1) return stats.reduce((acc, s) => acc + s.weightAdjusted, 0);
+  stats.sort((a, b) => b.policy - a.policy);
+
+  let utilitySumSoFar = 0;
+  let weightSumSoFar = 0;
+  let rawPolicySumSoFar = 0;
+
+  for (const s of stats) {
+    const utility = s.selfUtility;
+    const oldWeight = s.weightAdjusted;
+    const rawPolicy = Math.max(1e-30, s.policy);
+    let newWeight = oldWeight;
+
+    if (weightSumSoFar > 0 && rawPolicySumSoFar > 0) {
+      const avgUtilitySoFar = utilitySumSoFar / weightSumSoFar;
+      const utilityGap = avgUtilitySoFar - utility;
+      if (utilityGap > 0) {
+        const weightShareFromRawPolicy = (weightSumSoFar * rawPolicy) / rawPolicySumSoFar;
+        const lenientWeightShareFromRawPolicy = 2.0 * weightShareFromRawPolicy;
+        if (oldWeight > lenientWeightShareFromRawPolicy) {
+          const excessWeight = oldWeight - lenientWeightShareFromRawPolicy;
+          let weightToSubtract = excessWeight * (1.0 - Math.exp(-utilityGap / NOISE_PRUNE_UTILITY_SCALE));
+          if (weightToSubtract > NOISE_PRUNING_CAP) weightToSubtract = NOISE_PRUNING_CAP;
+          newWeight = oldWeight - weightToSubtract;
+          s.weightAdjusted = newWeight;
+        }
+      }
+    }
+
+    utilitySumSoFar += utility * newWeight;
+    weightSumSoFar += newWeight;
+    rawPolicySumSoFar += rawPolicy;
+  }
+
+  return weightSumSoFar;
+}
+
+function downweightBadChildrenAndNormalizeWeight(args: {
+  stats: ChildWeightStats[];
+  currentTotalWeight: number;
+  desiredTotalWeight: number;
+  amountToSubtract: number;
+  amountToPrune: number;
+}): void {
+  const stats = args.stats;
+  const desiredTotalWeight = args.desiredTotalWeight;
+  if (stats.length === 0 || args.currentTotalWeight <= 0) return;
+
+  if (VALUE_WEIGHT_EXPONENT === 0) {
+    let currentTotalWeight = args.currentTotalWeight;
+    for (const s of stats) {
+      if (s.weightAdjusted < args.amountToPrune) {
+        currentTotalWeight -= s.weightAdjusted;
+        s.weightAdjusted = 0;
+        continue;
+      }
+      const newWeight = s.weightAdjusted - args.amountToSubtract;
+      if (newWeight <= 0) {
+        currentTotalWeight -= s.weightAdjusted;
+        s.weightAdjusted = 0;
+      } else {
+        currentTotalWeight -= args.amountToSubtract;
+        s.weightAdjusted = newWeight;
+      }
+    }
+
+    if (currentTotalWeight > 0 && currentTotalWeight !== desiredTotalWeight) {
+      const factor = desiredTotalWeight / currentTotalWeight;
+      for (const s of stats) s.weightAdjusted *= factor;
+    }
+    return;
+  }
+
+  const stdevs: number[] = new Array(stats.length);
+  let simpleValueSum = 0;
+  for (let i = 0; i < stats.length; i++) {
+    const s = stats[i]!;
+    const weight = s.weightAdjusted;
+    if (weight <= 0) continue;
+    const precision = 1.5 * Math.sqrt(weight);
+    stdevs[i] = Math.sqrt(1e-8 + 1.0 / precision);
+    simpleValueSum += s.selfUtility * weight;
+  }
+
+  const simpleValue = simpleValueSum / args.currentTotalWeight;
+  let totalNewUnnormWeight = 0;
+
+  for (let i = 0; i < stats.length; i++) {
+    const s = stats[i]!;
+    if (s.weightAdjusted < args.amountToPrune) {
+      s.weightAdjusted = 0;
+      continue;
+    }
+    const newWeight = s.weightAdjusted - args.amountToSubtract;
+    if (newWeight <= 0) {
+      s.weightAdjusted = 0;
+      continue;
+    }
+    s.weightAdjusted = newWeight;
+
+    const stdev = stdevs[i];
+    if (!stdev || stdev <= 0) continue;
+    const z = (s.selfUtility - simpleValue) / stdev;
+    const p = tDistCdf3(z) + 0.0001;
+    s.weightAdjusted *= Math.pow(p, VALUE_WEIGHT_EXPONENT);
+    totalNewUnnormWeight += s.weightAdjusted;
+  }
+
+  if (totalNewUnnormWeight <= 0) return;
+  const factor = desiredTotalWeight / totalNewUnnormWeight;
+  for (const s of stats) s.weightAdjusted *= factor;
+}
+
+function computeWeightedRootStats(args: { children: ChildWeightStats[]; rootSelf: RootSelfStats }): {
+  rootValue: number;
+  rootWinRate: number;
+  rootScoreLead: number;
+  rootScoreSelfplay: number;
+  rootScoreStdev: number;
+} {
+  const stats = args.children;
+  if (stats.length === 0) {
+    const rootValue = args.rootSelf.value;
+    const rootScoreSelfplay = args.rootSelf.scoreMean;
+    const rootScoreMeanSq = args.rootSelf.scoreMeanSq;
+    const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
+    return {
+      rootValue,
+      rootWinRate: (rootValue + 1) * 0.5,
+      rootScoreLead: args.rootSelf.scoreLead,
+      rootScoreSelfplay,
+      rootScoreStdev,
+    };
+  }
+
+  let totalWeight = 0;
+  for (const s of stats) totalWeight += s.weightAdjusted;
+  if (USE_NOISE_PRUNING) totalWeight = pruneNoiseWeight(stats);
+
+  downweightBadChildrenAndNormalizeWeight({
+    stats,
+    currentTotalWeight: totalWeight,
+    desiredTotalWeight: totalWeight,
+    amountToSubtract: 0,
+    amountToPrune: 0,
+  });
+
+  let weightSum = 0;
+  let valueSum = 0;
+  let scoreMeanSum = 0;
+  let scoreMeanSqSum = 0;
+  let scoreLeadSum = 0;
+
+  for (const s of stats) {
+    if (s.weightAdjusted <= 0) continue;
+    weightSum += s.weightAdjusted;
+    valueSum += s.weightAdjusted * s.value;
+    scoreMeanSum += s.weightAdjusted * s.scoreMean;
+    scoreMeanSqSum += s.weightAdjusted * s.scoreMeanSq;
+    scoreLeadSum += s.weightAdjusted * s.scoreLead;
+  }
+
+  weightSum += args.rootSelf.weight;
+  valueSum += args.rootSelf.weight * args.rootSelf.value;
+  scoreMeanSum += args.rootSelf.weight * args.rootSelf.scoreMean;
+  scoreMeanSqSum += args.rootSelf.weight * args.rootSelf.scoreMeanSq;
+  scoreLeadSum += args.rootSelf.weight * args.rootSelf.scoreLead;
+
+  if (weightSum <= 0) {
+    const rootValue = args.rootSelf.value;
+    const rootScoreSelfplay = args.rootSelf.scoreMean;
+    const rootScoreMeanSq = args.rootSelf.scoreMeanSq;
+    const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
+    return {
+      rootValue,
+      rootWinRate: (rootValue + 1) * 0.5,
+      rootScoreLead: args.rootSelf.scoreLead,
+      rootScoreSelfplay,
+      rootScoreStdev,
+    };
+  }
+
+  const rootValue = valueSum / weightSum;
+  const rootScoreSelfplay = scoreMeanSum / weightSum;
+  const rootScoreMeanSq = scoreMeanSqSum / weightSum;
+  const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
+  return {
+    rootValue,
+    rootWinRate: (rootValue + 1) * 0.5,
+    rootScoreLead: scoreLeadSum / weightSum,
+    rootScoreSelfplay,
+    rootScoreStdev,
+  };
+}
+
 function averageTreeOwnership(node: Node): { ownership: Float32Array; ownershipStdev: Float32Array } {
   const out = new Float32Array(BOARD_AREA);
   const outSq = new Float32Array(BOARD_AREA);
@@ -948,6 +1176,11 @@ export class MctsSearch {
   private readonly rootOwnership: Float32Array; // len 361
   private readonly recentScoreCenter: number;
   private readonly rand: Rand;
+  private readonly rootSelfValue: number;
+  private readonly rootSelfScoreLead: number;
+  private readonly rootSelfScoreMean: number;
+  private readonly rootSelfScoreMeanSq: number;
+  private readonly rootSelfUtility: number;
 
   private jobStonesScratch = new Uint8Array(0);
   private jobPrevStonesScratch = new Uint8Array(0);
@@ -974,6 +1207,11 @@ export class MctsSearch {
     recentScoreCenter: number;
     rand: Rand;
     outputScaleMultiplier: number;
+    rootSelfValue: number;
+    rootSelfScoreLead: number;
+    rootSelfScoreMean: number;
+    rootSelfScoreMeanSq: number;
+    rootSelfUtility: number;
   }) {
     this.model = args.model;
     this.ownershipMode = args.ownershipMode;
@@ -997,6 +1235,11 @@ export class MctsSearch {
     this.recentScoreCenter = args.recentScoreCenter;
     this.rand = args.rand;
     this.outputScaleMultiplier = args.outputScaleMultiplier;
+    this.rootSelfValue = args.rootSelfValue;
+    this.rootSelfScoreLead = args.rootSelfScoreLead;
+    this.rootSelfScoreMean = args.rootSelfScoreMean;
+    this.rootSelfScoreMeanSq = args.rootSelfScoreMeanSq;
+    this.rootSelfUtility = args.rootSelfUtility;
   }
 
   static async create(args: {
@@ -1097,7 +1340,8 @@ export class MctsSearch {
     rootNode.valueSum = rootValue;
     rootNode.scoreLeadSum = rootEval.blackScoreLead;
     rootNode.scoreMeanSum = rootEval.blackScoreMean;
-    rootNode.scoreMeanSqSum = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
+    const rootScoreMeanSq = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
+    rootNode.scoreMeanSqSum = rootScoreMeanSq;
     rootNode.utilitySum = rootUtility;
     rootNode.utilitySqSum = rootUtility * rootUtility;
     rootNode.nnUtility = rootUtility;
@@ -1123,6 +1367,11 @@ export class MctsSearch {
       recentScoreCenter,
       rand: new Rand(),
       outputScaleMultiplier,
+      rootSelfValue: rootValue,
+      rootSelfScoreLead: rootEval.blackScoreLead,
+      rootSelfScoreMean: rootEval.blackScoreMean,
+      rootSelfScoreMeanSq: rootScoreMeanSq,
+      rootSelfUtility: rootUtility,
     });
   }
 
@@ -1377,15 +1626,9 @@ export class MctsSearch {
     const analysisPvLen = Math.max(0, Math.min(args.analysisPvLen, 60));
     const pvDepth = 1 + analysisPvLen;
 
-    const rootQ = this.rootNode.visits > 0 ? this.rootNode.valueSum / this.rootNode.visits : 0;
-    const rootWinRate = (rootQ + 1) * 0.5;
-    const rootScoreLead = this.rootNode.visits > 0 ? this.rootNode.scoreLeadSum / this.rootNode.visits : 0;
-    const rootScoreSelfplay = this.rootNode.visits > 0 ? this.rootNode.scoreMeanSum / this.rootNode.visits : 0;
-    const rootScoreMeanSq = this.rootNode.visits > 0 ? this.rootNode.scoreMeanSqSum / this.rootNode.visits : 0;
-    const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
-
     const edges = this.rootNode.edges ?? [];
     const EMPTY_PV: string[] = [];
+    const childStats: ChildWeightStats[] = [];
     const topMoves: Array<{
       edge: Edge;
       move: number;
@@ -1422,6 +1665,16 @@ export class MctsSearch {
       const scoreSelfplay = child.scoreMeanSum / child.visits;
       const scoreMeanSq = child.scoreMeanSqSum / child.visits;
       const scoreStdev = Math.sqrt(Math.max(0, scoreMeanSq - scoreSelfplay * scoreSelfplay));
+      const utility = child.utilitySum / child.visits;
+      childStats.push({
+        weightAdjusted: child.visits,
+        selfUtility: utility,
+        policy: e.prior,
+        value: q,
+        scoreLead,
+        scoreMean: scoreSelfplay,
+        scoreMeanSq,
+      });
       const row = {
         edge: e,
         move: e.move,
@@ -1449,6 +1702,22 @@ export class MctsSearch {
       return a.orderIndex - b.orderIndex;
     });
     for (const row of topMoves) row.pv = buildPv(row.edge, pvDepth);
+
+    const rootStats = computeWeightedRootStats({
+      children: childStats,
+      rootSelf: {
+        value: this.rootSelfValue,
+        scoreLead: this.rootSelfScoreLead,
+        scoreMean: this.rootSelfScoreMean,
+        scoreMeanSq: this.rootSelfScoreMeanSq,
+        utility: this.rootSelfUtility,
+        weight: 1,
+      },
+    });
+    const rootWinRate = rootStats.rootWinRate;
+    const rootScoreLead = rootStats.rootScoreLead;
+    const rootScoreSelfplay = rootStats.rootScoreSelfplay;
+    const rootScoreStdev = rootStats.rootScoreStdev;
 
     const best = topMoves[0] ?? null;
     const bestScoreLead = best ? best.scoreLead : rootScoreLead;
@@ -1636,7 +1905,8 @@ export async function analyzeMcts(args: {
 		  rootNode.valueSum = rootValue;
 		  rootNode.scoreLeadSum = rootEval.blackScoreLead;
 		  rootNode.scoreMeanSum = rootEval.blackScoreMean;
-		  rootNode.scoreMeanSqSum = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
+		  const rootScoreMeanSq = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
+		  rootNode.scoreMeanSqSum = rootScoreMeanSq;
 		  rootNode.utilitySum = rootUtility;
 		  rootNode.utilitySqSum = rootUtility * rootUtility;
 		  rootNode.nnUtility = rootUtility;
@@ -1838,14 +2108,8 @@ export async function analyzeMcts(args: {
 	    }
   }
 
-  const rootQ = rootNode.visits > 0 ? rootNode.valueSum / rootNode.visits : 0;
-  const rootWinRate = (rootQ + 1) * 0.5;
-  const rootScoreLead = rootNode.visits > 0 ? rootNode.scoreLeadSum / rootNode.visits : 0;
-  const rootScoreSelfplay = rootNode.visits > 0 ? rootNode.scoreMeanSum / rootNode.visits : 0;
-  const rootScoreMeanSq = rootNode.visits > 0 ? rootNode.scoreMeanSqSum / rootNode.visits : 0;
-  const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
-
   const edges = rootNode.edges ?? [];
+  const childStats: ChildWeightStats[] = [];
   const moveRows: Array<{
     edge: Edge;
     move: number;
@@ -1867,6 +2131,16 @@ export async function analyzeMcts(args: {
     const scoreSelfplay = child.scoreMeanSum / child.visits;
     const scoreMeanSq = child.scoreMeanSqSum / child.visits;
     const scoreStdev = Math.sqrt(Math.max(0, scoreMeanSq - scoreSelfplay * scoreSelfplay));
+    const utility = child.utilitySum / child.visits;
+    childStats.push({
+      weightAdjusted: child.visits,
+      selfUtility: utility,
+      policy: e.prior,
+      value: q,
+      scoreLead,
+      scoreMean: scoreSelfplay,
+      scoreMeanSq,
+    });
     moveRows.push({
       edge: e,
       move: e.move,
@@ -1881,6 +2155,22 @@ export async function analyzeMcts(args: {
   }
 
   moveRows.sort((a, b) => b.visits - a.visits);
+
+  const rootStats = computeWeightedRootStats({
+    children: childStats,
+    rootSelf: {
+      value: rootValue,
+      scoreLead: rootEval.blackScoreLead,
+      scoreMean: rootEval.blackScoreMean,
+      scoreMeanSq: rootScoreMeanSq,
+      utility: rootUtility,
+      weight: 1,
+    },
+  });
+  const rootWinRate = rootStats.rootWinRate;
+  const rootScoreLead = rootStats.rootScoreLead;
+  const rootScoreSelfplay = rootStats.rootScoreSelfplay;
+  const rootScoreStdev = rootStats.rootScoreStdev;
 
   const topMoves = moveRows.slice(0, Math.min(topK, moveRows.length));
   const best = topMoves[0] ?? null;
