@@ -132,8 +132,20 @@ function takeRecentMoves(
   out: RecentMove[] = []
 ): RecentMove[] {
   out.length = 0;
-  for (let i = pathMoves.length - 1; i >= 0 && out.length < max; i--) out.push(pathMoves[i]!);
-  for (let i = rootMoves.length - 1; i >= 0 && out.length < max; i--) out.push(rootMoves[i]!);
+  const pushCopy = (src: RecentMove) => {
+    const idx = out.length;
+    let dst = out[idx];
+    if (!dst) {
+      dst = { move: src.move, player: src.player };
+      out[idx] = dst;
+    } else {
+      dst.move = src.move;
+      dst.player = src.player;
+    }
+    out.length = idx + 1;
+  };
+  for (let i = pathMoves.length - 1; i >= 0 && out.length < max; i--) pushCopy(pathMoves[i]!);
+  for (let i = rootMoves.length - 1; i >= 0 && out.length < max; i--) pushCopy(rootMoves[i]!);
   out.reverse();
   return out;
 }
@@ -1202,6 +1214,7 @@ export class MctsSearch {
   private jobPrevStonesScratch = new Uint8Array(0);
   private jobPrevPrevStonesScratch = new Uint8Array(0);
   private jobRecentMovesScratch: RecentMove[][] = [];
+  private treeOwnershipCache: { visits: number; ownership: Float32Array; ownershipStdev: Float32Array } | null = null;
 
   private constructor(args: {
     model: KataGoModelV8Tf;
@@ -1466,7 +1479,17 @@ export class MctsSearch {
           undoMoves.push(move);
           undoPlayers.push(player);
           undoSnapshots.push(snapshot);
-          pathMoves.push({ move, player: colorToPlayer(player) });
+          const pathIdx = pathMoves.length;
+          const pathPlayer = colorToPlayer(player);
+          let pathEntry = pathMoves[pathIdx];
+          if (!pathEntry) {
+            pathEntry = { move, player: pathPlayer };
+            pathMoves[pathIdx] = pathEntry;
+          } else {
+            pathEntry.move = move;
+            pathEntry.player = pathPlayer;
+          }
+          pathMoves.length = pathIdx + 1;
 
           if (!e.child) e.child = new Node(opponentOf(player));
           node = e.child;
@@ -1775,12 +1798,21 @@ export class MctsSearch {
       };
     });
 
-    const { ownership, ownershipStdev } =
-      this.ownershipMode === 'tree'
-        ? averageTreeOwnership(this.rootNode)
-        : { ownership: this.rootOwnership, ownershipStdev: new Float32Array(BOARD_AREA) };
-    const ownershipOut =
-      this.ownershipMode === 'tree' ? ownership : cloneBuffers ? new Float32Array(this.rootOwnership) : this.rootOwnership;
+    let ownership: Float32Array;
+    let ownershipStdev: Float32Array;
+    if (this.ownershipMode === 'tree') {
+      const visits = this.rootNode.visits;
+      let cached = this.treeOwnershipCache;
+      if (!cached || cached.visits !== visits) {
+        cached = { visits, ...averageTreeOwnership(this.rootNode) };
+        this.treeOwnershipCache = cached;
+      }
+      ownership = cloneBuffers ? new Float32Array(cached.ownership) : cached.ownership;
+      ownershipStdev = cloneBuffers ? new Float32Array(cached.ownershipStdev) : cached.ownershipStdev;
+    } else {
+      ownership = cloneBuffers ? new Float32Array(this.rootOwnership) : this.rootOwnership;
+      ownershipStdev = new Float32Array(BOARD_AREA);
+    }
     const policyOut = cloneBuffers ? new Float32Array(this.rootPolicy) : this.rootPolicy;
 
     return {
@@ -1788,7 +1820,7 @@ export class MctsSearch {
       rootScoreLead,
       rootScoreSelfplay,
       rootScoreStdev,
-      ownership: ownershipOut,
+      ownership,
       ownershipStdev,
       policy: policyOut,
       moves,
@@ -1990,7 +2022,17 @@ export async function analyzeMcts(args: {
         undoMoves.push(move);
         undoPlayers.push(player);
         undoSnapshots.push(snapshot);
-        pathMoves.push({ move, player: colorToPlayer(player) });
+        const pathIdx = pathMoves.length;
+        const pathPlayer = colorToPlayer(player);
+        let pathEntry = pathMoves[pathIdx];
+        if (!pathEntry) {
+          pathEntry = { move, player: pathPlayer };
+          pathMoves[pathIdx] = pathEntry;
+        } else {
+          pathEntry.move = move;
+          pathEntry.player = pathPlayer;
+        }
+        pathMoves.length = pathIdx + 1;
 
         if (!e.child) e.child = new Node(opponentOf(player));
         node = e.child;
