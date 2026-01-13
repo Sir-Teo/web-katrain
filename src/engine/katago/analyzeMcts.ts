@@ -1145,9 +1145,15 @@ export class MctsSearch {
     const undoSnapshots: UndoSnapshot[] = [];
     const pathMoves: RecentMove[] = [];
 
-    const start = performance.now();
+    const deadline = performance.now() + maxTimeMs;
+    let timeCheckCounter = 0;
+    const timeCheckMask = 0x1f;
+    const timeExceeded = (): boolean => {
+      if ((timeCheckCounter++ & timeCheckMask) !== 0) return false;
+      return performance.now() >= deadline;
+    };
 
-    while (this.rootNode.visits < maxVisits && performance.now() - start < maxTimeMs) {
+    while (this.rootNode.visits < maxVisits && !timeExceeded()) {
       const jobs: Array<{
         leaf: Node;
         path: Node[];
@@ -1162,7 +1168,7 @@ export class MctsSearch {
       }> = [];
 
       let attempts = 0;
-      while (jobs.length < batchSize && this.rootNode.visits + jobs.length < maxVisits && performance.now() - start < maxTimeMs) {
+      while (jobs.length < batchSize && this.rootNode.visits + jobs.length < maxVisits && !timeExceeded()) {
         attempts++;
         if (attempts > batchSize * 8) break;
 
@@ -1286,6 +1292,7 @@ export class MctsSearch {
           komi: this.komi,
         })),
       });
+      timeCheckCounter = 0;
 
       for (let i = 0; i < jobs.length; i++) {
         const job = jobs[i]!;
@@ -1641,9 +1648,15 @@ export async function analyzeMcts(args: {
   const undoSnapshots: UndoSnapshot[] = [];
   const pathMoves: RecentMove[] = [];
 
-	  const start = performance.now();
+	  const deadline = performance.now() + maxTimeMs;
+	  let timeCheckCounter = 0;
+	  const timeCheckMask = 0x1f;
+	  const timeExceeded = (): boolean => {
+	    if ((timeCheckCounter++ & timeCheckMask) !== 0) return false;
+	    return performance.now() >= deadline;
+	  };
 
-  while (rootNode.visits < maxVisits && performance.now() - start < maxTimeMs) {
+  while (rootNode.visits < maxVisits && !timeExceeded()) {
     const jobs: Array<{
       leaf: Node;
       path: Node[];
@@ -1658,7 +1671,7 @@ export async function analyzeMcts(args: {
     }> = [];
 
     let attempts = 0;
-    while (jobs.length < batchSize && rootNode.visits + jobs.length < maxVisits && performance.now() - start < maxTimeMs) {
+    while (jobs.length < batchSize && rootNode.visits + jobs.length < maxVisits && !timeExceeded()) {
       attempts++;
       if (attempts > batchSize * 8) break;
 
@@ -1773,6 +1786,7 @@ export async function analyzeMcts(args: {
         komi: args.komi,
       })),
     });
+    timeCheckCounter = 0;
 
     for (let i = 0; i < jobs.length; i++) {
       const job = jobs[i]!;
