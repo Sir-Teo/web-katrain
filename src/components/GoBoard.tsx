@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { BOARD_SIZE, type CandidateMove, type GameNode } from '../types';
 import { parseGtpMove } from '../lib/gtp';
@@ -111,12 +112,30 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     regionOfInterest,
     isSelectingRegionOfInterest,
     setRegionOfInterest,
-    timerPaused,
-    timerMainTimeUsedSeconds,
     isAiPlaying,
     aiColor,
     treeVersion,
-  } = useGameStore();
+  } = useGameStore(
+    (state) => ({
+      board: state.board,
+      playMove: state.playMove,
+      passTurn: state.passTurn,
+      moveHistory: state.moveHistory,
+      analysisData: state.analysisData,
+      isAnalysisMode: state.isAnalysisMode,
+      currentPlayer: state.currentPlayer,
+      settings: state.settings,
+      currentNode: state.currentNode,
+      boardRotation: state.boardRotation,
+      regionOfInterest: state.regionOfInterest,
+      isSelectingRegionOfInterest: state.isSelectingRegionOfInterest,
+      setRegionOfInterest: state.setRegionOfInterest,
+      isAiPlaying: state.isAiPlaying,
+      aiColor: state.aiColor,
+      treeVersion: state.treeVersion,
+    }),
+    shallow
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const gridCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -575,7 +594,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
 
     // KaTrain minimal_time_use enforcement in byo-yomi (Play mode only).
     const isAiTurn = isAiPlaying && aiColor === currentPlayer;
-    if (uiMode === 'play' && !isAiTurn && !timerPaused && currentNode.children.length === 0) {
+    const { timerPaused: isTimerPaused, timerMainTimeUsedSeconds } = useGameStore.getState();
+    if (uiMode === 'play' && !isAiTurn && !isTimerPaused && currentNode.children.length === 0) {
       const mainSeconds = Math.max(0, Math.floor((settings.timerMainTimeMinutes ?? 0) * 60));
       const mainRemaining = mainSeconds - Math.max(0, timerMainTimeUsedSeconds ?? 0);
       const minUse = Math.max(0, Math.floor(settings.timerMinimalUseSeconds ?? 0));
