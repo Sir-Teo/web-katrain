@@ -684,32 +684,57 @@ async function evaluateBatch(args: {
     const areaMap = includeAreaFeature
       ? computeAreaMapV7KataGoInto(states[i]!.stones, areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA))
       : EMPTY_AREA_MAP;
-    computeLadderFeaturesV7KataGoInto({
-      stones: states[i]!.stones,
-      koPoint: states[i]!.koPoint,
-      currentPlayer: playerToColor(states[i]!.currentPlayer),
-      outLadderedStones: scratch.ladderedStonesScratch,
-      outLadderWorkingMoves: scratch.ladderWorkingMovesScratch,
-    });
-    computeLadderedStonesV7KataGoInto({
-      stones: states[i]!.prevStones,
-      koPoint: states[i]!.prevKoPoint,
-      outLadderedStones: scratch.prevLadderedStonesScratch,
-    });
-    computeLadderedStonesV7KataGoInto({
-      stones: states[i]!.prevPrevStones,
-      koPoint: states[i]!.prevPrevKoPoint,
-      outLadderedStones: scratch.prevPrevLadderedStonesScratch,
-    });
+	    computeLadderFeaturesV7KataGoInto({
+	      stones: states[i]!.stones,
+	      koPoint: states[i]!.koPoint,
+	      currentPlayer: playerToColor(states[i]!.currentPlayer),
+	      outLadderedStones: scratch.ladderedStonesScratch,
+	      outLadderWorkingMoves: scratch.ladderWorkingMovesScratch,
+	    });
 
-    fillInputsV7Fast({
-      stones: states[i]!.stones,
-      koPoint: states[i]!.koPoint,
-      currentPlayer: states[i]!.currentPlayer,
-      recentMoves: states[i]!.recentMoves,
-      komi: states[i]!.komi,
-      rules,
-      conservativePassAndIsRoot: states[i]!.conservativePassAndIsRoot,
+	    const recentMoves = states[i]!.recentMoves;
+	    const lastRecentMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
+	    const passWouldEndGame = lastRecentMove?.move === PASS_MOVE;
+	    const suppressHistory = states[i]!.conservativePassAndIsRoot === true && passWouldEndGame;
+
+	    const pla = states[i]!.currentPlayer;
+	    const opp = pla === 'black' ? 'white' : 'black';
+	    const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
+
+	    let numTurnsOfHistoryIncluded = 0;
+	    if (!suppressHistory) {
+	      for (let h = 0; h < 5; h++) {
+	        const m = recentMoves[recentMoves.length - 1 - h];
+	        if (!m) break;
+	        if (m.player !== expectedPlayers[h]) break;
+	        numTurnsOfHistoryIncluded++;
+	      }
+	    }
+
+	    const prevLadderStones = numTurnsOfHistoryIncluded < 1 ? states[i]!.stones : states[i]!.prevStones;
+	    const prevLadderKoPoint = numTurnsOfHistoryIncluded < 1 ? states[i]!.koPoint : states[i]!.prevKoPoint;
+	    const prevPrevLadderStones = numTurnsOfHistoryIncluded < 2 ? prevLadderStones : states[i]!.prevPrevStones;
+	    const prevPrevLadderKoPoint = numTurnsOfHistoryIncluded < 2 ? prevLadderKoPoint : states[i]!.prevPrevKoPoint;
+
+	    computeLadderedStonesV7KataGoInto({
+	      stones: prevLadderStones,
+	      koPoint: prevLadderKoPoint,
+	      outLadderedStones: scratch.prevLadderedStonesScratch,
+	    });
+	    computeLadderedStonesV7KataGoInto({
+	      stones: prevPrevLadderStones,
+	      koPoint: prevPrevLadderKoPoint,
+	      outLadderedStones: scratch.prevPrevLadderedStonesScratch,
+	    });
+
+	    fillInputsV7Fast({
+	      stones: states[i]!.stones,
+	      koPoint: states[i]!.koPoint,
+	      currentPlayer: states[i]!.currentPlayer,
+	      recentMoves,
+	      komi: states[i]!.komi,
+	      rules,
+	      conservativePassAndIsRoot: states[i]!.conservativePassAndIsRoot,
       libertyMap,
       areaMap: includeAreaFeature ? areaMap : undefined,
       ladderedStones: scratch.ladderedStonesScratch,
