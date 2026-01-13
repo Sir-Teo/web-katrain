@@ -36,6 +36,25 @@ type Edge = {
   child: Node | null;
 };
 
+type ExpandScratch = {
+  moves: Int16Array;
+  logits: Float32Array;
+  priors: Float64Array;
+  topMoves: Int16Array;
+  topPriors: Float64Array;
+  order: number[];
+};
+
+// Reuse buffers in the tight expansion loop to reduce GC churn.
+const EXPAND_SCRATCH: ExpandScratch = {
+  moves: new Int16Array(BOARD_AREA),
+  logits: new Float32Array(BOARD_AREA),
+  priors: new Float64Array(BOARD_AREA),
+  topMoves: new Int16Array(BOARD_AREA),
+  topPriors: new Float64Array(BOARD_AREA),
+  order: [],
+};
+
 class Node {
   readonly playerToMove: StoneColor;
   visits = 0;
@@ -127,7 +146,13 @@ function expandNode(args: {
 
   const libs = args.libertyMap ?? computeLibertyMap(stones);
 
-  const legalMoves: Array<{ move: number; logit: number }> = [];
+  const scratch = EXPAND_SCRATCH;
+  const movesScratch = scratch.moves;
+  const logitsScratch = scratch.logits;
+  const priorsScratch = scratch.priors;
+  let moveCount = 0;
+  const passLogitScaled = passLogit * policyScale;
+  let maxLogit = passLogitScaled;
   for (let p = 0; p < BOARD_AREA; p++) {
     if (stones[p] !== EMPTY) continue;
     if (p === koPoint) continue;
@@ -171,45 +196,75 @@ function expandNode(args: {
 
     if (!hasEmptyNeighbor && !captures && !connectsToSafeGroup) continue;
     const symPos = sym === 0 ? p : SYM_POS_MAP[symOff + p]!;
-    legalMoves.push({ move: p, logit: policyLogits[symPos]! * policyScale });
+    const logit = policyLogits[symPos]! * policyScale;
+    movesScratch[moveCount] = p;
+    logitsScratch[moveCount] = logit;
+    if (logit > maxLogit) maxLogit = logit;
+    moveCount++;
   }
 
-  legalMoves.push({ move: PASS_MOVE, logit: passLogit * policyScale });
-
-  let maxLogit = Number.NEGATIVE_INFINITY;
-  for (const m of legalMoves) if (m.logit > maxLogit) maxLogit = m.logit;
   let sum = 0;
-  const priors = new Float64Array(legalMoves.length);
-  for (let i = 0; i < legalMoves.length; i++) {
-    const v = Math.exp(legalMoves[i]!.logit - maxLogit);
-    priors[i] = v;
+  for (let i = 0; i < moveCount; i++) {
+    const v = Math.exp(logitsScratch[i]! - maxLogit);
+    priorsScratch[i] = v;
     sum += v;
   }
-  for (let i = 0; i < legalMoves.length; i++) priors[i] /= sum;
+  const passPriorRaw = Math.exp(passLogitScaled - maxLogit);
+  sum += passPriorRaw;
+  const invSum = 1.0 / sum;
+  for (let i = 0; i < moveCount; i++) priorsScratch[i] *= invSum;
+  const passPrior = passPriorRaw * invSum;
 
   if (args.policyOut) {
     const out = args.policyOut;
     out.fill(-1);
-    for (let i = 0; i < legalMoves.length; i++) {
-      const move = legalMoves[i]!.move;
-      out[move] = priors[i]! as number;
+    for (let i = 0; i < moveCount; i++) out[movesScratch[i]!] = priorsScratch[i]! as number;
+    out[PASS_MOVE] = passPrior as number;
+  }
+
+  const topMoves = scratch.topMoves;
+  const topPriors = scratch.topPriors;
+  const maxKids = Math.max(0, maxChildren);
+  let topCount = 0;
+  let minIdx = 0;
+  for (let i = 0; i < moveCount; i++) {
+    const prior = priorsScratch[i]!;
+    if (topCount < maxKids) {
+      topMoves[topCount] = movesScratch[i]!;
+      topPriors[topCount] = prior;
+      topCount++;
+      if (topCount === maxKids) {
+        minIdx = 0;
+        for (let j = 1; j < topCount; j++) {
+          if (topPriors[j]! < topPriors[minIdx]!) minIdx = j;
+        }
+      }
+    } else if (maxKids > 0 && prior > topPriors[minIdx]!) {
+      topMoves[minIdx] = movesScratch[i]!;
+      topPriors[minIdx] = prior;
+      minIdx = 0;
+      for (let j = 1; j < topCount; j++) {
+        if (topPriors[j]! < topPriors[minIdx]!) minIdx = j;
+      }
     }
   }
 
-  const combined = legalMoves.map((m, i) => ({ move: m.move, prior: priors[i]! }));
-  combined.sort((a, b) => b.prior - a.prior);
+  const order = scratch.order;
+  order.length = topCount;
+  for (let i = 0; i < topCount; i++) order[i] = i;
+  order.sort((a, b) => {
+    const diff = topPriors[b]! - topPriors[a]!;
+    if (diff !== 0) return diff;
+    return topMoves[a]! - topMoves[b]!;
+  });
 
-  const edges: Edge[] = [];
-  let added = 0;
-  for (const m of combined) {
-    if (m.move === PASS_MOVE) continue;
-    edges.push({ move: m.move, prior: m.prior, child: null });
-    added++;
-    if (added >= maxChildren) break;
+  const edges: Edge[] = new Array(topCount + 1);
+  let edgeIdx = 0;
+  for (let i = 0; i < order.length; i++) {
+    const idx = order[i]!;
+    edges[edgeIdx++] = { move: topMoves[idx]!, prior: topPriors[idx]!, child: null };
   }
-
-  const pass = combined.find((m) => m.move === PASS_MOVE);
-  if (pass) edges.push({ move: PASS_MOVE, prior: pass.prior, child: null });
+  edges[edgeIdx++] = { move: PASS_MOVE, prior: passPrior, child: null };
 
   node.edges = edges;
 }
