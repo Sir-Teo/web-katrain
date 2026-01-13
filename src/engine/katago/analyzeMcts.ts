@@ -26,7 +26,7 @@ import {
   type StoneColor,
   type UndoSnapshot,
 } from './fastBoard';
-import { extractInputsV7Fast, type RecentMove } from './featuresV7Fast';
+import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
 
 export type OwnershipMode = 'root' | 'tree';
 
@@ -571,6 +571,54 @@ const SYM_POS_MAP: Int16Array = (() => {
   return map;
 })();
 
+type EvalBatchScratch = {
+  spatialBatch: Float32Array;
+  globalBatch: Float32Array;
+  libertyMapScratch: Uint8Array;
+  areaMapScratch: Uint8Array | null;
+  symmetries: Uint8Array;
+  spatialScratch: Float32Array;
+  globalScratch: Float32Array;
+};
+
+const EMPTY_AREA_MAP = new Uint8Array(BOARD_AREA);
+
+let evalScratchNoArea: EvalBatchScratch | null = null;
+let evalScratchWithArea: EvalBatchScratch | null = null;
+
+function getEvalScratch(args: { batch: number; includeAreaFeature: boolean }): EvalBatchScratch {
+  const { batch, includeAreaFeature } = args;
+  const neededSpatial = batch * BOARD_AREA * 22;
+  const neededGlobal = batch * 19;
+  const neededMaps = batch * BOARD_AREA;
+
+  const existing = includeAreaFeature ? evalScratchWithArea : evalScratchNoArea;
+  if (
+    existing &&
+    existing.spatialBatch.length >= neededSpatial &&
+    existing.globalBatch.length >= neededGlobal &&
+    existing.libertyMapScratch.length >= neededMaps &&
+    existing.symmetries.length >= batch &&
+    (!includeAreaFeature || (existing.areaMapScratch && existing.areaMapScratch.length >= neededMaps))
+  ) {
+    return existing;
+  }
+
+  const scratch: EvalBatchScratch = {
+    spatialBatch: new Float32Array(neededSpatial),
+    globalBatch: new Float32Array(neededGlobal),
+    libertyMapScratch: new Uint8Array(neededMaps),
+    areaMapScratch: includeAreaFeature ? new Uint8Array(neededMaps) : null,
+    symmetries: new Uint8Array(batch),
+    spatialScratch: new Float32Array(BOARD_AREA * 22),
+    globalScratch: new Float32Array(19),
+  };
+
+  if (includeAreaFeature) evalScratchWithArea = scratch;
+  else evalScratchNoArea = scratch;
+  return scratch;
+}
+
 async function evaluateBatch(args: {
   model: KataGoModelV8Tf;
   includeOwnership?: boolean;
@@ -608,21 +656,21 @@ async function evaluateBatch(args: {
   const nnRandomize = args.nnRandomize;
   const includeAreaFeature = rules === 'chinese';
   const batch = states.length;
-  const spatialBatch = new Float32Array(batch * BOARD_AREA * 22);
-  const globalBatch = new Float32Array(batch * 19);
-  const libertyMaps: Uint8Array[] = new Array(batch);
-  const areaMaps: Uint8Array[] = new Array(batch);
-  const emptyAreaMap = new Uint8Array(BOARD_AREA);
-  const libertyMapScratch = new Uint8Array(batch * BOARD_AREA);
-  const areaMapScratch = includeAreaFeature ? new Uint8Array(batch * BOARD_AREA) : null;
-  const symmetries = new Uint8Array(batch);
+  const scratch = getEvalScratch({ batch, includeAreaFeature });
+  const spatialBatch = scratch.spatialBatch.subarray(0, batch * BOARD_AREA * 22);
+  const globalBatch = scratch.globalBatch.subarray(0, batch * 19);
+  const libertyMapScratch = scratch.libertyMapScratch.subarray(0, batch * BOARD_AREA);
+  const areaMapScratch = includeAreaFeature ? scratch.areaMapScratch!.subarray(0, batch * BOARD_AREA) : null;
+  const symmetries = scratch.symmetries.subarray(0, batch);
+  const spatialScratch = scratch.spatialScratch;
+  const globalScratch = scratch.globalScratch;
 
   for (let i = 0; i < batch; i++) {
     const libertyMap = libertyMapScratch.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA);
     computeLibertyMapInto(states[i]!.stones, libertyMap);
     const areaMap = includeAreaFeature
       ? computeAreaMapV7KataGoInto(states[i]!.stones, areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA))
-      : emptyAreaMap;
+      : EMPTY_AREA_MAP;
     const ladder = computeLadderFeaturesV7KataGo({
       stones: states[i]!.stones,
       koPoint: states[i]!.koPoint,
@@ -633,9 +681,8 @@ async function evaluateBatch(args: {
       stones: states[i]!.prevPrevStones,
       koPoint: states[i]!.prevPrevKoPoint,
     });
-    libertyMaps[i] = libertyMap;
-    areaMaps[i] = areaMap;
-    const inp = extractInputsV7Fast({
+
+    fillInputsV7Fast({
       stones: states[i]!.stones,
       koPoint: states[i]!.koPoint,
       currentPlayer: states[i]!.currentPlayer,
@@ -649,16 +696,18 @@ async function evaluateBatch(args: {
       ladderWorkingMoves: ladder.ladderWorkingMoves,
       prevLadderedStones,
       prevPrevLadderedStones,
+      outSpatial: spatialScratch,
+      outGlobal: globalScratch,
     });
 
     const sym = nnRandomize ? ((Math.random() * NUM_SYMMETRIES) | 0) : 0;
     symmetries[i] = sym;
     const spatialOffset = i * BOARD_AREA * 22;
     if (sym === 0) {
-      spatialBatch.set(inp.spatial, spatialOffset);
+      spatialBatch.set(spatialScratch, spatialOffset);
     } else {
       const symOff = sym * BOARD_AREA;
-      const src = inp.spatial;
+      const src = spatialScratch;
       for (let pos = 0; pos < BOARD_AREA; pos++) {
         const dstPos = SYM_POS_MAP[symOff + pos]!;
         const srcBase = pos * 22;
@@ -669,7 +718,7 @@ async function evaluateBatch(args: {
       }
     }
 
-    globalBatch.set(inp.global, i * 19);
+    globalBatch.set(globalScratch, i * 19);
   }
 
   const spatialTensor = tf.tensor4d(spatialBatch, [batch, BOARD_SIZE, BOARD_SIZE, 22]);
@@ -751,8 +800,8 @@ async function evaluateBatch(args: {
       blackScoreMean: evaled.blackScoreMean,
       blackScoreStdev: evaled.blackScoreStdev,
       blackNoResultProb: evaled.blackNoResultProb,
-      libertyMap: libertyMaps[i]!,
-      areaMap: areaMaps[i]!,
+      libertyMap: libertyMapScratch.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA),
+      areaMap: includeAreaFeature ? areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA) : EMPTY_AREA_MAP,
       ownership,
     });
   }

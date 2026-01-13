@@ -100,5 +100,34 @@ export interface KataGoEvalResponse {
   error?: string;
 }
 
-export type KataGoWorkerRequest = KataGoInitRequest | KataGoAnalyzeRequest | KataGoEvalRequest;
-export type KataGoWorkerResponse = KataGoInitResponse | KataGoAnalyzeResponse | KataGoEvalResponse;
+export interface KataGoEvalBatchRequest {
+  type: 'katago:eval_batch';
+  id: number;
+  modelUrl: string;
+  positions: Array<{
+    board: BoardState;
+    currentPlayer: Player;
+    moveHistory: Move[];
+    komi: number;
+  }>;
+  rules?: GameRules;
+  conservativePass?: boolean;
+}
+
+export interface KataGoEvalBatchResponse {
+  type: 'katago:eval_batch_result';
+  id: number;
+  ok: boolean;
+  backend?: string;
+  modelName?: string;
+  evals?: Array<{
+    rootWinRate: number;
+    rootScoreLead: number;
+    rootScoreSelfplay: number;
+    rootScoreStdev: number;
+  }>;
+  error?: string;
+}
+
+export type KataGoWorkerRequest = KataGoInitRequest | KataGoAnalyzeRequest | KataGoEvalRequest | KataGoEvalBatchRequest;
+export type KataGoWorkerResponse = KataGoInitResponse | KataGoAnalyzeResponse | KataGoEvalResponse | KataGoEvalBatchResponse;

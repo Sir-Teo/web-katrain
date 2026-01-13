@@ -178,6 +178,79 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     return;
   }
 
+  if (msg.type === 'katago:eval_batch') {
+    await ensureModel(msg.modelUrl);
+    if (!model) throw new Error('Model not loaded');
+
+    const conservativePass = msg.conservativePass !== false;
+    const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
+
+    const batch = msg.positions.length;
+    if (batch <= 0) {
+      post({
+        type: 'katago:eval_batch_result',
+        id: msg.id,
+        ok: true,
+        backend: tf.getBackend(),
+        modelName: loadedModelName,
+        evals: [],
+      });
+      return;
+    }
+
+    const spatialBatch = new Float32Array(batch * 19 * 19 * 22);
+    const globalBatch = new Float32Array(batch * 19);
+
+    for (let i = 0; i < batch; i++) {
+      const pos = msg.positions[i]!;
+      const inputs = extractInputsV7({
+        board: pos.board,
+        currentPlayer: pos.currentPlayer,
+        moveHistory: pos.moveHistory,
+        komi: pos.komi,
+        rules,
+        conservativePassAndIsRoot: conservativePass,
+      });
+      spatialBatch.set(inputs.spatial, i * 19 * 19 * 22);
+      globalBatch.set(inputs.global, i * 19);
+    }
+
+    const spatial = tf.tensor4d(spatialBatch, [batch, 19, 19, 22]);
+    const global = tf.tensor2d(globalBatch, [batch, 19]);
+    const out = model.forwardValueOnly(spatial, global);
+    const [valueLogitsArr, scoreValueArr] = await Promise.all([out.value.data(), out.scoreValue.data()]);
+    spatial.dispose();
+    global.dispose();
+    out.value.dispose();
+    out.scoreValue.dispose();
+
+    const evals = new Array(batch);
+    for (let i = 0; i < batch; i++) {
+      const evaled = postprocessKataGoV8({
+        nextPlayer: msg.positions[i]!.currentPlayer,
+        valueLogits: valueLogitsArr.subarray(i * 3, i * 3 + 3),
+        scoreValue: scoreValueArr.subarray(i * 4, i * 4 + 4),
+        postProcessParams: model.postProcessParams,
+      });
+      evals[i] = {
+        rootWinRate: evaled.blackWinProb,
+        rootScoreLead: evaled.blackScoreLead,
+        rootScoreSelfplay: evaled.blackScoreMean,
+        rootScoreStdev: evaled.blackScoreStdev,
+      };
+    }
+
+    post({
+      type: 'katago:eval_batch_result',
+      id: msg.id,
+      ok: true,
+      backend: tf.getBackend(),
+      modelName: loadedModelName,
+      evals,
+    });
+    return;
+  }
+
   if (msg.type === 'katago:analyze') {
     await ensureModel(msg.modelUrl);
     if (!model) throw new Error('Model not loaded');
@@ -275,6 +348,15 @@ self.onmessage = (ev: MessageEvent<KataGoWorkerRequest>) => {
       if (msg.type === 'katago:eval') {
         post({
           type: 'katago:eval_result',
+          id: msg.id,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return;
+      }
+      if (msg.type === 'katago:eval_batch') {
+        post({
+          type: 'katago:eval_batch_result',
           id: msg.id,
           ok: false,
           error: err instanceof Error ? err.message : String(err),

@@ -3,6 +3,9 @@ import type { BoardState, GameRules, Move, Player } from '../../types';
 
 type Analysis = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:analyze_result' }>['analysis']>;
 type EvalResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:eval_result' }>['eval']>;
+type EvalBatchResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:eval_batch_result' }>['evals']>;
+
+const takeLastMoves = (moves: Move[]): Move[] => (moves.length <= 5 ? moves : moves.slice(moves.length - 5));
 
 class KataGoEngineClient {
   private readonly worker: Worker;
@@ -10,6 +13,7 @@ class KataGoEngineClient {
   private pendingInit: { resolve: () => void; reject: (e: Error) => void } | null = null;
   private pending = new Map<number, { resolve: (a: Analysis) => void; reject: (e: Error) => void }>();
   private pendingEval = new Map<number, { resolve: (e: EvalResult) => void; reject: (e: Error) => void }>();
+  private pendingEvalBatch = new Map<number, { resolve: (e: EvalBatchResult) => void; reject: (e: Error) => void }>();
   private backend: string | null = null;
   private modelName: string | null = null;
 
@@ -47,6 +51,16 @@ class KataGoEngineClient {
         if (typeof msg.modelName === 'string') this.modelName = msg.modelName;
         if (!msg.ok || !msg.eval) pending.reject(new Error(msg.error ?? 'Eval failed'));
         else pending.resolve(msg.eval);
+        return;
+      }
+      if (msg.type === 'katago:eval_batch_result') {
+        const pending = this.pendingEvalBatch.get(msg.id);
+        if (!pending) return;
+        this.pendingEvalBatch.delete(msg.id);
+        if (typeof msg.backend === 'string') this.backend = msg.backend;
+        if (typeof msg.modelName === 'string') this.modelName = msg.modelName;
+        if (!msg.ok || !msg.evals) pending.reject(new Error(msg.error ?? 'Eval batch failed'));
+        else pending.resolve(msg.evals);
       }
     };
   }
@@ -97,7 +111,7 @@ class KataGoEngineClient {
       previousBoard: args.previousBoard,
       previousPreviousBoard: args.previousPreviousBoard,
       currentPlayer: args.currentPlayer,
-      moveHistory: args.moveHistory,
+      moveHistory: takeLastMoves(args.moveHistory),
       komi: args.komi,
       rules: args.rules,
       topK: args.topK,
@@ -136,13 +150,45 @@ class KataGoEngineClient {
       modelUrl: args.modelUrl,
       board: args.board,
       currentPlayer: args.currentPlayer,
-      moveHistory: args.moveHistory,
+      moveHistory: takeLastMoves(args.moveHistory),
       komi: args.komi,
       rules: args.rules,
       conservativePass: args.conservativePass,
     };
     const promise = new Promise<EvalResult>((resolve, reject) => {
       this.pendingEval.set(id, { resolve, reject });
+    });
+    this.worker.postMessage(req);
+    return promise;
+  }
+
+  async evaluateBatch(args: {
+    modelUrl: string;
+    positions: Array<{
+      board: BoardState;
+      currentPlayer: Player;
+      moveHistory: Move[];
+      komi: number;
+    }>;
+    rules?: GameRules;
+    conservativePass?: boolean;
+  }): Promise<EvalBatchResult> {
+    const id = this.nextId++;
+    const req: KataGoWorkerRequest = {
+      type: 'katago:eval_batch',
+      id,
+      modelUrl: args.modelUrl,
+      positions: args.positions.map((p) => ({
+        board: p.board,
+        currentPlayer: p.currentPlayer,
+        moveHistory: takeLastMoves(p.moveHistory),
+        komi: p.komi,
+      })),
+      rules: args.rules,
+      conservativePass: args.conservativePass,
+    };
+    const promise = new Promise<EvalBatchResult>((resolve, reject) => {
+      this.pendingEvalBatch.set(id, { resolve, reject });
     });
     this.worker.postMessage(req);
     return promise;

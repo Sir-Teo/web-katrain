@@ -21,7 +21,7 @@ function playerToColor(p: Player): StoneColor {
   return p === 'black' ? BLACK : WHITE;
 }
 
-export function extractInputsV7Fast(args: {
+export function fillInputsV7Fast(args: {
   stones: Uint8Array; // 0 empty, 1 black, 2 white
   koPoint: number; // 0..360 or -1
   currentPlayer: Player;
@@ -35,7 +35,9 @@ export function extractInputsV7Fast(args: {
   prevLadderedStones?: Uint8Array; // V7 plane 15
   prevPrevLadderedStones?: Uint8Array; // V7 plane 16
   ladderWorkingMoves?: Uint8Array; // V7 plane 17, 1 where moves are ladder-capturing
-}): KataGoInputsV7 {
+  outSpatial: Float32Array; // len 19*19*22
+  outGlobal: Float32Array; // len 19
+}): void {
   const { stones, koPoint, currentPlayer, recentMoves, komi } = args;
   const rules: GameRules = args.rules ?? 'japanese';
   const pla = currentPlayer;
@@ -43,14 +45,12 @@ export function extractInputsV7Fast(args: {
   const plaColor = playerToColor(pla);
   const oppColor = playerToColor(opp);
 
-  const spatial = new Float32Array(BOARD_SIZE * BOARD_SIZE * INPUT_SPATIAL_CHANNELS_V7);
-  const global = new Float32Array(INPUT_GLOBAL_CHANNELS_V7);
+  const spatial = args.outSpatial;
+  const global = args.outGlobal;
+  spatial.fill(0);
+  global.fill(0);
 
-  for (let y = 0; y < BOARD_SIZE; y++) {
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      spatial[idxNHWC(x, y, 0)] = 1.0;
-    }
-  }
+  for (let pos = 0; pos < BOARD_SIZE * BOARD_SIZE; pos++) spatial[pos * INPUT_SPATIAL_CHANNELS_V7 + 0] = 1.0;
 
   if (koPoint >= 0 && koPoint < BOARD_SIZE * BOARD_SIZE) {
     const x = koPoint % BOARD_SIZE;
@@ -157,6 +157,25 @@ export function extractInputsV7Fast(args: {
     else wave = delta - 2.0;
     global[18] = wave;
   }
+}
 
+export function extractInputsV7Fast(args: {
+  stones: Uint8Array; // 0 empty, 1 black, 2 white
+  koPoint: number; // 0..360 or -1
+  currentPlayer: Player;
+  recentMoves: RecentMove[]; // chronological order, last item is most recent
+  komi: number;
+  rules?: GameRules;
+  conservativePassAndIsRoot?: boolean;
+  libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
+  areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
+  ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable
+  prevLadderedStones?: Uint8Array; // V7 plane 15
+  prevPrevLadderedStones?: Uint8Array; // V7 plane 16
+  ladderWorkingMoves?: Uint8Array; // V7 plane 17, 1 where moves are ladder-capturing
+}): KataGoInputsV7 {
+  const spatial = new Float32Array(BOARD_SIZE * BOARD_SIZE * INPUT_SPATIAL_CHANNELS_V7);
+  const global = new Float32Array(INPUT_GLOBAL_CHANNELS_V7);
+  fillInputsV7Fast({ ...args, outSpatial: spatial, outGlobal: global });
   return { spatial, global };
 }

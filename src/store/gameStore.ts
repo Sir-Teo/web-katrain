@@ -840,7 +840,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let lastUiUpdate = performance.now();
       let metaSynced = false;
 
-      for (const node of nodes) {
+      const evalBatchSize = Math.max(1, Math.min(get().settings.katagoBatchSize, 8));
+
+      for (let start = 0; start < nodes.length; start += evalBatchSize) {
         if (token !== gameAnalysisToken) return;
         if (!get().isGameAnalysisRunning) return;
         if (get().gameAnalysisType !== 'quick') return;
@@ -853,15 +855,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
           await sleep(50);
         }
 
-        const already = !!node.analysis;
-        if (!already) {
+        const chunk = nodes.slice(start, start + evalBatchSize);
+        const toEval = chunk.filter((n) => !n.analysis);
+        if (toEval.length > 0) {
           try {
-            const evaled = await getKataGoEngineClient().evaluate({
+            const evals = await getKataGoEngineClient().evaluateBatch({
               modelUrl: get().settings.katagoModelUrl,
-              board: node.gameState.board,
-              currentPlayer: node.gameState.currentPlayer,
-              moveHistory: node.gameState.moveHistory,
-              komi: node.gameState.komi,
+              positions: toEval.map((n) => ({
+                board: n.gameState.board,
+                currentPlayer: n.gameState.currentPlayer,
+                moveHistory: n.gameState.moveHistory,
+                komi: n.gameState.komi,
+              })),
               rules: get().settings.gameRules,
               conservativePass: get().settings.katagoConservativePass,
             });
@@ -871,23 +876,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
               metaSynced = true;
             }
 
-            node.analysis = {
-              rootWinRate: evaled.rootWinRate,
-              rootScoreLead: evaled.rootScoreLead,
-              rootScoreSelfplay: evaled.rootScoreSelfplay,
-              rootScoreStdev: evaled.rootScoreStdev,
-              moves: [],
-              territory: EMPTY_TERRITORY,
-              policy: undefined,
-              ownershipStdev: undefined,
-            };
-            node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, 1);
+            for (let i = 0; i < toEval.length; i++) {
+              const node = toEval[i]!;
+              const evaled = evals[i]!;
+              node.analysis = {
+                rootWinRate: evaled.rootWinRate,
+                rootScoreLead: evaled.rootScoreLead,
+                rootScoreSelfplay: evaled.rootScoreSelfplay,
+                rootScoreStdev: evaled.rootScoreStdev,
+                moves: [],
+                territory: EMPTY_TERRITORY,
+                policy: undefined,
+                ownershipStdev: undefined,
+              };
+              node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, 1);
+            }
           } catch {
             // Ignore failures for bulk analysis; individual node analysis can still run later.
           }
         }
 
-        done++;
+        done += chunk.length;
 
         const now = performance.now();
         if (now - lastUiUpdate > 120 || done === total) {
