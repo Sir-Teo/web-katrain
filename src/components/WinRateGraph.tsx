@@ -1,9 +1,18 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { GameNode } from '../types';
 
 export const WinRateGraph: React.FC = () => {
-    const { currentNode, jumpToNode, settings, treeVersion } = useGameStore();
+    const { currentNode, jumpToNode, mistakeThreshold, treeVersion } = useGameStore(
+        (state) => ({
+            currentNode: state.currentNode,
+            jumpToNode: state.jumpToNode,
+            mistakeThreshold: state.settings.mistakeThreshold,
+            treeVersion: state.treeVersion,
+        }),
+        shallow
+    );
     const svgRef = useRef<SVGSVGElement>(null);
     const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -29,7 +38,7 @@ export const WinRateGraph: React.FC = () => {
 
     // 2. Extract analysis data
     const dataPoints = useMemo(() => {
-        const threshold = settings.mistakeThreshold ?? 3.0;
+        const threshold = mistakeThreshold ?? 3.0;
         void treeVersion;
         return nodes.map((node) => {
             const winRate = node.analysis?.rootWinRate ?? 0.5;
@@ -51,7 +60,7 @@ export const WinRateGraph: React.FC = () => {
 
             return { winRate, node, isMistake };
         });
-    }, [nodes, settings.mistakeThreshold, treeVersion]);
+    }, [nodes, mistakeThreshold, treeVersion]);
 
     const width = 300;
     const height = 100;

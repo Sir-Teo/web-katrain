@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { GameNode } from '../types';
 import { publicUrl } from '../utils/publicUrl';
@@ -52,7 +53,14 @@ function lastFinite(values: number[]): number {
 }
 
 export const ScoreWinrateGraph: React.FC<{ showScore: boolean; showWinrate: boolean }> = ({ showScore, showWinrate }) => {
-  const { currentNode, jumpToNode, treeVersion } = useGameStore();
+  const { currentNode, jumpToNode, treeVersion } = useGameStore(
+    (state) => ({
+      currentNode: state.currentNode,
+      jumpToNode: state.jumpToNode,
+      treeVersion: state.treeVersion,
+    }),
+    shallow
+  );
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
