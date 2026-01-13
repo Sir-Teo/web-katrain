@@ -51,7 +51,7 @@ export async function analyzeOnePly(args: {
   const rootInputs = extractInputsV7({ board, currentPlayer, moveHistory, komi });
   const rootSpatial = tf.tensor4d(rootInputs.spatial, [1, BOARD_SIZE, BOARD_SIZE, 22]);
   const rootGlobal = tf.tensor2d(rootInputs.global, [1, 19]);
-  const rootOut = model.forward(rootSpatial, rootGlobal);
+  const rootOut = model.forwardPolicyValue(rootSpatial, rootGlobal);
   const [policyLogitsArr, valueLogitsArr, scoreValueArr] = await Promise.all([
     rootOut.policy.data(),
     rootOut.value.data(),
@@ -63,7 +63,6 @@ export async function analyzeOnePly(args: {
   rootOut.policyPass.dispose();
   rootOut.value.dispose();
   rootOut.scoreValue.dispose();
-  rootOut.ownership.dispose();
 
   // Compute legality + softmax for coordinate moves only.
   const legal: number[] = [];

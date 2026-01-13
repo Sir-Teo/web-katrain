@@ -378,6 +378,48 @@ export class KataGoModelV8Tf {
     });
   }
 
+  forwardPolicyValue(spatial: tf.Tensor4D, global: tf.Tensor2D): {
+    policy: tf.Tensor4D;
+    policyPass: tf.Tensor2D;
+    value: tf.Tensor2D;
+    scoreValue: tf.Tensor2D;
+  } {
+    return tf.tidy(() => {
+      const trunk = this.forwardTrunk(spatial, global);
+
+      let p1Out = conv2d(trunk, this.p1);
+      const g1Out = conv2d(trunk, this.g1);
+      const g1Out2 = bnAct(g1Out, this.g1BN, this.g1Activation);
+      const g1Concat = poolRowsGPool(g1Out2);
+      const g1Bias = tf.matMul(g1Concat, this.gpoolToBias.w) as tf.Tensor2D;
+      p1Out = p1Out.add(g1Bias.reshape([g1Bias.shape[0], 1, 1, g1Bias.shape[1]])) as tf.Tensor4D;
+      const p1Out2 = bnAct(p1Out, this.p1BN, this.p1Activation);
+
+      let policy = conv2d(p1Out2, this.p2);
+      let policyPass = tf.matMul(g1Concat, this.passMul.w) as tf.Tensor2D;
+      if (this.policyOutChannels > 1) {
+        policy = policy.slice([0, 0, 0, 0], [policy.shape[0], policy.shape[1], policy.shape[2], 1]) as tf.Tensor4D;
+        policyPass = policyPass.slice([0, 0], [policyPass.shape[0], 1]) as tf.Tensor2D;
+      }
+
+      const v1Out = conv2d(trunk, this.v1);
+      const v1Out2 = bnAct(v1Out, this.v1BN, this.v1Activation);
+      const v1Mean = poolRowsValueHead(v1Out2);
+      let v2Out = tf.matMul(v1Mean, this.v2.w) as tf.Tensor2D;
+      v2Out = v2Out.add(this.v2Bias.b) as tf.Tensor2D;
+      v2Out = applyActivation2D(v2Out, this.v2Activation);
+      let value = tf.matMul(v2Out, this.v3.w) as tf.Tensor2D;
+      value = value.add(this.v3Bias.b) as tf.Tensor2D;
+      let scoreValue = tf.matMul(v2Out, this.sv3.w) as tf.Tensor2D;
+      scoreValue = scoreValue.add(this.sv3Bias.b) as tf.Tensor2D;
+      if (this.scoreValueChannels > 4) {
+        scoreValue = scoreValue.slice([0, 0], [scoreValue.shape[0], 4]) as tf.Tensor2D;
+      }
+
+      return { policy, policyPass, value, scoreValue };
+    });
+  }
+
   forwardValueOnly(
     spatial: tf.Tensor4D,
     global: tf.Tensor2D

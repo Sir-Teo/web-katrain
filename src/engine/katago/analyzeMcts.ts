@@ -823,14 +823,15 @@ async function evaluateBatch(args: {
 
   const spatialTensor = tf.tensor4d(spatialBatch, [batch, BOARD_SIZE, BOARD_SIZE, 22]);
   const globalTensor = tf.tensor2d(globalBatch, [batch, 19]);
-  const out = model.forward(spatialTensor, globalTensor);
+  const out = includeOwnership ? model.forward(spatialTensor, globalTensor) : model.forwardPolicyValue(spatialTensor, globalTensor);
 
+  const ownershipPromise = includeOwnership && 'ownership' in out ? out.ownership.data() : Promise.resolve(null);
   const [policyArr, passArr, valueArr, scoreArr, ownershipArr] = await Promise.all([
     out.policy.data(),
     out.policyPass.data(),
     out.value.data(),
     out.scoreValue.data(),
-    includeOwnership ? out.ownership.data() : Promise.resolve(null),
+    ownershipPromise,
   ]);
 
   spatialTensor.dispose();
@@ -839,7 +840,7 @@ async function evaluateBatch(args: {
   out.policyPass.dispose();
   out.value.dispose();
   out.scoreValue.dispose();
-  out.ownership.dispose();
+  if ('ownership' in out) out.ownership.dispose();
 
   const results: Array<{
     policy: Float32Array;
