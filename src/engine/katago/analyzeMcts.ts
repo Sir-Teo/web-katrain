@@ -110,7 +110,8 @@ function expandNode(args: {
   node: Node;
   stones: Uint8Array;
   koPoint: number;
-  policyLogits: ArrayLike<number>; // len 361
+  policyLogits: ArrayLike<number>; // len 361 (in symmetry space if policyLogitsSymmetry != 0)
+  policyLogitsSymmetry?: number; // 0..7, where 0 is identity
   passLogit: number;
   maxChildren: number;
   libertyMap?: Uint8Array;
@@ -121,6 +122,8 @@ function expandNode(args: {
   const policyScale = args.policyOutputScaling ?? 1.0;
   const pla = node.playerToMove;
   const opp = opponentOf(pla);
+  const sym = args.policyLogitsSymmetry ?? 0;
+  const symOff = sym * BOARD_AREA;
 
   const libs = args.libertyMap ?? computeLibertyMap(stones);
 
@@ -167,7 +170,8 @@ function expandNode(args: {
     }
 
     if (!hasEmptyNeighbor && !captures && !connectsToSafeGroup) continue;
-    legalMoves.push({ move: p, logit: policyLogits[p]! * policyScale });
+    const symPos = sym === 0 ? p : SYM_POS_MAP[symOff + p]!;
+    legalMoves.push({ move: p, logit: policyLogits[symPos]! * policyScale });
   }
 
   legalMoves.push({ move: PASS_MOVE, logit: passLogit * policyScale });
@@ -638,7 +642,8 @@ async function evaluateBatch(args: {
   }>;
 }): Promise<
   Array<{
-    policy: Float32Array; // len 361
+    policy: Float32Array; // len 361, in symmetry space if symmetry != 0
+    symmetry: number; // 0..7, where 0 is identity
     passLogit: number;
     blackWinProb: number;
     blackScoreLead: number;
@@ -647,7 +652,7 @@ async function evaluateBatch(args: {
     blackNoResultProb: number;
     libertyMap: Uint8Array;
     areaMap: Uint8Array;
-    ownership?: Float32Array; // len 361, raw logits (player-to-move perspective)
+    ownership?: Float32Array; // len 361, raw logits (player-to-move perspective, symmetry space if symmetry != 0)
   }>
 > {
   const { model, states } = args;
@@ -743,6 +748,7 @@ async function evaluateBatch(args: {
 
   const results: Array<{
     policy: Float32Array;
+    symmetry: number;
     passLogit: number;
     blackWinProb: number;
     blackScoreLead: number;
@@ -756,31 +762,8 @@ async function evaluateBatch(args: {
   for (let i = 0; i < batch; i++) {
     const pOff = i * BOARD_AREA;
     const sym = symmetries[i]!;
-    const symOff = sym * BOARD_AREA;
-
-    const policySym = (policyArr as Float32Array).subarray(pOff, pOff + BOARD_AREA);
-    let policy: Float32Array;
-    if (sym === 0) {
-      policy = policySym;
-    } else {
-      policy = new Float32Array(BOARD_AREA);
-      for (let pos = 0; pos < BOARD_AREA; pos++) {
-        policy[pos] = policySym[SYM_POS_MAP[symOff + pos]!]!;
-      }
-    }
-
-    let ownership: Float32Array | undefined;
-    if (includeOwnership) {
-      const ownershipSym = (ownershipArr as Float32Array).subarray(pOff, pOff + BOARD_AREA);
-      if (sym === 0) {
-        ownership = ownershipSym;
-      } else {
-        ownership = new Float32Array(BOARD_AREA);
-        for (let pos = 0; pos < BOARD_AREA; pos++) {
-          ownership[pos] = ownershipSym[SYM_POS_MAP[symOff + pos]!]!;
-        }
-      }
-    }
+    const policy = (policyArr as Float32Array).subarray(pOff, pOff + BOARD_AREA);
+    const ownership = includeOwnership ? (ownershipArr as Float32Array).subarray(pOff, pOff + BOARD_AREA) : undefined;
 
     const passLogit = passArr[i]!;
     const vOff = i * 3;
@@ -794,6 +777,7 @@ async function evaluateBatch(args: {
 
     results.push({
       policy,
+      symmetry: sym,
       passLogit,
       blackWinProb: evaled.blackWinProb,
       blackScoreLead: evaled.blackScoreLead,
@@ -944,8 +928,11 @@ export class MctsSearch {
 
     const rootOwnershipSign = args.currentPlayer === 'black' ? 1 : -1;
     const rootOwnership = new Float32Array(BOARD_AREA);
+    const rootSym = rootEval.symmetry;
+    const rootSymOff = rootSym * BOARD_AREA;
     for (let i = 0; i < BOARD_AREA; i++) {
-      rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[i]! * outputScaleMultiplier);
+      const symPos = rootSym === 0 ? i : SYM_POS_MAP[rootSymOff + i]!;
+      rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[symPos]! * outputScaleMultiplier);
     }
 
     const rootPolicy = new Float32Array(BOARD_AREA + 1);
@@ -954,6 +941,7 @@ export class MctsSearch {
       stones: rootPos.stones,
       koPoint: rootPos.koPoint,
       policyLogits: rootEval.policy,
+      policyLogitsSymmetry: rootSym,
       passLogit: rootEval.passLogit,
       maxChildren: args.maxChildren,
       libertyMap: rootEval.libertyMap,
@@ -1173,8 +1161,11 @@ export class MctsSearch {
           if (!ev.ownership) throw new Error('Missing ownership output');
           const ownershipSign = job.currentPlayer === 'black' ? 1 : -1;
           const own = new Float32Array(BOARD_AREA);
+          const sym = ev.symmetry;
+          const symOff = sym * BOARD_AREA;
           for (let p = 0; p < BOARD_AREA; p++) {
-            own[p] = ownershipSign * Math.tanh(ev.ownership[p]! * this.outputScaleMultiplier);
+            const symPos = sym === 0 ? p : SYM_POS_MAP[symOff + p]!;
+            own[p] = ownershipSign * Math.tanh(ev.ownership[symPos]! * this.outputScaleMultiplier);
           }
           job.leaf.ownership = own;
         }
@@ -1184,6 +1175,7 @@ export class MctsSearch {
           stones: job.stones,
           koPoint: job.koPoint,
           policyLogits: ev.policy,
+          policyLogitsSymmetry: ev.symmetry,
           passLogit: ev.passLogit,
           maxChildren: this.maxChildren,
           libertyMap: ev.libertyMap,
@@ -1439,8 +1431,11 @@ export async function analyzeMcts(args: {
 
   const rootOwnershipSign = args.currentPlayer === 'black' ? 1 : -1;
   const rootOwnership = new Float32Array(BOARD_AREA);
+  const rootSym = rootEval.symmetry;
+  const rootSymOff = rootSym * BOARD_AREA;
   for (let i = 0; i < BOARD_AREA; i++) {
-    rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[i]! * outputScaleMultiplier);
+    const symPos = rootSym === 0 ? i : SYM_POS_MAP[rootSymOff + i]!;
+    rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[symPos]! * outputScaleMultiplier);
   }
 
   const rootPolicy = new Float32Array(BOARD_AREA + 1);
@@ -1449,6 +1444,7 @@ export async function analyzeMcts(args: {
     stones: rootPos.stones,
     koPoint: rootPos.koPoint,
     policyLogits: rootEval.policy,
+    policyLogitsSymmetry: rootSym,
     passLogit: rootEval.passLogit,
     maxChildren,
     libertyMap: rootEval.libertyMap,
@@ -1622,8 +1618,11 @@ export async function analyzeMcts(args: {
 
       const ownershipSign = job.currentPlayer === 'black' ? 1 : -1;
       const own = new Float32Array(BOARD_AREA);
+      const sym = ev.symmetry;
+      const symOff = sym * BOARD_AREA;
       for (let p = 0; p < BOARD_AREA; p++) {
-        own[p] = ownershipSign * Math.tanh(ev.ownership[p]! * outputScaleMultiplier);
+        const symPos = sym === 0 ? p : SYM_POS_MAP[symOff + p]!;
+        own[p] = ownershipSign * Math.tanh(ev.ownership[symPos]! * outputScaleMultiplier);
       }
       job.leaf.ownership = own;
 
@@ -1632,6 +1631,7 @@ export async function analyzeMcts(args: {
 		      stones: job.stones,
 		      koPoint: job.koPoint,
       policyLogits: ev.policy,
+      policyLogitsSymmetry: ev.symmetry,
       passLogit: ev.passLogit,
       maxChildren,
 		      libertyMap: ev.libertyMap,
