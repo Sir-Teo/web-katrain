@@ -833,6 +833,10 @@ export class MctsSearch {
   private readonly recentScoreCenter: number;
   private readonly rand: Rand;
 
+  private jobStonesScratch = new Uint8Array(0);
+  private jobPrevStonesScratch = new Uint8Array(0);
+  private jobPrevPrevStonesScratch = new Uint8Array(0);
+
   private constructor(args: {
     model: KataGoModelV8Tf;
     ownershipMode: OwnershipMode;
@@ -1008,6 +1012,11 @@ export class MctsSearch {
 
     if (this.rootNode.visits >= maxVisits) return;
 
+    const neededBoardCapacity = batchSize * BOARD_AREA;
+    if (this.jobStonesScratch.length < neededBoardCapacity) this.jobStonesScratch = new Uint8Array(neededBoardCapacity);
+    if (this.jobPrevStonesScratch.length < neededBoardCapacity) this.jobPrevStonesScratch = new Uint8Array(neededBoardCapacity);
+    if (this.jobPrevPrevStonesScratch.length < neededBoardCapacity) this.jobPrevPrevStonesScratch = new Uint8Array(neededBoardCapacity);
+
     const sim: SimPosition = { stones: this.rootStones.slice(), koPoint: this.rootKoPoint };
     const captureStack: number[] = [];
     const undoMoves: number[] = [];
@@ -1075,7 +1084,9 @@ export class MctsSearch {
         node.pendingEval = true;
         for (const n of path) n.inFlight++;
 
-        const leafStones = sim.stones.slice();
+        const jobIdx = jobs.length;
+        const leafStones = this.jobStonesScratch.subarray(jobIdx * BOARD_AREA, (jobIdx + 1) * BOARD_AREA);
+        leafStones.set(sim.stones);
         const leafKoPoint = sim.koPoint;
         let prevStones = leafStones;
         let prevKoPoint = leafKoPoint;
@@ -1094,7 +1105,9 @@ export class MctsSearch {
             prevPrevStones = this.rootPrevStones;
             prevPrevKoPoint = this.rootPrevKoPoint;
           } else {
-            prevStones = sim.stones.slice();
+            const prevBuf = this.jobPrevStonesScratch.subarray(jobIdx * BOARD_AREA, (jobIdx + 1) * BOARD_AREA);
+            prevBuf.set(sim.stones);
+            prevStones = prevBuf;
             prevKoPoint = sim.koPoint;
 
             const secondIdx = undoMoves.length - 2;
@@ -1105,7 +1118,9 @@ export class MctsSearch {
               prevPrevStones = this.rootStones;
               prevPrevKoPoint = this.rootKoPoint;
             } else {
-              prevPrevStones = sim.stones.slice();
+              const prevPrevBuf = this.jobPrevPrevStonesScratch.subarray(jobIdx * BOARD_AREA, (jobIdx + 1) * BOARD_AREA);
+              prevPrevBuf.set(sim.stones);
+              prevPrevStones = prevPrevBuf;
               prevPrevKoPoint = sim.koPoint;
             }
 
