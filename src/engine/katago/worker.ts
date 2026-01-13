@@ -519,7 +519,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     }
 
     await search!.run({ visits: maxVisits, maxTimeMs, batchSize });
-    const analysis = search!.getAnalysis({ topK, includeMovesOwnership, analysisPvLen });
+    const analysis = search!.getAnalysis({ topK, includeMovesOwnership, analysisPvLen, cloneBuffers: msg.reuseTree === true });
 
     const transfer: Transferable[] = [];
     const push = (value?: unknown) => {
@@ -538,6 +538,11 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       modelName: loadedModelName,
       analysis,
     }, transfer);
+
+    if (msg.reuseTree !== true) {
+      search = null;
+      searchKey = null;
+    }
   }
 }
 

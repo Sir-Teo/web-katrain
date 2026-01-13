@@ -118,8 +118,13 @@ function computeKoPointAfterMove(previousBoard: BoardState | undefined, move: Mo
   return pos.koPoint;
 }
 
-function takeRecentMoves(rootMoves: RecentMove[], pathMoves: RecentMove[], max: number): RecentMove[] {
-  const out: RecentMove[] = [];
+function takeRecentMoves(
+  rootMoves: RecentMove[],
+  pathMoves: RecentMove[],
+  max: number,
+  out: RecentMove[] = []
+): RecentMove[] {
+  out.length = 0;
   for (let i = pathMoves.length - 1; i >= 0 && out.length < max; i--) out.push(pathMoves[i]!);
   for (let i = rootMoves.length - 1; i >= 0 && out.length < max; i--) out.push(rootMoves[i]!);
   out.reverse();
@@ -922,24 +927,27 @@ function getEvalScratch(args: { batch: number; includeAreaFeature: boolean }): E
   return scratch;
 }
 
+type EvalState = {
+  stones: Uint8Array;
+  koPoint: number;
+  prevStones: Uint8Array;
+  prevKoPoint: number;
+  prevPrevStones: Uint8Array;
+  prevPrevKoPoint: number;
+  currentPlayer: Player;
+  recentMoves: RecentMove[];
+  komi?: number;
+  conservativePassAndIsRoot?: boolean;
+};
+
 async function evaluateBatch(args: {
   model: KataGoModelV8Tf;
   includeOwnership?: boolean;
   rules: GameRules;
   nnRandomize: boolean;
   policyOptimism: number;
-  states: Array<{
-    stones: Uint8Array;
-    koPoint: number;
-    prevStones: Uint8Array;
-    prevKoPoint: number;
-    prevPrevStones: Uint8Array;
-    prevPrevKoPoint: number;
-    currentPlayer: Player;
-    recentMoves: RecentMove[];
-    komi: number;
-    conservativePassAndIsRoot?: boolean;
-  }>;
+  komi: number;
+  states: EvalState[];
 }): Promise<
   Array<{
     policy: Float32Array; // len 361, in symmetry space if symmetry != 0
@@ -972,62 +980,63 @@ async function evaluateBatch(args: {
   const globalScratch = scratch.globalScratch;
 
   for (let i = 0; i < batch; i++) {
+    const state = states[i]!;
     const libertyMap = libertyMapScratch.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA);
-    computeLibertyMapInto(states[i]!.stones, libertyMap);
+    computeLibertyMapInto(state.stones, libertyMap);
     const areaMap = includeAreaFeature
-      ? computeAreaMapV7KataGoInto(states[i]!.stones, areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA))
+      ? computeAreaMapV7KataGoInto(state.stones, areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA))
       : EMPTY_AREA_MAP;
-	    computeLadderFeaturesV7KataGoInto({
-	      stones: states[i]!.stones,
-	      koPoint: states[i]!.koPoint,
-	      currentPlayer: playerToColor(states[i]!.currentPlayer),
-	      outLadderedStones: scratch.ladderedStonesScratch,
-	      outLadderWorkingMoves: scratch.ladderWorkingMovesScratch,
-	    });
+    computeLadderFeaturesV7KataGoInto({
+      stones: state.stones,
+      koPoint: state.koPoint,
+      currentPlayer: playerToColor(state.currentPlayer),
+      outLadderedStones: scratch.ladderedStonesScratch,
+      outLadderWorkingMoves: scratch.ladderWorkingMovesScratch,
+    });
 
-	    const recentMoves = states[i]!.recentMoves;
-	    const lastRecentMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
-	    const passWouldEndGame = lastRecentMove?.move === PASS_MOVE;
-	    const suppressHistory = states[i]!.conservativePassAndIsRoot === true && passWouldEndGame;
+    const recentMoves = state.recentMoves;
+    const lastRecentMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
+    const passWouldEndGame = lastRecentMove?.move === PASS_MOVE;
+    const suppressHistory = state.conservativePassAndIsRoot === true && passWouldEndGame;
 
-	    const pla = states[i]!.currentPlayer;
-	    const opp = pla === 'black' ? 'white' : 'black';
-	    const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
+    const pla = state.currentPlayer;
+    const opp = pla === 'black' ? 'white' : 'black';
+    const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
 
-	    let numTurnsOfHistoryIncluded = 0;
-	    if (!suppressHistory) {
-	      for (let h = 0; h < 5; h++) {
-	        const m = recentMoves[recentMoves.length - 1 - h];
-	        if (!m) break;
-	        if (m.player !== expectedPlayers[h]) break;
-	        numTurnsOfHistoryIncluded++;
-	      }
-	    }
+    let numTurnsOfHistoryIncluded = 0;
+    if (!suppressHistory) {
+      for (let h = 0; h < 5; h++) {
+        const m = recentMoves[recentMoves.length - 1 - h];
+        if (!m) break;
+        if (m.player !== expectedPlayers[h]) break;
+        numTurnsOfHistoryIncluded++;
+      }
+    }
 
-	    const prevLadderStones = numTurnsOfHistoryIncluded < 1 ? states[i]!.stones : states[i]!.prevStones;
-	    const prevLadderKoPoint = numTurnsOfHistoryIncluded < 1 ? states[i]!.koPoint : states[i]!.prevKoPoint;
-	    const prevPrevLadderStones = numTurnsOfHistoryIncluded < 2 ? prevLadderStones : states[i]!.prevPrevStones;
-	    const prevPrevLadderKoPoint = numTurnsOfHistoryIncluded < 2 ? prevLadderKoPoint : states[i]!.prevPrevKoPoint;
+    const prevLadderStones = numTurnsOfHistoryIncluded < 1 ? state.stones : state.prevStones;
+    const prevLadderKoPoint = numTurnsOfHistoryIncluded < 1 ? state.koPoint : state.prevKoPoint;
+    const prevPrevLadderStones = numTurnsOfHistoryIncluded < 2 ? prevLadderStones : state.prevPrevStones;
+    const prevPrevLadderKoPoint = numTurnsOfHistoryIncluded < 2 ? prevLadderKoPoint : state.prevPrevKoPoint;
 
-	    computeLadderedStonesV7KataGoInto({
-	      stones: prevLadderStones,
-	      koPoint: prevLadderKoPoint,
-	      outLadderedStones: scratch.prevLadderedStonesScratch,
-	    });
-	    computeLadderedStonesV7KataGoInto({
-	      stones: prevPrevLadderStones,
-	      koPoint: prevPrevLadderKoPoint,
-	      outLadderedStones: scratch.prevPrevLadderedStonesScratch,
-	    });
+    computeLadderedStonesV7KataGoInto({
+      stones: prevLadderStones,
+      koPoint: prevLadderKoPoint,
+      outLadderedStones: scratch.prevLadderedStonesScratch,
+    });
+    computeLadderedStonesV7KataGoInto({
+      stones: prevPrevLadderStones,
+      koPoint: prevPrevLadderKoPoint,
+      outLadderedStones: scratch.prevPrevLadderedStonesScratch,
+    });
 
-	    fillInputsV7Fast({
-	      stones: states[i]!.stones,
-	      koPoint: states[i]!.koPoint,
-	      currentPlayer: states[i]!.currentPlayer,
-	      recentMoves,
-	      komi: states[i]!.komi,
-	      rules,
-	      conservativePassAndIsRoot: states[i]!.conservativePassAndIsRoot,
+    fillInputsV7Fast({
+      stones: state.stones,
+      koPoint: state.koPoint,
+      currentPlayer: state.currentPlayer,
+      recentMoves,
+      komi: state.komi ?? args.komi,
+      rules,
+      conservativePassAndIsRoot: state.conservativePassAndIsRoot,
       libertyMap,
       areaMap: includeAreaFeature ? areaMap : undefined,
       ladderedStones: scratch.ladderedStonesScratch,
@@ -1185,6 +1194,7 @@ export class MctsSearch {
   private jobStonesScratch = new Uint8Array(0);
   private jobPrevStonesScratch = new Uint8Array(0);
   private jobPrevPrevStonesScratch = new Uint8Array(0);
+  private jobRecentMovesScratch: RecentMove[][] = [];
 
   private constructor(args: {
     model: KataGoModelV8Tf;
@@ -1284,6 +1294,7 @@ export class MctsSearch {
         rules: args.rules,
         nnRandomize: args.nnRandomize,
         policyOptimism: ROOT_POLICY_OPTIMISM,
+        komi: args.komi,
         states: [
           {
             stones: rootPos.stones,
@@ -1294,7 +1305,6 @@ export class MctsSearch {
             prevPrevKoPoint: rootPrevPrevKoPoint,
             currentPlayer: args.currentPlayer,
             recentMoves: takeRecentMoves(rootMoves, [], 5),
-            komi: args.komi,
             conservativePassAndIsRoot: args.conservativePass,
           },
         ],
@@ -1506,6 +1516,8 @@ export class MctsSearch {
           }
         }
 
+        const jobIdx = jobs.length;
+        const recentMovesScratch = this.jobRecentMovesScratch[jobIdx] ?? (this.jobRecentMovesScratch[jobIdx] = []);
         jobs.push({
           leaf: node,
           path,
@@ -1516,7 +1528,7 @@ export class MctsSearch {
           prevPrevStones,
           prevPrevKoPoint,
           currentPlayer: leafPlayer,
-          recentMoves: takeRecentMoves(this.rootMoves, pathMoves, 5),
+          recentMoves: takeRecentMoves(this.rootMoves, pathMoves, 5, recentMovesScratch),
         });
       }
 
@@ -1529,17 +1541,8 @@ export class MctsSearch {
         rules: this.rules,
         nnRandomize: this.nnRandomize,
         policyOptimism: POLICY_OPTIMISM,
-        states: jobs.map((j) => ({
-          stones: j.stones,
-          koPoint: j.koPoint,
-          prevStones: j.prevStones,
-          prevKoPoint: j.prevKoPoint,
-          prevPrevStones: j.prevPrevStones,
-          prevPrevKoPoint: j.prevPrevKoPoint,
-          currentPlayer: j.currentPlayer,
-          recentMoves: j.recentMoves,
-          komi: this.komi,
-        })),
+        komi: this.komi,
+        states: jobs,
       });
       timeCheckCounter = 0;
 
@@ -1596,7 +1599,7 @@ export class MctsSearch {
     }
   }
 
-  getAnalysis(args: { topK: number; analysisPvLen: number; includeMovesOwnership?: boolean }): {
+  getAnalysis(args: { topK: number; analysisPvLen: number; includeMovesOwnership?: boolean; cloneBuffers?: boolean }): {
     rootWinRate: number;
     rootScoreLead: number;
     rootScoreSelfplay: number;
@@ -1623,6 +1626,7 @@ export class MctsSearch {
   } {
     const topK = Math.max(1, Math.min(args.topK, 50));
     const includeMovesOwnership = args.includeMovesOwnership === true;
+    const cloneBuffers = args.cloneBuffers !== false;
     const analysisPvLen = Math.max(0, Math.min(args.analysisPvLen, 60));
     const pvDepth = 1 + analysisPvLen;
 
@@ -1746,7 +1750,11 @@ export class MctsSearch {
         prior: m.prior,
         pv: m.pv,
         ownership:
-          includeMovesOwnership && m.edge.child?.ownership ? new Float32Array(m.edge.child.ownership) : undefined,
+          includeMovesOwnership && m.edge.child?.ownership
+            ? cloneBuffers
+              ? new Float32Array(m.edge.child.ownership)
+              : m.edge.child.ownership
+            : undefined,
       };
     });
 
@@ -1754,8 +1762,9 @@ export class MctsSearch {
       this.ownershipMode === 'tree'
         ? averageTreeOwnership(this.rootNode)
         : { ownership: this.rootOwnership, ownershipStdev: new Float32Array(BOARD_AREA) };
-    const ownershipOut = this.ownershipMode === 'tree' ? ownership : new Float32Array(ownership);
-    const policyOut = new Float32Array(this.rootPolicy);
+    const ownershipOut =
+      this.ownershipMode === 'tree' ? ownership : cloneBuffers ? new Float32Array(this.rootOwnership) : this.rootOwnership;
+    const policyOut = cloneBuffers ? new Float32Array(this.rootPolicy) : this.rootPolicy;
 
     return {
       rootWinRate,
@@ -1850,6 +1859,7 @@ export async function analyzeMcts(args: {
       rules,
       nnRandomize,
       policyOptimism: ROOT_POLICY_OPTIMISM,
+      komi: args.komi,
       states: [
         {
           stones: rootPos.stones,
@@ -1860,7 +1870,6 @@ export async function analyzeMcts(args: {
           prevPrevKoPoint: rootPrevPrevKoPoint,
           currentPlayer: args.currentPlayer,
           recentMoves: takeRecentMoves(rootMoves, [], 5),
-          komi: args.komi,
         },
       ],
     })
@@ -2044,17 +2053,8 @@ export async function analyzeMcts(args: {
       rules,
       nnRandomize,
       policyOptimism: POLICY_OPTIMISM,
-      states: jobs.map((j) => ({
-        stones: j.stones,
-        koPoint: j.koPoint,
-        prevStones: j.prevStones,
-        prevKoPoint: j.prevKoPoint,
-        prevPrevStones: j.prevPrevStones,
-        prevPrevKoPoint: j.prevPrevKoPoint,
-        currentPlayer: j.currentPlayer,
-        recentMoves: j.recentMoves,
-        komi: args.komi,
-      })),
+      komi: args.komi,
+      states: jobs,
     });
     timeCheckCounter = 0;
 
