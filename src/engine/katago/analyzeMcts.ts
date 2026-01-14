@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
-import type { BoardState, FloatArray, GameRules, Move, Player } from '../../types';
+import type { BoardState, FloatArray, GameRules, Move, Player, RegionOfInterest } from '../../types';
 import { postprocessKataGoV8 } from './evalV8';
 import type { KataGoModelV8Tf } from './modelV8';
 import { expectedWhiteScoreValue, SQRT_BOARD_AREA } from './scoreValue';
@@ -151,6 +151,31 @@ function takeRecentMoves(
   return out;
 }
 
+function normalizeRegionOfInterest(roi?: RegionOfInterest | null): RegionOfInterest | null {
+  if (!roi) return null;
+  const xMin = Math.max(0, Math.min(BOARD_SIZE - 1, Math.min(roi.xMin, roi.xMax)));
+  const xMax = Math.max(0, Math.min(BOARD_SIZE - 1, Math.max(roi.xMin, roi.xMax)));
+  const yMin = Math.max(0, Math.min(BOARD_SIZE - 1, Math.min(roi.yMin, roi.yMax)));
+  const yMax = Math.max(0, Math.min(BOARD_SIZE - 1, Math.max(roi.yMin, roi.yMax)));
+  const isSinglePoint = xMin === xMax && yMin === yMax;
+  const isWholeBoard = xMin === 0 && yMin === 0 && xMax === BOARD_SIZE - 1 && yMax === BOARD_SIZE - 1;
+  if (isSinglePoint || isWholeBoard) return null;
+  return { xMin, xMax, yMin, yMax };
+}
+
+function buildAllowedMovesMask(roi?: RegionOfInterest | null): Uint8Array | null {
+  const normalized = normalizeRegionOfInterest(roi);
+  if (!normalized) return null;
+  const allowed = new Uint8Array(BOARD_AREA);
+  for (let y = normalized.yMin; y <= normalized.yMax; y++) {
+    const rowOff = y * BOARD_SIZE;
+    for (let x = normalized.xMin; x <= normalized.xMax; x++) {
+      allowed[rowOff + x] = 1;
+    }
+  }
+  return allowed;
+}
+
 function expandNode(args: {
   node: Node;
   stones: Uint8Array;
@@ -160,6 +185,7 @@ function expandNode(args: {
   passLogit: number;
   maxChildren: number;
   libertyMap?: Uint8Array;
+  allowedMoves?: Uint8Array;
   policyOut?: Float32Array; // len 362, illegal = -1, pass at index 361
   policyOutputScaling?: number;
 }): void {
@@ -179,7 +205,9 @@ function expandNode(args: {
   let moveCount = 0;
   const passLogitScaled = passLogit * policyScale;
   let maxLogit = passLogitScaled;
+  const allowedMoves = args.allowedMoves;
   for (let p = 0; p < BOARD_AREA; p++) {
+    if (allowedMoves && allowedMoves[p] === 0) continue;
     if (stones[p] !== EMPTY) continue;
     if (p === koPoint) continue;
 
@@ -1286,6 +1314,7 @@ export class MctsSearch {
     maxChildren: number;
     ownershipMode: OwnershipMode;
     wideRootNoise: number;
+    regionOfInterest?: RegionOfInterest | null;
   }): Promise<MctsSearch> {
     const outputScaleMultiplier = args.model.postProcessParams?.outputScaleMultiplier ?? 1.0;
     const rootStones = boardStateToStones(args.board);
@@ -1344,6 +1373,7 @@ export class MctsSearch {
       }
     }
 
+    const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);
     const rootPolicy = new Float32Array(BOARD_AREA + 1);
     expandNode({
       node: rootNode,
@@ -1354,6 +1384,7 @@ export class MctsSearch {
       passLogit: rootEval.passLogit,
       maxChildren: args.maxChildren,
       libertyMap: rootEval.libertyMap,
+      allowedMoves: rootAllowedMoves ?? undefined,
       policyOut: rootPolicy,
       policyOutputScaling: outputScaleMultiplier,
     });
@@ -1850,6 +1881,7 @@ export async function analyzeMcts(args: {
   maxTimeMs?: number;
   batchSize?: number;
   maxChildren?: number;
+  regionOfInterest?: RegionOfInterest | null;
 }): Promise<{
   rootWinRate: number;
   rootScoreLead: number;
@@ -1940,6 +1972,7 @@ export async function analyzeMcts(args: {
     rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[symPos]! * outputScaleMultiplier);
   }
 
+  const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);
   const rootPolicy = new Float32Array(BOARD_AREA + 1);
   expandNode({
     node: rootNode,
@@ -1950,6 +1983,7 @@ export async function analyzeMcts(args: {
     passLogit: rootEval.passLogit,
     maxChildren,
     libertyMap: rootEval.libertyMap,
+    allowedMoves: rootAllowedMoves ?? undefined,
     policyOut: rootPolicy,
     policyOutputScaling: outputScaleMultiplier,
   });

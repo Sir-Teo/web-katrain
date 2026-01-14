@@ -1,4 +1,4 @@
-import type { BoardState, FloatArray, GameRules, Move, Player } from '../../types';
+import type { BoardState, FloatArray, GameRules, Move, Player, RegionOfInterest } from '../../types';
 
 export interface KataGoInitRequest {
   type: 'katago:init';
@@ -26,6 +26,7 @@ export interface KataGoAnalyzeRequest {
   moveHistory: Move[];
   komi: number;
   rules?: GameRules;
+  regionOfInterest?: RegionOfInterest | null;
   topK?: number;
   analysisPvLen?: number;
   includeMovesOwnership?: boolean;

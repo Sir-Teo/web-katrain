@@ -1260,6 +1260,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          moveHistory: state.moveHistory,
 	          komi: state.komi,
             rules,
+            regionOfInterest: state.regionOfInterest,
 	          topK,
             includeMovesOwnership: state.settings.katagoOwnershipMode === 'tree',
             analysisPvLen,

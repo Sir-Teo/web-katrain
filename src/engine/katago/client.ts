@@ -1,5 +1,5 @@
 import type { KataGoWorkerRequest, KataGoWorkerResponse } from './types';
-import type { BoardState, GameRules, Move, Player } from '../../types';
+import type { BoardState, GameRules, Move, Player, RegionOfInterest } from '../../types';
 
 type Analysis = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:analyze_result' }>['analysis']>;
 type EvalResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:eval_result' }>['eval']>;
@@ -108,6 +108,7 @@ class KataGoEngineClient {
     moveHistory: Move[];
     komi: number;
     rules?: GameRules;
+    regionOfInterest?: RegionOfInterest | null;
     topK?: number;
     analysisPvLen?: number;
     includeMovesOwnership?: boolean;
@@ -135,6 +136,7 @@ class KataGoEngineClient {
       moveHistory: takeLastMoves(args.moveHistory),
       komi: args.komi,
       rules: args.rules,
+      regionOfInterest: args.regionOfInterest,
       topK: args.topK,
       analysisPvLen: args.analysisPvLen,
       includeMovesOwnership: args.includeMovesOwnership,

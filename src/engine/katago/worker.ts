@@ -7,7 +7,7 @@ import { setThreadsCount, setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import pako from 'pako';
 
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
-import type { BoardState, GameRules, Move, Player } from '../../types';
+import type { BoardState, GameRules, Move, Player, RegionOfInterest } from '../../types';
 import { parseKataGoModelV8 } from './loadModelV8';
 import { KataGoModelV8Tf } from './modelV8';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
@@ -60,6 +60,18 @@ const prevPrevLadderedStonesScratch = new Uint8Array(BOARD_AREA);
 let evalBatchCapacity = 0;
 let evalBatchSpatialV7 = new Float32Array(0);
 let evalBatchGlobalV7 = new Float32Array(0);
+
+function regionKey(roi?: RegionOfInterest | null): string | null {
+  if (!roi) return null;
+  const xMin = Math.max(0, Math.min(BOARD_SIZE - 1, Math.min(roi.xMin, roi.xMax)));
+  const xMax = Math.max(0, Math.min(BOARD_SIZE - 1, Math.max(roi.xMin, roi.xMax)));
+  const yMin = Math.max(0, Math.min(BOARD_SIZE - 1, Math.min(roi.yMin, roi.yMax)));
+  const yMax = Math.max(0, Math.min(BOARD_SIZE - 1, Math.max(roi.yMin, roi.yMax)));
+  const isSinglePoint = xMin === xMax && yMin === yMax;
+  const isWholeBoard = xMin === 0 && yMin === 0 && xMax === BOARD_SIZE - 1 && yMax === BOARD_SIZE - 1;
+  if (isSinglePoint || isWholeBoard) return null;
+  return `${xMin},${xMax},${yMin},${yMax}`;
+}
 
 function getEvalBatchBuffersV7(batch: number): { spatial: Float32Array; global: Float32Array } {
   if (batch > evalBatchCapacity) {
@@ -227,6 +239,7 @@ let searchKey: {
   rules: GameRules;
   nnRandomize: boolean;
   conservativePass: boolean;
+  roiKey: string | null;
 } | null = null;
 const latestAnalyzeByGroup = new Map<string, number>();
 let interactiveToken = 0;
@@ -496,6 +509,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
     const conservativePass = msg.conservativePass !== false;
+    const roiKey = regionKey(msg.regionOfInterest);
 
     const canReuse =
       msg.reuseTree === true &&
@@ -511,7 +525,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.wideRootNoise === wideRootNoise &&
       searchKey.rules === rules &&
       searchKey.nnRandomize === nnRandomize &&
-      searchKey.conservativePass === conservativePass;
+      searchKey.conservativePass === conservativePass &&
+      searchKey.roiKey === roiKey;
 
     if (!canReuse) {
       search = await MctsSearch.create({
@@ -528,6 +543,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         maxChildren,
         ownershipMode,
         wideRootNoise,
+        regionOfInterest: msg.regionOfInterest,
       });
       if (typeof msg.positionId === 'string') {
         searchKey = {
@@ -541,6 +557,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           rules,
           nnRandomize,
           conservativePass,
+          roiKey,
         };
       } else {
         searchKey = null;
