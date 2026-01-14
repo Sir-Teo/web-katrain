@@ -1322,11 +1322,11 @@ export class MctsSearch {
       })
     )[0]!;
 
+    const rootSym = rootEval.symmetry;
     const rootOwnership = new Float32Array(BOARD_AREA);
     if (includeOwnership) {
       if (!rootEval.ownership) throw new Error('Missing ownership output');
       const rootOwnershipSign = args.currentPlayer === 'black' ? 1 : -1;
-      const rootSym = rootEval.symmetry;
       const rootSymOff = rootSym * BOARD_AREA;
       for (let i = 0; i < BOARD_AREA; i++) {
         const symPos = rootSym === 0 ? i : SYM_POS_MAP[rootSymOff + i]!;
