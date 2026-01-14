@@ -15,23 +15,24 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "clsx": "^2.1.1",
     "@tensorflow/tfjs": "^4.22.0",
-    "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
     "@tensorflow/tfjs-backend-wasm": "^4.22.0",
-    "pako": "^2.1.0",
+    "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
+    "clsx": "^2.1.1",
     "framer-motion": "^12.25.0",
+    "pako": "^2.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
     "tailwind-merge": "^3.4.0",
+    "use-sync-external-store": "^1.6.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.18",
-    "@types/pako": "^2.0.4",
     "@types/node": "^24.10.4",
+    "@types/pako": "^2.0.4",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
