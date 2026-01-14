@@ -4,6 +4,8 @@ import path from 'node:path';
 const MODEL_URL =
   'https://raw.githubusercontent.com/lightvector/KataGo/master/cpp/tests/models/g170-b6c96-s175395328-d26788732.bin.gz';
 const KATRAIN_MODEL_NAME = 'kata1-b18c384nbt-s9996604416-d4316597426.bin.gz';
+const KATRAIN_MODEL_URL =
+  'https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz';
 
 const projectRoot = path.resolve(import.meta.dirname, '..');
 const outDir = path.join(projectRoot, 'public', 'models');
@@ -36,6 +38,14 @@ async function ensureCopiedModel(srcPath, destPath) {
   }
 }
 
+async function downloadModel(url, destPath) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to download model: ${res.status} ${res.statusText}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  await fs.writeFile(destPath, buf);
+  console.log(`Saved: ${path.relative(projectRoot, destPath)} (${buf.length} bytes)`);
+}
+
 async function main() {
   await fs.mkdir(outDir, { recursive: true });
 
@@ -43,8 +53,11 @@ async function main() {
   const copied = await ensureCopiedModel(katrainSrcPath, katrainOutPath);
   if (copied) {
     console.log(`KaTrain model ready: ${path.relative(projectRoot, katrainOutPath)}`);
+  } else if (await exists(katrainOutPath)) {
+    console.log(`KaTrain model already present: ${path.relative(projectRoot, katrainOutPath)}`);
   } else {
-    console.log(`KaTrain model not found at ${path.relative(projectRoot, katrainSrcPath)} (skipping copy)`);
+    console.log(`KaTrain model not found at ${path.relative(projectRoot, katrainSrcPath)} (downloading)`);
+    await downloadModel(KATRAIN_MODEL_URL, katrainOutPath);
   }
 
   if (await exists(outPath)) {
@@ -53,11 +66,7 @@ async function main() {
   }
 
   console.log(`Downloading model from ${MODEL_URL}`);
-  const res = await fetch(MODEL_URL);
-  if (!res.ok) throw new Error(`Failed to download model: ${res.status} ${res.statusText}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  await fs.writeFile(outPath, buf);
-  console.log(`Saved: ${path.relative(projectRoot, outPath)} (${buf.length} bytes)`);
+  await downloadModel(MODEL_URL, outPath);
 }
 
 main().catch((err) => {
