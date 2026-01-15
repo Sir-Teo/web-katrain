@@ -205,7 +205,7 @@ const IconButton: React.FC<{
       disabled={disabled}
       className={[
         'h-10 w-10 flex items-center justify-center rounded',
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-700 text-gray-300 hover:text-white',
+        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-700 text-slate-300 hover:text-white',
         className ?? '',
       ].join(' ')}
     >
@@ -227,16 +227,16 @@ const TogglePill: React.FC<{
       disabled={disabled}
       onClick={onToggle}
       className={[
-        'px-3 py-1 rounded border text-xs font-semibold flex items-center gap-2',
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-700',
-        active ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-300',
+        'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2',
+        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-700/50',
+        active ? 'bg-slate-700/80 text-white' : 'bg-slate-800/50 text-slate-400',
       ].join(' ')}
       title={shortcut ? `${label} (${shortcut})` : label}
     >
       <span
         className={[
-          'inline-block h-3 w-3 rounded-sm border',
-          active ? 'bg-green-500 border-green-400' : 'bg-transparent border-gray-500',
+          'inline-block h-2.5 w-2.5 rounded-full',
+          active ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-600',
         ].join(' ')}
       />
       <span>{shortcut ? `${shortcut} ${label}` : label}</span>
@@ -256,7 +256,7 @@ const PanelHeaderButton: React.FC<{
       onClick={onClick}
       className={[
         'px-2 py-1 rounded text-xs font-semibold border',
-        active ? `${colorClass} border-gray-500 text-white` : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-700',
+        active ? `${colorClass} border-slate-500 text-white` : 'bg-slate-900 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700',
       ].join(' ')}
     >
       {label}
@@ -981,7 +981,7 @@ export const Layout: React.FC = () => {
     if (engineStatus === 'loading') return 'bg-yellow-400';
     if (engineStatus === 'ready') return 'bg-green-400';
     if (engineStatus === 'error') return 'bg-red-500';
-    return 'bg-gray-500';
+    return 'bg-slate-500';
   }, [engineStatus]);
 
   const engineMeta = useMemo(() => {
@@ -1042,24 +1042,24 @@ export const Layout: React.FC = () => {
     return (
       <div
         className={[
-          'flex-1 rounded border px-3 py-2 flex items-center gap-3',
-          isTurn ? 'bg-gray-700 border-gray-500' : 'bg-gray-900 border-gray-700',
+          'flex-1 rounded-lg px-3 py-2 flex items-center gap-3 shadow-lg shadow-black/20',
+          isTurn ? 'bg-slate-700/90 border border-slate-500/50' : 'bg-slate-800/50 border border-slate-700/50/30',
         ].join(' ')}
       >
         <div
           className={[
-            'h-10 w-10 rounded-full flex items-center justify-center font-bold',
-            player === 'black' ? 'bg-black text-white border border-gray-600' : 'bg-white text-black border border-gray-400',
+            'h-10 w-10 rounded-full flex items-center justify-center font-bold shadow-md',
+            player === 'black' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900',
           ].join(' ')}
           title={player === 'black' ? 'Black' : 'White'}
         >
           {caps}
         </div>
         <div className="flex flex-col leading-tight">
-          <div className="text-xs text-gray-400">{player === 'black' ? 'Black' : 'White'}</div>
-          <div className="text-sm font-semibold text-gray-100">{isAi ? 'AI' : 'Human'}</div>
+          <div className="text-xs text-slate-400">{player === 'black' ? 'Black' : 'White'}</div>
+          <div className="text-sm font-semibold text-slate-100">{isAi ? 'AI' : 'Human'}</div>
         </div>
-        {isTurn && <div className="ml-auto text-xs font-mono text-gray-200">to play</div>}
+        {isTurn && <div className="ml-auto text-xs font-mono text-emerald-400">to play</div>}
       </div>
     );
   };
@@ -1114,7 +1114,7 @@ export const Layout: React.FC = () => {
   const isAiWhite = isAiPlaying && aiColor === 'white';
 
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-200 font-sans overflow-hidden">
+    <div className="flex h-screen bg-slate-900 text-slate-200 font-sans overflow-hidden">
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
       {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
       {isGameReportOpen && <GameReportModal onClose={() => setIsGameReportOpen(false)} />}
@@ -1125,17 +1125,17 @@ export const Layout: React.FC = () => {
       {menuOpen && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMenuOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-80 bg-gray-800 border-r border-gray-700 shadow-xl p-3 overflow-y-auto">
+          <div className="absolute left-0 top-0 h-full w-80 bg-slate-800 border-r border-slate-700/50 shadow-xl p-3 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <div className="text-lg font-semibold">Menu</div>
-              <button className="text-gray-400 hover:text-white" onClick={() => setMenuOpen(false)}>
+              <button className="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
                 <FaTimes />
               </button>
             </div>
 
             <div className="space-y-1">
               <button
-                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-700"
+                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
                 onClick={() => {
                   resetGame();
                   setMenuOpen(false);
@@ -1144,10 +1144,10 @@ export const Layout: React.FC = () => {
                 <span className="flex items-center gap-2">
                   <FaPlay /> New Game
                 </span>
-                <span className="text-xs text-gray-400">Ctrl+N</span>
+                <span className="text-xs text-slate-400">Ctrl+N</span>
               </button>
               <button
-                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-700"
+                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
                 onClick={() => {
                   downloadSgfFromTree(rootNode, sgfExportOptions);
                   setMenuOpen(false);
@@ -1156,10 +1156,10 @@ export const Layout: React.FC = () => {
                 <span className="flex items-center gap-2">
                   <FaSave /> Save SGF
                 </span>
-                <span className="text-xs text-gray-400">Ctrl+S</span>
+                <span className="text-xs text-slate-400">Ctrl+S</span>
               </button>
               <button
-                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-700"
+                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
                 onClick={() => {
                   handleLoadClick();
                   setMenuOpen(false);
@@ -1168,10 +1168,10 @@ export const Layout: React.FC = () => {
                 <span className="flex items-center gap-2">
                   <FaFolderOpen /> Load SGF
                 </span>
-                <span className="text-xs text-gray-400">Ctrl+L</span>
+                <span className="text-xs text-slate-400">Ctrl+L</span>
               </button>
               <button
-                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-700"
+                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
                 onClick={() => {
                   openSettings();
                   setMenuOpen(false);
@@ -1180,17 +1180,17 @@ export const Layout: React.FC = () => {
                 <span className="flex items-center gap-2">
                   <FaCog /> Settings
                 </span>
-                <span className="text-xs text-gray-400">F8</span>
+                <span className="text-xs text-slate-400">F8</span>
               </button>
             </div>
 
-            <div className="mt-4 border-t border-gray-700 pt-3 space-y-2">
-              <div className="text-xs text-gray-400">Play vs AI</div>
+            <div className="mt-4 border-t border-slate-700/50/50 pt-3 space-y-2">
+              <div className="text-xs text-slate-400">Play vs AI</div>
               <div className="flex gap-2">
                 <button
                   className={[
-                    'flex-1 px-3 py-2 rounded border text-sm font-semibold',
-                    isAiWhite ? 'bg-gray-700 border-gray-500 text-green-300' : 'bg-gray-900 border-gray-700 hover:bg-gray-700',
+                    'flex-1 px-3 py-2 rounded-lg text-sm font-medium',
+                    isAiWhite ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/50/30',
                   ].join(' ')}
                   onClick={() => toggleAi('white')}
                 >
@@ -1198,8 +1198,8 @@ export const Layout: React.FC = () => {
                 </button>
                 <button
                   className={[
-                    'flex-1 px-3 py-2 rounded border text-sm font-semibold',
-                    isAiBlack ? 'bg-gray-700 border-gray-500 text-green-300' : 'bg-gray-900 border-gray-700 hover:bg-gray-700',
+                    'flex-1 px-3 py-2 rounded-lg text-sm font-medium',
+                    isAiBlack ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/50/30',
                   ].join(' ')}
                   onClick={() => toggleAi('black')}
                 >
@@ -1214,7 +1214,7 @@ export const Layout: React.FC = () => {
       {/* Main board column */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Analysis controls bar (KaTrain-like) */}
-        <div className="h-14 bg-gray-800 border-b border-gray-700 flex items-center px-3 gap-3 select-none">
+        <div className="h-14 bg-slate-800 border-b border-slate-700/50 flex items-center px-3 gap-3 select-none">
           <IconButton title="Menu" onClick={() => setMenuOpen(true)}>
             <FaBars />
           </IconButton>
@@ -1284,8 +1284,8 @@ export const Layout: React.FC = () => {
             <button
               type="button"
               className={[
-                'px-3 py-2 rounded border text-sm font-semibold flex items-center gap-2',
-                isAnalysisMode ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-700',
+                'px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2',
+                isAnalysisMode ? 'bg-blue-600/30 border border-blue-500/50 text-blue-200' : 'bg-slate-800/50 border border-slate-700/50/30 text-slate-400 hover:bg-slate-700/50',
               ].join(' ')}
               title="Toggle analysis mode (Tab)"
               onClick={toggleAnalysisMode}
@@ -1297,16 +1297,16 @@ export const Layout: React.FC = () => {
             <div className="relative" data-menu-popover>
               <button
                 type="button"
-                className="px-3 py-2 rounded border bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                className="px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50/30 text-slate-400 hover:bg-slate-700/50 flex items-center gap-2 text-sm font-medium"
                 onClick={() => setAnalysisMenuOpen((v) => !v)}
                 title="Analysis actions"
               >
                 Actions <FaChevronDown className="opacity-80" />
               </button>
               {analysisMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-gray-800 border border-gray-700 rounded shadow-xl overflow-hidden z-50">
+                <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-700/50 rounded shadow-xl overflow-hidden z-50">
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       analyzeExtra('extra');
                       setAnalysisMenuOpen(false);
@@ -1315,10 +1315,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Extra analysis
                     </span>
-                    <span className="text-xs text-gray-400">A</span>
+                    <span className="text-xs text-slate-400">A</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       analyzeExtra('equalize');
                       setAnalysisMenuOpen(false);
@@ -1327,10 +1327,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Equalize
                     </span>
-                    <span className="text-xs text-gray-400">S</span>
+                    <span className="text-xs text-slate-400">S</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       analyzeExtra('sweep');
                       setAnalysisMenuOpen(false);
@@ -1339,10 +1339,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Sweep
                     </span>
-                    <span className="text-xs text-gray-400">D</span>
+                    <span className="text-xs text-slate-400">D</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       analyzeExtra('alternative');
                       setAnalysisMenuOpen(false);
@@ -1351,13 +1351,13 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Alternative
                     </span>
-                    <span className="text-xs text-gray-400">F</span>
+                    <span className="text-xs text-slate-400">F</span>
                   </button>
 
-                  <div className="h-px bg-gray-700 my-1" />
+                  <div className="h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent my-1" />
 
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       startSelectRegionOfInterest();
                       setAnalysisMenuOpen(false);
@@ -1366,11 +1366,11 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Select region
                     </span>
-                    <span className="text-xs text-gray-400">G</span>
+                    <span className="text-xs text-slate-400">G</span>
                   </button>
                   {regionOfInterest && (
                     <button
-                      className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                      className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                       onClick={() => {
                         setRegionOfInterest(null);
                         setAnalysisMenuOpen(false);
@@ -1379,14 +1379,14 @@ export const Layout: React.FC = () => {
                       <span className="flex items-center gap-2">
                         <FaTimes /> Clear region
                       </span>
-                      <span className="text-xs text-gray-400">—</span>
+                      <span className="text-xs text-slate-400">—</span>
                     </button>
                   )}
 
-                  <div className="h-px bg-gray-700 my-1" />
+                  <div className="h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent my-1" />
 
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       resetCurrentAnalysis();
                       setAnalysisMenuOpen(false);
@@ -1395,10 +1395,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaStop /> Reset analysis
                     </span>
-                    <span className="text-xs text-gray-400">H</span>
+                    <span className="text-xs text-slate-400">H</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       toggleInsertMode();
                       setAnalysisMenuOpen(false);
@@ -1407,10 +1407,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaPlay /> Insert mode
                     </span>
-                    <span className="text-xs text-gray-400">I {isInsertMode ? 'on' : 'off'}</span>
+                    <span className="text-xs text-slate-400">I {isInsertMode ? 'on' : 'off'}</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       selfplayToEnd();
                       setAnalysisMenuOpen(false);
@@ -1419,10 +1419,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaPlay /> Selfplay to end
                     </span>
-                    <span className="text-xs text-gray-400">L</span>
+                    <span className="text-xs text-slate-400">L</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
                       else startQuickGameAnalysis();
@@ -1432,12 +1432,12 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop quick analysis' : 'Analyze game (quick graph)'}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-slate-400">
                       {isGameAnalysisRunning && gameAnalysisType === 'quick' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
                     </span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
                       else startFastGameAnalysis();
@@ -1447,12 +1447,12 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast MCTS)'}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-slate-400">
                       {isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
                     </span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       setIsGameAnalysisOpen(true);
                       setAnalysisMenuOpen(false);
@@ -1461,10 +1461,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Re-analyze game…
                     </span>
-                    <span className="text-xs text-gray-400">F2</span>
+                    <span className="text-xs text-slate-400">F2</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       setIsGameReportOpen(true);
                       setAnalysisMenuOpen(false);
@@ -1473,13 +1473,13 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Game report…
                     </span>
-                    <span className="text-xs text-gray-400">F3</span>
+                    <span className="text-xs text-slate-400">F3</span>
                   </button>
 
-                  <div className="h-px bg-gray-700 my-1" />
+                  <div className="h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent my-1" />
 
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       toggleContinuousAnalysis();
                       setAnalysisMenuOpen(false);
@@ -1488,10 +1488,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Continuous analysis
                     </span>
-                    <span className="text-xs text-gray-400">Space</span>
+                    <span className="text-xs text-slate-400">Space</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       makeAiMove();
                       setAnalysisMenuOpen(false);
@@ -1500,10 +1500,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaPlay /> AI move
                     </span>
-                    <span className="text-xs text-gray-400">Enter</span>
+                    <span className="text-xs text-slate-400">Enter</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       analyzeExtra('stop');
                       setAnalysisMenuOpen(false);
@@ -1512,10 +1512,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaStop /> Stop analysis
                     </span>
-                    <span className="text-xs text-gray-400">Esc</span>
+                    <span className="text-xs text-slate-400">Esc</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       rotateBoard();
                       setAnalysisMenuOpen(false);
@@ -1524,10 +1524,10 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaSyncAlt /> Rotate board
                     </span>
-                    <span className="text-xs text-gray-400">O</span>
+                    <span className="text-xs text-slate-400">O</span>
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left hover:bg-gray-700 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                     onClick={() => {
                       toggleTeachMode();
                       setAnalysisMenuOpen(false);
@@ -1536,7 +1536,7 @@ export const Layout: React.FC = () => {
                     <span className="flex items-center gap-2">
                       <FaRobot /> Teach mode
                     </span>
-                    <span className="text-xs text-gray-400">{isTeachMode ? 'on' : 'off'}</span>
+                    <span className="text-xs text-slate-400">{isTeachMode ? 'on' : 'off'}</span>
                   </button>
                 </div>
               )}
@@ -1545,11 +1545,11 @@ export const Layout: React.FC = () => {
         </div>
 
         {/* Board */}
-        <div className="flex-1 flex items-center justify-center bg-gray-900 overflow-auto p-4 relative">
+        <div className="flex-1 flex items-center justify-center bg-slate-900 overflow-auto p-4 relative">
           {notification && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 bg-gray-800 border border-gray-700">
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 bg-slate-800 border border-slate-700/50">
               <span>{notification.message}</span>
-              <button onClick={clearNotification} className="hover:text-gray-200">
+              <button onClick={clearNotification} className="hover:text-slate-200">
                 <FaTimes />
               </button>
             </div>
@@ -1558,7 +1558,7 @@ export const Layout: React.FC = () => {
         </div>
 
         {/* Board controls bar (KaTrain-like) */}
-        <div className="h-16 bg-gray-800 border-t border-gray-700 flex items-center px-3 justify-between select-none">
+        <div className="h-16 bg-slate-800 border-t border-slate-700/50 flex items-center px-3 justify-between select-none">
           <div className="relative">
             {passPolicyColor && (
               <div
@@ -1568,7 +1568,7 @@ export const Layout: React.FC = () => {
             )}
 	            <button
 	              ref={passBtnRef}
-	              className="relative px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-semibold"
+	              className="relative px-4 py-2 bg-slate-700/80 hover:bg-slate-600/80 rounded-lg text-sm font-medium text-slate-200"
 	              onClick={passTurn}
 	              title="Pass (P)"
 	            >
@@ -1628,11 +1628,11 @@ export const Layout: React.FC = () => {
               <FaChevronLeft />
             </IconButton>
 
-            <div className="px-3 text-sm text-gray-300 font-mono flex items-center gap-2">
-              <span className={currentPlayer === 'black' ? 'text-white' : 'text-gray-500'}>B</span>
-              <span className="text-gray-500">·</span>
-              <span className={currentPlayer === 'white' ? 'text-white' : 'text-gray-500'}>W</span>
-              <span className="text-gray-500 ml-2">Move</span>
+            <div className="px-3 text-sm text-slate-300 font-mono flex items-center gap-2">
+              <span className={currentPlayer === 'black' ? 'text-white' : 'text-slate-500'}>B</span>
+              <span className="text-slate-500">·</span>
+              <span className={currentPlayer === 'white' ? 'text-white' : 'text-slate-500'}>W</span>
+              <span className="text-slate-500 ml-2">Move</span>
               <span className="text-white">{moveHistory.length}</span>
             </div>
 
@@ -1659,7 +1659,7 @@ export const Layout: React.FC = () => {
           </div>
 
           <button
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-semibold"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white shadow-lg shadow-emerald-600/20"
             onClick={() => makeAiMove()}
             title="AI move (Enter)"
           >
@@ -1677,17 +1677,17 @@ export const Layout: React.FC = () => {
       )}
       <div
         className={[
-          'bg-gray-800 border-l border-gray-700 flex flex-col',
+          'bg-slate-800 border-l border-slate-700/50 flex flex-col',
           'fixed inset-y-0 right-0 z-40 w-full max-w-md',
           rightPanelOpen ? 'flex' : 'hidden',
           'lg:static lg:flex lg:w-96 lg:max-w-none lg:z-auto',
         ].join(' ')}
       >
         {/* Play / Analyze tabs */}
-        <div className="h-14 border-b border-gray-700 flex items-center p-2 gap-2">
+        <div className="h-14 border-b border-slate-700/50 flex items-center p-2 gap-2">
           <button
             type="button"
-            className="lg:hidden h-10 w-10 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white"
+            className="lg:hidden h-10 w-10 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white"
             onClick={() => setRightPanelOpen(false)}
             title="Close side panel"
           >
@@ -1696,7 +1696,7 @@ export const Layout: React.FC = () => {
           <button
             className={[
               'flex-1 h-10 rounded font-semibold border',
-              mode === 'play' ? 'bg-blue-600/30 border-blue-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white',
+              mode === 'play' ? 'bg-blue-600/30 border-blue-500 text-white' : 'bg-slate-900 border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white',
             ].join(' ')}
             onClick={() => setMode('play')}
           >
@@ -1707,7 +1707,7 @@ export const Layout: React.FC = () => {
               'flex-1 h-10 rounded font-semibold border',
               mode === 'analyze'
                 ? 'bg-blue-600/30 border-blue-500 text-white'
-                : 'bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white',
+                : 'bg-slate-900 border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white',
             ].join(' ')}
             onClick={() => setMode('analyze')}
           >
@@ -1721,27 +1721,27 @@ export const Layout: React.FC = () => {
         {/* Timer / MoveTree area */}
         <div className="px-3 pb-3">
           {mode === 'play' ? (
-            <div className="bg-gray-900 border border-gray-700 rounded p-3">
+            <div className="bg-slate-900 border border-slate-700/50 rounded p-3">
               <Timer />
               <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-400">Komi</div>
-                <div className="font-mono text-sm text-gray-200">{komi}</div>
+                <div className="text-xs text-slate-400">Komi</div>
+                <div className="font-mono text-sm text-slate-200">{komi}</div>
               </div>
               <div className="flex items-center justify-between mt-1">
-                <div className="text-xs text-gray-400">Captured</div>
-                <div className="font-mono text-sm text-gray-200">
+                <div className="text-xs text-slate-400">Captured</div>
+                <div className="font-mono text-sm text-slate-200">
                   B:{capturedWhite} · W:{capturedBlack}
                 </div>
               </div>
               {endResult && (
                 <div className="flex items-center justify-between mt-1">
-                  <div className="text-xs text-gray-400">Result</div>
-                  <div className="font-mono text-sm text-gray-200">{endResult}</div>
+                  <div className="text-xs text-slate-400">Result</div>
+                  <div className="font-mono text-sm text-slate-200">{endResult}</div>
                 </div>
               )}
               <div className="flex gap-2 mt-3">
                 <button
-                  className="flex-1 px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-sm font-semibold"
+                  className="flex-1 px-3 py-2 rounded-lg bg-slate-700/80 hover:bg-slate-600/80 text-sm font-medium text-slate-200"
                   onClick={() => {
                     const st = useGameStore.getState();
                     const lastMover = st.currentNode.move?.player ?? null;
@@ -1754,7 +1754,7 @@ export const Layout: React.FC = () => {
                   Undo
                 </button>
                 <button
-                  className="flex-1 px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-sm font-semibold"
+                  className="flex-1 px-3 py-2 rounded-lg bg-rose-900/40 hover:bg-rose-800/50 text-sm font-medium text-rose-200"
                   onClick={() => {
                     const result = currentPlayer === 'black' ? 'W+R' : 'B+R';
                     resign();
@@ -1768,8 +1768,8 @@ export const Layout: React.FC = () => {
               <div className="flex gap-2 mt-3">
                 <button
                   className={[
-                    'flex-1 px-3 py-2 rounded border text-sm font-semibold',
-                    isAiWhite ? 'bg-gray-700 border-gray-500 text-green-300' : 'bg-gray-900 border-gray-700 hover:bg-gray-700',
+                    'flex-1 px-3 py-2 rounded-lg text-sm font-medium',
+                    isAiWhite ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/50/30',
                   ].join(' ')}
                   onClick={() => toggleAi('white')}
                 >
@@ -1777,8 +1777,8 @@ export const Layout: React.FC = () => {
                 </button>
                 <button
                   className={[
-                    'flex-1 px-3 py-2 rounded border text-sm font-semibold',
-                    isAiBlack ? 'bg-gray-700 border-gray-500 text-green-300' : 'bg-gray-900 border-gray-700 hover:bg-gray-700',
+                    'flex-1 px-3 py-2 rounded-lg text-sm font-medium',
+                    isAiBlack ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/50/30',
                   ].join(' ')}
                   onClick={() => toggleAi('black')}
                 >
@@ -1787,7 +1787,7 @@ export const Layout: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-900 border border-gray-700 rounded overflow-hidden h-44">
+            <div className="bg-slate-900 border border-slate-700/50 rounded overflow-hidden h-44">
               <MoveTree />
             </div>
           )}
@@ -1797,7 +1797,7 @@ export const Layout: React.FC = () => {
         <div className="px-3">
           <div className="flex items-center justify-between">
             <button
-              className="text-sm font-semibold text-gray-200 hover:text-white"
+              className="text-sm font-semibold text-slate-200 hover:text-white"
               onClick={() => updatePanels({ graphOpen: !modePanels.graphOpen })}
             >
               Score / Winrate Graph
@@ -1822,13 +1822,13 @@ export const Layout: React.FC = () => {
             </div>
           </div>
           {modePanels.graphOpen && (
-            <div className="mt-2 bg-gray-900 border border-gray-700 rounded p-2">
+            <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded p-2">
               {modePanels.graph.score || modePanels.graph.winrate ? (
                 <div style={{ height: 140 }}>
                   <ScoreWinrateGraph showScore={modePanels.graph.score} showWinrate={modePanels.graph.winrate} />
                 </div>
               ) : (
-                <div className="h-20 flex items-center justify-center text-gray-500 text-sm">Graph hidden</div>
+                <div className="h-20 flex items-center justify-center text-slate-500 text-sm">Graph hidden</div>
               )}
             </div>
           )}
@@ -1838,7 +1838,7 @@ export const Layout: React.FC = () => {
         <div className="px-3 mt-3">
           <div className="flex items-center justify-between">
             <button
-              className="text-sm font-semibold text-gray-200 hover:text-white"
+              className="text-sm font-semibold text-slate-200 hover:text-white"
               onClick={() => updatePanels({ statsOpen: !modePanels.statsOpen })}
             >
               Move Stats
@@ -1871,18 +1871,18 @@ export const Layout: React.FC = () => {
             </div>
           </div>
           {modePanels.statsOpen && (
-            <div className="mt-2 bg-gray-900 border border-gray-700 rounded overflow-hidden">
+            <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded overflow-hidden">
               {modePanels.stats.winrate && (
-                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
-                  <div className="text-sm text-gray-300">Winrate</div>
+                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
+                  <div className="text-sm text-slate-300">Winrate</div>
                   <div className="font-mono text-sm text-green-300">
                     {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
                   </div>
                 </div>
               )}
               {modePanels.stats.score && (
-                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
-                  <div className="text-sm text-gray-300">Score</div>
+                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
+                  <div className="text-sm text-slate-300">Score</div>
                   <div className="font-mono text-sm text-blue-300">
                     {typeof scoreLead === 'number' ? `${scoreLead > 0 ? '+' : ''}${scoreLead.toFixed(1)}` : '-'}
                   </div>
@@ -1890,12 +1890,12 @@ export const Layout: React.FC = () => {
               )}
               {modePanels.stats.points && (
                 <div className="flex items-center justify-between px-3 py-2">
-                  <div className="text-sm text-gray-300">{pointsLost != null && pointsLost < 0 ? 'Points gained' : 'Points lost'}</div>
+                  <div className="text-sm text-slate-300">{pointsLost != null && pointsLost < 0 ? 'Points gained' : 'Points lost'}</div>
                   <div className="font-mono text-sm text-red-300">{pointsLost != null ? Math.abs(pointsLost).toFixed(1) : '-'}</div>
                 </div>
               )}
               {!modePanels.stats.winrate && !modePanels.stats.score && !modePanels.stats.points && (
-                <div className="px-3 py-3 text-sm text-gray-500">Stats hidden</div>
+                <div className="px-3 py-3 text-sm text-slate-500">Stats hidden</div>
               )}
             </div>
           )}
@@ -1905,7 +1905,7 @@ export const Layout: React.FC = () => {
         <div className="px-3 mt-3 flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between">
             <button
-              className="text-sm font-semibold text-gray-200 hover:text-white"
+              className="text-sm font-semibold text-slate-200 hover:text-white"
               onClick={() => updatePanels({ notesOpen: !modePanels.notesOpen })}
             >
               Info & Notes
@@ -1914,13 +1914,13 @@ export const Layout: React.FC = () => {
               <div className="flex gap-1">
                 <PanelHeaderButton
                   label="Info"
-                  colorClass="bg-gray-700"
+                  colorClass="bg-slate-700"
                   active={modePanels.notes.info}
                   onClick={() => updatePanels({ notes: { ...modePanels.notes, info: !modePanels.notes.info } })}
                 />
                 <PanelHeaderButton
                   label="Details"
-                  colorClass="bg-gray-700"
+                  colorClass="bg-slate-700"
                   active={modePanels.notes.infoDetails}
                   onClick={() =>
                     updatePanels({ notes: { ...modePanels.notes, infoDetails: !modePanels.notes.infoDetails } })
@@ -1933,15 +1933,15 @@ export const Layout: React.FC = () => {
                   onClick={() => updatePanels({ notes: { ...modePanels.notes, notes: !modePanels.notes.notes } })}
                 />
               </div>
-              <div className="text-[11px] text-gray-400 font-mono flex items-center gap-2">
+              <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2">
                 <span className={['inline-block h-2.5 w-2.5 rounded-full', engineDot].join(' ')} />
                 <span title={engineMetaTitle}>{engineMeta}</span>
               </div>
             </div>
           </div>
           {modePanels.notesOpen && (
-            <div className="mt-2 bg-gray-900 border border-gray-700 rounded flex-1 min-h-0 overflow-hidden flex flex-col">
-              <div className="px-3 py-2 border-b border-gray-800 text-xs text-gray-300 flex items-center justify-between">
+            <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded flex-1 min-h-0 overflow-hidden flex flex-col">
+              <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-300 flex items-center justify-between">
                 <div className="truncate">
                   <span className="font-mono">{playerToShort(currentPlayer)}</span> ·{' '}
                   <span className="font-mono">{moveHistory.length}</span> ·{' '}
@@ -1949,7 +1949,7 @@ export const Layout: React.FC = () => {
                 </div>
                 {engineError && <span className="text-red-300">error</span>}
               </div>
-              <div className="px-3 py-2 border-b border-gray-800 text-xs text-gray-400">
+              <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-400">
                 {statusText}
               </div>
               <div className="flex-1 min-h-0">

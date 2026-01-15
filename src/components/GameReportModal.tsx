@@ -40,10 +40,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-[44rem] max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+      <div className="bg-slate-800 rounded-lg shadow-xl w-[44rem] max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
           <h2 className="text-lg font-semibold text-white">Game Report (KaTrain)</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white" title="Close">
+          <button onClick={onClose} className="text-slate-400 hover:text-white" title="Close">
             <FaTimes />
           </button>
         </div>
@@ -66,7 +66,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                   onClick={() => setDepthFilter(b.filter)}
                   className={[
                     'px-3 py-2 rounded border text-sm font-medium',
-                    active ? 'bg-green-600 border-green-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-200 hover:bg-gray-700',
+                    active ? 'bg-green-600 border-green-500 text-white' : 'bg-slate-900 border-slate-700/50 text-slate-200 hover:bg-slate-700',
                   ].join(' ')}
                 >
                   {b.label}
@@ -75,12 +75,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
             })}
           </div>
 
-          <div className="bg-gray-900 border border-gray-700 rounded p-3">
-            <div className="text-sm font-semibold text-gray-200 mb-2">Key Stats</div>
+          <div className="bg-slate-900 border border-slate-700/50 rounded p-3">
+            <div className="text-sm font-semibold text-slate-200 mb-2">Key Stats</div>
             <div className="grid grid-cols-3 gap-2 text-sm">
-              <div className="text-gray-400" />
-              <div className="text-center font-mono text-gray-200">Black</div>
-              <div className="text-center font-mono text-gray-200">White</div>
+              <div className="text-slate-400" />
+              <div className="text-center font-mono text-slate-200">Black</div>
+              <div className="text-center font-mono text-slate-200">White</div>
 
               {(
                 [
@@ -93,9 +93,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                 ] as Array<[string, (p: Player) => string]>
               ).map(([label, valueFn]) => (
                 <React.Fragment key={label}>
-                  <div className="text-gray-300">{label}</div>
-                  <div className="text-center font-mono text-gray-200">{valueFn('black')}</div>
-                  <div className="text-center font-mono text-gray-200">{valueFn('white')}</div>
+                  <div className="text-slate-300">{label}</div>
+                  <div className="text-center font-mono text-slate-200">{valueFn('black')}</div>
+                  <div className="text-center font-mono text-slate-200">{valueFn('white')}</div>
                 </React.Fragment>
               ))}
             </div>
@@ -104,28 +104,28 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
             </p>
           </div>
 
-          <div className="bg-gray-900 border border-gray-700 rounded p-3">
-            <div className="text-sm font-semibold text-gray-200 mb-2">Point Loss Histogram</div>
+          <div className="bg-slate-900 border border-slate-700/50 rounded p-3">
+            <div className="text-sm font-semibold text-slate-200 mb-2">Point Loss Histogram</div>
             <div className="grid grid-cols-3 gap-2 text-sm">
-              <div className="text-gray-400">Threshold</div>
-              <div className="text-center font-mono text-gray-200">B</div>
-              <div className="text-center font-mono text-gray-200">W</div>
+              <div className="text-slate-400">Threshold</div>
+              <div className="text-center font-mono text-slate-200">B</div>
+              <div className="text-center font-mono text-slate-200">W</div>
 
               {report.labels
                 .map((label, idx) => ({ label, idx }))
                 .reverse()
                 .map(({ label, idx }) => (
                   <React.Fragment key={label}>
-                    <div className="text-gray-300">{label}</div>
-                    <div className="text-center font-mono text-gray-200">{report.histogram[idx]!.black}</div>
-                    <div className="text-center font-mono text-gray-200">{report.histogram[idx]!.white}</div>
+                    <div className="text-slate-300">{label}</div>
+                    <div className="text-center font-mono text-slate-200">{report.histogram[idx]!.black}</div>
+                    <div className="text-center font-mono text-slate-200">{report.histogram[idx]!.white}</div>
                   </React.Fragment>
                 ))}
             </div>
           </div>
         </div>
 
-        <div className="p-4 bg-gray-900 flex justify-end">
+        <div className="p-4 bg-slate-900 flex justify-end">
           <button
             type="button"
             onClick={onClose}

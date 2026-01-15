@@ -116,7 +116,7 @@ export const WinRateGraph: React.FC = () => {
 
     return (
         <div
-            className="w-full h-full bg-gray-900 relative border border-gray-700 rounded overflow-hidden cursor-crosshair"
+            className="w-full h-full bg-slate-900 relative border border-slate-700/50 rounded overflow-hidden cursor-crosshair"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             onClick={handleClick}
@@ -175,8 +175,8 @@ export const WinRateGraph: React.FC = () => {
             </svg>
 
             {/* Labels */}
-            <div className="absolute top-1 left-1 text-[9px] text-gray-500 pointer-events-none">100%</div>
-            <div className="absolute bottom-1 left-1 text-[9px] text-gray-500 pointer-events-none">0%</div>
+            <div className="absolute top-1 left-1 text-[9px] text-slate-500 pointer-events-none">100%</div>
+            <div className="absolute bottom-1 left-1 text-[9px] text-slate-500 pointer-events-none">0%</div>
 
             {/* Hover Tooltip */}
             {hoverIndex !== null && (

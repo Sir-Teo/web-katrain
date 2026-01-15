@@ -1488,7 +1488,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
            const d = toDisplay(hoveredMove.x, hoveredMove.y);
            return (
          <div
-             className="absolute z-20 bg-gray-900 text-white text-xs p-2 rounded shadow-lg pointer-events-none border border-gray-700"
+             className="absolute z-20 bg-slate-900 text-white text-xs p-2 rounded shadow-lg pointer-events-none border border-slate-700/50"
              style={{
                  left: originX + d.x * cellSize + 20,
                  top: originY + d.y * cellSize - 20,

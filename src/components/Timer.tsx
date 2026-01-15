@@ -64,10 +64,10 @@ export const Timer: React.FC = () => {
   }, []);
 
   const timeText = useMemo(() => formatKaTrainClockSeconds(display.timeSeconds), [display.timeSeconds]);
-  const timeoutClass = display.timeout ? 'text-red-300' : 'text-gray-100';
+  const timeoutClass = display.timeout ? 'text-red-300' : 'text-slate-100';
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded px-4 py-3 flex items-center gap-3">
+    <div className="bg-slate-900 border border-slate-700/50 rounded px-4 py-3 flex items-center gap-3">
       <div className="flex items-baseline gap-2 font-mono">
         <div className={['text-2xl leading-none', timeoutClass].join(' ')} title={display.isAiTurn ? 'AI to play' : undefined}>
           {timeText}
@@ -84,7 +84,7 @@ export const Timer: React.FC = () => {
           type="button"
           className={[
             'h-10 w-10 flex items-center justify-center rounded border',
-            'bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700',
+            'bg-slate-800 border-slate-700/50 text-slate-200 hover:bg-slate-700',
           ].join(' ')}
           onClick={() => toggleTimerPaused()}
           title={timerPaused ? 'Resume timer' : 'Pause timer'}
