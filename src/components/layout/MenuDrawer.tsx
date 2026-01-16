@@ -27,28 +27,33 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div className="absolute left-0 top-0 h-full w-80 bg-slate-800 border-r border-slate-700/50 shadow-xl p-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-lg font-semibold">Menu</div>
-          <button className="text-slate-400 hover:text-white" onClick={onClose}>
-            <FaTimes />
+          <h2 className="text-lg font-semibold" id="menu-title">Menu</h2>
+          <button
+            className="text-slate-400 hover:text-white"
+            onClick={onClose}
+            aria-label="Close menu"
+          >
+            <FaTimes aria-hidden="true" />
           </button>
         </div>
 
-        <div className="space-y-1">
+        <nav className="space-y-1" aria-label="Main menu">
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
             onClick={() => {
               onNewGame();
               onClose();
             }}
+            aria-label="New game, keyboard shortcut Control plus N"
           >
             <span className="flex items-center gap-2">
-              <FaPlay /> New Game
+              <FaPlay aria-hidden="true" /> New Game
             </span>
-            <span className="text-xs text-slate-400">Ctrl+N</span>
+            <kbd className="text-xs text-slate-400">Ctrl+N</kbd>
           </button>
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
@@ -56,11 +61,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               onSave();
               onClose();
             }}
+            aria-label="Save SGF file, keyboard shortcut Control plus S"
           >
             <span className="flex items-center gap-2">
-              <FaSave /> Save SGF
+              <FaSave aria-hidden="true" /> Save SGF
             </span>
-            <span className="text-xs text-slate-400">Ctrl+S</span>
+            <kbd className="text-xs text-slate-400">Ctrl+S</kbd>
           </button>
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
@@ -68,11 +74,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               onLoad();
               onClose();
             }}
+            aria-label="Load SGF file, keyboard shortcut Control plus L"
           >
             <span className="flex items-center gap-2">
-              <FaFolderOpen /> Load SGF
+              <FaFolderOpen aria-hidden="true" /> Load SGF
             </span>
-            <span className="text-xs text-slate-400">Ctrl+L</span>
+            <kbd className="text-xs text-slate-400">Ctrl+L</kbd>
           </button>
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
@@ -80,23 +87,26 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               onSettings();
               onClose();
             }}
+            aria-label="Open settings, keyboard shortcut F8"
           >
             <span className="flex items-center gap-2">
-              <FaCog /> Settings
+              <FaCog aria-hidden="true" /> Settings
             </span>
-            <span className="text-xs text-slate-400">F8</span>
+            <kbd className="text-xs text-slate-400">F8</kbd>
           </button>
-        </div>
+        </nav>
 
         <div className="mt-4 border-t border-slate-700/50 pt-3 space-y-2">
-          <div className="text-xs text-slate-400">Play vs AI</div>
-          <div className="flex gap-2">
+          <div className="text-xs text-slate-400" id="ai-toggle-label">Play vs AI</div>
+          <div className="flex gap-2" role="group" aria-labelledby="ai-toggle-label">
             <button
               className={[
                 'flex-1 px-3 py-2 rounded-lg text-sm font-medium',
                 isAiWhite ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/30',
               ].join(' ')}
               onClick={() => onToggleAi('white')}
+              aria-label={isAiWhite ? 'Disable White AI' : 'Enable White AI'}
+              aria-pressed={isAiWhite}
             >
               White AI
             </button>
@@ -106,6 +116,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 isAiBlack ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/30',
               ].join(' ')}
               onClick={() => onToggleAi('black')}
+              aria-label={isAiBlack ? 'Disable Black AI' : 'Enable Black AI'}
+              aria-pressed={isAiBlack}
             >
               Black AI
             </button>
