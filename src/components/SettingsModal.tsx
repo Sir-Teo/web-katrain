@@ -6,6 +6,7 @@ import type { GameSettings } from '../types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import { publicUrl } from '../utils/publicUrl';
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
+import { getEngineModelLabel } from '../utils/engineLabel';
 
 let uploadedModelUrl: string | null = null;
 let lastManualModelUrl: string | null = null;
@@ -30,6 +31,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         }),
         shallow
     );
+    const engineModelLabel = getEngineModelLabel(engineModelName, settings.katagoModelUrl);
     const modelUploadInputRef = React.useRef<HTMLInputElement>(null);
     const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
@@ -1146,10 +1148,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                             </p>
                             <p className={subtextClass}>
                                 Engine: <span className="font-mono">{engineBackend ?? 'not loaded'}</span>
-                                {engineModelName ? (
+                                {engineModelLabel ? (
                                     <>
                                         {' '}
-                                        · <span className="font-mono" title={engineModelName}>{engineModelName}</span>
+                                        · <span className="font-mono" title={engineModelLabel}>{engineModelLabel}</span>
                                     </>
                                 ) : null}
                             </p>

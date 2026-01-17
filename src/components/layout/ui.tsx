@@ -127,6 +127,47 @@ export const TogglePill: React.FC<{
   );
 };
 
+export const EngineStatusBadge: React.FC<{
+  label: string | null;
+  title?: string;
+  dotClass: string;
+  tone?: 'default' | 'error';
+  variant?: 'pill' | 'inline';
+  showErrorTag?: boolean;
+  className?: string;
+  maxWidthClassName?: string;
+}> = ({
+  label,
+  title,
+  dotClass,
+  tone = 'default',
+  variant = 'pill',
+  showErrorTag = false,
+  className,
+  maxWidthClassName,
+}) => {
+  if (!label) return null;
+  const toneClasses = tone === 'error'
+    ? 'bg-rose-900/30 border-rose-600/50 text-rose-200'
+    : 'bg-slate-900/50 border-slate-700/50 text-slate-300';
+  const baseClasses = variant === 'pill'
+    ? `items-center gap-1.5 px-2.5 py-1 rounded text-xs border ${toneClasses}`
+    : 'items-center gap-1.5 text-xs text-slate-400';
+
+  return (
+    <div
+      className={['flex', baseClasses, className ?? ''].join(' ')}
+      title={title}
+    >
+      <span className={['inline-block h-2 w-2 rounded-full', dotClass].join(' ')} />
+      <span className={['truncate', maxWidthClassName ?? ''].join(' ')}>
+        {label}
+      </span>
+      {showErrorTag && <span className="text-[10px] uppercase tracking-wide font-semibold">error</span>}
+    </div>
+  );
+};
+
 export const PanelHeaderButton: React.FC<{
   label: string;
   colorClass: string;

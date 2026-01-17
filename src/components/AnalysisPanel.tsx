@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import type { UiMode, UiState } from './layout/types';
-import { PanelHeaderButton, SectionHeader } from './layout/ui';
+import { EngineStatusBadge, PanelHeaderButton, SectionHeader } from './layout/ui';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -52,12 +52,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
 
   return (
     <div className="bg-slate-900 border border-slate-700/50 rounded p-3 space-y-3">
-      <div className="flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <span className={['inline-block h-2.5 w-2.5 rounded-full', engineDot].join(' ')} />
-          <span title={engineMetaTitle}>{engineMeta}</span>
-        </div>
-        <span>{statusText}</span>
+      <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+        <EngineStatusBadge
+          label={engineMeta}
+          title={engineMetaTitle}
+          dotClass={engineDot}
+          variant="inline"
+          className="lg:hidden"
+          maxWidthClassName="max-w-[180px]"
+        />
+        <span className="ml-auto">{statusText}</span>
       </div>
       {isGameAnalysisRunning && gameAnalysisTotal > 0 && (
         <div>
@@ -227,4 +231,3 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     </div>
   );
 };
-

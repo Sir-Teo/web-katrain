@@ -23,7 +23,7 @@ import {
 } from 'react-icons/fa';
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
-import { IconButton, TogglePill } from './ui';
+import { EngineStatusBadge, IconButton, TogglePill } from './ui';
 import { BOARD_THEME_OPTIONS } from '../../utils/boardThemes';
 
 interface TopControlBarProps {
@@ -234,21 +234,16 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <div className="flex-grow" />
 
       {/* Engine status */}
-      {engineMeta && (
-        <div
-          className={[
-            'hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border',
-            engineError
-              ? 'bg-rose-900/30 border-rose-600/50 text-rose-200'
-              : 'bg-slate-900/50 border-slate-700/50 text-slate-300',
-          ].join(' ')}
-          title={engineMetaTitle}
-        >
-          <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
-          <span className="max-w-[200px] truncate">{engineMeta}</span>
-          {engineError && <span className="text-[10px] uppercase tracking-wide font-semibold">error</span>}
-        </div>
-      )}
+      <EngineStatusBadge
+        label={engineMeta}
+        title={engineMetaTitle}
+        dotClass={engineDot}
+        tone={engineError ? 'error' : 'default'}
+        variant="pill"
+        showErrorTag={!!engineError}
+        className="hidden lg:flex"
+        maxWidthClassName="max-w-[200px]"
+      />
 
       {/* Analysis badges */}
       <div className="hidden xl:flex items-center gap-1.5 text-xs">

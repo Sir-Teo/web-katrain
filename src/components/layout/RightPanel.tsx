@@ -693,12 +693,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               title: 'Analysis',
               open: modePanels.analysisOpen,
               onToggle: () => updatePanels((current) => ({ analysisOpen: !current.analysisOpen })),
-              actions: (
-                <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
-                  <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
-                  <span title={engineMetaTitle}>{engineMeta}</span>
-                </div>
-              ),
               contentClassName: 'mt-1',
               children: (
                 <AnalysisPanel

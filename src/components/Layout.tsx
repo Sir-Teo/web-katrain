@@ -17,6 +17,7 @@ import { BOARD_SIZE, type CandidateMove, type GameNode, type Player } from '../t
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
+import { getEngineModelLabel } from '../utils/engineLabel';
 
 // Layout components
 import { MenuDrawer } from './layout/MenuDrawer';
@@ -559,22 +560,25 @@ export const Layout: React.FC = () => {
     return 'bg-slate-500';
   }, [engineStatus]);
 
+  const engineModelLabel = useMemo(
+    () => getEngineModelLabel(engineModelName, settings.katagoModelUrl),
+    [engineModelName, settings.katagoModelUrl]
+  );
+
   const engineMeta = useMemo(() => {
-    const parts: string[] = [engineStatus];
+    const parts: string[] = [];
     if (engineBackend) parts.push(engineBackend);
-    if (engineModelName) {
-      parts.push(engineModelName.length > 28 ? `${engineModelName.slice(0, 28)}…` : engineModelName);
-    }
-    return parts.join(' · ');
-  }, [engineBackend, engineModelName, engineStatus]);
+    if (engineModelLabel) parts.push(engineModelLabel);
+    return parts.length > 0 ? parts.join(' · ') : engineStatus;
+  }, [engineBackend, engineModelLabel, engineStatus]);
 
   const engineMetaTitle = useMemo(() => {
     const parts: string[] = [];
     if (engineBackend) parts.push(engineBackend);
-    if (engineModelName) parts.push(engineModelName);
+    if (engineModelLabel) parts.push(engineModelLabel);
     if (parts.length === 0) return undefined;
     return `Engine: ${parts.join(' · ')}`;
-  }, [engineBackend, engineModelName]);
+  }, [engineBackend, engineModelLabel]);
 
   const statusText = engineError
     ? `Engine error: ${engineError}`

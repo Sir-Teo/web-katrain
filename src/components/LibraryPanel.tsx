@@ -76,6 +76,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const headerActionClass = 'px-2 py-1 rounded bg-slate-800/70 text-xs text-slate-200 hover:bg-slate-700';
+  const headerDangerActionClass = 'px-2 py-1 rounded bg-rose-900/40 text-xs text-rose-200 hover:bg-rose-800/50';
   const [sortKey, setSortKey] = useState(() => {
     if (typeof localStorage === 'undefined') return 'recent';
     return localStorage.getItem('web-katrain:library_sort:v1') ?? 'recent';
@@ -738,7 +740,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              className="px-2 py-1 rounded bg-slate-800/70 text-xs text-slate-200 hover:bg-slate-700"
+              className={headerActionClass}
               onClick={handleCreateFolder}
               title="Create new folder"
             >
@@ -746,7 +748,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className="px-2 py-1 rounded bg-rose-900/40 text-xs text-rose-200 hover:bg-rose-800/50"
+              className={headerDangerActionClass}
               onClick={handleClearLibrary}
               title="Clear library"
             >
@@ -754,7 +756,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className="px-2 py-1 rounded bg-slate-800/70 text-xs text-slate-200 hover:bg-slate-700"
+              className={headerActionClass}
               onClick={handleSaveCurrent}
               title="Save current game to Library"
             >
@@ -762,7 +764,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className="px-2 py-1 rounded bg-slate-800/70 text-xs text-slate-200 hover:bg-slate-700"
+              className={headerActionClass}
               onClick={() => fileInputRef.current?.click()}
               title="Import SGF files"
             >
