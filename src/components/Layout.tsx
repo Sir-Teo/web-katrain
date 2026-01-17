@@ -8,7 +8,7 @@ import { GameReportModal } from './GameReportModal';
 import { KeyboardHelpModal } from './KeyboardHelpModal';
 import { AnalysisPanel } from './AnalysisPanel';
 import { NewGameModal } from './NewGameModal';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import type { LibraryFile } from '../utils/library';
 import { loadLibrary } from '../utils/library';
@@ -974,7 +974,31 @@ export const Layout: React.FC = () => {
       )}
 
       {/* Main board column */}
-      <div className={['flex flex-col flex-1 min-w-0', isMobile ? 'pb-[68px]' : ''].join(' ')}>
+      <div className={['flex flex-col flex-1 min-w-0 relative', isMobile ? 'pb-[68px]' : ''].join(' ')}>
+        {/* Show library button when hidden */}
+        {!libraryOpen && isDesktop && (
+          <button
+            type="button"
+            onClick={handleToggleLibrary}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-20 w-8 bg-slate-800/90 hover:bg-slate-700/90 border-r border-slate-700/50 rounded-r-lg flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-lg"
+            title="Show library (Ctrl+L)"
+          >
+            <FaChevronRight size={14} />
+          </button>
+        )}
+
+        {/* Show sidebar button when hidden */}
+        {!showSidebar && isDesktop && (
+          <button
+            type="button"
+            onClick={handleToggleSidebar}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-20 w-8 bg-slate-800/90 hover:bg-slate-700/90 border-l border-slate-700/50 rounded-l-lg flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-lg"
+            title="Show panel (Ctrl+B)"
+          >
+            <FaChevronLeft size={14} />
+          </button>
+        )}
+
         <TopControlBar
           settings={settings}
           updateControls={updateControls}
