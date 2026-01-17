@@ -210,11 +210,11 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
       borderColor: '#8b6914',
       foregroundColor: '#3c392f',
       borderWidth: 0,
-      texture: 'assets/board.png',
+      texture: 'board.png',
     },
     stones: {
       black: {
-        image: 'assets/stone-black.png',
+        image: 'stone-black.png',
         backgroundColor: '#1a1a1a',
         foregroundColor: '#d87700',
         shadowColor: 'rgba(80, 65, 0, 0.35)',
@@ -224,7 +224,7 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
         size: '108%',
       },
       white: {
-        image: 'assets/stone-white.png',
+        image: 'stone-white.png',
         backgroundColor: '#ffffff',
         foregroundColor: '#fb8a00',
         shadowColor: 'rgba(80, 65, 0, 0.35)',
@@ -279,12 +279,12 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
       borderColor: '#8b6914',
       foregroundColor: '#3c392f',
       borderWidth: 0,
-      texture: 'assets/board.png',
+      texture: 'board.png',
     },
     stones: {
       black: {
-        image: 'assets/stone-black.png',
-        imageVariations: ['assets/stone-black-1.png', 'assets/stone-black-2.png'],
+        image: 'stone-black.png',
+        imageVariations: ['stone-black-1.png', 'stone-black-2.png'],
         backgroundColor: '#1a1a1a',
         foregroundColor: 'rgba(255, 255, 255, 0.75)',
         shadowColor: 'rgba(80, 65, 0, 0.35)',
@@ -294,8 +294,8 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
         size: '108%',
       },
       white: {
-        image: 'assets/stone-white.png',
-        imageVariations: ['assets/stone-white-1.png', 'assets/stone-white-2.png'],
+        image: 'stone-white.png',
+        imageVariations: ['stone-white-1.png', 'stone-white-2.png'],
         backgroundColor: '#ffffff',
         foregroundColor: 'rgba(0, 0, 0, 0.75)',
         shadowColor: 'rgba(80, 65, 0, 0.35)',
@@ -315,8 +315,7 @@ const resolveThemeAsset = (themeId: BoardThemeId, assetPath: string | undefined)
   if (assetPath.startsWith('/')) return publicUrl(assetPath.slice(1));
   if (assetPath.startsWith('katrain/')) return publicUrl(assetPath);
   if (assetPath.startsWith('themes/')) return publicUrl(assetPath);
-  if (assetPath.includes('/')) return publicUrl(`themes/${themeId}/${assetPath}`);
-  return publicUrl(`themes/${themeId}/assets/${assetPath}`);
+  return publicUrl(`themes/${themeId}/${assetPath}`);
 };
 
 const resolveStoneConfig = (themeId: BoardThemeId, stone: ThemeStoneConfig): ThemeStoneConfig => ({
