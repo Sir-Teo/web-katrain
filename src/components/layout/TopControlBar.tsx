@@ -20,6 +20,8 @@ import {
   FaStop,
   FaSyncAlt,
   FaTimes,
+  FaCog,
+  FaKeyboard,
 } from 'react-icons/fa';
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
@@ -73,6 +75,8 @@ interface TopControlBarProps {
   isSidebarOpen: boolean;
   onCopySgf: () => void;
   onPasteSgf: () => void;
+  onSettings: () => void;
+  onKeyboardHelp: () => void;
   winRateLabel?: string | null;
   scoreLeadLabel?: string | null;
   pointsLostLabel?: string | null;
@@ -125,6 +129,8 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   isSidebarOpen,
   onCopySgf,
   onPasteSgf,
+  onSettings,
+  onKeyboardHelp,
   winRateLabel,
   scoreLeadLabel,
   pointsLostLabel,
@@ -155,9 +161,11 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
   return (
     <div className="h-14 bg-slate-800 border-b border-slate-700/50 flex items-center px-3 gap-3 select-none">
-      <IconButton title="Menu" onClick={onOpenMenu}>
-        <FaBars />
-      </IconButton>
+      <div className="md:hidden">
+        <IconButton title="Menu" onClick={onOpenMenu}>
+          <FaBars />
+        </IconButton>
+      </div>
       <div className="hidden md:flex items-center gap-2">
         <IconButton title="New game (Ctrl+N)" onClick={onNewGame}>
           <FaPlus />
@@ -169,20 +177,22 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <FaFolderOpen />
         </IconButton>
       </div>
-      <IconButton
-        title={isLibraryOpen ? 'Hide library (Ctrl+L)' : 'Show library (Ctrl+L)'}
-        onClick={onToggleLibrary}
-        className={isLibraryOpen ? 'text-emerald-300' : undefined}
-      >
-        <FaBook />
-      </IconButton>
-      <IconButton
-        title={isSidebarOpen ? 'Hide sidebar (Ctrl+B)' : 'Show sidebar (Ctrl+B)'}
-        onClick={onToggleSidebar}
-        className={isSidebarOpen ? 'text-emerald-300' : undefined}
-      >
-        <FaColumns />
-      </IconButton>
+      <div className="hidden md:flex items-center gap-2">
+        <IconButton
+          title={isLibraryOpen ? 'Hide library (Ctrl+L)' : 'Show library (Ctrl+L)'}
+          onClick={onToggleLibrary}
+          className={isLibraryOpen ? 'text-emerald-300' : undefined}
+        >
+          <FaBook />
+        </IconButton>
+        <IconButton
+          title={isSidebarOpen ? 'Hide sidebar (Ctrl+B)' : 'Show sidebar (Ctrl+B)'}
+          onClick={onToggleSidebar}
+          className={isSidebarOpen ? 'text-emerald-300' : undefined}
+        >
+          <FaColumns />
+        </IconButton>
+      </div>
       <div className="hidden md:flex items-center gap-2">
         <IconButton title="Copy SGF (Ctrl+C)" onClick={onCopySgf}>
           <FaCopy />
@@ -297,6 +307,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         >
           <FaChevronLeft />
         </IconButton>
+        <div className="hidden md:flex items-center gap-2">
+          <IconButton title="Settings (F8)" onClick={onSettings}>
+            <FaCog />
+          </IconButton>
+          <IconButton title="Keyboard shortcuts (?)" onClick={onKeyboardHelp}>
+            <FaKeyboard />
+          </IconButton>
+        </div>
         <div className="relative" data-menu-popover>
           <button
             type="button"

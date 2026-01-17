@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaBook, FaColumns, FaCopy, FaPaste, FaKeyboard } from 'react-icons/fa';
+import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard } from 'react-icons/fa';
 
 interface MenuDrawerProps {
   open: boolean;
@@ -9,17 +9,10 @@ interface MenuDrawerProps {
   onLoad: () => void;
   onCopy: () => void;
   onPaste: () => void;
-  onToggleLibrary: () => void;
-  isLibraryOpen: boolean;
-  onToggleSidebar: () => void;
-  isSidebarOpen: boolean;
   onSettings: () => void;
   onKeyboardHelp: () => void;
   recentItems?: Array<{ id: string; name: string; updatedAt: number; sgf: string }>;
   onOpenRecent?: (sgf: string) => void;
-  isAiWhite: boolean;
-  isAiBlack: boolean;
-  onToggleAi: (color: 'white' | 'black') => void;
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -30,17 +23,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onLoad,
   onCopy,
   onPaste,
-  onToggleLibrary,
-  isLibraryOpen,
-  onToggleSidebar,
-  isSidebarOpen,
   onSettings,
   onKeyboardHelp,
   recentItems = [],
   onOpenRecent,
-  isAiWhite,
-  isAiBlack,
-  onToggleAi,
 }) => {
   if (!open) return null;
 
@@ -59,7 +45,9 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           </button>
         </div>
 
-        <nav className="space-y-1" aria-label="Main menu">
+        <nav className="space-y-4" aria-label="Main menu">
+          <div>
+            <div className="px-3 text-xs uppercase tracking-wide text-slate-500 mb-2">Game</div>
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
             onClick={() => {
@@ -89,32 +77,6 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
             onClick={() => {
-              onCopy();
-              onClose();
-            }}
-            aria-label="Copy SGF, keyboard shortcut Control plus C"
-          >
-            <span className="flex items-center gap-2">
-              <FaCopy aria-hidden="true" /> Copy SGF
-            </span>
-            <kbd className="text-xs text-slate-400">Ctrl+C</kbd>
-          </button>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
-            onClick={() => {
-              onPaste();
-              onClose();
-            }}
-            aria-label="Paste SGF or OGS URL, keyboard shortcut Control plus V"
-          >
-            <span className="flex items-center gap-2">
-              <FaPaste aria-hidden="true" /> Paste SGF / OGS
-            </span>
-            <kbd className="text-xs text-slate-400">Ctrl+V</kbd>
-          </button>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
-            onClick={() => {
               onLoad();
               onClose();
             }}
@@ -125,32 +87,38 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             </span>
             <kbd className="text-xs text-slate-400">Ctrl+O</kbd>
           </button>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
-            onClick={() => {
-              onToggleLibrary();
-              onClose();
-            }}
-            aria-label="Toggle Library panel, keyboard shortcut Control plus L"
-          >
-            <span className="flex items-center gap-2">
-              <FaBook aria-hidden="true" /> {isLibraryOpen ? 'Hide Library' : 'Show Library'}
-            </span>
-            <kbd className="text-xs text-slate-400">Ctrl+L</kbd>
-          </button>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
-            onClick={() => {
-              onToggleSidebar();
-              onClose();
-            }}
-            aria-label="Toggle sidebar"
-          >
-            <span className="flex items-center gap-2">
-              <FaColumns aria-hidden="true" /> {isSidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
-            </span>
-            <kbd className="text-xs text-slate-400">Ctrl+B</kbd>
-          </button>
+          </div>
+          <div>
+            <div className="px-3 text-xs uppercase tracking-wide text-slate-500 mb-2">Edit</div>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+              onClick={() => {
+                onCopy();
+                onClose();
+              }}
+              aria-label="Copy SGF, keyboard shortcut Control plus C"
+            >
+              <span className="flex items-center gap-2">
+                <FaCopy aria-hidden="true" /> Copy SGF
+              </span>
+              <kbd className="text-xs text-slate-400">Ctrl+C</kbd>
+            </button>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+              onClick={() => {
+                onPaste();
+                onClose();
+              }}
+              aria-label="Paste SGF or OGS URL, keyboard shortcut Control plus V"
+            >
+              <span className="flex items-center gap-2">
+                <FaPaste aria-hidden="true" /> Paste SGF / OGS
+              </span>
+              <kbd className="text-xs text-slate-400">Ctrl+V</kbd>
+            </button>
+          </div>
+          <div>
+            <div className="px-3 text-xs uppercase tracking-wide text-slate-500 mb-2">Settings</div>
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
             onClick={() => {
@@ -177,6 +145,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             </span>
             <kbd className="text-xs text-slate-400">?</kbd>
           </button>
+          </div>
         </nav>
 
         {recentItems.length > 0 && onOpenRecent && (
@@ -202,33 +171,6 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           </div>
         )}
 
-        <div className="mt-4 border-t border-slate-700/50 pt-3 space-y-2">
-          <div className="text-xs text-slate-400" id="ai-toggle-label">Play vs AI</div>
-          <div className="flex gap-2" role="group" aria-labelledby="ai-toggle-label">
-            <button
-              className={[
-                'flex-1 px-3 py-2 rounded-lg text-sm font-medium',
-                isAiWhite ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/30',
-              ].join(' ')}
-              onClick={() => onToggleAi('white')}
-              aria-label={isAiWhite ? 'Disable White AI' : 'Enable White AI'}
-              aria-pressed={isAiWhite}
-            >
-              White AI
-            </button>
-            <button
-              className={[
-                'flex-1 px-3 py-2 rounded-lg text-sm font-medium',
-                isAiBlack ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/30',
-              ].join(' ')}
-              onClick={() => onToggleAi('black')}
-              aria-label={isAiBlack ? 'Disable Black AI' : 'Enable Black AI'}
-              aria-pressed={isAiBlack}
-            >
-              Black AI
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -816,8 +816,6 @@ export const Layout: React.FC = () => {
     for (let i = 0; i < n; i++) navigateForward();
   };
 
-  const isAiBlack = isAiPlaying && aiColor === 'black';
-  const isAiWhite = isAiPlaying && aiColor === 'white';
   const sidebarOpen = isMobile ? rightPanelOpen : showSidebar;
 
   return (
@@ -856,22 +854,15 @@ export const Layout: React.FC = () => {
       )}
 
       <MenuDrawer
-        open={menuOpen}
+        open={menuOpen && isMobile}
         onClose={() => setMenuOpen(false)}
         onNewGame={() => setIsNewGameOpen(true)}
         onSave={() => downloadSgfFromTree(rootNode, sgfExportOptions)}
         onLoad={handleLoadClick}
         onCopy={handleCopySgf}
         onPaste={handlePasteSgf}
-        onToggleLibrary={handleToggleLibrary}
-        isLibraryOpen={libraryOpen}
-        onToggleSidebar={handleToggleSidebar}
-        isSidebarOpen={sidebarOpen}
         onSettings={() => setIsSettingsOpen(true)}
         onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-        isAiWhite={isAiWhite}
-        isAiBlack={isAiBlack}
-        onToggleAi={toggleAi}
         recentItems={recentLibraryItems}
         onOpenRecent={handleOpenRecent}
       />
@@ -961,17 +952,19 @@ export const Layout: React.FC = () => {
           onSave={() => downloadSgfFromTree(rootNode, sgfExportOptions)}
           onLoad={handleLoadClick}
           onOpenSidePanel={handleOpenSidePanel}
-          onToggleLibrary={handleToggleLibrary}
-          isLibraryOpen={libraryOpen}
-          onToggleSidebar={handleToggleSidebar}
-          isSidebarOpen={sidebarOpen}
-          onCopySgf={handleCopySgf}
-          onPasteSgf={handlePasteSgf}
-          winRateLabel={winRateLabel}
-          scoreLeadLabel={scoreLeadLabel}
-          pointsLostLabel={pointsLostLabel}
-          engineMeta={engineMeta}
-          engineMetaTitle={engineMetaTitle}
+        onToggleLibrary={handleToggleLibrary}
+        isLibraryOpen={libraryOpen}
+        onToggleSidebar={handleToggleSidebar}
+        isSidebarOpen={sidebarOpen}
+        onCopySgf={handleCopySgf}
+        onPasteSgf={handlePasteSgf}
+        onSettings={() => setIsSettingsOpen(true)}
+        onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
+        winRateLabel={winRateLabel}
+        scoreLeadLabel={scoreLeadLabel}
+        pointsLostLabel={pointsLostLabel}
+        engineMeta={engineMeta}
+        engineMetaTitle={engineMetaTitle}
           engineError={engineError}
         />
 
