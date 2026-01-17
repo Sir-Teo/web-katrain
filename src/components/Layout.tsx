@@ -754,6 +754,7 @@ export const Layout: React.FC = () => {
         onToggleSidebar={handleToggleSidebar}
         isSidebarOpen={sidebarOpen}
         onSettings={() => setIsSettingsOpen(true)}
+        onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
         isAiWhite={isAiWhite}
         isAiBlack={isAiBlack}
         onToggleAi={toggleAi}

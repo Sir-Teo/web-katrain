@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaBook, FaColumns, FaCopy, FaPaste } from 'react-icons/fa';
+import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaBook, FaColumns, FaCopy, FaPaste, FaKeyboard } from 'react-icons/fa';
 
 interface MenuDrawerProps {
   open: boolean;
@@ -14,6 +14,7 @@ interface MenuDrawerProps {
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
   onSettings: () => void;
+  onKeyboardHelp: () => void;
   isAiWhite: boolean;
   isAiBlack: boolean;
   onToggleAi: (color: 'white' | 'black') => void;
@@ -32,6 +33,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onToggleSidebar,
   isSidebarOpen,
   onSettings,
+  onKeyboardHelp,
   isAiWhite,
   isAiBlack,
   onToggleAi,
@@ -157,6 +159,19 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <FaCog aria-hidden="true" /> Settings
             </span>
             <kbd className="text-xs text-slate-400">F8</kbd>
+          </button>
+          <button
+            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+            onClick={() => {
+              onKeyboardHelp();
+              onClose();
+            }}
+            aria-label="Open keyboard shortcuts"
+          >
+            <span className="flex items-center gap-2">
+              <FaKeyboard aria-hidden="true" /> Keyboard Shortcuts
+            </span>
+            <kbd className="text-xs text-slate-400">?</kbd>
           </button>
         </nav>
 
