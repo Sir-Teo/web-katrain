@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
@@ -10,6 +10,8 @@ import { AnalysisPanel } from './AnalysisPanel';
 import { NewGameModal } from './NewGameModal';
 import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
+import type { LibraryFile } from '../utils/library';
+import { loadLibrary } from '../utils/library';
 import { loadSgfOrOgs } from '../utils/ogs';
 import { BOARD_SIZE, type CandidateMove, type GameNode, type Player } from '../types';
 import { parseGtpMove } from '../lib/gtp';
@@ -225,6 +227,9 @@ export const Layout: React.FC = () => {
   });
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingRight, setIsResizingRight] = useState(false);
+  const [libraryVersion, setLibraryVersion] = useState(0);
+  const [isFileDragActive, setIsFileDragActive] = useState(false);
+  const fileDragCounter = useRef(0);
 
   const mode = uiState.mode;
   const modeControls = uiState.analysisControls[mode];
@@ -695,6 +700,10 @@ export const Layout: React.FC = () => {
       text = window.prompt('Paste SGF here:') ?? null;
     }
     if (!text) return;
+    await handleOpenSgfFromText(text);
+  };
+
+  const handleOpenSgfFromText = async (text: string) => {
     try {
       const result = await loadSgfOrOgs(text);
       if (!result.sgf.trim()) return;
@@ -704,11 +713,82 @@ export const Layout: React.FC = () => {
       const parsed = parseSgf(result.sgf);
       loadGame(parsed);
       navigateEnd();
-      toast('Loaded SGF from clipboard.', 'success');
+      toast('Loaded SGF.', 'success');
     } catch {
       toast('Failed to load SGF or OGS URL.', 'error');
     }
   };
+
+  const handleOpenRecent = async (sgfText: string) => {
+    await handleOpenSgfFromText(sgfText);
+  };
+
+  const handleLibraryUpdated = useCallback(() => {
+    setLibraryVersion((prev) => prev + 1);
+  }, []);
+
+  const isFileDragEvent = (event: React.DragEvent) =>
+    Array.from(event.dataTransfer?.types ?? []).includes('Files');
+
+  const isDragOverLibrary = (target: EventTarget | null) => {
+    if (!target || !(target instanceof HTMLElement)) return false;
+    return Boolean(target.closest('[data-dropzone=\"library\"]'));
+  };
+
+  const handleAppDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!isFileDragEvent(event) || isDragOverLibrary(event.target)) return;
+    event.preventDefault();
+    fileDragCounter.current += 1;
+    setIsFileDragActive(true);
+  };
+
+  const handleAppDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isDragOverLibrary(event.target)) return;
+    fileDragCounter.current = Math.max(0, fileDragCounter.current - 1);
+    if (fileDragCounter.current === 0) {
+      setIsFileDragActive(false);
+    }
+  };
+
+  const handleAppDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!isFileDragEvent(event) || isDragOverLibrary(event.target)) return;
+    event.preventDefault();
+  };
+
+  const handleAppDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented) {
+      fileDragCounter.current = 0;
+      setIsFileDragActive(false);
+      return;
+    }
+    if (!isFileDragEvent(event) || isDragOverLibrary(event.target)) {
+      fileDragCounter.current = 0;
+      setIsFileDragActive(false);
+      return;
+    }
+    event.preventDefault();
+    fileDragCounter.current = 0;
+    setIsFileDragActive(false);
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.sgf')) {
+      toast('Only SGF files can be opened here.', 'error');
+      return;
+    }
+    try {
+      const text = await file.text();
+      await handleOpenSgfFromText(text);
+    } catch {
+      toast('Failed to read the dropped SGF file.', 'error');
+    }
+  };
+
+  const recentLibraryItems = useMemo<LibraryFile[]>(() => {
+    return loadLibrary()
+      .filter((item): item is LibraryFile => item.type === 'file')
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 6);
+  }, [libraryOpen, libraryVersion]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -741,7 +821,13 @@ export const Layout: React.FC = () => {
   const sidebarOpen = isMobile ? rightPanelOpen : showSidebar;
 
   return (
-    <div className="flex h-screen bg-slate-900 text-slate-200 font-sans overflow-hidden">
+    <div
+      className="relative flex h-screen bg-slate-900 text-slate-200 font-sans overflow-hidden"
+      onDragEnter={handleAppDragEnter}
+      onDragLeave={handleAppDragLeave}
+      onDragOver={handleAppDragOver}
+      onDrop={handleAppDrop}
+    >
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
       {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
       {isGameReportOpen && <GameReportModal onClose={() => setIsGameReportOpen(false)} />}
@@ -760,6 +846,15 @@ export const Layout: React.FC = () => {
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".sgf" />
 
+      {isFileDragActive && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm pointer-events-none">
+          <div className="rounded-xl border-2 border-dashed border-emerald-400/60 px-6 py-4 text-center bg-slate-900/70">
+            <div className="text-sm font-semibold text-emerald-100">Drop SGF to open</div>
+            <div className="text-xs text-slate-300">Release to load the game in the board.</div>
+          </div>
+        </div>
+      )}
+
       <MenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -777,6 +872,8 @@ export const Layout: React.FC = () => {
         isAiWhite={isAiWhite}
         isAiBlack={isAiBlack}
         onToggleAi={toggleAi}
+        recentItems={recentLibraryItems}
+        onOpenRecent={handleOpenRecent}
       />
 
       <LibraryPanel
@@ -788,6 +885,8 @@ export const Layout: React.FC = () => {
         onLoadSgf={handleLoadFromLibrary}
         onToast={toast}
         isMobile={isMobile}
+        onOpenRecent={handleOpenRecent}
+        onLibraryUpdated={handleLibraryUpdated}
         analysisContent={
           isDesktop ? (
             <AnalysisPanel

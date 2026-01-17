@@ -23,6 +23,8 @@ interface LibraryPanelProps {
   getCurrentSgf: () => string;
   onLoadSgf: (sgf: string) => void;
   onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
+  onOpenRecent?: (sgf: string) => void;
+  onLibraryUpdated?: () => void;
 }
 
 export const LibraryPanel: React.FC<LibraryPanelProps> = ({
@@ -35,6 +37,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   getCurrentSgf,
   onLoadSgf,
   onToast,
+  onOpenRecent,
+  onLibraryUpdated,
 }) => {
   const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
   const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
@@ -171,6 +175,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:library_graph_opts:v1', JSON.stringify(graphOptions));
   }, [graphOptions]);
+
+  useEffect(() => {
+    onLibraryUpdated?.();
+  }, [items, onLibraryUpdated]);
 
   useEffect(() => {
     if (!isResizingGraph) return;
@@ -698,6 +706,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={onClose} />
       <div
         ref={panelRef}
+        data-dropzone="library"
         className={[
           'bg-slate-900 border-r border-slate-700/50 flex flex-col',
           'fixed inset-y-0 left-0 z-40 w-full max-w-sm',
@@ -958,7 +967,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                       {recentFiles.length === 0 ? (
                         <div className="px-3 py-2 text-xs text-slate-500">No recent files.</div>
                       ) : (
-                        recentFiles.map((item) => renderFileRow(item, 0))
+                        recentFiles.map((item) =>
+                          onOpenRecent ? (
+                            <div key={item.id} onClick={() => onOpenRecent(item.sgf)}>
+                              {renderFileRow(item, 0)}
+                            </div>
+                          ) : (
+                            renderFileRow(item, 0)
+                          )
+                        )
                       )}
                     </div>
                   )}

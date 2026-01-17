@@ -15,6 +15,8 @@ interface MenuDrawerProps {
   isSidebarOpen: boolean;
   onSettings: () => void;
   onKeyboardHelp: () => void;
+  recentItems?: Array<{ id: string; name: string; updatedAt: number; sgf: string }>;
+  onOpenRecent?: (sgf: string) => void;
   isAiWhite: boolean;
   isAiBlack: boolean;
   onToggleAi: (color: 'white' | 'black') => void;
@@ -34,6 +36,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   isSidebarOpen,
   onSettings,
   onKeyboardHelp,
+  recentItems = [],
+  onOpenRecent,
   isAiWhite,
   isAiBlack,
   onToggleAi,
@@ -174,6 +178,29 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <kbd className="text-xs text-slate-400">?</kbd>
           </button>
         </nav>
+
+        {recentItems.length > 0 && onOpenRecent && (
+          <div className="mt-4 border-t border-slate-700/50 pt-3 space-y-2">
+            <div className="text-xs text-slate-400">Recent</div>
+            <div className="space-y-1">
+              {recentItems.map((item) => (
+                <button
+                  key={item.id}
+                  className="w-full text-left px-3 py-2 rounded hover:bg-slate-700 text-sm text-slate-200"
+                  onClick={() => {
+                    onOpenRecent(item.sgf);
+                    onClose();
+                  }}
+                >
+                  <div className="truncate">{item.name}</div>
+                  <div className="text-[11px] text-slate-500">
+                    {new Date(item.updatedAt).toLocaleString()}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 border-t border-slate-700/50 pt-3 space-y-2">
           <div className="text-xs text-slate-400" id="ai-toggle-label">Play vs AI</div>
