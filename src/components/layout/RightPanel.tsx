@@ -155,6 +155,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
   const rootProps = rootNode.properties ?? {};
   const getProp = (key: string) => rootProps[key]?.[0] ?? '';
+  const blackName = getProp('PB') || 'Black';
+  const whiteName = getProp('PW') || 'White';
+  const blackRank = getProp('BR');
+  const whiteRank = getProp('WR');
 
   const pathNodes = React.useMemo(() => {
     const nodes: GameNode[] = [];
@@ -263,6 +267,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     const isTurn = currentPlayer === player;
     const isAi = isAiPlaying && aiColor === player;
     const caps = player === 'black' ? capturedWhite : capturedBlack;
+    const name = player === 'black' ? blackName : whiteName;
+    const rank = player === 'black' ? blackRank : whiteRank;
 
     return (
       <div
@@ -276,13 +282,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             'h-10 w-10 rounded-full flex items-center justify-center font-bold shadow-md',
             player === 'black' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900',
           ].join(' ')}
-          title={player === 'black' ? 'Black' : 'White'}
+          title={player === 'black' ? blackName : whiteName}
         >
           {caps}
         </div>
         <div className="flex flex-col leading-tight">
-          <div className="text-xs text-slate-400">{player === 'black' ? 'Black' : 'White'}</div>
-          <div className="text-sm font-semibold text-slate-100">{isAi ? 'AI' : 'Human'}</div>
+          <div className="text-xs text-slate-300">{name}</div>
+          <div className="text-[11px] text-slate-500">{rank || (player === 'black' ? 'Black' : 'White')}</div>
+          <div className="text-[11px] text-slate-400">{isAi ? 'AI' : 'Human'}</div>
         </div>
         {isTurn && <div className="ml-auto text-xs font-mono text-emerald-400">to play</div>}
       </div>
