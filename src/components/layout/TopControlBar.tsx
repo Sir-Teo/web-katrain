@@ -4,16 +4,12 @@ import {
   FaChevronDown,
   FaChevronLeft,
   FaCopy,
-  FaExpand,
-  FaCompress,
   FaVolumeUp,
   FaVolumeMute,
   FaPaste,
   FaSlidersH,
   FaRobot,
   FaPlay,
-  FaSave,
-  FaFolderOpen,
   FaPlus,
   FaStop,
   FaSyncAlt,
@@ -64,8 +60,6 @@ interface TopControlBarProps {
   // Menu callbacks
   onOpenMenu: () => void;
   onNewGame: () => void;
-  onSave: () => void;
-  onLoad: () => void;
   onOpenSidePanel: () => void;
   onCopySgf: () => void;
   onPasteSgf: () => void;
@@ -114,8 +108,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   setIsGameReportOpen,
   onOpenMenu,
   onNewGame,
-  onSave,
-  onLoad,
   onOpenSidePanel,
   onCopySgf,
   onPasteSgf,
@@ -128,6 +120,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   engineMetaTitle,
   engineError,
 }) => {
+  const topIconClass = 'h-9 w-9';
   const [isFullscreen, setIsFullscreen] = React.useState(() => {
     if (typeof document === 'undefined') return false;
     return !!document.fullscreenElement;
@@ -150,54 +143,26 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   };
 
   return (
-    <div className="h-14 bg-slate-800 border-b border-slate-700/50 flex items-center px-2 sm:px-3 gap-1.5 sm:gap-2 select-none">
+    <div className="min-h-14 bg-slate-800 border-b border-slate-700/50 flex flex-wrap items-center px-2 sm:px-3 py-2 gap-1.5 sm:gap-2 gap-y-2 select-none">
       {/* Mobile menu */}
       <div className="md:hidden">
-        <IconButton title="Menu" onClick={onOpenMenu}>
+        <IconButton title="Menu" onClick={onOpenMenu} className={topIconClass}>
           <FaBars />
         </IconButton>
       </div>
 
-      {/* File operations */}
+      {/* New game */}
       <div className="hidden md:flex items-center gap-1.5">
-        <IconButton title="New game (Ctrl+N)" onClick={onNewGame}>
+        <IconButton title="New game (Ctrl+N)" onClick={onNewGame} className={topIconClass}>
           <FaPlus />
-        </IconButton>
-        <IconButton title="Save SGF (Ctrl+S)" onClick={onSave}>
-          <FaSave />
-        </IconButton>
-        <IconButton title="Load SGF (Ctrl+O)" onClick={onLoad}>
-          <FaFolderOpen />
         </IconButton>
       </div>
 
       {/* Divider */}
       <div className="hidden md:block h-6 w-px bg-slate-700/60" />
 
-      {/* Utilities */}
-      <div className="hidden lg:flex items-center gap-1.5">
-        <IconButton title="Copy SGF (Ctrl+C)" onClick={onCopySgf}>
-          <FaCopy />
-        </IconButton>
-        <IconButton title="Paste SGF / OGS (Ctrl+V)" onClick={onPasteSgf}>
-          <FaPaste />
-        </IconButton>
-        <IconButton title={isFullscreen ? 'Exit fullscreen (F)' : 'Enter fullscreen (F)'} onClick={toggleFullscreen}>
-          {isFullscreen ? <FaCompress /> : <FaExpand />}
-        </IconButton>
-        <IconButton
-          title={settings.soundEnabled ? 'Mute sounds' : 'Enable sounds'}
-          onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
-        >
-          {settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />}
-        </IconButton>
-      </div>
-
-      {/* Divider */}
-      <div className="hidden lg:block h-6 w-px bg-slate-700/60" />
-
       {/* Analysis toggles */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+      <div className="order-last xl:order-none w-full xl:w-auto flex items-center gap-1 flex-wrap">
         <TogglePill
           label="Children"
           shortcut="Q"
@@ -231,7 +196,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         />
       </div>
 
-      <div className="flex-grow" />
+      <div className="hidden xl:block flex-grow" />
 
       {/* Engine status */}
       <EngineStatusBadge
@@ -288,22 +253,22 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         <IconButton
           title="Open side panel"
           onClick={onOpenSidePanel}
-          className="lg:hidden"
+          className={[topIconClass, 'lg:hidden'].join(' ')}
         >
           <FaChevronLeft />
         </IconButton>
         <div className="hidden md:flex items-center gap-1.5">
-          <IconButton title="Settings (F8)" onClick={onSettings}>
+          <IconButton title="Settings (F8)" onClick={onSettings} className={topIconClass}>
             <FaCog />
           </IconButton>
-          <IconButton title="Keyboard shortcuts (?)" onClick={onKeyboardHelp}>
+          <IconButton title="Keyboard shortcuts (?)" onClick={onKeyboardHelp} className={topIconClass}>
             <FaKeyboard />
           </IconButton>
         </div>
         <div className="relative" data-menu-popover>
           <button
             type="button"
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 flex items-center gap-1.5 text-sm font-medium transition-colors"
+            className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-slate-800/50 border border-slate-700/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 flex items-center gap-1.5 text-sm font-medium transition-colors"
             onClick={() => setViewMenuOpen(!viewMenuOpen)}
             title="View options"
           >
@@ -317,6 +282,24 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               >
                 <span>Fullscreen</span>
                 <span className="text-xs text-slate-400">{isFullscreen ? 'on' : 'off'}</span>
+              </button>
+              <button
+                className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
+                onClick={onCopySgf}
+              >
+                <span className="flex items-center gap-2">
+                  <FaCopy /> Copy SGF
+                </span>
+                <span className="text-xs text-slate-400">Ctrl+C</span>
+              </button>
+              <button
+                className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
+                onClick={onPasteSgf}
+              >
+                <span className="flex items-center gap-2">
+                  <FaPaste /> Paste SGF / OGS
+                </span>
+                <span className="text-xs text-slate-400">Ctrl+V</span>
               </button>
               <button
                 className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
@@ -350,7 +333,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                 className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                 onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
               >
-                <span>Sound</span>
+                <span className="flex items-center gap-2">
+                  {settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />} Sound
+                </span>
                 <span className="text-xs text-slate-400">{settings.soundEnabled ? 'on' : 'off'}</span>
               </button>
               <div className="border-t border-slate-700/50 px-3 py-2">
@@ -371,7 +356,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         <button
           type="button"
           className={[
-            'px-2.5 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors',
+            'px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 text-sm font-medium flex items-center gap-1.5 transition-colors',
             isAnalysisMode
               ? 'bg-blue-600/30 border border-blue-500/50 text-blue-200 shadow-sm shadow-blue-500/10'
               : 'bg-slate-800/50 border border-slate-700/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200',
@@ -386,7 +371,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         <div className="relative" data-menu-popover>
           <button
             type="button"
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 flex items-center gap-1.5 text-sm font-medium transition-colors"
+            className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-slate-800/50 border border-slate-700/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 flex items-center gap-1.5 text-sm font-medium transition-colors"
             onClick={() => setAnalysisMenuOpen(!analysisMenuOpen)}
             title="Analysis actions"
           >
