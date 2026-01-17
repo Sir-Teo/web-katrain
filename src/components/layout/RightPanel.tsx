@@ -151,11 +151,26 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     return { analyzed, total };
   }, [rootNode, treeVersion]);
 
+  const pathNodes = React.useMemo(() => {
+    const nodes: GameNode[] = [];
+    let node: GameNode | null = currentNode;
+    while (node) {
+      nodes.push(node);
+      node = node.parent;
+    }
+    return nodes.reverse();
+  }, [currentNode]);
+
   const [treeHeight, setTreeHeight] = React.useState(() => {
     if (typeof localStorage === 'undefined') return 180;
     const raw = localStorage.getItem('web-katrain:tree_height:v1');
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
     return Number.isFinite(parsed) ? parsed : 180;
+  });
+  const [treeView, setTreeView] = React.useState<'tree' | 'list'>(() => {
+    if (typeof localStorage === 'undefined') return 'tree';
+    const raw = localStorage.getItem('web-katrain:tree_view:v1');
+    return raw === 'list' ? 'list' : 'tree';
   });
   const treeResizeRef = React.useRef<{ startY: number; startHeight: number } | null>(null);
   const [isResizingTree, setIsResizingTree] = React.useState(false);
@@ -164,6 +179,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:tree_height:v1', String(treeHeight));
   }, [treeHeight]);
+
+  React.useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:tree_view:v1', treeView);
+  }, [treeView]);
 
   React.useEffect(() => {
     if (!isResizingTree) return;
@@ -296,6 +316,34 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               title="Game Tree"
               open={modePanels.treeOpen}
               onToggle={() => updatePanels({ treeOpen: !modePanels.treeOpen })}
+              actions={
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={[
+                      'px-2 py-1 rounded text-xs font-semibold border',
+                      treeView === 'tree'
+                        ? 'bg-slate-700 text-white border-slate-600'
+                        : 'bg-slate-900 text-slate-400 border-slate-700/50 hover:bg-slate-700 hover:text-white',
+                    ].join(' ')}
+                    onClick={() => setTreeView('tree')}
+                  >
+                    Tree
+                  </button>
+                  <button
+                    type="button"
+                    className={[
+                      'px-2 py-1 rounded text-xs font-semibold border',
+                      treeView === 'list'
+                        ? 'bg-slate-700 text-white border-slate-600'
+                        : 'bg-slate-900 text-slate-400 border-slate-700/50 hover:bg-slate-700 hover:text-white',
+                    ].join(' ')}
+                    onClick={() => setTreeView('list')}
+                  >
+                    List
+                  </button>
+                </div>
+              }
             />
             {modePanels.treeOpen && (
               <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded overflow-hidden">
@@ -360,8 +408,49 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     Make main
                   </button>
                 </div>
-                <div style={{ height: treeHeight }}>
-                  <MoveTree />
+                <div style={{ height: treeHeight }} className="overflow-y-auto">
+                  {treeView === 'tree' ? (
+                    <MoveTree />
+                  ) : (
+                    <div className="divide-y divide-slate-800">
+                      {pathNodes.map((node, idx) => {
+                        const move = node.move;
+                        const isCurrent = node.id === currentNode.id;
+                        const label = move ? formatMoveLabel(move.x, move.y) : 'Root';
+                        const player = move ? playerToShort(move.player) : '—';
+                        const hasNote = !!node.note?.trim();
+                        return (
+                          <button
+                            key={node.id}
+                            type="button"
+                            className={[
+                              'w-full px-3 py-2 flex items-center gap-3 text-left',
+                              isCurrent ? 'bg-emerald-500/10 text-emerald-100' : 'hover:bg-slate-800/60 text-slate-200',
+                            ].join(' ')}
+                            onClick={() => guardInsertMode(() => useGameStore.getState().jumpToNode(node))}
+                            disabled={isInsertMode}
+                            title={isInsertMode ? 'Finish inserting before navigating.' : 'Jump to move'}
+                          >
+                            <span className="w-12 text-xs font-mono text-slate-500">
+                              {idx === 0 ? 'Root' : idx}
+                            </span>
+                            <span
+                              className={[
+                                'text-xs font-mono px-1.5 py-0.5 rounded',
+                                move?.player === 'black' ? 'bg-slate-950 text-white' : 'bg-slate-200 text-slate-900',
+                              ].join(' ')}
+                            >
+                              {player}
+                            </span>
+                            <span className="text-sm font-medium">{label}</span>
+                            {hasNote && (
+                              <span className="ml-auto text-[10px] uppercase tracking-wide text-amber-300">note</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div
                   className="hidden lg:block h-1 cursor-row-resize bg-slate-800/70 hover:bg-slate-600/80 transition-colors"
