@@ -6,6 +6,10 @@ import {
   FaChevronLeft,
   FaColumns,
   FaCopy,
+  FaExpand,
+  FaCompress,
+  FaVolumeUp,
+  FaVolumeMute,
   FaPaste,
   FaSlidersH,
   FaRobot,
@@ -118,6 +122,15 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     return () => document.removeEventListener('fullscreenchange', handle);
   }, []);
 
+  const toggleFullscreen = () => {
+    if (typeof document === 'undefined') return;
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
   return (
     <div className="h-14 bg-slate-800 border-b border-slate-700/50 flex items-center px-3 gap-3 select-none">
       <IconButton title="Menu" onClick={onOpenMenu}>
@@ -143,6 +156,15 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         </IconButton>
         <IconButton title="Paste SGF / OGS (Ctrl+V)" onClick={onPasteSgf}>
           <FaPaste />
+        </IconButton>
+        <IconButton title={isFullscreen ? 'Exit fullscreen (F)' : 'Enter fullscreen (F)'} onClick={toggleFullscreen}>
+          {isFullscreen ? <FaCompress /> : <FaExpand />}
+        </IconButton>
+        <IconButton
+          title={settings.soundEnabled ? 'Mute sounds' : 'Enable sounds'}
+          onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
+        >
+          {settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />}
         </IconButton>
       </div>
 
@@ -221,14 +243,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <div className="absolute right-0 top-full mt-2 w-56 bg-slate-800 border border-slate-700/50 rounded shadow-xl overflow-hidden z-50">
               <button
                 className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
-                onClick={() => {
-                  if (typeof document === 'undefined') return;
-                  if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen?.().catch(() => {});
-                  } else {
-                    document.exitFullscreen?.().catch(() => {});
-                  }
-                }}
+                onClick={toggleFullscreen}
               >
                 <span>Fullscreen</span>
                 <span className="text-xs text-slate-400">{isFullscreen ? 'on' : 'off'}</span>
