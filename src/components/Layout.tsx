@@ -814,6 +814,9 @@ export const Layout: React.FC = () => {
           setIsGameAnalysisOpen={setIsGameAnalysisOpen}
           setIsGameReportOpen={setIsGameReportOpen}
           onOpenMenu={() => setMenuOpen(true)}
+          onNewGame={resetGame}
+          onSave={() => downloadSgfFromTree(rootNode, sgfExportOptions)}
+          onLoad={handleLoadClick}
           onOpenSidePanel={handleOpenSidePanel}
           onToggleLibrary={handleToggleLibrary}
           isLibraryOpen={libraryOpen}

@@ -14,6 +14,9 @@ import {
   FaSlidersH,
   FaRobot,
   FaPlay,
+  FaSave,
+  FaFolderOpen,
+  FaPlus,
   FaStop,
   FaSyncAlt,
   FaTimes,
@@ -60,6 +63,9 @@ interface TopControlBarProps {
   setIsGameReportOpen: (v: boolean) => void;
   // Menu callbacks
   onOpenMenu: () => void;
+  onNewGame: () => void;
+  onSave: () => void;
+  onLoad: () => void;
   onOpenSidePanel: () => void;
   onToggleLibrary: () => void;
   isLibraryOpen: boolean;
@@ -106,6 +112,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   setIsGameAnalysisOpen,
   setIsGameReportOpen,
   onOpenMenu,
+  onNewGame,
+  onSave,
+  onLoad,
   onOpenSidePanel,
   onToggleLibrary,
   isLibraryOpen,
@@ -143,6 +152,17 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <IconButton title="Menu" onClick={onOpenMenu}>
         <FaBars />
       </IconButton>
+      <div className="hidden md:flex items-center gap-2">
+        <IconButton title="New game (Ctrl+N)" onClick={onNewGame}>
+          <FaPlus />
+        </IconButton>
+        <IconButton title="Save SGF (Ctrl+S)" onClick={onSave}>
+          <FaSave />
+        </IconButton>
+        <IconButton title="Load SGF (Ctrl+O)" onClick={onLoad}>
+          <FaFolderOpen />
+        </IconButton>
+      </div>
       <IconButton
         title={isLibraryOpen ? 'Hide library (Ctrl+L)' : 'Show library (Ctrl+L)'}
         onClick={onToggleLibrary}
