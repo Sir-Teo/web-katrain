@@ -58,6 +58,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
   });
   const [bulkMoveTarget, setBulkMoveTarget] = useState<string>('');
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dragOverRoot, setDragOverRoot] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -429,7 +432,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
   };
 
-  const handleImportFiles = async (files: FileList | null) => {
+  const handleImportFilesToFolder = async (files: FileList | null, folderId: string | null) => {
     if (!files || files.length === 0) return;
     const imported: LibraryItem[] = [];
     for (const file of Array.from(files)) {
@@ -437,7 +440,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       try {
         const text = await file.text();
         const name = file.name.replace(/\.sgf$/i, '');
-        imported.push(createLibraryItem(name, text, currentFolderId));
+        imported.push(createLibraryItem(name, text, folderId));
       } catch {
         // ignore per-file failures
       }
@@ -450,18 +453,83 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast(`Imported ${imported.length} file${imported.length > 1 ? 's' : ''}.`, 'success');
   };
 
+  const handleImportFiles = async (files: FileList | null) =>
+    handleImportFilesToFolder(files, currentFolderId);
+
   const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragging(false);
-    await handleImportFiles(event.dataTransfer.files);
+    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+      await handleImportFiles(event.dataTransfer.files);
+      return;
+    }
+    if (draggingId) {
+      setItems((prev) =>
+        prev.map((item) => (item.id === draggingId ? { ...item, parentId: null, updatedAt: Date.now() } : item))
+      );
+      setDraggingId(null);
+      setDragOverRoot(false);
+    }
   };
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    setIsDragging(true);
+    if (event.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    } else {
+      setIsDragging(false);
+    }
   };
 
   const handleDragLeave = () => setIsDragging(false);
+
+  const handleItemDragStart = (id: string) => (event: React.DragEvent<HTMLDivElement>) => {
+    event.dataTransfer.setData('text/plain', id);
+    event.dataTransfer.effectAllowed = 'move';
+    setDraggingId(id);
+  };
+
+  const handleItemDragEnd = () => {
+    setDraggingId(null);
+    setDragOverId(null);
+    setDragOverRoot(false);
+  };
+
+  const handleDropOnFolder = (folderId: string) => async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+      await handleImportFilesToFolder(event.dataTransfer.files, folderId);
+      setDragOverId(null);
+      return;
+    }
+    const id = draggingId || event.dataTransfer.getData('text/plain');
+    if (!id || id === folderId) return;
+    if (isDescendantOf(folderId, id)) return;
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, parentId: folderId, updatedAt: Date.now() } : item))
+    );
+    setDraggingId(null);
+    setDragOverId(null);
+  };
+
+  const handleRootDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    setDragOverRoot(true);
+  };
+
+  const handleRootDragLeave = () => setDragOverRoot(false);
+
+  const handleRootDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    if (!draggingId) return;
+    setItems((prev) =>
+      prev.map((item) => (item.id === draggingId ? { ...item, parentId: null, updatedAt: Date.now() } : item))
+    );
+    setDraggingId(null);
+    setDragOverRoot(false);
+  };
 
   const renderFileRow = (item: LibraryFile, depth: number) => (
     <div
@@ -472,6 +540,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       ].join(' ')}
       style={{ paddingLeft: 12 + depth * 16 }}
       onClick={() => handleLoad(item)}
+      draggable
+      onDragStart={handleItemDragStart(item.id)}
+      onDragEnd={handleItemDragEnd}
     >
       <button
         type="button"
@@ -535,12 +606,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           className={[
             'px-3 py-2 flex items-center gap-2 hover:bg-slate-800/60 cursor-pointer',
             currentFolderId === item.id ? 'bg-emerald-500/10 text-emerald-100' : '',
+            dragOverId === item.id ? 'bg-emerald-500/20' : '',
           ].join(' ')}
           style={{ paddingLeft: 12 + depth * 16 }}
           onClick={() => {
             setCurrentFolderId(item.id);
             setExpandedFolderIds((prev) => new Set(prev).add(item.id));
           }}
+          draggable
+          onDragStart={handleItemDragStart(item.id)}
+          onDragEnd={handleItemDragEnd}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes('Files')) return;
+            e.preventDefault();
+            setDragOverId(item.id);
+          }}
+          onDragLeave={() => setDragOverId(null)}
+          onDrop={handleDropOnFolder(item.id)}
         >
           <button
             type="button"
@@ -826,7 +908,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               </button>
             </div>
           )}
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div
+            className={[
+              'flex-1 min-h-0 overflow-y-auto',
+              dragOverRoot ? 'bg-emerald-500/10' : '',
+            ].join(' ')}
+            onDragOver={handleRootDragOver}
+            onDragLeave={handleRootDragLeave}
+            onDrop={handleRootDrop}
+          >
             {!listOpen ? (
               <div className="p-4 text-xs text-slate-500">Library list hidden</div>
             ) : isSearching ? (
