@@ -103,6 +103,7 @@ interface GameStore extends GameState {
   startFullGameAnalysis: (opts: { visits: number; moveRange?: [number, number] | null; mistakesOnly?: boolean }) => void;
   stopGameAnalysis: () => void;
   updateSettings: (newSettings: Partial<GameSettings>) => void;
+  setRootProperty: (key: string, value: string) => void;
   setCurrentNodeNote: (note: string) => void;
   rotateBoard: () => void;
 }
@@ -1520,6 +1521,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
         engineModelName: null,
         treeVersion: rulesChanged ? state.treeVersion + 1 : state.treeVersion,
       };
+    }),
+
+  setRootProperty: (key, value) =>
+    set((state) => {
+      state.rootNode.properties = state.rootNode.properties ?? {};
+      const trimmed = value.trim();
+      if (!trimmed) {
+        delete state.rootNode.properties[key];
+      } else {
+        state.rootNode.properties[key] = [trimmed];
+      }
+      return { rootNode: state.rootNode, treeVersion: state.treeVersion + 1 };
     }),
 
   setCurrentNodeNote: (note) =>

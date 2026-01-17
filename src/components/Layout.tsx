@@ -93,6 +93,7 @@ export const Layout: React.FC = () => {
     runAnalysis,
     settings,
     updateSettings,
+    setRootProperty,
     rootNode,
     currentPlayer,
     moveHistory,
@@ -155,6 +156,7 @@ export const Layout: React.FC = () => {
       runAnalysis: state.runAnalysis,
       settings: state.settings,
       updateSettings: state.updateSettings,
+      setRootProperty: state.setRootProperty,
       rootNode: state.rootNode,
       currentPlayer: state.currentPlayer,
       moveHistory: state.moveHistory,
@@ -908,6 +910,7 @@ export const Layout: React.FC = () => {
         undoToMainBranch={undoToMainBranch}
         makeCurrentNodeMainBranch={makeCurrentNodeMainBranch}
         isInsertMode={isInsertMode}
+        setRootProperty={setRootProperty}
         resign={resign}
         toggleAi={toggleAi}
         toast={toast}

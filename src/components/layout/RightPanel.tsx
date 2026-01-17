@@ -51,6 +51,7 @@ interface RightPanelProps {
   undoToMainBranch: () => void;
   makeCurrentNodeMainBranch: () => void;
   isInsertMode: boolean;
+  setRootProperty: (key: string, value: string) => void;
   resign: () => void;
   toggleAi: (color: Player) => void;
   toast: (msg: string, type: 'info' | 'error' | 'success') => void;
@@ -107,6 +108,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   undoToMainBranch,
   makeCurrentNodeMainBranch,
   isInsertMode,
+  setRootProperty,
   resign,
   toggleAi,
   toast,
@@ -150,6 +152,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     }
     return { analyzed, total };
   }, [rootNode, treeVersion]);
+
+  const rootProps = rootNode.properties ?? {};
+  const getProp = (key: string) => rootProps[key]?.[0] ?? '';
 
   const pathNodes = React.useMemo(() => {
     const nodes: GameNode[] = [];
@@ -520,14 +525,74 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     <span className="font-mono text-slate-100">{analysisCounts.analyzed}/{analysisCounts.total}</span>
                   </div>
                 </div>
-                {endResult && (
-                  <div className="flex items-center justify-between text-xs text-slate-300">
-                    <span className="text-slate-400">Result</span>
-                    <span className="font-mono text-slate-100">{endResult}</span>
-                  </div>
-                )}
+              {endResult && (
+                <div className="flex items-center justify-between text-xs text-slate-300">
+                  <span className="text-slate-400">Result</span>
+                  <span className="font-mono text-slate-100">{endResult}</span>
+                </div>
+              )}
 
-                <div className="flex gap-2">
+              <div className="rounded border border-slate-700/50 bg-slate-900/70 p-2">
+                <div className="text-xs text-slate-400 mb-2">Metadata</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">Black</label>
+                    <input
+                      value={getProp('PB')}
+                      onChange={(e) => setRootProperty('PB', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="Name"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">White</label>
+                    <input
+                      value={getProp('PW')}
+                      onChange={(e) => setRootProperty('PW', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="Name"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">B Rank</label>
+                    <input
+                      value={getProp('BR')}
+                      onChange={(e) => setRootProperty('BR', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="Rank"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">W Rank</label>
+                    <input
+                      value={getProp('WR')}
+                      onChange={(e) => setRootProperty('WR', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="Rank"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">Event</label>
+                    <input
+                      value={getProp('EV')}
+                      onChange={(e) => setRootProperty('EV', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="Event"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">Date</label>
+                    <input
+                      value={getProp('DT')}
+                      onChange={(e) => setRootProperty('DT', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
                   <button
                     className="flex-1 px-3 py-2 rounded-lg bg-slate-700/80 hover:bg-slate-600/80 text-sm font-medium text-slate-200"
                     onClick={() => {
