@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaTimes, FaFolderOpen, FaSave, FaTrash, FaPen, FaSearch, FaChevronDown, FaChevronRight, FaDownload, FaCheckSquare, FaSquare, FaPlus, FaArrowUp, FaChevronLeft } from 'react-icons/fa';
+import { FaTimes, FaFolderOpen, FaSave, FaTrash, FaPen, FaSearch, FaChevronDown, FaChevronRight, FaDownload, FaCheckSquare, FaSquare, FaPlus, FaArrowUp } from 'react-icons/fa';
 import {
   createLibraryFolder,
   createLibraryItem,
@@ -42,6 +42,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 }) => {
   const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
   const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
+  const ToggleLabel: React.FC<{ open: boolean; children: React.ReactNode }> = ({ open, children }) => (
+    <span className="flex items-center gap-2">
+      {open ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
+      {children}
+    </span>
+  );
   const [items, setItems] = useState<LibraryItem[]>(() => loadLibrary());
   const [query, setQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -708,7 +714,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         ref={panelRef}
         data-dropzone="library"
         className={[
-          'bg-slate-900 border-r border-slate-700/50 flex flex-col overflow-x-hidden',
+          'bg-slate-900 border-r border-slate-700/50 flex flex-col overflow-x-hidden relative',
           'fixed inset-y-0 left-0 z-40 w-full max-w-sm',
           'lg:static lg:z-auto',
           docked ? 'lg:max-w-none' : 'lg:w-80',
@@ -730,14 +736,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </button>
           <div className="font-semibold text-slate-100">Library</div>
           <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              className="hidden lg:flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-700/80 text-slate-300 hover:text-white transition-colors"
-              onClick={onClose}
-              title="Hide panel (Ctrl+L)"
-            >
-              <FaChevronLeft />
-            </button>
             <button
               type="button"
               className="px-2 py-1 rounded bg-slate-800/70 text-xs text-slate-200 hover:bg-slate-700"
@@ -863,8 +861,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               className="flex items-center gap-2 text-sm text-slate-200 font-semibold"
               onClick={() => setListOpen((prev) => !prev)}
             >
-              {listOpen ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
-              Library Items
+              <ToggleLabel open={listOpen}>Library Items</ToggleLabel>
             </button>
             <div className="flex items-center gap-2">
               {sortedItems.length > 0 && (
@@ -964,10 +961,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-200 font-semibold"
                     onClick={() => setRecentOpen((prev) => !prev)}
                   >
-                    <span className="flex items-center gap-2">
-                      {recentOpen ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
-                      Recent
-                    </span>
+                    <ToggleLabel open={recentOpen}>Recent</ToggleLabel>
                     <span className="text-xs text-slate-500">{recentFiles.length}</span>
                   </button>
                   {recentOpen && (
@@ -1009,8 +1003,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   className="flex items-center gap-2 text-sm text-slate-200 font-semibold"
                   onClick={() => setGraphOpen((prev) => !prev)}
                 >
-                  {graphOpen ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
-                  Analysis
+                  <ToggleLabel open={graphOpen}>Analysis</ToggleLabel>
                 </button>
                 {graphOpen && (
                   <div className="mt-2" style={{ height: graphHeight }}>

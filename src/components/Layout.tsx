@@ -8,7 +8,7 @@ import { GameReportModal } from './GameReportModal';
 import { KeyboardHelpModal } from './KeyboardHelpModal';
 import { AnalysisPanel } from './AnalysisPanel';
 import { NewGameModal } from './NewGameModal';
-import { FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import type { LibraryFile } from '../utils/library';
 import { loadLibrary } from '../utils/library';
@@ -33,7 +33,7 @@ import {
   loadUiState,
   saveUiState,
 } from './layout/types';
-import { rgba } from './layout/ui';
+import { PanelEdgeToggle, rgba } from './layout/ui';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 function computePointsLost(args: { currentNode: GameNode }): number | null {
@@ -628,11 +628,19 @@ export const Layout: React.FC = () => {
     }));
   };
 
-  const updatePanels = (partial: Partial<UiState['panels'][UiMode]>) => {
-    setUiState((prev) => ({
-      ...prev,
-      panels: { ...prev.panels, [prev.mode]: { ...prev.panels[prev.mode], ...partial } },
-    }));
+  const updatePanels = (
+    partial:
+      | Partial<UiState['panels'][UiMode]>
+      | ((current: UiState['panels'][UiMode]) => Partial<UiState['panels'][UiMode]>)
+  ) => {
+    setUiState((prev) => {
+      const current = prev.panels[prev.mode];
+      const nextPartial = typeof partial === 'function' ? partial(current) : partial;
+      return {
+        ...prev,
+        panels: { ...prev.panels, [prev.mode]: { ...current, ...nextPartial } },
+      };
+    });
   };
 
   const isMobile = !isDesktop;
@@ -975,30 +983,6 @@ export const Layout: React.FC = () => {
 
       {/* Main board column */}
       <div className={['flex flex-col flex-1 min-w-0 relative', isMobile ? 'pb-[68px]' : ''].join(' ')}>
-        {/* Show library button when hidden */}
-        {!libraryOpen && isDesktop && (
-          <button
-            type="button"
-            onClick={handleToggleLibrary}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-20 w-8 bg-slate-800/90 hover:bg-slate-700/90 border-r border-slate-700/50 rounded-r-lg flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-lg"
-            title="Show library (Ctrl+L)"
-          >
-            <FaChevronRight size={14} />
-          </button>
-        )}
-
-        {/* Show sidebar button when hidden */}
-        {!showSidebar && isDesktop && (
-          <button
-            type="button"
-            onClick={handleToggleSidebar}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-20 w-8 bg-slate-800/90 hover:bg-slate-700/90 border-l border-slate-700/50 rounded-l-lg flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-lg"
-            title="Show panel (Ctrl+B)"
-          >
-            <FaChevronLeft size={14} />
-          </button>
-        )}
-
         <TopControlBar
           settings={settings}
           updateControls={updateControls}
@@ -1145,6 +1129,41 @@ export const Layout: React.FC = () => {
         activeMobileTab={mobileTab}
         showAnalysisSection={!isDesktop}
       />
+
+      {isDesktop && (
+        <>
+          <div
+            className="absolute top-1/2 z-30"
+            style={
+              libraryOpen
+                ? { left: leftPanelWidth, transform: 'translate(-50%, -50%)' }
+                : { left: 0, transform: 'translate(0, -50%)' }
+            }
+          >
+            <PanelEdgeToggle
+              side="left"
+              state={libraryOpen ? 'open' : 'closed'}
+              title={libraryOpen ? 'Hide panel (Ctrl+L)' : 'Show library (Ctrl+L)'}
+              onClick={handleToggleLibrary}
+            />
+          </div>
+          <div
+            className="absolute top-1/2 z-30"
+            style={
+              showSidebar
+                ? { right: rightPanelWidth, transform: 'translate(50%, -50%)' }
+                : { right: 0, transform: 'translate(0, -50%)' }
+            }
+          >
+            <PanelEdgeToggle
+              side="right"
+              state={showSidebar ? 'open' : 'closed'}
+              title={showSidebar ? 'Hide panel (Ctrl+B)' : 'Show panel (Ctrl+B)'}
+              onClick={handleToggleSidebar}
+            />
+          </div>
+        </>
+      )}
 
       {isMobile && (
         <MobileTabBar

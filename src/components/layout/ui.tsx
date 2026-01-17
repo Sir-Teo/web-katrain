@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaChevronDown, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 export function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
   const a = typeof alphaOverride === 'number' ? alphaOverride : color[3];
@@ -190,3 +190,36 @@ export const SectionHeader: React.FC<{
     {actions ? <div className="flex items-center gap-1.5">{actions}</div> : null}
   </div>
 );
+
+export const PanelEdgeToggle: React.FC<{
+  side: 'left' | 'right';
+  state: 'open' | 'closed';
+  title: string;
+  onClick: () => void;
+  className?: string;
+}> = ({ side, state, title, onClick, className }) => {
+  const isLeft = side === 'left';
+  const isOpen = state === 'open';
+  const icon = isLeft
+    ? (isOpen ? <FaChevronLeft size={14} /> : <FaChevronRight size={14} />)
+    : (isOpen ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />);
+  const edgeClasses = isLeft
+    ? 'border-r border-slate-700/50 rounded-r-lg'
+    : 'border-l border-slate-700/50 rounded-l-lg';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className={[
+        'h-20 w-8 bg-slate-800/90 hover:bg-slate-700/90 flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-lg',
+        edgeClasses,
+        className ?? '',
+      ].join(' ')}
+    >
+      {icon}
+    </button>
+  );
+};
