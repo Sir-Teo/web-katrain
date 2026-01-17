@@ -76,6 +76,9 @@ interface TopControlBarProps {
   winRateLabel?: string | null;
   scoreLeadLabel?: string | null;
   pointsLostLabel?: string | null;
+  engineMeta?: string;
+  engineMetaTitle?: string;
+  engineError?: string | null;
 }
 
 export const TopControlBar: React.FC<TopControlBarProps> = ({
@@ -125,6 +128,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   winRateLabel,
   scoreLeadLabel,
   pointsLostLabel,
+  engineMeta,
+  engineMetaTitle,
+  engineError,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(() => {
     if (typeof document === 'undefined') return false;
@@ -230,6 +236,22 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       <div className="flex-grow" />
+
+      {engineMeta && (
+        <div
+          className={[
+            'hidden lg:flex items-center gap-2 px-2 py-1 rounded border text-xs',
+            engineError
+              ? 'bg-rose-900/30 border-rose-600/50 text-rose-200'
+              : 'bg-slate-800/60 border-slate-700/60 text-slate-300',
+          ].join(' ')}
+          title={engineMetaTitle}
+        >
+          <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
+          <span className="max-w-[240px] truncate">{engineMeta}</span>
+          {engineError && <span className="text-[10px] uppercase tracking-wide">error</span>}
+        </div>
+      )}
 
       <div className="hidden xl:flex items-center gap-2 text-xs text-slate-300">
         {winRateLabel && (

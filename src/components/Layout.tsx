@@ -827,6 +827,9 @@ export const Layout: React.FC = () => {
           winRateLabel={winRateLabel}
           scoreLeadLabel={scoreLeadLabel}
           pointsLostLabel={pointsLostLabel}
+          engineMeta={engineMeta}
+          engineMetaTitle={engineMetaTitle}
+          engineError={engineError}
         />
 
         {/* Board */}
