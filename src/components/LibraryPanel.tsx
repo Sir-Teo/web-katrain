@@ -291,6 +291,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast(`Created folder "${folder.name}".`, 'success');
   };
 
+  const handleClearLibrary = () => {
+    if (!window.confirm('Clear the entire library?')) return;
+    setItems([]);
+    setSelectedIds(new Set());
+    setCurrentFolderId(null);
+    onToast('Library cleared.', 'info');
+  };
+
   const handleDelete = (item: LibraryItem) => {
     const isFolderItem = isFolder(item);
     const message = isFolderItem
@@ -602,6 +610,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               title="Create new folder"
             >
               <FaPlus className="inline-block mr-1" /> Folder
+            </button>
+            <button
+              type="button"
+              className="px-2 py-1 rounded bg-rose-900/40 text-xs text-rose-200 hover:bg-rose-800/50"
+              onClick={handleClearLibrary}
+              title="Clear library"
+            >
+              <FaTrash className="inline-block mr-1" /> Clear
             </button>
             <button
               type="button"
