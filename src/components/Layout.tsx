@@ -728,6 +728,15 @@ export const Layout: React.FC = () => {
         updatePanels={updatePanels}
         rootNode={rootNode}
         treeVersion={treeVersion}
+        isGameAnalysisRunning={isGameAnalysisRunning}
+        gameAnalysisType={gameAnalysisType}
+        gameAnalysisDone={gameAnalysisDone}
+        gameAnalysisTotal={gameAnalysisTotal}
+        startQuickGameAnalysis={startQuickGameAnalysis}
+        startFastGameAnalysis={startFastGameAnalysis}
+        stopGameAnalysis={stopGameAnalysis}
+        onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
+        onOpenGameReport={() => setIsGameReportOpen(true)}
         currentPlayer={currentPlayer}
         isAiPlaying={isAiPlaying}
         aiColor={aiColor}

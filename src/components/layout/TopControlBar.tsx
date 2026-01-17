@@ -100,13 +100,25 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   onToggleSidebar,
   isSidebarOpen,
 }) => {
+  const [isFullscreen, setIsFullscreen] = React.useState(() => {
+    if (typeof document === 'undefined') return false;
+    return !!document.fullscreenElement;
+  });
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const handle = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handle);
+    return () => document.removeEventListener('fullscreenchange', handle);
+  }, []);
+
   return (
     <div className="h-14 bg-slate-800 border-b border-slate-700/50 flex items-center px-3 gap-3 select-none">
       <IconButton title="Menu" onClick={onOpenMenu}>
         <FaBars />
       </IconButton>
       <IconButton
-        title={isLibraryOpen ? 'Hide library' : 'Show library'}
+        title={isLibraryOpen ? 'Hide library (Ctrl+L)' : 'Show library (Ctrl+L)'}
         onClick={onToggleLibrary}
         className={isLibraryOpen ? 'text-emerald-300' : undefined}
       >
@@ -193,6 +205,20 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           </button>
           {viewMenuOpen && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-slate-800 border border-slate-700/50 rounded shadow-xl overflow-hidden z-50">
+              <button
+                className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
+                onClick={() => {
+                  if (typeof document === 'undefined') return;
+                  if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen?.().catch(() => {});
+                  } else {
+                    document.exitFullscreen?.().catch(() => {});
+                  }
+                }}
+              >
+                <span>Fullscreen</span>
+                <span className="text-xs text-slate-400">{isFullscreen ? 'on' : 'off'}</span>
+              </button>
               <button
                 className="w-full px-3 py-2 text-left hover:bg-slate-700 flex items-center justify-between"
                 onClick={() => updateSettings({ showCoordinates: !settings.showCoordinates })}

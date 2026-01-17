@@ -168,12 +168,12 @@ export function useKeyboardShortcuts({
         downloadSgfFromTree(rootNode, sgfExportOptions);
         return;
       }
-      if (ctrl && shift && keyLower === 'l') {
+      if (ctrl && keyLower === 'l') {
         e.preventDefault();
         toggleLibrary();
         return;
       }
-      if (ctrl && keyLower === 'l') {
+      if (ctrl && keyLower === 'o') {
         e.preventDefault();
         fileInputRef.current?.click();
         return;
@@ -219,6 +219,17 @@ export function useKeyboardShortcuts({
       if (key === '?' || (shift && key === '/')) {
         e.preventDefault();
         setIsKeyboardHelpOpen(true);
+        return;
+      }
+
+      // Fullscreen
+      if (keyLower === 'f') {
+        e.preventDefault();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        } else {
+          document.exitFullscreen?.().catch(() => {});
+        }
         return;
       }
 

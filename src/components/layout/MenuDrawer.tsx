@@ -82,12 +82,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               onLoad();
               onClose();
             }}
-            aria-label="Load SGF file, keyboard shortcut Control plus L"
+            aria-label="Load SGF file, keyboard shortcut Control plus O"
           >
             <span className="flex items-center gap-2">
               <FaFolderOpen aria-hidden="true" /> Load SGF
             </span>
-            <kbd className="text-xs text-slate-400">Ctrl+L</kbd>
+            <kbd className="text-xs text-slate-400">Ctrl+O</kbd>
           </button>
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
@@ -95,12 +95,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               onToggleLibrary();
               onClose();
             }}
-            aria-label="Toggle Library panel"
+            aria-label="Toggle Library panel, keyboard shortcut Control plus L"
           >
             <span className="flex items-center gap-2">
               <FaBook aria-hidden="true" /> {isLibraryOpen ? 'Hide Library' : 'Show Library'}
             </span>
-            <kbd className="text-xs text-slate-400">Ctrl+Shift+L</kbd>
+            <kbd className="text-xs text-slate-400">Ctrl+L</kbd>
           </button>
           <button
             className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"

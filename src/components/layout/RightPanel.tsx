@@ -20,6 +20,16 @@ interface RightPanelProps {
   updatePanels: (partial: Partial<UiState['panels'][UiMode]>) => void;
   rootNode: GameNode;
   treeVersion: number;
+  // Game analysis actions
+  isGameAnalysisRunning: boolean;
+  gameAnalysisType: string | null;
+  gameAnalysisDone: number;
+  gameAnalysisTotal: number;
+  startQuickGameAnalysis: () => void;
+  startFastGameAnalysis: () => void;
+  stopGameAnalysis: () => void;
+  onOpenGameAnalysis: () => void;
+  onOpenGameReport: () => void;
   // Player info
   currentPlayer: Player;
   isAiPlaying: boolean;
@@ -61,6 +71,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   updatePanels,
   rootNode,
   treeVersion,
+  isGameAnalysisRunning,
+  gameAnalysisType,
+  gameAnalysisDone,
+  gameAnalysisTotal,
+  startQuickGameAnalysis,
+  startFastGameAnalysis,
+  stopGameAnalysis,
+  onOpenGameAnalysis,
+  onOpenGameReport,
   currentPlayer,
   isAiPlaying,
   aiColor,
@@ -363,6 +382,52 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           {modePanels.analysisOpen && (
             <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded p-3 space-y-3">
               <div className="text-xs text-slate-400">{statusText}</div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className={[
+                    'px-2 py-1 rounded text-xs font-medium',
+                    isGameAnalysisRunning && gameAnalysisType === 'quick'
+                      ? 'bg-rose-600/30 text-rose-200 border border-rose-500/50'
+                      : 'bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60',
+                  ].join(' ')}
+                  onClick={() => {
+                    if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
+                    else startQuickGameAnalysis();
+                  }}
+                >
+                  {isGameAnalysisRunning && gameAnalysisType === 'quick'
+                    ? `Stop quick (${gameAnalysisDone}/${gameAnalysisTotal})`
+                    : 'Run quick graph'}
+                </button>
+                <button
+                  className={[
+                    'px-2 py-1 rounded text-xs font-medium',
+                    isGameAnalysisRunning && gameAnalysisType === 'fast'
+                      ? 'bg-rose-600/30 text-rose-200 border border-rose-500/50'
+                      : 'bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60',
+                  ].join(' ')}
+                  onClick={() => {
+                    if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
+                    else startFastGameAnalysis();
+                  }}
+                >
+                  {isGameAnalysisRunning && gameAnalysisType === 'fast'
+                    ? `Stop fast (${gameAnalysisDone}/${gameAnalysisTotal})`
+                    : 'Run fast MCTS'}
+                </button>
+                <button
+                  className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60"
+                  onClick={onOpenGameAnalysis}
+                >
+                  Re-analyze…
+                </button>
+                <button
+                  className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60"
+                  onClick={onOpenGameReport}
+                >
+                  Game report…
+                </button>
+              </div>
               <div>
                 <div className="flex items-center justify-between">
                   <button

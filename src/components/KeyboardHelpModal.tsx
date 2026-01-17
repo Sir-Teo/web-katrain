@@ -63,8 +63,8 @@ const SHORTCUT_CATEGORIES = [
     shortcuts: [
       { key: 'Ctrl+N', description: 'New game' },
       { key: 'Ctrl+S', description: 'Save SGF' },
-      { key: 'Ctrl+L', description: 'Load SGF' },
-      { key: 'Ctrl+Shift+L', description: 'Toggle library' },
+      { key: 'Ctrl+O', description: 'Load SGF' },
+      { key: 'Ctrl+L', description: 'Toggle library' },
       { key: 'Ctrl+B', description: 'Toggle sidebar' },
       { key: 'Ctrl+C', description: 'Copy SGF' },
       { key: 'Ctrl+V', description: 'Paste SGF' },
@@ -78,6 +78,12 @@ const SHORTCUT_CATEGORIES = [
       { key: 'F3', description: 'Game report' },
       { key: 'F8', description: 'Settings' },
       { key: 'Esc', description: 'Close / cancel' },
+    ],
+  },
+  {
+    title: 'View',
+    shortcuts: [
+      { key: 'F', description: 'Toggle fullscreen' },
     ],
   },
 ];
