@@ -30,6 +30,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [sortKey, setSortKey] = useState(() => {
+    if (typeof localStorage === 'undefined') return 'recent';
+    return localStorage.getItem('web-katrain:library_sort:v1') ?? 'recent';
+  });
   const [graphOpen, setGraphOpen] = useState(() => {
     if (typeof localStorage === 'undefined') return true;
     return localStorage.getItem('web-katrain:library_graph_open:v1') !== 'false';
@@ -63,6 +67,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:library_graph_open:v1', String(graphOpen));
   }, [graphOpen]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_sort:v1', String(sortKey));
+  }, [sortKey]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
@@ -108,6 +117,26 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (!q) return items;
     return items.filter((item) => item.name.toLowerCase().includes(q));
   }, [items, query]);
+
+  const sortedItems = useMemo(() => {
+    const arr = [...filteredItems];
+    switch (sortKey) {
+      case 'name':
+        arr.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'moves':
+        arr.sort((a, b) => b.moveCount - a.moveCount);
+        break;
+      case 'size':
+        arr.sort((a, b) => b.size - a.size);
+        break;
+      case 'recent':
+      default:
+        arr.sort((a, b) => b.updatedAt - a.updatedAt);
+        break;
+    }
+    return arr;
+  }, [filteredItems, sortKey]);
 
   const handleSaveCurrent = () => {
     const name = window.prompt('Save to Library as:', `Game ${items.length + 1}`) ?? '';
@@ -260,6 +289,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               className="w-full bg-slate-800/80 border border-slate-700/50 rounded pl-8 pr-3 py-2 text-sm text-slate-200 focus:border-emerald-500"
             />
           </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+            <span>Sort</span>
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value)}
+              className="bg-slate-800/80 border border-slate-700/50 rounded px-2 py-1 text-xs text-slate-200"
+            >
+              <option value="recent">Recent</option>
+              <option value="name">Name</option>
+              <option value="moves">Moves</option>
+              <option value="size">Size</option>
+            </select>
+          </div>
           {isDragging && (
             <div className="mt-3 text-xs text-emerald-300 border border-emerald-500/40 rounded px-2 py-1 bg-emerald-900/20">
               Drop SGF files to import
@@ -277,19 +319,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               {listOpen ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
               Library Items
             </button>
-            <div className="text-xs text-slate-500">{filteredItems.length} items</div>
+            <div className="text-xs text-slate-500">{sortedItems.length} items</div>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
             {!listOpen ? (
               <div className="p-4 text-xs text-slate-500">Library list hidden</div>
-            ) : filteredItems.length === 0 ? (
+            ) : sortedItems.length === 0 ? (
               <div className="p-6 text-sm text-slate-500">
                 <div className="font-semibold text-slate-300 mb-2">Library is empty</div>
                 <div>Save the current game or drag SGF files here to build your library.</div>
               </div>
             ) : (
               <div className="divide-y divide-slate-800">
-                {filteredItems.map((item) => (
+                {sortedItems.map((item) => (
                   <div
                     key={item.id}
                     className={[
