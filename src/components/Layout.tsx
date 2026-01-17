@@ -593,23 +593,25 @@ export const Layout: React.FC = () => {
           <GoBoard hoveredMove={hoveredMove} onHoverMove={setHoveredMove} pvUpToMove={pvUpToMove} uiMode={mode} />
         </div>
 
-        <BottomControlBar
-          passTurn={passTurn}
-          navigateBack={navigateBack}
-          navigateForward={navigateForward}
-          navigateStart={navigateStart}
-          navigateEnd={navigateEnd}
-          findMistake={findMistake}
-          rotateBoard={rotateBoard}
-          makeAiMove={makeAiMove}
-          currentPlayer={currentPlayer}
-          moveHistory={moveHistory}
-          isInsertMode={isInsertMode}
-          passPolicyColor={passPolicyColor}
-          passPv={passPv}
-          jumpBack={jumpBack}
-          jumpForward={jumpForward}
-        />
+        {settings.showBoardControls && (
+          <BottomControlBar
+            passTurn={passTurn}
+            navigateBack={navigateBack}
+            navigateForward={navigateForward}
+            navigateStart={navigateStart}
+            navigateEnd={navigateEnd}
+            findMistake={findMistake}
+            rotateBoard={rotateBoard}
+            makeAiMove={makeAiMove}
+            currentPlayer={currentPlayer}
+            moveHistory={moveHistory}
+            isInsertMode={isInsertMode}
+            passPolicyColor={passPolicyColor}
+            passPv={passPv}
+            jumpBack={jumpBack}
+            jumpForward={jumpForward}
+          />
+        )}
       </div>
 
       <RightPanel

@@ -311,6 +311,7 @@ const defaultSettings: GameSettings = {
   soundEnabled: true,
   showCoordinates: true,
   showMoveNumbers: false,
+  showBoardControls: true,
   boardTheme: 'hikaru',
   timerSound: true,
   timerMainTimeMinutes: 0,

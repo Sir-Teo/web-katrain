@@ -422,6 +422,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         </select>
                     </div>
 
+                    <div className="flex items-center justify-between">
+                        <label className="text-slate-300">Show Board Controls</label>
+                        <input
+                            type="checkbox"
+                            checked={settings.showBoardControls}
+                            onChange={(e) => updateSettings({ showBoardControls: e.target.checked })}
+                            className="toggle"
+                        />
+                    </div>
+
                     {/* Show Last N Mistakes */}
                     <div className="space-y-2">
                          <label className="text-slate-300 block">Show Last N Eval Dots</label>
