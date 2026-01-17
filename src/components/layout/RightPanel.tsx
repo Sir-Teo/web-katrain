@@ -161,6 +161,23 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     return nodes.reverse();
   }, [currentNode]);
 
+  const notesNodes = React.useMemo(() => {
+    void treeVersion;
+    const out: Array<{ node: GameNode; label: string; snippet: string }> = [];
+    const stack: GameNode[] = [rootNode];
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      if (node.note && node.note.trim()) {
+        const move = node.move;
+        const label = move ? formatMoveLabel(move.x, move.y) : 'Root';
+        const snippet = node.note.trim().split('\n')[0]!.slice(0, 60);
+        out.push({ node, label, snippet });
+      }
+      for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]!);
+    }
+    return out;
+  }, [rootNode, treeVersion]);
+
   const [treeHeight, setTreeHeight] = React.useState(() => {
     if (typeof localStorage === 'undefined') return 180;
     const raw = localStorage.getItem('web-katrain:tree_height:v1');
@@ -171,6 +188,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     if (typeof localStorage === 'undefined') return 'tree';
     const raw = localStorage.getItem('web-katrain:tree_view:v1');
     return raw === 'list' ? 'list' : 'tree';
+  });
+  const [notesListOpen, setNotesListOpen] = React.useState(() => {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem('web-katrain:notes_list_open:v1') === 'true';
   });
   const treeResizeRef = React.useRef<{ startY: number; startHeight: number } | null>(null);
   const [isResizingTree, setIsResizingTree] = React.useState(false);
@@ -184,6 +205,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:tree_view:v1', treeView);
   }, [treeView]);
+
+  React.useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:notes_list_open:v1', String(notesListOpen));
+  }, [notesListOpen]);
 
   React.useEffect(() => {
     if (!isResizingTree) return;
@@ -741,12 +767,18 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         {/* Comment / Notes */}
         {showNotes && (
           <div className="px-3 pb-3 flex-1 flex flex-col min-h-0">
-          <SectionHeader
-            title="Comment"
-            open={modePanels.notesOpen}
-            onToggle={() => updatePanels({ notesOpen: !modePanels.notesOpen })}
-            actions={
+            <SectionHeader
+              title="Comment"
+              open={modePanels.notesOpen}
+              onToggle={() => updatePanels({ notesOpen: !modePanels.notesOpen })}
+              actions={
               <div className="flex gap-1">
+                <PanelHeaderButton
+                  label="List"
+                  colorClass="bg-amber-600/30"
+                  active={notesListOpen}
+                  onClick={() => setNotesListOpen((prev) => !prev)}
+                />
                 <PanelHeaderButton
                   label="Info"
                   colorClass="bg-slate-700"
@@ -768,26 +800,55 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   onClick={() => updatePanels({ notes: { ...modePanels.notes, notes: !modePanels.notes.notes } })}
                 />
               </div>
-            }
-          />
-          {modePanels.notesOpen && (
-            <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded flex-1 min-h-0 overflow-hidden flex flex-col">
-              <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-300 flex items-center justify-between">
-                <div className="truncate">
+              }
+            />
+            {modePanels.notesOpen && (
+              <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded flex-1 min-h-0 overflow-hidden flex flex-col">
+                <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-300 flex items-center justify-between">
+                  <div className="truncate">
                   <span className="font-mono">{playerToShort(currentPlayer)}</span> ·{' '}
                   <span className="font-mono">{moveHistory.length}</span> ·{' '}
                   <span className="font-mono">{currentNode.move ? formatMoveLabel(currentNode.move.x, currentNode.move.y) : 'Root'}</span>
                 </div>
                 {engineError && <span className="text-red-300">error</span>}
               </div>
-              <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-400">
-                {statusText}
-              </div>
-              <div className="flex-1 min-h-0">
-                <NotesPanel
-                  showInfo={modePanels.notes.info || modePanels.notes.infoDetails}
-                  detailed={modePanels.notes.infoDetails && !lockAiDetails}
-                  showNotes={modePanels.notes.notes}
+                <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-400">
+                  {statusText}
+                </div>
+                {notesListOpen && (
+                  <div className="border-b border-slate-800 max-h-40 overflow-y-auto">
+                    {notesNodes.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-slate-500">No notes yet.</div>
+                    ) : (
+                      notesNodes.map(({ node, label, snippet }) => {
+                        const isCurrent = node.id === currentNode.id;
+                        return (
+                          <button
+                            key={node.id}
+                            type="button"
+                            className={[
+                              'w-full px-3 py-2 text-left text-xs',
+                              isCurrent ? 'bg-emerald-500/10 text-emerald-100' : 'hover:bg-slate-800/60 text-slate-200',
+                            ].join(' ')}
+                            onClick={() => guardInsertMode(() => useGameStore.getState().jumpToNode(node))}
+                            disabled={isInsertMode}
+                            title={isInsertMode ? 'Finish inserting before navigating.' : 'Jump to noted move'}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-slate-400">{label}</span>
+                              <span className="truncate">{snippet}</span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+                <div className="flex-1 min-h-0">
+                  <NotesPanel
+                    showInfo={modePanels.notes.info || modePanels.notes.infoDetails}
+                    detailed={modePanels.notes.infoDetails && !lockAiDetails}
+                    showNotes={modePanels.notes.notes}
                 />
               </div>
             </div>
