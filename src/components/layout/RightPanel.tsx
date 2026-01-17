@@ -596,6 +596,33 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       placeholder="YYYY-MM-DD"
                     />
                   </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">Result</label>
+                    <input
+                      value={getProp('RE')}
+                      onChange={(e) => setRootProperty('RE', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="B+R / W+0.5"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">Place</label>
+                    <input
+                      value={getProp('PC')}
+                      onChange={(e) => setRootProperty('PC', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="Location"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-slate-500">Game</label>
+                    <input
+                      value={getProp('GN')}
+                      onChange={(e) => setRootProperty('GN', e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                      placeholder="Game name"
+                    />
+                  </div>
                 </div>
               </div>
 
