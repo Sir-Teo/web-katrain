@@ -62,6 +62,10 @@ export const Layout: React.FC = () => {
     navigateForward,
     navigateStart,
     navigateEnd,
+    switchBranch,
+    undoToBranchPoint,
+    undoToMainBranch,
+    makeCurrentNodeMainBranch,
     findMistake,
     loadGame,
     analyzeExtra,
@@ -120,6 +124,10 @@ export const Layout: React.FC = () => {
       navigateForward: state.navigateForward,
       navigateStart: state.navigateStart,
       navigateEnd: state.navigateEnd,
+      switchBranch: state.switchBranch,
+      undoToBranchPoint: state.undoToBranchPoint,
+      undoToMainBranch: state.undoToMainBranch,
+      makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
       findMistake: state.findMistake,
       loadGame: state.loadGame,
       analyzeExtra: state.analyzeExtra,
@@ -879,6 +887,13 @@ export const Layout: React.FC = () => {
         komi={komi}
         endResult={endResult}
         navigateBack={navigateBack}
+        navigateStart={navigateStart}
+        navigateEnd={navigateEnd}
+        switchBranch={switchBranch}
+        undoToBranchPoint={undoToBranchPoint}
+        undoToMainBranch={undoToMainBranch}
+        makeCurrentNodeMainBranch={makeCurrentNodeMainBranch}
+        isInsertMode={isInsertMode}
         resign={resign}
         toggleAi={toggleAi}
         toast={toast}

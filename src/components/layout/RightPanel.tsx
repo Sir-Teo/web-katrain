@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaChevronDown, FaChevronRight, FaTimes } from 'react-icons/fa';
+import { FaChevronDown, FaChevronRight, FaTimes, FaFastBackward, FaFastForward, FaArrowUp, FaArrowDown, FaLevelUpAlt, FaSitemap } from 'react-icons/fa';
 import type { Player, GameNode, Move } from '../../types';
 import { useGameStore } from '../../store/gameStore';
 import { ScoreWinrateGraph } from '../ScoreWinrateGraph';
@@ -8,7 +8,7 @@ import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import type { UiMode, UiState } from './types';
 import type { MobileTab } from './MobileTabBar';
-import { PanelHeaderButton, formatMoveLabel, playerToShort } from './ui';
+import { IconButton, PanelHeaderButton, formatMoveLabel, playerToShort } from './ui';
 
 interface RightPanelProps {
   open: boolean;
@@ -44,6 +44,13 @@ interface RightPanelProps {
   endResult: string | null;
   // Navigation
   navigateBack: () => void;
+  navigateStart: () => void;
+  navigateEnd: () => void;
+  switchBranch: (direction: 1 | -1) => void;
+  undoToBranchPoint: () => void;
+  undoToMainBranch: () => void;
+  makeCurrentNodeMainBranch: () => void;
+  isInsertMode: boolean;
   resign: () => void;
   toggleAi: (color: Player) => void;
   toast: (msg: string, type: 'info' | 'error' | 'success') => void;
@@ -93,6 +100,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   komi,
   endResult,
   navigateBack,
+  navigateStart,
+  navigateEnd,
+  switchBranch,
+  undoToBranchPoint,
+  undoToMainBranch,
+  makeCurrentNodeMainBranch,
+  isInsertMode,
   resign,
   toggleAi,
   toast,
@@ -114,6 +128,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const showInfo = !isMobile || activeMobileTab === 'info';
   const showAnalysis = !isMobile || activeMobileTab === 'analysis';
   const showNotes = !isMobile || activeMobileTab === 'info';
+
+  const guardInsertMode = (action: () => void) => {
+    if (isInsertMode) {
+      toast('Finish inserting before navigating.', 'error');
+      return;
+    }
+    action();
+  };
 
   const analysisCounts = React.useMemo(() => {
     void treeVersion;
@@ -277,6 +299,67 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             />
             {modePanels.treeOpen && (
               <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded overflow-hidden">
+                <div className="flex items-center gap-1 px-2 py-1 border-b border-slate-800 bg-slate-900/80">
+                  <IconButton
+                    title="To start (Home)"
+                    onClick={() => guardInsertMode(navigateStart)}
+                    disabled={isInsertMode}
+                    className="h-8 w-8"
+                  >
+                    <FaFastBackward size={12} />
+                  </IconButton>
+                  <IconButton
+                    title="To end (End)"
+                    onClick={() => guardInsertMode(navigateEnd)}
+                    disabled={isInsertMode}
+                    className="h-8 w-8"
+                  >
+                    <FaFastForward size={12} />
+                  </IconButton>
+                  <div className="h-6 w-px bg-slate-700/60 mx-1" />
+                  <IconButton
+                    title="Previous branch (↑)"
+                    onClick={() => guardInsertMode(() => switchBranch(-1))}
+                    disabled={isInsertMode}
+                    className="h-8 w-8"
+                  >
+                    <FaArrowUp size={12} />
+                  </IconButton>
+                  <IconButton
+                    title="Next branch (↓)"
+                    onClick={() => guardInsertMode(() => switchBranch(1))}
+                    disabled={isInsertMode}
+                    className="h-8 w-8"
+                  >
+                    <FaArrowDown size={12} />
+                  </IconButton>
+                  <div className="h-6 w-px bg-slate-700/60 mx-1" />
+                  <IconButton
+                    title="Back to branch point (B)"
+                    onClick={() => guardInsertMode(undoToBranchPoint)}
+                    disabled={isInsertMode}
+                    className="h-8 w-8"
+                  >
+                    <FaLevelUpAlt size={12} />
+                  </IconButton>
+                  <IconButton
+                    title="Back to main branch (Shift+B)"
+                    onClick={() => guardInsertMode(undoToMainBranch)}
+                    disabled={isInsertMode}
+                    className="h-8 w-8"
+                  >
+                    <FaSitemap size={12} />
+                  </IconButton>
+                  <div className="flex-1" />
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded text-xs font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-700/60 border border-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => guardInsertMode(makeCurrentNodeMainBranch)}
+                    disabled={isInsertMode || !currentNode.parent}
+                  >
+                    Make main
+                  </button>
+                </div>
                 <div style={{ height: treeHeight }}>
                   <MoveTree />
                 </div>
