@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaTimes, FaFolderOpen, FaSave, FaTrash, FaPen, FaSearch, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaTimes, FaFolderOpen, FaSave, FaTrash, FaPen, FaSearch, FaChevronDown, FaChevronRight, FaDownload } from 'react-icons/fa';
 import { createLibraryItem, deleteLibraryItem, loadLibrary, saveLibrary, updateLibraryItem, type LibraryItem } from '../utils/library';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 
@@ -34,6 +34,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return true;
     return localStorage.getItem('web-katrain:library_graph_open:v1') !== 'false';
   });
+  const [listOpen, setListOpen] = useState(() => {
+    if (typeof localStorage === 'undefined') return true;
+    return localStorage.getItem('web-katrain:library_list_open:v1') !== 'false';
+  });
   const [graphHeight, setGraphHeight] = useState(() => {
     if (typeof localStorage === 'undefined') return 180;
     const raw = localStorage.getItem('web-katrain:library_graph_height:v1');
@@ -59,6 +63,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:library_graph_open:v1', String(graphOpen));
   }, [graphOpen]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_list_open:v1', String(listOpen));
+  }, [listOpen]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
@@ -124,6 +133,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (!window.confirm(`Delete "${item.name}" from Library?`)) return;
     setItems((prev) => deleteLibraryItem(prev, item.id));
     if (activeId === item.id) setActiveId(null);
+  };
+
+  const handleDownload = (item: LibraryItem) => {
+    const blob = new Blob([item.sgf], { type: 'application/x-go-sgf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${item.name || 'game'}.sgf`;
+    link.click();
+    URL.revokeObjectURL(url);
+    onToast(`Exported \"${item.name}\".`, 'success');
   };
 
   const handleLoad = (item: LibraryItem) => {
@@ -248,8 +268,21 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
+          <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+            <button
+              type="button"
+              className="flex items-center gap-2 text-sm text-slate-200 font-semibold"
+              onClick={() => setListOpen((prev) => !prev)}
+            >
+              {listOpen ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
+              Library Items
+            </button>
+            <div className="text-xs text-slate-500">{filteredItems.length} items</div>
+          </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {filteredItems.length === 0 ? (
+            {!listOpen ? (
+              <div className="p-4 text-xs text-slate-500">Library list hidden</div>
+            ) : filteredItems.length === 0 ? (
               <div className="p-6 text-sm text-slate-500">
                 <div className="font-semibold text-slate-300 mb-2">Library is empty</div>
                 <div>Save the current game or drag SGF files here to build your library.</div>
@@ -271,6 +304,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                         {item.moveCount} moves · {(item.size / 1024).toFixed(1)} KB
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="text-slate-400 hover:text-slate-200 p-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(item);
+                      }}
+                      title="Download SGF"
+                    >
+                      <FaDownload />
+                    </button>
                     <button
                       type="button"
                       className="text-slate-400 hover:text-slate-200 p-1"
