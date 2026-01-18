@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { computeGameReport } from '../utils/gameReport';
 import type { Player } from '../types';
+import { ScoreWinrateGraph } from './ScoreWinrateGraph';
+import { PanelHeaderButton } from './layout/ui';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -32,6 +34,38 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
     shallow
   );
   const [depthFilter, setDepthFilter] = useState<[number, number] | null>(null);
+  const [reportGraph, setReportGraph] = useState({ score: true, winrate: true });
+
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        body > * {
+          visibility: hidden !important;
+        }
+        .report-print,
+        .report-print * {
+          visibility: visible !important;
+        }
+        .report-print {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          background: #ffffff !important;
+        }
+        .report-print * {
+          color: #0f172a !important;
+          border-color: #e2e8f0 !important;
+          box-shadow: none !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   const report = useMemo(() => {
     void treeVersion;
@@ -60,9 +94,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
         : 'Endgame'
     : 'Entire Game';
 
+  const handleDownloadPdf = () => {
+    window.print();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-slate-800 rounded-lg shadow-xl w-[52rem] max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-slate-800 rounded-lg shadow-xl w-[52rem] max-h-[90vh] overflow-hidden flex flex-col report-print">
         <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
           <h2 className="text-lg font-semibold text-white">Game Report (KaTrain)</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white" title="Close">
@@ -138,6 +176,35 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
           </div>
 
           <div className="bg-slate-900 border border-slate-700/50 rounded p-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-sm font-semibold text-slate-200">Analysis Graph</div>
+              <div className="flex items-center gap-1">
+                <PanelHeaderButton
+                  label="Score"
+                  colorClass="bg-blue-600/30"
+                  active={reportGraph.score}
+                  onClick={() => setReportGraph((prev) => ({ ...prev, score: !prev.score }))}
+                />
+                <PanelHeaderButton
+                  label="Win%"
+                  colorClass="bg-green-600/30"
+                  active={reportGraph.winrate}
+                  onClick={() => setReportGraph((prev) => ({ ...prev, winrate: !prev.winrate }))}
+                />
+              </div>
+            </div>
+            <div className="bg-slate-900 border border-slate-700/50 rounded p-2">
+              {reportGraph.score || reportGraph.winrate ? (
+                <div style={{ height: 160 }}>
+                  <ScoreWinrateGraph showScore={reportGraph.score} showWinrate={reportGraph.winrate} />
+                </div>
+              ) : (
+                <div className="h-20 flex items-center justify-center text-slate-500 text-sm">Graph hidden</div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-700/50 rounded p-3">
             <div className="text-sm font-semibold text-slate-200 mb-2">Biggest Mistakes</div>
             {topMistakes.length === 0 ? (
               <div className="text-sm text-slate-500">No analyzed moves in this range.</div>
@@ -210,7 +277,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
           </div>
         </div>
 
-        <div className="p-4 bg-slate-900 flex justify-end">
+        <div className="p-4 bg-slate-900 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-medium"
+          >
+            Download PDF
+          </button>
           <button
             type="button"
             onClick={onClose}
