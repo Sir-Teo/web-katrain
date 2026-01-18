@@ -39,7 +39,7 @@ const OFFICIAL_MODELS: Array<{
     {
         label: 'Strongest (b18)',
         name: 'kata1-b18c384nbt-s9996604416-d4316597426',
-        url: 'https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz',
+        url: publicUrl('models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz'),
         badge: 'Strongest b18',
         uploaded: '2024-05-26',
         size: '~96 MB',
