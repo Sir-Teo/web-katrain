@@ -213,6 +213,10 @@ export function playerToShort(p: 'black' | 'white'): string {
   return p === 'black' ? 'B' : 'W';
 }
 
+export const panelCardBase = 'rounded-xl border transition-colors';
+export const panelCardOpen = 'border-slate-700/50 bg-slate-900/60 p-2 shadow-sm';
+export const panelCardClosed = 'border-transparent bg-transparent p-1';
+
 export const SectionHeader: React.FC<{
   title: string;
   open: boolean;

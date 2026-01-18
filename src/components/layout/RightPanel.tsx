@@ -8,7 +8,7 @@ import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import type { UiMode, UiState } from './types';
 import type { MobileTab } from './MobileTabBar';
-import { IconButton, PanelHeaderButton, SectionHeader, formatMoveLabel, playerToShort } from './ui';
+import { IconButton, PanelHeaderButton, SectionHeader, formatMoveLabel, panelCardBase, panelCardClosed, panelCardOpen, playerToShort } from './ui';
 
 interface RightPanelProps {
   open: boolean;
@@ -216,13 +216,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     children: React.ReactNode;
   }) => {
     if (!args.show) return null;
-    const wrapperTone = args.open
-      ? 'border-slate-700/50 bg-slate-900/60 p-2 shadow-sm'
-      : 'border-transparent bg-transparent p-1';
+    const wrapperTone = args.open ? panelCardOpen : panelCardClosed;
     return (
       <div
         className={[
-          'mx-3 mt-3 rounded-xl border transition-colors',
+          'mx-3 mt-3',
+          panelCardBase,
           wrapperTone,
           args.wrapperClassName ?? '',
         ].join(' ')}

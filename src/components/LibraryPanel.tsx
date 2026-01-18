@@ -12,7 +12,7 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
-import { SectionHeader } from './layout/ui';
+import { SectionHeader, panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui';
 
 interface LibraryPanelProps {
   open: boolean;
@@ -804,8 +804,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
         <div
           className={[
-            'mx-3 mt-3 rounded-xl border transition-colors',
-            searchOpen ? 'border-slate-800/60 bg-slate-950/40 p-3' : 'border-transparent bg-transparent p-2',
+            'mx-3 mt-3',
+            panelCardBase,
+            searchOpen ? `${panelCardOpen} bg-slate-950/40` : panelCardClosed,
           ].join(' ')}
         >
           <SectionHeader title="Search & Filters" open={searchOpen} onToggle={() => setSearchOpen((prev) => !prev)} />
@@ -889,8 +890,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
         <div
           className={[
-            'flex flex-col mx-3 mb-3 mt-3 rounded-xl border transition-colors overflow-hidden',
-            listOpen ? 'flex-1 min-h-0 border-slate-800/60 bg-slate-950/40' : 'flex-none border-transparent bg-transparent',
+            'flex flex-col mx-3 mb-3 mt-3 overflow-hidden',
+            panelCardBase,
+            listOpen ? `${panelCardOpen} flex-1 min-h-0 bg-slate-950/40` : `flex-none ${panelCardClosed}`,
           ].join(' ')}
         >
           <div
