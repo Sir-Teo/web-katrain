@@ -110,6 +110,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             : 'Run fast MCTS'}
         </button>
         <button
+          className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60 disabled:opacity-50"
+          onClick={stopGameAnalysis}
+          disabled={!isGameAnalysisRunning}
+        >
+          Stop analysis
+        </button>
+        <button
           className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60"
           onClick={onOpenGameAnalysis}
         >
