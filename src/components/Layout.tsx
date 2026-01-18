@@ -968,6 +968,8 @@ export const Layout: React.FC = () => {
         isMobile={isMobile}
         onOpenRecent={handleOpenRecent}
         onLibraryUpdated={handleLibraryUpdated}
+        isAnalysisRunning={isGameAnalysisRunning}
+        onStopAnalysis={stopGameAnalysis}
         analysisContent={
           isDesktop ? (
             <AnalysisPanel

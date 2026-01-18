@@ -20,6 +20,8 @@ interface LibraryPanelProps {
   onClose: () => void;
   isMobile?: boolean;
   analysisContent?: React.ReactNode;
+  isAnalysisRunning?: boolean;
+  onStopAnalysis?: () => void;
   getCurrentSgf: () => string;
   onLoadSgf: (sgf: string) => void;
   onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
@@ -34,6 +36,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   onClose,
   isMobile = false,
   analysisContent,
+  isAnalysisRunning = false,
+  onStopAnalysis,
   getCurrentSgf,
   onLoadSgf,
   onToast,
@@ -80,6 +84,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const headerDangerActionClass = 'px-2 py-1 rounded bg-rose-900/40 text-xs text-rose-200 hover:bg-rose-800/50';
   const bulkActionClass = 'px-2 py-1 rounded bg-slate-800/70 border border-slate-700/60 hover:bg-slate-700/60';
   const bulkDangerActionClass = 'px-2 py-1 rounded bg-rose-900/40 border border-rose-700/50 text-rose-200 hover:bg-rose-800/50';
+  const analysisActionClass =
+    'px-2 py-1 rounded text-[11px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
   const [sortKey, setSortKey] = useState(() => {
     if (typeof localStorage === 'undefined') return 'recent';
     return localStorage.getItem('web-katrain:library_sort:v1') ?? 'recent';
@@ -1002,13 +1008,30 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 onMouseDown={() => setIsResizingGraph(true)}
               />
               <div className="border-t border-slate-800 px-3 py-2">
-                <button
-                  type="button"
-                  className="flex items-center gap-2 text-sm text-slate-200 font-semibold"
-                  onClick={() => setGraphOpen((prev) => !prev)}
-                >
-                  <ToggleLabel open={graphOpen}>Analysis</ToggleLabel>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-sm text-slate-200 font-semibold"
+                    onClick={() => setGraphOpen((prev) => !prev)}
+                  >
+                    <ToggleLabel open={graphOpen}>Analysis</ToggleLabel>
+                  </button>
+                  {onStopAnalysis ? (
+                    <button
+                      type="button"
+                      className={[
+                        analysisActionClass,
+                        isAnalysisRunning
+                          ? 'ml-auto bg-rose-600/30 text-rose-200 border-rose-500/50 hover:bg-rose-500/40'
+                          : 'ml-auto bg-slate-800/60 text-slate-400 border-slate-700/60',
+                      ].join(' ')}
+                      onClick={onStopAnalysis}
+                      disabled={!isAnalysisRunning}
+                    >
+                      Stop analysis
+                    </button>
+                  ) : null}
+                </div>
                 {graphOpen && (
                   <div className="mt-2" style={{ height: graphHeight }}>
                     <div className="h-full overflow-y-auto">

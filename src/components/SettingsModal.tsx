@@ -184,7 +184,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             uploadedModelUrl = objectUrl;
             updateSettings({ katagoModelUrl: objectUrl });
         } catch (error) {
-            setDownloadError(error instanceof Error ? error.message : 'Download failed.');
+            const message = error instanceof Error ? error.message : 'Download failed.';
+            const hint = message.toLowerCase().includes('failed to fetch')
+                ? 'Download blocked by browser (CORS). Use "Download" then "Upload Weights".'
+                : message;
+            setDownloadError(hint);
         } finally {
             setDownloadingUrl(null);
         }
@@ -1269,14 +1273,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     Download
                                                 </a>
                                                 {model.downloadAndLoad ? (
-                                                    <button
-                                                        type="button"
-                                                        className="px-2 py-1 text-xs rounded bg-emerald-800/70 border border-emerald-600/40 hover:bg-emerald-700/70 disabled:opacity-60"
-                                                        onClick={() => handleDownloadAndLoad(model.url)}
-                                                        disabled={downloadingUrl === model.url}
-                                                    >
-                                                        {downloadingUrl === model.url ? 'Downloading...' : 'Download & Load'}
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            className="px-2 py-1 text-xs rounded bg-emerald-800/70 border border-emerald-600/40 hover:bg-emerald-700/70 disabled:opacity-60"
+                                                            onClick={() => handleDownloadAndLoad(model.url)}
+                                                            disabled={downloadingUrl === model.url}
+                                                        >
+                                                            {downloadingUrl === model.url ? 'Downloading...' : 'Download & Load'}
+                                                        </button>
+                                                        <span className="text-[10px] text-emerald-200/70">Session memory</span>
+                                                    </div>
                                                 ) : null}
                                                 <button
                                                     type="button"
