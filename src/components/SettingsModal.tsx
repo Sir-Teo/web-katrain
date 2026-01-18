@@ -11,13 +11,14 @@ import { getEngineModelLabel } from '../utils/engineLabel';
 let uploadedModelUrl: string | null = null;
 let lastManualModelUrl: string | null = null;
 
-const OFFICIAL_MODELS: Array<{ label: string; name: string; url: string; badge?: string; uploaded: string }> = [
+const OFFICIAL_MODELS: Array<{ label: string; name: string; url: string; badge?: string; uploaded: string; size: string }> = [
     {
         label: 'Latest (b28)',
         name: 'kata1-b28c512nbt-s12253653760-d5671874532',
         url: 'https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b28c512nbt-s12253653760-d5671874532.bin.gz',
         badge: 'Latest',
         uploaded: '2026-01-16',
+        size: '~280 MB',
     },
     {
         label: 'Strongest (b28)',
@@ -25,6 +26,15 @@ const OFFICIAL_MODELS: Array<{ label: string; name: string; url: string; badge?:
         url: 'https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b28c512nbt-s12192929536-d5655876072.bin.gz',
         badge: 'Strongest',
         uploaded: '2026-01-06',
+        size: '~280 MB',
+    },
+    {
+        label: 'Strongest (b18)',
+        name: 'kata1-b18c384nbt-s9996604416-d4316597426',
+        url: 'https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz',
+        badge: 'Strongest b18',
+        uploaded: '2024-05-26',
+        size: '~96 MB',
     },
     {
         label: 'Adam (b28)',
@@ -32,6 +42,7 @@ const OFFICIAL_MODELS: Array<{ label: string; name: string; url: string; badge?:
         url: 'https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b28c512nbt-adam-s11387M-d5458M.bin.gz',
         badge: 'Adam',
         uploaded: '2025-10-12',
+        size: '~280 MB',
     },
 ];
 
@@ -57,6 +68,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     );
     const engineModelLabel = getEngineModelLabel(engineModelName, settings.katagoModelUrl);
     const modelUploadInputRef = React.useRef<HTMLInputElement>(null);
+    const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
     const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
@@ -107,6 +119,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         uploadedModelUrl = objectUrl;
         updateSettings({ katagoModelUrl: objectUrl });
         event.target.value = '';
+    };
+
+    const handleCopyUrl = (url: string) => {
+        const onCopied = () => {
+            setCopiedUrl(url);
+            window.setTimeout(() => {
+                setCopiedUrl((current) => (current === url ? null : current));
+            }, 2000);
+        };
+
+        if (navigator?.clipboard?.writeText) {
+            navigator.clipboard.writeText(url).then(onCopied).catch(() => {});
+            return;
+        }
+
+        try {
+            const input = document.createElement('input');
+            input.value = url;
+            input.style.position = 'fixed';
+            input.style.left = '-9999px';
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            onCopied();
+        } catch {
+            // Ignore copy failure.
+        }
     };
 
     const handleClearUpload = () => {
@@ -1164,13 +1204,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 <label className="text-xs text-slate-400 block">Official KataGo models (download links)</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {OFFICIAL_MODELS.map((model) => (
-                                        <a
+                                        <div
                                             key={model.url}
-                                            href={model.url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="w-full text-left rounded-lg border px-3 py-2 transition-colors bg-slate-900/60 border-slate-700/50 text-slate-200 hover:bg-slate-800/70"
-                                            title={`Download ${model.name}`}
+                                            className="w-full text-left rounded-lg border px-3 py-2 bg-slate-900/60 border-slate-700/50 text-slate-200"
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-semibold">{model.label}</span>
@@ -1179,7 +1215,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         {model.badge}
                                                     </span>
                                                 ) : null}
-                                                <span className="ml-auto text-[10px] text-slate-400">Download</span>
+                                                <span className="ml-auto text-[10px] text-slate-400">{model.size}</span>
                                             </div>
                                             <div className="text-[11px] text-slate-400 font-mono truncate">
                                                 {model.name}
@@ -1187,11 +1223,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <div className="text-[10px] text-slate-500">
                                                 Uploaded {model.uploaded}
                                             </div>
-                                        </a>
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <a
+                                                    href={model.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="px-2 py-1 text-xs rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/70"
+                                                    title={`Download ${model.name}`}
+                                                >
+                                                    Download
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    className="px-2 py-1 text-xs rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/70"
+                                                    onClick={() => handleCopyUrl(model.url)}
+                                                >
+                                                    {copiedUrl === model.url ? 'Copied' : 'Copy URL'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
                                 <p className={subtextClass}>
-                                    Download then use “Upload Weights” above to load the model.
+                                    Download then use "Upload Weights" above to load the model.
                                 </p>
                             </div>
                             <input
