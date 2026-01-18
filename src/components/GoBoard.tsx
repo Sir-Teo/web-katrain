@@ -155,6 +155,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   const pvOverlayEnabled = isAnalysisMode || forcePvOverlay;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const boardSnapshotRef = useRef<HTMLDivElement>(null);
   const gridCanvasRef = useRef<HTMLCanvasElement>(null);
   const ownershipCanvasRef = useRef<HTMLCanvasElement>(null);
   const ghostCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -1246,12 +1247,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
 
   useEffect(() => {
     const canvas = pvCanvasRef.current;
-    const container = containerRef.current;
+    const container = boardSnapshotRef.current ?? containerRef.current;
     if (!canvas) return;
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
     if (!pvOverlayEnabled || pvMoves.length === 0) {
-      if (container) container.dataset.pvRendered = String(Date.now());
+      if (container) {
+        container.dataset.pvRendered = String(Date.now());
+        container.dataset.pvCount = '0';
+      }
       return;
     }
 
@@ -1281,7 +1285,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       ctx.fillStyle = m.player === 'black' ? 'white' : 'black';
       ctx.fillText(String(m.idx), left + size / 2, top + size / 2);
     }
-    if (container) container.dataset.pvRendered = String(Date.now());
+    if (container) {
+      container.dataset.pvRendered = String(Date.now());
+      container.dataset.pvCount = String(pvMoves.length);
+    }
   }, [
     cellSize,
     pvOverlayEnabled,
@@ -1331,6 +1338,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       <div
         className="relative shadow-lg rounded-sm cursor-pointer select-none"
         data-board-snapshot="true"
+        ref={boardSnapshotRef}
         style={{
             width: boardWidth,
             height: boardHeight,

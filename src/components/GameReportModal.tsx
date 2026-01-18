@@ -247,7 +247,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       });
     });
 
-  const waitForPvRender = async () => {
+  const countPvMoves = (line: string[]): number => {
+    return line.reduce((acc, move) => {
+      const parsed = parseGtpMove(move);
+      return parsed && parsed.kind === 'move' ? acc + 1 : acc;
+    }, 0);
+  };
+
+  const waitForPvRender = async (expectedCount: number) => {
     if (typeof document === 'undefined') return;
     const board = document.querySelector<HTMLElement>('[data-board-snapshot="true"]');
     if (!board) return;
@@ -255,7 +262,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     const start = performance.now();
     while (performance.now() - start < 1200) {
       const next = board.dataset.pvRendered ?? '';
-      if (next && next !== initial) return;
+      const pvCount = Number.parseInt(board.dataset.pvCount ?? '0', 10);
+      if (next && next !== initial && pvCount >= expectedCount) return;
       await new Promise((resolve) => setTimeout(resolve, 60));
     }
   };
@@ -310,9 +318,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         const entry = pdfMistakes[i]!;
         const targetNode = entry.node.parent ?? entry.node;
         jumpToNode(targetNode);
-        setReportHoverMove(buildReportHoverMove(entry));
+        const hoverMove = buildReportHoverMove(entry);
+        setReportHoverMove(hoverMove);
         await waitForBoardRender();
-        await waitForPvRender();
+        const expected = hoverMove?.pv ? countPvMoves(hoverMove.pv) : 0;
+        await waitForPvRender(expected);
         const dataUrl = await captureBoardSnapshot();
         snapshots.push({ id: entry.node.id, dataUrl, entry });
         setPdfProgress({ done: i + 1, total: pdfMistakes.length });
