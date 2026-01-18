@@ -247,6 +247,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       });
     });
 
+  const waitForNode = async (nodeId: string) => {
+    const start = performance.now();
+    while (performance.now() - start < 1200) {
+      if (useGameStore.getState().currentNode?.id === nodeId) return;
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    }
+  };
+
   const countPvMoves = (line: string[]): number => {
     return line.reduce((acc, move) => {
       const parsed = parseGtpMove(move);
@@ -268,14 +276,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     }
   };
 
-  const buildReportHoverMove = (entry: MoveReportEntry): CandidateMove | null => {
+  const pickBestCandidate = (moves: CandidateMove[] | undefined | null): CandidateMove | null => {
+    if (!moves || moves.length === 0) return null;
+    return moves.find((m) => m.order === 0) ?? moves.reduce<CandidateMove | null>((acc, m) => (acc && acc.pointsLost <= m.pointsLost ? acc : m), null);
+  };
+
+  const buildReportHoverMove = (entry: MoveReportEntry, candidate?: CandidateMove | null): CandidateMove | null => {
     const parentMoves = entry.node.parent?.analysis?.moves ?? [];
-    const best =
-      parentMoves.find((m) => m.order === 0) ??
-      parentMoves.reduce<CandidateMove | null>((acc, m) => {
-        if (!acc) return m;
-        return m.pointsLost < acc.pointsLost ? m : acc;
-      }, null);
+    const best = candidate ?? pickBestCandidate(parentMoves);
     if (best) {
       const pvLine =
         best.pv && best.pv.length > 0
@@ -307,6 +315,33 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     };
   };
 
+  const ensureBestPv = async (targetNode: { id: string; analysis?: { moves?: CandidateMove[] | null } | null }) => {
+    const existing = pickBestCandidate(targetNode.analysis?.moves);
+    if (existing?.pv && existing.pv.length > 1) return existing;
+
+    const state = useGameStore.getState();
+    const wasAnalysisMode = state.isAnalysisMode;
+    if (!wasAnalysisMode) {
+      useGameStore.setState({ isAnalysisMode: true });
+    }
+    try {
+      await state.runAnalysis({
+        force: true,
+        analysisPvLen: Math.max(8, state.settings.katagoAnalysisPvLen || 8),
+        visits: Math.max(24, Math.min(64, state.settings.katagoFastVisits || 32)),
+        maxTimeMs: Math.max(80, Math.min(400, state.settings.katagoMaxTimeMs || 200)),
+        topK: Math.max(8, state.settings.katagoTopK || 8),
+      });
+    } catch {
+      // Ignore analysis failures and fall back to existing data.
+    }
+    const refreshed = pickBestCandidate(useGameStore.getState().currentNode?.analysis?.moves);
+    if (!wasAnalysisMode) {
+      useGameStore.setState({ isAnalysisMode: false, analysisData: null });
+    }
+    return refreshed ?? existing;
+  };
+
   const preparePdf = async () => {
     if (isPreparingPdf) return;
     setIsPreparingPdf(true);
@@ -318,7 +353,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         const entry = pdfMistakes[i]!;
         const targetNode = entry.node.parent ?? entry.node;
         jumpToNode(targetNode);
-        const hoverMove = buildReportHoverMove(entry);
+        await waitForNode(targetNode.id);
+        const bestCandidate = await ensureBestPv(targetNode);
+        const hoverMove = buildReportHoverMove(entry, bestCandidate);
         setReportHoverMove(hoverMove);
         await waitForBoardRender();
         const expected = hoverMove?.pv ? countPvMoves(hoverMove.pv) : 0;
