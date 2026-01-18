@@ -39,11 +39,16 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
     'rounded-xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.35)]';
   const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400';
   const labelClass = 'text-slate-300';
+  const generatedAt = useMemo(() => new Date(), []);
 
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
       @media print {
+        @page {
+          size: A4 portrait;
+          margin: 12mm;
+        }
         body > * {
           visibility: hidden !important;
         }
@@ -62,6 +67,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
           color: #0f172a !important;
           border-color: #e2e8f0 !important;
           box-shadow: none !important;
+        }
+        .print-hide {
+          display: none !important;
+        }
+        .print-only {
+          display: block !important;
         }
       }
     `;
@@ -110,12 +121,21 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
             <div className="text-xs uppercase tracking-[0.2em] text-slate-400">KaTrain Report</div>
             <h2 className="text-lg font-semibold text-white">Game Analysis Summary</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white print:hidden" title="Close">
+          <button onClick={onClose} className="text-slate-400 hover:text-white print-hide" title="Close">
             <FaTimes />
           </button>
         </div>
 
         <div className="px-5 py-4 space-y-4 overflow-y-auto">
+          <div className="print-only hidden border border-slate-200 rounded-lg p-3">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Generated</div>
+            <div className="text-sm font-semibold text-slate-900">
+              {generatedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              {' · '}
+              {generatedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               { key: 'all', label: 'Entire Game', filter: null },
@@ -161,6 +181,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                   style={{ width: `${Math.round(coverage * 100)}%` }}
                 />
               </div>
+              <div className="mt-2 text-xs text-slate-400">Filters apply to analysis coverage.</div>
             </div>
             <div className={sectionClass}>
               <div className={sectionTitleClass}>Coverage</div>
@@ -228,6 +249,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                 <div className="h-20 flex items-center justify-center text-slate-500 text-sm">Graph hidden</div>
               )}
             </div>
+            <div className="mt-2 text-xs text-slate-400">
+              Score lead and winrate are from the current analysis data.
+            </div>
           </div>
 
           <div className={sectionClass}>
@@ -258,7 +282,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                     <div className="col-span-3 text-right">
                       <button
                         type="button"
-                        className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 text-slate-200 hover:bg-slate-700/70"
+                        className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 text-slate-200 hover:bg-slate-700/70 print-hide"
                         onClick={() => jumpToNode(entry.node)}
                       >
                         Jump to move
