@@ -217,7 +217,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   }) => {
     if (!args.show) return null;
     return (
-      <div className={['px-3 pt-1', args.wrapperClassName ?? ''].join(' ')}>
+      <div
+        className={[
+          'mx-3 mt-3 rounded-xl border border-slate-700/50 bg-slate-900/60 p-2 shadow-sm',
+          args.wrapperClassName ?? '',
+        ].join(' ')}
+      >
         <SectionHeader title={args.title} open={args.open} onToggle={args.onToggle} actions={args.actions} />
         {args.open ? <div className={args.contentClassName ?? 'mt-1'}>{args.children}</div> : null}
       </div>
@@ -363,8 +368,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="flex flex-col min-h-full">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+          <div className="flex flex-col">
             {/* Game Tree */}
             {renderSection({
               show: showTree,
@@ -389,7 +394,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   </button>
                 </div>
               ),
-              contentClassName: 'mt-2 bg-slate-900 border border-slate-700/50 rounded overflow-hidden',
+              contentClassName: 'mt-2 bg-slate-950/50 border border-slate-800/60 rounded-lg overflow-hidden',
               children: (
                 <>
                   <div className="flex items-center gap-1 px-2 py-1 border-b border-slate-800 bg-slate-900/80">

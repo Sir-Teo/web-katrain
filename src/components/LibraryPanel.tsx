@@ -12,6 +12,7 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
+import { SectionHeader } from './layout/ui';
 
 interface LibraryPanelProps {
   open: boolean;
@@ -94,6 +95,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return true;
     return localStorage.getItem('web-katrain:library_graph_open:v1') !== 'false';
   });
+  const [searchOpen, setSearchOpen] = useState(() => {
+    if (typeof localStorage === 'undefined') return true;
+    return localStorage.getItem('web-katrain:library_search_open:v1') !== 'false';
+  });
   const [listOpen, setListOpen] = useState(() => {
     if (typeof localStorage === 'undefined') return true;
     return localStorage.getItem('web-katrain:library_list_open:v1') !== 'false';
@@ -166,6 +171,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:library_graph_open:v1', String(graphOpen));
   }, [graphOpen]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_search_open:v1', String(searchOpen));
+  }, [searchOpen]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
@@ -748,7 +758,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <FaTimes />
           </button>
           <div className="font-semibold text-slate-100">Library</div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               className={headerActionClass}
@@ -792,83 +802,88 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </div>
         </div>
 
-        <div className="p-3 border-b border-slate-800">
-          <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search library…"
-              className="w-full bg-slate-800/80 border border-slate-700/50 rounded pl-8 pr-3 py-2 text-sm text-slate-200 focus:border-emerald-500"
-            />
-          </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-            <span>Sort</span>
-            <select
-              value={sortKey}
-              onChange={(e) => setSortKey(e.target.value)}
-              className="bg-slate-800/80 border border-slate-700/50 rounded px-2 py-1 text-xs text-slate-200"
-            >
-              <option value="recent">Recent</option>
-              <option value="name">Name</option>
-              <option value="moves">Moves</option>
-              <option value="size">Size</option>
-            </select>
-          </div>
-          <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
-            <span>Save to: {currentFolderName}</span>
-            {currentFolderId && (
-              <button
-                type="button"
-                className="text-xs text-slate-400 hover:text-slate-200"
-                onClick={() => setCurrentFolderId(null)}
-              >
-                Root
-              </button>
-            )}
-          </div>
-          {!isSearching && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              <button
-                type="button"
-                className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/60 disabled:opacity-40"
-                onClick={handleGoUp}
-                disabled={!currentFolderId}
-              >
-                <FaArrowUp className="inline-block mr-1" /> Up
-              </button>
-              <button
-                type="button"
-                className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/60"
-                onClick={() => setCurrentFolderId(null)}
-              >
-                Root
-              </button>
-              {breadcrumbs.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1 text-slate-500">
-                  {breadcrumbs.map((crumb, index) => (
-                    <button
-                      key={crumb.id}
-                      type="button"
-                      className="px-1.5 py-0.5 rounded hover:bg-slate-800/60 text-slate-400"
-                      onClick={() => setCurrentFolderId(crumb.id)}
-                    >
-                      {index === 0 ? crumb.name : `/${crumb.name}`}
-                    </button>
-                  ))}
+        <div className="mx-3 mt-3 rounded-xl border border-slate-800/60 bg-slate-950/40 p-3">
+          <SectionHeader title="Search & Filters" open={searchOpen} onToggle={() => setSearchOpen((prev) => !prev)} />
+          {searchOpen ? (
+            <>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search library…"
+                  className="w-full bg-slate-800/80 border border-slate-700/50 rounded pl-8 pr-3 py-2 text-sm text-slate-200 focus:border-emerald-500"
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                <span>Sort</span>
+                <select
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value)}
+                  className="bg-slate-800/80 border border-slate-700/50 rounded px-2 py-1 text-xs text-slate-200"
+                >
+                  <option value="recent">Recent</option>
+                  <option value="name">Name</option>
+                  <option value="moves">Moves</option>
+                  <option value="size">Size</option>
+                </select>
+              </div>
+              <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
+                <span>Save to: {currentFolderName}</span>
+                {currentFolderId && (
+                  <button
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-slate-200"
+                    onClick={() => setCurrentFolderId(null)}
+                  >
+                    Root
+                  </button>
+                )}
+              </div>
+              {!isSearching && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/60 disabled:opacity-40"
+                    onClick={handleGoUp}
+                    disabled={!currentFolderId}
+                  >
+                    <FaArrowUp className="inline-block mr-1" /> Up
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/60"
+                    onClick={() => setCurrentFolderId(null)}
+                  >
+                    Root
+                  </button>
+                  {breadcrumbs.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1 text-slate-500">
+                      {breadcrumbs.map((crumb, index) => (
+                        <button
+                          key={crumb.id}
+                          type="button"
+                          className="px-1.5 py-0.5 rounded hover:bg-slate-800/60 text-slate-400"
+                          onClick={() => setCurrentFolderId(crumb.id)}
+                        >
+                          {index === 0 ? crumb.name : `/${crumb.name}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-          {isDragging && (
-            <div className="mt-3 text-xs text-emerald-300 border border-emerald-500/40 rounded px-2 py-1 bg-emerald-900/20">
-              Drop SGF files to import
-            </div>
-          )}
+              {isDragging && (
+                <div className="mt-3 text-xs text-emerald-300 border border-emerald-500/40 rounded px-2 py-1 bg-emerald-900/20">
+                  Drop SGF files to import
+                </div>
+              )}
+            </>
+          ) : null}
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex-1 min-h-0 flex flex-col mx-3 mb-3 mt-3 rounded-xl border border-slate-800/60 bg-slate-950/40 overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-800/70 flex items-center justify-between">
             <button
               type="button"
               className="flex items-center gap-2 text-sm text-slate-200 font-semibold"
@@ -1010,7 +1025,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 className="hidden lg:block h-1 cursor-row-resize bg-slate-800/70 hover:bg-slate-600/80 transition-colors"
                 onMouseDown={() => setIsResizingGraph(true)}
               />
-              <div className="border-t border-slate-800 px-3 py-2">
+              <div className="border-t border-slate-800/70 bg-slate-950/30 px-3 py-2">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
