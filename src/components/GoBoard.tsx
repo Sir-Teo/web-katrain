@@ -1321,8 +1321,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
 
   return (
     <div ref={containerRef} className="w-full h-full flex items-center justify-center">
-	      <div
+      <div
         className="relative shadow-lg rounded-sm cursor-pointer select-none"
+        data-board-snapshot="true"
         style={{
             width: boardWidth,
             height: boardHeight,
