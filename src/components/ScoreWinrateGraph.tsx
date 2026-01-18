@@ -57,11 +57,12 @@ export const ScoreWinrateGraph: React.FC<{
   showWinrate: boolean;
   range?: { start: number; end: number } | null;
 }> = ({ showScore, showWinrate, range = null }) => {
-  const { currentNode, jumpToNode, treeVersion } = useGameStore(
+  const { currentNode, jumpToNode, treeVersion, gameAnalysisDone } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
       jumpToNode: state.jumpToNode,
       treeVersion: state.treeVersion,
+      gameAnalysisDone: state.gameAnalysisDone,
     }),
     shallow
   );
@@ -87,7 +88,7 @@ export const ScoreWinrateGraph: React.FC<{
     }
 
     return { nodes: out, highlightedIndex: Math.max(0, path.length - 1) };
-  }, [currentNode, treeVersion]);
+  }, [currentNode, treeVersion, gameAnalysisDone]);
 
   const { displayNodes, highlighted } = useMemo(() => {
     if (nodes.length === 0) return { displayNodes: nodes, highlighted: 0 };
@@ -112,7 +113,7 @@ export const ScoreWinrateGraph: React.FC<{
       winrates.push(typeof rawWin === 'number' ? (rawWin - 0.5) * 100 : Number.NaN);
     }
     return { scoreValues: scores, winrateValues: winrates };
-  }, [displayNodes, treeVersion]);
+  }, [displayNodes, treeVersion, gameAnalysisDone]);
 
   const scoreScale = useMemo(() => computeSymmetricScale(scoreValues, SCORE_GRANULARITY), [scoreValues]);
   const winrateScale = useMemo(() => computeSymmetricScale(winrateValues, WINRATE_GRANULARITY), [winrateValues]);

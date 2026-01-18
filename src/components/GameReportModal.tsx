@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { computeGameReport } from '../utils/gameReport';
+import { computeGameReport, type MoveReportEntry } from '../utils/gameReport';
 import { BOARD_SIZE, type Player } from '../types';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { PanelHeaderButton } from './layout/ui';
@@ -106,11 +106,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
   const coverage = totalMoves > 0 ? analyzedMoves / totalMoves : 0;
   const playerFilterLabel = playerFilter === 'all' ? 'All players' : playerFilter === 'black' ? 'Black' : 'White';
   const statsPlayers: Array<Player> = playerFilter === 'all' ? ['black', 'white'] : [playerFilter];
-  const topMistakes = useMemo(() => {
+  const allMistakes = useMemo(() => {
     const entries = report.moveEntries.filter((entry) => playerFilter === 'all' || entry.player === playerFilter);
     entries.sort((a, b) => b.pointsLost - a.pointsLost);
-    return entries.slice(0, 10);
+    return entries;
   }, [playerFilter, report.moveEntries]);
+  const topMistakes = useMemo(() => allMistakes.slice(0, 10), [allMistakes]);
   const maxHist = Math.max(
     1,
     ...report.histogram.map((row) => Math.max(row.black, row.white))
@@ -140,6 +141,47 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
 
   const handleDownloadPdf = () => {
     window.print();
+  };
+
+  const formatPv = (pv?: string[]) => {
+    if (!pv || pv.length === 0) return '-';
+    const max = 12;
+    const sliced = pv.slice(0, max);
+    return `${sliced.join(' ')}${pv.length > max ? ' ...' : ''}`;
+  };
+
+  const renderMistakeRows = (entries: MoveReportEntry[], showJump: boolean) => {
+    return entries.map((entry) => (
+      <React.Fragment key={`${entry.node.id}-${entry.moveNumber}`}>
+        <div className="col-span-2 text-slate-200 font-mono">#{entry.moveNumber}</div>
+        <div className="col-span-1 text-center font-semibold text-slate-200">
+          {entry.player === 'black' ? 'B' : 'W'}
+        </div>
+        <div className="col-span-2 text-slate-200 font-mono">{entry.move}</div>
+        <div className="col-span-2 text-slate-300 font-mono">
+          {entry.topMove ?? '-'}
+        </div>
+        <div className="col-span-2 text-right font-mono text-rose-300">
+          {fmtNum(entry.pointsLost, 2)}
+        </div>
+        <div className="col-span-3 text-right">
+          {showJump ? (
+            <button
+              type="button"
+              className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 text-slate-200 hover:bg-slate-700/70 print-hide"
+              onClick={() => jumpToNode(entry.node)}
+            >
+              Jump to move
+            </button>
+          ) : (
+            <span className="text-slate-400">-</span>
+          )}
+        </div>
+        <div className="col-span-12 text-[10px] text-slate-500 font-mono print-muted">
+          PV: {formatPv(entry.pv)}
+        </div>
+      </React.Fragment>
+    ));
   };
 
   const refreshSnapshot = async () => {
@@ -396,30 +438,24 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                 <div className="col-span-2 uppercase tracking-wide text-[10px]">Top</div>
                 <div className="col-span-2 text-right uppercase tracking-wide text-[10px]">Loss</div>
                 <div className="col-span-3 text-right uppercase tracking-wide text-[10px]">Jump</div>
-                {topMistakes.map((entry) => (
-                  <React.Fragment key={`${entry.node.id}-${entry.moveNumber}`}>
-                    <div className="col-span-2 text-slate-200 font-mono">#{entry.moveNumber}</div>
-                    <div className="col-span-1 text-center font-semibold text-slate-200">
-                      {entry.player === 'black' ? 'B' : 'W'}
-                    </div>
-                    <div className="col-span-2 text-slate-200 font-mono">{entry.move}</div>
-                    <div className="col-span-2 text-slate-300 font-mono">
-                      {entry.topMove ?? '-'}
-                    </div>
-                    <div className="col-span-2 text-right font-mono text-rose-300">
-                      {fmtNum(entry.pointsLost, 2)}
-                    </div>
-                    <div className="col-span-3 text-right">
-                      <button
-                        type="button"
-                        className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 text-slate-200 hover:bg-slate-700/70 print-hide"
-                        onClick={() => jumpToNode(entry.node)}
-                      >
-                        Jump to move
-                      </button>
-                    </div>
-                  </React.Fragment>
-                ))}
+                {renderMistakeRows(topMistakes, true)}
+              </div>
+            )}
+          </div>
+
+          <div className={`${sectionClass} print-only hidden`}>
+            <div className={sectionTitleClass}>All Mistakes</div>
+            {allMistakes.length === 0 ? (
+              <div className="mt-2 text-sm text-slate-500">No analyzed moves in this range.</div>
+            ) : (
+              <div className="mt-3 grid grid-cols-12 gap-2 text-xs text-slate-400">
+                <div className="col-span-2 uppercase tracking-wide text-[10px]">Move</div>
+                <div className="col-span-1 text-center uppercase tracking-wide text-[10px]">P</div>
+                <div className="col-span-2 uppercase tracking-wide text-[10px]">Played</div>
+                <div className="col-span-2 uppercase tracking-wide text-[10px]">Top</div>
+                <div className="col-span-2 text-right uppercase tracking-wide text-[10px]">Loss</div>
+                <div className="col-span-3 text-right uppercase tracking-wide text-[10px]">Jump</div>
+                {renderMistakeRows(allMistakes, false)}
               </div>
             )}
           </div>

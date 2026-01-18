@@ -68,6 +68,7 @@ export type MoveReportEntry = {
   pointsLost: number;
   topMove?: string;
   isTopMove?: boolean;
+  pv?: string[];
 };
 
 export type GameReport = {
@@ -93,7 +94,7 @@ export function computeGameReport(args: {
 
   const labels = thresholds.map((t, i) => {
     if (i === thresholds.length - 1) return `< ${thresholds[thresholds.length - 2]}`;
-    return `≥ ${t}`;
+    return `>= ${t}`;
   });
 
   const histogram: Array<Record<Player, number>> = thresholds.map(() => ({ black: 0, white: 0 }));
@@ -163,6 +164,7 @@ export function computeGameReport(args: {
       pointsLost,
       topMove: top ? xyToGtp(top.x, top.y) : undefined,
       isTopMove: top ? top.x === move.x && top.y === move.y : undefined,
+      pv: top?.pv,
     });
   }
 
