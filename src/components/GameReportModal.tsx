@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -39,6 +39,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
   const [playerFilter, setPlayerFilter] = useState<'all' | Player>('all');
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const snapshotTimerRef = useRef<number | null>(null);
   const sectionClass =
     'rounded-xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.35)] print-surface';
   const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400';
@@ -144,10 +145,17 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
   };
 
   useEffect(() => {
-    const handle = window.requestAnimationFrame(() => {
+    if (snapshotTimerRef.current) {
+      window.clearTimeout(snapshotTimerRef.current);
+    }
+    snapshotTimerRef.current = window.setTimeout(() => {
       void refreshSnapshot();
-    });
-    return () => window.cancelAnimationFrame(handle);
+    }, 120);
+    return () => {
+      if (snapshotTimerRef.current) {
+        window.clearTimeout(snapshotTimerRef.current);
+      }
+    };
   }, [treeVersion]);
 
   return (
@@ -312,7 +320,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
               )}
             </div>
             <div className="mt-2 text-xs text-slate-400 print-muted">
-              Snapshot reflects the current board position.
+              Snapshot reflects the current board position and auto-updates on move.
             </div>
           </div>
 
