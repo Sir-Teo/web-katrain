@@ -242,7 +242,6 @@ export const PanelEdgeToggle: React.FC<{
   const isLeft = side === 'left';
   const isRight = side === 'right';
   const isTop = side === 'top';
-  const isBottom = side === 'bottom';
   const isVertical = isLeft || isRight;
   const isOpen = state === 'open';
   const icon = isLeft

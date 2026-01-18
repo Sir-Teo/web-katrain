@@ -240,7 +240,9 @@ export const createLibraryFolder = (name: string, parentId: string | null = null
   };
 };
 
-export const updateLibraryItem = (items: LibraryItem[], id: string, updates: Partial<LibraryItem>): LibraryItem[] => {
+type LibraryItemUpdates = Partial<Pick<LibraryItem, 'name' | 'parentId'>>;
+
+export const updateLibraryItem = (items: LibraryItem[], id: string, updates: LibraryItemUpdates): LibraryItem[] => {
   return items.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: Date.now() } : item));
 };
 

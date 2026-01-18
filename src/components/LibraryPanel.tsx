@@ -108,7 +108,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
     return Number.isFinite(parsed) ? parsed : 180;
   });
-  const [graphOptions, setGraphOptions] = useState(() => {
+  const [graphOptions] = useState(() => {
     if (typeof localStorage === 'undefined') return { score: true, winrate: true };
     try {
       const raw = localStorage.getItem('web-katrain:library_graph_opts:v1');
@@ -228,6 +228,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const isSearching = query.trim().length > 0;
 
+  const getMoveCount = (item: LibraryItem) => (isFile(item) ? item.moveCount : 0);
+  const getSize = (item: LibraryItem) => (isFile(item) ? item.size : 0);
+
   const sortedItems = useMemo(() => {
     const arr = [...filteredItems];
     switch (sortKey) {
@@ -235,10 +238,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         arr.sort((a, b) => a.name.localeCompare(b.name));
         break;
       case 'moves':
-        arr.sort((a, b) => b.moveCount - a.moveCount);
+        arr.sort((a, b) => getMoveCount(b) - getMoveCount(a));
         break;
       case 'size':
-        arr.sort((a, b) => b.size - a.size);
+        arr.sort((a, b) => getSize(b) - getSize(a));
         break;
       case 'recent':
       default:

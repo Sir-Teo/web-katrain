@@ -68,7 +68,7 @@ interface TopControlBarProps {
   winRateLabel?: string | null;
   scoreLeadLabel?: string | null;
   pointsLostLabel?: string | null;
-  engineMeta?: string;
+  engineMeta?: string | null;
   engineMetaTitle?: string;
   engineError?: string | null;
 }
@@ -116,7 +116,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   winRateLabel,
   scoreLeadLabel,
   pointsLostLabel,
-  engineMeta,
+  engineMeta = null,
   engineMetaTitle,
   engineError,
 }) => {

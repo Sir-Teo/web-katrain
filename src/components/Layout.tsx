@@ -56,7 +56,6 @@ function computePointsLost(args: { currentNode: GameNode }): number | null {
 
 export const Layout: React.FC = () => {
   const {
-    resetGame,
     startNewGame,
     passTurn,
     resign,
@@ -905,8 +904,6 @@ export const Layout: React.FC = () => {
   const jumpForward = (n: number) => {
     for (let i = 0; i < n; i++) navigateForward();
   };
-
-  const sidebarOpen = isMobile ? rightPanelOpen : showSidebar;
 
   return (
     <div
