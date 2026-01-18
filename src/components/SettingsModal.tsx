@@ -11,7 +11,15 @@ import { getEngineModelLabel } from '../utils/engineLabel';
 let uploadedModelUrl: string | null = null;
 let lastManualModelUrl: string | null = null;
 
-const OFFICIAL_MODELS: Array<{ label: string; name: string; url: string; badge?: string; uploaded: string; size: string }> = [
+const OFFICIAL_MODELS: Array<{
+    label: string;
+    name: string;
+    url: string;
+    badge?: string;
+    uploaded: string;
+    size: string;
+    downloadAndLoad?: boolean;
+}> = [
     {
         label: 'Latest (b28)',
         name: 'kata1-b28c512nbt-s12253653760-d5671874532',
@@ -35,6 +43,7 @@ const OFFICIAL_MODELS: Array<{ label: string; name: string; url: string; badge?:
         badge: 'Strongest b18',
         uploaded: '2024-05-26',
         size: '~96 MB',
+        downloadAndLoad: true,
     },
     {
         label: 'Adam (b28)',
@@ -69,6 +78,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const engineModelLabel = getEngineModelLabel(engineModelName, settings.katagoModelUrl);
     const modelUploadInputRef = React.useRef<HTMLInputElement>(null);
     const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
+    const [downloadingUrl, setDownloadingUrl] = React.useState<string | null>(null);
+    const [downloadError, setDownloadError] = React.useState<string | null>(null);
     const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
@@ -153,6 +164,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         if (!isUploadedModel) return;
         revokeUploadedModelUrl();
         updateSettings({ katagoModelUrl: lastManualModelUrl ?? KATRAIN_DEFAULT_MODEL_URL });
+    };
+
+    const handleDownloadAndLoad = async (url: string) => {
+        if (downloadingUrl) return;
+        setDownloadError(null);
+        setDownloadingUrl(url);
+        try {
+            if (!isUploadedModel) {
+                lastManualModelUrl = settings.katagoModelUrl;
+            }
+            revokeUploadedModelUrl();
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Download failed (${response.status})`);
+            }
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            uploadedModelUrl = objectUrl;
+            updateSettings({ katagoModelUrl: objectUrl });
+        } catch (error) {
+            setDownloadError(error instanceof Error ? error.message : 'Download failed.');
+        } finally {
+            setDownloadingUrl(null);
+        }
     };
 
     return (
@@ -1233,6 +1268,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 >
                                                     Download
                                                 </a>
+                                                {model.downloadAndLoad ? (
+                                                    <button
+                                                        type="button"
+                                                        className="px-2 py-1 text-xs rounded bg-emerald-800/70 border border-emerald-600/40 hover:bg-emerald-700/70 disabled:opacity-60"
+                                                        onClick={() => handleDownloadAndLoad(model.url)}
+                                                        disabled={downloadingUrl === model.url}
+                                                    >
+                                                        {downloadingUrl === model.url ? 'Downloading...' : 'Download & Load'}
+                                                    </button>
+                                                ) : null}
                                                 <button
                                                     type="button"
                                                     className="px-2 py-1 text-xs rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/70"
@@ -1244,6 +1289,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
                                     ))}
                                 </div>
+                                {downloadError ? (
+                                    <p className="text-xs text-rose-400">{downloadError}</p>
+                                ) : null}
                                 <p className={subtextClass}>
                                     Download then use "Upload Weights" above to load the model.
                                 </p>
