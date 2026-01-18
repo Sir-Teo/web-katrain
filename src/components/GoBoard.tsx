@@ -1246,10 +1246,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
 
   useEffect(() => {
     const canvas = pvCanvasRef.current;
+    const container = containerRef.current;
     if (!canvas) return;
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
-    if (!pvOverlayEnabled || pvMoves.length === 0) return;
+    if (!pvOverlayEnabled || pvMoves.length === 0) {
+      if (container) container.dataset.pvRendered = String(Date.now());
+      return;
+    }
 
     const blackImages = stoneImagesRef.current.black;
     const whiteImages = stoneImagesRef.current.white;
@@ -1277,6 +1281,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       ctx.fillStyle = m.player === 'black' ? 'white' : 'black';
       ctx.fillText(String(m.idx), left + size / 2, top + size / 2);
     }
+    if (container) container.dataset.pvRendered = String(Date.now());
   }, [
     cellSize,
     pvOverlayEnabled,

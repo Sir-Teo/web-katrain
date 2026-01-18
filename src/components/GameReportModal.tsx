@@ -247,6 +247,19 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       });
     });
 
+  const waitForPvRender = async () => {
+    if (typeof document === 'undefined') return;
+    const board = document.querySelector<HTMLElement>('[data-board-snapshot="true"]');
+    if (!board) return;
+    const initial = board.dataset.pvRendered ?? '';
+    const start = performance.now();
+    while (performance.now() - start < 1200) {
+      const next = board.dataset.pvRendered ?? '';
+      if (next && next !== initial) return;
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    }
+  };
+
   const buildReportHoverMove = (entry: MoveReportEntry): CandidateMove | null => {
     const parentMoves = entry.node.parent?.analysis?.moves ?? [];
     const best =
@@ -299,6 +312,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         jumpToNode(targetNode);
         setReportHoverMove(buildReportHoverMove(entry));
         await waitForBoardRender();
+        await waitForPvRender();
         const dataUrl = await captureBoardSnapshot();
         snapshots.push({ id: entry.node.id, dataUrl, entry });
         setPdfProgress({ done: i + 1, total: pdfMistakes.length });
