@@ -51,8 +51,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   void mode;
 
   return (
-    <div className="bg-slate-900 border border-slate-700/50 rounded p-3 space-y-3">
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+    <div className="ui-surface border rounded p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2 text-xs ui-text-faint">
         <EngineStatusBadge
           label={engineMeta}
           title={engineMetaTitle}
@@ -65,13 +65,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       </div>
       {isGameAnalysisRunning && gameAnalysisTotal > 0 && (
         <div>
-          <div className="h-2 rounded bg-slate-800/80 overflow-hidden">
+          <div className="h-2 rounded bg-[var(--ui-surface-2)] overflow-hidden">
             <div
-              className="h-full bg-emerald-500/70"
+              className="h-full bg-[var(--ui-accent)] opacity-70"
               style={{ width: `${Math.min(100, Math.round((gameAnalysisDone / gameAnalysisTotal) * 100))}%` }}
             />
           </div>
-          <div className="mt-1 text-[11px] text-slate-400">
+          <div className="mt-1 text-[11px] ui-text-faint">
             {gameAnalysisDone}/{gameAnalysisTotal} analyzed
           </div>
         </div>
@@ -81,8 +81,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           className={[
             'px-2 py-1 rounded text-xs font-medium',
             isGameAnalysisRunning && gameAnalysisType === 'quick'
-              ? 'bg-rose-600/30 text-rose-200 border border-rose-500/50'
-              : 'bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60',
+              ? 'ui-danger-soft border'
+              : 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110',
           ].join(' ')}
           onClick={() => {
             if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
@@ -97,8 +97,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           className={[
             'px-2 py-1 rounded text-xs font-medium',
             isGameAnalysisRunning && gameAnalysisType === 'fast'
-              ? 'bg-rose-600/30 text-rose-200 border border-rose-500/50'
-              : 'bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60',
+              ? 'ui-danger-soft border'
+              : 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110',
           ].join(' ')}
           onClick={() => {
             if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
@@ -110,20 +110,20 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             : 'Run fast MCTS'}
         </button>
         <button
-          className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60 disabled:opacity-50"
+          className="px-2 py-1 rounded text-xs font-medium bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110 disabled:opacity-50"
           onClick={stopGameAnalysis}
           disabled={!isGameAnalysisRunning}
         >
           Stop analysis
         </button>
         <button
-          className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60"
+          className="px-2 py-1 rounded text-xs font-medium bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110"
           onClick={onOpenGameAnalysis}
         >
           Re-analyze…
         </button>
         <button
-          className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 text-slate-300 border border-slate-700/50 hover:bg-slate-700/60"
+          className="px-2 py-1 rounded text-xs font-medium bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110"
           onClick={onOpenGameReport}
         >
           Game report…
@@ -157,13 +157,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           }
         />
         {modePanels.graphOpen && (
-          <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded p-2">
+          <div className="mt-2 ui-surface border rounded p-2">
             {modePanels.graph.score || modePanels.graph.winrate ? (
               <div style={{ height: 140 }}>
                 <ScoreWinrateGraph showScore={modePanels.graph.score} showWinrate={modePanels.graph.winrate} />
               </div>
             ) : (
-              <div className="h-20 flex items-center justify-center text-slate-500 text-sm">Graph hidden</div>
+              <div className="h-20 flex items-center justify-center ui-text-faint text-sm">Graph hidden</div>
             )}
           </div>
         )}
@@ -204,33 +204,33 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           }
         />
         {modePanels.statsOpen && (
-          <div className="mt-2 bg-slate-900 border border-slate-700/50 rounded overflow-hidden">
+          <div className="mt-2 ui-surface border rounded overflow-hidden">
             {modePanels.stats.winrate && (
-              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
-                <div className="text-sm text-slate-300">Winrate</div>
-                <div className="font-mono text-sm text-green-300">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--ui-border)]">
+                <div className="text-sm text-[var(--ui-text-muted)]">Winrate</div>
+                <div className="font-mono text-sm text-[var(--ui-success)]">
                   {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
                 </div>
               </div>
             )}
             {modePanels.stats.score && (
-              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
-                <div className="text-sm text-slate-300">Score</div>
-                <div className="font-mono text-sm text-blue-300">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--ui-border)]">
+                <div className="text-sm text-[var(--ui-text-muted)]">Score</div>
+                <div className="font-mono text-sm text-[var(--ui-warning)]">
                   {typeof scoreLead === 'number' ? `${scoreLead > 0 ? '+' : ''}${scoreLead.toFixed(1)}` : '-'}
                 </div>
               </div>
             )}
             {modePanels.stats.points && (
               <div className="flex items-center justify-between px-3 py-2">
-                <div className="text-sm text-slate-300">
+                <div className="text-sm text-[var(--ui-text-muted)]">
                   {pointsLost != null && pointsLost < 0 ? 'Points gained' : 'Points lost'}
                 </div>
-                <div className="font-mono text-sm text-red-300">{pointsLost != null ? Math.abs(pointsLost).toFixed(1) : '-'}</div>
+                <div className="font-mono text-sm text-[var(--ui-danger)]">{pointsLost != null ? Math.abs(pointsLost).toFixed(1) : '-'}</div>
               </div>
             )}
             {!modePanels.stats.winrate && !modePanels.stats.score && !modePanels.stats.points && (
-              <div className="px-3 py-3 text-sm text-slate-500">Stats hidden</div>
+              <div className="px-3 py-3 text-sm ui-text-faint">Stats hidden</div>
             )}
           </div>
         )}

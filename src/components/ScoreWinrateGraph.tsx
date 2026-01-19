@@ -184,7 +184,7 @@ export const ScoreWinrateGraph: React.FC<{
 
   return (
     <div
-      className="w-full h-full relative border border-slate-700/50 rounded overflow-hidden cursor-crosshair"
+      className="w-full h-full relative border border-[var(--ui-border)] rounded overflow-hidden cursor-crosshair"
       style={{
         backgroundColor: KATRAN_BOX_BG,
         backgroundImage: `url('${KATRAN_GRAPH_BG_URL}')`,

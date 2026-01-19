@@ -32,11 +32,11 @@ export const Tooltip: React.FC<{
       className={`absolute left-1/2 -translate-x-1/2 ${positionClasses} z-50 pointer-events-none`}
       role="tooltip"
     >
-      <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
-        <div className="text-sm text-slate-200">{label}</div>
+      <div className="ui-panel border ui-border-strong rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+        <div className="text-sm text-[var(--ui-text)]">{label}</div>
         {shortcut && (
           <div className="mt-1 flex justify-center">
-            <kbd className="px-2 py-0.5 bg-slate-700 rounded text-xs font-mono text-slate-300">
+            <kbd className="px-2 py-0.5 ui-surface-2 rounded text-xs font-mono text-[var(--ui-text-muted)]">
               {shortcut}
             </kbd>
           </div>
@@ -68,8 +68,8 @@ export const IconButton: React.FC<{
         onFocus={() => setShowTooltip(true)}
         onBlur={() => setShowTooltip(false)}
         className={[
-          'h-10 w-10 flex items-center justify-center rounded-lg transition-colors',
-          disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-700/80 text-slate-300 hover:text-white active:bg-slate-700',
+          'ui-control flex items-center justify-center rounded-lg transition-colors',
+          disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-white active:bg-[var(--ui-surface-2)]',
           className ?? '',
         ].join(' ')}
       >
@@ -103,16 +103,16 @@ export const TogglePill: React.FC<{
         aria-pressed={active}
         className={[
           'px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all border',
-          disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-700/50',
+          disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)]',
           active
-            ? 'bg-slate-700/80 text-white border-slate-600/50 shadow-sm'
-            : 'bg-slate-800/50 text-slate-400 border-slate-700/30',
+            ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border-[var(--ui-border-strong)] shadow-sm'
+            : 'bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border-[var(--ui-border)]',
         ].join(' ')}
       >
         <span
           className={[
             'inline-block h-2 w-2 rounded-full',
-            active ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-600',
+            active ? 'bg-[var(--ui-accent)] shadow-sm shadow-black/20' : 'bg-[var(--ui-border-strong)]',
           ].join(' ')}
           aria-hidden="true"
         />
@@ -148,11 +148,11 @@ export const EngineStatusBadge: React.FC<{
 }) => {
   if (!label) return null;
   const toneClasses = tone === 'error'
-    ? 'bg-rose-900/30 border-rose-600/50 text-rose-200'
-    : 'bg-slate-900/50 border-slate-700/50 text-slate-300';
+    ? 'bg-[var(--ui-danger-soft)] border-[var(--ui-danger)] text-[var(--ui-danger)]'
+    : 'ui-panel border text-[var(--ui-text-muted)]';
   const baseClasses = variant === 'pill'
     ? `items-center gap-1.5 px-2.5 py-1 rounded text-xs border ${toneClasses}`
-    : 'items-center gap-1.5 text-xs text-slate-400';
+    : 'items-center gap-1.5 text-xs text-[var(--ui-text-muted)]';
 
   return (
     <div
@@ -189,7 +189,7 @@ export const PanelHeaderButton: React.FC<{
         aria-pressed={active}
         className={[
           'px-2 py-1 rounded text-xs font-semibold border',
-          active ? `${colorClass} border-slate-500 text-white` : 'bg-slate-900 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700',
+          active ? `${colorClass} border-[var(--ui-border-strong)] text-white` : 'bg-[var(--ui-panel)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:text-white hover:bg-[var(--ui-surface-2)]',
         ].join(' ')}
       >
         {label}
@@ -214,7 +214,7 @@ export function playerToShort(p: 'black' | 'white'): string {
 }
 
 export const panelCardBase = 'rounded-xl border transition-colors';
-export const panelCardOpen = 'border-slate-700/50 bg-slate-900/60 p-2 shadow-sm';
+export const panelCardOpen = 'ui-surface p-2 shadow-sm';
 export const panelCardClosed = 'border-transparent bg-transparent p-1';
 
 export const SectionHeader: React.FC<{
@@ -226,10 +226,10 @@ export const SectionHeader: React.FC<{
   <div className="flex flex-wrap items-center justify-between gap-2 py-2">
     <button
       type="button"
-      className="text-sm font-semibold text-slate-200 hover:text-white flex items-center gap-2 transition-colors py-1 -ml-1 pl-1 pr-2 rounded hover:bg-slate-700/30"
+      className="text-sm font-semibold text-[var(--ui-text)] hover:text-white flex items-center gap-2 transition-colors py-1 -ml-1 pl-1 pr-2 rounded hover:bg-[var(--ui-surface-2)]"
       onClick={onToggle}
     >
-      {open ? <FaChevronDown size={12} className="text-slate-400" /> : <FaChevronRight size={12} className="text-slate-400" />}
+      {open ? <FaChevronDown size={12} className="text-[var(--ui-text-faint)]" /> : <FaChevronRight size={12} className="text-[var(--ui-text-faint)]" />}
       {title}
     </button>
     {actions ? <div className="flex flex-wrap items-center gap-1.5">{actions}</div> : null}
@@ -256,12 +256,12 @@ export const PanelEdgeToggle: React.FC<{
         ? (isOpen ? <FaChevronUp size={14} /> : <FaChevronDown size={14} />)
         : (isOpen ? <FaChevronDown size={14} /> : <FaChevronUp size={14} />);
   const edgeClasses = isLeft
-    ? 'border-r border-slate-700/50 rounded-r-lg'
+    ? 'border-r border-[var(--ui-border)] rounded-r-lg'
     : isRight
-      ? 'border-l border-slate-700/50 rounded-l-lg'
+      ? 'border-l border-[var(--ui-border)] rounded-l-lg'
       : isTop
-        ? 'border-b border-slate-700/50 rounded-b-lg'
-        : 'border-t border-slate-700/50 rounded-t-lg';
+        ? 'border-b border-[var(--ui-border)] rounded-b-lg'
+        : 'border-t border-[var(--ui-border)] rounded-t-lg';
   const sizeClasses = isVertical ? 'h-20 w-8' : 'w-20 h-8';
 
   return (
@@ -272,7 +272,7 @@ export const PanelEdgeToggle: React.FC<{
       aria-label={title}
       className={[
         sizeClasses,
-        'bg-slate-800/90 hover:bg-slate-700/90 flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-lg',
+        'bg-[var(--ui-surface-2)] hover:bg-[var(--ui-surface)] flex items-center justify-center text-[var(--ui-text-muted)] hover:text-white transition-all shadow-lg',
         edgeClasses,
         className ?? '',
       ].join(' ')}

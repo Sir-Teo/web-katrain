@@ -1,13 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @layer base {
+  :root,
+  :root[data-ui-theme='noir'] {
+    --ui-font: 'Manrope', 'Segoe UI', sans-serif;
+    --ui-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --ui-font-size: 15px;
+    --ui-bar-height: 56px;
+    --ui-bar-pad-x: 12px;
+    --ui-bar-pad-y: 8px;
+    --ui-control-size: 38px;
+    --ui-panel-pad: 12px;
+    --ui-gap: 8px;
+    --ui-bg: #0b0f16;
+    --ui-bar: #0f172a;
+    --ui-panel: #111a2e;
+    --ui-surface: #141f36;
+    --ui-surface-2: #192744;
+    --ui-input: #0c1424;
+    --ui-border: #26324a;
+    --ui-border-strong: #344664;
+    --ui-text: #e6edf7;
+    --ui-text-muted: #94a3b8;
+    --ui-text-faint: #64748b;
+    --ui-accent: #22c55e;
+    --ui-accent-soft: #1a3a2a;
+    --ui-accent-contrast: #0b0f16;
+    --ui-danger: #fb7185;
+    --ui-danger-soft: #3a121c;
+    --ui-warning: #f59e0b;
+    --ui-warning-soft: #3a2a12;
+    --ui-success: #22c55e;
+    --ui-success-soft: #17351f;
+    color-scheme: dark;
+  }
+
+  :root[data-ui-theme='kaya'] {
+    --ui-bg: #120f0a;
+    --ui-bar: #1a150f;
+    --ui-panel: #221a12;
+    --ui-surface: #2a2016;
+    --ui-surface-2: #32251a;
+    --ui-input: #18110c;
+    --ui-border: #3b2d1f;
+    --ui-border-strong: #54402c;
+    --ui-text: #f5eee1;
+    --ui-text-muted: #c8b8a1;
+    --ui-text-faint: #9a886f;
+    --ui-accent: #f59e0b;
+    --ui-accent-soft: #3b2a12;
+    --ui-accent-contrast: #120f0a;
+    --ui-danger: #f87171;
+    --ui-danger-soft: #3a1a16;
+    --ui-warning: #f59e0b;
+    --ui-warning-soft: #3b2a12;
+    --ui-success: #22c55e;
+    --ui-success-soft: #1b2e1c;
+    color-scheme: dark;
+  }
+
+  :root[data-ui-theme='studio'] {
+    --ui-bg: #0c1219;
+    --ui-bar: #0f1722;
+    --ui-panel: #131d2a;
+    --ui-surface: #162233;
+    --ui-surface-2: #1b2b3f;
+    --ui-input: #0c141f;
+    --ui-border: #25374c;
+    --ui-border-strong: #314760;
+    --ui-text: #e7eef8;
+    --ui-text-muted: #9aa8bb;
+    --ui-text-faint: #6f8198;
+    --ui-accent: #38bdf8;
+    --ui-accent-soft: #122a3a;
+    --ui-accent-contrast: #0c1219;
+    --ui-danger: #f87171;
+    --ui-danger-soft: #33151a;
+    --ui-warning: #fbbf24;
+    --ui-warning-soft: #332614;
+    --ui-success: #34d399;
+    --ui-success-soft: #142b26;
+    color-scheme: dark;
+  }
+
+  :root[data-ui-density='compact'] {
+    --ui-font-size: 14px;
+    --ui-bar-height: 52px;
+    --ui-bar-pad-x: 10px;
+    --ui-bar-pad-y: 6px;
+    --ui-control-size: 34px;
+    --ui-panel-pad: 10px;
+    --ui-gap: 6px;
+  }
+
+  :root[data-ui-density='comfortable'] {
+    --ui-font-size: 15px;
+    --ui-bar-height: 56px;
+    --ui-bar-pad-x: 12px;
+    --ui-bar-pad-y: 8px;
+    --ui-control-size: 38px;
+    --ui-panel-pad: 12px;
+    --ui-gap: 8px;
+  }
+
+  :root[data-ui-density='large'] {
+    --ui-font-size: 16px;
+    --ui-bar-height: 64px;
+    --ui-bar-pad-x: 14px;
+    --ui-bar-pad-y: 10px;
+    --ui-control-size: 44px;
+    --ui-panel-pad: 14px;
+    --ui-gap: 10px;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    font-family: var(--ui-font);
+  }
+
   /* Focus ring for accessibility */
   button:focus-visible,
   [role="button"]:focus-visible,
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    @apply outline-none ring-2 ring-emerald-500/50 ring-offset-2 ring-offset-slate-900;
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 2px;
   }
 
   /* Remove default outline */
@@ -16,6 +142,120 @@
   input:focus,
   select:focus,
   textarea:focus {
-    @apply outline-none;
+    outline: none;
+  }
+}
+
+@layer utilities {
+  .font-sans {
+    font-family: var(--ui-font);
+  }
+
+  .font-mono {
+    font-family: var(--ui-font-mono);
+  }
+}
+
+@layer components {
+  .ui-root {
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    font-family: var(--ui-font);
+    font-size: var(--ui-font-size);
+  }
+
+  .ui-bg {
+    background: var(--ui-bg);
+  }
+
+  .ui-bar {
+    background: var(--ui-bar);
+    border-color: var(--ui-border);
+  }
+
+  .ui-bar-height {
+    height: var(--ui-bar-height);
+    min-height: var(--ui-bar-height);
+  }
+
+  .ui-bar-pad {
+    padding: var(--ui-bar-pad-y) var(--ui-bar-pad-x);
+  }
+
+  .ui-panel {
+    background: var(--ui-panel);
+    border-color: var(--ui-border);
+  }
+
+  .ui-panel-pad {
+    padding: var(--ui-panel-pad);
+  }
+
+  .ui-surface {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .ui-surface-2 {
+    background: var(--ui-surface-2);
+    border-color: var(--ui-border);
+  }
+
+  .ui-input {
+    background: var(--ui-input);
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+  }
+
+  .ui-control {
+    width: var(--ui-control-size);
+    height: var(--ui-control-size);
+  }
+
+  .ui-gap {
+    gap: var(--ui-gap);
+  }
+
+  .ui-border {
+    border-color: var(--ui-border);
+  }
+
+  .ui-border-strong {
+    border-color: var(--ui-border-strong);
+  }
+
+  .ui-text-muted {
+    color: var(--ui-text-muted);
+  }
+
+  .ui-text-faint {
+    color: var(--ui-text-faint);
+  }
+
+  .ui-accent {
+    color: var(--ui-accent);
+  }
+
+  .ui-accent-bg {
+    background: var(--ui-accent);
+    color: var(--ui-accent-contrast);
+  }
+
+  .ui-accent-soft {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    border-color: var(--ui-accent);
+  }
+
+  .ui-danger-soft {
+    background: var(--ui-danger-soft);
+    color: var(--ui-danger);
+    border-color: var(--ui-danger);
+  }
+
+  .ui-success-soft {
+    background: var(--ui-success-soft);
+    color: var(--ui-success);
+    border-color: var(--ui-success);
   }
 }

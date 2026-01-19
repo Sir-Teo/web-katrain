@@ -138,15 +138,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const modeTabClass = (active: boolean) => [
     'flex-1 h-10 rounded-lg font-semibold border transition-all',
     active
-      ? 'bg-blue-600/30 border-blue-500/60 text-white shadow-sm'
-      : 'bg-slate-900 border-slate-700/50 text-slate-400 hover:bg-slate-700/80 hover:text-white',
+      ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm'
+      : 'bg-[var(--ui-panel)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white',
   ].join(' ');
 
   const treeViewTabClass = (active: boolean) => [
     'px-2 py-1 rounded text-xs font-semibold border',
     active
-      ? 'bg-slate-700 text-white border-slate-600'
-      : 'bg-slate-900 text-slate-400 border-slate-700/50 hover:bg-slate-700 hover:text-white',
+      ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border-[var(--ui-border-strong)]'
+      : 'bg-[var(--ui-panel)] text-[var(--ui-text-muted)] border-[var(--ui-border)] hover:bg-[var(--ui-surface-2)] hover:text-white',
   ].join(' ');
 
   const guardInsertMode = (action: () => void) => {
@@ -236,7 +236,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         ) : null}
         {args.open && args.onResize ? (
           <div
-            className="hidden lg:block h-1 cursor-row-resize bg-slate-800/70 hover:bg-slate-600/80 transition-colors"
+            className="hidden lg:block h-1 cursor-row-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
             onMouseDown={args.onResize}
           />
         ) : null}
@@ -424,8 +424,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         className={[
           'flex-1 rounded-lg px-2.5 py-2 flex items-center gap-2.5 shadow-sm transition-all',
           isTurn
-            ? 'bg-slate-700/90 border-2 border-emerald-500/50 shadow-emerald-500/10'
-            : 'bg-slate-800/50 border border-slate-700/30',
+            ? 'bg-[var(--ui-surface-2)] border-2 border-[var(--ui-accent)] shadow-sm shadow-black/20'
+            : 'bg-[var(--ui-surface)] border border-[var(--ui-border)]',
         ].join(' ')}
       >
         <div
@@ -440,11 +440,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           {caps}
         </div>
         <div className="flex flex-col leading-tight min-w-0 flex-1">
-          <div className="text-xs font-medium text-slate-200 truncate">{name}</div>
-          <div className="text-[11px] text-slate-400">{rank || (player === 'black' ? 'Black' : 'White')}</div>
-          <div className="text-[10px] text-slate-500 uppercase tracking-wide">{isAi ? 'AI' : 'Human'}</div>
+          <div className="text-xs font-medium text-[var(--ui-text)] truncate">{name}</div>
+          <div className="text-[11px] ui-text-faint">{rank || (player === 'black' ? 'Black' : 'White')}</div>
+          <div className="text-[10px] ui-text-faint uppercase tracking-wide">{isAi ? 'AI' : 'Human'}</div>
         </div>
-        {isTurn && <div className="ml-auto text-xs font-semibold text-emerald-400 whitespace-nowrap">to play</div>}
+        {isTurn && <div className="ml-auto text-xs font-semibold text-[var(--ui-accent)] whitespace-nowrap">to play</div>}
       </div>
     );
   };
@@ -459,7 +459,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       )}
       <div
         className={[
-          'bg-slate-800 border-l border-slate-700/50 flex flex-col overflow-hidden relative',
+          'ui-panel border-l flex flex-col overflow-hidden relative',
           'fixed inset-y-0 right-0 z-40 w-full max-w-md',
           open ? 'flex' : 'hidden',
           'lg:static lg:max-w-none lg:z-auto',
@@ -469,10 +469,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         style={width ? { width } : undefined}
       >
         {/* Play / Analyze tabs */}
-        <div className="h-14 border-b border-slate-700/50 flex items-center px-3 py-2 gap-2">
+        <div className="ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2">
           <button
             type="button"
-            className="lg:hidden h-10 w-10 flex items-center justify-center rounded-lg hover:bg-slate-700/80 text-slate-300 hover:text-white transition-colors"
+            className="lg:hidden h-10 w-10 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-white transition-colors"
             onClick={onClose}
             title="Close side panel"
           >
@@ -520,10 +520,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   </button>
                 </div>
               ),
-              contentClassName: 'mt-2 bg-slate-950/50 border border-slate-800/60 rounded-lg overflow-hidden',
+              contentClassName: 'mt-2 ui-surface border rounded-lg overflow-hidden',
               children: (
                 <>
-                  <div className="flex items-center gap-1 px-2 py-1 border-b border-slate-800 bg-slate-900/80">
+                  <div className="flex items-center gap-1 px-2 py-1 border-b border-[var(--ui-border)] bg-[var(--ui-surface)]">
                     <IconButton
                       title="To start (Home)"
                       onClick={() => guardInsertMode(navigateStart)}
@@ -540,7 +540,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     >
                       <FaFastForward size={12} />
                     </IconButton>
-                    <div className="h-6 w-px bg-slate-700/60 mx-1" />
+                    <div className="h-6 w-px bg-[var(--ui-border)] mx-1" />
                     <IconButton
                       title="Previous branch (↑)"
                       onClick={() => guardInsertMode(() => switchBranch(-1))}
@@ -557,7 +557,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     >
                       <FaArrowDown size={12} />
                     </IconButton>
-                    <div className="h-6 w-px bg-slate-700/60 mx-1" />
+                    <div className="h-6 w-px bg-[var(--ui-border)] mx-1" />
                     <IconButton
                       title="Back to branch point (B)"
                       onClick={() => guardInsertMode(undoToBranchPoint)}
@@ -577,7 +577,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     <div className="flex-1" />
                     <button
                       type="button"
-                      className="px-2 py-1 rounded text-xs font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-700/60 border border-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-2 py-1 rounded text-xs font-semibold bg-[var(--ui-surface-2)] text-[var(--ui-text)] hover:brightness-110 border border-[var(--ui-border)] disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={() => guardInsertMode(makeCurrentNodeMainBranch)}
                       disabled={isInsertMode || !currentNode.parent}
                     >
@@ -588,7 +588,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     {treeView === 'tree' ? (
                       <MoveTree />
                     ) : (
-                      <div className="divide-y divide-slate-800">
+                      <div className="divide-y divide-[var(--ui-border)]">
                         {pathNodes.map((node, idx) => {
                           const move = node.move;
                           const isCurrent = node.id === currentNode.id;
@@ -601,7 +601,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               type="button"
                               className={[
                                 'w-full px-3 py-2 flex items-center gap-3 text-left',
-                                isCurrent ? 'bg-emerald-500/10 text-emerald-100' : 'hover:bg-slate-800/60 text-slate-200',
+                                isCurrent ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',
                               ].join(' ')}
                               onClick={() => guardInsertMode(() => useGameStore.getState().jumpToNode(node))}
                               disabled={isInsertMode}
@@ -620,7 +620,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               </span>
                               <span className="text-sm font-medium">{label}</span>
                               {hasNote && (
-                                <span className="ml-auto text-[10px] uppercase tracking-wide text-amber-300">note</span>
+                                <span className="ml-auto text-[10px] uppercase tracking-wide text-[var(--ui-warning)]">note</span>
                               )}
                             </button>
                           );
@@ -629,7 +629,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     )}
                   </div>
                   <div
-                    className="hidden lg:block h-1 cursor-row-resize bg-slate-800/70 hover:bg-slate-600/80 transition-colors"
+                    className="hidden lg:block h-1 cursor-row-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
                     onMouseDown={(e) => {
                       treeResizeRef.current = { startY: e.clientY, startHeight: treeHeight };
                       setIsResizingTree(true);
@@ -655,112 +655,112 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 <>
                   <div className="flex gap-2">{renderPlayerInfo('black')}{renderPlayerInfo('white')}</div>
                   <Timer />
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-[var(--ui-text-muted)]">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Komi</span>
-                      <span className="font-mono text-slate-100">{komi}</span>
+                      <span className="ui-text-faint">Komi</span>
+                      <span className="font-mono text-[var(--ui-text)]">{komi}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Moves</span>
-                      <span className="font-mono text-slate-100">{moveHistory.length}</span>
+                      <span className="ui-text-faint">Moves</span>
+                      <span className="font-mono text-[var(--ui-text)]">{moveHistory.length}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Captured</span>
-                      <span className="font-mono text-slate-100">B:{capturedWhite} · W:{capturedBlack}</span>
+                      <span className="ui-text-faint">Captured</span>
+                      <span className="font-mono text-[var(--ui-text)]">B:{capturedWhite} · W:{capturedBlack}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Analyzed</span>
-                      <span className="font-mono text-slate-100">{analysisCounts.analyzed}/{analysisCounts.total}</span>
+                      <span className="ui-text-faint">Analyzed</span>
+                      <span className="font-mono text-[var(--ui-text)]">{analysisCounts.analyzed}/{analysisCounts.total}</span>
                     </div>
                   </div>
                   {endResult && (
-                    <div className="flex items-center justify-between text-xs text-slate-300">
-                      <span className="text-slate-400">Result</span>
-                      <span className="font-mono text-slate-100">{endResult}</span>
+                    <div className="flex items-center justify-between text-xs text-[var(--ui-text-muted)]">
+                      <span className="ui-text-faint">Result</span>
+                      <span className="font-mono text-[var(--ui-text)]">{endResult}</span>
                     </div>
                   )}
 
-                  <div className="border-t border-slate-700/50 pt-2">
-                    <div className="text-xs text-slate-400 mb-2">Metadata</div>
+                  <div className="border-t border-[var(--ui-border)] pt-2">
+                    <div className="text-xs ui-text-faint mb-2">Metadata</div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">Black</label>
+                        <label className="ui-text-faint">Black</label>
                         <input
                           value={getProp('PB')}
                           onChange={(e) => setRootProperty('PB', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="Name"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">White</label>
+                        <label className="ui-text-faint">White</label>
                         <input
                           value={getProp('PW')}
                           onChange={(e) => setRootProperty('PW', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="Name"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">B Rank</label>
+                        <label className="ui-text-faint">B Rank</label>
                         <input
                           value={getProp('BR')}
                           onChange={(e) => setRootProperty('BR', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="Rank"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">W Rank</label>
+                        <label className="ui-text-faint">W Rank</label>
                         <input
                           value={getProp('WR')}
                           onChange={(e) => setRootProperty('WR', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="Rank"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">Event</label>
+                        <label className="ui-text-faint">Event</label>
                         <input
                           value={getProp('EV')}
                           onChange={(e) => setRootProperty('EV', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="Event"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">Date</label>
+                        <label className="ui-text-faint">Date</label>
                         <input
                           value={getProp('DT')}
                           onChange={(e) => setRootProperty('DT', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="YYYY-MM-DD"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">Result</label>
+                        <label className="ui-text-faint">Result</label>
                         <input
                           value={getProp('RE')}
                           onChange={(e) => setRootProperty('RE', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="B+R / W+0.5"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">Place</label>
+                        <label className="ui-text-faint">Place</label>
                         <input
                           value={getProp('PC')}
                           onChange={(e) => setRootProperty('PC', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="Location"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-slate-500">Game</label>
+                        <label className="ui-text-faint">Game</label>
                         <input
                           value={getProp('GN')}
                           onChange={(e) => setRootProperty('GN', e.target.value)}
-                          className="bg-slate-800/70 border border-slate-700/50 rounded px-2 py-1 text-slate-200"
+                          className="ui-input border rounded px-2 py-1 text-[var(--ui-text)]"
                           placeholder="Game name"
                         />
                       </div>
@@ -769,7 +769,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
                   <div className="flex gap-2">
                     <button
-                      className="flex-1 px-3 py-2.5 rounded-lg bg-slate-700/80 hover:bg-slate-600/80 text-sm font-medium text-slate-200 transition-colors border border-slate-600/40"
+                      className="flex-1 px-3 py-2.5 rounded-lg bg-[var(--ui-surface-2)] hover:brightness-110 text-sm font-medium text-[var(--ui-text)] transition-colors border border-[var(--ui-border)]"
                       onClick={() => {
                         const st = useGameStore.getState();
                         const lastMover = st.currentNode.move?.player ?? null;
@@ -782,7 +782,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       Undo
                     </button>
                     <button
-                      className="flex-1 px-3 py-2.5 rounded-lg bg-rose-900/40 hover:bg-rose-800/50 text-sm font-medium text-rose-200 transition-colors border border-rose-700/40"
+                      className="flex-1 px-3 py-2.5 rounded-lg ui-danger-soft text-sm font-medium transition-colors border hover:brightness-110"
                       onClick={() => {
                         const result = currentPlayer === 'black' ? 'W+R' : 'B+R';
                         resign();
@@ -797,7 +797,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     <button
                       className={[
                         'flex-1 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
-                        isAiWhite ? 'bg-emerald-600/30 text-emerald-200 border-2 border-emerald-500/50 shadow-sm shadow-emerald-500/20' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/30 hover:text-slate-300',
+                        isAiWhite ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border-2 border-[var(--ui-accent)] shadow-sm shadow-black/20' : 'bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:text-white',
                       ].join(' ')}
                       onClick={() => toggleAi('white')}
                     >
@@ -806,7 +806,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     <button
                       className={[
                         'flex-1 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
-                        isAiBlack ? 'bg-emerald-600/30 text-emerald-200 border-2 border-emerald-500/50 shadow-sm shadow-emerald-500/20' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/30 hover:text-slate-300',
+                        isAiBlack ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border-2 border-[var(--ui-accent)] shadow-sm shadow-black/20' : 'bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:text-white',
                       ].join(' ')}
                       onClick={() => toggleAi('black')}
                     >
@@ -870,13 +870,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   />
                   <PanelHeaderButton
                     label="Info"
-                    colorClass="bg-slate-700"
+                    colorClass="bg-[var(--ui-surface-2)]"
                     active={modePanels.notes.info}
                     onClick={() => updatePanels((current) => ({ notes: { ...current.notes, info: !current.notes.info } }))}
                   />
                   <PanelHeaderButton
                     label="Details"
-                    colorClass="bg-slate-700"
+                    colorClass="bg-[var(--ui-surface-2)]"
                     active={modePanels.notes.infoDetails}
                     onClick={() =>
                       updatePanels((current) => ({ notes: { ...current.notes, infoDetails: !current.notes.infoDetails } }))
@@ -891,7 +891,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 </div>
               ),
               wrapperClassName: 'pb-2',
-              contentClassName: 'mt-1 bg-slate-900/40 rounded-lg min-h-0 overflow-hidden flex flex-col',
+              contentClassName: 'mt-1 ui-surface rounded-lg min-h-0 overflow-hidden flex flex-col',
               contentStyle: { height: notesHeight },
               onResize: (e) => {
                 notesResizeRef.current = { startY: e.clientY, startHeight: notesHeight };
@@ -899,21 +899,21 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               },
               children: (
                 <>
-                  <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-300 flex items-center justify-between">
+                  <div className="px-3 py-2 border-b border-[var(--ui-border)] text-xs text-[var(--ui-text)] flex items-center justify-between">
                     <div className="truncate">
                       <span className="font-mono">{playerToShort(currentPlayer)}</span> ·{' '}
                       <span className="font-mono">{moveHistory.length}</span> ·{' '}
                       <span className="font-mono">{currentNode.move ? formatMoveLabel(currentNode.move.x, currentNode.move.y) : 'Root'}</span>
                     </div>
-                    {engineError && <span className="text-red-300">error</span>}
+                    {engineError && <span className="text-[var(--ui-danger)]">error</span>}
                   </div>
-                  <div className="px-3 py-2 border-b border-slate-800 text-xs text-slate-400">
+                  <div className="px-3 py-2 border-b border-[var(--ui-border)] text-xs ui-text-faint">
                     {statusText}
                   </div>
                   {notesListOpen && (
-                    <div className="border-b border-slate-800 max-h-40 overflow-y-auto">
+                    <div className="border-b border-[var(--ui-border)] max-h-40 overflow-y-auto">
                       {notesNodes.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-slate-500">No notes yet.</div>
+                        <div className="px-3 py-2 text-xs ui-text-faint">No notes yet.</div>
                       ) : (
                         notesNodes.map(({ node, label, snippet }) => {
                           const isCurrent = node.id === currentNode.id;
@@ -923,14 +923,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               type="button"
                               className={[
                                 'w-full px-3 py-2 text-left text-xs',
-                                isCurrent ? 'bg-emerald-500/10 text-emerald-100' : 'hover:bg-slate-800/60 text-slate-200',
+                                isCurrent ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',
                               ].join(' ')}
                               onClick={() => guardInsertMode(() => useGameStore.getState().jumpToNode(node))}
                               disabled={isInsertMode}
                               title={isInsertMode ? 'Finish inserting before navigating.' : 'Jump to noted move'}
                             >
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-slate-400">{label}</span>
+                                <span className="font-mono ui-text-faint">{label}</span>
                                 <span className="truncate">{snippet}</span>
                               </div>
                             </button>

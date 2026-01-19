@@ -121,7 +121,7 @@ export const MoveTree: React.FC = () => {
   }, [layout]);
 
   return (
-    <div ref={containerRef} className="w-full h-full overflow-auto bg-slate-900">
+    <div ref={containerRef} className="w-full h-full overflow-auto ui-surface">
       <svg width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`}>
         {lines.map((l) => (
           <polyline

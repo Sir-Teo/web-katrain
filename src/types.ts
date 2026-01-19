@@ -82,6 +82,9 @@ export type BoardThemeId =
   | 'kifu'
   | 'baduktv';
 
+export type UiThemeId = 'noir' | 'kaya' | 'studio';
+export type UiDensityId = 'compact' | 'comfortable' | 'large';
+
 export interface GameSettings {
   soundEnabled: boolean;
   showCoordinates: boolean;
@@ -89,6 +92,8 @@ export interface GameSettings {
   showBoardControls: boolean;
   showNextMovePreview: boolean;
   boardTheme: BoardThemeId;
+  uiTheme: UiThemeId;
+  uiDensity: UiDensityId;
   timerSound: boolean; // KaTrain timer/sound
   timerMainTimeMinutes: number; // KaTrain timer/main_time (minutes)
   timerByoLengthSeconds: number; // KaTrain timer/byo_length (seconds)

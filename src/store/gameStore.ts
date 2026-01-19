@@ -316,6 +316,8 @@ const defaultSettings: GameSettings = {
   showBoardControls: true,
   showNextMovePreview: true,
   boardTheme: 'hikaru',
+  uiTheme: 'noir',
+  uiDensity: 'comfortable',
   timerSound: true,
   timerMainTimeMinutes: 0,
   timerByoLengthSeconds: 30,

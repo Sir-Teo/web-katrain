@@ -14,6 +14,8 @@ import {
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { SectionHeader, panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui';
 
+const GRAPH_HEIGHT = 200;
+
 interface LibraryPanelProps {
   open: boolean;
   docked?: boolean;
@@ -81,10 +83,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const headerActionClass = 'px-2 py-1 rounded bg-slate-800/70 text-xs text-slate-200 hover:bg-slate-700';
-  const headerDangerActionClass = 'px-2 py-1 rounded bg-rose-900/40 text-xs text-rose-200 hover:bg-rose-800/50';
-  const bulkActionClass = 'px-2 py-1 rounded bg-slate-800/70 border border-slate-700/60 hover:bg-slate-700/60';
-  const bulkDangerActionClass = 'px-2 py-1 rounded bg-rose-900/40 border border-rose-700/50 text-rose-200 hover:bg-rose-800/50';
+  const headerActionClass = 'px-2 py-1 rounded bg-[var(--ui-surface-2)] text-xs text-[var(--ui-text)] hover:brightness-110';
+  const headerDangerActionClass = 'px-2 py-1 rounded ui-danger-soft text-xs hover:brightness-110';
+  const bulkActionClass = 'px-2 py-1 rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:brightness-110';
+  const bulkDangerActionClass = 'px-2 py-1 rounded ui-danger-soft border hover:brightness-110';
   const analysisActionClass =
     'px-2 py-1 rounded text-[11px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
   const [sortKey, setSortKey] = useState(() => {
@@ -107,27 +109,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return true;
     return localStorage.getItem('web-katrain:library_recent_open:v1') !== 'false';
   });
-  const [graphHeight, setGraphHeight] = useState(() => {
-    if (typeof localStorage === 'undefined') return 180;
-    const raw = localStorage.getItem('web-katrain:library_graph_height:v1');
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) ? parsed : 180;
-  });
-  const [searchHeight, setSearchHeight] = useState(() => {
-    if (typeof localStorage === 'undefined') return 180;
-    const raw = localStorage.getItem('web-katrain:library_search_height:v1');
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) ? parsed : 180;
-  });
   const [listHeight, setListHeight] = useState(() => {
-    if (typeof localStorage === 'undefined') return 420;
-    const raw = localStorage.getItem('web-katrain:library_list_height:v1');
+    if (typeof localStorage === 'undefined') {
+      return typeof window === 'undefined' ? 360 : Math.min(420, Math.round(window.innerHeight * 0.45));
+    }
+    const raw = localStorage.getItem('web-katrain:library_list_height:v2');
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) ? parsed : 420;
+    if (Number.isFinite(parsed)) return parsed;
+    return typeof window === 'undefined' ? 360 : Math.min(420, Math.round(window.innerHeight * 0.45));
   });
-  const searchResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const listSectionRef = useRef<HTMLDivElement>(null);
+  const graphSectionRef = useRef<HTMLDivElement>(null);
   const listResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
-  const [isResizingSearch, setIsResizingSearch] = useState(false);
   const [isResizingList, setIsResizingList] = useState(false);
   const [graphOptions] = useState(() => {
     if (typeof localStorage === 'undefined') return { score: true, winrate: true };
@@ -140,7 +133,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return { score: true, winrate: true };
     }
   });
-  const [isResizingGraph, setIsResizingGraph] = useState(false);
 
   useEffect(() => saveLibrary(items), [items]);
 
@@ -195,46 +187,76 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_search_height:v1', String(searchHeight));
-  }, [searchHeight]);
+    localStorage.setItem('web-katrain:library_sort:v1', String(sortKey));
+  }, [sortKey]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_list_height:v1', String(listHeight));
+    localStorage.setItem('web-katrain:library_list_open:v1', String(listOpen));
+  }, [listOpen]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_list_height:v2', String(listHeight));
   }, [listHeight]);
 
   useEffect(() => {
-    if (!isResizingSearch) return;
-    const minHeight = 140;
-    const maxHeight = 420;
-    const onMove = (e: MouseEvent) => {
-      if (!searchResizeRef.current) return;
-      const delta = e.clientY - searchResizeRef.current.startY;
-      const next = Math.min(maxHeight, Math.max(minHeight, searchResizeRef.current.startHeight + delta));
-      setSearchHeight(next);
-    };
-    const onUp = () => {
-      setIsResizingSearch(false);
-      searchResizeRef.current = null;
-    };
-    document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizingSearch]);
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_recent_open:v1', String(recentOpen));
+  }, [recentOpen]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_graph_opts:v1', JSON.stringify(graphOptions));
+  }, [graphOptions]);
+
+  useEffect(() => {
+    onLibraryUpdated?.();
+  }, [items, onLibraryUpdated]);
+
+  const getListBounds = () => {
+    const panel = panelRef.current;
+    const listEl = listSectionRef.current;
+    if (!panel || !listEl) return null;
+    const panelRect = panel.getBoundingClientRect();
+    const listRect = listEl.getBoundingClientRect();
+    const minHeight = 220;
+    const graphOffset = graphOpen && graphSectionRef.current
+      ? graphSectionRef.current.getBoundingClientRect().height + 16
+      : 16;
+    const available = panelRect.bottom - listRect.top - graphOffset;
+    const softMax = Math.round(panelRect.height * 0.65);
+    const maxHeight = Math.max(minHeight, Math.min(available, softMax));
+    return { minHeight, maxHeight };
+  };
+
+  const clampListHeight = () => {
+    const bounds = getListBounds();
+    if (!bounds) return;
+    setListHeight((current) => Math.min(bounds.maxHeight, Math.max(bounds.minHeight, current)));
+  };
+
+  useEffect(() => {
+    if (!open || !listOpen) return;
+    const frame = window.requestAnimationFrame(() => clampListHeight());
+    return () => window.cancelAnimationFrame(frame);
+  }, [graphOpen, listOpen, open, searchOpen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => clampListHeight();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [graphOpen, listOpen, open, searchOpen]);
 
   useEffect(() => {
     if (!isResizingList) return;
-    const minHeight = 220;
-    const maxHeight = 700;
     const onMove = (e: MouseEvent) => {
       if (!listResizeRef.current) return;
+      const bounds = getListBounds();
+      if (!bounds) return;
       const delta = e.clientY - listResizeRef.current.startY;
-      const next = Math.min(maxHeight, Math.max(minHeight, listResizeRef.current.startHeight + delta));
+      const next = Math.min(bounds.maxHeight, Math.max(bounds.minHeight, listResizeRef.current.startHeight + delta));
       setListHeight(next);
     };
     const onUp = () => {
@@ -249,60 +271,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [isResizingList]);
+  }, [graphOpen, isResizingList]);
 
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_sort:v1', String(sortKey));
-  }, [sortKey]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_list_open:v1', String(listOpen));
-  }, [listOpen]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_recent_open:v1', String(recentOpen));
-  }, [recentOpen]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_graph_height:v1', String(graphHeight));
-  }, [graphHeight]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_graph_opts:v1', JSON.stringify(graphOptions));
-  }, [graphOptions]);
-
-  useEffect(() => {
-    onLibraryUpdated?.();
-  }, [items, onLibraryUpdated]);
-
-  useEffect(() => {
-    if (!isResizingGraph) return;
-    const minGraph = 120;
-    const minList = 180;
-    const onMove = (e: MouseEvent) => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const rect = panel.getBoundingClientRect();
-      const available = rect.height - 140;
-      const maxGraph = Math.max(minGraph, available - minList);
-      const next = Math.min(maxGraph, Math.max(minGraph, rect.bottom - e.clientY));
-      setGraphHeight(next);
-    };
-    const onUp = () => setIsResizingGraph(false);
-    document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizingGraph]);
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -648,8 +618,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     <div
       key={item.id}
       className={[
-        'px-3 py-2 flex items-center gap-2 hover:bg-slate-800/60 cursor-pointer',
-        activeId === item.id ? 'bg-slate-800/80' : '',
+        'px-3 py-2 flex items-center gap-2 hover:bg-[var(--ui-surface-2)] cursor-pointer',
+        activeId === item.id ? 'bg-[var(--ui-surface-2)]' : '',
       ].join(' ')}
       style={{ paddingLeft: 12 + depth * 16 }}
       onClick={() => handleLoad(item)}
@@ -659,7 +629,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     >
       <button
         type="button"
-        className="text-slate-500 hover:text-slate-200 p-1"
+        className="ui-text-faint hover:text-white p-1"
         onClick={(e) => {
           e.stopPropagation();
           handleToggleSelect(item.id);
@@ -669,14 +639,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         {selectedIds.has(item.id) ? <FaCheckSquare /> : <FaSquare />}
       </button>
       <div className="flex-1 min-w-0">
-        <div className="text-sm text-slate-100 truncate">{item.name}</div>
-        <div className="text-xs text-slate-500">
+        <div className="text-sm text-[var(--ui-text)] truncate">{item.name}</div>
+        <div className="text-xs ui-text-faint">
           {item.moveCount} moves · {(item.size / 1024).toFixed(1)} KB
         </div>
       </div>
       <button
         type="button"
-        className="text-slate-400 hover:text-slate-200 p-1"
+        className="ui-text-faint hover:text-white p-1"
         onClick={(e) => {
           e.stopPropagation();
           handleDownload(item);
@@ -687,7 +657,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       </button>
       <button
         type="button"
-        className="text-slate-400 hover:text-slate-200 p-1"
+        className="ui-text-faint hover:text-white p-1"
         onClick={(e) => {
           e.stopPropagation();
           handleRename(item);
@@ -698,7 +668,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       </button>
       <button
         type="button"
-        className="text-slate-400 hover:text-rose-300 p-1"
+        className="ui-text-faint hover:text-[var(--ui-danger)] p-1"
         onClick={(e) => {
           e.stopPropagation();
           handleDelete(item);
@@ -715,12 +685,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const children = childrenMap.get(item.id) ?? [];
     return (
       <div key={item.id}>
-        <div
-          className={[
-            'px-3 py-2 flex items-center gap-2 hover:bg-slate-800/60 cursor-pointer',
-            currentFolderId === item.id ? 'bg-emerald-500/10 text-emerald-100' : '',
-            dragOverId === item.id ? 'bg-emerald-500/20' : '',
-          ].join(' ')}
+      <div
+        className={[
+          'px-3 py-2 flex items-center gap-2 hover:bg-[var(--ui-surface-2)] cursor-pointer',
+          currentFolderId === item.id ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : '',
+          dragOverId === item.id ? 'bg-[var(--ui-accent-soft)]' : '',
+        ].join(' ')}
           style={{ paddingLeft: 12 + depth * 16 }}
           onClick={() => {
             setCurrentFolderId(item.id);
@@ -739,7 +709,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         >
           <button
             type="button"
-            className="text-slate-500 hover:text-slate-200 p-1"
+            className="ui-text-faint hover:text-white p-1"
             onClick={(e) => {
               e.stopPropagation();
               setExpandedFolderIds((prev) => {
@@ -755,7 +725,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </button>
           <button
             type="button"
-            className="text-slate-500 hover:text-slate-200 p-1"
+            className="ui-text-faint hover:text-white p-1"
             onClick={(e) => {
               e.stopPropagation();
               handleToggleSelect(item.id);
@@ -765,12 +735,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             {selectedIds.has(item.id) ? <FaCheckSquare /> : <FaSquare />}
           </button>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-slate-100 truncate">{item.name}</div>
-            <div className="text-xs text-slate-500">{children.length} items</div>
+            <div className="text-sm font-semibold text-[var(--ui-text)] truncate">{item.name}</div>
+            <div className="text-xs ui-text-faint">{children.length} items</div>
           </div>
           <button
             type="button"
-            className="text-slate-400 hover:text-slate-200 p-1"
+            className="ui-text-faint hover:text-white p-1"
             onClick={(e) => {
               e.stopPropagation();
               handleRename(item);
@@ -781,7 +751,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </button>
           <button
             type="button"
-            className="text-slate-400 hover:text-rose-300 p-1"
+            className="ui-text-faint hover:text-[var(--ui-danger)] p-1"
             onClick={(e) => {
               e.stopPropagation();
               handleDelete(item);
@@ -792,7 +762,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </button>
         </div>
         {allowChildren && isExpanded && children.length > 0 && (
-          <div className="divide-y divide-slate-800">
+          <div className="divide-y divide-[var(--ui-border)]">
             {children.map((child) =>
               isFolder(child) ? renderFolderRow(child, depth + 1, allowChildren) : renderFileRow(child, depth + 1)
             )}
@@ -811,7 +781,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         ref={panelRef}
         data-dropzone="library"
         className={[
-          'bg-slate-900 border-r border-slate-700/50 flex flex-col overflow-x-hidden relative',
+          'ui-panel border-r flex flex-col overflow-x-hidden relative',
           'fixed inset-y-0 left-0 z-40 w-full max-w-sm',
           'lg:static lg:z-auto',
           docked ? 'lg:max-w-none' : 'lg:w-80',
@@ -822,16 +792,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="h-14 border-b border-slate-700/50 flex items-center gap-2 px-3">
+        <div className="ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2">
           <button
             type="button"
-            className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg hover:bg-slate-700/80 text-slate-300 hover:text-white transition-colors"
+            className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-white transition-colors"
             onClick={onClose}
             title="Close library"
           >
             <FaTimes />
           </button>
-          <div className="font-semibold text-slate-100">Library</div>
+          <div className="font-semibold text-[var(--ui-text)]">Library</div>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
@@ -880,30 +850,29 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           className={[
             'mx-3 mt-3',
             panelCardBase,
-            searchOpen ? `${panelCardOpen} bg-slate-950/40` : panelCardClosed,
+            searchOpen ? panelCardOpen : panelCardClosed,
             searchOpen ? 'flex flex-col' : '',
           ].join(' ')}
-          style={searchOpen ? { height: searchHeight } : undefined}
         >
           <SectionHeader title="Search & Filters" open={searchOpen} onToggle={() => setSearchOpen((prev) => !prev)} />
           {searchOpen ? (
             <>
               <div className="flex-1 overflow-y-auto pr-1">
                 <div className="relative">
-                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs" />
+                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search library…"
-                    className="w-full bg-slate-800/80 border border-slate-700/50 rounded pl-8 pr-3 py-2 text-sm text-slate-200 focus:border-emerald-500"
+                    className="w-full ui-input border rounded pl-8 pr-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
                   />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                <div className="mt-2 flex items-center justify-between text-xs ui-text-faint">
                   <span>Sort</span>
                   <select
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700/50 rounded px-2 py-1 text-xs text-slate-200"
+                    className="ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
                   >
                     <option value="recent">Recent</option>
                     <option value="name">Name</option>
@@ -911,12 +880,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     <option value="size">Size</option>
                   </select>
                 </div>
-                <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
+                <div className="mt-2 text-xs ui-text-faint flex items-center justify-between">
                   <span>Save to: {currentFolderName}</span>
                   {currentFolderId && (
                     <button
                       type="button"
-                      className="text-xs text-slate-400 hover:text-slate-200"
+                      className="text-xs ui-text-faint hover:text-white"
                       onClick={() => setCurrentFolderId(null)}
                     >
                       Root
@@ -924,10 +893,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   )}
                 </div>
                 {!isSearching && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs ui-text-faint">
                     <button
                       type="button"
-                      className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/60 disabled:opacity-40"
+                      className="px-2 py-1 rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:brightness-110 disabled:opacity-40"
                       onClick={handleGoUp}
                       disabled={!currentFolderId}
                     >
@@ -935,18 +904,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </button>
                     <button
                       type="button"
-                      className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 hover:bg-slate-700/60"
+                      className="px-2 py-1 rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:brightness-110"
                       onClick={() => setCurrentFolderId(null)}
                     >
                       Root
                     </button>
                     {breadcrumbs.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1 text-slate-500">
+                      <div className="flex flex-wrap items-center gap-1 ui-text-faint">
                         {breadcrumbs.map((crumb, index) => (
                           <button
                             key={crumb.id}
                             type="button"
-                            className="px-1.5 py-0.5 rounded hover:bg-slate-800/60 text-slate-400"
+                            className="px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
                             onClick={() => setCurrentFolderId(crumb.id)}
                           >
                             {index === 0 ? crumb.name : `/${crumb.name}`}
@@ -957,39 +926,33 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 )}
                 {isDragging && (
-                  <div className="mt-3 text-xs text-emerald-300 border border-emerald-500/40 rounded px-2 py-1 bg-emerald-900/20">
+                  <div className="mt-3 text-xs ui-accent-soft border rounded px-2 py-1">
                     Drop SGF files to import
                   </div>
                 )}
               </div>
-              <div
-                className="hidden lg:block h-1 cursor-row-resize bg-slate-800/70 hover:bg-slate-600/80 transition-colors mt-2"
-                onMouseDown={(e) => {
-                  searchResizeRef.current = { startY: e.clientY, startHeight: searchHeight };
-                  setIsResizingSearch(true);
-                }}
-              />
             </>
           ) : null}
         </div>
 
         <div
+          ref={listSectionRef}
           className={[
             'flex flex-col mx-3 mb-3 mt-3 overflow-hidden',
             panelCardBase,
-            listOpen ? `${panelCardOpen} min-h-0 bg-slate-950/40` : `flex-none ${panelCardClosed}`,
+            listOpen ? `${panelCardOpen} min-h-0` : `flex-none ${panelCardClosed}`,
           ].join(' ')}
           style={listOpen ? { height: listHeight } : undefined}
         >
           <div
             className={[
               'px-3 py-2 flex items-center justify-between',
-              listOpen ? 'border-b border-slate-800/70' : '',
+              listOpen ? 'border-b border-[var(--ui-border)]' : '',
             ].join(' ')}
           >
             <button
               type="button"
-              className="flex items-center gap-2 text-sm text-slate-200 font-semibold"
+              className="flex items-center gap-2 text-sm text-[var(--ui-text)] font-semibold"
               onClick={() => setListOpen((prev) => !prev)}
             >
               <ToggleLabel open={listOpen}>Library Items</ToggleLabel>
@@ -998,19 +961,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               {sortedItems.length > 0 && (
                 <button
                   type="button"
-                  className="text-xs text-slate-400 hover:text-slate-200"
+                  className="text-xs ui-text-faint hover:text-white"
                   onClick={handleSelectAll}
                 >
                   Select all
                 </button>
               )}
-              <div className="text-xs text-slate-500">
+              <div className="text-xs ui-text-faint">
                 {sortedItems.length} items{selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ''}
               </div>
             </div>
           </div>
           {selectedIds.size > 0 && (
-            <div className="px-3 py-2 border-b border-slate-800 flex items-center gap-2 text-xs text-slate-300">
+            <div className="px-3 py-2 border-b border-[var(--ui-border)] flex items-center gap-2 text-xs text-[var(--ui-text-muted)]">
               <button
                 type="button"
                 className={bulkActionClass}
@@ -1028,7 +991,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               <select
                 value={bulkMoveTarget}
                 onChange={(e) => setBulkMoveTarget(e.target.value)}
-                className="ml-2 bg-slate-800/80 border border-slate-700/50 rounded px-2 py-1 text-xs text-slate-200"
+                className="ml-2 ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
               >
                 <option value="">Move to...</option>
                 <option value="root">Root</option>
@@ -1058,47 +1021,47 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           <div
             className={[
               'flex-1 min-h-0 overflow-y-auto',
-              dragOverRoot ? 'bg-emerald-500/10' : '',
+              dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
             ].join(' ')}
             onDragOver={handleRootDragOver}
             onDragLeave={handleRootDragLeave}
             onDrop={handleRootDrop}
           >
             {!listOpen ? (
-              <div className="p-4 text-xs text-slate-500">Library list hidden</div>
+              <div className="p-4 text-xs ui-text-faint">Library list hidden</div>
             ) : isSearching ? (
               sortedItems.length === 0 ? (
-                <div className="p-6 text-sm text-slate-500">
-                  <div className="font-semibold text-slate-300 mb-2">No matches</div>
+                <div className="p-6 text-sm ui-text-faint">
+                  <div className="font-semibold text-[var(--ui-text-muted)] mb-2">No matches</div>
                   <div>Try a different search term.</div>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-800">
+                <div className="divide-y divide-[var(--ui-border)]">
                   {sortedItems.map((item) =>
                     isFolder(item) ? renderFolderRow(item, 0, false) : renderFileRow(item, 0)
                   )}
                 </div>
               )
             ) : items.length === 0 ? (
-              <div className="p-6 text-sm text-slate-500">
-                <div className="font-semibold text-slate-300 mb-2">Library is empty</div>
+              <div className="p-6 text-sm ui-text-faint">
+                <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Library is empty</div>
                 <div>Save the current game or drag SGF files here to build your library.</div>
               </div>
             ) : (
               <>
-                <div className="border-b border-slate-800">
+                <div className="border-b border-[var(--ui-border)]">
                   <button
                     type="button"
-                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-200 font-semibold"
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-[var(--ui-text)] font-semibold"
                     onClick={() => setRecentOpen((prev) => !prev)}
                   >
                     <ToggleLabel open={recentOpen}>Recent</ToggleLabel>
-                    <span className="text-xs text-slate-500">{recentFiles.length}</span>
+                    <span className="text-xs ui-text-faint">{recentFiles.length}</span>
                   </button>
                   {recentOpen && (
-                    <div className="divide-y divide-slate-800">
+                    <div className="divide-y divide-[var(--ui-border)]">
                       {recentFiles.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-slate-500">No recent files.</div>
+                        <div className="px-3 py-2 text-xs ui-text-faint">No recent files.</div>
                       ) : (
                         recentFiles.map((item) =>
                           onOpenRecent ? (
@@ -1113,7 +1076,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="divide-y divide-slate-800">
+                <div className="divide-y divide-[var(--ui-border)]">
                   {(childrenMap.get(null) ?? []).map((item) =>
                     isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
                   )}
@@ -1121,23 +1084,26 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               </>
             )}
           </div>
-          {listOpen && (
+          {listOpen && !isMobile && (
             <div
-              className="hidden lg:block h-1 cursor-row-resize bg-slate-800/70 hover:bg-slate-600/80 transition-colors mt-2"
+              className="h-3 cursor-row-resize bg-[var(--ui-surface-2)] hover:bg-[var(--ui-border-strong)] transition-colors"
               onMouseDown={(e) => {
+                e.preventDefault();
                 listResizeRef.current = { startY: e.clientY, startHeight: listHeight };
                 setIsResizingList(true);
               }}
+              title="Drag to resize list"
             />
           )}
         </div>
 
         {docked && (
           <div
+            ref={graphSectionRef}
             className={[
               'mx-3 mb-3',
               panelCardBase,
-              graphOpen ? `${panelCardOpen} bg-slate-950/40` : panelCardClosed,
+              graphOpen ? panelCardOpen : panelCardClosed,
             ].join(' ')}
           >
             <SectionHeader
@@ -1151,8 +1117,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     className={[
                       analysisActionClass,
                       isAnalysisRunning
-                        ? 'bg-rose-600/30 text-rose-200 border-rose-500/50 hover:bg-rose-500/40'
-                        : 'bg-slate-800/60 text-slate-400 border-slate-700/60',
+                        ? 'ui-danger-soft border hover:brightness-110'
+                        : 'bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] border-[var(--ui-border)]',
                     ].join(' ')}
                     onClick={onStopAnalysis}
                     disabled={!isAnalysisRunning}
@@ -1164,23 +1130,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             />
             {graphOpen ? (
               <>
-                <div className="mt-2" style={{ height: graphHeight }}>
+                <div className="mt-2" style={{ height: GRAPH_HEIGHT }}>
                   <div className="h-full overflow-y-auto">
                     {analysisContent ? (
                       analysisContent
                     ) : graphOptions.score || graphOptions.winrate ? (
                       <ScoreWinrateGraph showScore={graphOptions.score} showWinrate={graphOptions.winrate} />
                     ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-slate-500 border border-slate-800 rounded">
+                      <div className="h-full flex items-center justify-center text-xs ui-text-faint border border-[var(--ui-border)] rounded">
                         Graph hidden
                       </div>
                     )}
                   </div>
                 </div>
-                <div
-                  className="hidden lg:block h-1 cursor-row-resize bg-slate-800/70 hover:bg-slate-600/80 transition-colors mt-2"
-                  onMouseDown={() => setIsResizingGraph(true)}
-                />
               </>
             ) : null}
           </div>

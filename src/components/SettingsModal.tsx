@@ -7,6 +7,7 @@ import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import { publicUrl } from '../utils/publicUrl';
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { getEngineModelLabel } from '../utils/engineLabel';
+import { UI_THEME_OPTIONS } from '../utils/uiThemes';
 
 let uploadedModelUrl: string | null = null;
 let lastManualModelUrl: string | null = null;
@@ -88,17 +89,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const SMALL_MODEL_URL = publicUrl('models/katago-small.bin.gz');
     const isUploadedModel = settings.katagoModelUrl.startsWith('blob:');
     const sectionClass =
-        'rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4 sm:p-5 shadow-[0_14px_40px_rgba(15,23,42,0.45)]';
-    const sectionTitleClass = 'text-xs font-semibold text-slate-300 tracking-[0.12em] uppercase';
+        'rounded-2xl border ui-surface p-4 sm:p-5 shadow-[0_14px_40px_rgba(0,0,0,0.35)]';
+    const sectionTitleClass = 'text-xs font-semibold ui-text-muted tracking-[0.12em] uppercase';
     const rowClass = 'flex items-center justify-between gap-4 min-h-11';
-    const labelClass = 'text-slate-200 text-sm sm:text-base';
+    const labelClass = 'text-[var(--ui-text)] text-sm sm:text-base';
     const inputClass =
-        'w-full bg-slate-950/60 text-white rounded-lg px-3 py-2 border border-slate-700/60 focus:border-emerald-400/80 outline-none text-sm font-mono';
+        'w-full ui-input rounded-lg px-3 py-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono';
     const selectClass =
-        'w-full bg-slate-950/60 text-white rounded-lg px-3 py-2 border border-slate-700/60 focus:border-emerald-400/80 outline-none text-sm';
-    const subtextClass = 'text-xs text-slate-400 leading-relaxed';
+        'w-full ui-input rounded-lg px-3 py-2 border focus:border-[var(--ui-accent)] outline-none text-sm';
+    const subtextClass = 'text-xs ui-text-faint leading-relaxed';
     const pillButtonClass =
-        'px-3 py-2 rounded-lg bg-slate-950/60 hover:bg-slate-800 text-xs font-mono text-white border border-slate-700/60 transition-colors';
+        'px-3 py-2 rounded-lg ui-surface-2 text-xs font-mono text-[var(--ui-text)] border transition-colors hover:brightness-110';
 
     const TOP_MOVE_OPTIONS: Array<{ value: GameSettings['trainerTopMovesShow']; label: string }> = [
         { value: 'top_move_delta_score', label: 'Δ Score (points lost)' },
@@ -108,6 +109,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         { value: 'top_move_delta_winrate', label: 'Δ Winrate' },
         { value: 'top_move_nothing', label: 'Nothing' },
     ];
+    const UI_DENSITY_OPTIONS: Array<{ value: GameSettings['uiDensity']; label: string; description: string }> = [
+        { value: 'compact', label: 'Compact', description: 'Tighter bars and smaller controls.' },
+        { value: 'comfortable', label: 'Comfortable', description: 'Balanced sizing for most screens.' },
+        { value: 'large', label: 'Large', description: 'Roomier controls and text.' },
+    ];
+    const uiThemeMeta = UI_THEME_OPTIONS.find((theme) => theme.value === settings.uiTheme);
+    const uiDensityMeta = UI_DENSITY_OPTIONS.find((density) => density.value === settings.uiDensity);
 
     React.useEffect(() => {
         if (!isUploadedModel) {
@@ -196,10 +204,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-6">
-            <div className="w-full max-w-[960px] h-[92vh] sm:h-auto sm:max-h-[92vh] bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 rounded-2xl shadow-2xl border border-slate-700/40 overflow-hidden flex flex-col">
-                <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur">
-                    <h2 className="text-lg sm:text-xl font-semibold text-white">Settings</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <div className="w-full max-w-[960px] h-[92vh] sm:h-auto sm:max-h-[92vh] ui-panel rounded-2xl shadow-2xl border overflow-hidden flex flex-col">
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b ui-bar backdrop-blur">
+                    <h2 className="text-lg sm:text-xl font-semibold text-[var(--ui-text)]">Settings</h2>
+                    <button onClick={onClose} className="ui-text-muted hover:text-white transition-colors">
                         <FaTimes />
                     </button>
                 </div>
@@ -329,7 +337,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-slate-300 block">Board Theme</label>
+                                <label className="ui-text-muted block">Board Theme</label>
                                 <select
                                     value={settings.boardTheme}
                                     onChange={(e) => updateSettings({ boardTheme: e.target.value as GameSettings['boardTheme'] })}
@@ -341,6 +349,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </option>
                                     ))}
                                 </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="ui-text-muted block">UI Theme</label>
+                                <select
+                                    value={settings.uiTheme}
+                                    onChange={(e) => updateSettings({ uiTheme: e.target.value as GameSettings['uiTheme'] })}
+                                    className={selectClass}
+                                >
+                                    {UI_THEME_OPTIONS.map((theme) => (
+                                        <option key={theme.value} value={theme.value}>
+                                            {theme.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {uiThemeMeta ? <p className={subtextClass}>{uiThemeMeta.description}</p> : null}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="ui-text-muted block">UI Density</label>
+                                <select
+                                    value={settings.uiDensity}
+                                    onChange={(e) => updateSettings({ uiDensity: e.target.value as GameSettings['uiDensity'] })}
+                                    className={selectClass}
+                                >
+                                    {UI_DENSITY_OPTIONS.map((density) => (
+                                        <option key={density.value} value={density.value}>
+                                            {density.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {uiDensityMeta ? <p className={subtextClass}>{uiDensityMeta.description}</p> : null}
                             </div>
                         </div>
                     </div>
@@ -1276,13 +1316,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             type="button"
-                                                            className="px-2 py-1 text-xs rounded bg-emerald-800/70 border border-emerald-600/40 hover:bg-emerald-700/70 disabled:opacity-60"
+                                                            className="px-2 py-1 text-xs rounded ui-accent-soft border hover:brightness-110 disabled:opacity-60"
                                                             onClick={() => handleDownloadAndLoad(model.url)}
                                                             disabled={downloadingUrl === model.url}
                                                         >
                                                             {downloadingUrl === model.url ? 'Downloading...' : 'Download & Load'}
                                                         </button>
-                                                        <span className="text-[10px] text-emerald-200/70">Session memory</span>
+                                                        <span className="text-[10px] text-[var(--ui-accent)]">Session memory</span>
                                                     </div>
                                                 ) : null}
                                                 <button
@@ -1488,10 +1528,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         </div>
                     </div>
                 </div>
-                <div className="sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 bg-slate-950/80 border-t border-slate-800/60 backdrop-blur">
+                <div className="sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t backdrop-blur">
                     <button
                         onClick={onClose}
-                        className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-900/30 transition-colors"
+                        className="px-5 py-2.5 rounded-lg ui-accent-bg hover:brightness-110 font-semibold shadow-lg shadow-black/20 transition-colors"
                     >
                         Done
                     </button>

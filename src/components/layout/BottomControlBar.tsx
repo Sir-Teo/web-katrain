@@ -64,7 +64,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   }, []);
 
   return (
-    <div className="h-16 bg-slate-800 border-t border-slate-700/50 flex items-center px-3 gap-3 select-none">
+    <div className="ui-bar ui-bar-height ui-bar-pad border-t flex items-center gap-3 select-none">
       <div className="relative">
         {passPolicyColor && (
           <div
@@ -74,7 +74,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         )}
         <button
           ref={passBtnRef}
-          className="relative px-4 py-2 bg-slate-700/80 hover:bg-slate-600/80 rounded-lg text-sm font-medium text-slate-200 transition-colors"
+          className="relative px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 rounded-lg text-sm font-medium text-[var(--ui-text)] transition-colors"
           onClick={passTurn}
           aria-label="Pass turn"
           title="Pass (P)"
@@ -122,12 +122,12 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           title="Previous mistake (N)"
           onClick={() => findMistake('undo')}
           disabled={isInsertMode}
-          className="text-red-300 hover:text-red-200"
+          className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
         >
           <FaExclamationTriangle />
         </IconButton>
 
-        <div className="h-6 w-px bg-slate-700/60 mx-0.5" />
+        <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
 
         <IconButton title="Start (Home)" onClick={navigateStart} disabled={isInsertMode}>
           <FaStepBackward />
@@ -140,12 +140,12 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         </IconButton>
 
         {/* Move counter */}
-        <div className="px-3 py-1.5 rounded-md bg-slate-900/60 border border-slate-700/50 text-sm text-slate-300 font-mono flex items-center gap-2 min-w-[120px] justify-center">
+        <div className="px-3 py-1.5 rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] text-sm text-[var(--ui-text-muted)] font-mono flex items-center gap-2 min-w-[120px] justify-center">
           <span className={currentPlayer === 'black' ? 'text-white font-semibold' : 'text-slate-500'}>B</span>
           <span className="text-slate-600">·</span>
           <span className={currentPlayer === 'white' ? 'text-white font-semibold' : 'text-slate-500'}>W</span>
           <span className="text-slate-600 mx-1">|</span>
-          <span className="text-slate-400">Move</span>
+          <span className="ui-text-faint">Move</span>
           <span className="text-white font-semibold">{moveHistory.length}</span>
         </div>
 
@@ -159,13 +159,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           <FaStepForward />
         </IconButton>
 
-        <div className="h-6 w-px bg-slate-700/60 mx-0.5" />
+        <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
 
         <IconButton
           title="Next mistake (Shift+N)"
           onClick={() => findMistake('redo')}
           disabled={isInsertMode}
-          className="text-red-300 hover:text-red-200"
+          className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
         >
           <FaExclamationTriangle />
         </IconButton>
@@ -176,7 +176,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
       {/* AI Move button */}
       <button
-        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-600 rounded-lg text-sm font-medium text-white shadow-md shadow-emerald-600/20 transition-all"
+        className="px-4 py-2 ui-accent-bg hover:brightness-110 active:brightness-100 rounded-lg text-sm font-medium shadow-md shadow-black/20 transition-all"
         onClick={() => makeAiMove()}
         aria-label="Make AI move"
         title="AI move (Enter)"

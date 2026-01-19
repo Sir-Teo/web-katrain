@@ -90,26 +90,26 @@ const SHORTCUT_CATEGORIES = [
 
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-slate-800 rounded-lg shadow-xl w-[800px] max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-          <h2 className="text-lg font-semibold text-white">Keyboard Shortcuts</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="ui-panel rounded-lg shadow-xl w-[800px] max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col border">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
+          <h2 className="text-lg font-semibold text-[var(--ui-text)]">Keyboard Shortcuts</h2>
+          <button onClick={onClose} className="ui-text-faint hover:text-white">
             <FaTimes />
           </button>
         </div>
         <div className="p-4 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {SHORTCUT_CATEGORIES.map((category) => (
-              <div key={category.title} className="bg-slate-900 rounded-lg p-3 border border-slate-700/50">
-                <h3 className="text-sm font-semibold text-slate-200 mb-2 pb-2 border-b border-slate-700/50">
+              <div key={category.title} className="ui-surface rounded-lg p-3 border">
+                <h3 className="text-sm font-semibold text-[var(--ui-text)] mb-2 pb-2 border-b border-[var(--ui-border)]">
                   {category.title}
                 </h3>
                 <div className="space-y-1">
                   {category.shortcuts.map((shortcut) => (
                     <div key={shortcut.key} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-400">{shortcut.description}</span>
-                      <kbd className="px-2 py-0.5 bg-slate-700 rounded text-xs font-mono text-slate-200 ml-2 whitespace-nowrap">
+                      <span className="ui-text-faint">{shortcut.description}</span>
+                      <kbd className="px-2 py-0.5 ui-surface-2 rounded text-xs font-mono text-[var(--ui-text)] ml-2 whitespace-nowrap">
                         {shortcut.key}
                       </kbd>
                     </div>
@@ -119,8 +119,8 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose })
             ))}
           </div>
         </div>
-        <div className="p-3 border-t border-slate-700/50 text-center">
-          <span className="text-xs text-slate-500">Press <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-xs font-mono text-slate-300">?</kbd> or <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-xs font-mono text-slate-300">Esc</kbd> to close</span>
+        <div className="p-3 border-t border-[var(--ui-border)] text-center">
+          <span className="text-xs ui-text-faint">Press <kbd className="px-1.5 py-0.5 ui-surface-2 rounded text-xs font-mono text-[var(--ui-text)]">?</kbd> or <kbd className="px-1.5 py-0.5 ui-surface-2 rounded text-xs font-mono text-[var(--ui-text)]">Esc</kbd> to close</span>
         </div>
       </div>
     </div>

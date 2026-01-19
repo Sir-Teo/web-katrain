@@ -64,7 +64,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/98 border-t border-slate-700/60 backdrop-blur-sm shadow-xl shadow-black/30"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 ui-bar border-t backdrop-blur-sm shadow-xl shadow-black/30"
       role="tablist"
     >
       <div
@@ -81,8 +81,8 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               className={[
                 'py-3 px-2 flex flex-col items-center justify-center gap-1.5 text-xs font-medium transition-all',
                 isActive
-                  ? 'text-emerald-200 bg-emerald-500/10 border-t-2 border-emerald-400 shadow-inner'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border-t-2 border-transparent',
+                  ? 'text-[var(--ui-accent)] bg-[var(--ui-accent-soft)] border-t-2 border-[var(--ui-accent)] shadow-inner'
+                  : 'text-[var(--ui-text-muted)] hover:text-white hover:bg-[var(--ui-surface-2)] border-t-2 border-transparent',
               ].join(' ')}
               role="tab"
               aria-selected={isActive}

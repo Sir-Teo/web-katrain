@@ -33,11 +33,11 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="menu-title">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div className="absolute left-0 top-0 h-full w-80 bg-slate-800 border-r border-slate-700/50 shadow-xl p-3 overflow-y-auto">
+      <div className="absolute left-0 top-0 h-full w-80 ui-panel border-r shadow-xl p-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold" id="menu-title">Menu</h2>
           <button
-            className="text-slate-400 hover:text-white"
+            className="ui-text-muted hover:text-white"
             onClick={onClose}
             aria-label="Close menu"
           >
@@ -47,9 +47,9 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 
         <nav className="space-y-4" aria-label="Main menu">
           <div>
-            <div className="px-3 text-xs uppercase tracking-wide text-slate-500 mb-2">Game</div>
+            <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Game</div>
           <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
             onClick={() => {
               onNewGame();
               onClose();
@@ -59,10 +59,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <span className="flex items-center gap-2">
               <FaPlay aria-hidden="true" /> New Game
             </span>
-            <kbd className="text-xs text-slate-400">Ctrl+N</kbd>
+            <kbd className="text-xs ui-text-faint">Ctrl+N</kbd>
           </button>
           <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
             onClick={() => {
               onSave();
               onClose();
@@ -72,10 +72,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <span className="flex items-center gap-2">
               <FaSave aria-hidden="true" /> Save SGF
             </span>
-            <kbd className="text-xs text-slate-400">Ctrl+S</kbd>
+            <kbd className="text-xs ui-text-faint">Ctrl+S</kbd>
           </button>
           <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
             onClick={() => {
               onLoad();
               onClose();
@@ -85,13 +85,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <span className="flex items-center gap-2">
               <FaFolderOpen aria-hidden="true" /> Load SGF
             </span>
-            <kbd className="text-xs text-slate-400">Ctrl+O</kbd>
+            <kbd className="text-xs ui-text-faint">Ctrl+O</kbd>
           </button>
           </div>
           <div>
-            <div className="px-3 text-xs uppercase tracking-wide text-slate-500 mb-2">Edit</div>
+            <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Edit</div>
             <button
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
               onClick={() => {
                 onCopy();
                 onClose();
@@ -101,10 +101,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaCopy aria-hidden="true" /> Copy SGF
               </span>
-              <kbd className="text-xs text-slate-400">Ctrl+C</kbd>
+              <kbd className="text-xs ui-text-faint">Ctrl+C</kbd>
             </button>
             <button
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
               onClick={() => {
                 onPaste();
                 onClose();
@@ -114,13 +114,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaPaste aria-hidden="true" /> Paste SGF / OGS
               </span>
-              <kbd className="text-xs text-slate-400">Ctrl+V</kbd>
+              <kbd className="text-xs ui-text-faint">Ctrl+V</kbd>
             </button>
           </div>
           <div>
-            <div className="px-3 text-xs uppercase tracking-wide text-slate-500 mb-2">Settings</div>
+            <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Settings</div>
           <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
             onClick={() => {
               onSettings();
               onClose();
@@ -130,10 +130,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <span className="flex items-center gap-2">
               <FaCog aria-hidden="true" /> Settings
             </span>
-            <kbd className="text-xs text-slate-400">F8</kbd>
+            <kbd className="text-xs ui-text-faint">F8</kbd>
           </button>
           <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-700"
+            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
             onClick={() => {
               onKeyboardHelp();
               onClose();
@@ -143,26 +143,26 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <span className="flex items-center gap-2">
               <FaKeyboard aria-hidden="true" /> Keyboard Shortcuts
             </span>
-            <kbd className="text-xs text-slate-400">?</kbd>
+            <kbd className="text-xs ui-text-faint">?</kbd>
           </button>
           </div>
         </nav>
 
         {recentItems.length > 0 && onOpenRecent && (
-          <div className="mt-4 border-t border-slate-700/50 pt-3 space-y-2">
-            <div className="text-xs text-slate-400">Recent</div>
+          <div className="mt-4 border-t border-[var(--ui-border)] pt-3 space-y-2">
+            <div className="text-xs ui-text-faint">Recent</div>
             <div className="space-y-1">
               {recentItems.map((item) => (
                 <button
                   key={item.id}
-                  className="w-full text-left px-3 py-2 rounded hover:bg-slate-700 text-sm text-slate-200"
+                  className="w-full text-left px-3 py-2 rounded hover:bg-[var(--ui-surface-2)] text-sm text-[var(--ui-text)]"
                   onClick={() => {
                     onOpenRecent(item.sgf);
                     onClose();
                   }}
                 >
                   <div className="truncate">{item.name}</div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] ui-text-faint">
                     {new Date(item.updatedAt).toLocaleString()}
                   </div>
                 </button>

@@ -126,7 +126,7 @@ export const ScoreGraph: React.FC = () => {
 
   return (
     <div
-      className="w-full h-full bg-slate-900 relative border border-slate-700/50 rounded overflow-hidden cursor-crosshair"
+      className="w-full h-full ui-surface relative border rounded overflow-hidden cursor-crosshair"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
@@ -175,8 +175,8 @@ export const ScoreGraph: React.FC = () => {
       </svg>
 
       {/* Labels */}
-      <div className="absolute top-1 left-1 text-[9px] text-slate-500 pointer-events-none">{maxScore.toFixed(0)}</div>
-      <div className="absolute bottom-1 left-1 text-[9px] text-slate-500 pointer-events-none">{minScore.toFixed(0)}</div>
+      <div className="absolute top-1 left-1 text-[9px] ui-text-faint pointer-events-none">{maxScore.toFixed(0)}</div>
+      <div className="absolute bottom-1 left-1 text-[9px] ui-text-faint pointer-events-none">{minScore.toFixed(0)}</div>
 
       {/* Hover Tooltip */}
       {hoverIndex !== null && (

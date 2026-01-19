@@ -218,6 +218,12 @@ export const Layout: React.FC = () => {
     if (typeof localStorage === 'undefined') return true;
     return localStorage.getItem('web-katrain:bottom_bar_open:v1') !== 'false';
   });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.dataset.uiTheme = settings.uiTheme;
+    document.documentElement.dataset.uiDensity = settings.uiDensity;
+  }, [settings.uiDensity, settings.uiTheme]);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
     return window.matchMedia('(min-width: 1024px)').matches;
@@ -374,13 +380,12 @@ export const Layout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    if (!isResizingLeft && !isResizingRight) return;
+  const getPanelLimits = useCallback(() => {
     const minLeft = 220;
     const minRight = 280;
-    const maxLeftLimit = 520;
-    const maxRightLimit = 520;
-    const minMain = isDesktop ? 420 : 0;
+    const minMain = isDesktop ? Math.max(380, Math.min(560, Math.round(viewportWidth * 0.4))) : 0;
+    const maxLeftLimit = Math.max(minLeft, Math.min(560, Math.floor(viewportWidth * 0.32)));
+    const maxRightLimit = Math.max(minRight, Math.min(600, Math.floor(viewportWidth * 0.34)));
     const maxLeft = Math.max(
       minLeft,
       Math.min(maxLeftLimit, viewportWidth - minMain - (showSidebar ? rightPanelWidth : 0))
@@ -389,6 +394,12 @@ export const Layout: React.FC = () => {
       minRight,
       Math.min(maxRightLimit, viewportWidth - minMain - (libraryOpen ? leftPanelWidth : 0))
     );
+    return { minLeft, minRight, maxLeft, maxRight };
+  }, [isDesktop, libraryOpen, leftPanelWidth, rightPanelWidth, showSidebar, viewportWidth]);
+
+  useEffect(() => {
+    if (!isResizingLeft && !isResizingRight) return;
+    const { minLeft, minRight, maxLeft, maxRight } = getPanelLimits();
     const onMove = (e: MouseEvent) => {
       if (isResizingLeft) {
         const next = Math.min(maxLeft, Math.max(minLeft, e.clientX));
@@ -412,31 +423,14 @@ export const Layout: React.FC = () => {
       window.removeEventListener('mouseup', onUp);
     };
   }, [
+    getPanelLimits,
     isResizingLeft,
     isResizingRight,
-    isDesktop,
-    viewportWidth,
-    leftPanelWidth,
-    rightPanelWidth,
-    libraryOpen,
-    showSidebar,
   ]);
 
   useEffect(() => {
     if (!isDesktop) return;
-    const minLeft = 220;
-    const minRight = 280;
-    const maxLeftLimit = 520;
-    const maxRightLimit = 520;
-    const minMain = 420;
-    const maxLeft = Math.max(
-      minLeft,
-      Math.min(maxLeftLimit, viewportWidth - minMain - (showSidebar ? rightPanelWidth : 0))
-    );
-    const maxRight = Math.max(
-      minRight,
-      Math.min(maxRightLimit, viewportWidth - minMain - (libraryOpen ? leftPanelWidth : 0))
-    );
+    const { minLeft, minRight, maxLeft, maxRight } = getPanelLimits();
 
     if (libraryOpen) {
       const nextLeft = Math.min(maxLeft, Math.max(minLeft, leftPanelWidth));
@@ -446,7 +440,7 @@ export const Layout: React.FC = () => {
       const nextRight = Math.min(maxRight, Math.max(minRight, rightPanelWidth));
       if (nextRight !== rightPanelWidth) setRightPanelWidth(nextRight);
     }
-  }, [isDesktop, viewportWidth, libraryOpen, showSidebar, leftPanelWidth, rightPanelWidth]);
+  }, [getPanelLimits, isDesktop, libraryOpen, leftPanelWidth, rightPanelWidth, showSidebar]);
 
   // Apply per-mode analysis controls to settings on mode changes
   useEffect(() => {
@@ -912,7 +906,7 @@ export const Layout: React.FC = () => {
 
   return (
     <div
-      className="relative flex h-screen bg-slate-900 text-slate-200 font-sans overflow-hidden app-root"
+      className="relative flex h-screen overflow-hidden app-root ui-root font-sans"
       onDragEnter={handleAppDragEnter}
       onDragLeave={handleAppDragLeave}
       onDragOver={handleAppDragOver}
@@ -945,10 +939,10 @@ export const Layout: React.FC = () => {
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".sgf" />
 
       {isFileDragActive && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm pointer-events-none">
-          <div className="rounded-xl border-2 border-dashed border-emerald-400/60 px-6 py-4 text-center bg-slate-900/70">
-            <div className="text-sm font-semibold text-emerald-100">Drop SGF to open</div>
-            <div className="text-xs text-slate-300">Release to load the game in the board.</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
+          <div className="rounded-xl border-2 border-dashed border-[var(--ui-accent)] px-6 py-4 text-center ui-panel">
+            <div className="text-sm font-semibold text-[var(--ui-accent)]">Drop SGF to open</div>
+            <div className="text-xs ui-text-faint">Release to load the game in the board.</div>
           </div>
         </div>
       )}
@@ -1009,7 +1003,7 @@ export const Layout: React.FC = () => {
 
       {isDesktop && libraryOpen && (
         <div
-          className="hidden lg:block w-1 cursor-col-resize bg-slate-800/60 hover:bg-slate-600/80 transition-colors"
+          className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
           onMouseDown={() => setIsResizingLeft(true)}
           onDoubleClick={handleToggleLibrary}
         />
@@ -1068,11 +1062,11 @@ export const Layout: React.FC = () => {
         )}
 
         {/* Board */}
-        <div className={['flex-1 flex items-center justify-center bg-slate-900 overflow-auto relative', isMobile ? 'p-3 md:p-4' : 'p-4 xl:p-6'].join(' ')}>
+        <div className={['flex-1 flex items-center justify-center ui-bg overflow-auto relative', isMobile ? 'p-3 md:p-4' : 'p-4 xl:p-6'].join(' ')}>
           {notification && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 bg-slate-800 border border-slate-700/50">
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 ui-panel border">
               <span>{notification.message}</span>
-              <button onClick={clearNotification} className="hover:text-slate-200">
+              <button onClick={clearNotification} className="hover:text-white">
                 <FaTimes />
               </button>
             </div>
@@ -1109,7 +1103,7 @@ export const Layout: React.FC = () => {
 
       {isDesktop && showSidebar && (
         <div
-          className="hidden lg:block w-1 cursor-col-resize bg-slate-800/60 hover:bg-slate-600/80 transition-colors"
+          className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
           onMouseDown={() => setIsResizingRight(true)}
           onDoubleClick={handleToggleSidebar}
         />

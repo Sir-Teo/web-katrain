@@ -58,9 +58,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [graphTick, setGraphTick] = useState(0);
   const snapshotTimerRef = useRef<number | null>(null);
   const sectionClass =
-    'rounded-xl border border-slate-700/60 bg-slate-900/70 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.35)] print-surface';
-  const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400';
-  const labelClass = 'text-slate-300';
+    'rounded-xl border ui-surface p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] print-surface';
+  const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] ui-text-faint';
+  const labelClass = 'text-[var(--ui-text-muted)]';
   const generatedAt = useMemo(() => new Date(), []);
 
   useEffect(() => {
@@ -523,14 +523,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   }, [playerFilter, depthFilter, treeVersion]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 report-overlay">
-      <div className="bg-slate-900/90 rounded-2xl shadow-2xl w-[56rem] max-h-[90vh] overflow-hidden flex flex-col report-print border border-slate-700/60">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/50 bg-slate-900/90">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay">
+      <div className="ui-panel rounded-2xl shadow-2xl w-[56rem] max-h-[90vh] overflow-hidden flex flex-col report-print border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--ui-border)] ui-bar">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">KaTrain Report</div>
-            <h2 className="text-lg font-semibold text-white">Game Analysis Summary</h2>
+            <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">KaTrain Report</div>
+            <h2 className="text-lg font-semibold text-[var(--ui-text)]">Game Analysis Summary</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white print-hide" title="Close">
+          <button onClick={onClose} className="ui-text-faint hover:text-white print-hide" title="Close">
             <FaTimes />
           </button>
         </div>
@@ -555,8 +555,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   className={[
                     'px-3 py-2 rounded-lg border text-sm font-semibold transition-colors',
                     active
-                      ? 'bg-emerald-600/80 border-emerald-500/60 text-white'
-                      : 'bg-slate-900/80 border-slate-700/50 text-slate-200 hover:bg-slate-800/70',
+                      ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]'
+                      : 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
                   ].join(' ')}
                 >
                   {b.label}
@@ -598,9 +598,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <div className="mt-2 text-lg font-semibold text-slate-100">
                 {analyzedMoves}/{totalMoves || 0}
               </div>
-              <div className="mt-2 h-2 rounded-full bg-slate-800/70 overflow-hidden">
+              <div className="mt-2 h-2 rounded-full bg-[var(--ui-surface-2)] overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500/70"
+                  className="h-full bg-[var(--ui-accent)] opacity-70"
                   style={{ width: `${Math.round(coverage * 100)}%` }}
                 />
               </div>
@@ -684,7 +684,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className={sectionTitleClass}>Analysis Graph</div>
-                <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 print-hide">
+                <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ui-accent-soft border print-hide">
                   Live
                 </span>
               </div>
@@ -884,11 +884,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         </div>
         </div>
 
-        <div className="px-5 py-4 bg-slate-900/90 border-t border-slate-700/50 flex items-center justify-between print:hidden">
+        <div className="px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex items-center justify-between print:hidden">
           <button
             type="button"
             onClick={handleDownloadPdf}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold disabled:opacity-60"
+            className="px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-white rounded-lg font-semibold disabled:opacity-60"
             disabled={isPreparingPdf}
           >
             {isPreparingPdf
@@ -898,7 +898,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold"
+            className="px-4 py-2 ui-accent-bg hover:brightness-110 rounded-lg font-semibold"
           >
             Done
           </button>
