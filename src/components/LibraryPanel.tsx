@@ -944,35 +944,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           ].join(' ')}
           style={listOpen ? { height: listHeight } : undefined}
         >
-          <div
-            className={[
-              'px-3 py-2 flex items-center justify-between',
-              listOpen ? 'border-b border-[var(--ui-border)]' : '',
-            ].join(' ')}
-          >
-            <button
-              type="button"
-              className="flex items-center gap-2 text-sm text-[var(--ui-text)] font-semibold"
-              onClick={() => setListOpen((prev) => !prev)}
-            >
-              <ToggleLabel open={listOpen}>Library Items</ToggleLabel>
-            </button>
-            <div className="flex items-center gap-2">
-              {sortedItems.length > 0 && (
-                <button
-                  type="button"
-                  className="text-xs ui-text-faint hover:text-white"
-                  onClick={handleSelectAll}
-                >
-                  Select all
-                </button>
-              )}
-              <div className="text-xs ui-text-faint">
-                {sortedItems.length} items{selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ''}
+          <SectionHeader
+            title="Library"
+            open={listOpen}
+            onToggle={() => setListOpen((prev) => !prev)}
+            actions={
+              <div className="flex items-center gap-2 text-xs ui-text-faint">
+                {sortedItems.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-xs ui-text-faint hover:text-white"
+                    onClick={handleSelectAll}
+                  >
+                    Select all
+                  </button>
+                )}
+                <div className="text-xs ui-text-faint">
+                  {sortedItems.length} items{selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ''}
+                </div>
               </div>
-            </div>
-          </div>
-          {selectedIds.size > 0 && (
+            }
+          />
+          {listOpen && selectedIds.size > 0 && (
             <div className="px-3 py-2 border-b border-[var(--ui-border)] flex items-center gap-2 text-xs text-[var(--ui-text-muted)]">
               <button
                 type="button"
