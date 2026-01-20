@@ -235,7 +235,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onLibraryUpdated?.();
   }, [items, onLibraryUpdated]);
 
-  const getSectionBounds = (sectionRef: React.RefObject<HTMLDivElement>, minHeight: number) => {
+  const getSectionBounds = (sectionRef: React.RefObject<HTMLDivElement | null>, minHeight: number) => {
     const panel = panelRef.current;
     const section = sectionRef.current;
     if (!panel || !section) return null;
