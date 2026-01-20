@@ -42,11 +42,14 @@ type NotesPanelProps = {
 };
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes }) => {
-  const { currentNode, setCurrentNodeNote, treeVersion } = useGameStore(
+  const { currentNode, setCurrentNodeNote, treeVersion, isAnalysisMode, engineStatus, engineError } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
       setCurrentNodeNote: state.setCurrentNodeNote,
       treeVersion: state.treeVersion,
+      isAnalysisMode: state.isAnalysisMode,
+      engineStatus: state.engineStatus,
+      engineError: state.engineError,
     }),
     shallow
   );
@@ -87,6 +90,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const showInfoBlock = showInfo || detailed;
   const showNotesBlock = showNotes;
 
+  const analysisStatusText = useMemo(() => {
+    if (!isAnalysisMode) return 'Analysis off (Tab to enable)';
+    if (engineStatus === 'error') return engineError ? `Engine error: ${engineError}` : 'Engine error';
+    if (engineStatus === 'loading') return 'Analyzing move...';
+    return 'Analyzing move...';
+  }, [engineError, engineStatus, isAnalysisMode]);
+
   const infoText = useMemo(() => {
     if (!showInfoBlock) return '';
 
@@ -96,7 +106,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       return `Komi: ${currentNode.gameState.komi.toFixed(1)}\nRuleset: ${rules}\n`;
     }
 
-    if (!currentNode.analysis) return 'Analyzing move...';
+    if (!currentNode.analysis) return analysisStatusText;
 
     let text = `Move ${depth}: ${playerToShort(move.player)} ${label}\n`;
 
@@ -118,6 +128,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
 
     return text;
   }, [
+    analysisStatusText,
     currentNode.aiThoughts,
     currentNode.analysis,
     currentNode.gameState.komi,
@@ -144,7 +155,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             'p-3 text-xs text-[var(--ui-text-muted)] whitespace-pre-wrap font-mono overflow-y-auto',
           ].join(' ')}
         >
-          {infoText || (currentNode.analysis ? '' : 'Analyzing move...')}
+          {infoText || (currentNode.analysis ? '' : analysisStatusText)}
         </div>
       )}
 
