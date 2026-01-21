@@ -113,6 +113,7 @@ class KataGoEngineClient {
   async analyze(args: {
     analysisGroup?: 'interactive' | 'background';
     positionId?: string;
+    parentPositionId?: string;
     modelUrl: string;
     board: BoardState;
     previousBoard?: BoardState;
@@ -144,6 +145,7 @@ class KataGoEngineClient {
       id,
       analysisGroup: args.analysisGroup,
       positionId: args.positionId,
+      parentPositionId: args.parentPositionId,
       modelUrl: args.modelUrl,
       board: args.board,
       previousBoard: args.previousBoard,

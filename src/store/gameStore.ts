@@ -820,6 +820,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
           const analysis = await getKataGoEngineClient().analyze({
             positionId: node.id,
+            parentPositionId: node.parent?.id,
             modelUrl,
             board: s.board,
             previousBoard: parentBoard,
@@ -1027,6 +1028,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const modelUrl = resolveModelUrlForFetch(get().settings.katagoModelUrl);
             const analysis = await getKataGoEngineClient().analyze({
               positionId: node.id,
+              parentPositionId: node.parent?.id,
               modelUrl,
               board: node.gameState.board,
               previousBoard: parentBoard,
@@ -1172,6 +1174,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
             const analysis = await getKataGoEngineClient().analyze({
               positionId: node.id,
+              parentPositionId: node.parent?.id,
               modelUrl,
               board: node.gameState.board,
               previousBoard: parentBoard,
@@ -1380,6 +1383,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	      return getKataGoEngineClient()
 	        .analyze({
 	          positionId: node.id,
+	          parentPositionId: node.parent?.id,
 	          modelUrl,
 	          board: state.board,
 	          previousBoard: parentBoard,
@@ -1654,6 +1658,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       void getKataGoEngineClient()
 	        .analyze({
 	          positionId: nodeId,
+	          parentPositionId: node.parent?.id,
 	          modelUrl,
 	          board: state.board,
 	          previousBoard: parentBoard,

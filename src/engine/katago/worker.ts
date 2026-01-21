@@ -535,7 +535,66 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.conservativePass === conservativePass &&
       searchKey.roiKey === roiKey;
 
-    if (!canReuse) {
+    let reusedSearch = canReuse;
+
+    // Re-root the existing search when the new position is a direct child of the current root.
+    if (
+      !reusedSearch &&
+      msg.reuseTree === true &&
+      search &&
+      searchKey &&
+      typeof msg.positionId === 'string' &&
+      typeof msg.parentPositionId === 'string'
+    ) {
+      const canReRoot =
+        searchKey.positionId === msg.parentPositionId &&
+        searchKey.modelUrl === msg.modelUrl &&
+        searchKey.maxChildren === maxChildren &&
+        searchKey.ownershipMode === ownershipMode &&
+        searchKey.komi === msg.komi &&
+        searchKey.wideRootNoise === wideRootNoise &&
+        searchKey.rules === rules &&
+        searchKey.nnRandomize === nnRandomize &&
+        searchKey.conservativePass === conservativePass &&
+        searchKey.roiKey === roiKey;
+
+      if (canReRoot) {
+        const lastMove = msg.moveHistory[msg.moveHistory.length - 1] ?? null;
+        const move =
+          lastMove && lastMove.x >= 0 && lastMove.y >= 0 ? lastMove.y * BOARD_SIZE + lastMove.x : PASS_MOVE;
+        if (lastMove) {
+          const reRooted = await search.reRootToChild({
+            move,
+            board: msg.board,
+            previousBoard: msg.previousBoard,
+            previousPreviousBoard: msg.previousPreviousBoard,
+            currentPlayer: msg.currentPlayer,
+            moveHistory: msg.moveHistory,
+            komi: msg.komi,
+            rules,
+            regionOfInterest: msg.regionOfInterest,
+          });
+          if (reRooted) {
+            reusedSearch = true;
+            searchKey = {
+              positionId: msg.positionId,
+              modelUrl: msg.modelUrl,
+              maxChildren,
+              ownershipMode,
+              komi: msg.komi,
+              currentPlayer: msg.currentPlayer,
+              wideRootNoise,
+              rules,
+              nnRandomize,
+              conservativePass,
+              roiKey,
+            };
+          }
+        }
+      }
+    }
+
+    if (!reusedSearch) {
       search = await MctsSearch.create({
         model,
         board: msg.board,

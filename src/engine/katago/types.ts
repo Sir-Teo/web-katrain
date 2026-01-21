@@ -18,6 +18,7 @@ export interface KataGoAnalyzeRequest {
   id: number;
   analysisGroup?: 'interactive' | 'background';
   positionId?: string;
+  parentPositionId?: string;
   modelUrl: string;
   board: BoardState;
   previousBoard?: BoardState;

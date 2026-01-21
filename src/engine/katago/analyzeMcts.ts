@@ -313,6 +313,112 @@ function expandNode(args: {
   node.edges = edges;
 }
 
+async function buildRootEval(args: {
+  model: KataGoModelV8Tf;
+  ownershipMode: OwnershipMode;
+  rules: GameRules;
+  nnRandomize: boolean;
+  komi: number;
+  currentPlayer: Player;
+  conservativePass: boolean;
+  rootStones: Uint8Array;
+  rootKoPoint: number;
+  rootPrevStones: Uint8Array;
+  rootPrevKoPoint: number;
+  rootPrevPrevStones: Uint8Array;
+  rootPrevPrevKoPoint: number;
+  rootMoves: RecentMove[];
+  maxChildren: number;
+  regionOfInterest?: RegionOfInterest | null;
+  outputScaleMultiplier: number;
+  node?: Node;
+}): Promise<{
+  rootOwnership: Float32Array;
+  rootPolicy: Float32Array;
+  rootValue: number;
+  rootScoreLead: number;
+  rootScoreMean: number;
+  rootScoreMeanSq: number;
+  rootUtility: number;
+  recentScoreCenter: number;
+}> {
+  const includeOwnership = args.ownershipMode !== 'none';
+  const rootEval = (
+    await evaluateBatch({
+      model: args.model,
+      includeOwnership,
+      rules: args.rules,
+      nnRandomize: args.nnRandomize,
+      policyOptimism: ROOT_POLICY_OPTIMISM,
+      komi: args.komi,
+      states: [
+        {
+          stones: args.rootStones,
+          koPoint: args.rootKoPoint,
+          prevStones: args.rootPrevStones,
+          prevKoPoint: args.rootPrevKoPoint,
+          prevPrevStones: args.rootPrevPrevStones,
+          prevPrevKoPoint: args.rootPrevPrevKoPoint,
+          currentPlayer: args.currentPlayer,
+          recentMoves: takeRecentMoves(args.rootMoves, [], 5),
+          conservativePassAndIsRoot: args.conservativePass,
+        },
+      ],
+    })
+  )[0]!;
+
+  const rootOwnership = new Float32Array(BOARD_AREA);
+  if (includeOwnership) {
+    if (!rootEval.ownership) throw new Error('Missing ownership output');
+    const rootOwnershipSign = args.currentPlayer === 'black' ? 1 : -1;
+    const rootSym = rootEval.symmetry;
+    const rootSymOff = rootSym * BOARD_AREA;
+    for (let i = 0; i < BOARD_AREA; i++) {
+      const symPos = rootSym === 0 ? i : SYM_POS_MAP[rootSymOff + i]!;
+      rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[symPos]! * args.outputScaleMultiplier);
+    }
+  }
+
+  const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);
+  const rootPolicy = new Float32Array(BOARD_AREA + 1);
+  const policyNode = args.node ?? new Node(playerToColor(args.currentPlayer));
+  expandNode({
+    node: policyNode,
+    stones: args.rootStones,
+    koPoint: args.rootKoPoint,
+    policyLogits: rootEval.policy,
+    policyLogitsSymmetry: rootEval.symmetry,
+    passLogit: rootEval.passLogit,
+    maxChildren: args.maxChildren,
+    libertyMap: rootEval.libertyMap,
+    allowedMoves: rootAllowedMoves ?? undefined,
+    policyOut: rootPolicy,
+    policyOutputScaling: args.outputScaleMultiplier,
+  });
+
+  const recentScoreCenter = computeRecentScoreCenter(-rootEval.blackScoreMean);
+  const rootValue = 2 * rootEval.blackWinProb - 1;
+  const rootUtility = computeBlackUtilityFromEval({
+    blackWinProb: rootEval.blackWinProb,
+    blackNoResultProb: rootEval.blackNoResultProb,
+    blackScoreMean: rootEval.blackScoreMean,
+    blackScoreStdev: rootEval.blackScoreStdev,
+    recentScoreCenter,
+  });
+  const rootScoreMeanSq = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
+
+  return {
+    rootOwnership,
+    rootPolicy,
+    rootValue,
+    rootScoreLead: rootEval.blackScoreLead,
+    rootScoreMean: rootEval.blackScoreMean,
+    rootScoreMeanSq,
+    rootUtility,
+    recentScoreCenter,
+  };
+}
+
 // Mirrors KataGo config "Internal params" defaults (see cpp/configs/*_example.cfg).
 const WIN_LOSS_UTILITY_FACTOR: number = 1.0;
 const STATIC_SCORE_UTILITY_FACTOR: number = 0.1;
@@ -1213,7 +1319,7 @@ export class MctsSearch {
   readonly model: KataGoModelV8Tf;
   readonly ownershipMode: OwnershipMode;
   readonly maxChildren: number;
-  readonly currentPlayer: Player;
+  private currentPlayer: Player;
   readonly komi: number;
   readonly rules: GameRules;
   readonly nnRandomize: boolean;
@@ -1221,22 +1327,22 @@ export class MctsSearch {
   readonly wideRootNoise: number;
   private readonly outputScaleMultiplier: number;
 
-  private readonly rootStones: Uint8Array<ArrayBuffer>;
-  private readonly rootKoPoint: number;
-  private readonly rootPrevStones: Uint8Array<ArrayBuffer>;
-  private readonly rootPrevKoPoint: number;
-  private readonly rootMoves: RecentMove[];
+  private rootStones: Uint8Array<ArrayBuffer>;
+  private rootKoPoint: number;
+  private rootPrevStones: Uint8Array<ArrayBuffer>;
+  private rootPrevKoPoint: number;
+  private rootMoves: RecentMove[];
 
-  private readonly rootNode: Node;
-  private readonly rootPolicy: Float32Array; // len 362
-  private readonly rootOwnership: Float32Array; // len 361
-  private readonly recentScoreCenter: number;
+  private rootNode: Node;
+  private rootPolicy: Float32Array; // len 362
+  private rootOwnership: Float32Array; // len 361
+  private recentScoreCenter: number;
   private readonly rand: Rand;
-  private readonly rootSelfValue: number;
-  private readonly rootSelfScoreLead: number;
-  private readonly rootSelfScoreMean: number;
-  private readonly rootSelfScoreMeanSq: number;
-  private readonly rootSelfUtility: number;
+  private rootSelfValue: number;
+  private rootSelfScoreLead: number;
+  private rootSelfScoreMean: number;
+  private rootSelfScoreMeanSq: number;
+  private rootSelfUtility: number;
 
   private jobStonesScratch = new Uint8Array(0);
   private jobPrevStonesScratch = new Uint8Array(0);
@@ -1333,78 +1439,41 @@ export class MctsSearch {
       player: m.player,
     }));
 
-    const rootPos: SimPosition = { stones: rootStones.slice(), koPoint: rootKoPoint };
     const rootNode = new Node(playerToColor(args.currentPlayer));
-
-    const includeOwnership = args.ownershipMode !== 'none';
-    const rootEval = (
-      await evaluateBatch({
-        model: args.model,
-        includeOwnership,
-        rules: args.rules,
-        nnRandomize: args.nnRandomize,
-        policyOptimism: ROOT_POLICY_OPTIMISM,
-        komi: args.komi,
-        states: [
-          {
-            stones: rootPos.stones,
-            koPoint: rootPos.koPoint,
-            prevStones: rootPrevStones,
-            prevKoPoint: rootPrevKoPoint,
-            prevPrevStones: rootPrevPrevStones,
-            prevPrevKoPoint: rootPrevPrevKoPoint,
-            currentPlayer: args.currentPlayer,
-            recentMoves: takeRecentMoves(rootMoves, [], 5),
-            conservativePassAndIsRoot: args.conservativePass,
-          },
-        ],
-      })
-    )[0]!;
-
-    const rootSym = rootEval.symmetry;
-    const rootOwnership = new Float32Array(BOARD_AREA);
-    if (includeOwnership) {
-      if (!rootEval.ownership) throw new Error('Missing ownership output');
-      const rootOwnershipSign = args.currentPlayer === 'black' ? 1 : -1;
-      const rootSymOff = rootSym * BOARD_AREA;
-      for (let i = 0; i < BOARD_AREA; i++) {
-        const symPos = rootSym === 0 ? i : SYM_POS_MAP[rootSymOff + i]!;
-        rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[symPos]! * outputScaleMultiplier);
-      }
-    }
-
-    const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);
-    const rootPolicy = new Float32Array(BOARD_AREA + 1);
-    expandNode({
-      node: rootNode,
-      stones: rootPos.stones,
-      koPoint: rootPos.koPoint,
-      policyLogits: rootEval.policy,
-      policyLogitsSymmetry: rootSym,
-      passLogit: rootEval.passLogit,
+    const {
+      rootOwnership,
+      rootPolicy,
+      rootValue,
+      rootScoreLead,
+      rootScoreMean,
+      rootScoreMeanSq,
+      rootUtility,
+      recentScoreCenter,
+    } = await buildRootEval({
+      model: args.model,
+      ownershipMode: args.ownershipMode,
+      rules: args.rules,
+      nnRandomize: args.nnRandomize,
+      komi: args.komi,
+      currentPlayer: args.currentPlayer,
+      conservativePass: args.conservativePass,
+      rootStones,
+      rootKoPoint,
+      rootPrevStones,
+      rootPrevKoPoint,
+      rootPrevPrevStones,
+      rootPrevPrevKoPoint,
+      rootMoves,
       maxChildren: args.maxChildren,
-      libertyMap: rootEval.libertyMap,
-      allowedMoves: rootAllowedMoves ?? undefined,
-      policyOut: rootPolicy,
-      policyOutputScaling: outputScaleMultiplier,
+      regionOfInterest: args.regionOfInterest,
+      outputScaleMultiplier,
+      node: rootNode,
     });
     rootNode.ownership = rootOwnership;
-
-    const recentScoreCenter = computeRecentScoreCenter(-rootEval.blackScoreMean);
-
-    const rootValue = 2 * rootEval.blackWinProb - 1;
-    const rootUtility = computeBlackUtilityFromEval({
-      blackWinProb: rootEval.blackWinProb,
-      blackNoResultProb: rootEval.blackNoResultProb,
-      blackScoreMean: rootEval.blackScoreMean,
-      blackScoreStdev: rootEval.blackScoreStdev,
-      recentScoreCenter,
-    });
     rootNode.visits = 1;
     rootNode.valueSum = rootValue;
-    rootNode.scoreLeadSum = rootEval.blackScoreLead;
-    rootNode.scoreMeanSum = rootEval.blackScoreMean;
-    const rootScoreMeanSq = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
+    rootNode.scoreLeadSum = rootScoreLead;
+    rootNode.scoreMeanSum = rootScoreMean;
     rootNode.scoreMeanSqSum = rootScoreMeanSq;
     rootNode.utilitySum = rootUtility;
     rootNode.utilitySqSum = rootUtility * rootUtility;
@@ -1432,11 +1501,110 @@ export class MctsSearch {
       rand: new Rand(),
       outputScaleMultiplier,
       rootSelfValue: rootValue,
-      rootSelfScoreLead: rootEval.blackScoreLead,
-      rootSelfScoreMean: rootEval.blackScoreMean,
+      rootSelfScoreLead: rootScoreLead,
+      rootSelfScoreMean: rootScoreMean,
       rootSelfScoreMeanSq: rootScoreMeanSq,
       rootSelfUtility: rootUtility,
     });
+  }
+
+  async reRootToChild(args: {
+    move: number;
+    board: BoardState;
+    previousBoard?: BoardState;
+    previousPreviousBoard?: BoardState;
+    currentPlayer: Player;
+    moveHistory: Move[];
+    komi: number;
+    rules: GameRules;
+    regionOfInterest?: RegionOfInterest | null;
+  }): Promise<boolean> {
+    const edges = this.rootNode.edges;
+    if (!edges || edges.length === 0) return false;
+    const target = edges.find((edge) => edge.move === args.move);
+    if (!target?.child) return false;
+    const child = target.child;
+    if (child.playerToMove !== playerToColor(args.currentPlayer)) return false;
+
+    const rootStones = boardStateToStones(args.board);
+    const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory });
+
+    const rootPrevStones = args.previousBoard ? boardStateToStones(args.previousBoard) : rootStones;
+    const rootPrevKoPoint = computeKoPointAfterMove(
+      args.previousPreviousBoard,
+      args.moveHistory.length >= 2 ? args.moveHistory[args.moveHistory.length - 2]! : null
+    );
+    const rootPrevPrevStones = args.previousPreviousBoard ? boardStateToStones(args.previousPreviousBoard) : rootPrevStones;
+    const rootPrevPrevKoPoint = -1;
+
+    const rootMoves: RecentMove[] = args.moveHistory.map((m) => ({
+      move: m.x < 0 || m.y < 0 ? PASS_MOVE : m.y * BOARD_SIZE + m.x,
+      player: m.player,
+    }));
+
+    const shouldExpandRoot = !child.edges || child.edges.length === 0;
+    const {
+      rootOwnership,
+      rootPolicy,
+      rootValue,
+      rootScoreLead,
+      rootScoreMean,
+      rootScoreMeanSq,
+      rootUtility,
+      recentScoreCenter,
+    } = await buildRootEval({
+      model: this.model,
+      ownershipMode: this.ownershipMode,
+      rules: args.rules,
+      nnRandomize: this.nnRandomize,
+      komi: args.komi,
+      currentPlayer: args.currentPlayer,
+      conservativePass: this.conservativePass,
+      rootStones,
+      rootKoPoint,
+      rootPrevStones,
+      rootPrevKoPoint,
+      rootPrevPrevStones,
+      rootPrevPrevKoPoint,
+      rootMoves,
+      maxChildren: this.maxChildren,
+      regionOfInterest: args.regionOfInterest,
+      outputScaleMultiplier: this.outputScaleMultiplier,
+      node: shouldExpandRoot ? child : undefined,
+    });
+
+    if (shouldExpandRoot) {
+      child.visits = 1;
+      child.valueSum = rootValue;
+      child.scoreLeadSum = rootScoreLead;
+      child.scoreMeanSum = rootScoreMean;
+      child.scoreMeanSqSum = rootScoreMeanSq;
+      child.utilitySum = rootUtility;
+      child.utilitySqSum = rootUtility * rootUtility;
+    }
+    child.nnUtility = rootUtility;
+    child.pendingEval = false;
+    child.inFlight = 0;
+    child.ownership = rootOwnership;
+
+    this.rootNode = child;
+    this.rootStones = rootStones;
+    this.rootKoPoint = rootKoPoint;
+    this.rootPrevStones = rootPrevStones;
+    this.rootPrevKoPoint = rootPrevKoPoint;
+    this.rootMoves = rootMoves;
+    this.rootPolicy = rootPolicy;
+    this.rootOwnership = rootOwnership;
+    this.recentScoreCenter = recentScoreCenter;
+    this.rootSelfValue = rootValue;
+    this.rootSelfScoreLead = rootScoreLead;
+    this.rootSelfScoreMean = rootScoreMean;
+    this.rootSelfScoreMeanSq = rootScoreMeanSq;
+    this.rootSelfUtility = rootUtility;
+    this.currentPlayer = args.currentPlayer;
+    this.treeOwnershipCache = null;
+
+    return true;
   }
 
   async run(args: {
