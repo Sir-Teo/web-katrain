@@ -8,6 +8,7 @@ import pako from 'pako';
 
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
 import type { BoardState, GameRules, Move, Player, RegionOfInterest } from '../../types';
+import { publicUrl } from '../../utils/publicUrl';
 import { parseKataGoModelV8 } from './loadModelV8';
 import { KataGoModelV8Tf } from './modelV8';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
@@ -256,7 +257,7 @@ async function initBackend(): Promise<void> {
 
   try {
     // Vite serves `public/` at the site root.
-    setWasmPaths('/tfjs/');
+    setWasmPaths(publicUrl('tfjs/'));
     // Use a reasonable thread count for XNNPACK when cross-origin isolated (SharedArrayBuffer).
     // Without COOP/COEP headers, browsers disable threads and TFJS will fall back to single-threaded wasm.
     const isCrossOriginIsolated = (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
