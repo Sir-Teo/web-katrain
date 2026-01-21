@@ -212,6 +212,28 @@ export function computeLibertyMapInto(stones: Uint8Array, out: Uint8Array): Uint
   return out;
 }
 
+export function updateLibertyMapForSeeds(stones: Uint8Array, seeds: Int16Array, seedCount: number, out: Uint8Array): void {
+  if (out.length !== BOARD_AREA) throw new Error(`updateLibertyMapForSeeds: expected out length ${BOARD_AREA}, got ${out.length}`);
+  if (seedCount <= 0) return;
+  groupSeenStamp++;
+  const stamp = groupSeenStamp;
+
+  for (let i = 0; i < seedCount; i++) {
+    const p = seeds[i]!;
+    const c = stones[p] as StoneColor;
+    if (c === EMPTY) continue;
+    if (GROUP_SEEN[p] === stamp) continue;
+
+    const { groupLen, liberties } = collectGroupAndLiberties(stones, p, c, 4);
+    const capLibs = liberties >= 4 ? 4 : liberties;
+    for (let j = 0; j < groupLen; j++) {
+      const gp = GROUP_BUF[j]!;
+      out[gp] = capLibs;
+      GROUP_SEEN[gp] = stamp;
+    }
+  }
+}
+
 export function computeLibertyMap(stones: Uint8Array): Uint8Array {
   return computeLibertyMapInto(stones, new Uint8Array(BOARD_AREA));
 }

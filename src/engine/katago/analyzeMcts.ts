@@ -22,6 +22,7 @@ import {
   computeAreaMapV7KataGoInto,
   computeLibertyMap,
   computeLibertyMapInto,
+  updateLibertyMapForSeeds,
   type SimPosition,
   type StoneColor,
   type UndoSnapshot,
@@ -333,6 +334,7 @@ async function buildRootEval(args: {
   outputScaleMultiplier: number;
   node?: Node;
 }): Promise<{
+  rootLibertyMap: Uint8Array;
   rootOwnership: Float32Array;
   rootPolicy: Float32Array;
   rootValue: number;
@@ -367,6 +369,7 @@ async function buildRootEval(args: {
     })
   )[0]!;
 
+  const rootLibertyMap = new Uint8Array(rootEval.libertyMap);
   const rootOwnership = new Float32Array(BOARD_AREA);
   if (includeOwnership) {
     if (!rootEval.ownership) throw new Error('Missing ownership output');
@@ -408,6 +411,7 @@ async function buildRootEval(args: {
   const rootScoreMeanSq = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
 
   return {
+    rootLibertyMap,
     rootOwnership,
     rootPolicy,
     rootValue,
@@ -701,6 +705,38 @@ function computeWeightedRootStats(args: { children: ChildWeightStats[]; rootSelf
     rootScoreSelfplay,
     rootScoreStdev,
   };
+}
+
+function hasLadderCandidates(libertyMap: Uint8Array): boolean {
+  for (let i = 0; i < libertyMap.length; i++) {
+    const v = libertyMap[i]!;
+    if (v === 1 || v === 2) return true;
+  }
+  return false;
+}
+
+function buildLibertySeeds(args: {
+  move: number;
+  captureStack: number[];
+  captureStart: number;
+  out: Int16Array;
+}): number {
+  let count = 0;
+  const push = (pos: number) => {
+    if (count < args.out.length) args.out[count++] = pos;
+  };
+  const pushWithNeighbors = (pos: number) => {
+    push(pos);
+    const nStart = NEIGHBOR_STARTS[pos]!;
+    const nCount = NEIGHBOR_COUNTS[pos]!;
+    for (let i = 0; i < nCount; i++) push(NEIGHBOR_LIST[nStart + i]!);
+  };
+
+  if (args.move !== PASS_MOVE) pushWithNeighbors(args.move);
+  for (let i = args.captureStart; i < args.captureStack.length; i++) {
+    pushWithNeighbors(args.captureStack[i]!);
+  }
+  return count;
 }
 
 function averageTreeOwnership(node: Node): { ownership: Float32Array; ownershipStdev: Float32Array } {
@@ -1089,6 +1125,9 @@ type EvalState = {
   prevPrevKoPoint: number;
   currentPlayer: Player;
   recentMoves: RecentMove[];
+  libertyMap?: Uint8Array;
+  prevLibertyMap?: Uint8Array;
+  prevPrevLibertyMap?: Uint8Array;
   komi?: number;
   conservativePassAndIsRoot?: boolean;
 };
@@ -1135,17 +1174,23 @@ async function evaluateBatch(args: {
   for (let i = 0; i < batch; i++) {
     const state = states[i]!;
     const libertyMap = libertyMapScratch.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA);
-    computeLibertyMapInto(state.stones, libertyMap);
+    if (state.libertyMap) libertyMap.set(state.libertyMap);
+    else computeLibertyMapInto(state.stones, libertyMap);
     const areaMap = includeAreaFeature
       ? computeAreaMapV7KataGoInto(state.stones, areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA))
       : EMPTY_AREA_MAP;
-    computeLadderFeaturesV7KataGoInto({
-      stones: state.stones,
-      koPoint: state.koPoint,
-      currentPlayer: playerToColor(state.currentPlayer),
-      outLadderedStones: scratch.ladderedStonesScratch,
-      outLadderWorkingMoves: scratch.ladderWorkingMovesScratch,
-    });
+    if (hasLadderCandidates(libertyMap)) {
+      computeLadderFeaturesV7KataGoInto({
+        stones: state.stones,
+        koPoint: state.koPoint,
+        currentPlayer: playerToColor(state.currentPlayer),
+        outLadderedStones: scratch.ladderedStonesScratch,
+        outLadderWorkingMoves: scratch.ladderWorkingMovesScratch,
+      });
+    } else {
+      scratch.ladderedStonesScratch.fill(0);
+      scratch.ladderWorkingMovesScratch.fill(0);
+    }
 
     const recentMoves = state.recentMoves;
     const lastRecentMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
@@ -1171,16 +1216,27 @@ async function evaluateBatch(args: {
     const prevPrevLadderStones = numTurnsOfHistoryIncluded < 2 ? prevLadderStones : state.prevPrevStones;
     const prevPrevLadderKoPoint = numTurnsOfHistoryIncluded < 2 ? prevLadderKoPoint : state.prevPrevKoPoint;
 
-    computeLadderedStonesV7KataGoInto({
-      stones: prevLadderStones,
-      koPoint: prevLadderKoPoint,
-      outLadderedStones: scratch.prevLadderedStonesScratch,
-    });
-    computeLadderedStonesV7KataGoInto({
-      stones: prevPrevLadderStones,
-      koPoint: prevPrevLadderKoPoint,
-      outLadderedStones: scratch.prevPrevLadderedStonesScratch,
-    });
+    const prevLibertyMap = prevLadderStones === state.stones ? libertyMap : state.prevLibertyMap;
+    if (prevLibertyMap && !hasLadderCandidates(prevLibertyMap)) {
+      scratch.prevLadderedStonesScratch.fill(0);
+    } else {
+      computeLadderedStonesV7KataGoInto({
+        stones: prevLadderStones,
+        koPoint: prevLadderKoPoint,
+        outLadderedStones: scratch.prevLadderedStonesScratch,
+      });
+    }
+    const prevPrevLibertyMap =
+      prevPrevLadderStones === prevLadderStones ? prevLibertyMap : state.prevPrevLibertyMap;
+    if (prevPrevLibertyMap && !hasLadderCandidates(prevPrevLibertyMap)) {
+      scratch.prevPrevLadderedStonesScratch.fill(0);
+    } else {
+      computeLadderedStonesV7KataGoInto({
+        stones: prevPrevLadderStones,
+        koPoint: prevPrevLadderKoPoint,
+        outLadderedStones: scratch.prevPrevLadderedStonesScratch,
+      });
+    }
 
     fillInputsV7Fast({
       stones: state.stones,
@@ -1332,6 +1388,8 @@ export class MctsSearch {
   private rootPrevStones: Uint8Array<ArrayBuffer>;
   private rootPrevKoPoint: number;
   private rootMoves: RecentMove[];
+  private rootLibertyMap: Uint8Array;
+  private rootPrevLibertyMap: Uint8Array;
 
   private rootNode: Node;
   private rootPolicy: Float32Array; // len 362
@@ -1347,7 +1405,12 @@ export class MctsSearch {
   private jobStonesScratch = new Uint8Array(0);
   private jobPrevStonesScratch = new Uint8Array(0);
   private jobPrevPrevStonesScratch = new Uint8Array(0);
+  private jobLibertyMapScratch = new Uint8Array(0);
+  private jobPrevLibertyMapScratch = new Uint8Array(0);
+  private jobPrevPrevLibertyMapScratch = new Uint8Array(0);
   private jobRecentMovesScratch: RecentMove[][] = [];
+  private libertyMapStack: Uint8Array[] = [];
+  private libertySeedsScratch = new Int16Array(BOARD_AREA * 5);
   private treeOwnershipCache: { visits: number; ownership: Float32Array; ownershipStdev: Float32Array; timestamp: number } | null = null;
 
   private constructor(args: {
@@ -1366,6 +1429,8 @@ export class MctsSearch {
     rootPrevKoPoint: number;
     rootMoves: RecentMove[];
     rootNode: Node;
+    rootLibertyMap: Uint8Array;
+    rootPrevLibertyMap: Uint8Array;
     rootPolicy: Float32Array;
     rootOwnership: Float32Array;
     recentScoreCenter: number;
@@ -1394,6 +1459,8 @@ export class MctsSearch {
     this.rootMoves = args.rootMoves;
 
     this.rootNode = args.rootNode;
+    this.rootLibertyMap = args.rootLibertyMap;
+    this.rootPrevLibertyMap = args.rootPrevLibertyMap;
     this.rootPolicy = args.rootPolicy;
     this.rootOwnership = args.rootOwnership;
     this.recentScoreCenter = args.recentScoreCenter;
@@ -1441,6 +1508,7 @@ export class MctsSearch {
 
     const rootNode = new Node(playerToColor(args.currentPlayer));
     const {
+      rootLibertyMap,
       rootOwnership,
       rootPolicy,
       rootValue,
@@ -1479,6 +1547,9 @@ export class MctsSearch {
     rootNode.utilitySqSum = rootUtility * rootUtility;
     rootNode.nnUtility = rootUtility;
 
+    const rootPrevLibertyMap =
+      rootPrevStones === rootStones ? rootLibertyMap : computeLibertyMapInto(rootPrevStones, new Uint8Array(BOARD_AREA));
+
     return new MctsSearch({
       model: args.model,
       ownershipMode: args.ownershipMode,
@@ -1495,6 +1566,8 @@ export class MctsSearch {
       rootPrevKoPoint,
       rootMoves,
       rootNode,
+      rootLibertyMap,
+      rootPrevLibertyMap,
       rootPolicy,
       rootOwnership,
       recentScoreCenter,
@@ -1544,6 +1617,7 @@ export class MctsSearch {
 
     const shouldExpandRoot = !child.edges || child.edges.length === 0;
     const {
+      rootLibertyMap,
       rootOwnership,
       rootPolicy,
       rootValue,
@@ -1573,6 +1647,9 @@ export class MctsSearch {
       node: shouldExpandRoot ? child : undefined,
     });
 
+    const rootPrevLibertyMap =
+      rootPrevStones === rootStones ? rootLibertyMap : computeLibertyMapInto(rootPrevStones, new Uint8Array(BOARD_AREA));
+
     if (shouldExpandRoot) {
       child.visits = 1;
       child.valueSum = rootValue;
@@ -1593,6 +1670,8 @@ export class MctsSearch {
     this.rootPrevStones = rootPrevStones;
     this.rootPrevKoPoint = rootPrevKoPoint;
     this.rootMoves = rootMoves;
+    this.rootLibertyMap = rootLibertyMap;
+    this.rootPrevLibertyMap = rootPrevLibertyMap;
     this.rootPolicy = rootPolicy;
     this.rootOwnership = rootOwnership;
     this.recentScoreCenter = recentScoreCenter;
@@ -1625,6 +1704,10 @@ export class MctsSearch {
     if (this.jobStonesScratch.length < neededBoardCapacity) this.jobStonesScratch = new Uint8Array(neededBoardCapacity);
     if (this.jobPrevStonesScratch.length < neededBoardCapacity) this.jobPrevStonesScratch = new Uint8Array(neededBoardCapacity);
     if (this.jobPrevPrevStonesScratch.length < neededBoardCapacity) this.jobPrevPrevStonesScratch = new Uint8Array(neededBoardCapacity);
+    if (this.jobLibertyMapScratch.length < neededBoardCapacity) this.jobLibertyMapScratch = new Uint8Array(neededBoardCapacity);
+    if (this.jobPrevLibertyMapScratch.length < neededBoardCapacity) this.jobPrevLibertyMapScratch = new Uint8Array(neededBoardCapacity);
+    if (this.jobPrevPrevLibertyMapScratch.length < neededBoardCapacity)
+      this.jobPrevPrevLibertyMapScratch = new Uint8Array(neededBoardCapacity);
 
     const sim: SimPosition = { stones: this.rootStones.slice(), koPoint: this.rootKoPoint };
     const captureStack: number[] = [];
@@ -1632,6 +1715,9 @@ export class MctsSearch {
     const undoPlayers: StoneColor[] = [];
     const undoSnapshots: UndoSnapshot[] = [];
     const pathMoves: RecentMove[] = [];
+    const libertyMapStack = this.libertyMapStack;
+    libertyMapStack[0] = this.rootLibertyMap;
+    const libertySeedsScratch = this.libertySeedsScratch;
 
     const deadline = performance.now() + maxTimeMs;
     let timeCheckCounter = 0;
@@ -1648,10 +1734,13 @@ export class MctsSearch {
         path: Node[];
         stones: Uint8Array;
         koPoint: number;
+        libertyMap: Uint8Array;
         prevStones: Uint8Array;
         prevKoPoint: number;
+        prevLibertyMap?: Uint8Array;
         prevPrevStones: Uint8Array;
         prevPrevKoPoint: number;
+        prevPrevLibertyMap?: Uint8Array;
         currentPlayer: Player;
         recentMoves: RecentMove[];
       }> = [];
@@ -1668,6 +1757,8 @@ export class MctsSearch {
         pathMoves.length = 0;
         sim.stones.set(this.rootStones);
         sim.koPoint = this.rootKoPoint;
+        libertyMapStack[0] = this.rootLibertyMap;
+        let depth = 0;
 
         const path: Node[] = [this.rootNode];
         let node = this.rootNode;
@@ -1681,6 +1772,21 @@ export class MctsSearch {
           undoMoves.push(move);
           undoPlayers.push(player);
           undoSnapshots.push(snapshot);
+          const prevLibertyMap = libertyMapStack[depth] ?? this.rootLibertyMap;
+          let nextLibertyMap = libertyMapStack[depth + 1];
+          if (!nextLibertyMap) nextLibertyMap = new Uint8Array(BOARD_AREA);
+          nextLibertyMap.set(prevLibertyMap);
+          const seedCount = buildLibertySeeds({
+            move,
+            captureStack,
+            captureStart: snapshot.captureStart,
+            out: libertySeedsScratch,
+          });
+          if (seedCount > 0) {
+            updateLibertyMapForSeeds(sim.stones, libertySeedsScratch, seedCount, nextLibertyMap);
+          }
+          libertyMapStack[depth + 1] = nextLibertyMap;
+          depth++;
           const pathIdx = pathMoves.length;
           const pathPlayer = colorToPlayer(player);
           let pathEntry = pathMoves[pathIdx];
@@ -1720,6 +1826,36 @@ export class MctsSearch {
         let prevPrevStones = leafStones;
         let prevPrevKoPoint = leafKoPoint;
         const leafPlayer = colorToPlayer(player);
+        const leafDepth = depth;
+        const leafLibertyMap = libertyMapStack[leafDepth] ?? this.rootLibertyMap;
+        const leafLibertyBuf = this.jobLibertyMapScratch.subarray(jobIdx * BOARD_AREA, (jobIdx + 1) * BOARD_AREA);
+        leafLibertyBuf.set(leafLibertyMap);
+        let prevLibertyMap: Uint8Array | undefined;
+        let prevPrevLibertyMap: Uint8Array | undefined;
+        if (leafDepth >= 1) {
+          const prevLiberty = libertyMapStack[leafDepth - 1] ?? this.rootLibertyMap;
+          const prevLibertyBuf = this.jobPrevLibertyMapScratch.subarray(jobIdx * BOARD_AREA, (jobIdx + 1) * BOARD_AREA);
+          prevLibertyBuf.set(prevLiberty);
+          prevLibertyMap = prevLibertyBuf;
+          if (leafDepth >= 2) {
+            const prevPrevLiberty = libertyMapStack[leafDepth - 2];
+            if (prevPrevLiberty) {
+              const prevPrevLibertyBuf = this.jobPrevPrevLibertyMapScratch.subarray(
+                jobIdx * BOARD_AREA,
+                (jobIdx + 1) * BOARD_AREA
+              );
+              prevPrevLibertyBuf.set(prevPrevLiberty);
+              prevPrevLibertyMap = prevPrevLibertyBuf;
+            }
+          } else {
+            const prevPrevLibertyBuf = this.jobPrevPrevLibertyMapScratch.subarray(
+              jobIdx * BOARD_AREA,
+              (jobIdx + 1) * BOARD_AREA
+            );
+            prevPrevLibertyBuf.set(this.rootPrevLibertyMap);
+            prevPrevLibertyMap = prevPrevLibertyBuf;
+          }
+        }
 
         if (undoMoves.length >= 1) {
           const lastIdx = undoMoves.length - 1;
@@ -1763,10 +1899,13 @@ export class MctsSearch {
           path,
           stones: leafStones,
           koPoint: leafKoPoint,
+          libertyMap: leafLibertyBuf,
           prevStones,
           prevKoPoint,
+          prevLibertyMap,
           prevPrevStones,
           prevPrevKoPoint,
+          prevPrevLibertyMap,
           currentPlayer: leafPlayer,
           recentMoves: takeRecentMoves(this.rootMoves, pathMoves, 5, recentMovesScratch),
         });
