@@ -3,7 +3,7 @@ import { FaPause, FaPlay } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { formatKaTrainClockSeconds, stepKaTrainTimer, type KaTrainTimerDisplay } from '../utils/katrainTimer';
 
-export const Timer: React.FC = () => {
+export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 'default' }) => {
   const timerPaused = useGameStore((s) => s.timerPaused);
   const toggleTimerPaused = useGameStore((s) => s.toggleTimerPaused);
   const timerSettings = useGameStore((s) => ({
@@ -89,6 +89,32 @@ export const Timer: React.FC = () => {
     [display.timeSeconds, isTimerDisabled]
   );
   const timeoutClass = isTimerDisabled ? 'text-slate-400' : display.timeout ? 'text-red-300' : 'text-slate-100';
+  const compactTimeoutClass = isTimerDisabled
+    ? 'text-[var(--ui-text-muted)]'
+    : display.timeout
+      ? 'text-[var(--ui-danger)]'
+      : 'text-[var(--ui-text)]';
+
+  if (variant === 'status') {
+    return (
+      <div className="status-bar-timer">
+        <div className={['text-xs font-mono', compactTimeoutClass].join(' ')} title={display.isAiTurn ? 'AI to play' : undefined}>
+          {timeText}
+          {!isTimerDisabled && display.periodsRemaining !== null ? ` ×${display.periodsRemaining}` : ''}
+        </div>
+        {!isTimerDisabled && (
+          <button
+            type="button"
+            className="status-bar-button"
+            onClick={() => toggleTimerPaused()}
+            title={timerPaused ? 'Resume timer' : 'Pause timer'}
+          >
+            {timerPaused ? <FaPlay size={10} /> : <FaPause size={10} />}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-900 border border-slate-700/50 rounded px-4 py-3 flex items-center gap-3">

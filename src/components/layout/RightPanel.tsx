@@ -720,18 +720,18 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             })}
           </div>
         </div>
-        <div className="border-t border-[var(--ui-border)] ui-panel px-3 py-2">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] ui-text-faint">
-            <span className="font-semibold text-[var(--ui-text)] truncate">{blackName} vs {whiteName}</span>
-            <span>Komi {komi}</span>
-            <span>Moves {moveHistory.length}</span>
-            <span>Capt B:{capturedWhite} W:{capturedBlack}</span>
-            {endResult && <span>Result {endResult}</span>}
+        <div className="status-bar">
+          <div className="status-bar-section status-bar-left">
+            <span className="status-bar-text truncate">{blackName} vs {whiteName}</span>
+            <span className="status-bar-item">Komi {komi}</span>
+            <span className="status-bar-item">Moves {moveHistory.length}</span>
+            <span className="status-bar-item">Capt B:{capturedWhite} W:{capturedBlack}</span>
+            {endResult && <span className="status-bar-item">Result {endResult}</span>}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="status-bar-section status-bar-right">
             <button
               type="button"
-              className="panel-action-button"
+              className="status-bar-button"
               onClick={handleUndo}
               title="Undo (left arrow)"
             >
@@ -739,17 +739,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             </button>
             <button
               type="button"
-              className="panel-action-button danger"
+              className="status-bar-button danger"
               onClick={handleResign}
             >
               Resign
             </button>
+            {mode === 'play' && (
+              <Timer variant="status" />
+            )}
           </div>
-          {mode === 'play' && (
-            <div className="mt-2">
-              <Timer />
-            </div>
-          )}
         </div>
       </div>
     </>

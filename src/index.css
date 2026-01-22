@@ -482,6 +482,10 @@
     background: var(--ui-success-soft);
   }
 
+  .library-tree-node.loaded:hover {
+    background: var(--ui-success-soft);
+  }
+
   .library-tree-node.loaded::before {
     content: '▶';
     position: absolute;
@@ -531,6 +535,11 @@
 
   .library-tree-node.loaded .library-tree-node-name {
     font-weight: 600;
+  }
+
+  .library-tree-node.loaded.selected {
+    background: var(--ui-success-soft);
+    color: var(--ui-success);
   }
 
   .library-tree-node.has-loaded .library-tree-node-icon {
@@ -618,6 +627,92 @@
 
   .library-tree-node-arrow.expanded {
     transform: rotate(90deg);
+  }
+
+  .status-bar {
+    background: var(--ui-panel);
+    border-top: 1px solid var(--ui-border);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    min-height: 28px;
+  }
+
+  @media (max-width: 1024px) {
+    .status-bar {
+      display: none;
+    }
+  }
+
+  .status-bar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .status-bar-left {
+    flex: 0 0 auto;
+    min-width: 120px;
+  }
+
+  .status-bar-right {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .status-bar-text {
+    font-size: 12px;
+    color: var(--ui-text);
+    font-weight: 600;
+  }
+
+  .status-bar-item {
+    font-size: 11px;
+    color: var(--ui-text-muted);
+  }
+
+  .status-bar-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--ui-text-muted);
+    background: transparent;
+    border: 1px solid var(--ui-border);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    line-height: 1;
+    min-height: 20px;
+  }
+
+  .status-bar-button:hover {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+    border-color: var(--ui-border-strong);
+  }
+
+  .status-bar-button:active {
+    transform: scale(0.98);
+  }
+
+  .status-bar-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .status-bar-button.danger {
+    color: var(--ui-danger);
+    border-color: var(--ui-danger);
+  }
+
+  .status-bar-timer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .panel-toggle {
