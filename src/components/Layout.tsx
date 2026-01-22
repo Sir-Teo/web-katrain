@@ -1252,7 +1252,6 @@ export const Layout: React.FC = () => {
             navigateEnd={navigateEnd}
             findMistake={findMistake}
             rotateBoard={rotateBoard}
-            makeAiMove={makeAiMove}
             currentPlayer={currentPlayer}
             moveHistory={moveHistory}
             isInsertMode={isInsertMode}
@@ -1293,7 +1292,9 @@ export const Layout: React.FC = () => {
         onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
         onOpenGameReport={() => setIsGameReportOpen(true)}
         currentPlayer={currentPlayer}
-        navigateBack={navigateBack}
+        onUndo={handleUndo}
+        onResign={handleResign}
+        onAiMove={makeAiMove}
         navigateStart={navigateStart}
         navigateEnd={navigateEnd}
         switchBranch={switchBranch}
@@ -1394,9 +1395,6 @@ export const Layout: React.FC = () => {
         capturedBlack={capturedBlack}
         capturedWhite={capturedWhite}
         endResult={endResult}
-        onUndo={handleUndo}
-        onResign={handleResign}
-        showTimer={mode === 'play'}
       />
     </div>
   );

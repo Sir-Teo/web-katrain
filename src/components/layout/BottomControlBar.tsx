@@ -22,7 +22,6 @@ interface BottomControlBarProps {
   navigateEnd: () => void;
   findMistake: (dir: 'undo' | 'redo') => void;
   rotateBoard: () => void;
-  makeAiMove: () => void;
   currentPlayer: Player;
   moveHistory: Move[];
   isInsertMode: boolean;
@@ -40,7 +39,6 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   navigateEnd,
   findMistake,
   rotateBoard,
-  makeAiMove,
   currentPlayer,
   moveHistory,
   isInsertMode,
@@ -174,15 +172,6 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         </IconButton>
       </div>
 
-      {/* AI Move button */}
-      <button
-        className="px-4 py-2 ui-accent-bg hover:brightness-110 active:brightness-100 rounded-lg text-sm font-medium shadow-md shadow-black/20 transition-all"
-        onClick={() => makeAiMove()}
-        aria-label="Make AI move"
-        title="AI move (Enter)"
-      >
-        AI Move
-      </button>
     </div>
   );
 };

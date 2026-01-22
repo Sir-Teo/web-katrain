@@ -1,5 +1,4 @@
 import React from 'react';
-import { Timer } from '../Timer';
 
 interface StatusBarProps {
   moveName: string;
@@ -10,9 +9,6 @@ interface StatusBarProps {
   capturedBlack: number;
   capturedWhite: number;
   endResult: string | null;
-  onUndo: () => void;
-  onResign: () => void;
-  showTimer: boolean;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -24,9 +20,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   capturedBlack,
   capturedWhite,
   endResult,
-  onUndo,
-  onResign,
-  showTimer,
 }) => (
   <div className="status-bar">
     <div className="status-bar-section status-bar-left">
@@ -47,29 +40,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <>
           <span className="status-bar-divider">•</span>
           <span className="status-bar-item">Result {endResult}</span>
-        </>
-      )}
-    </div>
-    <div className="status-bar-section status-bar-right">
-      <button
-        type="button"
-        className="status-bar-button"
-        onClick={onUndo}
-        title="Undo (left arrow)"
-      >
-        Undo
-      </button>
-      <button
-        type="button"
-        className="status-bar-button danger"
-        onClick={onResign}
-      >
-        Resign
-      </button>
-      {showTimer && (
-        <>
-          <span className="status-bar-divider">•</span>
-          <Timer variant="status" />
         </>
       )}
     </div>

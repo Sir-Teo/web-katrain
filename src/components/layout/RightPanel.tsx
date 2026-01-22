@@ -20,6 +20,7 @@ import { useGameStore } from '../../store/gameStore';
 import { AnalysisPanel } from '../AnalysisPanel';
 import { MoveTree } from '../MoveTree';
 import { NotesPanel } from '../NotesPanel';
+import { Timer } from '../Timer';
 import type { UiMode, UiState } from './types';
 import type { MobileTab } from './MobileTabBar';
 import { SectionHeader, formatMoveLabel, panelCardBase, panelCardClosed, panelCardOpen, playerToShort } from './ui';
@@ -52,8 +53,10 @@ interface RightPanelProps {
   onOpenGameReport: () => void;
   // Player info
   currentPlayer: Player;
+  onUndo: () => void;
+  onResign: () => void;
+  onAiMove: () => void;
   // Navigation
-  navigateBack: () => void;
   navigateStart: () => void;
   navigateEnd: () => void;
   switchBranch: (direction: 1 | -1) => void;
@@ -102,7 +105,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onOpenGameAnalysis,
   onOpenGameReport,
   currentPlayer,
-  navigateBack,
+  onUndo,
+  onResign,
+  onAiMove,
   navigateStart,
   navigateEnd,
   switchBranch,
@@ -391,6 +396,37 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             </button>
           </div>
         </div>
+        {mode === 'play' && (
+          <div className="panel-toolbar">
+            <button
+              type="button"
+              className="panel-action-button"
+              onClick={onUndo}
+              title="Undo (left arrow)"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              className="panel-action-button danger"
+              onClick={onResign}
+            >
+              Resign
+            </button>
+            <button
+              type="button"
+              className="panel-action-button"
+              onClick={onAiMove}
+              title="AI move (Enter)"
+              aria-label="Make AI move"
+            >
+              AI Move
+            </button>
+            <div className="ml-auto">
+              <Timer variant="status" />
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="flex flex-col">
