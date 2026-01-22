@@ -25,7 +25,6 @@ import { TopControlBar } from './layout/TopControlBar';
 import { BottomControlBar } from './layout/BottomControlBar';
 import { RightPanel } from './layout/RightPanel';
 import { StatusBar } from './layout/StatusBar';
-import { StatusBar } from './layout/StatusBar';
 import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
 import { LibraryPanel } from './LibraryPanel';
 import {
@@ -36,7 +35,7 @@ import {
   loadUiState,
   saveUiState,
 } from './layout/types';
-import { PanelEdgeToggle, rgba } from './layout/ui';
+import { PanelEdgeToggle, formatMoveLabel, playerToShort, rgba } from './layout/ui';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 function computePointsLost(args: { currentNode: GameNode }): number | null {
@@ -966,10 +965,11 @@ export const Layout: React.FC = () => {
     for (let i = 0; i < n; i++) navigateForward();
   };
 
-  const rootProps = rootNode.properties ?? {};
-  const getProp = (key: string) => rootProps[key]?.[0] ?? '';
-  const blackName = getProp('PB') || 'Black';
-  const whiteName = getProp('PW') || 'White';
+  const blackName = getRootProp('PB') || 'Black';
+  const whiteName = getRootProp('PW') || 'White';
+  const moveName = currentNode.move
+    ? `Move ${moveHistory.length}: ${playerToShort(currentNode.move.player)} ${formatMoveLabel(currentNode.move.x, currentNode.move.y)}`
+    : 'Root';
 
   const handleUndo = () => {
     const st = useGameStore.getState();
@@ -1386,6 +1386,7 @@ export const Layout: React.FC = () => {
       )}
       </div>
       <StatusBar
+        moveName={moveName}
         blackName={blackName}
         whiteName={whiteName}
         komi={komi}

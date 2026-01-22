@@ -2,6 +2,7 @@ import React from 'react';
 import { Timer } from '../Timer';
 
 interface StatusBarProps {
+  moveName: string;
   blackName: string;
   whiteName: string;
   komi: number;
@@ -15,6 +16,7 @@ interface StatusBarProps {
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
+  moveName,
   blackName,
   whiteName,
   komi,
@@ -28,6 +30,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 }) => (
   <div className="status-bar">
     <div className="status-bar-section status-bar-left">
+      <span className="status-bar-item">{moveName}</span>
+      <span className="status-bar-divider">•</span>
       <span className="status-bar-text truncate">
         {blackName} vs {whiteName}
       </span>
