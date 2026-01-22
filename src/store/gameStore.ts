@@ -1640,7 +1640,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       moveHistory: newGameState.moveHistory,
       capturedBlack: newGameState.capturedBlack,
       capturedWhite: newGameState.capturedWhite,
-      analysisData: null // Clear old analysis
+      analysisData: null, // Clear old analysis
+      treeVersion: state.treeVersion + 1,
     });
 
     if (!isLoad) {
