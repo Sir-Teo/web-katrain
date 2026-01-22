@@ -421,6 +421,8 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 // KaTrain-style report cadence (seconds -> ms).
 const REPORT_DURING_SEARCH_EVERY_MS = 1000;
 const CONTINUOUS_REPORT_DURING_SEARCH_MS = 250;
+// Throttle UI updates during progress reports to reduce main-thread churn.
+const PROGRESS_APPLY_MIN_MS = 500;
 
 export const useGameStore = create<GameStore>((set, get) => ({
   // Flat properties (mirrored from currentNode.gameState for easy access)
@@ -1299,11 +1301,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
               ? Math.max(0, reportEveryMsRaw)
               : (state.isContinuousAnalysis ? CONTINUOUS_REPORT_DURING_SEARCH_MS : REPORT_DURING_SEARCH_EVERY_MS);
           const reportDuringSearchEveryMs = reportEveryMs > 0 ? reportEveryMs : undefined;
+          const progressApplyMinMs = reportEveryMs > 0 ? Math.max(reportEveryMs, PROGRESS_APPLY_MIN_MS) : 0;
           let lastProgressVisits = -1;
+          let lastProgressApplyAt = 0;
           let lastTreeUpdateAt = 0;
+          let lastTerritoryUpdateAt = 0;
           const treeUpdateEveryMs = reportEveryMs > 0 ? reportEveryMs : 0;
 
-          const buildAnalysisResult = (analysis: KataGoAnalysisPayload): AnalysisResult => {
+          const buildAnalysisResult = (
+            analysis: KataGoAnalysisPayload,
+            opts: { includeTerritory: boolean; fallbackTerritory: number[][] }
+          ): AnalysisResult => {
             let analysisWithTerritory: AnalysisResult = {
               rootWinRate: analysis.rootWinRate,
               rootScoreLead: analysis.rootScoreLead,
@@ -1311,7 +1319,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               rootScoreStdev: analysis.rootScoreStdev,
               rootVisits: analysis.rootVisits,
               moves: analysis.moves,
-              territory: ownershipToTerritoryGrid(analysis.ownership),
+              territory: opts.includeTerritory ? ownershipToTerritoryGrid(analysis.ownership) : opts.fallbackTerritory,
               policy: analysis.policy,
               ownershipStdev: analysis.ownershipStdev,
               ownershipMode: state.settings.katagoOwnershipMode,
@@ -1340,16 +1348,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
             return analysisWithTerritory;
           };
 
-          const applyAnalysis = (analysis: KataGoAnalysisPayload, isFinal: boolean) => {
-            const analysisWithTerritory = buildAnalysisResult(analysis);
+          const applyAnalysis = (analysis: KataGoAnalysisPayload, isFinal: boolean, now = performance.now()) => {
+            const showOwnership = get().settings.analysisShowOwnership;
+            const shouldUpdateTerritory =
+              isFinal || (showOwnership && progressApplyMinMs > 0 && now - lastTerritoryUpdateAt >= progressApplyMinMs);
+            if (shouldUpdateTerritory) lastTerritoryUpdateAt = now;
+            const fallbackTerritory = node.analysis?.territory ?? EMPTY_TERRITORY;
+            const analysisWithTerritory = buildAnalysisResult(analysis, {
+              includeTerritory: shouldUpdateTerritory,
+              fallbackTerritory,
+            });
             node.analysis = analysisWithTerritory;
 
             const latest = get();
             const isCurrent = latest.currentNode.id === node.id;
-            const now = performance.now();
+            const updateNow = performance.now();
             const shouldBumpTree =
-              isFinal || (isCurrent && treeUpdateEveryMs > 0 && now - lastTreeUpdateAt >= treeUpdateEveryMs);
-            if (shouldBumpTree) lastTreeUpdateAt = now;
+              isFinal || (isCurrent && treeUpdateEveryMs > 0 && updateNow - lastTreeUpdateAt >= treeUpdateEveryMs);
+            if (shouldBumpTree) lastTreeUpdateAt = updateNow;
 
             if (!isCurrent && !isFinal && !shouldBumpTree) return;
 
@@ -1372,8 +1388,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ? (analysis: KataGoAnalysisPayload) => {
                 const visits = typeof analysis.rootVisits === 'number' ? analysis.rootVisits : 0;
                 if (visits <= lastProgressVisits) return;
+                const now = performance.now();
+                if (progressApplyMinMs > 0 && now - lastProgressApplyAt < progressApplyMinMs) return;
                 lastProgressVisits = visits;
-                applyAnalysis(analysis, false);
+                lastProgressApplyAt = now;
+                applyAnalysis(analysis, false, now);
               }
             : undefined;
 
