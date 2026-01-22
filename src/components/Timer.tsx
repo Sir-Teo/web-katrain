@@ -98,7 +98,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
   if (variant === 'status') {
     return (
       <div className="status-bar-timer">
-        <div className={['text-xs font-mono', compactTimeoutClass].join(' ')} title={display.isAiTurn ? 'AI to play' : undefined}>
+        <div className={['status-bar-item font-mono', compactTimeoutClass].join(' ')} title={display.isAiTurn ? 'AI to play' : undefined}>
           {timeText}
           {!isTimerDisabled && display.periodsRemaining !== null ? ` ×${display.periodsRemaining}` : ''}
         </div>

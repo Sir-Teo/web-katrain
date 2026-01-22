@@ -723,10 +723,18 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         <div className="status-bar">
           <div className="status-bar-section status-bar-left">
             <span className="status-bar-text truncate">{blackName} vs {whiteName}</span>
+            <span className="status-bar-divider">•</span>
             <span className="status-bar-item">Komi {komi}</span>
+            <span className="status-bar-divider">•</span>
             <span className="status-bar-item">Moves {moveHistory.length}</span>
+            <span className="status-bar-divider">•</span>
             <span className="status-bar-item">Capt B:{capturedWhite} W:{capturedBlack}</span>
-            {endResult && <span className="status-bar-item">Result {endResult}</span>}
+            {endResult && (
+              <>
+                <span className="status-bar-divider">•</span>
+                <span className="status-bar-item">Result {endResult}</span>
+              </>
+            )}
           </div>
           <div className="status-bar-section status-bar-right">
             <button
@@ -745,7 +753,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               Resign
             </button>
             {mode === 'play' && (
-              <Timer variant="status" />
+              <>
+                <span className="status-bar-divider">•</span>
+                <Timer variant="status" />
+              </>
             )}
           </div>
         </div>

@@ -687,6 +687,12 @@
     color: var(--ui-text-muted);
   }
 
+  .status-bar-divider {
+    font-size: 11px;
+    color: var(--ui-text-muted);
+    opacity: 0.7;
+  }
+
   .status-bar-button {
     display: inline-flex;
     align-items: center;
