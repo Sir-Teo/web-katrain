@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { FaChartLine, FaChartBar, FaRedoAlt, FaFileAlt } from 'react-icons/fa';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import type { UiMode, UiState } from './layout/types';
@@ -52,18 +52,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   compact = false,
 }) => {
   void mode;
-  const [activeTab, setActiveTab] = useState<'graph' | 'stats'>(() => {
-    if (modePanels.statsOpen && !modePanels.graphOpen) return 'stats';
-    return 'graph';
-  });
-
-  useEffect(() => {
-    if (modePanels.statsOpen && !modePanels.graphOpen) {
-      setActiveTab('stats');
-    } else {
-      setActiveTab('graph');
-    }
-  }, [modePanels.graphOpen, modePanels.statsOpen]);
+  const activeTab: 'graph' | 'stats' =
+    modePanels.statsOpen && !modePanels.graphOpen ? 'stats' : 'graph';
 
   return (
     <div className="flex flex-col h-full">
@@ -153,10 +143,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             type="button"
             className={['panel-tab', activeTab === 'graph' ? 'active' : ''].join(' ')}
             onClick={() => {
-              setActiveTab('graph');
-              updatePanels({ graphOpen: true, statsOpen: false });
-            }}
-          >
+            updatePanels({ graphOpen: true, statsOpen: false });
+          }}
+        >
             <FaChartLine size={12} />
             <span>Graph</span>
           </button>
@@ -164,10 +153,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             type="button"
             className={['panel-tab', activeTab === 'stats' ? 'active' : ''].join(' ')}
             onClick={() => {
-              setActiveTab('stats');
-              updatePanels({ graphOpen: false, statsOpen: true });
-            }}
-          >
+            updatePanels({ graphOpen: false, statsOpen: true });
+          }}
+        >
             <FaChartBar size={12} />
             <span>Stats</span>
           </button>

@@ -27,7 +27,7 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
-import { panelCardBase } from './layout/ui';
+import { panelCardBase } from './layout/ui-utils';
 
 const SECTION_MAX_RATIO = 0.7;
 const MIN_LIST_HEIGHT = 220;
@@ -141,44 +141,40 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   useEffect(() => saveLibrary(items), [items]);
 
-  useEffect(() => {
-    setSelectedIds((prev) => {
-      if (prev.size === 0) return prev;
-      const next = new Set<string>();
-      for (const item of items) {
-        if (prev.has(item.id)) next.add(item.id);
-      }
-      return next;
-    });
-  }, [items]);
-
-  useEffect(() => {
-    if (!currentFolderId) return;
+  const activeFolderId = useMemo(() => {
+    if (!currentFolderId) return null;
     const exists = items.some((item) => isFolder(item) && item.id === currentFolderId);
-    if (!exists) setCurrentFolderId(null);
+    return exists ? currentFolderId : null;
   }, [currentFolderId, items]);
 
-  useEffect(() => {
-    setExpandedFolderIds((prev) => {
-      if (prev.size === 0) return prev;
-      const next = new Set<string>();
-      for (const item of items) {
-        if (isFolder(item) && prev.has(item.id)) next.add(item.id);
-      }
-      return next;
-    });
-  }, [items]);
+  const visibleSelectedIds = useMemo(() => {
+    if (selectedIds.size === 0) return selectedIds;
+    const next = new Set<string>();
+    for (const item of items) {
+      if (selectedIds.has(item.id)) next.add(item.id);
+    }
+    return next;
+  }, [items, selectedIds]);
+
+  const visibleExpandedFolderIds = useMemo(() => {
+    if (expandedFolderIds.size === 0) return expandedFolderIds;
+    const next = new Set<string>();
+    for (const item of items) {
+      if (isFolder(item) && expandedFolderIds.has(item.id)) next.add(item.id);
+    }
+    return next;
+  }, [expandedFolderIds, items]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_current_folder:v1', currentFolderId ?? '');
-  }, [currentFolderId]);
+    localStorage.setItem('web-katrain:library_current_folder:v1', activeFolderId ?? '');
+  }, [activeFolderId]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    const arr = Array.from(expandedFolderIds.values());
+    const arr = Array.from(visibleExpandedFolderIds.values());
     localStorage.setItem('web-katrain:library_folders_expanded:v1', JSON.stringify(arr));
-  }, [expandedFolderIds]);
+  }, [visibleExpandedFolderIds]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
@@ -338,7 +334,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [filteredItems, sortKey]);
 
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
-  const currentFolder = folderItems.find((folder) => folder.id === currentFolderId) ?? null;
+  const currentFolder = folderItems.find((folder) => folder.id === activeFolderId) ?? null;
   const currentFolderName = currentFolder?.name ?? 'Root';
   const parentById = useMemo(() => {
     const map = new Map<string, string | null>();
@@ -347,16 +343,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [items]);
 
   const breadcrumbs = useMemo(() => {
-    if (!currentFolderId) return [];
+    if (!activeFolderId) return [];
     const trail: LibraryFolder[] = [];
-    let current: LibraryItem | undefined = items.find((item) => item.id === currentFolderId);
+    let current: LibraryItem | undefined = items.find((item) => item.id === activeFolderId);
     while (current && isFolder(current)) {
       trail.push(current);
       const parentId = current.parentId ?? null;
       current = parentId ? items.find((item) => item.id === parentId) : undefined;
     }
     return trail.reverse();
-  }, [currentFolderId, items]);
+  }, [activeFolderId, items]);
 
   const activeAncestorIds = useMemo(() => {
     if (!activeId) return new Set<string>();
@@ -419,7 +415,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       onToast('Nothing to save yet.', 'info');
       return;
     }
-    const newItem = createLibraryItem(name, sgf, currentFolderId);
+    const newItem = createLibraryItem(name, sgf, activeFolderId);
     setItems((prev) => [newItem, ...prev]);
     setActiveId(newItem.id);
     onToast(`Saved "${newItem.name}" to Library.`, 'success');
@@ -434,7 +430,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleCreateFolder = () => {
     const name = window.prompt('New folder name:', 'New Folder') ?? '';
     if (!name.trim()) return;
-    const folder = createLibraryFolder(name.trim(), currentFolderId);
+    const folder = createLibraryFolder(name.trim(), activeFolderId);
     setItems((prev) => [folder, ...prev]);
     setExpandedFolderIds((prev) => new Set(prev).add(folder.id));
     setCurrentFolderId(folder.id);
@@ -450,8 +446,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleGoUp = () => {
-    if (!currentFolderId) return;
-    const parentId = parentById.get(currentFolderId) ?? null;
+    if (!activeFolderId) return;
+    const parentId = parentById.get(activeFolderId) ?? null;
     setCurrentFolderId(parentId);
   };
 
@@ -473,7 +469,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     link.download = `${item.name || 'game'}.sgf`;
     link.click();
     URL.revokeObjectURL(url);
-    onToast(`Exported \"${item.name}\".`, 'success');
+    onToast(`Exported "${item.name}".`, 'success');
   };
 
   const handleToggleSelect = (id: string) => {
@@ -495,22 +491,22 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleBulkDelete = () => {
-    if (selectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.size} item(s) from Library?`)) return;
+    if (visibleSelectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${visibleSelectedIds.size} item(s) from Library?`)) return;
     setItems((prev) => {
       let next = prev;
-      for (const id of selectedIds) {
+      for (const id of visibleSelectedIds) {
         next = deleteLibraryItem(next, id);
       }
       return next;
     });
-    if (activeId && selectedIds.has(activeId)) setActiveId(null);
+    if (activeId && visibleSelectedIds.has(activeId)) setActiveId(null);
     setSelectedIds(new Set());
   };
 
   const handleBulkExport = () => {
-    if (selectedIds.size === 0) return;
-    const selected = items.filter((item) => selectedIds.has(item.id)).filter(isFile);
+    if (visibleSelectedIds.size === 0) return;
+    const selected = items.filter((item) => visibleSelectedIds.has(item.id)).filter(isFile);
     if (selected.length === 0) {
       onToast('No files selected to export.', 'info');
       return;
@@ -522,12 +518,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleBulkMove = () => {
-    if (selectedIds.size === 0) return;
+    if (visibleSelectedIds.size === 0) return;
     if (!bulkMoveTarget) return;
     const targetId = bulkMoveTarget === 'root' ? null : bulkMoveTarget;
     setItems((prev) =>
       prev.map((item) => {
-        if (!selectedIds.has(item.id)) return item;
+        if (!visibleSelectedIds.has(item.id)) return item;
         if (targetId && (item.id === targetId || isDescendantOf(targetId, item.id))) return item;
         return { ...item, parentId: targetId, updatedAt: Date.now() };
       })
@@ -573,7 +569,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleImportFiles = async (files: FileList | null) =>
-    handleImportFilesToFolder(files, currentFolderId);
+    handleImportFilesToFolder(files, activeFolderId);
 
   const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -651,7 +647,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const renderFileRow = (item: LibraryFile, depth: number) => {
-    const isSelected = selectedIds.has(item.id);
+    const isSelected = visibleSelectedIds.has(item.id);
     const isLoaded = activeId === item.id;
     return (
       <div
@@ -728,9 +724,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const renderFolderRow = (item: LibraryFolder, depth: number, allowChildren = true) => {
-    const isExpanded = expandedFolderIds.has(item.id);
+    const isExpanded = visibleExpandedFolderIds.has(item.id);
     const children = childrenMap.get(item.id) ?? [];
-    const isSelected = selectedIds.has(item.id);
+    const isSelected = visibleSelectedIds.has(item.id);
     const hasLoaded = activeAncestorIds.has(item.id);
     return (
       <div key={item.id}>
@@ -738,7 +734,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           className={[
             'library-tree-node',
             isSelected ? 'selected' : '',
-            currentFolderId === item.id ? 'selected' : '',
+            activeFolderId === item.id ? 'selected' : '',
             hasLoaded ? 'has-loaded' : '',
             dragOverId === item.id ? 'drop-target' : '',
           ].join(' ')}
@@ -941,7 +937,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               type="button"
               className="panel-icon-button"
               onClick={handleGoUp}
-              disabled={!currentFolderId}
+              disabled={!activeFolderId}
               title="Up"
             >
               <FaArrowUp size={12} />
@@ -956,7 +952,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <div className="ml-auto flex items-center gap-2 text-[11px] ui-text-faint">
               <div>
-                {sortedItems.length} items{selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ''}
+                {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
               </div>
               {sortedItems.length > 0 && (
                 <button
@@ -990,7 +986,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               </span>
             )}
           </div>
-          {selectedIds.size > 0 && (
+          {visibleSelectedIds.size > 0 && (
             <div className="panel-toolbar border-b border-[var(--ui-border)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]">
               <button
                 type="button"

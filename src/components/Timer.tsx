@@ -27,12 +27,6 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
     if (isDisabled) {
       lastUpdateMsRef.current = 0;
       lastUpdateNodeIdRef.current = null;
-      setDisplay({
-        timeSeconds: 0,
-        periodsRemaining: null,
-        timeout: false,
-        isAiTurn: false,
-      });
       return;
     }
 
@@ -84,23 +78,29 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
   }, [timerSettings.mainTimeMinutes, timerSettings.byoLengthSeconds, timerSettings.byoPeriods]);
 
   const isTimerDisabled = timerSettings.mainTimeMinutes <= 0 && timerSettings.byoPeriods <= 0;
+  const effectiveDisplay = isTimerDisabled
+    ? { timeSeconds: 0, periodsRemaining: null, timeout: false, isAiTurn: false }
+    : display;
   const timeText = useMemo(
-    () => (isTimerDisabled ? 'Off' : formatKaTrainClockSeconds(display.timeSeconds)),
-    [display.timeSeconds, isTimerDisabled]
+    () => (isTimerDisabled ? 'Off' : formatKaTrainClockSeconds(effectiveDisplay.timeSeconds)),
+    [effectiveDisplay.timeSeconds, isTimerDisabled]
   );
-  const timeoutClass = isTimerDisabled ? 'text-slate-400' : display.timeout ? 'text-red-300' : 'text-slate-100';
+  const timeoutClass = isTimerDisabled ? 'text-slate-400' : effectiveDisplay.timeout ? 'text-red-300' : 'text-slate-100';
   const compactTimeoutClass = isTimerDisabled
     ? 'text-[var(--ui-text-muted)]'
-    : display.timeout
+    : effectiveDisplay.timeout
       ? 'text-[var(--ui-danger)]'
       : 'text-[var(--ui-text)]';
 
   if (variant === 'status') {
     return (
       <div className="status-bar-timer">
-        <div className={['status-bar-item font-mono', compactTimeoutClass].join(' ')} title={display.isAiTurn ? 'AI to play' : undefined}>
+        <div
+          className={['status-bar-item font-mono', compactTimeoutClass].join(' ')}
+          title={effectiveDisplay.isAiTurn ? 'AI to play' : undefined}
+        >
           {timeText}
-          {!isTimerDisabled && display.periodsRemaining !== null ? ` ×${display.periodsRemaining}` : ''}
+          {!isTimerDisabled && effectiveDisplay.periodsRemaining !== null ? ` ×${effectiveDisplay.periodsRemaining}` : ''}
         </div>
         {!isTimerDisabled && (
           <button
@@ -119,12 +119,12 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
   return (
     <div className="bg-slate-900 border border-slate-700/50 rounded px-4 py-3 flex items-center gap-3">
       <div className="flex items-baseline gap-2 font-mono">
-        <div className={['text-2xl leading-none', timeoutClass].join(' ')} title={display.isAiTurn ? 'AI to play' : undefined}>
+        <div className={['text-2xl leading-none', timeoutClass].join(' ')} title={effectiveDisplay.isAiTurn ? 'AI to play' : undefined}>
           {timeText}
         </div>
-        {!isTimerDisabled && display.periodsRemaining !== null && (
+        {!isTimerDisabled && effectiveDisplay.periodsRemaining !== null && (
           <div className={['text-sm leading-none', timeoutClass].join(' ')}>
-            × {display.periodsRemaining}
+            × {effectiveDisplay.periodsRemaining}
           </div>
         )}
       </div>

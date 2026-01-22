@@ -11,34 +11,38 @@ function useSyncExternalStoreWithSelector<S, T>(
   selector: Selector<S, T>,
   isEqual?: EqualityFn<T>
 ): T {
-  const memoizedSelector = React.useMemo(() => {
-    let hasMemo = false;
-    let memoSnapshot: S;
-    let memoSelection: T;
+  const memoRef = React.useRef<{
+    hasMemo: boolean;
+    snapshot?: S;
+    selection?: T;
+  }>({ hasMemo: false });
 
-    return (snapshot: S): T => {
-      if (!hasMemo) {
-        hasMemo = true;
-        memoSnapshot = snapshot;
-        memoSelection = selector(snapshot);
-        return memoSelection;
+  const memoizedSelector = React.useCallback(
+    (snapshot: S): T => {
+      const memo = memoRef.current;
+      if (!memo.hasMemo) {
+        memo.hasMemo = true;
+        memo.snapshot = snapshot;
+        memo.selection = selector(snapshot);
+        return memo.selection;
       }
 
-      if (Object.is(snapshot, memoSnapshot)) {
-        return memoSelection;
+      if (Object.is(snapshot, memo.snapshot)) {
+        return memo.selection as T;
       }
 
       const nextSelection = selector(snapshot);
-      if (isEqual && isEqual(memoSelection, nextSelection)) {
-        memoSnapshot = snapshot;
-        return memoSelection;
+      if (isEqual && memo.selection !== undefined && isEqual(memo.selection, nextSelection)) {
+        memo.snapshot = snapshot;
+        return memo.selection;
       }
 
-      memoSnapshot = snapshot;
-      memoSelection = nextSelection;
+      memo.snapshot = snapshot;
+      memo.selection = nextSelection;
       return nextSelection;
-    };
-  }, [isEqual, selector]);
+    },
+    [isEqual, selector]
+  );
 
   const getSelection = React.useCallback(() => memoizedSelector(getSnapshot()), [getSnapshot, memoizedSelector]);
   const getServerSelection = React.useCallback(

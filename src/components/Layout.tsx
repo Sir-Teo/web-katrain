@@ -35,7 +35,8 @@ import {
   loadUiState,
   saveUiState,
 } from './layout/types';
-import { PanelEdgeToggle, formatMoveLabel, playerToShort, rgba } from './layout/ui';
+import { PanelEdgeToggle } from './layout/ui';
+import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 function computePointsLost(args: { currentNode: GameNode }): number | null {
@@ -878,7 +879,7 @@ export const Layout: React.FC = () => {
 
   const isDragOverLibrary = (target: EventTarget | null) => {
     if (!target || !(target instanceof HTMLElement)) return false;
-    return Boolean(target.closest('[data-dropzone=\"library\"]'));
+    return Boolean(target.closest('[data-dropzone="library"]'));
   };
 
   const handleAppDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
