@@ -164,37 +164,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
       {/* Analysis toggles */}
       <div className="order-last xl:order-none w-full xl:w-auto flex items-center gap-1 flex-wrap">
-        <TogglePill
-          label="Children"
-          shortcut="Q"
-          active={settings.analysisShowChildren}
-          onToggle={() => updateControls({ analysisShowChildren: !settings.analysisShowChildren })}
-        />
-        <TogglePill
-          label="Dots"
-          shortcut="W"
-          active={settings.analysisShowEval}
-          onToggle={() => updateControls({ analysisShowEval: !settings.analysisShowEval })}
-        />
-        <TogglePill
-          label="Top Moves"
-          shortcut="E"
-          active={settings.analysisShowHints}
-          disabled={settings.analysisShowPolicy}
-          onToggle={() => updateControls({ analysisShowHints: !settings.analysisShowHints })}
-        />
-        <TogglePill
-          label="Policy"
-          shortcut="R"
-          active={settings.analysisShowPolicy}
-          onToggle={() => updateControls({ analysisShowPolicy: !settings.analysisShowPolicy })}
-        />
-        <TogglePill
-          label="Territory"
-          shortcut="T"
-          active={settings.analysisShowOwnership}
-          onToggle={() => updateControls({ analysisShowOwnership: !settings.analysisShowOwnership })}
-        />
       </div>
 
       <div className="hidden xl:block flex-grow" />
@@ -322,6 +291,50 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               >
                 <span>Move numbers</span>
                 <span className="text-xs ui-text-faint">{settings.showMoveNumbers ? 'on' : 'off'}</span>
+              </button>
+              <div className="border-t border-[var(--ui-border)] px-3 py-2">
+                <div className="text-xs ui-text-faint">Analysis overlays</div>
+              </div>
+              <button
+                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                onClick={() => updateControls({ analysisShowChildren: !settings.analysisShowChildren })}
+              >
+                <span>Children (Q)</span>
+                <span className="text-xs ui-text-faint">{settings.analysisShowChildren ? 'on' : 'off'}</span>
+              </button>
+              <button
+                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                onClick={() => updateControls({ analysisShowEval: !settings.analysisShowEval })}
+              >
+                <span>Dots (W)</span>
+                <span className="text-xs ui-text-faint">{settings.analysisShowEval ? 'on' : 'off'}</span>
+              </button>
+              <button
+                className={[
+                  'w-full px-3 py-2 text-left flex items-center justify-between',
+                  settings.analysisShowPolicy
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:bg-[var(--ui-surface-2)]',
+                ].join(' ')}
+                disabled={settings.analysisShowPolicy}
+                onClick={() => updateControls({ analysisShowHints: !settings.analysisShowHints })}
+              >
+                <span>Top moves (E)</span>
+                <span className="text-xs ui-text-faint">{settings.analysisShowHints ? 'on' : 'off'}</span>
+              </button>
+              <button
+                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                onClick={() => updateControls({ analysisShowPolicy: !settings.analysisShowPolicy })}
+              >
+                <span>Policy (R)</span>
+                <span className="text-xs ui-text-faint">{settings.analysisShowPolicy ? 'on' : 'off'}</span>
+              </button>
+              <button
+                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                onClick={() => updateControls({ analysisShowOwnership: !settings.analysisShowOwnership })}
+              >
+                <span>Territory (T)</span>
+                <span className="text-xs ui-text-faint">{settings.analysisShowOwnership ? 'on' : 'off'}</span>
               </button>
               <button
                 className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
