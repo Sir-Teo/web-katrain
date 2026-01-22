@@ -213,26 +213,34 @@ export function playerToShort(p: 'black' | 'white'): string {
   return p === 'black' ? 'B' : 'W';
 }
 
-export const panelCardBase = 'rounded-xl border transition-colors';
-export const panelCardOpen = 'ui-surface p-2 shadow-sm';
-export const panelCardClosed = 'border-transparent bg-transparent p-1';
+export const panelCardBase = 'panel-section';
+export const panelCardOpen = 'bg-transparent';
+export const panelCardClosed = 'border-transparent bg-transparent';
 
 export const SectionHeader: React.FC<{
   title: string;
+  icon?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   actions?: React.ReactNode;
-}> = ({ title, open, onToggle, actions }) => (
-  <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+  className?: string;
+  buttonClassName?: string;
+  actionsClassName?: string;
+}> = ({ title, icon, open, onToggle, actions, className, buttonClassName, actionsClassName }) => (
+  <div className={['flex flex-wrap items-center justify-between gap-2', className ?? ''].join(' ')}>
     <button
       type="button"
-      className="text-sm font-semibold text-[var(--ui-text)] hover:text-white flex items-center gap-2 transition-colors py-1 -ml-1 pl-1 pr-2 rounded hover:bg-[var(--ui-surface-2)]"
+      className={[
+        'text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-text-muted)] hover:text-white flex items-center gap-2 transition-colors py-1 rounded hover:bg-[var(--ui-surface-2)]',
+        buttonClassName ?? '',
+      ].join(' ')}
       onClick={onToggle}
     >
       {open ? <FaChevronDown size={12} className="text-[var(--ui-text-faint)]" /> : <FaChevronRight size={12} className="text-[var(--ui-text-faint)]" />}
+      {icon ? <span className="opacity-70">{icon}</span> : null}
       {title}
     </button>
-    {actions ? <div className="flex flex-wrap items-center gap-1.5">{actions}</div> : null}
+    {actions ? <div className={['flex flex-wrap items-center gap-1.5', actionsClassName ?? ''].join(' ')}>{actions}</div> : null}
   </div>
 );
 

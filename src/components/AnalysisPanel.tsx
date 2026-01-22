@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { FaChartLine, FaChartBar, FaRedoAlt, FaFileAlt } from 'react-icons/fa';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import type { UiMode, UiState } from './layout/types';
-import { EngineStatusBadge, SectionHeader } from './layout/ui';
+import { EngineStatusBadge } from './layout/ui';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -49,10 +50,22 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   pointsLost,
 }) => {
   void mode;
+  const [activeTab, setActiveTab] = useState<'graph' | 'stats'>(() => {
+    if (modePanels.statsOpen && !modePanels.graphOpen) return 'stats';
+    return 'graph';
+  });
+
+  useEffect(() => {
+    if (modePanels.statsOpen && !modePanels.graphOpen) {
+      setActiveTab('stats');
+    } else {
+      setActiveTab('graph');
+    }
+  }, [modePanels.graphOpen, modePanels.statsOpen]);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2 text-xs ui-text-faint">
+    <div className="flex flex-col h-full">
+      <div className="panel-section-header">
         <EngineStatusBadge
           label={engineMeta}
           title={engineMetaTitle}
@@ -64,7 +77,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         <span className="ml-auto">{statusText}</span>
       </div>
       {isGameAnalysisRunning && gameAnalysisTotal > 0 && (
-        <div>
+        <div className="panel-section-content border-b border-[var(--ui-border)]">
           <div className="h-2 rounded bg-[var(--ui-surface-2)] overflow-hidden">
             <div
               className="h-full bg-[var(--ui-accent)] opacity-70"
@@ -76,84 +89,108 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           </div>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          className={[
-            'px-2 py-1 rounded text-xs font-medium',
-            isGameAnalysisRunning && gameAnalysisType === 'quick'
-              ? 'ui-danger-soft border'
-              : 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110',
-          ].join(' ')}
-          onClick={() => {
-            if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
-            else startQuickGameAnalysis();
-          }}
-        >
-          {isGameAnalysisRunning && gameAnalysisType === 'quick'
-            ? `Stop quick (${gameAnalysisDone}/${gameAnalysisTotal})`
-            : 'Run quick graph'}
-        </button>
-        <button
-          className={[
-            'px-2 py-1 rounded text-xs font-medium',
-            isGameAnalysisRunning && gameAnalysisType === 'fast'
-              ? 'ui-danger-soft border'
-              : 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110',
-          ].join(' ')}
-          onClick={() => {
-            if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
-            else startFastGameAnalysis();
-          }}
-        >
-          {isGameAnalysisRunning && gameAnalysisType === 'fast'
-            ? `Stop fast (${gameAnalysisDone}/${gameAnalysisTotal})`
-            : 'Run fast MCTS'}
-        </button>
-        {isGameAnalysisRunning && (
+      <div className="panel-toolbar">
+        <div className="inline-flex rounded-md border border-[var(--ui-border)] overflow-hidden bg-[var(--ui-panel)]">
           <button
-            className="px-2 py-1 rounded text-xs font-medium ui-danger-soft border"
+            className={[
+              'px-2.5 py-1 text-xs font-semibold transition-colors',
+              isGameAnalysisRunning && gameAnalysisType === 'quick'
+                ? 'bg-[var(--ui-danger-soft)] text-[var(--ui-danger)]'
+                : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',
+            ].join(' ')}
+            onClick={() => {
+              if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
+              else startQuickGameAnalysis();
+            }}
+          >
+            {isGameAnalysisRunning && gameAnalysisType === 'quick'
+              ? `Stop quick (${gameAnalysisDone}/${gameAnalysisTotal})`
+              : 'Quick graph'}
+          </button>
+          <div className="w-px bg-[var(--ui-border)]" />
+          <button
+            className={[
+              'px-2.5 py-1 text-xs font-semibold transition-colors',
+              isGameAnalysisRunning && gameAnalysisType === 'fast'
+                ? 'bg-[var(--ui-danger-soft)] text-[var(--ui-danger)]'
+                : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',
+            ].join(' ')}
+            onClick={() => {
+              if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
+              else startFastGameAnalysis();
+            }}
+          >
+            {isGameAnalysisRunning && gameAnalysisType === 'fast'
+              ? `Stop fast (${gameAnalysisDone}/${gameAnalysisTotal})`
+              : 'Fast MCTS'}
+          </button>
+          <div className="w-px bg-[var(--ui-border)]" />
+          <button
+            className={[
+              'px-2.5 py-1 text-xs font-semibold transition-colors',
+              isGameAnalysisRunning
+                ? 'ui-danger-soft'
+                : 'text-[var(--ui-text-muted)] opacity-50 cursor-not-allowed',
+            ].join(' ')}
             onClick={stopGameAnalysis}
+            disabled={!isGameAnalysisRunning}
           >
             Stop
           </button>
-        )}
+        </div>
         <div className="ml-auto flex items-center gap-2 text-xs">
           <button
-            className="text-[var(--ui-text-muted)] hover:text-white"
+            className="panel-icon-button"
             onClick={onOpenGameAnalysis}
+            title="Re-analyze…"
           >
-            Re-analyze…
+            <FaRedoAlt size={12} />
           </button>
           <button
-            className="text-[var(--ui-text-muted)] hover:text-white"
+            className="panel-icon-button"
             onClick={onOpenGameReport}
+            title="Game report…"
           >
-            Game report…
+            <FaFileAlt size={12} />
           </button>
         </div>
       </div>
 
-      <div className="pt-2 border-t border-[var(--ui-border)]">
-        <SectionHeader
-          title="Score / Winrate Graph"
-          open={modePanels.graphOpen}
-          onToggle={() => updatePanels((current) => ({ graphOpen: !current.graphOpen }))}
-        />
-        {modePanels.graphOpen && (
-          <div className="mt-2" style={{ height: 130 }}>
+      <div className="panel-tab-strip">
+        <button
+          type="button"
+          className={['panel-tab', activeTab === 'graph' ? 'active' : ''].join(' ')}
+          onClick={() => {
+            setActiveTab('graph');
+            updatePanels({ graphOpen: true, statsOpen: false });
+          }}
+        >
+          <span className="inline-flex items-center gap-2">
+            <FaChartLine size={12} />
+            Graph
+          </span>
+        </button>
+        <button
+          type="button"
+          className={['panel-tab', activeTab === 'stats' ? 'active' : ''].join(' ')}
+          onClick={() => {
+            setActiveTab('stats');
+            updatePanels({ graphOpen: false, statsOpen: true });
+          }}
+        >
+          <span className="inline-flex items-center gap-2">
+            <FaChartBar size={12} />
+            Stats
+          </span>
+        </button>
+      </div>
+      <div className="panel-section-content flex-1 min-h-0">
+        {activeTab === 'graph' ? (
+          <div style={{ height: 130 }}>
             <ScoreWinrateGraph showScore showWinrate />
           </div>
-        )}
-      </div>
-
-      <div className="pt-2 border-t border-[var(--ui-border)]">
-        <SectionHeader
-          title="Move Stats"
-          open={modePanels.statsOpen}
-          onToggle={() => updatePanels((current) => ({ statsOpen: !current.statsOpen }))}
-        />
-        {modePanels.statsOpen && (
-          <div className="mt-2 grid grid-cols-3 gap-2">
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
             <div className="px-2 py-1.5">
               <div className="text-[11px] ui-text-faint">Winrate</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">

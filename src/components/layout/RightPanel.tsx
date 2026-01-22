@@ -1,5 +1,20 @@
 import React from 'react';
-import { FaTimes, FaFastBackward, FaFastForward, FaArrowUp, FaArrowDown, FaLevelUpAlt, FaSitemap } from 'react-icons/fa';
+import {
+  FaTimes,
+  FaFastBackward,
+  FaFastForward,
+  FaArrowUp,
+  FaArrowDown,
+  FaLevelUpAlt,
+  FaSitemap,
+  FaChartLine,
+  FaCommentDots,
+  FaStar,
+  FaListUl,
+  FaInfoCircle,
+  FaAlignLeft,
+  FaStickyNote,
+} from 'react-icons/fa';
 import type { Player, GameNode, Move } from '../../types';
 import { useGameStore } from '../../store/gameStore';
 import { AnalysisPanel } from '../AnalysisPanel';
@@ -8,7 +23,7 @@ import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import type { UiMode, UiState } from './types';
 import type { MobileTab } from './MobileTabBar';
-import { IconButton, SectionHeader, formatMoveLabel, panelCardBase, panelCardClosed, panelCardOpen, playerToShort } from './ui';
+import { SectionHeader, formatMoveLabel, panelCardBase, panelCardClosed, panelCardOpen, playerToShort } from './ui';
 
 interface RightPanelProps {
   open: boolean;
@@ -124,19 +139,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const showAnalysis = !isMobile || activeMobileTab === 'analysis';
   const showNotes = !isMobile || activeMobileTab === 'info';
 
-  const modeTabClass = (active: boolean) => [
-    'flex-1 h-10 rounded-lg font-semibold border transition-all',
-    active
-      ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm'
-      : 'bg-[var(--ui-panel)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white',
-  ].join(' ');
-
-  const treeViewTabClass = (active: boolean) => [
-    'px-2 py-1 rounded text-xs font-semibold border',
-    active
-      ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border-[var(--ui-border-strong)]'
-      : 'bg-[var(--ui-panel)] text-[var(--ui-text-muted)] border-[var(--ui-border)] hover:bg-[var(--ui-surface-2)] hover:text-white',
-  ].join(' ');
+  const modeTabClass = (active: boolean) => ['panel-tab', active ? 'active' : ''].join(' ');
+  const treeViewTabClass = (active: boolean) => ['panel-toggle', active ? 'active' : ''].join(' ');
+  const noteToggleClass = (active: boolean) => ['panel-icon-button', active ? 'active' : ''].join(' ');
 
   const guardInsertMode = (action: () => void) => {
     if (isInsertMode) {
@@ -181,6 +186,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const renderSection = (args: {
     show: boolean;
     title: string;
+    icon?: React.ReactNode;
     open: boolean;
     onToggle: () => void;
     actions?: React.ReactNode;
@@ -195,15 +201,23 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     return (
       <div
         className={[
-          'mx-2 mt-2',
           panelCardBase,
           wrapperTone,
           args.wrapperClassName ?? '',
         ].join(' ')}
       >
-        <SectionHeader title={args.title} open={args.open} onToggle={args.onToggle} actions={args.actions} />
+        <SectionHeader
+          title={args.title}
+          icon={args.icon}
+          open={args.open}
+          onToggle={args.onToggle}
+          actions={args.actions}
+          className="panel-section-header"
+          buttonClassName="panel-section-title"
+          actionsClassName="panel-section-actions"
+        />
         {args.open ? (
-          <div className={args.contentClassName ?? 'mt-1'} style={args.contentStyle}>
+          <div className={args.contentClassName ?? 'panel-section-content'} style={args.contentStyle}>
             {args.children}
           </div>
         ) : null}
@@ -391,7 +405,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           >
             <FaTimes />
           </button>
-          <div className="flex flex-1 gap-2">
+          <div className="panel-tab-strip flex-1">
             <button
               className={modeTabClass(mode === 'play')}
               onClick={() => setMode('play')}
@@ -407,12 +421,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto pb-3">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="flex flex-col">
             {/* Game Tree */}
             {renderSection({
               show: showTree,
               title: 'Game Tree',
+              icon: <FaSitemap size={12} />,
               open: modePanels.treeOpen,
               onToggle: () => updatePanels((current) => ({ treeOpen: !current.treeOpen })),
               actions: (
@@ -421,80 +436,89 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     type="button"
                     className={treeViewTabClass(treeView === 'tree')}
                     onClick={() => setTreeView('tree')}
+                    title="Tree view"
                   >
-                    Tree
+                    <FaSitemap size={12} />
                   </button>
                   <button
                     type="button"
                     className={treeViewTabClass(treeView === 'list')}
                     onClick={() => setTreeView('list')}
+                    title="List view"
                   >
-                    List
+                    <FaListUl size={12} />
                   </button>
                 </div>
               ),
-              contentClassName: 'mt-1 ui-surface border rounded-lg overflow-hidden',
+              contentClassName: 'panel-section-content',
               children: (
                 <>
-                  <div className="flex items-center gap-1 px-2 py-1 border-b border-[var(--ui-border)] bg-[var(--ui-surface)]">
-                    <IconButton
+                  <div className="panel-toolbar">
+                    <button
+                      type="button"
+                      className="panel-icon-button"
                       title="To start (Home)"
                       onClick={() => guardInsertMode(navigateStart)}
                       disabled={isInsertMode}
-                      className="h-7 w-7"
                     >
                       <FaFastBackward size={12} />
-                    </IconButton>
-                    <IconButton
+                    </button>
+                    <button
+                      type="button"
+                      className="panel-icon-button"
                       title="To end (End)"
                       onClick={() => guardInsertMode(navigateEnd)}
                       disabled={isInsertMode}
-                      className="h-7 w-7"
                     >
                       <FaFastForward size={12} />
-                    </IconButton>
-                    <div className="h-6 w-px bg-[var(--ui-border)] mx-1" />
-                    <IconButton
+                    </button>
+                    <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
+                    <button
+                      type="button"
+                      className="panel-icon-button"
                       title="Previous branch (↑)"
                       onClick={() => guardInsertMode(() => switchBranch(-1))}
                       disabled={isInsertMode}
-                      className="h-7 w-7"
                     >
                       <FaArrowUp size={12} />
-                    </IconButton>
-                    <IconButton
+                    </button>
+                    <button
+                      type="button"
+                      className="panel-icon-button"
                       title="Next branch (↓)"
                       onClick={() => guardInsertMode(() => switchBranch(1))}
                       disabled={isInsertMode}
-                      className="h-7 w-7"
                     >
                       <FaArrowDown size={12} />
-                    </IconButton>
-                    <div className="h-6 w-px bg-[var(--ui-border)] mx-1" />
-                    <IconButton
+                    </button>
+                    <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
+                    <button
+                      type="button"
+                      className="panel-icon-button"
                       title="Back to branch point (B)"
                       onClick={() => guardInsertMode(undoToBranchPoint)}
                       disabled={isInsertMode}
-                      className="h-7 w-7"
                     >
                       <FaLevelUpAlt size={12} />
-                    </IconButton>
-                    <IconButton
+                    </button>
+                    <button
+                      type="button"
+                      className="panel-icon-button"
                       title="Back to main branch (Shift+B)"
                       onClick={() => guardInsertMode(undoToMainBranch)}
                       disabled={isInsertMode}
-                      className="h-7 w-7"
                     >
                       <FaSitemap size={12} />
-                    </IconButton>
+                    </button>
                     <div className="flex-1" />
                     <button
                       type="button"
-                      className="px-2 py-1 rounded text-[11px] font-semibold bg-[var(--ui-surface-2)] text-[var(--ui-text)] hover:brightness-110 border border-[var(--ui-border)] disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="panel-icon-button"
+                      title="Make main branch"
                       onClick={() => guardInsertMode(makeCurrentNodeMainBranch)}
                       disabled={isInsertMode || !currentNode.parent}
                     >
-                      Make main
+                      <FaStar size={12} />
                     </button>
                   </div>
                   <div style={{ height: treeHeight }} className="overflow-y-auto">
@@ -556,9 +580,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             {renderSection({
               show: showAnalysis && showAnalysisSection,
               title: 'Analysis',
+              icon: <FaChartLine size={12} />,
               open: modePanels.analysisOpen,
               onToggle: () => updatePanels((current) => ({ analysisOpen: !current.analysisOpen })),
-              contentClassName: 'mt-1 overflow-y-auto pr-1',
+              contentClassName: 'panel-section-content overflow-y-auto',
               contentStyle: { height: analysisHeight },
               onResize: (e) => {
                 analysisResizeRef.current = { startY: e.clientY, startHeight: analysisHeight };
@@ -593,70 +618,70 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             {renderSection({
               show: showNotes,
               title: 'Comment',
+              icon: <FaCommentDots size={12} />,
               open: modePanels.notesOpen,
               onToggle: () => updatePanels((current) => ({ notesOpen: !current.notesOpen })),
               wrapperClassName: 'pb-2',
-              contentClassName: 'mt-1 ui-surface rounded-lg min-h-0 overflow-hidden flex flex-col',
+              contentClassName: 'panel-section-content',
               contentStyle: { height: notesHeight },
               onResize: (e) => {
                 notesResizeRef.current = { startY: e.clientY, startHeight: notesHeight };
                 setIsResizingNotes(true);
               },
               children: (
-                <>
-                  <div className="px-3 py-2 border-b border-[var(--ui-border)] text-[11px] text-[var(--ui-text)] flex items-center gap-2">
-                    <div className="truncate text-xs">
+                <div className="flex flex-col h-full">
+                  <div className="panel-toolbar text-[11px] ui-text-faint">
+                    <div className="truncate text-xs text-[var(--ui-text)]">
                       <span className="font-mono">{playerToShort(currentPlayer)}</span> ·{' '}
                       <span className="font-mono">{moveHistory.length}</span> ·{' '}
                       <span className="font-mono">{currentNode.move ? formatMoveLabel(currentNode.move.x, currentNode.move.y) : 'Root'}</span>
                     </div>
-                    <div className="ml-auto truncate ui-text-faint">{statusText}</div>
-                    {engineError && <span className="text-[var(--ui-danger)]">error</span>}
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        type="button"
+                        className={noteToggleClass(notesListOpen)}
+                        onClick={() => setNotesListOpen((prev) => !prev)}
+                        title="Notes list"
+                        aria-pressed={notesListOpen}
+                      >
+                        <FaListUl size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className={noteToggleClass(modePanels.notes.info)}
+                        onClick={() => updatePanels((current) => ({ notes: { ...current.notes, info: !current.notes.info } }))}
+                        title="Info"
+                        aria-pressed={modePanels.notes.info}
+                      >
+                        <FaInfoCircle size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className={noteToggleClass(modePanels.notes.infoDetails)}
+                        onClick={() =>
+                          updatePanels((current) => ({ notes: { ...current.notes, infoDetails: !current.notes.infoDetails } }))
+                        }
+                        title="Details"
+                        aria-pressed={modePanels.notes.infoDetails}
+                      >
+                        <FaAlignLeft size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className={noteToggleClass(modePanels.notes.notes)}
+                        onClick={() => updatePanels((current) => ({ notes: { ...current.notes, notes: !current.notes.notes } }))}
+                        title="Notes"
+                        aria-pressed={modePanels.notes.notes}
+                      >
+                        <FaStickyNote size={12} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="px-3 py-2 border-b border-[var(--ui-border)] flex flex-wrap items-center gap-2 text-[11px] ui-text-faint">
-                    <button
-                      type="button"
-                      className={[
-                        'px-2 py-1 rounded border',
-                        notesListOpen ? 'bg-amber-600/30 border-[var(--ui-border-strong)] text-white' : 'bg-[var(--ui-surface-2)] border-[var(--ui-border)] hover:text-white',
-                      ].join(' ')}
-                      onClick={() => setNotesListOpen((prev) => !prev)}
-                    >
-                      List
-                    </button>
-                    <button
-                      type="button"
-                      className={[
-                        'px-2 py-1 rounded border',
-                        modePanels.notes.info ? 'bg-[var(--ui-surface-2)] border-[var(--ui-border-strong)] text-white' : 'bg-[var(--ui-surface)] border-[var(--ui-border)] hover:text-white',
-                      ].join(' ')}
-                      onClick={() => updatePanels((current) => ({ notes: { ...current.notes, info: !current.notes.info } }))}
-                    >
-                      Info
-                    </button>
-                    <button
-                      type="button"
-                      className={[
-                        'px-2 py-1 rounded border',
-                        modePanels.notes.infoDetails ? 'bg-[var(--ui-surface-2)] border-[var(--ui-border-strong)] text-white' : 'bg-[var(--ui-surface)] border-[var(--ui-border)] hover:text-white',
-                      ].join(' ')}
-                      onClick={() =>
-                        updatePanels((current) => ({ notes: { ...current.notes, infoDetails: !current.notes.infoDetails } }))
-                      }
-                    >
-                      Details
-                    </button>
-                    <button
-                      type="button"
-                      className={[
-                        'px-2 py-1 rounded border',
-                        modePanels.notes.notes ? 'bg-purple-600/30 border-[var(--ui-border-strong)] text-white' : 'bg-[var(--ui-surface)] border-[var(--ui-border)] hover:text-white',
-                      ].join(' ')}
-                      onClick={() => updatePanels((current) => ({ notes: { ...current.notes, notes: !current.notes.notes } }))}
-                    >
-                      Notes
-                    </button>
-                  </div>
+                  {(statusText || engineError) && (
+                    <div className="px-3 py-2 border-b border-[var(--ui-border)] text-[11px] ui-text-faint">
+                      {engineError ? <span className="text-[var(--ui-danger)]">{statusText}</span> : statusText}
+                    </div>
+                  )}
                   {notesListOpen && (
                     <div className="border-b border-[var(--ui-border)] max-h-40 overflow-y-auto">
                       {notesNodes.length === 0 ? (
@@ -693,7 +718,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       showNotes={modePanels.notes.notes}
                     />
                   </div>
-                </>
+                </div>
               ),
             })}
           </div>

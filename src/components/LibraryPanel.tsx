@@ -1,5 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaTimes, FaFolderOpen, FaSave, FaTrash, FaPen, FaSearch, FaChevronDown, FaChevronRight, FaDownload, FaCheckSquare, FaSquare, FaPlus, FaArrowUp } from 'react-icons/fa';
+import {
+  FaTimes,
+  FaFolderOpen,
+  FaSave,
+  FaTrash,
+  FaPen,
+  FaSearch,
+  FaChevronDown,
+  FaChevronRight,
+  FaDownload,
+  FaCheckSquare,
+  FaSquare,
+  FaPlus,
+  FaArrowUp,
+  FaStop,
+  FaFileAlt,
+} from 'react-icons/fa';
 import {
   createLibraryFolder,
   createLibraryItem,
@@ -12,7 +28,7 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
-import { SectionHeader, panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui';
+import { panelCardBase } from './layout/ui';
 
 const SECTION_MAX_RATIO = 0.7;
 const MIN_LIST_HEIGHT = 220;
@@ -46,7 +62,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   getCurrentSgf,
   onLoadSgf,
   onToast,
-  onOpenRecent,
   onLibraryUpdated,
 }) => {
   const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
@@ -79,23 +94,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const headerActionClass = 'px-2 py-1 rounded bg-[var(--ui-surface-2)] text-xs text-[var(--ui-text)] hover:brightness-110';
-  const headerDangerActionClass = 'px-2 py-1 rounded ui-danger-soft text-xs hover:brightness-110';
-  const bulkActionClass = 'px-2 py-1 rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:brightness-110';
-  const bulkDangerActionClass = 'px-2 py-1 rounded ui-danger-soft border hover:brightness-110';
+  const headerActionClass = 'panel-icon-button';
+  const headerDangerActionClass = 'panel-icon-button ui-danger-soft';
+  const bulkActionClass = 'panel-icon-button';
+  const bulkDangerActionClass = 'panel-icon-button ui-danger-soft';
   const analysisActionClass =
-    'px-2 py-1 rounded text-[11px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+    'panel-icon-button disabled:opacity-50 disabled:cursor-not-allowed';
   const [sortKey, setSortKey] = useState(() => {
     if (typeof localStorage === 'undefined') return 'recent';
     return localStorage.getItem('web-katrain:library_sort:v1') ?? 'recent';
-  });
-  const [graphOpen, setGraphOpen] = useState(() => {
-    if (typeof localStorage === 'undefined') return true;
-    return localStorage.getItem('web-katrain:library_graph_open:v1') !== 'false';
-  });
-  const [listOpen, setListOpen] = useState(() => {
-    if (typeof localStorage === 'undefined') return true;
-    return localStorage.getItem('web-katrain:library_list_open:v1') !== 'false';
   });
   const [listHeight, setListHeight] = useState(() => {
     if (typeof localStorage === 'undefined') {
@@ -176,18 +183,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_graph_open:v1', String(graphOpen));
-  }, [graphOpen]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:library_sort:v1', String(sortKey));
   }, [sortKey]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_list_open:v1', String(listOpen));
-  }, [listOpen]);
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
@@ -238,26 +235,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   useEffect(() => {
-    if (!open || !listOpen) return;
+    if (!open || !docked) return;
     const frame = window.requestAnimationFrame(() => clampListHeight());
     return () => window.cancelAnimationFrame(frame);
-  }, [graphOpen, listOpen, open, docked]);
+  }, [open, docked, analysisHeight]);
 
   useEffect(() => {
-    if (!open || !graphOpen || !docked) return;
+    if (!open || !docked) return;
     const frame = window.requestAnimationFrame(() => clampAnalysisHeight());
     return () => window.cancelAnimationFrame(frame);
-  }, [graphOpen, listOpen, open, docked]);
+  }, [open, docked, listHeight]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onResize = () => {
-      if (open && listOpen) clampListHeight();
-      if (open && graphOpen && docked) clampAnalysisHeight();
+      if (open && docked) {
+        clampListHeight();
+        clampAnalysisHeight();
+      }
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [graphOpen, listOpen, open, docked]);
+  }, [open, docked]);
 
   useEffect(() => {
     if (!isResizingList) return;
@@ -391,13 +390,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     return map;
   }, [items, sortKey]);
-
-  const recentFiles = useMemo(() => {
-    return items
-      .filter(isFile)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .slice(0, 5);
-  }, [items]);
 
   const isDescendantOf = (candidateId: string | null, ancestorId: string): boolean => {
     if (!candidateId) return false;
@@ -648,83 +640,91 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setDragOverRoot(false);
   };
 
-  const renderFileRow = (item: LibraryFile, depth: number) => (
-    <div
-      key={item.id}
-      className={[
-        'px-3 py-2 flex items-center gap-2 hover:bg-[var(--ui-surface-2)] cursor-pointer',
-        activeId === item.id ? 'bg-[var(--ui-surface-2)]' : '',
-      ].join(' ')}
-      style={{ paddingLeft: 12 + depth * 16 }}
-      onClick={() => handleLoad(item)}
-      draggable
-      onDragStart={handleItemDragStart(item.id)}
-      onDragEnd={handleItemDragEnd}
-    >
-      <button
-        type="button"
-        className="ui-text-faint hover:text-white p-1"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleToggleSelect(item.id);
-        }}
-        title={selectedIds.has(item.id) ? 'Deselect' : 'Select'}
+  const renderFileRow = (item: LibraryFile, depth: number) => {
+    const isSelected = selectedIds.has(item.id);
+    return (
+      <div
+        key={item.id}
+        className={[
+          'group px-2 py-1.5 flex items-center gap-2 hover:bg-[var(--ui-surface-2)] cursor-pointer',
+          activeId === item.id ? 'bg-[var(--ui-surface-2)]' : '',
+        ].join(' ')}
+        style={{ paddingLeft: 12 + depth * 16 }}
+        onClick={() => handleLoad(item)}
+        draggable
+        onDragStart={handleItemDragStart(item.id)}
+        onDragEnd={handleItemDragEnd}
       >
-        {selectedIds.has(item.id) ? <FaCheckSquare /> : <FaSquare />}
-      </button>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-[var(--ui-text)] truncate">{item.name}</div>
-        <div className="text-xs ui-text-faint">
-          {item.moveCount} moves · {(item.size / 1024).toFixed(1)} KB
+        <button
+          type="button"
+          className={[
+            'h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-opacity',
+            isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          ].join(' ')}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleSelect(item.id);
+          }}
+          title={isSelected ? 'Deselect' : 'Select'}
+        >
+          {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
+        </button>
+        <FaFileAlt className="text-[var(--ui-text-muted)]" size={12} />
+        <div className="flex-1 min-w-0 text-sm text-[var(--ui-text)] truncate">{item.name}</div>
+        <div className="text-[11px] ui-text-faint ml-auto">
+          {item.moveCount} · {(item.size / 1024).toFixed(1)} KB
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            className="h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownload(item);
+            }}
+            title="Download SGF"
+          >
+            <FaDownload size={12} />
+          </button>
+          <button
+            type="button"
+            className="h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRename(item);
+            }}
+            title="Rename"
+          >
+            <FaPen size={12} />
+          </button>
+          <button
+            type="button"
+            className="h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-danger)] hover:bg-[var(--ui-surface-2)]"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(item);
+            }}
+            title="Delete"
+          >
+            <FaTrash size={12} />
+          </button>
         </div>
       </div>
-      <button
-        type="button"
-        className="ui-text-faint hover:text-white p-1"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleDownload(item);
-        }}
-        title="Download SGF"
-      >
-        <FaDownload />
-      </button>
-      <button
-        type="button"
-        className="ui-text-faint hover:text-white p-1"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleRename(item);
-        }}
-        title="Rename"
-      >
-        <FaPen />
-      </button>
-      <button
-        type="button"
-        className="ui-text-faint hover:text-[var(--ui-danger)] p-1"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleDelete(item);
-        }}
-        title="Delete"
-      >
-        <FaTrash />
-      </button>
-    </div>
-  );
+    );
+  };
 
   const renderFolderRow = (item: LibraryFolder, depth: number, allowChildren = true) => {
     const isExpanded = expandedFolderIds.has(item.id);
     const children = childrenMap.get(item.id) ?? [];
+    const isSelected = selectedIds.has(item.id);
     return (
       <div key={item.id}>
-      <div
-        className={[
-          'px-3 py-2 flex items-center gap-2 hover:bg-[var(--ui-surface-2)] cursor-pointer',
-          currentFolderId === item.id ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : '',
-          dragOverId === item.id ? 'bg-[var(--ui-accent-soft)]' : '',
-        ].join(' ')}
+        <div
+          className={[
+            'group px-2 py-1.5 flex items-center gap-2 hover:bg-[var(--ui-surface-2)] cursor-pointer',
+            currentFolderId === item.id ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : '',
+            dragOverId === item.id ? 'bg-[var(--ui-accent-soft)]' : '',
+          ].join(' ')}
           style={{ paddingLeft: 12 + depth * 16 }}
           onClick={() => {
             setCurrentFolderId(item.id);
@@ -743,7 +743,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         >
           <button
             type="button"
-            className="ui-text-faint hover:text-white p-1"
+            className="h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
             onClick={(e) => {
               e.stopPropagation();
               setExpandedFolderIds((prev) => {
@@ -759,41 +759,45 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </button>
           <button
             type="button"
-            className="ui-text-faint hover:text-white p-1"
+            className={[
+              'h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-opacity',
+              isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+            ].join(' ')}
             onClick={(e) => {
               e.stopPropagation();
               handleToggleSelect(item.id);
             }}
-            title={selectedIds.has(item.id) ? 'Deselect' : 'Select'}
+            title={isSelected ? 'Deselect' : 'Select'}
           >
-            {selectedIds.has(item.id) ? <FaCheckSquare /> : <FaSquare />}
+            {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
           </button>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-[var(--ui-text)] truncate">{item.name}</div>
-            <div className="text-xs ui-text-faint">{children.length} items</div>
+          <FaFolderOpen className="text-[var(--ui-text-muted)]" size={12} />
+          <div className="flex-1 min-w-0 text-sm font-semibold text-[var(--ui-text)] truncate">{item.name}</div>
+          <div className="text-[11px] ui-text-faint ml-auto">{children.length}</div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              className="h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRename(item);
+              }}
+              title="Rename"
+            >
+              <FaPen size={12} />
+            </button>
+            <button
+              type="button"
+              className="h-6 w-6 flex items-center justify-center rounded text-[var(--ui-text-muted)] hover:text-[var(--ui-danger)] hover:bg-[var(--ui-surface-2)]"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(item);
+              }}
+              title="Delete"
+            >
+              <FaTrash size={12} />
+            </button>
           </div>
-          <button
-            type="button"
-            className="ui-text-faint hover:text-white p-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRename(item);
-            }}
-            title="Rename"
-          >
-            <FaPen />
-          </button>
-          <button
-            type="button"
-            className="ui-text-faint hover:text-[var(--ui-danger)] p-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item);
-            }}
-            title="Delete"
-          >
-            <FaTrash />
-          </button>
         </div>
         {allowChildren && isExpanded && children.length > 0 && (
           <div className="divide-y divide-[var(--ui-border)]">
@@ -835,40 +839,45 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           >
             <FaTimes />
           </button>
-          <div className="font-semibold text-[var(--ui-text)]">Library</div>
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <span className="sr-only">Library</span>
+          <div className="flex flex-wrap items-center gap-1">
             <button
               type="button"
               className={headerActionClass}
               onClick={handleCreateFolder}
               title="Create new folder"
+              aria-label="Create new folder"
             >
-              <FaPlus className="inline-block mr-1" /> Folder
-            </button>
-            <button
-              type="button"
-              className={headerDangerActionClass}
-              onClick={handleClearLibrary}
-              title="Clear library"
-            >
-              <FaTrash className="inline-block mr-1" /> Clear
+              <FaPlus />
             </button>
             <button
               type="button"
               className={headerActionClass}
               onClick={handleSaveCurrent}
               title="Save current game to Library"
+              aria-label="Save current game to Library"
             >
-              <FaSave className="inline-block mr-1" /> Save
+              <FaSave />
             </button>
             <button
               type="button"
               className={headerActionClass}
               onClick={() => fileInputRef.current?.click()}
               title="Import SGF files"
+              aria-label="Import SGF files"
             >
-              <FaFolderOpen className="inline-block mr-1" /> Import
+              <FaFolderOpen />
             </button>
+            <button
+              type="button"
+              className={headerDangerActionClass}
+              onClick={handleClearLibrary}
+              title="Clear library"
+              aria-label="Clear library"
+            >
+              <FaTrash />
+            </button>
+            <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
             <input
               ref={fileInputRef}
               type="file"
@@ -883,116 +892,109 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         <div
           ref={listSectionRef}
           className={[
-            'flex flex-col mx-3 mb-3 mt-3 overflow-hidden',
+            'flex flex-col mx-0 overflow-hidden',
             panelCardBase,
-            listOpen ? `${panelCardOpen} min-h-0` : `flex-none ${panelCardClosed}`,
           ].join(' ')}
-          style={listOpen ? { height: listHeight } : undefined}
+          style={docked ? { height: listHeight } : undefined}
         >
-          <SectionHeader
-            title="Library"
-            open={listOpen}
-            onToggle={() => setListOpen((prev) => !prev)}
-            actions={
-              <div className="flex items-center gap-2 text-xs ui-text-faint">
-                {sortedItems.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-xs ui-text-faint hover:text-white"
-                    onClick={handleSelectAll}
-                  >
-                    Select all
-                  </button>
-                )}
-                <div className="text-xs ui-text-faint">
-                  {sortedItems.length} items{selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ''}
-                </div>
+          <div className="panel-toolbar">
+            <div className="relative flex-1 min-w-[160px]">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search library…"
+                className="w-full ui-input border rounded pl-8 pr-3 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
+              />
+            </div>
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value)}
+              className="ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+              title="Sort"
+            >
+              <option value="recent">Recent</option>
+              <option value="name">Name</option>
+              <option value="moves">Moves</option>
+              <option value="size">Size</option>
+            </select>
+            <button
+              type="button"
+              className="panel-icon-button"
+              onClick={handleGoUp}
+              disabled={!currentFolderId}
+              title="Up"
+            >
+              <FaArrowUp size={12} />
+            </button>
+            <button
+              type="button"
+              className="panel-icon-button"
+              onClick={() => setCurrentFolderId(null)}
+              title="Root"
+            >
+              <FaFolderOpen size={12} />
+            </button>
+            <div className="ml-auto flex items-center gap-2 text-[11px] ui-text-faint">
+              <div>
+                {sortedItems.length} items{selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ''}
               </div>
-            }
-          />
-          {listOpen && (
-            <div className="px-3 pb-2 border-b border-[var(--ui-border)] space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative flex-1 min-w-[180px]">
-                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search library…"
-                    className="w-full ui-input border rounded pl-8 pr-3 py-1.5 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
-                  />
-                </div>
-                <select
-                  value={sortKey}
-                  onChange={(e) => setSortKey(e.target.value)}
-                  className="ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
-                  title="Sort"
-                >
-                  <option value="recent">Recent</option>
-                  <option value="name">Name</option>
-                  <option value="moves">Moves</option>
-                  <option value="size">Size</option>
-                </select>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs ui-text-faint">
-                <span className="mr-auto">Folder: {currentFolderName}</span>
+              {sortedItems.length > 0 && (
                 <button
                   type="button"
-                  className="px-2 py-1 rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:brightness-110 disabled:opacity-40"
-                  onClick={handleGoUp}
-                  disabled={!currentFolderId}
+                  className="h-6 w-6 rounded hover:bg-[var(--ui-surface-2)] flex items-center justify-center"
+                  onClick={handleSelectAll}
+                  title="Select all"
+                  aria-label="Select all"
                 >
-                  <FaArrowUp className="inline-block mr-1" /> Up
+                  <FaCheckSquare size={12} />
                 </button>
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] hover:brightness-110"
-                  onClick={() => setCurrentFolderId(null)}
-                >
-                  Root
-                </button>
-              </div>
-              {!isSearching && breadcrumbs.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1 text-xs ui-text-faint">
-                  {breadcrumbs.map((crumb, index) => (
-                    <button
-                      key={crumb.id}
-                      type="button"
-                      className="px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
-                      onClick={() => setCurrentFolderId(crumb.id)}
-                    >
-                      {index === 0 ? crumb.name : `/${crumb.name}`}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {isDragging && (
-                <div className="text-xs ui-accent-soft border rounded px-2 py-1">
-                  Drop SGF files to import
-                </div>
               )}
             </div>
-          )}
-          {listOpen && selectedIds.size > 0 && (
-            <div className="px-3 py-2 border-b border-[var(--ui-border)] flex items-center gap-2 text-xs text-[var(--ui-text-muted)]">
+          </div>
+          <div className="px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
+            <span>Folder: {currentFolderName}</span>
+            {!isSearching &&
+              breadcrumbs.map((crumb, index) => (
+                <button
+                  key={crumb.id}
+                  type="button"
+                  className="px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                  onClick={() => setCurrentFolderId(crumb.id)}
+                >
+                  {index === 0 ? crumb.name : `/${crumb.name}`}
+                </button>
+              ))}
+            {isDragging && (
+              <span className="ml-auto ui-accent-soft border rounded px-2 py-0.5">
+                Drop SGF files to import
+              </span>
+            )}
+          </div>
+          {selectedIds.size > 0 && (
+            <div className="panel-toolbar border-b border-[var(--ui-border)]">
               <button
                 type="button"
                 className={bulkActionClass}
                 onClick={handleBulkExport}
+                title="Export selected"
+                aria-label="Export selected"
               >
-                Export
+                <FaDownload size={12} />
               </button>
               <button
                 type="button"
                 className={bulkDangerActionClass}
                 onClick={handleBulkDelete}
+                title="Delete selected"
+                aria-label="Delete selected"
               >
-                Delete
+                <FaTrash size={12} />
               </button>
               <select
                 value={bulkMoveTarget}
                 onChange={(e) => setBulkMoveTarget(e.target.value)}
-                className="ml-2 ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+                className="ml-1 ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
               >
                 <option value="">Move to...</option>
                 <option value="root">Root</option>
@@ -1004,7 +1006,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               </select>
               <button
                 type="button"
-                className={`${bulkActionClass} disabled:opacity-40`}
+                className="px-2 py-1 rounded border border-[var(--ui-border)] text-xs text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-40"
                 onClick={handleBulkMove}
                 disabled={!bulkMoveTarget}
               >
@@ -1014,8 +1016,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 type="button"
                 className={`ml-auto ${bulkActionClass}`}
                 onClick={handleClearSelection}
+                title="Clear selection"
+                aria-label="Clear selection"
               >
-                Clear
+                <FaTimes size={12} />
               </button>
             </div>
           )}
@@ -1028,9 +1032,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             onDragLeave={handleRootDragLeave}
             onDrop={handleRootDrop}
           >
-            {!listOpen ? (
-              <div className="p-4 text-xs ui-text-faint">Library list hidden</div>
-            ) : isSearching ? (
+            {isSearching ? (
               sortedItems.length === 0 ? (
                 <div className="p-6 text-sm ui-text-faint">
                   <div className="font-semibold text-[var(--ui-text-muted)] mb-2">No matches</div>
@@ -1049,32 +1051,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <div>Save the current game or drag SGF files here to build your library.</div>
               </div>
             ) : (
-              <>
-                {recentFiles.length > 0 && (
-                  <div className="border-b border-[var(--ui-border)]">
-                    <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)]">Recent</div>
-                    <div className="divide-y divide-[var(--ui-border)]">
-                      {recentFiles.map((item) =>
-                        onOpenRecent ? (
-                          <div key={item.id} onClick={() => onOpenRecent(item.sgf)}>
-                            {renderFileRow(item, 0)}
-                          </div>
-                        ) : (
-                          renderFileRow(item, 0)
-                        )
-                      )}
-                    </div>
-                  </div>
+              <div className="divide-y divide-[var(--ui-border)]">
+                {(childrenMap.get(null) ?? []).map((item) =>
+                  isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
                 )}
-                <div className="divide-y divide-[var(--ui-border)]">
-                  {(childrenMap.get(null) ?? []).map((item) =>
-                    isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
-                  )}
-                </div>
-              </>
+              </div>
             )}
           </div>
-          {listOpen && !isMobile && (
+          {!isMobile && docked && (
             <div
               className="h-3 cursor-row-resize bg-[var(--ui-surface-2)] hover:bg-[var(--ui-border-strong)] transition-colors"
               onMouseDown={(e) => {
@@ -1090,63 +1074,50 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         {docked && (
           <div
             ref={graphSectionRef}
-            className={[
-              'mx-3 mb-3',
-              panelCardBase,
-              graphOpen ? `${panelCardOpen} flex flex-col min-h-0` : panelCardClosed,
-            ].join(' ')}
-            style={graphOpen ? { height: analysisHeight } : undefined}
+            className={['mx-0 flex flex-col min-h-0', panelCardBase].join(' ')}
+            style={{ height: analysisHeight }}
           >
-            <SectionHeader
-              title="Analysis"
-              open={graphOpen}
-              onToggle={() => setGraphOpen((prev) => !prev)}
-              actions={
-                onStopAnalysis ? (
-                  <button
-                    type="button"
-                    className={[
-                      analysisActionClass,
-                      isAnalysisRunning
-                        ? 'ui-danger-soft border hover:brightness-110'
-                        : 'bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] border-[var(--ui-border)]',
-                    ].join(' ')}
-                    onClick={onStopAnalysis}
-                    disabled={!isAnalysisRunning}
-                  >
-                    Stop analysis
-                  </button>
-                ) : null
-              }
-            />
-            {graphOpen ? (
-              <>
-                <div className="mt-2 flex-1 min-h-0">
-                  <div className="h-full overflow-y-auto">
-                    {analysisContent ? (
-                      analysisContent
-                    ) : graphOptions.score || graphOptions.winrate ? (
-                      <ScoreWinrateGraph showScore={graphOptions.score} showWinrate={graphOptions.winrate} />
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-xs ui-text-faint border border-[var(--ui-border)] rounded">
-                        Graph hidden
-                      </div>
-                    )}
+            <div className="panel-toolbar">
+              <div className="panel-section-title">Analysis</div>
+              {onStopAnalysis ? (
+                <button
+                  type="button"
+                  className={[
+                    analysisActionClass,
+                    isAnalysisRunning ? 'ui-danger-soft' : 'text-[var(--ui-text-muted)]',
+                  ].join(' ')}
+                  onClick={onStopAnalysis}
+                  disabled={!isAnalysisRunning}
+                  title="Stop analysis"
+                >
+                  <FaStop size={12} />
+                </button>
+              ) : null}
+            </div>
+            <div className="panel-section-content flex-1 min-h-0">
+              <div className="h-full overflow-y-auto">
+                {analysisContent ? (
+                  analysisContent
+                ) : graphOptions.score || graphOptions.winrate ? (
+                  <ScoreWinrateGraph showScore={graphOptions.score} showWinrate={graphOptions.winrate} />
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs ui-text-faint border border-[var(--ui-border)] rounded">
+                    Graph hidden
                   </div>
-                </div>
-                {!isMobile && (
-                  <div
-                    className="mt-2 h-3 cursor-row-resize bg-[var(--ui-surface-2)] hover:bg-[var(--ui-border-strong)] transition-colors"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      analysisResizeRef.current = { startY: e.clientY, startHeight: analysisHeight };
-                      setIsResizingAnalysis(true);
-                    }}
-                    title="Drag to resize analysis"
-                  />
                 )}
-              </>
-            ) : null}
+              </div>
+            </div>
+            {!isMobile && (
+              <div
+                className="mt-2 h-3 cursor-row-resize bg-[var(--ui-surface-2)] hover:bg-[var(--ui-border-strong)] transition-colors"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  analysisResizeRef.current = { startY: e.clientY, startHeight: analysisHeight };
+                  setIsResizingAnalysis(true);
+                }}
+                title="Drag to resize analysis"
+              />
+            )}
           </div>
         )}
       </div>
