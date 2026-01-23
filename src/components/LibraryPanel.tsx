@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FaTimes,
   FaFolderOpen,
@@ -33,6 +33,9 @@ const SECTION_MAX_RATIO = 0.7;
 const MIN_LIST_HEIGHT = 220;
 const MIN_ANALYSIS_HEIGHT = 200;
 
+const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
+const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
+
 interface LibraryPanelProps {
   open: boolean;
   docked?: boolean;
@@ -63,8 +66,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   onToast,
   onLibraryUpdated,
 }) => {
-  const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
-  const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
   const [items, setItems] = useState<LibraryItem[]>(() => loadLibrary());
   const [query, setQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -200,46 +201,49 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onLibraryUpdated?.();
   }, [items, onLibraryUpdated]);
 
-  const getSectionBounds = (sectionRef: React.RefObject<HTMLDivElement | null>, minHeight: number) => {
-    const panel = panelRef.current;
-    const section = sectionRef.current;
-    if (!panel || !section) return null;
-    const panelRect = panel.getBoundingClientRect();
-    const sectionRect = section.getBoundingClientRect();
-    const bottomSection = (docked && graphSectionRef.current)
-      ? graphSectionRef.current
-      : listSectionRef.current ?? section;
-    const bottomRect = bottomSection.getBoundingClientRect();
-    const slack = panelRect.bottom - bottomRect.bottom;
-    const maxFromSlack = sectionRect.height + slack;
-    const maxFromRatio = panelRect.height * SECTION_MAX_RATIO;
-    const maxHeight = Math.max(minHeight, Math.min(maxFromSlack, maxFromRatio));
-    return { minHeight, maxHeight };
-  };
+  const getSectionBounds = useCallback(
+    (sectionRef: React.RefObject<HTMLDivElement | null>, minHeight: number) => {
+      const panel = panelRef.current;
+      const section = sectionRef.current;
+      if (!panel || !section) return null;
+      const panelRect = panel.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      const bottomSection = (docked && graphSectionRef.current)
+        ? graphSectionRef.current
+        : listSectionRef.current ?? section;
+      const bottomRect = bottomSection.getBoundingClientRect();
+      const slack = panelRect.bottom - bottomRect.bottom;
+      const maxFromSlack = sectionRect.height + slack;
+      const maxFromRatio = panelRect.height * SECTION_MAX_RATIO;
+      const maxHeight = Math.max(minHeight, Math.min(maxFromSlack, maxFromRatio));
+      return { minHeight, maxHeight };
+    },
+    [docked]
+  );
 
-  const clampListHeight = () => {
+  const clampListHeight = useCallback(() => {
     const bounds = getSectionBounds(listSectionRef, MIN_LIST_HEIGHT);
     if (!bounds) return;
     setListHeight((current) => Math.min(bounds.maxHeight, Math.max(bounds.minHeight, current)));
-  };
+  }, [getSectionBounds]);
 
-  const clampAnalysisHeight = () => {
+  const clampAnalysisHeight = useCallback(() => {
     const bounds = getSectionBounds(graphSectionRef, MIN_ANALYSIS_HEIGHT);
     if (!bounds) return;
     setAnalysisHeight((current) => Math.min(bounds.maxHeight, Math.max(bounds.minHeight, current)));
-  };
+  }, [getSectionBounds]);
 
   useEffect(() => {
     if (!open || !docked) return;
     const frame = window.requestAnimationFrame(() => clampListHeight());
     return () => window.cancelAnimationFrame(frame);
-  }, [open, docked, analysisHeight]);
+  }, [open, docked, analysisHeight, clampListHeight]);
 
   useEffect(() => {
     if (!open || !docked) return;
     const frame = window.requestAnimationFrame(() => clampAnalysisHeight());
     return () => window.cancelAnimationFrame(frame);
-  }, [open, docked, listHeight]);
+  }, [open, docked, listHeight, clampAnalysisHeight]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -251,7 +255,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [open, docked]);
+  }, [open, docked, clampListHeight, clampAnalysisHeight]);
 
   useEffect(() => {
     if (!isResizingList) return;
@@ -275,7 +279,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [isResizingList, docked]);
+  }, [isResizingList, getSectionBounds]);
 
   useEffect(() => {
     if (!isResizingAnalysis) return;
@@ -299,7 +303,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [isResizingAnalysis, docked]);
+  }, [isResizingAnalysis, getSectionBounds]);
 
 
   const filteredItems = useMemo(() => {
@@ -310,9 +314,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const isSearching = query.trim().length > 0;
 
-  const getMoveCount = (item: LibraryItem) => (isFile(item) ? item.moveCount : 0);
-  const getSize = (item: LibraryItem) => (isFile(item) ? item.size : 0);
-
   const sortedItems = useMemo(() => {
     const arr = [...filteredItems];
     switch (sortKey) {
@@ -320,10 +321,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         arr.sort((a, b) => a.name.localeCompare(b.name));
         break;
       case 'moves':
-        arr.sort((a, b) => getMoveCount(b) - getMoveCount(a));
+        arr.sort((a, b) => (isFile(b) ? b.moveCount : 0) - (isFile(a) ? a.moveCount : 0));
         break;
       case 'size':
-        arr.sort((a, b) => getSize(b) - getSize(a));
+        arr.sort((a, b) => (isFile(b) ? b.size : 0) - (isFile(a) ? a.size : 0));
         break;
       case 'recent':
       default:

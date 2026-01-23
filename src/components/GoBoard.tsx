@@ -624,6 +624,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     isSelectingRegionOfInterest,
     originX,
     originY,
+    pvOverlayEnabled,
     setupOverlayCanvas,
     stoneTextureVersion,
     toDisplay,

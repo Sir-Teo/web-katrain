@@ -229,6 +229,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   const report = useMemo(() => {
     void treeVersion;
+    void gameAnalysisDone;
+    void gameAnalysisTotal;
     const thresholds = trainerEvalThresholds?.length ? trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS;
     return computeGameReport({ currentNode, thresholds, depthFilter });
   }, [currentNode, depthFilter, trainerEvalThresholds, treeVersion, gameAnalysisDone, gameAnalysisTotal]);

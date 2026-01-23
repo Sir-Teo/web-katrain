@@ -931,6 +931,8 @@ export const Layout: React.FC = () => {
   };
 
   const recentLibraryItems = useMemo<LibraryFile[]>(() => {
+    void libraryOpen;
+    void libraryVersion;
     return loadLibrary()
       .filter((item): item is LibraryFile => item.type === 'file')
       .sort((a, b) => b.updatedAt - a.updatedAt)

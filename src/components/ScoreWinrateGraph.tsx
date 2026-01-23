@@ -72,6 +72,7 @@ export const ScoreWinrateGraph: React.FC<{
   // KaTrain-style graph: show the whole mainline for the current branch.
   const { nodes, highlightedIndex } = useMemo(() => {
     void treeVersion;
+    void gameAnalysisDone;
     const path: GameNode[] = [];
     let node: GameNode | null = currentNode;
     while (node) {
@@ -105,6 +106,7 @@ export const ScoreWinrateGraph: React.FC<{
 
   const { scoreValues, winrateValues } = useMemo(() => {
     void treeVersion;
+    void gameAnalysisDone;
     const scores: number[] = [];
     const winrates: number[] = [];
     for (const node of displayNodes) {
