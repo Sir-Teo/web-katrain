@@ -487,6 +487,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleContinuousAnalysis: (quiet = false) => {
       const next = !get().isContinuousAnalysis;
       set((state) => ({ isContinuousAnalysis: next, isAnalysisMode: next ? true : state.isAnalysisMode }));
+      if (next) {
+          get().updateSettings({
+            analysisShowChildren: false,
+            analysisShowEval: false,
+            analysisShowHints: true,
+            analysisShowPolicy: false,
+            analysisShowOwnership: false,
+          });
+      }
       if (!quiet) {
           set({ notification: { message: next ? 'Continuous analysis on' : 'Continuous analysis off', type: 'info' } });
           setTimeout(() => set({ notification: null }), 1200);
