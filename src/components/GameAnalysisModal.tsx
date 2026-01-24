@@ -54,8 +54,8 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="ui-panel rounded-lg shadow-xl w-[28rem] max-h-[90vh] overflow-hidden flex flex-col border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
+      <div className="ui-panel rounded-lg shadow-xl w-[92vw] max-w-[28rem] max-h-[90dvh] overflow-hidden flex flex-col border">
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
           <h2 className="text-lg font-semibold text-[var(--ui-text)]">Re-analyze Game (KaTrain)</h2>
           <button onClick={onClose} className="ui-text-faint hover:text-white" title="Close">

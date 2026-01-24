@@ -90,8 +90,8 @@ const SHORTCUT_CATEGORIES = [
 
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="ui-panel rounded-lg shadow-xl w-[800px] max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
+      <div className="ui-panel rounded-lg shadow-xl w-[92vw] max-w-[800px] max-h-[90dvh] overflow-hidden flex flex-col border">
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
           <h2 className="text-lg font-semibold text-[var(--ui-text)]">Keyboard Shortcuts</h2>
           <button onClick={onClose} className="ui-text-faint hover:text-white">
