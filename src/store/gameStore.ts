@@ -1246,7 +1246,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
               metaSynced = true;
             }
 
-            const boardSize = getBoardSizeFromBoard(node.gameState.board);
             node.analysis = {
               rootWinRate: analysis.rootWinRate,
               rootScoreLead: analysis.rootScoreLead,
