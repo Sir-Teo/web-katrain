@@ -4,10 +4,12 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { computeGameReport, type MoveReportEntry } from '../utils/gameReport';
 import type { CandidateMove, Player } from '../types';
+import { DEFAULT_BOARD_SIZE } from '../types';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { PanelHeaderButton } from './layout/ui';
 import { captureBoardSnapshot } from '../utils/boardSnapshot';
 import { parseGtpMove } from '../lib/gtp';
+import { normalizeBoardSize } from '../utils/boardSize';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -57,7 +59,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number } | null>(null);
   const [graphTick, setGraphTick] = useState(0);
   const snapshotTimerRef = useRef<number | null>(null);
-  const boardSize = currentNode.gameState.board.length;
+  const boardSize = normalizeBoardSize(currentNode.gameState.board.length, DEFAULT_BOARD_SIZE);
   const sectionClass =
     'rounded-xl border ui-surface p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] print-surface';
   const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] ui-text-faint';
@@ -269,7 +271,6 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const graphRange = useMemo(() => {
     if (!depthFilter) return null;
     const [fromFrac, toFrac] = depthFilter;
-    const boardSize = currentNode.gameState.board.length;
     const boardSquares = boardSize * boardSize;
     const start = Math.ceil(fromFrac * boardSquares);
     const end = Math.max(start, Math.ceil(toFrac * boardSquares) - 1);

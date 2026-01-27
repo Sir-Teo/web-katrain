@@ -1031,9 +1031,9 @@ function getPvForEdge(edge: Edge, maxDepth: number): string[] {
 
 const NUM_SYMMETRIES = 8;
 let symPosMapBoardArea = 0;
-let SYM_POS_MAP = new Int16Array(0);
+let SYM_POS_MAP: Int16Array<ArrayBufferLike> = new Int16Array(0);
 
-const buildSymPosMap = (): Int16Array => {
+const buildSymPosMap = (): Int16Array<ArrayBufferLike> => {
   const n = BOARD_SIZE;
   const map = new Int16Array(NUM_SYMMETRIES * BOARD_AREA);
   for (let sym = 0; sym < NUM_SYMMETRIES; sym++) {
@@ -1066,7 +1066,7 @@ const buildSymPosMap = (): Int16Array => {
   return map;
 };
 
-const getSymPosMap = (): Int16Array => {
+const getSymPosMap = (): Int16Array<ArrayBufferLike> => {
   const expectedSize = NUM_SYMMETRIES * BOARD_AREA;
   if (symPosMapBoardArea !== BOARD_AREA || SYM_POS_MAP.length !== expectedSize) {
     SYM_POS_MAP = buildSymPosMap();

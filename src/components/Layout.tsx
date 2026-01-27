@@ -14,10 +14,12 @@ import type { LibraryFile } from '../utils/library';
 import { loadLibrary } from '../utils/library';
 import { loadSgfOrOgs } from '../utils/ogs';
 import type { CandidateMove, GameNode, Player } from '../types';
+import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
+import { normalizeBoardSize } from '../utils/boardSize';
 
 // Layout components
 import { MenuDrawer } from './layout/MenuDrawer';
@@ -185,7 +187,7 @@ export const Layout: React.FC = () => {
     shallow
   );
 
-  const boardSize = board.length;
+  const boardSize = normalizeBoardSize(board.length, DEFAULT_BOARD_SIZE);
   const handicap = useMemo(() => {
     const raw = rootNode.properties?.HA?.[0];
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
