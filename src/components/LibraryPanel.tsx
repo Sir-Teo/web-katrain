@@ -27,7 +27,8 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
-import { panelCardBase } from './layout/ui-utils';
+import { SectionHeader } from './layout/ui';
+import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils';
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
@@ -111,6 +112,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return { score: true, winrate: true };
     }
   });
+  const [listOpen, setListOpen] = useState(() => {
+    if (typeof localStorage === 'undefined') return true;
+    return localStorage.getItem('web-katrain:library_list_open:v1') !== 'false';
+  });
+  const [analysisOpen, setAnalysisOpen] = useState(() => {
+    if (typeof localStorage === 'undefined') return true;
+    return localStorage.getItem('web-katrain:library_analysis_open:v1') !== 'false';
+  });
 
   useEffect(() => saveLibrary(items), [items]);
 
@@ -158,6 +167,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:library_graph_opts:v1', JSON.stringify(graphOptions));
   }, [graphOptions]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_list_open:v1', String(listOpen));
+  }, [listOpen]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('web-katrain:library_analysis_open:v1', String(analysisOpen));
+  }, [analysisOpen]);
 
   useEffect(() => {
     onLibraryUpdated?.();
@@ -685,6 +704,39 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   if (!open) return null;
 
+  const renderSection = (args: {
+    title: string;
+    open: boolean;
+    onToggle: () => void;
+    actions?: React.ReactNode;
+    wrapperClassName?: string;
+    contentClassName?: string;
+    children: React.ReactNode;
+  }) => {
+    const wrapperTone = args.open ? panelCardOpen : panelCardClosed;
+    return (
+      <div
+        className={[
+          panelCardBase,
+          wrapperTone,
+          args.wrapperClassName ?? '',
+        ].join(' ')}
+      >
+        <SectionHeader
+          title={args.title}
+          open={args.open}
+          onToggle={args.onToggle}
+          actions={args.actions}
+        />
+        {args.open ? (
+          <div className={args.contentClassName ?? 'panel-section-content'}>
+            {args.children}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={onClose} />
@@ -762,197 +814,202 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </div>
         </div>
 
-        <div
-          className={[
-            'flex flex-col mx-0 overflow-hidden flex-1 min-h-0',
-            panelCardBase,
-          ].join(' ')}
-        >
-          <div className="panel-toolbar">
-            <div className="relative flex-1 min-w-[160px]">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search library…"
-                className="w-full ui-input border rounded pl-8 pr-3 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
-              />
-            </div>
-            <select
-              value={sortKey}
-              onChange={(e) => setSortKey(e.target.value)}
-              className="ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
-              title="Sort"
-            >
-              <option value="recent">Recent</option>
-              <option value="name">Name</option>
-              <option value="moves">Moves</option>
-              <option value="size">Size</option>
-            </select>
-            <button
-              type="button"
-              className="panel-icon-button"
-              onClick={handleGoUp}
-              disabled={!activeFolderId}
-              title="Up"
-            >
-              <FaArrowUp size={12} />
-            </button>
-            <button
-              type="button"
-              className="panel-icon-button"
-              onClick={() => setCurrentFolderId(null)}
-              title="Root"
-            >
-              <FaFolderOpen size={12} />
-            </button>
-            <div className="ml-auto flex items-center gap-2 text-[11px] ui-text-faint">
-              <div>
-                {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
-              </div>
-              {sortedItems.length > 0 && (
-                <button
-                  type="button"
-                  className="h-6 w-6 rounded hover:bg-[var(--ui-surface-2)] flex items-center justify-center"
-                  onClick={handleSelectAll}
-                  title="Select all"
-                  aria-label="Select all"
-                >
-                  <FaCheckSquare size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
-            <span>Folder: {currentFolderName}</span>
-            {!isSearching &&
-              breadcrumbs.map((crumb, index) => (
-                <button
-                  key={crumb.id}
-                  type="button"
-                  className="px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
-                  onClick={() => setCurrentFolderId(crumb.id)}
-                >
-                  {index === 0 ? crumb.name : `/${crumb.name}`}
-                </button>
-              ))}
-            {isDragging && (
-              <span className="ml-auto ui-accent-soft border rounded px-2 py-0.5">
-                Drop SGF files to import
-              </span>
-            )}
-          </div>
-          {visibleSelectedIds.size > 0 && (
-            <div className="panel-toolbar border-b border-[var(--ui-border)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]">
-              <button
-                type="button"
-                className={bulkActionClass}
-                onClick={handleBulkExport}
-                title="Export selected"
-                aria-label="Export selected"
-              >
-                <FaDownload size={12} />
-              </button>
-              <button
-                type="button"
-                className={bulkDangerActionClass}
-                onClick={handleBulkDelete}
-                title="Delete selected"
-                aria-label="Delete selected"
-              >
-                <FaTrash size={12} />
-              </button>
-              <select
-                value={bulkMoveTarget}
-                onChange={(e) => setBulkMoveTarget(e.target.value)}
-                className="ml-1 ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
-              >
-                <option value="">Move to...</option>
-                <option value="root">Root</option>
-                {folderItems.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="panel-action-button"
-                onClick={handleBulkMove}
-                disabled={!bulkMoveTarget}
-              >
-                Move
-              </button>
-              <button
-                type="button"
-                className={`ml-auto ${bulkActionClass}`}
-                onClick={handleClearSelection}
-                title="Clear selection"
-                aria-label="Clear selection"
-              >
-                <FaTimes size={12} />
-              </button>
-            </div>
-          )}
-          <div
-            className={[
-              'library-tree flex-1 min-h-0 overflow-y-auto overscroll-contain',
-              dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
-            ].join(' ')}
-            onDragOver={handleRootDragOver}
-            onDragLeave={handleRootDragLeave}
-            onDrop={handleRootDrop}
-          >
-            {isSearching ? (
-              sortedItems.length === 0 ? (
-                <div className="p-6 text-sm ui-text-faint">
-                  <div className="font-semibold text-[var(--ui-text-muted)] mb-2">No matches</div>
-                  <div>Try a different search term.</div>
+        {renderSection({
+          title: 'Library',
+          open: listOpen,
+          onToggle: () => setListOpen((prev) => !prev),
+          wrapperClassName: listOpen ? 'flex flex-col min-h-0 flex-1' : '',
+          contentClassName: 'panel-section-content flex flex-col min-h-0 flex-1',
+          children: (
+            <>
+              <div className="panel-toolbar">
+                <div className="relative flex-1 min-w-[160px]">
+                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search library…"
+                    className="w-full ui-input border rounded pl-8 pr-3 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
+                  />
                 </div>
-              ) : (
-                <div>
-                  {sortedItems.map((item) =>
-                    isFolder(item) ? renderFolderRow(item, 0, false) : renderFileRow(item, 0)
+                <select
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value)}
+                  className="ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+                  title="Sort"
+                >
+                  <option value="recent">Recent</option>
+                  <option value="name">Name</option>
+                  <option value="moves">Moves</option>
+                  <option value="size">Size</option>
+                </select>
+                <button
+                  type="button"
+                  className="panel-icon-button"
+                  onClick={handleGoUp}
+                  disabled={!activeFolderId}
+                  title="Up"
+                >
+                  <FaArrowUp size={12} />
+                </button>
+                <button
+                  type="button"
+                  className="panel-icon-button"
+                  onClick={() => setCurrentFolderId(null)}
+                  title="Root"
+                >
+                  <FaFolderOpen size={12} />
+                </button>
+                <div className="ml-auto flex items-center gap-2 text-[11px] ui-text-faint">
+                  <div>
+                    {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
+                  </div>
+                  {sortedItems.length > 0 && (
+                    <button
+                      type="button"
+                      className="h-6 w-6 rounded hover:bg-[var(--ui-surface-2)] flex items-center justify-center"
+                      onClick={handleSelectAll}
+                      title="Select all"
+                      aria-label="Select all"
+                    >
+                      <FaCheckSquare size={12} />
+                    </button>
                   )}
                 </div>
-              )
-            ) : items.length === 0 ? (
-              <div className="p-6 text-sm ui-text-faint">
-                <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Library is empty</div>
-                <div>Save the current game or drag SGF files here to build your library.</div>
               </div>
-            ) : (
-              <div>
-                {(childrenMap.get(null) ?? []).map((item) =>
-                  isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
+              <div className="px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
+                <span>Folder: {currentFolderName}</span>
+                {!isSearching &&
+                  breadcrumbs.map((crumb, index) => (
+                    <button
+                      key={crumb.id}
+                      type="button"
+                      className="px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                      onClick={() => setCurrentFolderId(crumb.id)}
+                    >
+                      {index === 0 ? crumb.name : `/${crumb.name}`}
+                    </button>
+                  ))}
+                {isDragging && (
+                  <span className="ml-auto ui-accent-soft border rounded px-2 py-0.5">
+                    Drop SGF files to import
+                  </span>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+              {visibleSelectedIds.size > 0 && (
+                <div className="panel-toolbar border-b border-[var(--ui-border)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]">
+                  <button
+                    type="button"
+                    className={bulkActionClass}
+                    onClick={handleBulkExport}
+                    title="Export selected"
+                    aria-label="Export selected"
+                  >
+                    <FaDownload size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    className={bulkDangerActionClass}
+                    onClick={handleBulkDelete}
+                    title="Delete selected"
+                    aria-label="Delete selected"
+                  >
+                    <FaTrash size={12} />
+                  </button>
+                  <select
+                    value={bulkMoveTarget}
+                    onChange={(e) => setBulkMoveTarget(e.target.value)}
+                    className="ml-1 ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+                  >
+                    <option value="">Move to...</option>
+                    <option value="root">Root</option>
+                    {folderItems.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="panel-action-button"
+                    onClick={handleBulkMove}
+                    disabled={!bulkMoveTarget}
+                  >
+                    Move
+                  </button>
+                  <button
+                    type="button"
+                    className={`ml-auto ${bulkActionClass}`}
+                    onClick={handleClearSelection}
+                    title="Clear selection"
+                    aria-label="Clear selection"
+                  >
+                    <FaTimes size={12} />
+                  </button>
+                </div>
+              )}
+              <div
+                className={[
+                  'library-tree flex-1 min-h-0 overflow-y-auto overscroll-contain',
+                  dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
+                ].join(' ')}
+                onDragOver={handleRootDragOver}
+                onDragLeave={handleRootDragLeave}
+                onDrop={handleRootDrop}
+              >
+                {isSearching ? (
+                  sortedItems.length === 0 ? (
+                    <div className="p-6 text-sm ui-text-faint">
+                      <div className="font-semibold text-[var(--ui-text-muted)] mb-2">No matches</div>
+                      <div>Try a different search term.</div>
+                    </div>
+                  ) : (
+                    <div>
+                      {sortedItems.map((item) =>
+                        isFolder(item) ? renderFolderRow(item, 0, false) : renderFileRow(item, 0)
+                      )}
+                    </div>
+                  )
+                ) : items.length === 0 ? (
+                  <div className="p-6 text-sm ui-text-faint">
+                    <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Library is empty</div>
+                    <div>Save the current game or drag SGF files here to build your library.</div>
+                  </div>
+                ) : (
+                  <div>
+                    {(childrenMap.get(null) ?? []).map((item) =>
+                      isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          ),
+        })}
 
-        {docked && (
-          <div
-            className={['mx-0 flex flex-col min-h-0 flex-1', panelCardBase].join(' ')}
-          >
-            <div className="panel-toolbar">
-              <div className="panel-section-title cursor-default">Analysis</div>
-              {onStopAnalysis ? (
-                <button
-                  type="button"
-                  className={[
-                    analysisActionClass,
-                    isAnalysisRunning ? 'ui-danger-soft' : 'text-[var(--ui-text-muted)]',
-                  ].join(' ')}
-                  onClick={onStopAnalysis}
-                  disabled={!isAnalysisRunning}
-                  title="Stop analysis"
-                >
-                  <FaStop size={12} />
-                </button>
-              ) : null}
-            </div>
-            <div className="panel-section-content flex-1 min-h-0">
+        {docked &&
+          renderSection({
+            title: 'Analysis',
+            open: analysisOpen,
+            onToggle: () => setAnalysisOpen((prev) => !prev),
+            wrapperClassName: analysisOpen ? 'mx-0 flex flex-col min-h-0 flex-1' : 'mx-0',
+            contentClassName: 'panel-section-content flex-1 min-h-0',
+            actions: onStopAnalysis ? (
+              <button
+                type="button"
+                className={[
+                  analysisActionClass,
+                  isAnalysisRunning ? 'ui-danger-soft' : 'text-[var(--ui-text-muted)]',
+                ].join(' ')}
+                onClick={onStopAnalysis}
+                disabled={!isAnalysisRunning}
+                title="Stop analysis"
+                aria-label="Stop analysis"
+              >
+                <FaStop size={12} />
+              </button>
+            ) : null,
+            children: (
               <div className="h-full overflow-y-auto">
                 {analysisContent ? (
                   analysisContent
@@ -964,9 +1021,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        )}
+            ),
+          })}
       </div>
     </>
   );
