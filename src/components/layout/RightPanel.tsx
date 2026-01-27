@@ -182,7 +182,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     wrapperClassName?: string;
     contentClassName?: string;
     contentStyle?: React.CSSProperties;
-    onResize?: (e: React.MouseEvent<HTMLDivElement>) => void;
     children: React.ReactNode;
   }) => {
     if (!args.show) return null;
@@ -207,22 +206,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             {args.children}
           </div>
         ) : null}
-        {args.open && args.onResize ? (
-          <div
-            className="hidden lg:block h-1 cursor-row-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
-            onMouseDown={args.onResize}
-          />
-        ) : null}
       </div>
     );
   };
 
-  const [treeHeight, setTreeHeight] = React.useState(() => {
-    if (typeof localStorage === 'undefined') return 180;
-    const raw = localStorage.getItem('web-katrain:tree_height:v1');
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) ? parsed : 180;
-  });
   const storedTreeView = typeof localStorage === 'undefined' ? null : localStorage.getItem('web-katrain:tree_view:v1');
   const [treeView, setTreeView] = React.useState<'tree' | 'list'>(() => {
     if (storedTreeView === 'list' || storedTreeView === 'tree') return storedTreeView;
@@ -233,29 +220,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     if (typeof localStorage === 'undefined') return false;
     return localStorage.getItem('web-katrain:notes_list_open:v1') === 'true';
   });
-  const [analysisResizeStart, setAnalysisResizeStart] = React.useState<{ startY: number; startHeight: number } | null>(null);
-  const [notesResizeStart, setNotesResizeStart] = React.useState<{ startY: number; startHeight: number } | null>(null);
-  const [analysisHeight, setAnalysisHeight] = React.useState(() => {
-    if (typeof localStorage === 'undefined') return 260;
-    const raw = localStorage.getItem('web-katrain:analysis_height:v1');
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) ? parsed : 260;
-  });
-  const [notesHeight, setNotesHeight] = React.useState(() => {
-    if (typeof localStorage === 'undefined') return 320;
-    const raw = localStorage.getItem('web-katrain:notes_height:v1');
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) ? parsed : 320;
-  });
-  const [isResizingAnalysis, setIsResizingAnalysis] = React.useState(false);
-  const [isResizingNotes, setIsResizingNotes] = React.useState(false);
-  const [treeResizeStart, setTreeResizeStart] = React.useState<{ startY: number; startHeight: number } | null>(null);
-  const [isResizingTree, setIsResizingTree] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:tree_height:v1', String(treeHeight));
-  }, [treeHeight]);
 
   React.useEffect(() => {
     if (typeof localStorage === 'undefined') return;
@@ -266,85 +230,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:notes_list_open:v1', String(notesListOpen));
   }, [notesListOpen]);
-
-  React.useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:analysis_height:v1', String(analysisHeight));
-  }, [analysisHeight]);
-
-  React.useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:notes_height:v1', String(notesHeight));
-  }, [notesHeight]);
-
-  React.useEffect(() => {
-    if (!isResizingTree || !treeResizeStart) return;
-    const minHeight = 120;
-    const maxHeight = 360;
-    const onMove = (e: MouseEvent) => {
-      const delta = e.clientY - treeResizeStart.startY;
-      const next = Math.min(maxHeight, Math.max(minHeight, treeResizeStart.startHeight + delta));
-      setTreeHeight(next);
-    };
-    const onUp = () => {
-      setIsResizingTree(false);
-      setTreeResizeStart(null);
-    };
-    document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizingTree, treeResizeStart]);
-
-  React.useEffect(() => {
-    if (!isResizingAnalysis || !analysisResizeStart) return;
-    const minHeight = 200;
-    const maxHeight = 520;
-    const onMove = (e: MouseEvent) => {
-      const delta = e.clientY - analysisResizeStart.startY;
-      const next = Math.min(maxHeight, Math.max(minHeight, analysisResizeStart.startHeight + delta));
-      setAnalysisHeight(next);
-    };
-    const onUp = () => {
-      setIsResizingAnalysis(false);
-      setAnalysisResizeStart(null);
-    };
-    document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizingAnalysis, analysisResizeStart]);
-
-  React.useEffect(() => {
-    if (!isResizingNotes || !notesResizeStart) return;
-    const minHeight = 240;
-    const maxHeight = 640;
-    const onMove = (e: MouseEvent) => {
-      const delta = e.clientY - notesResizeStart.startY;
-      const next = Math.min(maxHeight, Math.max(minHeight, notesResizeStart.startHeight + delta));
-      setNotesHeight(next);
-    };
-    const onUp = () => {
-      setIsResizingNotes(false);
-      setNotesResizeStart(null);
-    };
-    document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizingNotes, notesResizeStart]);
 
   return (
     <>
@@ -440,6 +325,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaSitemap size={12} />,
               open: modePanels.treeOpen,
               onToggle: () => updatePanels((current) => ({ treeOpen: !current.treeOpen })),
+              wrapperClassName: 'flex flex-col min-h-0 flex-1',
               actions: (
                 !isMobile ? (
                   <div className="flex items-center gap-2">
@@ -462,7 +348,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   </div>
                 ) : null
               ),
-              contentClassName: 'panel-section-content',
+              contentClassName: 'panel-section-content flex flex-col min-h-0 flex-1',
               children: (
                 <>
                   <div className="panel-toolbar">
@@ -533,7 +419,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       <FaStar size={12} />
                     </button>
                   </div>
-                  <div style={{ height: treeHeight }} className="overflow-y-auto">
+                  <div className="flex-1 min-h-0 overflow-y-auto">
                     {effectiveTreeView === 'tree' ? (
                       <MoveTree onSelectNode={() => {
                         if (isMobile) onClose();
@@ -584,13 +470,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       </div>
                     )}
                   </div>
-                  <div
-                    className="hidden lg:block h-1 cursor-row-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
-                    onMouseDown={(e) => {
-                      setTreeResizeStart({ startY: e.clientY, startHeight: treeHeight });
-                      setIsResizingTree(true);
-                    }}
-                  />
                 </>
               ),
             })}
@@ -602,12 +481,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaChartLine size={12} />,
               open: modePanels.analysisOpen,
               onToggle: () => updatePanels((current) => ({ analysisOpen: !current.analysisOpen })),
-              contentClassName: 'panel-section-content overflow-y-auto',
-              contentStyle: { height: analysisHeight },
-              onResize: (e) => {
-                setAnalysisResizeStart({ startY: e.clientY, startHeight: analysisHeight });
-                setIsResizingAnalysis(true);
-              },
+              wrapperClassName: 'flex flex-col min-h-0 flex-1',
+              contentClassName: 'panel-section-content flex-1 min-h-0 overflow-y-auto',
               children: (
                 <AnalysisPanel
                   mode={mode}
@@ -641,13 +516,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaCommentDots size={12} />,
               open: modePanels.notesOpen,
               onToggle: () => updatePanels((current) => ({ notesOpen: !current.notesOpen })),
-              wrapperClassName: 'pb-2',
-              contentClassName: 'panel-section-content',
-              contentStyle: { height: notesHeight },
-              onResize: (e) => {
-                setNotesResizeStart({ startY: e.clientY, startHeight: notesHeight });
-                setIsResizingNotes(true);
-              },
+              wrapperClassName: 'pb-2 flex flex-col min-h-0 flex-1',
+              contentClassName: 'panel-section-content flex-1 min-h-0',
               children: (
                 <div className="flex flex-col h-full">
                   <div className="panel-toolbar text-[11px] ui-text-faint">

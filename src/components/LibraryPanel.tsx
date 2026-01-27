@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FaTimes,
   FaFolderOpen,
@@ -28,10 +28,6 @@ import {
 } from '../utils/library';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { panelCardBase } from './layout/ui-utils';
-
-const SECTION_MAX_RATIO = 0.7;
-const MIN_LIST_HEIGHT = 220;
-const MIN_ANALYSIS_HEIGHT = 200;
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
@@ -104,30 +100,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (typeof localStorage === 'undefined') return 'recent';
     return localStorage.getItem('web-katrain:library_sort:v1') ?? 'recent';
   });
-  const [listHeight, setListHeight] = useState(() => {
-    if (typeof localStorage === 'undefined') {
-      return typeof window === 'undefined' ? 360 : Math.min(420, Math.round(window.innerHeight * 0.45));
-    }
-    const raw = localStorage.getItem('web-katrain:library_list_height:v2');
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    if (Number.isFinite(parsed)) return parsed;
-    return typeof window === 'undefined' ? 360 : Math.min(420, Math.round(window.innerHeight * 0.45));
-  });
-  const [analysisHeight, setAnalysisHeight] = useState(() => {
-    if (typeof localStorage === 'undefined') {
-      return typeof window === 'undefined' ? 240 : Math.min(280, Math.round(window.innerHeight * 0.28));
-    }
-    const raw = localStorage.getItem('web-katrain:library_analysis_height:v1');
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    if (Number.isFinite(parsed)) return parsed;
-    return typeof window === 'undefined' ? 240 : Math.min(280, Math.round(window.innerHeight * 0.28));
-  });
-  const listSectionRef = useRef<HTMLDivElement>(null);
-  const graphSectionRef = useRef<HTMLDivElement>(null);
-  const listResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
-  const analysisResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
-  const [isResizingList, setIsResizingList] = useState(false);
-  const [isResizingAnalysis, setIsResizingAnalysis] = useState(false);
   const [graphOptions] = useState(() => {
     if (typeof localStorage === 'undefined') return { score: true, winrate: true };
     try {
@@ -184,127 +156,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_list_height:v2', String(listHeight));
-  }, [listHeight]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('web-katrain:library_analysis_height:v1', String(analysisHeight));
-  }, [analysisHeight]);
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
     localStorage.setItem('web-katrain:library_graph_opts:v1', JSON.stringify(graphOptions));
   }, [graphOptions]);
 
   useEffect(() => {
     onLibraryUpdated?.();
   }, [items, onLibraryUpdated]);
-
-  const getSectionBounds = useCallback(
-    (sectionRef: React.RefObject<HTMLDivElement | null>, minHeight: number) => {
-      const panel = panelRef.current;
-      const section = sectionRef.current;
-      if (!panel || !section) return null;
-      const panelRect = panel.getBoundingClientRect();
-      const sectionRect = section.getBoundingClientRect();
-      const bottomSection = (docked && graphSectionRef.current)
-        ? graphSectionRef.current
-        : listSectionRef.current ?? section;
-      const bottomRect = bottomSection.getBoundingClientRect();
-      const slack = panelRect.bottom - bottomRect.bottom;
-      const maxFromSlack = sectionRect.height + slack;
-      const maxFromRatio = panelRect.height * SECTION_MAX_RATIO;
-      const maxHeight = Math.max(minHeight, Math.min(maxFromSlack, maxFromRatio));
-      return { minHeight, maxHeight };
-    },
-    [docked]
-  );
-
-  const clampListHeight = useCallback(() => {
-    const bounds = getSectionBounds(listSectionRef, MIN_LIST_HEIGHT);
-    if (!bounds) return;
-    setListHeight((current) => Math.min(bounds.maxHeight, Math.max(bounds.minHeight, current)));
-  }, [getSectionBounds]);
-
-  const clampAnalysisHeight = useCallback(() => {
-    const bounds = getSectionBounds(graphSectionRef, MIN_ANALYSIS_HEIGHT);
-    if (!bounds) return;
-    setAnalysisHeight((current) => Math.min(bounds.maxHeight, Math.max(bounds.minHeight, current)));
-  }, [getSectionBounds]);
-
-  useEffect(() => {
-    if (!open || !docked) return;
-    const frame = window.requestAnimationFrame(() => clampListHeight());
-    return () => window.cancelAnimationFrame(frame);
-  }, [open, docked, analysisHeight, clampListHeight]);
-
-  useEffect(() => {
-    if (!open || !docked) return;
-    const frame = window.requestAnimationFrame(() => clampAnalysisHeight());
-    return () => window.cancelAnimationFrame(frame);
-  }, [open, docked, listHeight, clampAnalysisHeight]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onResize = () => {
-      if (open && docked) {
-        clampListHeight();
-        clampAnalysisHeight();
-      }
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [open, docked, clampListHeight, clampAnalysisHeight]);
-
-  useEffect(() => {
-    if (!isResizingList) return;
-    const onMove = (e: MouseEvent) => {
-      if (!listResizeRef.current) return;
-      const bounds = getSectionBounds(listSectionRef, MIN_LIST_HEIGHT);
-      if (!bounds) return;
-      const delta = e.clientY - listResizeRef.current.startY;
-      const next = Math.min(bounds.maxHeight, Math.max(bounds.minHeight, listResizeRef.current.startHeight + delta));
-      setListHeight(next);
-    };
-    const onUp = () => {
-      setIsResizingList(false);
-      listResizeRef.current = null;
-    };
-    document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizingList, getSectionBounds]);
-
-  useEffect(() => {
-    if (!isResizingAnalysis) return;
-    const onMove = (e: MouseEvent) => {
-      if (!analysisResizeRef.current) return;
-      const bounds = getSectionBounds(graphSectionRef, MIN_ANALYSIS_HEIGHT);
-      if (!bounds) return;
-      const delta = e.clientY - analysisResizeRef.current.startY;
-      const next = Math.min(bounds.maxHeight, Math.max(bounds.minHeight, analysisResizeRef.current.startHeight + delta));
-      setAnalysisHeight(next);
-    };
-    const onUp = () => {
-      setIsResizingAnalysis(false);
-      analysisResizeRef.current = null;
-    };
-    document.body.style.cursor = 'row-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizingAnalysis, getSectionBounds]);
-
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -906,12 +763,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </div>
 
         <div
-          ref={listSectionRef}
           className={[
-            'flex flex-col mx-0 overflow-hidden',
+            'flex flex-col mx-0 overflow-hidden flex-1 min-h-0',
             panelCardBase,
           ].join(' ')}
-          style={docked ? { height: listHeight } : undefined}
         >
           <div className="panel-toolbar">
             <div className="relative flex-1 min-w-[160px]">
@@ -1074,24 +929,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               </div>
             )}
           </div>
-          {!isMobile && docked && (
-            <div
-              className="h-3 cursor-row-resize bg-[var(--ui-surface-2)] hover:bg-[var(--ui-border-strong)] transition-colors"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                listResizeRef.current = { startY: e.clientY, startHeight: listHeight };
-                setIsResizingList(true);
-              }}
-              title="Drag to resize list"
-            />
-          )}
         </div>
 
         {docked && (
           <div
-            ref={graphSectionRef}
-            className={['mx-0 flex flex-col min-h-0', panelCardBase].join(' ')}
-            style={{ height: analysisHeight }}
+            className={['mx-0 flex flex-col min-h-0 flex-1', panelCardBase].join(' ')}
           >
             <div className="panel-toolbar">
               <div className="panel-section-title cursor-default">Analysis</div>
@@ -1123,17 +965,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 )}
               </div>
             </div>
-            {!isMobile && (
-              <div
-                className="mt-2 h-3 cursor-row-resize bg-[var(--ui-surface-2)] hover:bg-[var(--ui-border-strong)] transition-colors"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  analysisResizeRef.current = { startY: e.clientY, startHeight: analysisHeight };
-                  setIsResizingAnalysis(true);
-                }}
-                title="Drag to resize analysis"
-              />
-            )}
           </div>
         )}
       </div>
