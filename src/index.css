@@ -782,9 +782,37 @@
     font-weight: 500;
   }
 
+  .status-bar-matchup {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .status-bar-item {
     font-size: 11px;
     color: var(--ui-text-muted);
+  }
+
+  .status-player {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid var(--ui-border-strong);
+    flex-shrink: 0;
+  }
+
+  .status-player-black {
+    background: #111;
+  }
+
+  .status-player-white {
+    background: #fff;
+  }
+
+  .status-bar-captures {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
 
   .status-bar-divider {
