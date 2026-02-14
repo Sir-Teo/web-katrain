@@ -507,7 +507,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (newMode) {
           setTimeout(() => void get().runAnalysis(), 0);
       }
-      return { isAnalysisMode: newMode, isContinuousAnalysis: newMode ? state.isContinuousAnalysis : false, analysisData: state.currentNode.analysis || null };
+      return {
+        isAnalysisMode: newMode,
+        isContinuousAnalysis: newMode ? state.isContinuousAnalysis : false,
+        analysisData: state.currentNode.analysis || null,
+        settings: newMode && !state.settings.analysisShowHints
+          ? { ...state.settings, analysisShowHints: true }
+          : state.settings,
+      };
   }),
 
   toggleContinuousAnalysis: (quiet = false) => {
