@@ -444,6 +444,25 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         )}
       </div>
 
+      <div className="flex items-center gap-1.5" style={{ marginLeft: "auto" }}>
+        {isMobile && (
+          <button
+            type="button"
+            className={[
+              'px-2 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors',
+              isAnalysisMode
+                ? 'bg-[var(--ui-accent-soft)] border border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm shadow-black/20'
+                : 'bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white',
+            ].join(' ')}
+            title="Toggle analysis mode (Tab)"
+            onClick={toggleAnalysisMode}
+          >
+            <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
+            Analyze
+          </button>
+        )}
+      </div>
+
       {/* Right controls */}
       <div className="flex items-center gap-1.5">
         {!isMobile && (
@@ -517,20 +536,22 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             )
           )}
         </div>
-        <button
-          type="button"
-          className={[
-            'px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors',
-            isAnalysisMode
-              ? 'bg-[var(--ui-accent-soft)] border border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm shadow-black/20'
-              : 'bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white',
-          ].join(' ')}
-          title="Toggle analysis mode (Tab)"
-          onClick={toggleAnalysisMode}
-        >
-          <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
-          Analyze
-        </button>
+        {!isMobile && (
+          <button
+            type="button"
+            className={[
+              'px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors',
+              isAnalysisMode
+                ? 'bg-[var(--ui-accent-soft)] border border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm shadow-black/20'
+                : 'bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white',
+            ].join(' ')}
+            title="Toggle analysis mode (Tab)"
+            onClick={toggleAnalysisMode}
+          >
+            <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
+            Analyze
+          </button>
+        )}
 
         {!isMobile && (
           <div className="relative" data-menu-popover>

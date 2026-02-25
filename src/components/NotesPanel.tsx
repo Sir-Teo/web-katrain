@@ -163,9 +163,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       {showNotesBlock && (
         <div
           className={[
-            showInfoBlock && showNotesBlock ? 'flex-[2]' : 'flex-1',
+            showInfoBlock && showNotesBlock ? 'flex-1' : 'flex-1',
             showInfoBlock ? 'border-t border-[var(--ui-border)]' : '',
-            'p-3 flex flex-col gap-2 min-h-0',
+            'p-3 flex flex-col gap-3 min-h-0',
           ].join(' ')}
         >
           <label className="text-xs font-semibold ui-text-faint">User Note (SGF C)</label>

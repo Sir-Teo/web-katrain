@@ -1189,7 +1189,10 @@ export const Layout: React.FC = () => {
         )}
 
         {/* Main board column */}
-        <div className={['flex flex-col flex-1 min-w-0 relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}>
+        <div
+          className={['flex flex-col flex-1 min-w-0 min-h-0 relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
+          style={isMobile ? { paddingBottom: `calc(var(--mobile-tabbar-height) + ${settings.showBoardControls && bottomBarOpen && mobileTab === 'board' ? 'var(--ui-bar-height) + ' : ''}env(safe-area-inset-bottom))` } : undefined}
+        >
           {topBarOpen && (
             <TopControlBar
               settings={settings}
@@ -1242,7 +1245,7 @@ export const Layout: React.FC = () => {
           )}
 
           {/* Board */}
-          <div className={['flex-1 flex items-center justify-center ui-bg overflow-auto overscroll-contain relative', isMobile ? 'p-2 sm:p-3' : 'p-4 xl:p-6'].join(' ')}>
+          <div className={['flex-1 flex flex-col justify-center ui-bg overflow-hidden relative', isMobile ? 'p-2 sm:p-3 pb-0' : 'p-4 xl:p-6'].join(' ')}>
             {notification && (
               <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 ui-panel border">
                 <span>{notification.message}</span>
@@ -1251,16 +1254,18 @@ export const Layout: React.FC = () => {
                 </button>
               </div>
             )}
-            <GoBoard
-              hoveredMove={activeHoverMove}
-              onHoverMove={setHoveredMove}
-              pvUpToMove={pvUpToMove}
-              uiMode={boardUiMode}
-              forcePvOverlay={!!reportHoverMove}
-            />
+            <div className="flex-1 flex items-center justify-center min-h-0 min-w-0">
+              <GoBoard
+                hoveredMove={activeHoverMove}
+                onHoverMove={setHoveredMove}
+                pvUpToMove={pvUpToMove}
+                uiMode={boardUiMode}
+                forcePvOverlay={!!reportHoverMove}
+              />
+            </div>
           </div>
 
-          {settings.showBoardControls && bottomBarOpen && (
+          {!isMobile && settings.showBoardControls && bottomBarOpen && (
             <BottomControlBar
               passTurn={passTurn}
               navigateBack={navigateBack}
@@ -1278,7 +1283,7 @@ export const Layout: React.FC = () => {
               passPv={passPv}
               jumpBack={jumpBack}
               jumpForward={jumpForward}
-              isMobile={isMobile}
+              isMobile={false}
               onUndo={handleUndo}
               onAiMove={makeAiMove}
               onResign={handleResign}
@@ -1401,11 +1406,42 @@ export const Layout: React.FC = () => {
         )}
 
         {isMobile && (
-          <MobileTabBar
-            activeTab={mobileTab}
-            onTabChange={handleMobileTabChange}
-            commentBadge={noteCount}
-          />
+          <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col pointer-events-none">
+            <div className="pointer-events-auto bg-[var(--ui-bar)]/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(0,0,0,0.3)] border-t border-[var(--ui-border)] divide-y divide-[var(--ui-border)]">
+              {settings.showBoardControls && bottomBarOpen && mobileTab === 'board' && (
+                <div className="[&>div]:border-t-0 [&>div]:bg-transparent">
+                  <BottomControlBar
+                    passTurn={passTurn}
+                    navigateBack={navigateBack}
+                    navigateForward={navigateForward}
+                    navigateStart={navigateStart}
+                    navigateEnd={navigateEnd}
+                    findMistake={findMistake}
+                    rotateBoard={rotateBoard}
+                    currentPlayer={currentPlayer}
+                    moveHistory={moveHistory}
+                    boardSize={boardSize}
+                    handicap={handicap}
+                    isInsertMode={isInsertMode}
+                    passPolicyColor={passPolicyColor}
+                    passPv={passPv}
+                    jumpBack={jumpBack}
+                    jumpForward={jumpForward}
+                    isMobile={true}
+                    onUndo={handleUndo}
+                    onAiMove={makeAiMove}
+                    onResign={handleResign}
+                  />
+                </div>
+              )}
+              <MobileTabBar
+                activeTab={mobileTab}
+                onTabChange={handleMobileTabChange}
+                commentBadge={noteCount}
+                hasControlBarAbove={settings.showBoardControls && bottomBarOpen && mobileTab === 'board'}
+              />
+            </div>
+          </div>
         )}
       </div>
       <StatusBar

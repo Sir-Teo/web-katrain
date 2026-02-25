@@ -12,6 +12,7 @@ interface MobileTabBarProps {
   activeTab: MobileTab;
   onTabChange: (tab: MobileTab) => void;
   commentBadge?: number;
+  hasControlBarAbove?: boolean;
 }
 
 interface TabConfig {
@@ -24,6 +25,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   activeTab,
   onTabChange,
   commentBadge,
+  hasControlBarAbove,
 }) => {
   const tabs: TabConfig[] = [
     {
@@ -53,7 +55,10 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 ui-bar border-t backdrop-blur-sm shadow-xl shadow-black/30 mobile-tabbar"
+      className={[
+        'lg:hidden w-full mobile-tabbar transition-colors',
+        hasControlBarAbove ? 'bg-transparent' : 'ui-bar border-t border-[var(--ui-border)] backdrop-blur-sm shadow-xl shadow-black/30'
+      ].filter(Boolean).join(' ')}
       role="tablist"
     >
       <div

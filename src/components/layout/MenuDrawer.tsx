@@ -48,45 +48,45 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
         <nav className="space-y-4" aria-label="Main menu">
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Game</div>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-            onClick={() => {
-              onNewGame();
-              onClose();
-            }}
-            aria-label="New game, keyboard shortcut Control plus N"
-          >
-            <span className="flex items-center gap-2">
-              <FaPlay aria-hidden="true" /> New Game
-            </span>
-            <kbd className="text-xs ui-text-faint">Ctrl+N</kbd>
-          </button>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-            onClick={() => {
-              onSave();
-              onClose();
-            }}
-            aria-label="Save SGF file, keyboard shortcut Control plus S"
-          >
-            <span className="flex items-center gap-2">
-              <FaSave aria-hidden="true" /> Save SGF
-            </span>
-            <kbd className="text-xs ui-text-faint">Ctrl+S</kbd>
-          </button>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-            onClick={() => {
-              onLoad();
-              onClose();
-            }}
-            aria-label="Load SGF file, keyboard shortcut Control plus O"
-          >
-            <span className="flex items-center gap-2">
-              <FaFolderOpen aria-hidden="true" /> Load SGF
-            </span>
-            <kbd className="text-xs ui-text-faint">Ctrl+O</kbd>
-          </button>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onNewGame();
+                onClose();
+              }}
+              aria-label="New game, keyboard shortcut Control plus N"
+            >
+              <span className="flex items-center gap-2">
+                <FaPlay aria-hidden="true" /> New Game
+              </span>
+              <kbd className="text-xs ui-text-faint">Ctrl+N</kbd>
+            </button>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onSave();
+                onClose();
+              }}
+              aria-label="Save SGF file, keyboard shortcut Control plus S"
+            >
+              <span className="flex items-center gap-2">
+                <FaSave aria-hidden="true" /> Save SGF
+              </span>
+              <kbd className="text-xs ui-text-faint">Ctrl+S</kbd>
+            </button>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onLoad();
+                onClose();
+              }}
+              aria-label="Load SGF file, keyboard shortcut Control plus O"
+            >
+              <span className="flex items-center gap-2">
+                <FaFolderOpen aria-hidden="true" /> Load SGF
+              </span>
+              <kbd className="text-xs ui-text-faint">Ctrl+O</kbd>
+            </button>
           </div>
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Edit</div>
@@ -119,38 +119,38 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           </div>
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Settings</div>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-            onClick={() => {
-              onSettings();
-              onClose();
-            }}
-            aria-label="Open settings, keyboard shortcut F8"
-          >
-            <span className="flex items-center gap-2">
-              <FaCog aria-hidden="true" /> Settings
-            </span>
-            <kbd className="text-xs ui-text-faint">F8</kbd>
-          </button>
-          <button
-            className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-            onClick={() => {
-              onKeyboardHelp();
-              onClose();
-            }}
-            aria-label="Open keyboard shortcuts"
-          >
-            <span className="flex items-center gap-2">
-              <FaKeyboard aria-hidden="true" /> Keyboard Shortcuts
-            </span>
-            <kbd className="text-xs ui-text-faint">?</kbd>
-          </button>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onSettings();
+                onClose();
+              }}
+              aria-label="Open settings, keyboard shortcut F8"
+            >
+              <span className="flex items-center gap-2">
+                <FaCog aria-hidden="true" /> Settings
+              </span>
+              <kbd className="text-xs ui-text-faint">F8</kbd>
+            </button>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onKeyboardHelp();
+                onClose();
+              }}
+              aria-label="Open keyboard shortcuts"
+            >
+              <span className="flex items-center gap-2">
+                <FaKeyboard aria-hidden="true" /> Keyboard Shortcuts
+              </span>
+              <kbd className="text-xs ui-text-faint">?</kbd>
+            </button>
           </div>
         </nav>
 
         {recentItems.length > 0 && onOpenRecent && (
-          <div className="mt-4 border-t border-[var(--ui-border)] pt-3 space-y-2">
-            <div className="text-xs ui-text-faint">Recent</div>
+          <div className="mt-2 border-t border-[var(--ui-border)] pt-2 space-y-2">
+            <div className="text-xs ui-text-faint px-3 uppercase tracking-wide">Recent</div>
             <div className="space-y-1">
               {recentItems.map((item) => (
                 <button
