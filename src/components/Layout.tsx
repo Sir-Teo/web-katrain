@@ -273,9 +273,9 @@ export const Layout: React.FC = () => {
       settings.trainerEvalShowAi
         ? { black: true, white: true }
         : {
-            black: !(isAiPlaying && aiColor === 'black'),
-            white: !(isAiPlaying && aiColor === 'white'),
-          };
+          black: !(isAiPlaying && aiColor === 'black'),
+          white: !(isAiPlaying && aiColor === 'white'),
+        };
     return {
       trainer: {
         evalThresholds: settings.trainerEvalThresholds,
@@ -751,6 +751,8 @@ export const Layout: React.FC = () => {
   };
 
   const handleMobileTabChange = (tab: MobileTab) => {
+    setAnalysisMenuOpen(false);
+    setViewMenuOpen(false);
     if (tab === 'board') {
       setMobileTab('board');
       setLibraryOpen(false);
@@ -1042,16 +1044,16 @@ export const Layout: React.FC = () => {
               : 1;
             const timerSettings = timerEnabled
               ? {
-                  timerMainTimeMinutes: safeMainTimeMinutes,
-                  timerByoLengthSeconds: safeByoLengthSeconds,
-                  timerByoPeriods: safeByoPeriods,
-                }
+                timerMainTimeMinutes: safeMainTimeMinutes,
+                timerByoLengthSeconds: safeByoLengthSeconds,
+                timerByoPeriods: safeByoPeriods,
+              }
               : {
-                  timerMainTimeMinutes: 0,
-                  timerByoLengthSeconds: 0,
-                  timerByoPeriods: 0,
-                  timerMinimalUseSeconds: 0,
-                };
+                timerMainTimeMinutes: 0,
+                timerByoLengthSeconds: 0,
+                timerByoPeriods: 0,
+                timerMinimalUseSeconds: 0,
+              };
             updateSettings({
               aiStrategy: aiConfig.aiStrategy,
               aiRankKyu: aiConfig.aiRankKyu,
@@ -1138,29 +1140,81 @@ export const Layout: React.FC = () => {
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-      <LibraryPanel
-        open={libraryOpen}
-        onClose={handleCloseLibrary}
-        docked={isDesktop}
-        width={leftPanelWidth}
-        getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
-        onLoadSgf={handleLoadFromLibrary}
-        onToast={toast}
-        isMobile={isMobile}
-        onOpenRecent={handleOpenRecent}
-        onLibraryUpdated={handleLibraryUpdated}
-        isAnalysisRunning={isGameAnalysisRunning}
-        onStopAnalysis={stopGameAnalysis}
-        analysisContent={
-          isDesktop ? (
-            <AnalysisPanel
-              mode={mode}
-              modePanels={modePanels}
-              updatePanels={updatePanels}
-              statusText={statusText}
+        <LibraryPanel
+          open={libraryOpen}
+          onClose={handleCloseLibrary}
+          docked={isDesktop}
+          width={leftPanelWidth}
+          getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+          onLoadSgf={handleLoadFromLibrary}
+          onToast={toast}
+          isMobile={isMobile}
+          onOpenRecent={handleOpenRecent}
+          onLibraryUpdated={handleLibraryUpdated}
+          isAnalysisRunning={isGameAnalysisRunning}
+          onStopAnalysis={stopGameAnalysis}
+          analysisContent={
+            isDesktop ? (
+              <AnalysisPanel
+                mode={mode}
+                modePanels={modePanels}
+                updatePanels={updatePanels}
+                statusText={statusText}
+                engineDot={engineDot}
+                engineMeta={engineMeta}
+                engineMetaTitle={engineMetaTitle}
+                isGameAnalysisRunning={isGameAnalysisRunning}
+                gameAnalysisType={gameAnalysisType}
+                gameAnalysisDone={gameAnalysisDone}
+                gameAnalysisTotal={gameAnalysisTotal}
+                startQuickGameAnalysis={startQuickGameAnalysis}
+                startFastGameAnalysis={startFastGameAnalysis}
+                stopGameAnalysis={stopGameAnalysis}
+                onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
+                onOpenGameReport={() => setIsGameReportOpen(true)}
+                winRate={winRate ?? null}
+                scoreLead={scoreLead ?? null}
+                pointsLost={pointsLost}
+              />
+            ) : null
+          }
+        />
+
+        {isDesktop && libraryOpen && (
+          <div
+            className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
+            onMouseDown={() => setIsResizingLeft(true)}
+            onDoubleClick={handleToggleLibrary}
+          />
+        )}
+
+        {/* Main board column */}
+        <div className={['flex flex-col flex-1 min-w-0 relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}>
+          {topBarOpen && (
+            <TopControlBar
+              settings={settings}
+              updateControls={updateControls}
+              updateSettings={updateSettings}
+              regionOfInterest={regionOfInterest}
+              setRegionOfInterest={setRegionOfInterest}
+              isInsertMode={isInsertMode}
+              isAnalysisMode={isAnalysisMode}
+              toggleAnalysisMode={toggleAnalysisMode}
               engineDot={engineDot}
-              engineMeta={engineMeta}
-              engineMetaTitle={engineMetaTitle}
+              analysisMenuOpen={analysisMenuOpen}
+              setAnalysisMenuOpen={setAnalysisMenuOpen}
+              viewMenuOpen={viewMenuOpen}
+              setViewMenuOpen={setViewMenuOpen}
+              analyzeExtra={analyzeExtra}
+              startSelectRegionOfInterest={startSelectRegionOfInterest}
+              resetCurrentAnalysis={resetCurrentAnalysis}
+              toggleInsertMode={toggleInsertMode}
+              selfplayToEnd={selfplayToEnd}
+              toggleContinuousAnalysis={toggleContinuousAnalysis}
+              makeAiMove={makeAiMove}
+              rotateBoard={rotateBoard}
+              toggleTeachMode={toggleTeachMode}
+              isTeachMode={isTeachMode}
               isGameAnalysisRunning={isGameAnalysisRunning}
               gameAnalysisType={gameAnalysisType}
               gameAnalysisDone={gameAnalysisDone}
@@ -1168,243 +1222,191 @@ export const Layout: React.FC = () => {
               startQuickGameAnalysis={startQuickGameAnalysis}
               startFastGameAnalysis={startFastGameAnalysis}
               stopGameAnalysis={stopGameAnalysis}
-              onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
-              onOpenGameReport={() => setIsGameReportOpen(true)}
-              winRate={winRate ?? null}
-              scoreLead={scoreLead ?? null}
-              pointsLost={pointsLost}
+              setIsGameAnalysisOpen={setIsGameAnalysisOpen}
+              setIsGameReportOpen={setIsGameReportOpen}
+              onOpenMenu={() => setMenuOpen(true)}
+              onNewGame={() => setIsNewGameOpen(true)}
+              onOpenSidePanel={handleOpenSidePanel}
+              onCopySgf={handleCopySgf}
+              onPasteSgf={handlePasteSgf}
+              onSettings={() => setIsSettingsOpen(true)}
+              onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
+              winRateLabel={winRateLabel}
+              scoreLeadLabel={scoreLeadLabel}
+              pointsLostLabel={pointsLostLabel}
+              engineMeta={engineMeta}
+              engineMetaTitle={engineMetaTitle}
+              engineError={engineError}
+              isMobile={isMobile}
             />
-          ) : null
-        }
-      />
-
-      {isDesktop && libraryOpen && (
-        <div
-          className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
-          onMouseDown={() => setIsResizingLeft(true)}
-          onDoubleClick={handleToggleLibrary}
-        />
-      )}
-
-      {/* Main board column */}
-      <div className={['flex flex-col flex-1 min-w-0 relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}>
-        {topBarOpen && (
-          <TopControlBar
-            settings={settings}
-            updateControls={updateControls}
-            updateSettings={updateSettings}
-            regionOfInterest={regionOfInterest}
-            setRegionOfInterest={setRegionOfInterest}
-            isInsertMode={isInsertMode}
-            isAnalysisMode={isAnalysisMode}
-            toggleAnalysisMode={toggleAnalysisMode}
-            engineDot={engineDot}
-            analysisMenuOpen={analysisMenuOpen}
-            setAnalysisMenuOpen={setAnalysisMenuOpen}
-            viewMenuOpen={viewMenuOpen}
-            setViewMenuOpen={setViewMenuOpen}
-            analyzeExtra={analyzeExtra}
-            startSelectRegionOfInterest={startSelectRegionOfInterest}
-            resetCurrentAnalysis={resetCurrentAnalysis}
-            toggleInsertMode={toggleInsertMode}
-            selfplayToEnd={selfplayToEnd}
-            toggleContinuousAnalysis={toggleContinuousAnalysis}
-            makeAiMove={makeAiMove}
-            rotateBoard={rotateBoard}
-            toggleTeachMode={toggleTeachMode}
-            isTeachMode={isTeachMode}
-            isGameAnalysisRunning={isGameAnalysisRunning}
-            gameAnalysisType={gameAnalysisType}
-            gameAnalysisDone={gameAnalysisDone}
-            gameAnalysisTotal={gameAnalysisTotal}
-            startQuickGameAnalysis={startQuickGameAnalysis}
-            startFastGameAnalysis={startFastGameAnalysis}
-            stopGameAnalysis={stopGameAnalysis}
-            setIsGameAnalysisOpen={setIsGameAnalysisOpen}
-            setIsGameReportOpen={setIsGameReportOpen}
-            onOpenMenu={() => setMenuOpen(true)}
-            onNewGame={() => setIsNewGameOpen(true)}
-            onOpenSidePanel={handleOpenSidePanel}
-            onCopySgf={handleCopySgf}
-            onPasteSgf={handlePasteSgf}
-            onSettings={() => setIsSettingsOpen(true)}
-            onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-            winRateLabel={winRateLabel}
-            scoreLeadLabel={scoreLeadLabel}
-            pointsLostLabel={pointsLostLabel}
-            engineMeta={engineMeta}
-            engineMetaTitle={engineMetaTitle}
-            engineError={engineError}
-            isMobile={isMobile}
-          />
-        )}
-
-        {/* Board */}
-        <div className={['flex-1 flex items-center justify-center ui-bg overflow-auto overscroll-contain relative', isMobile ? 'p-2 sm:p-3' : 'p-4 xl:p-6'].join(' ')}>
-          {notification && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 ui-panel border">
-              <span>{notification.message}</span>
-              <button onClick={clearNotification} className="hover:text-white">
-                <FaTimes />
-              </button>
-            </div>
           )}
-          <GoBoard
-            hoveredMove={activeHoverMove}
-            onHoverMove={setHoveredMove}
-            pvUpToMove={pvUpToMove}
-            uiMode={boardUiMode}
-            forcePvOverlay={!!reportHoverMove}
-          />
+
+          {/* Board */}
+          <div className={['flex-1 flex items-center justify-center ui-bg overflow-auto overscroll-contain relative', isMobile ? 'p-2 sm:p-3' : 'p-4 xl:p-6'].join(' ')}>
+            {notification && (
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 ui-panel border">
+                <span>{notification.message}</span>
+                <button onClick={clearNotification} className="hover:text-white">
+                  <FaTimes />
+                </button>
+              </div>
+            )}
+            <GoBoard
+              hoveredMove={activeHoverMove}
+              onHoverMove={setHoveredMove}
+              pvUpToMove={pvUpToMove}
+              uiMode={boardUiMode}
+              forcePvOverlay={!!reportHoverMove}
+            />
+          </div>
+
+          {settings.showBoardControls && bottomBarOpen && (
+            <BottomControlBar
+              passTurn={passTurn}
+              navigateBack={navigateBack}
+              navigateForward={navigateForward}
+              navigateStart={navigateStart}
+              navigateEnd={navigateEnd}
+              findMistake={findMistake}
+              rotateBoard={rotateBoard}
+              currentPlayer={currentPlayer}
+              moveHistory={moveHistory}
+              boardSize={boardSize}
+              handicap={handicap}
+              isInsertMode={isInsertMode}
+              passPolicyColor={passPolicyColor}
+              passPv={passPv}
+              jumpBack={jumpBack}
+              jumpForward={jumpForward}
+              isMobile={isMobile}
+              onUndo={handleUndo}
+              onAiMove={makeAiMove}
+              onResign={handleResign}
+            />
+          )}
         </div>
 
-        {settings.showBoardControls && bottomBarOpen && (
-          <BottomControlBar
-            passTurn={passTurn}
-            navigateBack={navigateBack}
-            navigateForward={navigateForward}
-            navigateStart={navigateStart}
-            navigateEnd={navigateEnd}
-            findMistake={findMistake}
-            rotateBoard={rotateBoard}
-            currentPlayer={currentPlayer}
-            moveHistory={moveHistory}
-            boardSize={boardSize}
-            handicap={handicap}
-            isInsertMode={isInsertMode}
-            passPolicyColor={passPolicyColor}
-            passPv={passPv}
-            jumpBack={jumpBack}
-            jumpForward={jumpForward}
-            isMobile={isMobile}
-            onUndo={handleUndo}
-            onAiMove={makeAiMove}
-            onResign={handleResign}
+        {isDesktop && showSidebar && (
+          <div
+            className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
+            onMouseDown={() => setIsResizingRight(true)}
+            onDoubleClick={handleToggleSidebar}
           />
         )}
-      </div>
-
-      {isDesktop && showSidebar && (
-        <div
-          className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
-          onMouseDown={() => setIsResizingRight(true)}
-          onDoubleClick={handleToggleSidebar}
-        />
-      )}
 
         <RightPanel
-        open={rightPanelOpen}
-        onClose={handleCloseRightPanel}
-        width={isDesktop ? rightPanelWidth : undefined}
-        showOnDesktop={showSidebar}
-        mode={mode}
-        setMode={setMode}
-        modePanels={modePanels}
-        updatePanels={updatePanels}
-        rootNode={rootNode}
-        treeVersion={treeVersion}
-        isGameAnalysisRunning={isGameAnalysisRunning}
-        gameAnalysisType={gameAnalysisType}
-        gameAnalysisDone={gameAnalysisDone}
-        gameAnalysisTotal={gameAnalysisTotal}
-        startQuickGameAnalysis={startQuickGameAnalysis}
-        startFastGameAnalysis={startFastGameAnalysis}
-        stopGameAnalysis={stopGameAnalysis}
-        onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
-        onOpenGameReport={() => setIsGameReportOpen(true)}
-        currentPlayer={currentPlayer}
-        onUndo={handleUndo}
-        onResign={handleResign}
-        onAiMove={makeAiMove}
-        navigateStart={navigateStart}
-        navigateEnd={navigateEnd}
-        switchBranch={switchBranch}
-        undoToBranchPoint={undoToBranchPoint}
-        undoToMainBranch={undoToMainBranch}
-        makeCurrentNodeMainBranch={makeCurrentNodeMainBranch}
-        isInsertMode={isInsertMode}
-        toast={toast}
-        winRate={winRate ?? null}
-        scoreLead={scoreLead ?? null}
-        pointsLost={pointsLost}
-        engineDot={engineDot}
-        engineMeta={engineMeta}
-        engineMetaTitle={engineMetaTitle}
-        engineError={engineError}
-        statusText={statusText}
-        lockAiDetails={lockAiDetails}
-        currentNode={currentNode}
-        moveHistory={moveHistory}
-        isMobile={isMobile}
-        activeMobileTab={mobileTab}
-        showAnalysisSection={!isDesktop}
-      />
+          open={rightPanelOpen}
+          onClose={handleCloseRightPanel}
+          width={isDesktop ? rightPanelWidth : undefined}
+          showOnDesktop={showSidebar}
+          mode={mode}
+          setMode={setMode}
+          modePanels={modePanels}
+          updatePanels={updatePanels}
+          rootNode={rootNode}
+          treeVersion={treeVersion}
+          isGameAnalysisRunning={isGameAnalysisRunning}
+          gameAnalysisType={gameAnalysisType}
+          gameAnalysisDone={gameAnalysisDone}
+          gameAnalysisTotal={gameAnalysisTotal}
+          startQuickGameAnalysis={startQuickGameAnalysis}
+          startFastGameAnalysis={startFastGameAnalysis}
+          stopGameAnalysis={stopGameAnalysis}
+          onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
+          onOpenGameReport={() => setIsGameReportOpen(true)}
+          currentPlayer={currentPlayer}
+          onUndo={handleUndo}
+          onResign={handleResign}
+          onAiMove={makeAiMove}
+          navigateStart={navigateStart}
+          navigateEnd={navigateEnd}
+          switchBranch={switchBranch}
+          undoToBranchPoint={undoToBranchPoint}
+          undoToMainBranch={undoToMainBranch}
+          makeCurrentNodeMainBranch={makeCurrentNodeMainBranch}
+          isInsertMode={isInsertMode}
+          toast={toast}
+          winRate={winRate ?? null}
+          scoreLead={scoreLead ?? null}
+          pointsLost={pointsLost}
+          engineDot={engineDot}
+          engineMeta={engineMeta}
+          engineMetaTitle={engineMetaTitle}
+          engineError={engineError}
+          statusText={statusText}
+          lockAiDetails={lockAiDetails}
+          currentNode={currentNode}
+          moveHistory={moveHistory}
+          isMobile={isMobile}
+          activeMobileTab={mobileTab}
+          showAnalysisSection={!isDesktop}
+        />
 
-      {isDesktop && (
-        <>
-          <div
-            className="absolute top-1/2 z-30"
-            style={
-              libraryOpen
-                ? { left: leftPanelWidth, transform: 'translate(-50%, -50%)' }
-                : { left: 0, transform: 'translate(0, -50%)' }
-            }
-          >
-            <PanelEdgeToggle
-              side="left"
-              state={libraryOpen ? 'open' : 'closed'}
-              title={libraryOpen ? 'Hide panel (Ctrl+L)' : 'Show library (Ctrl+L)'}
-              onClick={handleToggleLibrary}
-            />
-          </div>
-          <div
-            className="absolute top-1/2 z-30"
-            style={
-              showSidebar
-                ? { right: rightPanelWidth, transform: 'translate(50%, -50%)' }
-                : { right: 0, transform: 'translate(0, -50%)' }
-            }
-          >
-            <PanelEdgeToggle
-              side="right"
-              state={showSidebar ? 'open' : 'closed'}
-              title={showSidebar ? 'Hide panel (Ctrl+B)' : 'Show panel (Ctrl+B)'}
-              onClick={handleToggleSidebar}
-            />
-          </div>
-        </>
-      )}
-
-      {!isMobile && (
-        <>
-          <div className="absolute left-1/2 top-0 -translate-x-1/2 z-30">
-            <PanelEdgeToggle
-              side="top"
-              state={topBarOpen ? 'open' : 'closed'}
-              title={topBarOpen ? 'Hide top bar' : 'Show top bar'}
-              onClick={() => setTopBarOpen((prev) => !prev)}
-            />
-          </div>
-          {settings.showBoardControls && (
-            <div className="absolute left-1/2 -translate-x-1/2 z-30" style={{ bottom: 28 }}>
+        {isDesktop && (
+          <>
+            <div
+              className="absolute top-1/2 z-30"
+              style={
+                libraryOpen
+                  ? { left: leftPanelWidth, transform: 'translate(-50%, -50%)' }
+                  : { left: 0, transform: 'translate(0, -50%)' }
+              }
+            >
               <PanelEdgeToggle
-                side="bottom"
-                state={bottomBarOpen ? 'open' : 'closed'}
-                title={bottomBarOpen ? 'Hide bottom bar' : 'Show bottom bar'}
-                onClick={() => setBottomBarOpen((prev) => !prev)}
+                side="left"
+                state={libraryOpen ? 'open' : 'closed'}
+                title={libraryOpen ? 'Hide panel (Ctrl+L)' : 'Show library (Ctrl+L)'}
+                onClick={handleToggleLibrary}
               />
             </div>
-          )}
-        </>
-      )}
+            <div
+              className="absolute top-1/2 z-30"
+              style={
+                showSidebar
+                  ? { right: rightPanelWidth, transform: 'translate(50%, -50%)' }
+                  : { right: 0, transform: 'translate(0, -50%)' }
+              }
+            >
+              <PanelEdgeToggle
+                side="right"
+                state={showSidebar ? 'open' : 'closed'}
+                title={showSidebar ? 'Hide panel (Ctrl+B)' : 'Show panel (Ctrl+B)'}
+                onClick={handleToggleSidebar}
+              />
+            </div>
+          </>
+        )}
 
-      {isMobile && (
-        <MobileTabBar
-          activeTab={mobileTab}
-          onTabChange={handleMobileTabChange}
-          commentBadge={noteCount}
-        />
-      )}
+        {!isMobile && (
+          <>
+            <div className="absolute left-1/2 top-0 -translate-x-1/2 z-30">
+              <PanelEdgeToggle
+                side="top"
+                state={topBarOpen ? 'open' : 'closed'}
+                title={topBarOpen ? 'Hide top bar' : 'Show top bar'}
+                onClick={() => setTopBarOpen((prev) => !prev)}
+              />
+            </div>
+            {settings.showBoardControls && (
+              <div className="absolute left-1/2 -translate-x-1/2 z-30" style={{ bottom: 28 }}>
+                <PanelEdgeToggle
+                  side="bottom"
+                  state={bottomBarOpen ? 'open' : 'closed'}
+                  title={bottomBarOpen ? 'Hide bottom bar' : 'Show bottom bar'}
+                  onClick={() => setBottomBarOpen((prev) => !prev)}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {isMobile && (
+          <MobileTabBar
+            activeTab={mobileTab}
+            onTabChange={handleMobileTabChange}
+            commentBadge={noteCount}
+          />
+        )}
       </div>
       <StatusBar
         moveName={moveName}

@@ -173,143 +173,181 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             <FaEllipsisH />
           </IconButton>
           {moreOpen && (
-            <div className="absolute right-0 bottom-full mb-2 w-56 ui-panel border rounded-lg shadow-xl overflow-hidden z-50">
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  navigateStart();
-                  setMoreOpen(false);
-                }}
-                disabled={isInsertMode}
-              >
-                <span className="flex items-center gap-2">
-                  <FaStepBackward /> Start
-                </span>
-                <span className="text-xs ui-text-faint">Home</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  jumpBack(10);
-                  setMoreOpen(false);
-                }}
-                disabled={isInsertMode}
-              >
-                <span className="flex items-center gap-2">
-                  <FaFastBackward /> Back 10
-                </span>
-                <span className="text-xs ui-text-faint">Shift+←</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  jumpForward(10);
-                  setMoreOpen(false);
-                }}
-                disabled={isInsertMode}
-              >
-                <span className="flex items-center gap-2">
-                  <FaFastForward /> Forward 10
-                </span>
-                <span className="text-xs ui-text-faint">Shift+→</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  navigateEnd();
-                  setMoreOpen(false);
-                }}
-                disabled={isInsertMode}
-              >
-                <span className="flex items-center gap-2">
-                  <FaStepForward /> End
-                </span>
-                <span className="text-xs ui-text-faint">End</span>
-              </button>
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-              {onUndo && (
-                <button
-                  className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                  onClick={() => {
-                    onUndo();
-                    setMoreOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <FaUndo /> Undo
-                  </span>
-                  <span className="text-xs ui-text-faint">←</span>
-                </button>
-              )}
-              {onAiMove && (
-                <button
-                  className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                  onClick={() => {
-                    onAiMove();
-                    setMoreOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <FaRobot /> AI move
-                  </span>
-                  <span className="text-xs ui-text-faint">Enter</span>
-                </button>
-              )}
-              {onResign && (
-                <button
-                  className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between text-[var(--ui-danger)]"
-                  onClick={() => {
-                    onResign();
-                    setMoreOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <FaFlag /> Resign
-                  </span>
-                  <span className="text-xs ui-text-faint">R</span>
-                </button>
-              )}
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between text-[var(--ui-danger)]"
-                onClick={() => {
-                  findMistake('undo');
-                  setMoreOpen(false);
-                }}
-                disabled={isInsertMode}
-              >
-                <span className="flex items-center gap-2">
-                  <FaExclamationTriangle /> Prev mistake
-                </span>
-                <span className="text-xs ui-text-faint">N</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between text-[var(--ui-danger)]"
-                onClick={() => {
-                  findMistake('redo');
-                  setMoreOpen(false);
-                }}
-                disabled={isInsertMode}
-              >
-                <span className="flex items-center gap-2">
-                  <FaExclamationTriangle /> Next mistake
-                </span>
-                <span className="text-xs ui-text-faint">Shift+N</span>
-              </button>
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  rotateBoard();
-                  setMoreOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaSyncAlt /> Rotate
-                </span>
-                <span className="text-xs ui-text-faint">O</span>
-              </button>
-            </div>
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 bg-black/50 z-40 transition-opacity backdrop-blur-[2px]"
+                onClick={() => setMoreOpen(false)}
+                aria-hidden="true"
+              />
+              {/* Bottom Sheet */}
+              <div className="fixed bottom-[var(--mobile-tabbar-height,60px)] left-0 right-0 max-h-[70vh] ui-panel border-t rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] overflow-y-auto z-50 overscroll-contain pb-safe animate-slide-up select-none touch-manipulation">
+                <div className="sticky top-0 bg-[var(--ui-surface)]/95 backdrop-blur-md border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between z-10">
+                  <div className="text-sm font-semibold">More Controls</div>
+                  <button
+                    onClick={() => setMoreOpen(false)}
+                    className="p-2 -mr-2 text-[var(--ui-text-muted)] hover:text-white rounded-full hover:bg-[var(--ui-surface-2)]"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="p-2 flex flex-col gap-1">
+                  <button
+                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    onClick={() => {
+                      navigateStart();
+                      setMoreOpen(false);
+                    }}
+                    disabled={isInsertMode}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                      <FaStepBackward size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">Start of game</div>
+                  </button>
+
+                  <button
+                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    onClick={() => {
+                      jumpBack(10);
+                      setMoreOpen(false);
+                    }}
+                    disabled={isInsertMode}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                      <FaFastBackward size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">Back 10 moves</div>
+                  </button>
+
+                  <button
+                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    onClick={() => {
+                      jumpForward(10);
+                      setMoreOpen(false);
+                    }}
+                    disabled={isInsertMode}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                      <FaFastForward size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">Forward 10 moves</div>
+                  </button>
+
+                  <button
+                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    onClick={() => {
+                      navigateEnd();
+                      setMoreOpen(false);
+                    }}
+                    disabled={isInsertMode}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                      <FaStepForward size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">End of game</div>
+                  </button>
+
+                  <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+
+                  {onUndo && (
+                    <button
+                      className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                      onClick={() => {
+                        onUndo();
+                        setMoreOpen(false);
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                        <FaUndo size={14} />
+                      </div>
+                      <div className="flex-1 font-medium">Undo last move</div>
+                    </button>
+                  )}
+
+                  {onAiMove && (
+                    <button
+                      className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                      onClick={() => {
+                        onAiMove();
+                        setMoreOpen(false);
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-teal-400">
+                        <FaRobot size={14} />
+                      </div>
+                      <div className="flex-1 font-medium text-teal-400">Request AI move</div>
+                    </button>
+                  )}
+
+                  {onResign && (
+                    <button
+                      className="w-full px-4 py-3.5 text-left hover:bg-rose-950/30 active:bg-rose-950/30 rounded-lg flex items-center gap-3 transition-colors text-rose-500"
+                      onClick={() => {
+                        onResign();
+                        setMoreOpen(false);
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+                        <FaFlag size={14} />
+                      </div>
+                      <div className="flex-1 font-medium">Resign</div>
+                    </button>
+                  )}
+
+                  <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+
+                  <button
+                    className="w-full px-4 py-3.5 text-left hover:bg-amber-950/30 active:bg-amber-950/30 rounded-lg flex items-center gap-3 transition-colors text-amber-500"
+                    onClick={() => {
+                      findMistake('undo');
+                      setMoreOpen(false);
+                    }}
+                    disabled={isInsertMode}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                      <FaExclamationTriangle size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">Previous mistake</div>
+                  </button>
+
+                  <button
+                    className="w-full px-4 py-3.5 text-left hover:bg-amber-950/30 active:bg-amber-950/30 rounded-lg flex items-center gap-3 transition-colors text-amber-500"
+                    onClick={() => {
+                      findMistake('redo');
+                      setMoreOpen(false);
+                    }}
+                    disabled={isInsertMode}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                      <FaExclamationTriangle size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">Next mistake</div>
+                  </button>
+
+                  <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+
+                  <button
+                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    onClick={() => {
+                      rotateBoard();
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                      <FaSyncAlt size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">Rotate Board</div>
+                  </button>
+
+                  {/* Bottom padding for safe area */}
+                  <div className="h-4" />
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

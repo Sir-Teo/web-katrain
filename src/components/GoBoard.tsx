@@ -103,11 +103,11 @@ function formatDeltaWinrate(x: number): string {
 }
 
 interface GoBoardProps {
-    hoveredMove: CandidateMove | null;
-    onHoverMove: (move: CandidateMove | null) => void;
-    pvUpToMove: number | null;
-    uiMode: 'play' | 'analyze';
-    forcePvOverlay?: boolean;
+  hoveredMove: CandidateMove | null;
+  onHoverMove: (move: CandidateMove | null) => void;
+  pvUpToMove: number | null;
+  uiMode: 'play' | 'analyze';
+  forcePvOverlay?: boolean;
 }
 
 export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUpToMove, uiMode, forcePvOverlay = false }) => {
@@ -1287,20 +1287,20 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   ]);
 
   const pvMoves = useMemo(() => {
-      const pv = hoveredMove?.pv;
-      if (!pvOverlayEnabled || !pv || pv.length === 0) return [];
+    const pv = hoveredMove?.pv;
+    if (!pvOverlayEnabled || !pv || pv.length === 0) return [];
 
-	      const upToMove = typeof pvUpToMove === 'number' ? pvUpToMove : pv.length;
-	      const opp: typeof currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
-	      const moves: Array<{ x: number; y: number; player: typeof currentPlayer; idx: number }> = [];
-	      for (let i = 0; i < pv.length; i++) {
-	          if (i > upToMove) break;
-	          const m = parseGtpMove(pv[i]!, boardSize);
-	          if (!m || m.kind !== 'move') continue;
-	          const d = toDisplay(m.x, m.y);
-	          moves.push({ x: d.x, y: d.y, player: i % 2 === 0 ? currentPlayer : opp, idx: i + 1 });
-	      }
-	      return moves;
+    const upToMove = typeof pvUpToMove === 'number' ? pvUpToMove : pv.length;
+    const opp: typeof currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+    const moves: Array<{ x: number; y: number; player: typeof currentPlayer; idx: number }> = [];
+    for (let i = 0; i < pv.length; i++) {
+      if (i > upToMove) break;
+      const m = parseGtpMove(pv[i]!, boardSize);
+      if (!m || m.kind !== 'move') continue;
+      const d = toDisplay(m.x, m.y);
+      moves.push({ x: d.x, y: d.y, player: i % 2 === 0 ? currentPlayer : opp, idx: i + 1 });
+    }
+    return moves;
   }, [hoveredMove, pvOverlayEnabled, pvUpToMove, currentPlayer, toDisplay]);
 
   useEffect(() => {
@@ -1361,11 +1361,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     const roi =
       roiDrag
         ? {
-            xMin: Math.min(roiDrag.start.x, roiDrag.end.x),
-            xMax: Math.max(roiDrag.start.x, roiDrag.end.x),
-            yMin: Math.min(roiDrag.start.y, roiDrag.end.y),
-            yMax: Math.max(roiDrag.start.y, roiDrag.end.y),
-          }
+          xMin: Math.min(roiDrag.start.x, roiDrag.end.x),
+          xMax: Math.max(roiDrag.start.x, roiDrag.end.x),
+          yMin: Math.min(roiDrag.start.y, roiDrag.end.y),
+          yMax: Math.max(roiDrag.start.y, roiDrag.end.y),
+        }
         : regionOfInterest;
     if (!roi) return null;
     const a = toDisplay(roi.xMin, roi.yMin);
@@ -1398,13 +1398,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
         data-board-snapshot="true"
         ref={boardSnapshotRef}
         style={{
-            width: boardWidth,
-            height: boardHeight,
-            backgroundColor: boardColor,
-            backgroundImage: boardTexture ? `url('${boardTexture}')` : undefined,
-            backgroundSize: boardTexture ? '100% 100%' : undefined,
-            backgroundRepeat: boardTexture ? 'no-repeat' : undefined,
-            overflow: 'hidden',
+          width: boardWidth,
+          height: boardHeight,
+          backgroundColor: boardColor,
+          backgroundImage: boardTexture ? `url('${boardTexture}')` : undefined,
+          backgroundSize: boardTexture ? '100% 100%' : undefined,
+          backgroundRepeat: boardTexture ? 'no-repeat' : undefined,
+          overflow: 'hidden',
         }}
         onClick={handleClick}
         onPointerDown={handlePointerDown}
@@ -1413,263 +1413,263 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
         onPointerLeave={handlePointerLeave}
         onWheel={handleWheel}
       >
-      {/* Region of interest (KaTrain-style) */}
-      {roiRect && (
-        <div
-          className="absolute pointer-events-none z-30"
-          style={{
-            left: roiRect.left,
-            top: roiRect.top,
-            width: roiRect.width,
-            height: roiRect.height,
-            border: `${roiDrag || isSelectingRegionOfInterest ? Math.max(1, cellSize * 0.07) : Math.max(1, cellSize * 0.045)}px solid ${rgba(REGION_BORDER_COLOR)}`,
-            boxShadow: 'none',
-            background: 'transparent',
-          }}
-        />
-      )}
+        {/* Region of interest (KaTrain-style) */}
+        {roiRect && (
+          <div
+            className="absolute pointer-events-none z-30"
+            style={{
+              left: roiRect.left,
+              top: roiRect.top,
+              width: roiRect.width,
+              height: roiRect.height,
+              border: `${roiDrag || isSelectingRegionOfInterest ? Math.max(1, cellSize * 0.07) : Math.max(1, cellSize * 0.045)}px solid ${rgba(REGION_BORDER_COLOR)}`,
+              boxShadow: 'none',
+              background: 'transparent',
+            }}
+          />
+        )}
 
-      {/* Coordinates */}
-      {settings.showCoordinates && (
+        {/* Coordinates */}
+        {settings.showCoordinates && (
           <>
             {/* Bottom Labels (KaTrain draws x coords at the bottom edge) */}
             {Array.from({ length: boardSize }).map((_, i) => (
-                <div
-                    key={`bottom-${i}`}
-                    className="absolute font-bold"
-                    style={{
-                    left: originX + i * cellSize,
-                    top: originY + (boardSize - 1) * cellSize + coordOffset,
-                    transform: 'translate(-50%, -50%)',
-                    fontSize: cellSize / 1.5,
-                    color: labelColor,
-                    textAlign: 'center',
-                    zIndex: 4,
-                    }}
-                >
+              <div
+                key={`bottom-${i}`}
+                className="absolute font-bold tracking-tight opacity-80"
+                style={{
+                  left: originX + i * cellSize,
+                  top: originY + (boardSize - 1) * cellSize + coordOffset,
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: cellSize > 20 ? cellSize / 1.5 : cellSize / 1.2,
+                  color: labelColor,
+                  textAlign: 'center',
+                  zIndex: 4,
+                }}
+              >
                 {getXCoordinateText(i)}
-                </div>
+              </div>
             ))}
             {/* Left Labels (KaTrain draws y coords at the left edge) */}
             {Array.from({ length: boardSize }).map((_, i) => (
-                <div
-                    key={`left-${i}`}
-                    className="absolute font-bold"
-                    style={{
-                    left: originX - coordOffset,
-                    top: originY + i * cellSize,
-                    transform: 'translate(-50%, -50%)',
-                    fontSize: cellSize / 1.5,
-                    color: labelColor,
-                    textAlign: 'center',
-                    zIndex: 4,
-                    }}
-                >
+              <div
+                key={`left-${i}`}
+                className="absolute font-bold tracking-tight opacity-80"
+                style={{
+                  left: originX - coordOffset,
+                  top: originY + i * cellSize,
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: cellSize > 20 ? cellSize / 1.5 : cellSize / 1.2,
+                  color: labelColor,
+                  textAlign: 'center',
+                  zIndex: 4,
+                }}
+              >
                 {getYCoordinateText(i)}
-                </div>
+              </div>
             ))}
           </>
-      )}
+        )}
 
 
-      {/* Grid + Hoshi */}
-      <canvas
-        ref={gridCanvasRef}
-        className="absolute pointer-events-none"
-        style={{
-          left: 0,
-          top: 0,
-          width: boardWidth,
-          height: boardHeight,
-          zIndex: 2,
-        }}
-      />
-
-      {/* Ownership / Territory Overlay (KaTrain-style) */}
-      {ownershipTexture && (
+        {/* Grid + Hoshi */}
         <canvas
-          ref={ownershipCanvasRef}
+          ref={gridCanvasRef}
           className="absolute pointer-events-none"
           style={{
-            left: originX - cellSize * 1.5,
-            top: originY - cellSize * 1.5,
-            width: cellSize * (boardSize + 2),
-            height: cellSize * (boardSize + 2),
-            zIndex: 3,
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 2,
           }}
         />
-      )}
 
-      {/* Ghost Stones */}
-      <canvas
-        ref={ghostCanvasRef}
-        className="absolute pointer-events-none"
-        style={{
-          left: 0,
-          top: 0,
-          width: boardWidth,
-          height: boardHeight,
-          zIndex: 5,
-        }}
-      />
-
-      {/* Policy Overlay (KaTrain-style) */}
-      <canvas
-        ref={policyCanvasRef}
-        className="absolute pointer-events-none"
-        style={{
-          left: 0,
-          top: 0,
-          width: boardWidth,
-          height: boardHeight,
-          zIndex: 16,
-        }}
-      />
-
-      {/* Stones */}
-      <canvas
-        ref={stonesCanvasRef}
-        className="absolute pointer-events-none"
-        style={{
-          left: 0,
-          top: 0,
-          width: boardWidth,
-          height: boardHeight,
-          zIndex: 8,
-        }}
-      />
-
-      {/* Evaluation Dots (KaTrain-style) */}
-      <canvas
-        ref={evalCanvasRef}
-        className="absolute pointer-events-none"
-        style={{
-          left: 0,
-          top: 0,
-          width: boardWidth,
-          height: boardHeight,
-          zIndex: 12,
-        }}
-      />
-
-	      {/* Last Move Marker (KaTrain-style) */}
-	      <canvas
-	        ref={lastMoveCanvasRef}
-	        className="absolute pointer-events-none"
-	        style={{
-	          left: 0,
-	          top: 0,
-	          width: boardWidth,
-	          height: boardHeight,
-	          zIndex: 13,
-	        }}
-	      />
-
-	      {/* PV Overlay (Hover) */}
-	      <canvas
-	        ref={pvCanvasRef}
-	        className="absolute pointer-events-none"
-	        style={{
-	          left: 0,
-	          top: 0,
-	          width: boardWidth,
-	          height: boardHeight,
-	          zIndex: 20,
-	        }}
-	      />
-
-      {/* Children Overlay (Q) */}
-      <canvas
-        ref={ringsCanvasRef}
-        className="absolute pointer-events-none"
-        style={{
-          left: 0,
-          top: 0,
-          width: boardWidth,
-          height: boardHeight,
-          zIndex: 14,
-        }}
-      />
-
-      {/* Pass Circle (KaTrain-style) */}
-      {passCircle && (
-        <div
-          className="absolute pointer-events-none rounded-full flex items-center justify-center"
-          style={{
-            left: passCircle.cx - passCircle.size / 2,
-            top: passCircle.cy - passCircle.size / 2,
-            width: passCircle.size,
-            height: passCircle.size,
-            backgroundColor: rgba(PASS_CIRCLE_COLOR),
-            zIndex: 18,
-          }}
-        >
-          <div
+        {/* Ownership / Territory Overlay (KaTrain-style) */}
+        {ownershipTexture && (
+          <canvas
+            ref={ownershipCanvasRef}
+            className="absolute pointer-events-none"
             style={{
-              color: rgba(PASS_CIRCLE_TEXT_COLOR),
-              fontSize: passCircle.size * 0.25,
-              lineHeight: 1,
-              fontWeight: 700,
+              left: originX - cellSize * 1.5,
+              top: originY - cellSize * 1.5,
+              width: cellSize * (boardSize + 2),
+              height: cellSize * (boardSize + 2),
+              zIndex: 3,
+            }}
+          />
+        )}
+
+        {/* Ghost Stones */}
+        <canvas
+          ref={ghostCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 5,
+          }}
+        />
+
+        {/* Policy Overlay (KaTrain-style) */}
+        <canvas
+          ref={policyCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 16,
+          }}
+        />
+
+        {/* Stones */}
+        <canvas
+          ref={stonesCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 8,
+          }}
+        />
+
+        {/* Evaluation Dots (KaTrain-style) */}
+        <canvas
+          ref={evalCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 12,
+          }}
+        />
+
+        {/* Last Move Marker (KaTrain-style) */}
+        <canvas
+          ref={lastMoveCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 13,
+          }}
+        />
+
+        {/* PV Overlay (Hover) */}
+        <canvas
+          ref={pvCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 20,
+          }}
+        />
+
+        {/* Children Overlay (Q) */}
+        <canvas
+          ref={ringsCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 14,
+          }}
+        />
+
+        {/* Pass Circle (KaTrain-style) */}
+        {passCircle && (
+          <div
+            className="absolute pointer-events-none rounded-full flex items-center justify-center"
+            style={{
+              left: passCircle.cx - passCircle.size / 2,
+              top: passCircle.cy - passCircle.size / 2,
+              width: passCircle.size,
+              height: passCircle.size,
+              backgroundColor: rgba(PASS_CIRCLE_COLOR),
+              zIndex: 18,
             }}
           >
-            Pass
+            <div
+              style={{
+                color: rgba(PASS_CIRCLE_TEXT_COLOR),
+                fontSize: passCircle.size * 0.25,
+                lineHeight: 1,
+                fontWeight: 700,
+              }}
+            >
+              Pass
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Hints / Top Moves (E) */}
-      <canvas
-        ref={hintsCanvasRef}
-        className="absolute pointer-events-none"
-        style={{
-          left: 0,
-          top: 0,
-          width: boardWidth,
-          height: boardHeight,
-          zIndex: 16,
-        }}
-      />
+        {/* Hints / Top Moves (E) */}
+        <canvas
+          ref={hintsCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 16,
+          }}
+        />
 
-      {/* Tooltip */}
-      {isAnalysisMode && hoveredMove && hoveredMove.x >= 0 && hoveredMove.y >= 0 && (
-         (() => {
-           const d = toDisplay(hoveredMove.x, hoveredMove.y);
-           return (
-         <div
-             className="absolute z-20 bg-slate-900 text-white text-xs p-2 rounded shadow-lg pointer-events-none border border-slate-700/50"
-             style={{
-                 left: originX + d.x * cellSize + 20,
-                 top: originY + d.y * cellSize - 20,
-                 minWidth: '120px',
-                 maxWidth: '240px'
-             }}
-         >
-             <div className="font-bold mb-1">Move: {String.fromCharCode(65 + (hoveredMove.x >= 8 ? hoveredMove.x + 1 : hoveredMove.x))}{19 - hoveredMove.y}</div>
-             <div>Win Rate: {(hoveredMove.winRate * 100).toFixed(1)}%</div>
-             <div>Score: {hoveredMove.scoreLead > 0 ? '+' : ''}{hoveredMove.scoreLead.toFixed(1)}</div>
-             {typeof hoveredMove.scoreStdev === 'number' && (
-               <div>Score Stdev: {hoveredMove.scoreStdev.toFixed(1)}</div>
-             )}
-             <div>Points Lost: {hoveredMove.pointsLost.toFixed(1)}</div>
-             {typeof hoveredMove.relativePointsLost === 'number' && (
-               <div>Rel. Points Lost: {hoveredMove.relativePointsLost.toFixed(1)}</div>
-             )}
-             {typeof hoveredMove.winRateLost === 'number' && (
-               <div>Winrate Lost: {(hoveredMove.winRateLost * 100).toFixed(1)}%</div>
-             )}
-             {typeof hoveredMove.prior === 'number' && (
-               <div>Prior: {(hoveredMove.prior * 100).toFixed(1)}%</div>
-             )}
-             <div>Visits: {hoveredMove.visits}</div>
-             {hoveredMove.pv && hoveredMove.pv.length > 0 && (
-               <div className="mt-1 whitespace-normal break-words">
-                 PV: {hoveredMove.pv.join(' ')}
-               </div>
-             )}
-         </div>
-           );
-         })()
-      )}
+        {/* Tooltip */}
+        {isAnalysisMode && hoveredMove && hoveredMove.x >= 0 && hoveredMove.y >= 0 && (
+          (() => {
+            const d = toDisplay(hoveredMove.x, hoveredMove.y);
+            return (
+              <div
+                className="absolute z-20 bg-slate-900 text-white text-xs p-2 rounded shadow-lg pointer-events-none border border-slate-700/50"
+                style={{
+                  left: originX + d.x * cellSize + 20,
+                  top: originY + d.y * cellSize - 20,
+                  minWidth: '120px',
+                  maxWidth: '240px'
+                }}
+              >
+                <div className="font-bold mb-1">Move: {String.fromCharCode(65 + (hoveredMove.x >= 8 ? hoveredMove.x + 1 : hoveredMove.x))}{19 - hoveredMove.y}</div>
+                <div>Win Rate: {(hoveredMove.winRate * 100).toFixed(1)}%</div>
+                <div>Score: {hoveredMove.scoreLead > 0 ? '+' : ''}{hoveredMove.scoreLead.toFixed(1)}</div>
+                {typeof hoveredMove.scoreStdev === 'number' && (
+                  <div>Score Stdev: {hoveredMove.scoreStdev.toFixed(1)}</div>
+                )}
+                <div>Points Lost: {hoveredMove.pointsLost.toFixed(1)}</div>
+                {typeof hoveredMove.relativePointsLost === 'number' && (
+                  <div>Rel. Points Lost: {hoveredMove.relativePointsLost.toFixed(1)}</div>
+                )}
+                {typeof hoveredMove.winRateLost === 'number' && (
+                  <div>Winrate Lost: {(hoveredMove.winRateLost * 100).toFixed(1)}%</div>
+                )}
+                {typeof hoveredMove.prior === 'number' && (
+                  <div>Prior: {(hoveredMove.prior * 100).toFixed(1)}%</div>
+                )}
+                <div>Visits: {hoveredMove.visits}</div>
+                {hoveredMove.pv && hoveredMove.pv.length > 0 && (
+                  <div className="mt-1 whitespace-normal break-words">
+                    PV: {hoveredMove.pv.join(' ')}
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        )}
 
       </div>
     </div>

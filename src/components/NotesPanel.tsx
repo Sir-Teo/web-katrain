@@ -173,7 +173,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             value={currentNode.note ?? ''}
             onChange={(e) => setCurrentNodeNote(e.target.value)}
             placeholder="Write a note for this position…"
-            className="w-full flex-1 min-h-0 ui-input rounded p-3 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-none"
+            className="w-full flex-1 min-h-[60px] ui-input rounded p-3 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-y"
           />
           <div className="text-[11px] ui-text-faint">Saved to SGF `C` and KaTrain-style comment markers are preserved on export.</div>
         </div>

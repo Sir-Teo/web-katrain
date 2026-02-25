@@ -140,463 +140,228 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const toggleFullscreen = () => {
     if (typeof document === 'undefined') return;
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => {});
+      document.documentElement.requestFullscreen?.().catch(() => { });
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      document.exitFullscreen?.().catch(() => { });
     }
   };
   const closeViewMenu = () => setViewMenuOpen(false);
   const closeViewMenuIfMobile = () => {
     if (isMobile) setViewMenuOpen(false);
   };
-  const viewMenuItems = (
-    <>
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          analyzeExtra('extra');
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Extra analysis
-        </span>
-        <span className="text-xs ui-text-faint">A</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          analyzeExtra('equalize');
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Equalize
-        </span>
-        <span className="text-xs ui-text-faint">S</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          analyzeExtra('sweep');
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Sweep
-        </span>
-        <span className="text-xs ui-text-faint">D</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          analyzeExtra('alternative');
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Alternative
-        </span>
-        <span className="text-xs ui-text-faint">F</span>
-      </button>
-      )}
-      {isMobile && (
-      <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          startSelectRegionOfInterest();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Select region
-        </span>
-        <span className="text-xs ui-text-faint">G</span>
-      </button>
-      )}
-      {regionOfInterest && (
+  const desktopViewMenu = (
+    <div className="grid grid-cols-1 sm:grid-cols-2">
+      {/* Settings column */}
+      <div className="flex flex-col border-r border-[var(--ui-border)]">
         <button
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => {
-            setRegionOfInterest(null);
-            closeViewMenu();
-          }}
+          onClick={() => { toggleFullscreen(); closeViewMenuIfMobile(); }}
         >
-          <span className="flex items-center gap-2">
-            <FaTimes /> Clear region
-          </span>
-          <span className="text-xs ui-text-faint">—</span>
+          <span>Fullscreen</span><span className="text-xs ui-text-faint">{isFullscreen ? 'on' : 'off'}</span>
         </button>
-      )}
-      {isMobile && (
-      <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          resetCurrentAnalysis();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaStop /> Reset analysis
-        </span>
-        <span className="text-xs ui-text-faint">H</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          toggleInsertMode();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaPlay /> Insert mode
-        </span>
-        <span className="text-xs ui-text-faint">I {isInsertMode ? 'on' : 'off'}</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          selfplayToEnd();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaPlay /> Selfplay to end
-        </span>
-        <span className="text-xs ui-text-faint">L</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
-          else startQuickGameAnalysis();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop quick analysis' : 'Analyze game (quick graph)'}
-        </span>
-        <span className="text-xs ui-text-faint">
-          {isGameAnalysisRunning && gameAnalysisType === 'quick' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
-        </span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
-          else startFastGameAnalysis();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast MCTS)'}
-        </span>
-        <span className="text-xs ui-text-faint">
-          {isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
-        </span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          setIsGameAnalysisOpen(true);
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Re-analyze game…
-        </span>
-        <span className="text-xs ui-text-faint">F2</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          setIsGameReportOpen(true);
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Game report…
-        </span>
-        <span className="text-xs ui-text-faint">F3</span>
-      </button>
-      )}
-      {isMobile && (
-      <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          toggleContinuousAnalysis();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Continuous analysis
-        </span>
-        <span className="text-xs ui-text-faint">Space</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          makeAiMove();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaPlay /> AI move
-        </span>
-        <span className="text-xs ui-text-faint">Enter</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          analyzeExtra('stop');
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaStop /> Stop analysis
-        </span>
-        <span className="text-xs ui-text-faint">Esc</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          rotateBoard();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaSyncAlt /> Rotate board
-        </span>
-        <span className="text-xs ui-text-faint">O</span>
-      </button>
-      )}
-      {isMobile && (
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          toggleTeachMode();
-          closeViewMenu();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaRobot /> Teach mode
-        </span>
-        <span className="text-xs ui-text-faint">{isTeachMode ? 'on' : 'off'}</span>
-      </button>
-      )}
-      {isMobile && (
-      <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-      )}
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          toggleFullscreen();
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Fullscreen</span>
-        <span className="text-xs ui-text-faint">{isFullscreen ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          onCopySgf();
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaCopy /> Copy SGF
-        </span>
-        <span className="text-xs ui-text-faint">Ctrl+C</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          onPasteSgf();
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          <FaPaste /> Paste SGF / OGS
-        </span>
-        <span className="text-xs ui-text-faint">Ctrl+V</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateSettings({ showCoordinates: !settings.showCoordinates });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Coordinates</span>
-        <span className="text-xs ui-text-faint">{settings.showCoordinates ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateSettings({ showNextMovePreview: !settings.showNextMovePreview });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Next move preview</span>
-        <span className="text-xs ui-text-faint">{settings.showNextMovePreview ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateSettings({ showMoveNumbers: !settings.showMoveNumbers });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Move numbers</span>
-        <span className="text-xs ui-text-faint">{settings.showMoveNumbers ? 'on' : 'off'}</span>
-      </button>
-      <div className="border-t border-[var(--ui-border)] px-3 py-2">
-        <div className="text-xs ui-text-faint">Analysis overlays</div>
-      </div>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateControls({ analysisShowChildren: !settings.analysisShowChildren });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Children (Q)</span>
-        <span className="text-xs ui-text-faint">{settings.analysisShowChildren ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateControls({ analysisShowEval: !settings.analysisShowEval });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Dots (W)</span>
-        <span className="text-xs ui-text-faint">{settings.analysisShowEval ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className={[
-          'w-full px-3 py-2 text-left flex items-center justify-between',
-          settings.analysisShowPolicy
-            ? 'opacity-50 cursor-not-allowed'
-            : 'hover:bg-[var(--ui-surface-2)]',
-        ].join(' ')}
-        disabled={settings.analysisShowPolicy}
-        onClick={() => {
-          updateControls({ analysisShowHints: !settings.analysisShowHints });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Top moves (E)</span>
-        <span className="text-xs ui-text-faint">{settings.analysisShowHints ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateControls({ analysisShowPolicy: !settings.analysisShowPolicy });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Policy (R)</span>
-        <span className="text-xs ui-text-faint">{settings.analysisShowPolicy ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateControls({ analysisShowOwnership: !settings.analysisShowOwnership });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Territory (T)</span>
-        <span className="text-xs ui-text-faint">{settings.analysisShowOwnership ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateSettings({ showBoardControls: !settings.showBoardControls });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span>Board controls</span>
-        <span className="text-xs ui-text-faint">{settings.showBoardControls ? 'on' : 'off'}</span>
-      </button>
-      <button
-        className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-        onClick={() => {
-          updateSettings({ soundEnabled: !settings.soundEnabled });
-          closeViewMenuIfMobile();
-        }}
-      >
-        <span className="flex items-center gap-2">
-          {settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />} Sound
-        </span>
-        <span className="text-xs ui-text-faint">{settings.soundEnabled ? 'on' : 'off'}</span>
-      </button>
-      <div className="border-t border-[var(--ui-border)] px-3 py-2">
-        <div className="text-xs ui-text-faint mb-1">UI theme</div>
-        <select
-          value={settings.uiTheme}
-          onChange={(e) => {
-            updateSettings({ uiTheme: e.target.value as GameSettings['uiTheme'] });
-            closeViewMenuIfMobile();
-          }}
-          className="w-full ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { onCopySgf(); closeViewMenuIfMobile(); }}
         >
-          {UI_THEME_OPTIONS.map((theme) => (
-            <option key={theme.value} value={theme.value}>{theme.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="border-t border-[var(--ui-border)] px-3 py-2">
-        <div className="text-xs ui-text-faint mb-1">Board theme</div>
-        <select
-          value={settings.boardTheme}
-          onChange={(e) => {
-            updateSettings({ boardTheme: e.target.value as GameSettings['boardTheme'] });
-            closeViewMenuIfMobile();
-          }}
-          className="w-full ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+          <span className="flex items-center gap-2"><FaCopy /> Copy SGF</span><span className="text-xs ui-text-faint">Ctrl+C</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { onPasteSgf(); closeViewMenuIfMobile(); }}
         >
-          {BOARD_THEME_OPTIONS.map((theme) => (
-            <option key={theme.value} value={theme.value}>{theme.label}</option>
-          ))}
-        </select>
+          <span className="flex items-center gap-2"><FaPaste /> Paste SGF/OGS</span><span className="text-xs ui-text-faint">Ctrl+V</span>
+        </button>
+        <div className="h-px bg-[var(--ui-border)] w-full" />
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateSettings({ showCoordinates: !settings.showCoordinates }); closeViewMenuIfMobile(); }}
+        >
+          <span>Coordinates</span><span className="text-xs ui-text-faint">{settings.showCoordinates ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateSettings({ showNextMovePreview: !settings.showNextMovePreview }); closeViewMenuIfMobile(); }}
+        >
+          <span>Next move preview</span><span className="text-xs ui-text-faint">{settings.showNextMovePreview ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateSettings({ showMoveNumbers: !settings.showMoveNumbers }); closeViewMenuIfMobile(); }}
+        >
+          <span>Move numbers</span><span className="text-xs ui-text-faint">{settings.showMoveNumbers ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateSettings({ showBoardControls: !settings.showBoardControls }); closeViewMenuIfMobile(); }}
+        >
+          <span>Board controls</span><span className="text-xs ui-text-faint">{settings.showBoardControls ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateSettings({ soundEnabled: !settings.soundEnabled }); closeViewMenuIfMobile(); }}
+        >
+          <span className="flex items-center gap-2">{settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />} Sound</span>
+          <span className="text-xs ui-text-faint">{settings.soundEnabled ? 'on' : 'off'}</span>
+        </button>
       </div>
-    </>
+
+      {/* Overlays and Themes column */}
+      <div className="flex flex-col">
+        <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-surface-2)]">Analysis Overlays</div>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateControls({ analysisShowChildren: !settings.analysisShowChildren }); closeViewMenuIfMobile(); }}
+        >
+          <span>Children (Q)</span><span className="text-xs ui-text-faint">{settings.analysisShowChildren ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateControls({ analysisShowEval: !settings.analysisShowEval }); closeViewMenuIfMobile(); }}
+        >
+          <span>Dots (W)</span><span className="text-xs ui-text-faint">{settings.analysisShowEval ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className={['w-full px-3 py-2 text-left flex items-center justify-between', settings.analysisShowPolicy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)]'].join(' ')}
+          disabled={settings.analysisShowPolicy}
+          onClick={() => { updateControls({ analysisShowHints: !settings.analysisShowHints }); closeViewMenuIfMobile(); }}
+        >
+          <span>Top moves (E)</span><span className="text-xs ui-text-faint">{settings.analysisShowHints ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateControls({ analysisShowPolicy: !settings.analysisShowPolicy }); closeViewMenuIfMobile(); }}
+        >
+          <span>Policy (R)</span><span className="text-xs ui-text-faint">{settings.analysisShowPolicy ? 'on' : 'off'}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }); closeViewMenuIfMobile(); }}
+        >
+          <span>Territory (T)</span><span className="text-xs ui-text-faint">{settings.analysisShowOwnership ? 'on' : 'off'}</span>
+        </button>
+
+        <div className="border-t border-[var(--ui-border)] w-full mt-auto" />
+        <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-surface-2)] w-full">Themes</div>
+        <div className="flex flex-col p-3 gap-3">
+          <div>
+            <div className="text-xs ui-text-faint mb-1">UI theme</div>
+            <select
+              value={settings.uiTheme}
+              onChange={(e) => { updateSettings({ uiTheme: e.target.value as GameSettings['uiTheme'] }); closeViewMenuIfMobile(); }}
+              className="w-full ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+            >
+              {UI_THEME_OPTIONS.map((theme) => <option key={theme.value} value={theme.value}>{theme.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <div className="text-xs ui-text-faint mb-1">Board theme</div>
+            <select
+              value={settings.boardTheme}
+              onChange={(e) => { updateSettings({ boardTheme: e.target.value as GameSettings['boardTheme'] }); closeViewMenuIfMobile(); }}
+              className="w-full ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+            >
+              {BOARD_THEME_OPTIONS.map((theme) => <option key={theme.value} value={theme.value}>{theme.label}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const mobileToolsGridBtn = "flex flex-col items-center justify-center p-3 gap-1.5 hover:bg-[var(--ui-surface-2)] text-center transition-colors";
+  const mobileToolsMenu = (
+    <div className="flex flex-col gap-4 p-4">
+      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
+        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
+          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Extra analysis</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('equalize'); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Equalize</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('sweep'); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Sweep</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('alternative'); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Alternative</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { startSelectRegionOfInterest(); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Select region</span>
+          </button>
+          {regionOfInterest && (
+            <button className={`${mobileToolsGridBtn} text-[var(--ui-danger)]`} onClick={() => { setRegionOfInterest(null); closeViewMenu(); }}>
+              <FaTimes size={18} />
+              <span className="text-sm font-medium">Clear region</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
+        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Control</div>
+        <div className="grid grid-cols-2 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
+          <button className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeViewMenu(); }}>
+            <FaRobot size={18} className={isAnalysisMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
+            <span className="text-sm font-medium">Cont. analysis</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { makeAiMove(); closeViewMenu(); }}>
+            <FaPlay size={18} className="text-[var(--ui-success)]" />
+            <span className="text-sm font-medium">AI move</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeViewMenu(); }}>
+            <FaPlay size={18} className={isInsertMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
+            <span className="text-sm font-medium">Insert mode</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { selfplayToEnd(); closeViewMenu(); }}>
+            <FaPlay size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Selfplay to end</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeViewMenu(); }}>
+            <FaSyncAlt size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Rotate board</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeViewMenu(); }}>
+            <FaRobot size={18} className={isTeachMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
+            <span className="text-sm font-medium">Teach mode</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
+        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
+        <div className="grid grid-cols-2 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
+          <button className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis(); else startQuickGameAnalysis(); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop' : 'Quick graph'}</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis(); else startFastGameAnalysis(); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop' : 'Fast MCTS'}</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { setIsGameAnalysisOpen(true); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Re-analyze</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { setIsGameReportOpen(true); closeViewMenu(); }}>
+            <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Game report</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
+        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">View Options</div>
+        <div className="flex flex-col">
+          {desktopViewMenu}
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -610,9 +375,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
       {/* New game */}
       <div className="hidden md:flex items-center gap-1.5">
-        <IconButton title="New game (Ctrl+N)" onClick={onNewGame} className={topIconClass}>
-          <FaPlus />
-        </IconButton>
+        <button
+          type="button"
+          title="New game (Ctrl+N)"
+          onClick={onNewGame}
+          className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors"
+        >
+          <FaPlus size={12} /> New
+        </button>
       </div>
 
       {/* Divider */}
@@ -736,13 +506,13 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                     </button>
                   </div>
                   <div className="pb-6">
-                    {viewMenuItems}
+                    {mobileToolsMenu}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="absolute right-0 top-full mt-2 w-56 ui-panel border rounded-lg shadow-xl overflow-hidden z-50">
-                {viewMenuItems}
+              <div className="absolute right-0 top-full mt-2 w-[512px] ui-panel border rounded-lg shadow-xl overflow-hidden z-50">
+                {desktopViewMenu}
               </div>
             )
           )}
@@ -773,240 +543,171 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               Actions <FaChevronDown size={10} className="opacity-80" />
             </button>
             {analysisMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 ui-panel border rounded-lg shadow-xl overflow-hidden z-50">
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  analyzeExtra('extra');
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Extra analysis
-                </span>
-                <span className="text-xs ui-text-faint">A</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  analyzeExtra('equalize');
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Equalize
-                </span>
-                <span className="text-xs ui-text-faint">S</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  analyzeExtra('sweep');
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Sweep
-                </span>
-                <span className="text-xs ui-text-faint">D</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  analyzeExtra('alternative');
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Alternative
-                </span>
-                <span className="text-xs ui-text-faint">F</span>
-              </button>
+              <div className="absolute right-0 top-full mt-2 w-[480px] ui-panel border rounded-lg shadow-xl overflow-hidden z-50 grid grid-cols-2 divide-x divide-[var(--ui-border)]">
+                {/* Column 1 */}
+                <div className="flex flex-col">
+                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
+                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
+                  </div>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { analyzeExtra('extra'); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Extra analysis</span>
+                    <span className="text-xs ui-text-faint">A</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { analyzeExtra('equalize'); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Equalize</span>
+                    <span className="text-xs ui-text-faint">S</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { analyzeExtra('sweep'); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Sweep</span>
+                    <span className="text-xs ui-text-faint">D</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { analyzeExtra('alternative'); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Alternative</span>
+                    <span className="text-xs ui-text-faint">F</span>
+                  </button>
 
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
+                  <div className="h-px bg-[var(--ui-border)] w-full mt-auto" />
+                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
+                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Region Control</div>
+                  </div>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { startSelectRegionOfInterest(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Select region</span>
+                    <span className="text-xs ui-text-faint">G</span>
+                  </button>
+                  {regionOfInterest && (
+                    <button
+                      className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                      onClick={() => { setRegionOfInterest(null); setAnalysisMenuOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2"><FaTimes /> Clear region</span>
+                      <span className="text-xs ui-text-faint">—</span>
+                    </button>
+                  )}
 
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  startSelectRegionOfInterest();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Select region
-                </span>
-                <span className="text-xs ui-text-faint">G</span>
-              </button>
-              {regionOfInterest && (
-                <button
-                  className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                  onClick={() => {
-                    setRegionOfInterest(null);
-                    setAnalysisMenuOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <FaTimes /> Clear region
-                  </span>
-                  <span className="text-xs ui-text-faint">—</span>
-                </button>
-              )}
+                  <div className="h-px bg-[var(--ui-border)] w-full" />
+                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
+                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Engine Control</div>
+                  </div>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { toggleContinuousAnalysis(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Continuous analysis</span>
+                    <span className="text-xs ui-text-faint">Space</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { makeAiMove(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaPlay /> AI move</span>
+                    <span className="text-xs ui-text-faint">Enter</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { analyzeExtra('stop'); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaStop /> Stop analysis</span>
+                    <span className="text-xs ui-text-faint">Esc</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { rotateBoard(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaSyncAlt /> Rotate board</span>
+                    <span className="text-xs ui-text-faint">O</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { toggleTeachMode(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Teach mode</span>
+                    <span className="text-xs ui-text-faint">{isTeachMode ? 'on' : 'off'}</span>
+                  </button>
+                </div>
 
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
+                {/* Column 2 */}
+                <div className="flex flex-col">
+                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
+                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Analysis</div>
+                  </div>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { resetCurrentAnalysis(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaStop /> Reset analysis</span>
+                    <span className="text-xs ui-text-faint">H</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { toggleInsertMode(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaPlay /> Insert mode</span>
+                    <span className="text-xs ui-text-faint">I {isInsertMode ? 'on' : 'off'}</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { selfplayToEnd(); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaPlay /> Selfplay to end</span>
+                    <span className="text-xs ui-text-faint">L</span>
+                  </button>
 
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  resetCurrentAnalysis();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaStop /> Reset analysis
-                </span>
-                <span className="text-xs ui-text-faint">H</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  toggleInsertMode();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaPlay /> Insert mode
-                </span>
-                <span className="text-xs ui-text-faint">I {isInsertMode ? 'on' : 'off'}</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  selfplayToEnd();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaPlay /> Selfplay to end
-                </span>
-                <span className="text-xs ui-text-faint">L</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
-                  else startQuickGameAnalysis();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop quick analysis' : 'Analyze game (quick graph)'}
-                </span>
-                <span className="text-xs ui-text-faint">
-                  {isGameAnalysisRunning && gameAnalysisType === 'quick' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
-                </span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
-                  else startFastGameAnalysis();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast MCTS)'}
-                </span>
-                <span className="text-xs ui-text-faint">
-                  {isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
-                </span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  setIsGameAnalysisOpen(true);
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Re-analyze game…
-                </span>
-                <span className="text-xs ui-text-faint">F2</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  setIsGameReportOpen(true);
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Game report…
-                </span>
-                <span className="text-xs ui-text-faint">F3</span>
-              </button>
-
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--ui-border-strong)] to-transparent my-1" />
-
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  toggleContinuousAnalysis();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Continuous analysis
-                </span>
-                <span className="text-xs ui-text-faint">Space</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  makeAiMove();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaPlay /> AI move
-                </span>
-                <span className="text-xs ui-text-faint">Enter</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  analyzeExtra('stop');
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaStop /> Stop analysis
-                </span>
-                <span className="text-xs ui-text-faint">Esc</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  rotateBoard();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaSyncAlt /> Rotate board
-                </span>
-                <span className="text-xs ui-text-faint">O</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                onClick={() => {
-                  toggleTeachMode();
-                  setAnalysisMenuOpen(false);
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FaRobot /> Teach mode
-                </span>
-                <span className="text-xs ui-text-faint">{isTeachMode ? 'on' : 'off'}</span>
-              </button>
+                  <div className="h-px bg-[var(--ui-border)] w-full mt-auto" />
+                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
+                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
+                  </div>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => {
+                      if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
+                      else startQuickGameAnalysis();
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop quick analysis' : 'Analyze game (quick graph)'}</span>
+                    <span className="text-xs ui-text-faint">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => {
+                      if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
+                      else startFastGameAnalysis();
+                      setAnalysisMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast MCTS)'}</span>
+                    <span className="text-xs ui-text-faint">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { setIsGameAnalysisOpen(true); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Re-analyze game…</span>
+                    <span className="text-xs ui-text-faint">F2</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+                    onClick={() => { setIsGameReportOpen(true); setAnalysisMenuOpen(false); }}
+                  >
+                    <span className="flex items-center gap-2"><FaRobot /> Game report…</span>
+                    <span className="text-xs ui-text-faint">F3</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
