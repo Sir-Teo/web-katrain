@@ -317,7 +317,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         )}
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          <div className="flex flex-col">
+          <div className="flex flex-col min-h-0">
             {/* Game Tree */}
             {renderSection({
               show: showTree,
@@ -325,7 +325,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaSitemap size={12} />,
               open: modePanels.treeOpen,
               onToggle: () => updatePanels((current) => ({ treeOpen: !current.treeOpen })),
-              wrapperClassName: 'flex flex-col min-h-0 flex-1',
+              wrapperClassName: 'flex flex-col min-h-0',
               actions: (
                 !isMobile ? (
                   <div className="flex items-center gap-2">
@@ -348,7 +348,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   </div>
                 ) : null
               ),
-              contentClassName: 'panel-section-content flex flex-col min-h-0 flex-1',
+              contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
               children: (
                 <>
                   <div className="panel-toolbar">
@@ -419,7 +419,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       <FaStar size={12} />
                     </button>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto">
+                  <div
+                    className={[
+                      'panel-scroll-region',
+                      isMobile ? 'max-h-[calc(100dvh-180px)]' : 'panel-compact-tree',
+                    ].join(' ')}
+                  >
                     {effectiveTreeView === 'tree' ? (
                       <MoveTree onSelectNode={() => {
                         if (isMobile) onClose();
@@ -481,8 +486,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaChartLine size={12} />,
               open: modePanels.analysisOpen,
               onToggle: () => updatePanels((current) => ({ analysisOpen: !current.analysisOpen })),
-              wrapperClassName: 'flex flex-col min-h-0 flex-1',
-              contentClassName: 'panel-section-content flex-1 min-h-0 overflow-y-auto',
+              wrapperClassName: 'flex flex-col min-h-0',
+              contentClassName: 'panel-section-content p-0',
               children: (
                 <AnalysisPanel
                   mode={mode}
@@ -516,10 +521,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaCommentDots size={12} />,
               open: modePanels.notesOpen,
               onToggle: () => updatePanels((current) => ({ notesOpen: !current.notesOpen })),
-              wrapperClassName: 'pb-2 flex flex-col min-h-0 flex-1',
-              contentClassName: 'panel-section-content flex-1 min-h-0',
+              wrapperClassName: 'flex flex-col min-h-0',
+              contentClassName: 'panel-section-content p-0',
               children: (
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col min-h-0">
                   <div className="panel-toolbar text-[11px] ui-text-faint">
                     <div className="truncate text-xs text-[var(--ui-text)]">
                       <span className="font-mono">{playerToShort(currentPlayer)}</span> ·{' '}
@@ -606,7 +611,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       )}
                     </div>
                   )}
-                  <div className="flex-1 min-h-0">
+                  <div className="min-h-0">
                     <NotesPanel
                       showInfo={modePanels.notes.info || modePanels.notes.infoDetails}
                       detailed={modePanels.notes.infoDetails && !lockAiDetails}

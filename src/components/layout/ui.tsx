@@ -248,12 +248,12 @@ export const PanelEdgeToggle: React.FC<{
   const isVertical = isLeft || isRight;
   const isOpen = state === 'open';
   const icon = isLeft
-    ? (isOpen ? <FaChevronLeft size={14} /> : <FaChevronRight size={14} />)
+    ? (isOpen ? <FaChevronLeft size={12} /> : <FaChevronRight size={12} />)
     : isRight
-      ? (isOpen ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />)
+      ? (isOpen ? <FaChevronRight size={12} /> : <FaChevronLeft size={12} />)
       : isTop
-        ? (isOpen ? <FaChevronUp size={14} /> : <FaChevronDown size={14} />)
-        : (isOpen ? <FaChevronDown size={14} /> : <FaChevronUp size={14} />);
+        ? (isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />)
+        : (isOpen ? <FaChevronDown size={12} /> : <FaChevronUp size={12} />);
   const edgeClasses = isLeft
     ? 'border-r border-[var(--ui-border)] rounded-r-lg'
     : isRight
@@ -261,7 +261,7 @@ export const PanelEdgeToggle: React.FC<{
       : isTop
         ? 'border-b border-[var(--ui-border)] rounded-b-lg'
         : 'border-t border-[var(--ui-border)] rounded-t-lg';
-  const sizeClasses = isVertical ? 'h-20 w-8' : 'w-20 h-8';
+  const sizeClasses = isVertical ? 'h-14 w-6' : 'w-14 h-6';
 
   return (
     <button
@@ -271,7 +271,7 @@ export const PanelEdgeToggle: React.FC<{
       aria-label={title}
       className={[
         sizeClasses,
-        'bg-[var(--ui-surface-2)] hover:bg-[var(--ui-surface)] flex items-center justify-center text-[var(--ui-text-muted)] hover:text-white transition-all shadow-lg',
+        'bg-[var(--ui-surface-2)]/90 hover:bg-[var(--ui-surface)] flex items-center justify-center text-[var(--ui-text-muted)] hover:text-white opacity-80 hover:opacity-100 transition-all shadow-md',
         edgeClasses,
         className ?? '',
       ].join(' ')}

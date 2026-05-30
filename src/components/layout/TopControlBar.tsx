@@ -388,10 +388,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       {/* Divider */}
       <div className="hidden md:block h-6 w-px bg-[var(--ui-border)]" />
 
-      {/* Analysis toggles */}
-      <div className="order-last xl:order-none w-full xl:w-auto flex items-center gap-1 flex-wrap">
-      </div>
-
       <div className="hidden xl:block flex-grow" />
 
       {/* Engine status */}

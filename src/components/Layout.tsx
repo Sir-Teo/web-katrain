@@ -1352,7 +1352,7 @@ export const Layout: React.FC = () => {
               className="absolute top-1/2 z-30"
               style={
                 libraryOpen
-                  ? { left: leftPanelWidth, transform: 'translate(-50%, -50%)' }
+                  ? { left: leftPanelWidth, transform: 'translate(0, -50%)' }
                   : { left: 0, transform: 'translate(0, -50%)' }
               }
             >
@@ -1367,7 +1367,7 @@ export const Layout: React.FC = () => {
               className="absolute top-1/2 z-30"
               style={
                 showSidebar
-                  ? { right: rightPanelWidth, transform: 'translate(50%, -50%)' }
+                  ? { right: rightPanelWidth, transform: 'translate(0, -50%)' }
                   : { right: 0, transform: 'translate(0, -50%)' }
               }
             >
@@ -1383,7 +1383,10 @@ export const Layout: React.FC = () => {
 
         {!isMobile && (
           <>
-            <div className="absolute left-1/2 top-0 -translate-x-1/2 z-30">
+            <div
+              className="absolute left-1/2 -translate-x-1/2 z-30"
+              style={{ top: topBarOpen ? 'var(--ui-bar-height)' : 0 }}
+            >
               <PanelEdgeToggle
                 side="top"
                 state={topBarOpen ? 'open' : 'closed'}
@@ -1392,7 +1395,10 @@ export const Layout: React.FC = () => {
               />
             </div>
             {settings.showBoardControls && (
-              <div className="absolute left-1/2 -translate-x-1/2 z-30" style={{ bottom: 28 }}>
+              <div
+                className="absolute left-1/2 -translate-x-1/2 z-30"
+                style={{ bottom: bottomBarOpen ? 'calc(var(--ui-bar-height) + 28px)' : 28 }}
+              >
                 <PanelEdgeToggle
                   side="bottom"
                   state={bottomBarOpen ? 'open' : 'closed'}

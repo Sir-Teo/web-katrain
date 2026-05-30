@@ -815,12 +815,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          <div className="flex flex-col">
+          <div className="flex flex-col min-h-0">
             {renderSection({
               title: 'Library',
               open: listOpen,
               onToggle: () => setListOpen((prev) => !prev),
-              contentClassName: 'panel-section-content flex flex-col min-h-0',
+              contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
               children: (
                 <>
               <div className="panel-toolbar">
@@ -951,7 +951,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               )}
               <div
                 className={[
-                  'library-tree flex-1 min-h-0 overflow-y-auto overscroll-contain',
+                  'library-tree panel-scroll-region',
+                  isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list',
                   dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
                 ].join(' ')}
                 onDragOver={handleRootDragOver}
@@ -994,7 +995,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 open: analysisOpen,
                 onToggle: () => setAnalysisOpen((prev) => !prev),
                 wrapperClassName: 'mx-0',
-                contentClassName: 'panel-section-content min-h-0',
+                contentClassName: 'panel-section-content p-0',
                 actions: onStopAnalysis ? (
                   <button
                     type="button"
@@ -1011,13 +1012,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </button>
                 ) : null,
                 children: (
-                  <div className="h-full overflow-y-auto">
+                  <div className="panel-scroll-region">
                     {analysisContent ? (
                       analysisContent
                     ) : graphOptions.score || graphOptions.winrate ? (
-                      <ScoreWinrateGraph showScore={graphOptions.score} showWinrate={graphOptions.winrate} />
+                      <div className="panel-compact-graph">
+                        <ScoreWinrateGraph showScore={graphOptions.score} showWinrate={graphOptions.winrate} />
+                      </div>
                     ) : (
-                      <div className="h-full flex items-center justify-center text-xs ui-text-faint border border-[var(--ui-border)] rounded">
+                      <div className="panel-compact-graph flex items-center justify-center text-xs ui-text-faint border border-[var(--ui-border)] rounded">
                         Graph hidden
                       </div>
                     )}

@@ -149,12 +149,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   if (!showInfoBlock && !showNotesBlock) return null;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-0">
       {showInfoBlock && (
         <div
           className={[
-            showInfoBlock && showNotesBlock ? 'flex-[1]' : 'flex-1',
-            'p-3 text-xs text-[var(--ui-text-muted)] whitespace-pre-wrap font-mono overflow-y-auto',
+            showNotesBlock ? 'max-h-32' : 'max-h-56',
+            'p-2 text-xs text-[var(--ui-text-muted)] whitespace-pre-wrap font-mono overflow-y-auto',
           ].join(' ')}
         >
           {infoText || (currentNode.analysis ? '' : analysisStatusText)}
@@ -164,9 +164,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       {showNotesBlock && (
         <div
           className={[
-            showInfoBlock && showNotesBlock ? 'flex-1' : 'flex-1',
             showInfoBlock ? 'border-t border-[var(--ui-border)]' : '',
-            'p-3 flex flex-col gap-3 min-h-0',
+            'p-2 flex flex-col gap-2 min-h-0',
           ].join(' ')}
         >
           <label className="text-xs font-semibold ui-text-faint">User Note (SGF C)</label>
@@ -174,7 +173,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             value={currentNode.note ?? ''}
             onChange={(e) => setCurrentNodeNote(e.target.value)}
             placeholder="Write a note for this position…"
-            className="w-full flex-1 min-h-[60px] ui-input rounded p-3 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-y"
+            className="w-full min-h-[72px] max-h-44 ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-y"
           />
           <div className="text-[11px] ui-text-faint">Saved to SGF `C` and KaTrain-style comment markers are preserved on export.</div>
         </div>

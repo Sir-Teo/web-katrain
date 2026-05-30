@@ -56,7 +56,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     modePanels.statsOpen && !modePanels.graphOpen ? 'stats' : 'graph';
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-0">
       <div className="panel-section-header">
         <EngineStatusBadge
           label={engineMeta}
@@ -161,10 +161,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           </button>
         </div>
       )}
-      <div className="panel-section-content flex-1 min-h-0">
+      <div className="panel-section-content">
         {compact ? (
           <div className="space-y-2">
-            <div style={{ height: 140 }}>
+            <div className="panel-compact-graph">
               <ScoreWinrateGraph showScore showWinrate />
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -191,7 +191,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             </div>
           </div>
         ) : activeTab === 'graph' ? (
-          <div style={{ height: 130 }}>
+          <div className="panel-compact-graph">
             <ScoreWinrateGraph showScore showWinrate />
           </div>
         ) : (

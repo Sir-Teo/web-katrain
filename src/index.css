@@ -152,7 +152,7 @@
     }
 
     .panel-section-header {
-      padding: 10px 12px;
+      padding: 8px 10px;
     }
 
     .panel-section-content {
@@ -299,14 +299,15 @@
     background: var(--ui-panel);
     border-bottom: 1px solid var(--ui-border);
     flex-shrink: 0;
+    min-height: 0;
   }
 
   .panel-section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    padding: 12px 16px;
+    gap: 6px;
+    padding: 8px 10px;
     background: var(--ui-panel);
     border-bottom: 1px solid var(--ui-border);
     transition: background 0.2s ease;
@@ -327,8 +328,8 @@
     flex: 1;
     text-align: left;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 12px;
+    letter-spacing: 0.04em;
+    font-size: 11px;
     font-weight: 600;
     color: var(--ui-text-muted);
     transition: color 0.15s ease;
@@ -353,14 +354,12 @@
   .panel-section-actions {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
   }
 
   .panel-section-content {
-    padding: 10px 12px;
+    padding: 8px 10px;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
   }
 
   .panel-section-content::-webkit-scrollbar,
@@ -387,18 +386,18 @@
   .panel-toolbar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
+    gap: 4px;
+    padding: 5px 6px;
     background: var(--ui-surface-2);
     border-bottom: 1px solid var(--ui-border);
-    min-height: 34px;
+    min-height: 30px;
     flex-wrap: wrap;
-    row-gap: 4px;
+    row-gap: 3px;
   }
 
   .panel-icon-button {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -444,7 +443,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: 7px 10px;
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
@@ -486,7 +485,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 3px 8px;
+    padding: 3px 7px;
     border-radius: 4px;
     border: 1px solid var(--ui-border);
     background: transparent;
@@ -527,7 +526,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 8px;
+    padding: 3px 7px;
     border-radius: 4px;
     cursor: pointer;
     min-width: 0;
@@ -647,8 +646,8 @@
   }
 
   .library-tree-node-action {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -667,8 +666,8 @@
   }
 
   .library-tree-node-select {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -685,8 +684,8 @@
   }
 
   .library-tree-node-arrow {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -889,6 +888,24 @@
 
   .ui-gap {
     gap: var(--ui-gap);
+  }
+
+  .panel-scroll-region {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .panel-compact-tree {
+    max-height: 180px;
+  }
+
+  .panel-compact-list {
+    max-height: 240px;
+  }
+
+  .panel-compact-graph {
+    height: 112px;
   }
 
   .ui-border {

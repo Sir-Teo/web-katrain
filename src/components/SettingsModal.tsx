@@ -19,6 +19,8 @@ import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 
 let uploadedModelUrl: string | null = null;
 let lastManualModelUrl: string | null = null;
+const MAX_BROWSER_MODEL_UPLOAD_BYTES = 128 * 1024 * 1024;
+const MAX_BROWSER_MODEL_UPLOAD_LABEL = '128 MB';
 
 const OFFICIAL_MODELS: Array<{
     label: string;
@@ -28,6 +30,7 @@ const OFFICIAL_MODELS: Array<{
     uploaded: string;
     size: string;
     downloadAndLoad?: boolean;
+    browserLoadable?: boolean;
 }> = [
     {
         label: 'Strong Browser (b18)',
@@ -37,6 +40,7 @@ const OFFICIAL_MODELS: Array<{
         uploaded: KATAGO_RECOMMENDED_MODEL_UPLOADED,
         size: KATAGO_RECOMMENDED_MODEL_SIZE,
         downloadAndLoad: true,
+        browserLoadable: true,
     },
     {
         label: 'Latest / Strongest (b40)',
@@ -45,6 +49,7 @@ const OFFICIAL_MODELS: Array<{
         badge: 'Strongest',
         uploaded: '2026-05-02',
         size: '~824 MB',
+        browserLoadable: false,
     },
     {
         label: 'Strongest (b28)',
@@ -53,6 +58,7 @@ const OFFICIAL_MODELS: Array<{
         badge: 'b28',
         uploaded: '2026-03-22',
         size: '~259 MB',
+        browserLoadable: false,
     },
     {
         label: 'Latest (b28)',
@@ -61,6 +67,7 @@ const OFFICIAL_MODELS: Array<{
         badge: 'Latest b28',
         uploaded: '2026-03-28',
         size: '~259 MB',
+        browserLoadable: false,
     },
     {
         label: 'Adam (b28)',
@@ -69,6 +76,7 @@ const OFFICIAL_MODELS: Array<{
         badge: 'Adam',
         uploaded: '2025-10-12',
         size: '~280 MB',
+        browserLoadable: false,
     },
 ];
 
@@ -97,6 +105,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
     const [downloadingUrl, setDownloadingUrl] = React.useState<string | null>(null);
     const [downloadError, setDownloadError] = React.useState<string | null>(null);
+    const [modelUploadError, setModelUploadError] = React.useState<string | null>(null);
 
     const [activeTab, setActiveTab] = React.useState(() => {
         // Initialize from localStorage if available, otherwise default to "general"
@@ -174,6 +183,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const handleModelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+        setModelUploadError(null);
+        if (file.size > MAX_BROWSER_MODEL_UPLOAD_BYTES) {
+            setModelUploadError(
+                `This model is too large for the browser engine (${(file.size / (1024 * 1024)).toFixed(0)} MB). ` +
+                `Use the Strong b18 browser weights or another compressed model under ${MAX_BROWSER_MODEL_UPLOAD_LABEL}.`
+            );
+            event.target.value = '';
+            return;
+        }
         if (!isUploadedModel) {
             lastManualModelUrl = settings.katagoModelUrl;
         }
@@ -214,6 +232,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
     const handleClearUpload = () => {
         if (!isUploadedModel) return;
+        setModelUploadError(null);
         revokeUploadedModelUrl();
         updateSettings({ katagoModelUrl: lastManualModelUrl ?? SMALL_MODEL_URL });
     };
@@ -1434,6 +1453,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     Uploaded weights stay in memory for this session only.
                                                 </p>
                                             ) : null}
+                                            {modelUploadError ? (
+                                                <p className="text-xs text-rose-400 leading-relaxed">
+                                                    {modelUploadError}
+                                                </p>
+                                            ) : null}
+                                            <p className={subtextClass}>
+                                                Browser uploads are limited to compressed weights under {MAX_BROWSER_MODEL_UPLOAD_LABEL}; b28/b40 weights can exhaust browser memory.
+                                            </p>
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-xs text-slate-400 block">Official KataGo models (download links)</label>
@@ -1480,6 +1507,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                     </button>
                                                                     <span className="text-[10px] text-[var(--ui-accent)]">Session memory</span>
                                                                 </div>
+                                                            ) : model.browserLoadable === false ? (
+                                                                <span className="text-[10px] text-rose-400">
+                                                                    Too large for browser upload
+                                                                </span>
                                                             ) : null}
                                                             <button
                                                                 type="button"
@@ -1496,7 +1527,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 <p className="text-xs text-rose-400">{downloadError}</p>
                                             ) : null}
                                             <p className={subtextClass}>
-                                                Download then use "Upload Weights" above to load the model.
+                                                Download only browser-sized weights, then use "Upload Weights" above. Large b28/b40 weights are for native KataGo, not this browser engine.
                                             </p>
                                         </div>
                                         <input
