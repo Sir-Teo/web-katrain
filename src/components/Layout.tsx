@@ -1081,6 +1081,29 @@ export const Layout: React.FC = () => {
     await handleOpenSgfFromText(sgfText);
   };
 
+  useEffect(() => {
+    const handlePasteEvent = (event: ClipboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && (target.isContentEditable || target.closest('[contenteditable="true"]')))
+      ) {
+        return;
+      }
+
+      const trimmed = event.clipboardData?.getData('text/plain')?.trim() ?? '';
+      if (!trimmed || (!trimmed.startsWith('(') && !isOgsUrl(trimmed))) return;
+
+      event.preventDefault();
+      void handleOpenSgfFromText(trimmed);
+    };
+
+    document.addEventListener('paste', handlePasteEvent);
+    return () => document.removeEventListener('paste', handlePasteEvent);
+  });
+
   const handlePasteSgfShortcut = async () => {
     setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
