@@ -15,6 +15,7 @@ import {
   FaArrowUp,
   FaStop,
   FaFileAlt,
+  FaFileArchive,
 } from 'react-icons/fa';
 import {
   createLibraryBackup,
@@ -29,6 +30,7 @@ import {
   type LibraryFile,
   type LibraryFolder,
 } from '../utils/library';
+import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { SectionHeader } from './layout/ui';
 import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils';
@@ -410,6 +412,29 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
   };
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportLibraryZip = async () => {
+    try {
+      const { blob, fileCount } = await createLibraryZipBlob(items);
+      if (fileCount === 0) {
+        onToast('No SGF files to export.', 'info');
+        return;
+      }
+      downloadBlob(blob, `webkatrain-library-${new Date().toISOString().slice(0, 10)}.zip`);
+      onToast(`Exported ${fileCount} SGF file${fileCount === 1 ? '' : 's'} as ZIP.`, 'success');
+    } catch {
+      onToast('Failed to create library ZIP.', 'error');
+    }
+  };
+
   const handleRestoreBackup = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
@@ -461,17 +486,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setSelectedIds(new Set());
   };
 
-  const handleBulkExport = () => {
+  const handleBulkExport = async () => {
     if (visibleSelectedIds.size === 0) return;
-    const selected = items.filter((item) => visibleSelectedIds.has(item.id)).filter(isFile);
-    if (selected.length === 0) {
-      onToast('No files selected to export.', 'info');
+    try {
+      const { blob, fileCount } = await createLibraryZipBlob(items, visibleSelectedIds);
+      if (fileCount === 0) {
+        onToast('No files selected to export.', 'info');
+        return;
+      }
+      downloadBlob(blob, `webkatrain-selection-${new Date().toISOString().slice(0, 10)}.zip`);
+      onToast(`Exported ${fileCount} selected SGF file${fileCount === 1 ? '' : 's'} as ZIP.`, 'success');
+    } catch {
+      onToast('Failed to export selected items.', 'error');
       return;
     }
-    selected.forEach((item, idx) => {
-      window.setTimeout(() => handleDownload(item), idx * 120);
-    });
-    onToast(`Exported ${selected.length} item${selected.length > 1 ? 's' : ''}.`, 'success');
   };
 
   const handleBulkMove = () => {
@@ -508,11 +536,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (!files || files.length === 0) return;
     const imported: LibraryItem[] = [];
     for (const file of Array.from(files)) {
-      if (!file.name.toLowerCase().endsWith('.sgf')) continue;
+      const name = file.name.toLowerCase();
       try {
+        if (name.endsWith('.zip')) {
+          imported.push(...(await importLibraryItemsFromZip(file, folderId)));
+          continue;
+        }
+        if (!name.endsWith('.sgf')) continue;
         const text = await file.text();
-        const name = file.name.replace(/\.sgf$/i, '');
-        imported.push(createLibraryItem(name, text, folderId));
+        imported.push(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
       } catch {
         // ignore per-file failures
       }
@@ -522,7 +554,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     setItems((prev) => [...imported, ...prev]);
-    onToast(`Imported ${imported.length} file${imported.length > 1 ? 's' : ''}.`, 'success');
+    const importedFiles = imported.filter(isFile).length;
+    onToast(`Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}.`, 'success');
   };
 
   const handleImportFiles = async (files: FileList | null) =>
@@ -885,10 +918,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               type="button"
               className={headerActionClass}
               onClick={() => fileInputRef.current?.click()}
-              title="Import SGF files"
-              aria-label="Import SGF files"
+              title="Import SGF or ZIP files"
+              aria-label="Import SGF or ZIP files"
             >
               <FaFolderOpen />
+            </button>
+            <button
+              type="button"
+              className={headerActionClass}
+              onClick={() => void handleExportLibraryZip()}
+              title="Export library as ZIP"
+              aria-label="Export library as ZIP"
+            >
+              <FaFileArchive />
             </button>
             <button
               type="button"
@@ -921,7 +963,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".sgf"
+              accept=".sgf,.zip,application/zip,application/x-zip-compressed"
               multiple
               onChange={(e) => void handleImportFiles(e.target.files)}
               className="hidden"
@@ -1024,9 +1066,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   <button
                     type="button"
                     className={bulkActionClass}
-                    onClick={handleBulkExport}
-                    title="Export selected"
-                    aria-label="Export selected"
+                    onClick={() => void handleBulkExport()}
+                    title="Export selected as ZIP"
+                    aria-label="Export selected as ZIP"
                   >
                     <FaDownload size={12} />
                   </button>

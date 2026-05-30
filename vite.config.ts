@@ -22,7 +22,15 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/zustand/')) return 'react-vendor';
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/scheduler/') ||
+            id.includes('/use-sync-external-store/') ||
+            id.includes('/zustand/')
+          ) {
+            return 'react-vendor';
+          }
           if (id.includes('/react-icons/')) return 'icons';
           if (id.includes('/@tensorflow/')) return 'tfjs';
           return 'vendor';
