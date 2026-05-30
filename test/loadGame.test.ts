@@ -157,6 +157,34 @@ describe('GameStore loadGame', () => {
         expect(state.rootNode.gameState.komi).toBe(0);
     });
 
+    it('loads handicap roots as white to play when PL is omitted', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        const parsed = parseSgf('(;GM[1]SZ[19]HA[1])');
+        store.loadGame(parsed);
+
+        const state = useGameStore.getState();
+        expect(state.currentPlayer).toBe('white');
+        expect(state.rootNode.gameState.currentPlayer).toBe('white');
+        expect(state.rootNode.properties?.HA).toEqual(['1']);
+        expect(state.rootNode.properties?.PL).toEqual(['W']);
+    });
+
+    it('preserves explicit PL on handicap roots', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        const parsed = parseSgf('(;GM[1]SZ[19]HA[1]PL[B])');
+        store.loadGame(parsed);
+
+        const state = useGameStore.getState();
+        expect(state.currentPlayer).toBe('black');
+        expect(state.rootNode.gameState.currentPlayer).toBe('black');
+        expect(state.rootNode.properties?.HA).toEqual(['1']);
+        expect(state.rootNode.properties?.PL).toEqual(['B']);
+    });
+
     it('edits and removes root SGF metadata safely', () => {
         const store = useGameStore.getState();
         store.resetGame();

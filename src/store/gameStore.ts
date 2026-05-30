@@ -3801,7 +3801,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const firstMovePlayer = sgf.moves[0]?.player;
     const ha = parseInt(sgfProps?.['HA']?.[0] ?? '0', 10);
     const safeHandicap = Number.isFinite(ha) ? Math.max(0, Math.min(ha, getMaxHandicap(boardSize))) : 0;
-    const rootPlayer: Player = pl ?? firstMovePlayer ?? (safeHandicap >= 2 ? 'white' : 'black');
+    const rootPlayer: Player = pl ?? firstMovePlayer ?? (safeHandicap > 0 ? 'white' : 'black');
     const rules = parseSgfRu(sgfProps?.['RU']?.[0]) ?? state.settings.gameRules;
 
     const rootState: GameState = {
@@ -3945,6 +3945,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       delete rootPropsCopy['C'];
       if (!rootPropsCopy['RU']?.length) rootPropsCopy['RU'] = [rulesToSgfRu(rules)];
       if (!rootPropsCopy['SZ']?.length) rootPropsCopy['SZ'] = [String(boardSize)];
+      if (safeHandicap > 0) {
+        rootPropsCopy['HA'] = [String(safeHandicap)];
+        if (!rootPropsCopy['PL']?.length) rootPropsCopy['PL'] = ['W'];
+      }
       newRoot.properties = rootPropsCopy;
       const rootMove = extractMove(sgf.tree.props);
       if (!rootMove && sgf.tree.props['KT'] && !newRoot.analysis) {
