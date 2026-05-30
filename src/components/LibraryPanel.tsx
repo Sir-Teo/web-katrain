@@ -16,12 +16,15 @@ import {
   FaStop,
   FaFileAlt,
   FaFileArchive,
+  FaCopy,
 } from 'react-icons/fa';
 import {
   createLibraryBackup,
   createLibraryFolder,
   createLibraryItem,
   deleteLibraryItem,
+  duplicateLibraryItem,
+  duplicateLibraryItems,
   loadLibrary,
   restoreLibrary,
   saveLibrary,
@@ -561,6 +564,21 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     });
   };
 
+  const handleDuplicate = (item: LibraryItem) => {
+    const result = duplicateLibraryItem(items, item.id);
+    if (!result.duplicated) {
+      onToast('Failed to duplicate library item.', 'error');
+      return;
+    }
+    const duplicated = result.duplicated;
+    setItems(result.items);
+    setSelectedIds(new Set([duplicated.id]));
+    if (isFolder(duplicated)) {
+      setExpandedFolderIds((prev) => new Set(prev).add(duplicated.id));
+    }
+    onToast(`Duplicated "${item.name}".`, 'success');
+  };
+
   const handleDownload = (item: LibraryFile) => {
     const blob = new Blob([item.sgf], { type: 'application/x-go-sgf' });
     const url = URL.createObjectURL(blob);
@@ -671,6 +689,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         setSelectedIds(new Set());
       },
     });
+  };
+
+  const handleBulkDuplicate = () => {
+    if (visibleSelectedIds.size === 0) return;
+    const selected = Array.from(visibleSelectedIds);
+    const result = duplicateLibraryItems(items, selected);
+    if (result.duplicatedIds.length === 0) {
+      onToast('No selected items were duplicated.', 'info');
+      return;
+    }
+    setItems(result.items);
+    setSelectedIds(result.duplicated ? new Set([result.duplicated.id]) : new Set());
+    onToast(`Duplicated ${selected.length} selected item${selected.length === 1 ? '' : 's'}.`, 'success');
   };
 
   const handleBulkExport = async () => {
@@ -872,6 +903,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             className="library-tree-node-action"
             onClick={(e) => {
               e.stopPropagation();
+              handleDuplicate(item);
+            }}
+            title="Duplicate"
+            aria-label="Duplicate"
+          >
+            <FaCopy size={12} />
+          </button>
+          <button
+            type="button"
+            className="library-tree-node-action"
+            onClick={(e) => {
+              e.stopPropagation();
               handleDownload(item);
             }}
             title="Download SGF"
@@ -972,6 +1015,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           <div className="library-tree-node-name">{item.name}</div>
           <div className="library-tree-node-meta">{children.length}</div>
           <div className="library-tree-node-actions">
+            <button
+              type="button"
+              className="library-tree-node-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDuplicate(item);
+              }}
+              title="Duplicate"
+              aria-label="Duplicate"
+            >
+              <FaCopy size={12} />
+            </button>
             <button
               type="button"
               className="library-tree-node-action"
@@ -1253,6 +1308,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               </div>
               {visibleSelectedIds.size > 0 && (
                 <div className="panel-toolbar border-b border-[var(--ui-border)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]">
+                  <button
+                    type="button"
+                    className={bulkActionClass}
+                    onClick={handleBulkDuplicate}
+                    title="Duplicate selected"
+                    aria-label="Duplicate selected"
+                  >
+                    <FaCopy size={12} />
+                  </button>
                   <button
                     type="button"
                     className={bulkActionClass}

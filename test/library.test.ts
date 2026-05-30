@@ -4,6 +4,8 @@ import {
   createLibraryFolder,
   createLibraryItem,
   deleteLibraryItem,
+  duplicateLibraryItem,
+  duplicateLibraryItems,
   extractLibraryMetadata,
   normalizeLibraryItems,
   parseLibraryBackup,
@@ -73,5 +75,55 @@ describe('library storage helpers', () => {
     const remaining = deleteLibraryItem([folder, nestedFolder, directFile, nestedFile, rootFile], folder.id);
 
     expect(remaining).toEqual([rootFile]);
+  });
+
+  it('duplicates a file with a unique copy name next to the original', () => {
+    const original = createLibraryItem('Game', sgf, null, 100);
+    const existingCopy = createLibraryItem('Game (copy)', sgf, null, 101);
+
+    const result = duplicateLibraryItem([original, existingCopy], original.id, 200);
+    const duplicated = result.duplicated;
+
+    expect(duplicated?.type).toBe('file');
+    expect(duplicated?.id).not.toBe(original.id);
+    expect(duplicated?.name).toBe('Game (copy) 2');
+    expect(duplicated?.parentId).toBeNull();
+    expect(duplicated?.createdAt).toBe(200);
+    expect(result.items).toHaveLength(3);
+    if (duplicated?.type === 'file') {
+      expect(duplicated.sgf).toBe(original.sgf);
+      expect(duplicated.moveCount).toBe(original.moveCount);
+    }
+  });
+
+  it('duplicates a folder with descendants under new ids', () => {
+    const folder = createLibraryFolder('Folder', null);
+    const nestedFolder = createLibraryFolder('Nested', folder.id);
+    const directFile = createLibraryItem('Direct', sgf, folder.id);
+    const nestedFile = createLibraryItem('Nested Game', sgf, nestedFolder.id);
+    const rootFile = createLibraryItem('Root', sgf, null);
+
+    const result = duplicateLibraryItem([folder, nestedFolder, directFile, nestedFile, rootFile], folder.id, 300);
+    const copiedFolder = result.duplicated;
+
+    expect(copiedFolder?.type).toBe('folder');
+    expect(copiedFolder?.name).toBe('Folder (copy)');
+    expect(result.duplicatedIds).toHaveLength(4);
+
+    const copiedChildren = result.items.filter((item) => item.parentId === copiedFolder?.id);
+    expect(copiedChildren.map((item) => item.name).sort()).toEqual(['Direct', 'Nested']);
+    const copiedNested = copiedChildren.find((item) => item.type === 'folder' && item.name === 'Nested');
+    expect(result.items.find((item) => item.parentId === copiedNested?.id && item.name === 'Nested Game')).toBeTruthy();
+    expect(result.items).toContain(rootFile);
+  });
+
+  it('duplicates selected items in sequence', () => {
+    const first = createLibraryItem('First', sgf, null);
+    const second = createLibraryItem('Second', sgf, null);
+
+    const result = duplicateLibraryItems([first, second], [first.id, second.id], 400);
+
+    expect(result.duplicatedIds).toHaveLength(2);
+    expect(result.items.map((item) => item.name)).toEqual(['Second (copy)', 'First (copy)', 'First', 'Second']);
   });
 });

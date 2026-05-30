@@ -42,6 +42,12 @@ export type LibraryBackup = {
   items: LibraryItem[];
 };
 
+export type DuplicateLibraryItemResult = {
+  items: LibraryItem[];
+  duplicated: LibraryItem | null;
+  duplicatedIds: string[];
+};
+
 const LEGACY_STORAGE_KEY = 'web-katrain:library:v1';
 const MIGRATION_FLAG_KEY = 'web-katrain:library_migrated_to_idb:v1';
 const PRELOADED_VERSION_KEY = 'web-katrain:library_preloaded_version:v1';
@@ -429,6 +435,102 @@ export const createLibraryFolder = (name: string, parentId: string | null = null
     type: 'folder',
   };
 };
+
+const createCopyName = (name: string): string => {
+  if (name.toLowerCase().endsWith('.sgf')) return `${name.slice(0, -4)} (copy).sgf`;
+  return `${name} (copy)`;
+};
+
+const uniqueLibraryName = (preferred: string, siblings: LibraryItem[]): string => {
+  const existing = new Set(siblings.map((item) => item.name.toLowerCase()));
+  if (!existing.has(preferred.toLowerCase())) return preferred;
+
+  const dotSgf = preferred.toLowerCase().endsWith('.sgf');
+  const base = dotSgf ? preferred.slice(0, -4) : preferred;
+  const suffix = dotSgf ? '.sgf' : '';
+  for (let i = 2; i < 10_000; i++) {
+    const candidate = `${base} ${i}${suffix}`;
+    if (!existing.has(candidate.toLowerCase())) return candidate;
+  }
+  return `${base} ${Date.now()}${suffix}`;
+};
+
+export const duplicateLibraryItem = (
+  items: LibraryItem[],
+  id: string,
+  timestamp = Date.now()
+): DuplicateLibraryItemResult => {
+  const source = items.find((item) => item.id === id);
+  if (!source) return { items, duplicated: null, duplicatedIds: [] };
+
+  const copies: LibraryItem[] = [];
+  const duplicatedIds: string[] = [];
+  const idMap = new Map<string, string>();
+  const siblings = items.filter((item) => (item.parentId ?? null) === (source.parentId ?? null) && item.id !== source.id);
+  const rootCopyName = uniqueLibraryName(createCopyName(source.name), siblings);
+
+  const copyOne = (item: LibraryItem, parentId: string | null, name: string): LibraryItem => {
+    const newId = createId();
+    idMap.set(item.id, newId);
+    duplicatedIds.push(newId);
+    if (isLibraryFile(item)) {
+      return {
+        ...createLibraryItem(name, item.sgf, parentId, timestamp),
+        id: newId,
+      };
+    }
+    return {
+      id: newId,
+      name,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      parentId,
+      type: 'folder',
+    };
+  };
+
+  const rootCopy = copyOne(source, source.parentId ?? null, rootCopyName);
+  copies.push(rootCopy);
+
+  if (source.type === 'folder') {
+    let copiedAny = true;
+    while (copiedAny) {
+      copiedAny = false;
+      for (const item of items) {
+        if (idMap.has(item.id)) continue;
+        const copiedParentId = item.parentId ? idMap.get(item.parentId) : undefined;
+        if (!copiedParentId) continue;
+        copies.push(copyOne(item, copiedParentId, item.name));
+        copiedAny = true;
+      }
+    }
+  }
+
+  return {
+    items: [...copies, ...items],
+    duplicated: rootCopy,
+    duplicatedIds,
+  };
+};
+
+export const duplicateLibraryItems = (
+  items: LibraryItem[],
+  ids: Iterable<string>,
+  timestamp = Date.now()
+): DuplicateLibraryItemResult => {
+  let nextItems = items;
+  const duplicatedIds: string[] = [];
+  let firstDuplicated: LibraryItem | null = null;
+  for (const id of ids) {
+    const result = duplicateLibraryItem(nextItems, id, timestamp);
+    nextItems = result.items;
+    if (!firstDuplicated) firstDuplicated = result.duplicated;
+    duplicatedIds.push(...result.duplicatedIds);
+  }
+  return { items: nextItems, duplicated: firstDuplicated, duplicatedIds };
+};
+
+const isLibraryFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
 
 type LibraryItemUpdates = Partial<Pick<LibraryItem, 'name' | 'parentId'>>;
 
