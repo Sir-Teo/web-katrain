@@ -4,6 +4,7 @@ import {
   FaChevronDown,
   FaChevronLeft,
   FaCopy,
+  FaFolderOpen,
   FaVolumeUp,
   FaVolumeMute,
   FaPaste,
@@ -15,6 +16,7 @@ import {
   FaSyncAlt,
   FaTimes,
   FaCog,
+  FaSave,
   FaKeyboard,
   FaEllipsisV,
   FaCamera,
@@ -64,6 +66,8 @@ interface TopControlBarProps {
   // Menu callbacks
   onOpenMenu: () => void;
   onNewGame: () => void;
+  onSaveSgf: () => void;
+  onLoadSgf: () => void;
   onOpenSidePanel: () => void;
   onCopySgf: () => void;
   onPasteSgf: () => void;
@@ -115,6 +119,8 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   setIsGameReportOpen,
   onOpenMenu,
   onNewGame,
+  onSaveSgf,
+  onLoadSgf,
   onOpenSidePanel,
   onCopySgf,
   onPasteSgf,
@@ -401,20 +407,27 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         </IconButton>
       </div>
 
-      {/* New game */}
-      <div className="hidden 2xl:flex items-center gap-1.5 shrink-0">
-        <button
-          type="button"
-          title="New game (Ctrl+N)"
-          onClick={onNewGame}
-          className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap"
-        >
-          <FaPlus size={12} /> New
-        </button>
+      {/* Desktop file actions */}
+      <div className="hidden lg:flex items-center gap-1 shrink-0">
+        <IconButton title="New game (Ctrl+N)" onClick={onNewGame} className={topIconClass}>
+          <FaPlus />
+        </IconButton>
+        <IconButton title="Save SGF (Ctrl+S)" onClick={onSaveSgf} className={topIconClass}>
+          <FaSave />
+        </IconButton>
+        <IconButton title="Load SGF (Ctrl+O)" onClick={onLoadSgf} className={topIconClass}>
+          <FaFolderOpen />
+        </IconButton>
+        <IconButton title="Paste SGF / OGS (Ctrl+V)" onClick={onPasteSgf} className={topIconClass}>
+          <FaPaste />
+        </IconButton>
+        <IconButton title="Photo Board" onClick={onScanBoard} className={topIconClass}>
+          <FaCamera />
+        </IconButton>
       </div>
 
       {/* Divider */}
-      <div className="hidden 2xl:block h-6 w-px bg-[var(--ui-border)] shrink-0" />
+      <div className="hidden lg:block h-6 w-px bg-[var(--ui-border)] shrink-0" />
 
       <div className="hidden lg:block flex-1 min-w-2" />
 

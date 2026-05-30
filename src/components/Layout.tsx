@@ -1501,6 +1501,8 @@ export const Layout: React.FC = () => {
               setIsGameReportOpen={setIsGameReportOpen}
               onOpenMenu={() => setMenuOpen(true)}
               onNewGame={() => void openNewGameWithGuard()}
+              onSaveSgf={handleSaveCurrentSgf}
+              onLoadSgf={handleLoadClick}
               onOpenSidePanel={handleOpenSidePanel}
               onCopySgf={handleCopySgf}
               onPasteSgf={handlePasteSgf}
