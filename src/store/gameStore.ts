@@ -18,6 +18,7 @@ import {
   isAnalysisQueueCanceledError,
   isAnalysisQueueStaleError,
 } from '../utils/analysisQueue';
+import { findSiblingBranchTarget } from '../utils/branchNavigation';
 
 interface GameStore extends GameState {
   // Tree State
@@ -3092,44 +3093,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }),
 
   switchBranch: (direction) => set((state) => {
-      // Mirror KaTrain move tree behavior: switch between nodes at the same depth "column".
-      const movePos = new Map<GameNode, { x: number; y: number }>();
-      movePos.set(state.rootNode, { x: 0, y: 0 });
-
-      const stack: GameNode[] = [...state.rootNode.children].reverse();
-      const nextY = new Map<number, number>();
-      const getNextY = (x: number) => nextY.get(x) ?? 0;
-
-      while (stack.length > 0) {
-          const node = stack.pop()!;
-          const parent = node.parent;
-          if (!parent) continue;
-          const parentPos = movePos.get(parent);
-          if (!parentPos) continue;
-
-          const x = parentPos.x + 1;
-          const y = Math.max(getNextY(x), parentPos.y);
-          nextY.set(x, y + 1);
-          nextY.set(x - 1, Math.max(nextY.get(x) ?? 0, getNextY(x - 1)));
-          movePos.set(node, { x, y });
-
-          for (let i = node.children.length - 1; i >= 0; i--) {
-              stack.push(node.children[i]!);
-          }
-      }
-
-      const curPos = movePos.get(state.currentNode);
-      if (!curPos) return {};
-
-      const sameX: Array<{ y: number; node: GameNode }> = [];
-      for (const [node, pos] of movePos.entries()) {
-          if (pos.x === curPos.x) sameX.push({ y: pos.y, node });
-      }
-      sameX.sort((a, b) => a.y - b.y);
-      const idx = sameX.findIndex((n) => n.node.id === state.currentNode.id);
-      if (idx < 0) return {};
-
-      const next = sameX[idx + direction]?.node;
+      const next = findSiblingBranchTarget(state.currentNode, direction);
       if (!next) return {};
 
       return {
