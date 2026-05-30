@@ -8,6 +8,7 @@ import type { KataGoAnalysisPayload } from '../engine/katago/types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import { KATAGO_RECOMMENDED_MODEL_URL, KATAGO_SMALL_MODEL_PATH } from '../engine/katago/modelDefaults';
 import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katrainSgfAnalysis';
+import { decodeKayaKa } from '../utils/kayaSgfAnalysis';
 import { publicUrl } from '../utils/publicUrl';
 import { isBoardThemeId } from '../utils/boardThemes';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
@@ -3412,6 +3413,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (visits > 0) node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, Math.min(visits, ENGINE_MAX_VISITS));
     };
 
+    const applyKaAnalysis = (node: GameNode, ka: string[]) => {
+      const analysis = decodeKayaKa({
+        ka,
+        currentPlayer: node.gameState.currentPlayer,
+        boardSize,
+      });
+      if (!analysis) return;
+      node.analysis = analysis;
+      const visits = typeof analysis.rootVisits === 'number' && Number.isFinite(analysis.rootVisits)
+        ? Math.max(0, Math.floor(analysis.rootVisits))
+        : 0;
+      if (visits > 0) node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, Math.min(visits, ENGINE_MAX_VISITS));
+    };
+
     const cloneProps = (props: Record<string, string[]> | undefined): Record<string, string[]> => {
       const out: Record<string, string[]> = {};
       if (!props) return out;
@@ -3512,12 +3527,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!rootMove && sgf.tree.props['KT'] && !newRoot.analysis) {
         applyKtAnalysis(newRoot, sgf.tree.props['KT']);
       }
+      if (!rootMove && sgf.tree.props['KA'] && !newRoot.analysis) {
+        applyKaAnalysis(newRoot, sgf.tree.props['KA']);
+      }
 
       const buildFromSgfNode = (parent: GameNode, node: NonNullable<ParsedSgf['tree']>) => {
         const move = extractMove(node.props);
         if (!move) {
           if (node.props['KT'] && !parent.analysis) {
             applyKtAnalysis(parent, node.props['KT']);
+          }
+          if (node.props['KA'] && !parent.analysis) {
+            applyKaAnalysis(parent, node.props['KA']);
           }
           const note = extractKaTrainUserNoteFromSgfComment(node.props['C']);
           if (note) parent.note = parent.note ? `${parent.note}\n${note}` : note;
@@ -3540,6 +3561,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (node.props['KT'] && !childNode.analysis) {
           applyKtAnalysis(childNode, node.props['KT']);
         }
+        if (node.props['KA'] && !childNode.analysis) {
+          applyKaAnalysis(childNode, node.props['KA']);
+        }
         parent.children.push(childNode);
 
         for (const child of node.children) buildFromSgfNode(childNode, child);
@@ -3555,6 +3579,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           delete first.properties['C'];
           if (sgf.tree.props['KT'] && !first.analysis) {
             applyKtAnalysis(first, sgf.tree.props['KT']);
+          }
+          if (sgf.tree.props['KA'] && !first.analysis) {
+            applyKaAnalysis(first, sgf.tree.props['KA']);
           }
           newRoot.children.push(first);
           for (const child of sgf.tree.children) buildFromSgfNode(first, child);

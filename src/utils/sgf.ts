@@ -1,6 +1,7 @@
 import type { CandidateMove, GameNode, GameState, BoardState, Player, FloatArray, BoardSize } from "../types";
 import { DEFAULT_BOARD_SIZE } from "../types";
 import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './katrainSgfAnalysis';
+import { encodeKayaKaFromAnalysis } from './kayaSgfAnalysis';
 import { createEmptyBoard, normalizeBoardSize } from './boardSize';
 
 // KaTrain convention: auto-generated SGF comments are marked so user notes remain editable.
@@ -341,6 +342,9 @@ function serializeProps(props: Record<string, string[]>): string {
         'PL',
         'C',
         'N',
+        'KTV',
+        'KT',
+        'KA',
     ] as const;
     const preferredSet = new Set<string>(preferred);
 
@@ -383,15 +387,20 @@ function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
     const move = node.move;
     if (!move) return '';
 
+    const boardSize = normalizeBoardSize(node.gameState.board.length, DEFAULT_BOARD_SIZE);
     const props = cloneProps(node.properties);
     delete props.B;
     delete props.W;
     delete props.C;
+    delete props.KT;
+    delete props.KA;
     // KT analysis caching (KaTrain trainer/save_analysis)
-    // When disabled, we still export user notes and move tree without embedding full analysis blobs.
+    // KA mirrors the compact Kaya SGF cache so games remain portable across both apps.
+    // When disabled, we still export user notes and move tree without embedding analysis blobs.
     if (trainer.saveAnalysis && node.analysis) {
         const ownershipMode = node.analysis.ownershipMode ?? 'root';
-        if (ownershipMode !== 'none') props.KT = encodeKaTrainKtFromAnalysis({ analysis: node.analysis });
+        props.KA = [encodeKayaKaFromAnalysis({ analysis: node.analysis, boardSize })];
+        if (ownershipMode !== 'none') props.KT = encodeKaTrainKtFromAnalysis({ analysis: node.analysis, boardSize });
     }
 
     const key = move.player === 'black' ? 'B' : 'W';
@@ -456,6 +465,8 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
     delete props.AB;
     delete props.AW;
     delete props.AE;
+    delete props.KT;
+    delete props.KA;
 
     props.GM = ['1'];
     props.FF = ['4'];
@@ -473,7 +484,8 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
 
     if (trainer.saveAnalysis && rootNode.analysis) {
         const ownershipMode = rootNode.analysis.ownershipMode ?? 'root';
-        if (ownershipMode !== 'none') props.KT = encodeKaTrainKtFromAnalysis({ analysis: rootNode.analysis });
+        props.KA = [encodeKayaKaFromAnalysis({ analysis: rootNode.analysis, boardSize })];
+        if (ownershipMode !== 'none') props.KT = encodeKaTrainKtFromAnalysis({ analysis: rootNode.analysis, boardSize });
     }
 
     delete props.C;

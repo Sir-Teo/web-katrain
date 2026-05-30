@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
-import { DEFAULT_BOARD_SIZE } from '../src/types';
+import { DEFAULT_BOARD_SIZE, type AnalysisResult } from '../src/types';
 import { generateSgfFromTree, parseSgf } from '../src/utils/sgf';
 
 describe('GameStore loadGame', () => {
@@ -116,6 +116,65 @@ describe('GameStore loadGame', () => {
         expect(output).toContain('TR[dd]');
         expect(output).toContain('LB[cc:A]');
         expect(output).toContain('SQ[qq]');
+    });
+
+    it('loads Kaya KA analysis blobs from SGF nodes', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        const parsed = parseSgf(
+            '(;GM[1]SZ[19];B[pd]KA[{"w":0.55,"s":1.5,"v":1000,"m":[{"m":"D4","p":0.54,"w":0.57,"s":2,"v":80}\\]}])'
+        );
+        store.loadGame(parsed);
+
+        const node = useGameStore.getState().rootNode.children[0];
+        expect(node?.analysis?.rootWinRate).toBeCloseTo(0.55);
+        expect(node?.analysis?.rootScoreLead).toBeCloseTo(1.5);
+        expect(node?.analysis?.rootVisits).toBe(1000);
+        expect(node?.analysis?.moves[0]).toMatchObject({ x: 3, y: 15, visits: 80, prior: 0.54 });
+        expect(node?.analysisVisitsRequested).toBe(1000);
+    });
+
+    it('exports Kaya KA alongside Web-KaTrain KT when analysis saving is enabled', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+        store.playMove(3, 3);
+
+        const node = useGameStore.getState().currentNode;
+        const policy = new Array<number>(DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE + 1).fill(-1);
+        policy[15 * DEFAULT_BOARD_SIZE + 15] = 0.42;
+        const analysis: AnalysisResult = {
+            rootWinRate: 0.61,
+            rootScoreLead: 3.5,
+            rootVisits: 500,
+            moves: [
+                {
+                    x: 15,
+                    y: 15,
+                    order: 0,
+                    visits: 500,
+                    winRate: 0.61,
+                    winRateLost: 0,
+                    scoreLead: 3.5,
+                    scoreSelfplay: 3.5,
+                    scoreStdev: 0,
+                    pointsLost: 0,
+                    relativePointsLost: 0,
+                    prior: 0.42,
+                },
+            ],
+            territory: Array.from({ length: DEFAULT_BOARD_SIZE }, () => Array(DEFAULT_BOARD_SIZE).fill(0)),
+            policy,
+            ownershipMode: 'root',
+        };
+        node.analysis = analysis;
+
+        const output = generateSgfFromTree(useGameStore.getState().rootNode, { trainer: { saveAnalysis: true } });
+
+        expect(output).toContain('KA[');
+        expect(output).toContain('"w":0.61');
+        expect(output).toContain('"m":"Q4"');
+        expect(output).toContain('KT[');
     });
 
     it('adds edit-mode annotations and prunes invalid descendants after setup changes', () => {
