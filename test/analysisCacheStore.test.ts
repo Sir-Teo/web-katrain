@@ -144,4 +144,61 @@ describe('analysis cache store actions', () => {
     expect(changed.analysisData).not.toBeNull();
     expect(changed.analysisCacheSize).toBe(1);
   });
+
+  it('routes SGF RU edits through rules settings and analysis invalidation', async () => {
+    useGameStore.getState().playMove(3, 3);
+    const root = useGameStore.getState().rootNode;
+    const current = useGameStore.getState().currentNode;
+
+    root.analysis = analysis(50);
+    current.analysis = analysis(100);
+    useGameStore.setState((state) => ({
+      analysisData: current.analysis,
+      analysisCacheSize: 2,
+      isContinuousAnalysis: true,
+      isGameAnalysisRunning: true,
+      gameAnalysisType: 'fast',
+      engineStatus: 'ready',
+      treeVersion: state.treeVersion + 1,
+    }));
+
+    await analysisQueue.enqueue({
+      id: 'rules-sensitive-cache',
+      group: 'test',
+      priority: 1,
+      cacheKey: 'rules-position',
+      run: async () => ({ visits: 25 }),
+    });
+
+    useGameStore.getState().setRootProperty('RU', 'Chinese');
+    const changed = useGameStore.getState();
+
+    expect(changed.settings.gameRules).toBe('chinese');
+    expect(changed.rootNode.properties?.RU).toEqual(['Chinese']);
+    expect(changed.analysisData).toBeNull();
+    expect(changed.rootNode.analysis).toBeNull();
+    expect(changed.currentNode.analysis).toBeNull();
+    expect(analysisQueue.getCacheSize()).toBe(0);
+    expect(changed.analysisCacheSize).toBe(0);
+    expect(changed.isContinuousAnalysis).toBe(false);
+    expect(changed.isGameAnalysisRunning).toBe(false);
+    expect(changed.engineStatus).toBe('idle');
+  });
+
+  it('normalizes matching rules text without clearing analysis', () => {
+    useGameStore.getState().updateSettings({ gameRules: 'japanese' });
+    const root = useGameStore.getState().rootNode;
+    root.properties = { ...(root.properties ?? {}), RU: ['JP'] };
+    root.analysis = analysis(50);
+    useGameStore.setState({ analysisData: root.analysis, analysisCacheSize: 1 });
+
+    useGameStore.getState().setRootProperty('RU', 'Japanese');
+    const changed = useGameStore.getState();
+
+    expect(changed.settings.gameRules).toBe('japanese');
+    expect(changed.rootNode.properties?.RU).toEqual(['Japanese']);
+    expect(changed.rootNode.analysis).not.toBeNull();
+    expect(changed.analysisData).not.toBeNull();
+    expect(changed.analysisCacheSize).toBe(1);
+  });
 });

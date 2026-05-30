@@ -2325,6 +2325,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
       if (!engineChanged) return { settings: nextSettings };
 
+      continuousToken++;
+      selfplayToken++;
+      gameAnalysisToken++;
       analysisQueue.cancelWhere(() => true, 'Analysis settings changed');
       analysisQueue.clearCache();
 
@@ -2349,6 +2352,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         engineBackend: null,
         engineModelName: null,
         analysisCacheSize: 0,
+        isContinuousAnalysis: false,
+        isSelfplayToEnd: false,
+        isGameAnalysisRunning: false,
+        gameAnalysisType: null,
         treeVersion: rulesChanged ? state.treeVersion + 1 : state.treeVersion,
       };
     }),
@@ -2403,10 +2410,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   setRootProperty: (key, value) => {
-    if (key.toUpperCase() === 'KM') {
+    const normalizedKey = key.toUpperCase();
+    if (normalizedKey === 'KM') {
       const parsed = Number(value.trim());
       if (Number.isFinite(parsed)) get().setKomi(parsed);
       return;
+    }
+    if (normalizedKey === 'RU') {
+      const parsed = parseSgfRu(value.trim());
+      if (parsed) {
+        const current = get();
+        const canonical = rulesToSgfRu(parsed);
+        if (parsed === current.settings.gameRules) {
+          set((state) => {
+            const currentRulesText = state.rootNode.properties?.RU?.[0] ?? '';
+            if (currentRulesText === canonical) return {};
+            state.rootNode.properties = state.rootNode.properties ?? {};
+            state.rootNode.properties.RU = [canonical];
+            return { rootNode: state.rootNode, treeVersion: state.treeVersion + 1 };
+          });
+        } else {
+          current.updateSettings({ gameRules: parsed });
+        }
+        return;
+      }
     }
 
     set((state) => {

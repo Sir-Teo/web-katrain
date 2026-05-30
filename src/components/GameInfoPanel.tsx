@@ -1,6 +1,7 @@
 import React from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
+import type { GameSettings } from '../types';
 
 type GameInfoField = {
   key: string;
@@ -28,12 +29,14 @@ const inputClass =
   'w-full ui-input border rounded px-2 py-1.5 text-xs text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none';
 
 export const GameInfoPanel: React.FC = () => {
-  const { rootNode, komi, setKomi, setRootProperty, treeVersion } = useGameStore(
+  const { rootNode, komi, gameRules, setKomi, setRootProperty, updateSettings, treeVersion } = useGameStore(
     (state) => ({
       rootNode: state.rootNode,
       komi: state.komi,
+      gameRules: state.settings.gameRules,
       setKomi: state.setKomi,
       setRootProperty: state.setRootProperty,
+      updateSettings: state.updateSettings,
       treeVersion: state.treeVersion,
     }),
     shallow
@@ -49,7 +52,7 @@ export const GameInfoPanel: React.FC = () => {
     if (!isEditingKomi) setKomiInput(String(komi));
   }, [isEditingKomi, komi]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     e.stopPropagation();
   };
 
@@ -113,6 +116,21 @@ export const GameInfoPanel: React.FC = () => {
             inputMode="decimal"
             spellCheck={false}
           />
+        </label>
+        <label className="min-w-0 space-y-1">
+          <span className="block text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+            Rules
+          </span>
+          <select
+            value={gameRules}
+            onChange={(e) => updateSettings({ gameRules: e.target.value as GameSettings['gameRules'] })}
+            onKeyDown={handleKeyDown}
+            className={inputClass}
+          >
+            <option value="japanese">Japanese</option>
+            <option value="chinese">Chinese</option>
+            <option value="korean">Korean</option>
+          </select>
         </label>
       </div>
     </div>
