@@ -593,6 +593,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     }
   }, [
     board,
+    boardSize,
     boardTheme,
     cellSize,
     isAnalysisMode,
@@ -1301,7 +1302,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       moves.push({ x: d.x, y: d.y, player: i % 2 === 0 ? currentPlayer : opp, idx: i + 1 });
     }
     return moves;
-  }, [hoveredMove, pvOverlayEnabled, pvUpToMove, currentPlayer, toDisplay]);
+  }, [boardSize, hoveredMove, pvOverlayEnabled, pvUpToMove, currentPlayer, toDisplay]);
 
   useEffect(() => {
     const canvas = pvCanvasRef.current;

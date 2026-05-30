@@ -275,7 +275,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     const start = Math.ceil(fromFrac * boardSquares);
     const end = Math.max(start, Math.ceil(toFrac * boardSquares) - 1);
     return { start, end };
-  }, [currentNode.gameState.board.length, depthFilter]);
+  }, [boardSize, depthFilter]);
 
   const waitForBoardRender = () =>
     new Promise<void>((resolve) => {

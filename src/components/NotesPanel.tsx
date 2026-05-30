@@ -130,6 +130,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     return text;
   }, [
     analysisStatusText,
+    boardSize,
     currentNode.aiThoughts,
     currentNode.analysis,
     currentNode.gameState.komi,

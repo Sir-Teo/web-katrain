@@ -614,7 +614,7 @@ export const Layout: React.FC = () => {
       if (m?.kind === 'pass') last = { idx: i + 1, player: i % 2 === 0 ? currentPlayer : opp };
     }
     return last;
-  }, [currentPlayer, activeHoverMove, pvOverlayEnabled, pvUpToMove]);
+  }, [boardSize, currentPlayer, activeHoverMove, pvOverlayEnabled, pvUpToMove]);
 
   const noteCount = useMemo(() => {
     void treeVersion;
@@ -694,14 +694,13 @@ export const Layout: React.FC = () => {
     if (!isAnalysisMode || !settings.analysisShowPolicy) return null;
     const policy = analysisData?.policy;
     if (!policy) return null;
-    const boardSize = board.length;
     const passPolicy = policy[boardSize * boardSize];
     if (!Number.isFinite(passPolicy)) return null;
     const polOrder = 5 - Math.trunc(-Math.log10(Math.max(1e-9, passPolicy - 1e-9)));
     if (polOrder < 0) return null;
     const col = evalColors[Math.min(evalColors.length - 1, Math.max(0, polOrder))]!;
     return rgba(col, GHOST_ALPHA);
-  }, [analysisData, evalColors, isAnalysisMode, settings.analysisShowPolicy]);
+  }, [analysisData, boardSize, evalColors, isAnalysisMode, settings.analysisShowPolicy]);
 
   const winRateLabel = typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : null;
   const scoreLeadLabel = typeof scoreLead === 'number' ? formatResultScoreLead(scoreLead) : null;
