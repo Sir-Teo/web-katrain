@@ -57,8 +57,8 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const photoUrlRef = React.useRef<string | null>(null);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(defaultBoardSize);
   const [komi, setKomi] = React.useState(defaultKomi);
-  const [nextPlayer, setNextPlayer] = React.useState<Player>('black');
-  const [tool, setTool] = React.useState<TraceTool>('black');
+  const [nextPlayer, setNextPlayer] = React.useState<Player>(() => currentPlayer ?? 'black');
+  const [tool, setTool] = React.useState<TraceTool>(() => currentPlayer ?? 'black');
   const [stones, setStones] = React.useState<PhotoBoardStone[]>(() => makeEmptyStones(defaultBoardSize));
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
   const [photoName, setPhotoName] = React.useState<string>('');
