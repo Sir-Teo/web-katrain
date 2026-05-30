@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { CandidateMove, FloatArray, Move, Player } from '../types';
+import { formatRootInfoText } from '../utils/gameInfoText';
 
 function moveToLabel(move: Move | null, boardSize: number): string {
   if (!move) return 'Root';
@@ -42,11 +43,13 @@ type NotesPanelProps = {
 };
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes }) => {
-  const { currentNode, setCurrentNodeNote, treeVersion, isAnalysisMode, engineStatus, engineError } = useGameStore(
+  const { rootNode, currentNode, setCurrentNodeNote, treeVersion, gameRules, isAnalysisMode, engineStatus, engineError } = useGameStore(
     (state) => ({
+      rootNode: state.rootNode,
       currentNode: state.currentNode,
       setCurrentNodeNote: state.setCurrentNodeNote,
       treeVersion: state.treeVersion,
+      gameRules: state.settings.gameRules,
       isAnalysisMode: state.isAnalysisMode,
       engineStatus: state.engineStatus,
       engineError: state.engineError,
@@ -98,13 +101,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     return 'Analyzing move...';
   }, [engineError, engineStatus, isAnalysisMode]);
 
-  const infoText = useMemo(() => {
+  const infoText = (() => {
     if (!showInfoBlock) return '';
 
     if (!move || !parent) {
-      const rulesRaw = currentNode.properties?.RU?.[0];
-      const rules = typeof rulesRaw === 'string' && rulesRaw.trim() ? rulesRaw.trim() : 'Japanese';
-      return `Komi: ${currentNode.gameState.komi.toFixed(1)}\nRuleset: ${rules}\n`;
+      return formatRootInfoText({ rootNode, currentNode, gameRules });
     }
 
     if (!currentNode.analysis) return analysisStatusText;
@@ -128,23 +129,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     if (detailed && currentNode.aiThoughts) text += `\nAI thoughts: ${currentNode.aiThoughts}`;
 
     return text;
-  }, [
-    analysisStatusText,
-    boardSize,
-    currentNode.aiThoughts,
-    currentNode.analysis,
-    currentNode.gameState.komi,
-    currentNode.properties,
-    depth,
-    detailed,
-    label,
-    move,
-    parent,
-    policyStats,
-    showInfoBlock,
-    topMove,
-    topMoveLabel,
-  ]);
+  })();
 
   if (!showInfoBlock && !showNotesBlock) return null;
 

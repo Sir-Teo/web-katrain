@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
 import { DEFAULT_BOARD_SIZE, type AnalysisResult } from '../src/types';
+import { formatRootInfoText } from '../src/utils/gameInfoText';
 import { getHandicapPoints } from '../src/utils/boardSize';
 import { coordinateToSgf, generateSgfFromTree, parseSgf } from '../src/utils/sgf';
 
@@ -182,6 +183,21 @@ describe('GameStore loadGame', () => {
         const state = useGameStore.getState();
         expect(state.komi).toBe(0);
         expect(state.rootNode.gameState.komi).toBe(0);
+    });
+
+    it('shows root rules and precise komi in root info text', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        store.loadGame(parseSgf('(;GM[1]SZ[19]KM[6.25]RU[Chinese];B[pd])'));
+
+        const state = useGameStore.getState();
+        expect(state.currentNode.move).toBe(null);
+        expect(formatRootInfoText({
+            rootNode: state.rootNode,
+            currentNode: state.currentNode,
+            gameRules: state.settings.gameRules,
+        })).toBe('Komi: 6.25\nRuleset: Chinese\n');
     });
 
     it('loads handicap roots as white to play when PL is omitted', () => {
