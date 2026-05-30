@@ -13,6 +13,7 @@ interface StatusBarProps {
   capturedWhite: number;
   endResult: string | null;
   gamepadName?: string | null;
+  unsavedChanges?: boolean;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -27,6 +28,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   capturedWhite,
   endResult,
   gamepadName,
+  unsavedChanges = false,
 }) => (
   <div className="status-bar flex flex-wrap gap-2 px-3 py-2 items-center text-xs">
     <div className="status-bar-section flex flex-wrap gap-2 items-center">
@@ -75,6 +77,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       {endResult && (
         <div className="px-2 py-1 rounded bg-[var(--ui-success-soft)] text-[var(--ui-success)] font-bold border border-[var(--ui-success)] shadow-sm">
           {endResult}
+        </div>
+      )}
+
+      {unsavedChanges && (
+        <div className="px-2 py-1 rounded bg-[var(--ui-warning-soft)] text-[var(--ui-warning)] font-semibold border border-[var(--ui-warning)] shadow-sm" title="Unsaved changes">
+          Unsaved
         </div>
       )}
 

@@ -1196,6 +1196,7 @@ export const Layout: React.FC = () => {
       branchNext: () => switchBranch(1),
     },
   });
+  const currentGameDirty = hasUnsavedChanges();
 
   return (
     <div
@@ -1747,6 +1748,7 @@ export const Layout: React.FC = () => {
         capturedWhite={capturedWhite}
         endResult={endResult}
         gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
+        unsavedChanges={currentGameDirty}
       />
     </div>
   );
