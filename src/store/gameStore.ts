@@ -12,6 +12,11 @@ import { publicUrl } from '../utils/publicUrl';
 import { isBoardThemeId } from '../utils/boardThemes';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
+import {
+  analysisQueue,
+  isAnalysisQueueCanceledError,
+  isAnalysisQueueStaleError,
+} from '../utils/analysisQueue';
 
 interface GameStore extends GameState {
   // Tree State
@@ -728,11 +733,24 @@ let continuousToken = 0;
 let selfplayToken = 0;
 let gameAnalysisToken = 0;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const ANALYSIS_QUEUE_PRIORITY = {
+  interactive: 100,
+  aiMove: 70,
+  selfplay: 55,
+  fullGame: 20,
+  fastGame: 15,
+  quickGame: 10,
+} as const;
 // KaTrain-style report cadence (seconds -> ms).
 const REPORT_DURING_SEARCH_EVERY_MS = 1000;
 const CONTINUOUS_REPORT_DURING_SEARCH_MS = 250;
 // Throttle UI updates during progress reports to reduce main-thread churn.
 const PROGRESS_APPLY_MIN_MS = 500;
+
+const isAnalysisCanceled = (err: unknown): boolean =>
+  isKataGoCanceledError(err) || isAnalysisQueueCanceledError(err) || isAnalysisQueueStaleError(err);
+
+const analysisCacheKey = (...parts: unknown[]): string => JSON.stringify(parts);
 
 export const useGameStore = create<GameStore>((set, get) => ({
   // Flat properties (mirrored from currentNode.gameState for easy access)
@@ -781,6 +799,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleAi: (color) => {
     const s = get();
     const nextOn = !(s.isAiPlaying && s.aiColor === color);
+    if (!nextOn) analysisQueue.cancelGroup('ai-move');
     set({ isAiPlaying: nextOn, aiColor: nextOn ? color : null });
     const after = get();
     if (after.isAiPlaying && after.aiColor === after.currentPlayer) {
@@ -792,11 +811,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newMode = !state.isAnalysisMode;
       if (newMode) {
           setTimeout(() => void get().runAnalysis(), 0);
+      } else {
+          analysisQueue.cancelGroup('interactive');
       }
       return {
         isAnalysisMode: newMode,
         isContinuousAnalysis: newMode ? state.isContinuousAnalysis : false,
         analysisData: state.currentNode.analysis || null,
+        engineStatus: newMode ? state.engineStatus : 'idle',
+        engineError: newMode ? state.engineError : null,
         settings: newMode && !state.settings.analysisShowHints
           ? { ...state.settings, analysisShowHints: true }
           : state.settings,
@@ -863,7 +886,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   stopAnalysis: () => {
       continuousToken++;
-      set({ isContinuousAnalysis: false });
+      analysisQueue.cancelGroup('interactive');
+      set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null });
   },
 
   toggleTeachMode: () => set((state) => {
@@ -1223,6 +1247,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   selfplayToEnd: () => {
     const token = ++selfplayToken;
+    analysisQueue.cancelGroup('selfplay');
     set({ isSelfplayToEnd: true });
 
     void (async () => {
@@ -1231,12 +1256,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const s = get();
         if (token !== selfplayToken) return;
         if (!s.isSelfplayToEnd) return;
-
-        while (get().engineStatus === 'loading') {
-          if (token !== selfplayToken) return;
-          if (!get().isSelfplayToEnd) return;
-          await sleep(50);
-        }
 
         const mh = s.moveHistory;
         const last = mh[mh.length - 1];
@@ -1256,11 +1275,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
           const parentBoard = node.parent?.gameState.board;
           const grandparentBoard = node.parent?.parent?.gameState.board;
           const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
-          const analysis = await getKataGoEngineClient().analyze({
+          const rules = s.settings.gameRules;
+          const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, ENGINE_MAX_VISITS));
+          const maxTimeMs = Math.max(250, Math.min(s.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
+          const analysis = await analysisQueue.enqueue<KataGoAnalysisPayload>({
+            id: `selfplay:${token}:${node.id}:${safety}`,
+            label: 'Selfplay move',
+            group: 'selfplay',
+            priority: ANALYSIS_QUEUE_PRIORITY.selfplay,
+            cacheKey: analysisCacheKey(
+              'selfplay',
+              node.id,
+              nodeAnalysisPositionKey(node, rules),
+              modelUrl,
+              s.settings.katagoBackend,
+              rules,
+              visits,
+              maxTimeMs,
+              s.settings.katagoBatchSize,
+              s.settings.katagoMaxChildren,
+              s.settings.katagoConservativePass
+            ),
+            run: () => getKataGoEngineClient().analyze({
             positionId: node.id,
             parentPositionId: node.parent?.id,
-            positionKey: nodeAnalysisPositionKey(node, s.settings.gameRules),
-            parentPositionKey: parentAnalysisPositionKey(node, s.settings.gameRules),
+            positionKey: nodeAnalysisPositionKey(node, rules),
+            parentPositionKey: parentAnalysisPositionKey(node, rules),
             modelUrl,
             backend: s.settings.katagoBackend,
             board: s.board,
@@ -1269,27 +1309,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
             currentPlayer: s.currentPlayer,
             moveHistory: s.moveHistory,
             komi: s.komi,
-            rules: s.settings.gameRules,
+            rules,
             topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
             analysisPvLen: Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 30)),
             includeMovesOwnership: false,
             wideRootNoise: 0.0,
             nnRandomize: false,
             conservativePass: s.settings.katagoConservativePass,
-            visits: Math.max(16, Math.min(s.settings.katagoFastVisits, ENGINE_MAX_VISITS)),
-            maxTimeMs: Math.max(250, Math.min(s.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS)),
+            visits,
+            maxTimeMs,
             batchSize: s.settings.katagoBatchSize,
             maxChildren: s.settings.katagoMaxChildren,
             reuseTree: false,
             ownershipMode: 'none',
             analysisGroup: 'background',
+            }),
           });
 
           const best = analysis.moves[0] ?? null;
           if (!best || best.x < 0 || best.y < 0) s.passTurn();
           else s.playMove(best.x, best.y);
         } catch (err) {
-          if (isKataGoCanceledError(err)) {
+          if (isAnalysisCanceled(err)) {
             await sleep(25);
             continue;
           }
@@ -1304,11 +1345,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   stopSelfplayToEnd: () => {
     selfplayToken++;
+    analysisQueue.cancelGroup('selfplay');
     set({ isSelfplayToEnd: false });
   },
 
   startQuickGameAnalysis: () => {
     const token = ++gameAnalysisToken;
+    analysisQueue.cancelGroup('game-analysis');
     const state = get();
 
     const nodes: GameNode[] = [];
@@ -1338,22 +1381,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!get().isGameAnalysisRunning) return;
         if (get().gameAnalysisType !== 'quick') return;
 
-        // If interactive analysis is running/queued, pause bulk analysis.
-        while (get().engineStatus === 'loading') {
-          if (token !== gameAnalysisToken) return;
-          if (!get().isGameAnalysisRunning) return;
-          if (get().gameAnalysisType !== 'quick') return;
-          await sleep(50);
-        }
-
         const chunk = nodes.slice(start, start + evalBatchSize);
         const toEval = chunk.filter((n) => !n.analysis);
         if (toEval.length > 0) {
           try {
-            const modelUrl = resolveModelUrlForFetch(get().settings.katagoModelUrl);
-            const evals = await getKataGoEngineClient().evaluateBatch({
+            const s = get();
+            const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
+            const rules = s.settings.gameRules;
+            const conservativePass = s.settings.katagoConservativePass;
+            const evals = await analysisQueue.enqueue({
+              id: `quick-game:${token}:${start}`,
+              label: 'Quick game analysis',
+              group: 'game-analysis',
+              priority: ANALYSIS_QUEUE_PRIORITY.quickGame,
+              cacheKey: analysisCacheKey(
+                'quick-game',
+                modelUrl,
+                s.settings.katagoBackend,
+                rules,
+                conservativePass,
+                toEval.map((n) => nodeAnalysisPositionKey(n, rules))
+              ),
+              run: () => getKataGoEngineClient().evaluateBatch({
               modelUrl,
-              backend: get().settings.katagoBackend,
+              backend: s.settings.katagoBackend,
               positions: toEval.map((n) => ({
                 board: n.gameState.board,
                 previousBoard: n.parent?.gameState.board,
@@ -1362,9 +1413,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 moveHistory: n.gameState.moveHistory,
                 komi: n.gameState.komi,
               })),
-              rules: get().settings.gameRules,
-              conservativePass: get().settings.katagoConservativePass,
+              rules,
+              conservativePass,
+              }),
             });
+            if (token !== gameAnalysisToken) return;
+            if (!get().isGameAnalysisRunning) return;
+            if (get().gameAnalysisType !== 'quick') return;
             if (!metaSynced) {
               const engineInfo = getKataGoEngineClient().getEngineInfo();
               set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName });
@@ -1392,6 +1447,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             // Ignore failures for bulk analysis; individual node analysis can still run later.
           }
         }
+        if (token !== gameAnalysisToken) return;
+        if (!get().isGameAnalysisRunning) return;
+        if (get().gameAnalysisType !== 'quick') return;
 
         done += chunk.length;
 
@@ -1421,6 +1479,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   startFastGameAnalysis: () => {
     const token = ++gameAnalysisToken;
+    analysisQueue.cancelGroup('game-analysis');
     const state = get();
 
     const nodes: GameNode[] = [];
@@ -1456,40 +1515,56 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!get().isGameAnalysisRunning) return;
         if (get().gameAnalysisType !== 'fast') return;
 
-        // If interactive analysis is running/queued, pause bulk analysis.
-        while (get().engineStatus === 'loading') {
-          if (token !== gameAnalysisToken) return;
-          if (!get().isGameAnalysisRunning) return;
-          if (get().gameAnalysisType !== 'fast') return;
-          await sleep(50);
-        }
-
         const already = node.analysis && nodeAnalysisVisitCount(node) >= fastVisits;
         if (!already) {
           try {
+            const s = get();
             const parentBoard = node.parent?.gameState.board;
             const grandparentBoard = node.parent?.parent?.gameState.board;
-            const modelUrl = resolveModelUrlForFetch(get().settings.katagoModelUrl);
-            const analysis = await getKataGoEngineClient().analyze({
+            const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
+            const rules = s.settings.gameRules;
+            const analysis = await analysisQueue.enqueue<KataGoAnalysisPayload>({
+              id: `fast-game:${token}:${node.id}`,
+              label: 'Fast game analysis',
+              group: 'game-analysis',
+              priority: ANALYSIS_QUEUE_PRIORITY.fastGame,
+              cacheKey: analysisCacheKey(
+                'fast-game',
+                node.id,
+                nodeAnalysisPositionKey(node, rules),
+                modelUrl,
+                s.settings.katagoBackend,
+                rules,
+                fastVisits,
+                maxTimeMs,
+                batchSize,
+                maxChildren,
+                topK,
+                analysisPvLen,
+                s.settings.katagoWideRootNoise,
+                s.settings.katagoNnRandomize,
+                s.settings.katagoConservativePass
+              ),
+              run: () => getKataGoEngineClient().analyze({
               positionId: node.id,
               parentPositionId: node.parent?.id,
-              positionKey: nodeAnalysisPositionKey(node, get().settings.gameRules),
-              parentPositionKey: parentAnalysisPositionKey(node, get().settings.gameRules),
+              positionKey: nodeAnalysisPositionKey(node, rules),
+              parentPositionKey: parentAnalysisPositionKey(node, rules),
               modelUrl,
-              backend: get().settings.katagoBackend,
+              backend: s.settings.katagoBackend,
               board: node.gameState.board,
               previousBoard: parentBoard,
               previousPreviousBoard: grandparentBoard,
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
               komi: node.gameState.komi,
-              rules: get().settings.gameRules,
+              rules,
               topK,
               analysisPvLen,
               includeMovesOwnership: false,
-              wideRootNoise: get().settings.katagoWideRootNoise,
-              nnRandomize: get().settings.katagoNnRandomize,
-              conservativePass: get().settings.katagoConservativePass,
+              wideRootNoise: s.settings.katagoWideRootNoise,
+              nnRandomize: s.settings.katagoNnRandomize,
+              conservativePass: s.settings.katagoConservativePass,
               visits: fastVisits,
               maxTimeMs,
               batchSize,
@@ -1497,7 +1572,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
               reuseTree: false,
               ownershipMode: 'none',
               analysisGroup: 'background',
+              }),
             });
+            if (token !== gameAnalysisToken) return;
+            if (!get().isGameAnalysisRunning) return;
+            if (get().gameAnalysisType !== 'fast') return;
             if (!metaSynced) {
               const engineInfo = getKataGoEngineClient().getEngineInfo();
               set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName });
@@ -1520,6 +1599,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             // Ignore failures for bulk analysis; individual node analysis can still run later.
           }
         }
+        if (token !== gameAnalysisToken) return;
+        if (!get().isGameAnalysisRunning) return;
+        if (get().gameAnalysisType !== 'fast') return;
 
         done++;
 
@@ -1549,6 +1631,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   startFullGameAnalysis: (opts) => {
     const token = ++gameAnalysisToken;
+    analysisQueue.cancelGroup('game-analysis');
     const state = get();
 
     const visits = Math.max(16, Math.min(Math.floor(opts.visits || 0), ENGINE_MAX_VISITS));
@@ -1585,14 +1668,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!get().isGameAnalysisRunning) return;
         if (get().gameAnalysisType !== 'full') return;
 
-        // If interactive analysis is running/queued, pause bulk analysis.
-        while (get().engineStatus === 'loading') {
-          if (token !== gameAnalysisToken) return;
-          if (!get().isGameAnalysisRunning) return;
-          if (get().gameAnalysisType !== 'full') return;
-          await sleep(50);
-        }
-
         const already = node.analysis && node.analysis.moves.length > 0 && nodeAnalysisVisitCount(node) >= visits;
         if (!already) {
           try {
@@ -1606,12 +1681,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const topK = Math.max(5, Math.min(s.settings.katagoTopK, 50));
             const analysisPvLen = Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 60));
             const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
+            const rules = s.settings.gameRules;
 
-            const analysis = await getKataGoEngineClient().analyze({
+            const analysis = await analysisQueue.enqueue<KataGoAnalysisPayload>({
+              id: `full-game:${token}:${node.id}`,
+              label: 'Full game analysis',
+              group: 'game-analysis',
+              priority: ANALYSIS_QUEUE_PRIORITY.fullGame,
+              cacheKey: analysisCacheKey(
+                'full-game',
+                node.id,
+                nodeAnalysisPositionKey(node, rules),
+                modelUrl,
+                s.settings.katagoBackend,
+                rules,
+                visits,
+                maxTimeMs,
+                batchSize,
+                maxChildren,
+                topK,
+                analysisPvLen,
+                s.settings.katagoOwnershipMode,
+                s.settings.katagoWideRootNoise,
+                s.settings.katagoNnRandomize,
+                s.settings.katagoConservativePass
+              ),
+              run: () => getKataGoEngineClient().analyze({
               positionId: node.id,
               parentPositionId: node.parent?.id,
-              positionKey: nodeAnalysisPositionKey(node, s.settings.gameRules),
-              parentPositionKey: parentAnalysisPositionKey(node, s.settings.gameRules),
+              positionKey: nodeAnalysisPositionKey(node, rules),
+              parentPositionKey: parentAnalysisPositionKey(node, rules),
               modelUrl,
               backend: s.settings.katagoBackend,
               board: node.gameState.board,
@@ -1620,7 +1719,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
               komi: node.gameState.komi,
-              rules: s.settings.gameRules,
+              rules,
               topK,
               analysisPvLen,
               includeMovesOwnership: s.settings.katagoOwnershipMode === 'tree',
@@ -1634,7 +1733,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
               reuseTree: false,
               ownershipMode: s.settings.katagoOwnershipMode,
               analysisGroup: 'background',
+              }),
             });
+            if (token !== gameAnalysisToken) return;
+            if (!get().isGameAnalysisRunning) return;
+            if (get().gameAnalysisType !== 'full') return;
 
             if (!metaSynced) {
               const engineInfo = getKataGoEngineClient().getEngineInfo();
@@ -1659,6 +1762,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             // Ignore failures for bulk analysis; individual node analysis can still run later.
           }
         }
+        if (token !== gameAnalysisToken) return;
+        if (!get().isGameAnalysisRunning) return;
+        if (get().gameAnalysisType !== 'full') return;
 
         done++;
 
@@ -1688,6 +1794,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   stopGameAnalysis: () => {
     gameAnalysisToken++;
+    analysisQueue.cancelGroup('game-analysis');
     set({ isGameAnalysisRunning: false, gameAnalysisType: null });
   },
 
@@ -1834,10 +1941,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
               }
             : undefined;
 
+      const interactiveCacheKey = analysisCacheKey(
+        'interactive',
+        node.id,
+        nodeAnalysisPositionKey(node, rules),
+        modelUrl,
+        state.settings.katagoBackend,
+        rules,
+        JSON.stringify(state.regionOfInterest ?? null),
+        topK,
+        analysisPvLen,
+        state.settings.katagoOwnershipMode,
+        wideRootNoise,
+        nnRandomize,
+        conservativePass,
+        visits,
+        maxTimeMs,
+        batchSize,
+        maxChildren,
+        reuseTree,
+        ownershipRefreshIntervalMs
+      );
       set({ engineStatus: 'loading', engineError: null });
 
-	      return getKataGoEngineClient()
-	        .analyze({
+	      return analysisQueue
+	        .enqueue<KataGoAnalysisPayload>({
+          id: `interactive:${node.id}`,
+          label: 'Live analysis',
+          group: 'interactive',
+          priority: ANALYSIS_QUEUE_PRIORITY.interactive,
+          staleKey: 'interactive-analysis',
+          cacheKey: interactiveCacheKey,
+          preempt: true,
+          run: (ctx) => getKataGoEngineClient().analyze({
 	          positionId: node.id,
 	          parentPositionId: node.parent?.id,
             positionKey: nodeAnalysisPositionKey(node, rules),
@@ -1867,7 +2003,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
           reuseTree,
           ownershipMode: state.settings.katagoOwnershipMode,
           analysisGroup: 'interactive',
-          onProgress,
+          onProgress: onProgress
+            ? (analysis) => {
+                if (ctx.signal.aborted || ctx.isStale()) return;
+                onProgress(analysis);
+              }
+            : undefined,
+          }),
         })
         .then((analysis) => {
           applyAnalysis(analysis, true);
@@ -1932,7 +2074,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           maybeApplyTeachUndo();
         })
         .catch((err: unknown) => {
-          if (isKataGoCanceledError(err)) return;
+          if (isAnalysisCanceled(err)) return;
           const msg = err instanceof Error ? err.message : String(err);
           set({
             engineStatus: 'error',
@@ -2115,13 +2257,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const conservativePass = state.settings.katagoConservativePass;
         const aiNeedsMovesOwnership = state.settings.aiStrategy === 'simple' || state.settings.aiStrategy === 'settle';
         const aiOwnershipMode = aiNeedsMovesOwnership ? 'tree' : state.settings.katagoOwnershipMode;
+        const topK =
+          state.settings.aiStrategy === 'default'
+            ? state.settings.katagoTopK
+            : Math.max(state.settings.katagoTopK, 30);
+        const visits = Math.max(16, Math.min(state.settings.katagoVisits, ENGINE_MAX_VISITS));
+        const maxTimeMs = Math.max(25, Math.min(state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
+        const batchSize = state.settings.katagoBatchSize;
+        const maxChildren = state.settings.katagoMaxChildren;
+        const positionKey = nodeAnalysisPositionKey(node, rules);
+        const parentPositionKeyValue = parentAnalysisPositionKey(node, rules);
 
-      void getKataGoEngineClient()
-	        .analyze({
+      void analysisQueue
+        .enqueue<KataGoAnalysisPayload>({
+          id: `ai-move:${nodeId}`,
+          label: 'AI move',
+          group: 'ai-move',
+          priority: ANALYSIS_QUEUE_PRIORITY.aiMove,
+          staleKey: `ai-move:${playerAtStart}`,
+          cacheKey: analysisCacheKey(
+            'ai-move',
+            nodeId,
+            positionKey,
+            modelUrl,
+            state.settings.katagoBackend,
+            rules,
+            topK,
+            aiNeedsMovesOwnership,
+            analysisPvLen,
+            conservativePass,
+            visits,
+            maxTimeMs,
+            batchSize,
+            maxChildren,
+            state.settings.katagoReuseTree,
+            aiOwnershipMode,
+            state.settings.aiStrategy
+          ),
+          preempt: true,
+          run: () => getKataGoEngineClient().analyze({
 	          positionId: nodeId,
 	          parentPositionId: node.parent?.id,
-            positionKey: nodeAnalysisPositionKey(node, rules),
-            parentPositionKey: parentAnalysisPositionKey(node, rules),
+            positionKey,
+            parentPositionKey: parentPositionKeyValue,
 	          modelUrl,
             backend: state.settings.katagoBackend,
 	          board: state.board,
@@ -2131,22 +2309,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          moveHistory: state.moveHistory,
 	          komi: state.komi,
             rules,
-	          topK:
-	            state.settings.aiStrategy === 'default'
-	              ? state.settings.katagoTopK
-	              : Math.max(state.settings.katagoTopK, 30),
+	          topK,
             includeMovesOwnership: aiNeedsMovesOwnership,
             analysisPvLen,
             wideRootNoise,
             nnRandomize,
             conservativePass,
-          visits: Math.max(16, Math.min(state.settings.katagoVisits, ENGINE_MAX_VISITS)),
-          maxTimeMs: Math.max(25, Math.min(state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS)),
-          batchSize: state.settings.katagoBatchSize,
-          maxChildren: state.settings.katagoMaxChildren,
+          visits,
+          maxTimeMs,
+          batchSize,
+          maxChildren,
           reuseTree: state.settings.katagoReuseTree,
           ownershipMode: aiOwnershipMode,
           analysisGroup: 'background',
+          }),
         })
         .then((analysis) => {
           const engineInfo = getKataGoEngineClient().getEngineInfo();
@@ -2763,7 +2939,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set((s) => ({ treeVersion: s.treeVersion + 1 }));
         })
         .catch((err) => {
-          if (isKataGoCanceledError(err)) {
+          if (isAnalysisCanceled(err)) {
             const latest = get();
             if (latest.currentNode.id !== nodeId) return;
             if (latest.currentPlayer !== playerAtStart) return;
