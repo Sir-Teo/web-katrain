@@ -35,6 +35,8 @@ interface AnalysisPanelProps {
   compact?: boolean;
 }
 
+type GraphMetric = keyof UiState['panels'][UiMode]['graph'];
+
 export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   mode,
   modePanels,
@@ -64,7 +66,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   compact = false,
 }) => {
   void mode;
-  const [graphMetrics, setGraphMetrics] = React.useState({ score: true, winrate: true });
+  const graphMetrics = modePanels.graph;
   const activeTab: 'graph' | 'stats' =
     modePanels.statsOpen && !modePanels.graphOpen ? 'stats' : 'graph';
   const activeBackend = engineBackend ?? requestedBackend;
@@ -74,13 +76,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     : modelUrl.startsWith('http')
       ? 'Remote'
       : 'Local';
-  const toggleGraphMetric = (metric: keyof typeof graphMetrics) => {
-    setGraphMetrics((current) => {
-      const next = { ...current, [metric]: !current[metric] };
-      return next.score || next.winrate ? next : current;
+  const toggleGraphMetric = (metric: GraphMetric) => {
+    updatePanels((current) => {
+      const next = { ...current.graph, [metric]: !current.graph[metric] };
+      return next.score || next.winrate ? { graph: next } : {};
     });
   };
-  const metricToggle = (metric: keyof typeof graphMetrics, label: string, colorClass: string) => (
+  const metricToggle = (metric: GraphMetric, label: string, colorClass: string) => (
     <button
       type="button"
       className={[
