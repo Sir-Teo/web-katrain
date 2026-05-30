@@ -18,6 +18,7 @@ import {
 import type { Player, GameNode, Move } from '../../types';
 import { useGameStore } from '../../store/gameStore';
 import { AnalysisPanel } from '../AnalysisPanel';
+import { GameInfoPanel } from '../GameInfoPanel';
 import { MoveTree } from '../MoveTree';
 import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
@@ -142,6 +143,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const showTree = !isMobile || activeMobileTab === 'tree';
   const showAnalysis = !isMobile || activeMobileTab === 'info';
   const showNotes = !isMobile || activeMobileTab === 'info';
+  const showGameInfo = !isMobile || activeMobileTab === 'info';
 
   const modeTabClass = (active: boolean) => ['panel-tab', active ? 'active' : ''].join(' ');
   const treeViewTabClass = (active: boolean) => ['panel-icon-button', active ? 'active' : ''].join(' ');
@@ -328,6 +330,16 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="flex flex-col min-h-0">
+            {/* Game Info */}
+            {renderSection({
+              show: showGameInfo,
+              title: 'Game Info',
+              icon: <FaInfoCircle size={12} />,
+              open: modePanels.infoOpen,
+              onToggle: () => updatePanels((current) => ({ infoOpen: !current.infoOpen })),
+              children: <GameInfoPanel />,
+            })}
+
             {/* Game Tree */}
             {renderSection({
               show: showTree,

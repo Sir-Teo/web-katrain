@@ -87,6 +87,30 @@ describe('GameStore loadGame', () => {
         expect(state.rootNode.gameState.komi).toBe(0);
     });
 
+    it('edits and removes root SGF metadata safely', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        store.setRootProperty('PB', ' Black ] Player\\ ');
+        store.setRootProperty('PW', 'White Player');
+        store.setRootProperty('BR', '9p');
+        store.setRootProperty('GN', 'Review game');
+
+        const edited = useGameStore.getState();
+        expect(edited.rootNode.properties?.PB).toEqual(['Black ] Player\\']);
+        expect(edited.rootNode.properties?.PW).toEqual(['White Player']);
+        expect(edited.rootNode.properties?.BR).toEqual(['9p']);
+
+        const sgf = generateSgfFromTree(edited.rootNode);
+        expect(sgf).toContain('PB[Black \\] Player\\\\]');
+        expect(sgf).toContain('PW[White Player]');
+        expect(sgf).toContain('BR[9p]');
+        expect(sgf).toContain('GN[Review game]');
+
+        store.setRootProperty('PB', '   ');
+        expect(useGameStore.getState().rootNode.properties?.PB).toBeUndefined();
+    });
+
     it('only auto-starts load-time analysis when the fast-analysis setting is enabled', () => {
         const original = useGameStore.getState();
         const originalQuick = original.startQuickGameAnalysis;
