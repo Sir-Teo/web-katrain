@@ -26,6 +26,7 @@ import { RightPanel } from './layout/RightPanel';
 import { StatusBar } from './layout/StatusBar';
 import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
 import { LibraryPanel } from './LibraryPanel';
+import { MobileHome } from './MobileHome';
 import {
   type UiMode,
   type UiState,
@@ -43,6 +44,8 @@ const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module)
 const GameReportModal = lazy(() => import('./GameReportModal').then((module) => ({ default: module.GameReportModal })));
 const KeyboardHelpModal = lazy(() => import('./KeyboardHelpModal').then((module) => ({ default: module.KeyboardHelpModal })));
 const NewGameModal = lazy(() => import('./NewGameModal').then((module) => ({ default: module.NewGameModal })));
+
+const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 
 function computePointsLost(args: { currentNode: GameNode }): number | null {
   const node = args.currentNode;
@@ -233,6 +236,11 @@ export const Layout: React.FC = () => {
   const [bottomBarOpen, setBottomBarOpen] = useState(() => {
     if (typeof localStorage === 'undefined') return true;
     return localStorage.getItem('web-katrain:bottom_bar_open:v1') !== 'false';
+  });
+  const [mobileHomeOpen, setMobileHomeOpen] = useState(() => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return false;
+    const isMobileViewport = window.matchMedia('(max-width: 1023px)').matches;
+    return isMobileViewport && localStorage.getItem(MOBILE_HOME_DISMISSED_KEY) !== 'true';
   });
 
   useEffect(() => {
@@ -761,6 +769,24 @@ export const Layout: React.FC = () => {
 
   const isMobile = !isDesktop;
 
+  useEffect(() => {
+    if (!isDesktop) return;
+    setMobileHomeOpen(false);
+  }, [isDesktop]);
+
+  const closeMobileHome = () => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(MOBILE_HOME_DISMISSED_KEY, 'true');
+    }
+    setMobileHomeOpen(false);
+  };
+
+  const openMobileHome = () => {
+    setAnalysisMenuOpen(false);
+    setViewMenuOpen(false);
+    setMobileHomeOpen(true);
+  };
+
   const openRightPanelForTab = (tab: MobileTab) => {
     setRightPanelOpen(true);
     setLibraryOpen(false);
@@ -1163,6 +1189,7 @@ export const Layout: React.FC = () => {
       <MenuDrawer
         open={menuOpen && isMobile}
         onClose={() => setMenuOpen(false)}
+        onHome={openMobileHome}
         onNewGame={() => setIsNewGameOpen(true)}
         onSave={() => downloadSgfFromTree(rootNode, sgfExportOptions)}
         onLoad={handleLoadClick}
@@ -1173,6 +1200,47 @@ export const Layout: React.FC = () => {
         recentItems={recentLibraryItems}
         onOpenRecent={handleOpenRecent}
       />
+
+      {isMobile && (
+        <MobileHome
+          open={mobileHomeOpen}
+          blackName={blackName}
+          whiteName={whiteName}
+          boardSize={boardSize}
+          moveCount={moveHistory.length}
+          engineMeta={engineMeta}
+          recentItems={recentLibraryItems}
+          onClose={closeMobileHome}
+          onNewGame={() => {
+            closeMobileHome();
+            setIsNewGameOpen(true);
+          }}
+          onOpenSgf={() => {
+            closeMobileHome();
+            handleLoadClick();
+          }}
+          onPasteSgf={() => {
+            closeMobileHome();
+            void handlePasteSgf();
+          }}
+          onOpenLibrary={() => {
+            closeMobileHome();
+            handleMobileTabChange('library');
+          }}
+          onOpenReport={() => {
+            closeMobileHome();
+            setIsGameReportOpen(true);
+          }}
+          onOpenSettings={() => {
+            closeMobileHome();
+            setIsSettingsOpen(true);
+          }}
+          onOpenRecent={(sgfText) => {
+            closeMobileHome();
+            void handleOpenRecent(sgfText);
+          }}
+        />
+      )}
 
       <div className="flex flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <LibraryPanel

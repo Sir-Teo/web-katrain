@@ -1,9 +1,10 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard } from 'react-icons/fa';
+import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome } from 'react-icons/fa';
 
 interface MenuDrawerProps {
   open: boolean;
   onClose: () => void;
+  onHome?: () => void;
   onNewGame: () => void;
   onSave: () => void;
   onLoad: () => void;
@@ -18,6 +19,7 @@ interface MenuDrawerProps {
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   open,
   onClose,
+  onHome,
   onNewGame,
   onSave,
   onLoad,
@@ -48,6 +50,20 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
         <nav className="space-y-4" aria-label="Main menu">
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Game</div>
+            {onHome && (
+              <button
+                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+                onClick={() => {
+                  onHome();
+                  onClose();
+                }}
+                aria-label="Open home"
+              >
+                <span className="flex items-center gap-2">
+                  <FaHome aria-hidden="true" /> Home
+                </span>
+              </button>
+            )}
             <button
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
               onClick={() => {

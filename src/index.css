@@ -140,7 +140,10 @@
   }
 
   @media (max-width: 1023px) {
-    :root {
+    :root,
+    :root[data-ui-density='compact'],
+    :root[data-ui-density='comfortable'],
+    :root[data-ui-density='large'] {
       --ui-bar-height: 56px;
       --ui-bar-pad-y: 6px;
       --ui-control-size: 44px;
@@ -758,7 +761,10 @@
   }
 
   @media (max-height: 520px) and (orientation: landscape) {
-    :root {
+    :root,
+    :root[data-ui-density='compact'],
+    :root[data-ui-density='comfortable'],
+    :root[data-ui-density='large'] {
       --ui-bar-height: 52px;
       --ui-bar-pad-y: 4px;
       --ui-control-size: 44px;
