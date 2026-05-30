@@ -45,6 +45,7 @@ const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module)
 const GameReportModal = lazy(() => import('./GameReportModal').then((module) => ({ default: module.GameReportModal })));
 const KeyboardHelpModal = lazy(() => import('./KeyboardHelpModal').then((module) => ({ default: module.KeyboardHelpModal })));
 const NewGameModal = lazy(() => import('./NewGameModal').then((module) => ({ default: module.NewGameModal })));
+const PhotoBoardModal = lazy(() => import('./PhotoBoardModal').then((module) => ({ default: module.PhotoBoardModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 
@@ -215,6 +216,7 @@ export const Layout: React.FC = () => {
   const [isGameReportOpen, setIsGameReportOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
+  const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
@@ -933,6 +935,18 @@ export const Layout: React.FC = () => {
     await handleOpenSgfFromText(sgfText);
   };
 
+  const handlePhotoBoardImport = (sgfText: string) => {
+    try {
+      const parsed = parseSgf(sgfText);
+      loadGame(parsed);
+      navigateStart();
+      setIsPhotoBoardOpen(false);
+      toast('Imported board position.', 'success');
+    } catch {
+      toast('Failed to import board position.', 'error');
+    }
+  };
+
   const handleLibraryUpdated = useCallback(() => {
     setLibraryVersion((prev) => prev + 1);
   }, []);
@@ -1069,7 +1083,8 @@ export const Layout: React.FC = () => {
       !isGameAnalysisOpen &&
       !isGameReportOpen &&
       !isKeyboardHelpOpen &&
-      !isNewGameOpen,
+      !isNewGameOpen &&
+      !isPhotoBoardOpen,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
       forward: navigateForward,
@@ -1103,6 +1118,14 @@ export const Layout: React.FC = () => {
           />
         )}
         {isKeyboardHelpOpen && <KeyboardHelpModal onClose={() => setIsKeyboardHelpOpen(false)} />}
+        {isPhotoBoardOpen && (
+          <PhotoBoardModal
+            onClose={() => setIsPhotoBoardOpen(false)}
+            onImportSgf={handlePhotoBoardImport}
+            defaultBoardSize={boardSize}
+            defaultKomi={komi}
+          />
+        )}
         {isNewGameOpen && (
           <NewGameModal
             onClose={() => setIsNewGameOpen(false)}
@@ -1217,6 +1240,7 @@ export const Layout: React.FC = () => {
         onNewGame={() => setIsNewGameOpen(true)}
         onSave={() => downloadSgfFromTree(rootNode, sgfExportOptions)}
         onLoad={handleLoadClick}
+        onScanBoard={() => setIsPhotoBoardOpen(true)}
         onCopy={handleCopySgf}
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
@@ -1242,6 +1266,10 @@ export const Layout: React.FC = () => {
           onOpenSgf={() => {
             closeMobileHome();
             handleLoadClick();
+          }}
+          onScanBoard={() => {
+            closeMobileHome();
+            setIsPhotoBoardOpen(true);
           }}
           onPasteSgf={() => {
             closeMobileHome();
@@ -1366,6 +1394,7 @@ export const Layout: React.FC = () => {
               onOpenSidePanel={handleOpenSidePanel}
               onCopySgf={handleCopySgf}
               onPasteSgf={handlePasteSgf}
+              onScanBoard={() => setIsPhotoBoardOpen(true)}
               onSettings={() => setIsSettingsOpen(true)}
               onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
               winRateLabel={winRateLabel}

@@ -17,6 +17,7 @@ import {
   FaCog,
   FaKeyboard,
   FaEllipsisV,
+  FaCamera,
 } from 'react-icons/fa';
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
@@ -66,6 +67,7 @@ interface TopControlBarProps {
   onOpenSidePanel: () => void;
   onCopySgf: () => void;
   onPasteSgf: () => void;
+  onScanBoard: () => void;
   onSettings: () => void;
   onKeyboardHelp: () => void;
   winRateLabel?: string | null;
@@ -116,6 +118,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   onOpenSidePanel,
   onCopySgf,
   onPasteSgf,
+  onScanBoard,
   onSettings,
   onKeyboardHelp,
   winRateLabel,
@@ -185,6 +188,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           onClick={() => { onPasteSgf(); closeViewMenuIfMobile(); }}
         >
           <span className="flex items-center gap-2"><FaPaste /> Paste SGF/OGS</span><span className="text-xs ui-text-faint">Ctrl+V</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { onScanBoard(); closeViewMenu(); }}
+        >
+          <span className="flex items-center gap-2"><FaCamera /> Photo Board</span><span className="text-xs ui-text-faint">—</span>
         </button>
         <div className="h-px bg-[var(--ui-border)] w-full" />
         <button
@@ -340,6 +349,10 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeViewMenu(); }}>
             <FaSyncAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Rotate board</span>
+          </button>
+          <button className={mobileToolsGridBtn} onClick={() => { onScanBoard(); closeViewMenu(); }}>
+            <FaCamera size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Photo Board</span>
           </button>
           <button className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeViewMenu(); }}>
             <FaRobot size={18} className={isTeachMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />

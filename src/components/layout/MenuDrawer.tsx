@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome } from 'react-icons/fa';
+import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera } from 'react-icons/fa';
 import { APP_BUILD_LABEL } from '../../utils/appInfo';
 
 interface MenuDrawerProps {
@@ -9,6 +9,7 @@ interface MenuDrawerProps {
   onNewGame: () => void;
   onSave: () => void;
   onLoad: () => void;
+  onScanBoard: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onSettings: () => void;
@@ -24,6 +25,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onNewGame,
   onSave,
   onLoad,
+  onScanBoard,
   onCopy,
   onPaste,
   onSettings,
@@ -103,6 +105,18 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 <FaFolderOpen aria-hidden="true" /> Load SGF
               </span>
               <kbd className="text-xs ui-text-faint">Ctrl+O</kbd>
+            </button>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onScanBoard();
+                onClose();
+              }}
+              aria-label="Open photo board"
+            >
+              <span className="flex items-center gap-2">
+                <FaCamera aria-hidden="true" /> Photo Board
+              </span>
             </button>
           </div>
           <div>

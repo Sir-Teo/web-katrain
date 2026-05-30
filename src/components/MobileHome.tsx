@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   FaBook,
+  FaCamera,
   FaChartLine,
   FaClipboard,
   FaCog,
@@ -22,6 +23,7 @@ interface MobileHomeProps {
   onClose: () => void;
   onNewGame: () => void;
   onOpenSgf: () => void;
+  onScanBoard: () => void;
   onPasteSgf: () => void;
   onOpenLibrary: () => void;
   onOpenReport: () => void;
@@ -72,6 +74,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   onClose,
   onNewGame,
   onOpenSgf,
+  onScanBoard,
   onPasteSgf,
   onOpenLibrary,
   onOpenReport,
@@ -124,6 +127,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             <HomeAction label="Continue Board" icon={<FaThLarge />} onClick={onClose} primary />
             <HomeAction label="New Game" icon={<FaPlay />} onClick={onNewGame} />
             <HomeAction label="Open SGF" icon={<FaFolderOpen />} onClick={onOpenSgf} />
+            <HomeAction label="Photo Board" icon={<FaCamera />} onClick={onScanBoard} />
             <HomeAction label="Paste SGF / OGS" icon={<FaClipboard />} onClick={onPasteSgf} />
             <HomeAction label="Game Library" icon={<FaBook />} onClick={onOpenLibrary} />
             <HomeAction label="Game Report" icon={<FaChartLine />} onClick={onOpenReport} />
