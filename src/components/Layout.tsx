@@ -38,6 +38,7 @@ import {
 import { PanelEdgeToggle } from './layout/ui';
 import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -1058,6 +1059,29 @@ export const Layout: React.FC = () => {
     toast(`Result: ${result}`, 'info');
   };
 
+  const gamepadStatus = useGamepadNavigation({
+    enabled:
+      settings.gamepadNavigation &&
+      !isSelectingRegionOfInterest &&
+      !isInsertMode &&
+      !isEditMode &&
+      !isSettingsOpen &&
+      !isGameAnalysisOpen &&
+      !isGameReportOpen &&
+      !isKeyboardHelpOpen &&
+      !isNewGameOpen,
+    handlers: {
+      back: mode === 'play' ? handleUndo : navigateBack,
+      forward: navigateForward,
+      backFast: () => jumpBack(10),
+      forwardFast: () => jumpForward(10),
+      start: navigateStart,
+      end: navigateEnd,
+      branchPrev: () => switchBranch(-1),
+      branchNext: () => switchBranch(1),
+    },
+  });
+
   return (
     <div
       className="relative flex flex-col h-screen h-[100dvh] overflow-hidden app-root ui-root font-sans mobile-safe-inset"
@@ -1581,6 +1605,7 @@ export const Layout: React.FC = () => {
         capturedBlack={capturedBlack}
         capturedWhite={capturedWhite}
         endResult={endResult}
+        gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
       />
     </div>
   );

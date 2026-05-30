@@ -539,6 +539,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     </div>  
                                 </div>
 
+                                <div className={sectionClass}>
+                                    <h3 className={sectionTitleClass}>Input</h3>
+                                    <div className="mt-4 space-y-4">
+                                        <div className={rowClass}>
+                                            <div>
+                                                <label className={labelClass}>Gamepad Navigation</label>
+                                                <p className={subtextClass}>
+                                                    Controller input for review navigation.
+                                                </p>
+                                            </div>
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.gamepadNavigation}
+                                                onChange={(e) => updateSettings({ gamepadNavigation: e.target.checked })}
+                                                className="toggle"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Rules Section */}  
                                 <div className={sectionClass}>  
                                     <h3 className={sectionTitleClass}>Rules</h3>  

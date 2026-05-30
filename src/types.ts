@@ -108,6 +108,7 @@ export interface GameSettings {
   boardTheme: BoardThemeId;
   uiTheme: UiThemeId;
   uiDensity: UiDensityId;
+  gamepadNavigation: boolean;
   defaultBoardSize: BoardSize;
   defaultHandicap: number;
   timerSound: boolean; // KaTrain timer/sound

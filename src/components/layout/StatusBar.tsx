@@ -12,6 +12,7 @@ interface StatusBarProps {
   capturedBlack: number;
   capturedWhite: number;
   endResult: string | null;
+  gamepadName?: string | null;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -25,6 +26,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   capturedBlack,
   capturedWhite,
   endResult,
+  gamepadName,
 }) => (
   <div className="status-bar flex flex-wrap gap-2 px-3 py-2 items-center text-xs">
     <div className="status-bar-section flex flex-wrap gap-2 items-center">
@@ -73,6 +75,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       {endResult && (
         <div className="px-2 py-1 rounded bg-[var(--ui-success-soft)] text-[var(--ui-success)] font-bold border border-[var(--ui-success)] shadow-sm">
           {endResult}
+        </div>
+      )}
+
+      {gamepadName && (
+        <div className="px-2 py-1 rounded bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border border-[var(--ui-accent)] shadow-sm hidden lg:flex max-w-[220px] truncate" title={`Gamepad navigation: ${gamepadName}`}>
+          Gamepad
         </div>
       )}
     </div>

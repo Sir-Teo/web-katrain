@@ -633,6 +633,7 @@ const defaultSettings: GameSettings = {
   boardTheme: 'hikaru',
   uiTheme: 'noir',
   uiDensity: 'comfortable',
+  gamepadNavigation: true,
   defaultBoardSize: DEFAULT_BOARD_SIZE,
   defaultHandicap: 0,
   timerSound: true,
