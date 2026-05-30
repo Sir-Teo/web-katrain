@@ -7,6 +7,7 @@ import {
   FaEraser,
   FaFont,
   FaHashtag,
+  FaRegHandPaper,
   FaPaste,
   FaRegCircle,
   FaRegSquare,
@@ -82,6 +83,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
     setEditTool,
     clearCurrentNodeAnnotations,
     clearCurrentNodeSetupStones,
+    passTurn,
     makeCurrentNodeMainBranch,
     deleteCurrentNode,
     pruneCurrentBranch,
@@ -98,6 +100,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
       setEditTool: state.setEditTool,
       clearCurrentNodeAnnotations: state.clearCurrentNodeAnnotations,
       clearCurrentNodeSetupStones: state.clearCurrentNodeSetupStones,
+      passTurn: state.passTurn,
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
       deleteCurrentNode: state.deleteCurrentNode,
       pruneCurrentBranch: state.pruneCurrentBranch,
@@ -199,6 +202,17 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
                   >
                     <FaTrash />
                     <span className="hidden sm:inline">All</span>
+                  </button>
+                )}
+                {group.title === 'Setup' && (
+                  <button
+                    type="button"
+                    className={toolButtonClass(false)}
+                    onClick={passTurn}
+                    title="Pass turn from edit mode"
+                  >
+                    <FaRegHandPaper />
+                    <span className="hidden sm:inline">Pass</span>
                   </button>
                 )}
               </div>

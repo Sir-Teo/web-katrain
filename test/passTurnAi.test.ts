@@ -7,6 +7,25 @@ describe('GameStore passTurn AI behavior', () => {
     useGameStore.getState().resetGame();
   });
 
+  it('creates and reuses a pass child from the current position', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+
+    store.passTurn();
+
+    const passNode = useGameStore.getState().currentNode;
+    expect(passNode.move).toEqual({ x: -1, y: -1, player: 'black' });
+    expect(passNode.parent?.children).toHaveLength(1);
+    expect(useGameStore.getState().currentPlayer).toBe('white');
+
+    useGameStore.getState().navigateBack();
+    useGameStore.getState().passTurn();
+
+    const afterReuse = useGameStore.getState();
+    expect(afterReuse.currentNode.id).toBe(passNode.id);
+    expect(afterReuse.currentNode.parent?.children).toHaveLength(1);
+  });
+
   it('schedules an AI move after passing into AI turn', () => {
     vi.useFakeTimers();
 
@@ -52,4 +71,3 @@ describe('GameStore passTurn AI behavior', () => {
     useGameStore.setState({ makeAiMove: originalMakeAiMove });
   });
 });
-
