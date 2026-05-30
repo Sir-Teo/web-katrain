@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
+import { getKaTrainEvalColors } from '../utils/katrainTheme';
+import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { publicUrl } from '../utils/publicUrl';
 
 const SCORE_GRANULARITY = 5;
@@ -13,6 +15,7 @@ const KATRAN_GRAPH_DOT_COLOR = 'rgb(217, 77, 77)'; // Theme.GRAPH_DOT_COLOR
 const KATRAN_GRAPH_BG_URL = publicUrl('katrain/graph_bg.png');
 const KATRAN_SCORE_MARKER_COLOR = 'rgb(51, 153, 204)'; // Theme.SCORE_MARKER_COLOR
 const KATRAN_WINRATE_MARKER_COLOR = 'rgb(13, 179, 13)'; // Theme.WINRATE_MARKER_COLOR
+const MIN_QUALITY_MARKER_LOSS = 0.5;
 
 function computeSymmetricScale(values: number[], granularity: number): number {
   const finite = values.filter((v) => Number.isFinite(v));
@@ -52,16 +55,37 @@ function lastFinite(values: number[]): number {
   return 0;
 }
 
+function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
+  const a = typeof alphaOverride === 'number' ? alphaOverride : color[3];
+  return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${a})`;
+}
+
+function formatPointLoss(pointsLost: number): string {
+  return pointsLost < 0 ? `Gain ${Math.abs(pointsLost).toFixed(1)}` : `Loss ${pointsLost.toFixed(1)}`;
+}
+
 export const ScoreWinrateGraph: React.FC<{
   showScore: boolean;
   showWinrate: boolean;
   range?: { start: number; end: number } | null;
 }> = ({ showScore, showWinrate, range = null }) => {
-  const { currentNode, activeBranchChildIds, jumpToNode, treeVersion, gameAnalysisDone } = useGameStore(
+  const {
+    currentNode,
+    activeBranchChildIds,
+    jumpToNode,
+    trainerTheme,
+    trainerEvalThresholds,
+    trainerShowDots,
+    treeVersion,
+    gameAnalysisDone,
+  } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
       activeBranchChildIds: state.activeBranchChildIds,
       jumpToNode: state.jumpToNode,
+      trainerTheme: state.settings.trainerTheme,
+      trainerEvalThresholds: state.settings.trainerEvalThresholds,
+      trainerShowDots: state.settings.trainerShowDots,
       treeVersion: state.treeVersion,
       gameAnalysisDone: state.gameAnalysisDone,
     }),
@@ -134,6 +158,32 @@ export const ScoreWinrateGraph: React.FC<{
     [winrateValues, xScale, winrateScale]
   );
 
+  const evalColors = useMemo(() => getKaTrainEvalColors(trainerTheme), [trainerTheme]);
+  const evalThresholds = trainerEvalThresholds?.length ? trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS;
+  const qualityMarkers = useMemo(() => {
+    void treeVersion;
+    void gameAnalysisDone;
+    return displayNodes
+      .map((node, index) => {
+        if (index === 0) return null;
+        const rawPointsLost = computeNodePointsLost(node);
+        if (typeof rawPointsLost !== 'number' || !Number.isFinite(rawPointsLost)) return null;
+        const pointsLost = Math.max(0, rawPointsLost);
+        if (pointsLost <= MIN_QUALITY_MARKER_LOSS) return null;
+        const cls = getEvaluationClass(pointsLost, evalThresholds, evalColors.length);
+        if (trainerShowDots?.[cls] === false) return null;
+        return {
+          index,
+          x: index * xScale,
+          y: height - 7,
+          pointsLost,
+          color: rgba(evalColors[cls]!, 0.92),
+          radius: Math.min(5, 2.2 + Math.sqrt(pointsLost) * 0.55),
+        };
+      })
+      .filter((marker): marker is NonNullable<typeof marker> => marker !== null);
+  }, [displayNodes, evalColors, evalThresholds, gameAnalysisDone, trainerShowDots, treeVersion, xScale]);
+
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -168,9 +218,15 @@ export const ScoreWinrateGraph: React.FC<{
   const hoverWinY = yWin(hoverWin);
 
   const hoverMoveIndex = hoverIndex !== null ? hoverIndex + (range?.start ?? 0) : null;
+  const hoverPointsLost = hoverIndex !== null && displayNodes[hoverIndex] ? computeNodePointsLost(displayNodes[hoverIndex]!) : null;
+  const hoverLossText =
+    typeof hoverPointsLost === 'number' && Number.isFinite(hoverPointsLost) && Math.abs(hoverPointsLost) > 0.05
+      ? formatPointLoss(hoverPointsLost)
+      : '';
+  const hoverMetricsText = `${showWinrate ? `${(50 + hoverWin).toFixed(1)}%` : ''}${showScore && showWinrate ? ' - ' : ''}${showScore ? `${hoverScore >= 0 ? 'B' : 'W'}+${Math.abs(hoverScore).toFixed(1)}` : ''}`;
   const hoverTooltip =
     hoverMoveIndex !== null
-      ? `Move ${hoverMoveIndex}: ${showWinrate ? `${(50 + hoverWin).toFixed(1)}%` : ''}${showScore && showWinrate ? ' - ' : ''}${showScore ? `${hoverScore >= 0 ? 'B' : 'W'}+${Math.abs(hoverScore).toFixed(1)}` : ''}`
+      ? [`Move ${hoverMoveIndex}`, hoverMetricsText, hoverLossText].filter(Boolean).join(' · ')
       : '';
 
   return (
@@ -205,6 +261,27 @@ export const ScoreWinrateGraph: React.FC<{
             strokeWidth="1.1"
             vectorEffect="non-scaling-stroke"
           />
+        )}
+
+        {/* Move quality markers */}
+        {qualityMarkers.length > 0 && (
+          <g aria-label="Move quality markers">
+            {qualityMarkers.map((marker) => (
+              <circle
+                key={`quality-${marker.index}`}
+                cx={marker.x}
+                cy={marker.y}
+                r={marker.radius}
+                fill={marker.color}
+                stroke="rgba(255,255,255,0.72)"
+                strokeWidth="0.7"
+                vectorEffect="non-scaling-stroke"
+                data-move-quality="true"
+              >
+                <title>{`Move ${marker.index + (range?.start ?? 0)}: ${formatPointLoss(marker.pointsLost)}`}</title>
+              </circle>
+            ))}
+          </g>
         )}
 
         {/* Current dot */}
