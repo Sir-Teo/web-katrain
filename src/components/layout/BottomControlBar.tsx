@@ -484,7 +484,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
       {/* Navigation controls */}
       <div className="flex-1 flex items-center justify-center gap-1">
         <IconButton
-          title="Previous mistake (N)"
+          title="Previous mistake (Shift+N)"
           onClick={() => findMistake('undo')}
           disabled={isInsertMode}
           className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
@@ -556,7 +556,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
 
         <IconButton
-          title="Next mistake (Shift+N)"
+          title="Next mistake (N)"
           onClick={() => findMistake('redo')}
           disabled={isInsertMode}
           className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
