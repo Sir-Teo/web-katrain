@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "vitest run",
+    "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "preview": "vite preview"
   },

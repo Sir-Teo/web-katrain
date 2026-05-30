@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BOARD_SIZE } from '../src/types';
+import { DEFAULT_BOARD_SIZE } from '../src/types';
 import { computeJapaneseManualScoreFromOwnership } from '../src/utils/manualScore';
 
 function emptyBoard() {
-  return Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
+  return Array.from({ length: DEFAULT_BOARD_SIZE }, () => Array.from({ length: DEFAULT_BOARD_SIZE }, () => null));
 }
 
 function grid(v: number) {
-  return Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => v));
+  return Array.from({ length: DEFAULT_BOARD_SIZE }, () => Array.from({ length: DEFAULT_BOARD_SIZE }, () => v));
 }
 
 describe('computeJapaneseManualScoreFromOwnership', () => {
@@ -35,4 +35,3 @@ describe('computeJapaneseManualScoreFromOwnership', () => {
     expect(score).toBe(null);
   });
 });
-

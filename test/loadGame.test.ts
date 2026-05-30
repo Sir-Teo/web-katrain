@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
-import { BOARD_SIZE } from '../src/types';
+import { DEFAULT_BOARD_SIZE } from '../src/types';
 import { parseSgf } from '../src/utils/sgf';
 
 describe('GameStore loadGame', () => {
@@ -14,7 +14,7 @@ describe('GameStore loadGame', () => {
                 { x: 3, y: 3, player: 'black' as const },
                 { x: 15, y: 15, player: 'white' as const }
             ],
-            initialBoard: Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null)),
+            initialBoard: Array(DEFAULT_BOARD_SIZE).fill(null).map(() => Array(DEFAULT_BOARD_SIZE).fill(null)),
             komi: 7.5
         };
         // Add a handicap stone manually to initialBoard

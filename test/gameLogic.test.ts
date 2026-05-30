@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { boardsEqual, getLiberties, checkCaptures } from '../src/utils/gameLogic';
-import { BOARD_SIZE, BoardState } from '../src/types';
+import { DEFAULT_BOARD_SIZE, type BoardState } from '../src/types';
 
 const createEmptyBoard = (): BoardState => {
-  return Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+  return Array(DEFAULT_BOARD_SIZE).fill(null).map(() => Array(DEFAULT_BOARD_SIZE).fill(null));
 };
 
 describe('Game Logic', () => {
