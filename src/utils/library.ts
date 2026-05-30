@@ -9,11 +9,24 @@ export type LibraryBase = {
   type: 'file' | 'folder';
 };
 
+export type LibraryFileMetadata = {
+  black?: string;
+  white?: string;
+  event?: string;
+  date?: string;
+  result?: string;
+  boardSize?: number;
+  komi?: number;
+  handicap?: number;
+  rules?: string;
+};
+
 export type LibraryFile = LibraryBase & {
   type: 'file';
   sgf: string;
   moveCount: number;
   size: number;
+  metadata: LibraryFileMetadata;
 };
 
 export type LibraryFolder = LibraryBase & {
@@ -22,51 +35,24 @@ export type LibraryFolder = LibraryBase & {
 
 export type LibraryItem = LibraryFile | LibraryFolder;
 
-const STORAGE_KEY = 'web-katrain:library:v1';
+export type LibraryBackup = {
+  version: 2;
+  exportedAt: string;
+  app: 'web-katrain';
+  items: LibraryItem[];
+};
+
+const LEGACY_STORAGE_KEY = 'web-katrain:library:v1';
+const MIGRATION_FLAG_KEY = 'web-katrain:library_migrated_to_idb:v1';
 const PRELOADED_VERSION_KEY = 'web-katrain:library_preloaded_version:v1';
 const PRELOADED_VERSION = 3;
 const PRELOADED_FOLDER_NAME = 'Famous Games';
+const DB_NAME = 'web-katrain-library';
+const DB_VERSION = 1;
+const ITEM_STORE = 'items';
+const META_STORE = 'meta';
 
-const safeParse = (raw: string | null): LibraryItem[] => {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item && typeof item === 'object')
-      .map((item) => {
-        const parentId = typeof item.parentId === 'string' ? item.parentId : null;
-        const createdAt = typeof item.createdAt === 'number' ? item.createdAt : Date.now();
-        const updatedAt = typeof item.updatedAt === 'number' ? item.updatedAt : createdAt;
-        const name = typeof item.name === 'string' ? item.name : 'Untitled';
-        const isFolder = item.type === 'folder' || typeof item.sgf !== 'string';
-        if (isFolder) {
-          return {
-            id: typeof item.id === 'string' ? item.id : createId(),
-            name,
-            createdAt,
-            updatedAt,
-            parentId,
-            type: 'folder',
-          } as LibraryFolder;
-        }
-        const sgf = typeof item.sgf === 'string' ? item.sgf : '';
-        return {
-          id: typeof item.id === 'string' ? item.id : createId(),
-          name,
-          createdAt,
-          updatedAt,
-          parentId,
-          type: 'file',
-          sgf,
-          moveCount: typeof item.moveCount === 'number' ? item.moveCount : countMoves(sgf),
-          size: typeof item.size === 'number' ? item.size : sgf.length,
-        } as LibraryFile;
-      });
-  } catch {
-    return [];
-  }
-};
+let memoryItems: LibraryItem[] | null = null;
 
 const createId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -75,10 +61,125 @@ const createId = (): string => {
   return `lib_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 };
 
+const unescapeSgfValue = (value: string): string => value.replace(/\\([\s\S])/g, '$1').trim();
+
+const readRootSgfProperties = (sgf: string): Record<string, string[]> => {
+  const start = sgf.indexOf('(;');
+  if (start < 0) return {};
+  let i = start + 2;
+  let inValue = false;
+  let escaped = false;
+  while (i < sgf.length) {
+    const ch = sgf[i]!;
+    if (escaped) {
+      escaped = false;
+    } else if (ch === '\\') {
+      escaped = true;
+    } else if (ch === '[') {
+      inValue = true;
+    } else if (ch === ']') {
+      inValue = false;
+    } else if (!inValue && (ch === ';' || ch === '(' || ch === ')')) {
+      break;
+    }
+    i++;
+  }
+
+  const root = sgf.slice(start + 2, i);
+  const props: Record<string, string[]> = {};
+  const propRe = /([A-Za-z]+)((?:\[(?:\\.|[^\]])*\])+)/g;
+  let propMatch: RegExpExecArray | null;
+  while ((propMatch = propRe.exec(root))) {
+    const key = propMatch[1]!.replace(/[a-z]/g, '');
+    const valuesRaw = propMatch[2]!;
+    const values: string[] = [];
+    const valueRe = /\[((?:\\.|[^\]])*)\]/g;
+    let valueMatch: RegExpExecArray | null;
+    while ((valueMatch = valueRe.exec(valuesRaw))) values.push(unescapeSgfValue(valueMatch[1] ?? ''));
+    if (values.length > 0) props[key] = props[key] ? props[key]!.concat(values) : values;
+  }
+  return props;
+};
+
+const numberProp = (value: string | undefined): number | undefined => {
+  if (!value) return undefined;
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+export const extractLibraryMetadata = (sgf: string): LibraryFileMetadata => {
+  const props = readRootSgfProperties(sgf);
+  return {
+    black: props.PB?.[0] || undefined,
+    white: props.PW?.[0] || undefined,
+    event: props.EV?.[0] || undefined,
+    date: props.DT?.[0] || undefined,
+    result: props.RE?.[0] || undefined,
+    boardSize: numberProp(props.SZ?.[0]),
+    komi: numberProp(props.KM?.[0]),
+    handicap: numberProp(props.HA?.[0]),
+    rules: props.RU?.[0] || undefined,
+  };
+};
+
 const countMoves = (sgf: string): number => {
   if (!sgf) return 0;
-  const matches = sgf.match(/[BW]\[/g);
+  const matches = sgf.match(/;[BW]\[/g);
   return matches ? matches.length : 0;
+};
+
+const normalizeParentId = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
+
+export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
+  if (!Array.isArray(rawItems)) return [];
+  const now = Date.now();
+  return rawItems
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => {
+      const raw = item as Record<string, unknown>;
+      const parentId = normalizeParentId(raw.parentId);
+      const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : now;
+      const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
+      const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Untitled';
+      const id = typeof raw.id === 'string' && raw.id ? raw.id : createId();
+      const isFolder = raw.type === 'folder' || typeof raw.sgf !== 'string';
+      if (isFolder) {
+        return {
+          id,
+          name,
+          createdAt,
+          updatedAt,
+          parentId,
+          type: 'folder',
+        } as LibraryFolder;
+      }
+      const sgf = typeof raw.sgf === 'string' ? raw.sgf : '';
+      const metadata = {
+        ...extractLibraryMetadata(sgf),
+        ...(raw.metadata && typeof raw.metadata === 'object' ? (raw.metadata as LibraryFileMetadata) : {}),
+      };
+      return {
+        id,
+        name,
+        createdAt,
+        updatedAt,
+        parentId,
+        type: 'file',
+        sgf,
+        moveCount: typeof raw.moveCount === 'number' && Number.isFinite(raw.moveCount) ? raw.moveCount : countMoves(sgf),
+        size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
+        metadata,
+      } as LibraryFile;
+    });
+};
+
+const safeParse = (raw: string | null): LibraryItem[] => {
+  if (!raw) return [];
+  try {
+    return normalizeLibraryItems(JSON.parse(raw));
+  } catch {
+    return [];
+  }
 };
 
 const getPreloadedVersion = (): number => {
@@ -111,17 +212,7 @@ const createPreloadedLibrary = (): LibraryItem[] => {
   };
   const items: LibraryItem[] = [folder];
   for (const game of PRELOADED_GAMES) {
-    items.push({
-      id: createId(),
-      name: game.name,
-      sgf: game.sgf,
-      createdAt: now,
-      updatedAt: now,
-      parentId: folderId,
-      type: 'file',
-      moveCount: countMoves(game.sgf),
-      size: game.sgf.length,
-    });
+    items.push(createLibraryItem(game.name, game.sgf, folderId, now));
   }
   return items;
 };
@@ -159,17 +250,7 @@ const ensurePreloadedLibrary = (items: LibraryItem[]): { items: LibraryItem[]; c
 
   for (const game of PRELOADED_GAMES) {
     if (existingNames.has(game.name)) continue;
-    nextItems.push({
-      id: createId(),
-      name: game.name,
-      sgf: game.sgf,
-      createdAt: now,
-      updatedAt: now,
-      parentId: folder.id,
-      type: 'file',
-      moveCount: countMoves(game.sgf),
-      size: game.sgf.length,
-    });
+    nextItems.push(createLibraryItem(game.name, game.sgf, folder.id, now));
     changed = true;
   }
 
@@ -177,52 +258,161 @@ const ensurePreloadedLibrary = (items: LibraryItem[]): { items: LibraryItem[]; c
   return { items: nextItems, changed };
 };
 
-export const loadLibrary = (): LibraryItem[] => {
-  if (typeof localStorage === 'undefined') return [];
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw === null) {
-    const seeded = createPreloadedLibrary();
-    if (seeded.length) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-      } catch {
-        // Ignore quota/permission errors.
+const requestToPromise = <T>(request: IDBRequest<T>): Promise<T> =>
+  new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
+  });
+
+const transactionDone = (tx: IDBTransaction): Promise<void> =>
+  new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
+  });
+
+const openLibraryDb = (): Promise<IDBDatabase> =>
+  new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB is unavailable'));
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(ITEM_STORE)) {
+        const store = db.createObjectStore(ITEM_STORE, { keyPath: 'id' });
+        store.createIndex('parentId', 'parentId', { unique: false });
+        store.createIndex('updatedAt', 'updatedAt', { unique: false });
+        store.createIndex('type', 'type', { unique: false });
       }
-    }
-    setPreloadedVersion(PRELOADED_VERSION);
-    return seeded;
+      if (!db.objectStoreNames.contains(META_STORE)) {
+        db.createObjectStore(META_STORE, { keyPath: 'key' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB'));
+  });
+
+const loadFromIndexedDb = async (): Promise<LibraryItem[]> => {
+  const db = await openLibraryDb();
+  try {
+    const tx = db.transaction(ITEM_STORE, 'readonly');
+    const result = await requestToPromise(tx.objectStore(ITEM_STORE).getAll());
+    return normalizeLibraryItems(result);
+  } finally {
+    db.close();
   }
-  const parsed = safeParse(raw);
-  const { items, changed } = ensurePreloadedLibrary(parsed);
-  if (changed) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // Ignore quota/permission errors.
-    }
-  }
-  return items;
 };
 
-export const saveLibrary = (items: LibraryItem[]): void => {
+const saveToIndexedDb = async (items: LibraryItem[]): Promise<void> => {
+  const db = await openLibraryDb();
+  try {
+    const tx = db.transaction([ITEM_STORE, META_STORE], 'readwrite');
+    const store = tx.objectStore(ITEM_STORE);
+    store.clear();
+    for (const item of normalizeLibraryItems(items)) store.put(item);
+    tx.objectStore(META_STORE).put({ key: 'updatedAt', value: Date.now() });
+    tx.objectStore(META_STORE).put({ key: 'schemaVersion', value: DB_VERSION });
+    await transactionDone(tx);
+  } finally {
+    db.close();
+  }
+};
+
+const loadFallbackLibrary = (): LibraryItem[] => {
+  if (memoryItems) return memoryItems;
+  if (typeof localStorage === 'undefined') {
+    memoryItems = createPreloadedLibrary();
+    return memoryItems;
+  }
+  const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (raw === null) {
+    memoryItems = createPreloadedLibrary();
+  } else {
+    memoryItems = safeParse(raw);
+    const ensured = ensurePreloadedLibrary(memoryItems);
+    memoryItems = ensured.items;
+  }
+  return memoryItems;
+};
+
+const saveFallbackLibrary = (items: LibraryItem[]): void => {
+  memoryItems = normalizeLibraryItems(items);
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems));
   } catch {
     // Ignore quota/permission errors.
   }
 };
 
-export const createLibraryItem = (name: string, sgf: string, parentId: string | null = null): LibraryFile => {
-  const now = Date.now();
+export const loadLibrary = async (): Promise<LibraryItem[]> => {
+  if (typeof indexedDB === 'undefined') {
+    return loadFallbackLibrary();
+  }
+
+  try {
+    let items = await loadFromIndexedDb();
+    const legacyRaw = typeof localStorage === 'undefined' ? null : localStorage.getItem(LEGACY_STORAGE_KEY);
+    const hasMigrated = typeof localStorage !== 'undefined' && localStorage.getItem(MIGRATION_FLAG_KEY) === 'true';
+
+    if (items.length === 0 && legacyRaw !== null && !hasMigrated) {
+      items = safeParse(legacyRaw);
+      const ensured = ensurePreloadedLibrary(items);
+      items = ensured.items;
+      await saveToIndexedDb(items);
+      localStorage.setItem(MIGRATION_FLAG_KEY, 'true');
+      return items;
+    }
+
+    if (items.length === 0 && legacyRaw === null) {
+      items = createPreloadedLibrary();
+      await saveToIndexedDb(items);
+      setPreloadedVersion(PRELOADED_VERSION);
+      return items;
+    }
+
+    const ensured = ensurePreloadedLibrary(items);
+    if (ensured.changed) {
+      items = ensured.items;
+      await saveToIndexedDb(items);
+    }
+    return items;
+  } catch {
+    return loadFallbackLibrary();
+  }
+};
+
+export const saveLibrary = async (items: LibraryItem[]): Promise<void> => {
+  const normalized = normalizeLibraryItems(items);
+  if (typeof indexedDB === 'undefined') {
+    saveFallbackLibrary(normalized);
+    return;
+  }
+  try {
+    await saveToIndexedDb(normalized);
+    memoryItems = normalized;
+  } catch {
+    saveFallbackLibrary(normalized);
+  }
+};
+
+export const createLibraryItem = (
+  name: string,
+  sgf: string,
+  parentId: string | null = null,
+  timestamp = Date.now()
+): LibraryFile => {
   return {
     id: createId(),
     name: name.trim() || 'Untitled',
     sgf,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: timestamp,
+    updatedAt: timestamp,
     moveCount: countMoves(sgf),
     size: sgf.length,
+    metadata: extractLibraryMetadata(sgf),
     parentId,
     type: 'file',
   };
@@ -264,4 +454,31 @@ const collectDescendants = (items: LibraryItem[], id: string): Set<string> => {
 export const deleteLibraryItem = (items: LibraryItem[], id: string): LibraryItem[] => {
   const ids = collectDescendants(items, id);
   return items.filter((item) => !ids.has(item.id));
+};
+
+export const createLibraryBackup = (items: LibraryItem[]): string => {
+  const backup: LibraryBackup = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    app: 'web-katrain',
+    items: normalizeLibraryItems(items),
+  };
+  return JSON.stringify(backup, null, 2);
+};
+
+export const parseLibraryBackup = (raw: string): LibraryItem[] => {
+  const parsed = JSON.parse(raw) as unknown;
+  if (Array.isArray(parsed)) return normalizeLibraryItems(parsed);
+  if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
+    return normalizeLibraryItems((parsed as { items: unknown }).items);
+  }
+  throw new Error('Invalid library backup');
+};
+
+export const backupLibrary = async (): Promise<string> => createLibraryBackup(await loadLibrary());
+
+export const restoreLibrary = async (raw: string): Promise<LibraryItem[]> => {
+  const items = parseLibraryBackup(raw);
+  await saveLibrary(items);
+  return items;
 };

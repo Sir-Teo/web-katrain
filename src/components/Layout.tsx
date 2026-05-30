@@ -257,6 +257,7 @@ export const Layout: React.FC = () => {
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingRight, setIsResizingRight] = useState(false);
   const [libraryVersion, setLibraryVersion] = useState(0);
+  const [recentLibraryItems, setRecentLibraryItems] = useState<LibraryFile[]>([]);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
   const fileDragCounter = useRef(0);
   const [viewportWidth, setViewportWidth] = useState(() => {
@@ -946,13 +947,24 @@ export const Layout: React.FC = () => {
     }
   };
 
-  const recentLibraryItems = useMemo<LibraryFile[]>(() => {
-    void libraryOpen;
-    void libraryVersion;
-    return loadLibrary()
-      .filter((item): item is LibraryFile => item.type === 'file')
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .slice(0, 6);
+  useEffect(() => {
+    let cancelled = false;
+    void loadLibrary()
+      .then((libraryItems) => {
+        if (cancelled) return;
+        setRecentLibraryItems(
+          libraryItems
+            .filter((item): item is LibraryFile => item.type === 'file')
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .slice(0, 6)
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setRecentLibraryItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [libraryOpen, libraryVersion]);
 
   // Keyboard shortcuts

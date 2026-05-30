@@ -8,6 +8,7 @@ import {
   FaSearch,
   FaChevronRight,
   FaDownload,
+  FaUpload,
   FaCheckSquare,
   FaSquare,
   FaPlus,
@@ -16,10 +17,12 @@ import {
   FaFileAlt,
 } from 'react-icons/fa';
 import {
+  createLibraryBackup,
   createLibraryFolder,
   createLibraryItem,
   deleteLibraryItem,
   loadLibrary,
+  restoreLibrary,
   saveLibrary,
   updateLibraryItem,
   type LibraryItem,
@@ -63,7 +66,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   onToast,
   onLibraryUpdated,
 }) => {
-  const [items, setItems] = useState<LibraryItem[]>(() => loadLibrary());
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
+  const [libraryError, setLibraryError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -89,6 +94,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragOverRoot, setDragOverRoot] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+  const didLoadLibraryRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const headerActionClass = 'panel-icon-button';
@@ -121,7 +128,46 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     return localStorage.getItem('web-katrain:library_analysis_open:v1') !== 'false';
   });
 
-  useEffect(() => saveLibrary(items), [items]);
+  useEffect(() => {
+    let cancelled = false;
+    setLibraryStatus('loading');
+    setLibraryError(null);
+    void loadLibrary()
+      .then((loaded) => {
+        if (cancelled) return;
+        didLoadLibraryRef.current = true;
+        setItems(loaded);
+        setLibraryStatus('ready');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setLibraryStatus('error');
+        setLibraryError(error instanceof Error ? error.message : 'Failed to load library.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!didLoadLibraryRef.current) return;
+    let cancelled = false;
+    setLibraryStatus('saving');
+    setLibraryError(null);
+    void saveLibrary(items)
+      .then(() => {
+        if (cancelled) return;
+        setLibraryStatus('ready');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setLibraryStatus('error');
+        setLibraryError(error instanceof Error ? error.message : 'Failed to save library.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [items]);
 
   const activeFolderId = useMemo(() => {
     if (!currentFolderId) return null;
@@ -349,6 +395,40 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast(`Exported "${item.name}".`, 'success');
   };
 
+  const handleBackupLibrary = () => {
+    try {
+      const blob = new Blob([createLibraryBackup(items)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `webkatrain-library-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      onToast('Library backup downloaded.', 'success');
+    } catch {
+      onToast('Failed to create library backup.', 'error');
+    }
+  };
+
+  const handleRestoreBackup = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const restored = await restoreLibrary(text);
+      didLoadLibraryRef.current = true;
+      setItems(restored);
+      setSelectedIds(new Set());
+      setActiveId(null);
+      setCurrentFolderId(null);
+      onToast(`Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.`, 'success');
+    } catch {
+      onToast('Failed to restore library backup.', 'error');
+    } finally {
+      if (backupInputRef.current) backupInputRef.current.value = '';
+    }
+  };
+
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -559,6 +639,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </span>
         <div className="library-tree-node-name">{item.name}</div>
         <div className="library-tree-node-meta">
+          {item.metadata.black || item.metadata.white
+            ? `${item.metadata.black ?? 'Black'} vs ${item.metadata.white ?? 'White'} · `
+            : ''}
+          {item.metadata.date ? `${item.metadata.date} · ` : ''}
           {item.moveCount} · {(item.size / 1024).toFixed(1)} KB
         </div>
         <div className="library-tree-node-actions">
@@ -765,6 +849,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <FaTimes />
           </button>
           <div className="text-sm font-semibold text-[var(--ui-text)]">Library</div>
+          <div
+            className={[
+              'hidden sm:inline-flex px-2 py-0.5 rounded border text-[10px] font-semibold uppercase tracking-wider',
+              libraryStatus === 'error'
+                ? 'ui-danger-soft text-[var(--ui-danger)] border-[var(--ui-danger)]'
+                : libraryStatus === 'saving'
+                  ? 'bg-[var(--ui-warning-soft)] text-[var(--ui-warning)] border-[var(--ui-warning)]'
+                  : 'ui-success-soft text-[var(--ui-success)] border-[var(--ui-success)]',
+            ].join(' ')}
+            title={libraryError ?? 'IndexedDB library storage'}
+          >
+            {libraryStatus === 'loading' ? 'Loading' : libraryStatus === 'saving' ? 'Saving' : libraryStatus === 'error' ? 'Error' : 'IndexedDB'}
+          </div>
           <div className="flex flex-wrap items-center gap-1 ml-auto">
             <button
               type="button"
@@ -795,6 +892,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
+              className={headerActionClass}
+              onClick={handleBackupLibrary}
+              title="Download full library backup"
+              aria-label="Download full library backup"
+            >
+              <FaDownload />
+            </button>
+            <button
+              type="button"
+              className={headerActionClass}
+              onClick={() => backupInputRef.current?.click()}
+              title="Restore library backup"
+              aria-label="Restore library backup"
+            >
+              <FaUpload />
+            </button>
+            <button
+              type="button"
               className={headerDangerActionClass}
               onClick={handleClearLibrary}
               title="Clear library"
@@ -809,6 +924,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               accept=".sgf"
               multiple
               onChange={(e) => void handleImportFiles(e.target.files)}
+              className="hidden"
+            />
+            <input
+              ref={backupInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={(e) => void handleRestoreBackup(e.target.files)}
               className="hidden"
             />
           </div>
@@ -972,6 +1094,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                       )}
                     </div>
                   )
+                ) : libraryStatus === 'loading' ? (
+                  <div className="p-6 text-sm ui-text-faint">
+                    <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Loading library</div>
+                    <div>Opening IndexedDB storage and migrating saved SGFs if needed.</div>
+                  </div>
+                ) : libraryStatus === 'error' ? (
+                  <div className="p-6 text-sm ui-text-faint">
+                    <div className="font-semibold text-[var(--ui-danger)] mb-2">Library storage error</div>
+                    <div>{libraryError ?? 'The library could not be read or saved.'}</div>
+                  </div>
                 ) : items.length === 0 ? (
                   <div className="p-6 text-sm ui-text-faint">
                     <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Library is empty</div>
