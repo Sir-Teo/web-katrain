@@ -17,6 +17,22 @@ import type { Player, Move } from '../../types';
 import { IconButton } from './ui';
 import { STONE_SIZE } from './types';
 import { publicUrl } from '../../utils/publicUrl';
+import { useShortcutLabels } from '../../hooks/useShortcutLabels';
+
+const BOTTOM_CONTROL_SHORTCUT_IDS = [
+  'pass',
+  'nav-back',
+  'nav-forward',
+  'nav-start',
+  'nav-end',
+  'nav-back-10',
+  'nav-forward-10',
+  'prev-mistake',
+  'next-mistake',
+  'rotate-board',
+] as const;
+
+type BottomControlShortcutId = (typeof BOTTOM_CONTROL_SHORTCUT_IDS)[number];
 
 interface BottomControlBarProps {
   passTurn: () => void;
@@ -73,6 +89,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const [isMoveNumberEditing, setIsMoveNumberEditing] = useState(false);
   const [moveNumberDraft, setMoveNumberDraft] = useState('');
   const skipMoveNumberBlurCommit = useRef(false);
+  const shortcutLabels = useShortcutLabels(BOTTOM_CONTROL_SHORTCUT_IDS);
+  const withShortcut = (label: string, id: BottomControlShortcutId) => `${label} (${shortcutLabels[id]})`;
 
   useEffect(() => {
     const el = passBtnRef.current;
@@ -152,7 +170,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             className="relative min-h-11 min-w-11 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[var(--ui-surface-2)] hover:brightness-110 rounded-lg text-[11px] sm:text-xs font-medium text-[var(--ui-text)] transition-colors"
             onClick={passTurn}
             aria-label="Pass turn"
-            title="Pass (P)"
+            title={withShortcut('Pass', 'pass')}
           >
             Pass
           </button>
@@ -192,7 +210,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         </div>
 
         <div className="flex-1 flex items-center justify-center gap-1">
-          <IconButton title="Back (←)" onClick={navigateBack} disabled={isInsertMode}>
+          <IconButton title={withShortcut('Back', 'nav-back')} onClick={navigateBack} disabled={isInsertMode}>
             <FaChevronLeft />
           </IconButton>
           <div className="mobile-bottom-meta px-2 py-1 rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[10px] sm:text-xs font-mono text-[var(--ui-text-muted)] flex items-center gap-1">
@@ -237,7 +255,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
               </button>
             )}
           </div>
-          <IconButton title="Forward (→)" onClick={navigateForward} disabled={isInsertMode}>
+          <IconButton title={withShortcut('Forward', 'nav-forward')} onClick={navigateForward} disabled={isInsertMode}>
             <FaChevronRight />
           </IconButton>
         </div>
@@ -442,7 +460,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           className="relative px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 rounded-lg text-sm font-medium text-[var(--ui-text)] transition-colors"
           onClick={passTurn}
           aria-label="Pass turn"
-          title="Pass (P)"
+          title={withShortcut('Pass', 'pass')}
         >
           Pass
         </button>
@@ -484,7 +502,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
       {/* Navigation controls */}
       <div className="flex-1 flex items-center justify-center gap-1">
         <IconButton
-          title="Previous mistake (Shift+N)"
+          title={withShortcut('Previous mistake', 'prev-mistake')}
           onClick={() => findMistake('undo')}
           disabled={isInsertMode}
           className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
@@ -494,13 +512,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
         <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
 
-        <IconButton title="Start (Home)" onClick={navigateStart} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Start', 'nav-start')} onClick={navigateStart} disabled={isInsertMode}>
           <FaStepBackward />
         </IconButton>
-        <IconButton title="Back 10 (Shift+←)" onClick={() => jumpBack(10)} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Back 10', 'nav-back-10')} onClick={() => jumpBack(10)} disabled={isInsertMode}>
           <FaFastBackward />
         </IconButton>
-        <IconButton title="Back (←)" onClick={navigateBack}>
+        <IconButton title={withShortcut('Back', 'nav-back')} onClick={navigateBack}>
           <FaChevronLeft />
         </IconButton>
 
@@ -543,27 +561,27 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           )}
         </div>
 
-        <IconButton title="Forward (→)" onClick={navigateForward} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Forward', 'nav-forward')} onClick={navigateForward} disabled={isInsertMode}>
           <FaChevronRight />
         </IconButton>
-        <IconButton title="Forward 10 (Shift+→)" onClick={() => jumpForward(10)} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Forward 10', 'nav-forward-10')} onClick={() => jumpForward(10)} disabled={isInsertMode}>
           <FaFastForward />
         </IconButton>
-        <IconButton title="End (End)" onClick={navigateEnd} disabled={isInsertMode}>
+        <IconButton title={withShortcut('End', 'nav-end')} onClick={navigateEnd} disabled={isInsertMode}>
           <FaStepForward />
         </IconButton>
 
         <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
 
         <IconButton
-          title="Next mistake (N)"
+          title={withShortcut('Next mistake', 'next-mistake')}
           onClick={() => findMistake('redo')}
           disabled={isInsertMode}
           className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
         >
           <FaExclamationTriangle />
         </IconButton>
-        <IconButton title="Rotate (O)" onClick={rotateBoard}>
+        <IconButton title={withShortcut('Rotate', 'rotate-board')} onClick={rotateBoard}>
           <FaSyncAlt />
         </IconButton>
       </div>
