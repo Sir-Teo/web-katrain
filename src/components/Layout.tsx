@@ -17,6 +17,7 @@ import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundTo
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { normalizeBoardSize } from '../utils/boardSize';
+import { isPhotoBoardImageFile } from '../utils/photoBoard';
 
 // Layout components
 import { MenuDrawer } from './layout/MenuDrawer';
@@ -218,6 +219,7 @@ export const Layout: React.FC = () => {
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
+  const [photoBoardInitialFile, setPhotoBoardInitialFile] = useState<File | null>(null);
   const [isPasteSgfOpen, setIsPasteSgfOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
@@ -913,6 +915,16 @@ export const Layout: React.FC = () => {
     setIsPasteSgfOpen(true);
   };
 
+  const openPhotoBoard = useCallback((file: File | null = null) => {
+    setPhotoBoardInitialFile(file);
+    setIsPhotoBoardOpen(true);
+  }, []);
+
+  const closePhotoBoard = useCallback(() => {
+    setIsPhotoBoardOpen(false);
+    setPhotoBoardInitialFile(null);
+  }, []);
+
   const handleOpenSgfFromText = async (text: string): Promise<boolean> => {
     try {
       const result = await loadSgfOrOgs(text);
@@ -940,7 +952,7 @@ export const Layout: React.FC = () => {
       const parsed = parseSgf(sgfText);
       loadGame(parsed);
       navigateStart();
-      setIsPhotoBoardOpen(false);
+      closePhotoBoard();
       toast('Imported board position.', 'success');
     } catch {
       toast('Failed to import board position.', 'error');
@@ -995,8 +1007,13 @@ export const Layout: React.FC = () => {
     setIsFileDragActive(false);
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
+    if (isPhotoBoardImageFile(file)) {
+      openPhotoBoard(file);
+      toast('Opened photo board from dropped image.', 'info');
+      return;
+    }
     if (!file.name.toLowerCase().endsWith('.sgf')) {
-      toast('Only SGF files can be opened here.', 'error');
+      toast('Drop an SGF file or board photo here.', 'error');
       return;
     }
     try {
@@ -1122,10 +1139,11 @@ export const Layout: React.FC = () => {
         {isKeyboardHelpOpen && <KeyboardHelpModal onClose={() => setIsKeyboardHelpOpen(false)} />}
         {isPhotoBoardOpen && (
           <PhotoBoardModal
-            onClose={() => setIsPhotoBoardOpen(false)}
+            onClose={closePhotoBoard}
             onImportSgf={handlePhotoBoardImport}
             defaultBoardSize={boardSize}
             defaultKomi={komi}
+            initialPhotoFile={photoBoardInitialFile}
           />
         )}
         {isPasteSgfOpen && (
@@ -1235,8 +1253,8 @@ export const Layout: React.FC = () => {
       {isFileDragActive && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
           <div className="rounded-xl border-2 border-dashed border-[var(--ui-accent)] px-6 py-4 text-center ui-panel">
-            <div className="text-sm font-semibold text-[var(--ui-accent)]">Drop SGF to open</div>
-            <div className="text-xs ui-text-faint">Release to load the game in the board.</div>
+            <div className="text-sm font-semibold text-[var(--ui-accent)]">Drop SGF or board photo</div>
+            <div className="text-xs ui-text-faint">Release to load a game or trace a photo position.</div>
           </div>
         </div>
       )}
@@ -1248,7 +1266,7 @@ export const Layout: React.FC = () => {
         onNewGame={() => setIsNewGameOpen(true)}
         onSave={() => downloadSgfFromTree(rootNode, sgfExportOptions)}
         onLoad={handleLoadClick}
-        onScanBoard={() => setIsPhotoBoardOpen(true)}
+        onScanBoard={() => openPhotoBoard()}
         onCopy={handleCopySgf}
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
@@ -1277,7 +1295,7 @@ export const Layout: React.FC = () => {
           }}
           onScanBoard={() => {
             closeMobileHome();
-            setIsPhotoBoardOpen(true);
+            openPhotoBoard();
           }}
           onPasteSgf={() => {
             closeMobileHome();
@@ -1402,7 +1420,7 @@ export const Layout: React.FC = () => {
               onOpenSidePanel={handleOpenSidePanel}
               onCopySgf={handleCopySgf}
               onPasteSgf={handlePasteSgf}
-              onScanBoard={() => setIsPhotoBoardOpen(true)}
+              onScanBoard={() => openPhotoBoard()}
               onSettings={() => setIsSettingsOpen(true)}
               onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
               winRateLabel={winRateLabel}

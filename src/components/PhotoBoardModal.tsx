@@ -9,6 +9,7 @@ interface PhotoBoardModalProps {
   onImportSgf: (sgf: string) => void;
   defaultBoardSize: BoardSize;
   defaultKomi: number;
+  initialPhotoFile?: File | null;
 }
 
 type TraceTool = Player | 'erase';
@@ -34,9 +35,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   onImportSgf,
   defaultBoardSize,
   defaultKomi,
+  initialPhotoFile = null,
 }) => {
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
+  const photoUrlRef = React.useRef<string | null>(null);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(defaultBoardSize);
   const [komi, setKomi] = React.useState(defaultKomi);
   const [nextPlayer, setNextPlayer] = React.useState<Player>('black');
@@ -47,9 +50,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   React.useEffect(() => {
     return () => {
-      if (photoUrl) URL.revokeObjectURL(photoUrl);
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
     };
-  }, [photoUrl]);
+  }, []);
 
   const counts = React.useMemo(() => {
     let black = 0;
@@ -61,12 +64,18 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     return { black, white, total: black + white };
   }, [stones]);
 
-  const choosePhoto = (file: File | undefined) => {
+  const choosePhoto = React.useCallback((file: File | undefined) => {
     if (!file) return;
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    const objectUrl = URL.createObjectURL(file);
+    photoUrlRef.current = objectUrl;
     setPhotoName(file.name || 'Camera photo');
-    setPhotoUrl(URL.createObjectURL(file));
-  };
+    setPhotoUrl(objectUrl);
+  }, []);
+
+  React.useEffect(() => {
+    choosePhoto(initialPhotoFile ?? undefined);
+  }, [choosePhoto, initialPhotoFile]);
 
   const updateBoardSize = (next: BoardSize) => {
     setBoardSize(next);

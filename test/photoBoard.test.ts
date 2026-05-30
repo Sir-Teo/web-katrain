@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPhotoBoardSetupSgf, type PhotoBoardStone } from '../src/utils/photoBoard';
+import { buildPhotoBoardSetupSgf, isPhotoBoardImageFile, type PhotoBoardStone } from '../src/utils/photoBoard';
 import { parseSgf } from '../src/utils/sgf';
 
 const emptyStones = (boardSize: number): PhotoBoardStone[] =>
@@ -48,5 +48,12 @@ describe('photo board SGF import', () => {
     expect(() => buildPhotoBoardSetupSgf({ boardSize: 13, stones: emptyStones(9) })).toThrow(
       'Expected 169 intersections'
     );
+  });
+
+  it('recognizes board photo file types for drop import', () => {
+    expect(isPhotoBoardImageFile({ name: 'board.JPG', type: '' })).toBe(true);
+    expect(isPhotoBoardImageFile({ name: 'camera-capture', type: 'image/png' })).toBe(true);
+    expect(isPhotoBoardImageFile({ name: 'game.sgf', type: 'application/x-go-sgf' })).toBe(false);
+    expect(isPhotoBoardImageFile({ name: 'archive.zip', type: 'application/zip' })).toBe(false);
   });
 });
