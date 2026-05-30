@@ -7,6 +7,7 @@ import { EditToolbar } from './EditToolbar';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
 import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
+import { clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { LibraryFile } from '../utils/library';
 import { loadLibrary } from '../utils/library';
 import { loadSgfOrOgs } from '../utils/ogs';
@@ -28,6 +29,7 @@ import { StatusBar } from './layout/StatusBar';
 import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
 import { LibraryPanel } from './LibraryPanel';
 import { MobileHome } from './MobileHome';
+import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
 import {
   type UiMode,
   type UiState,
@@ -281,6 +283,9 @@ export const Layout: React.FC = () => {
   const fileDragCounter = useRef(0);
   const cleanGameSgfRef = useRef<string | null>(null);
   const unsavedChangesResolveRef = useRef<((choice: UnsavedChangesChoice) => void) | null>(null);
+  const autoSaveRecoveryCheckedRef = useRef(false);
+  const [autoSaveRecovery, setAutoSaveRecovery] = useState<AutoSavedGame | null>(null);
+  const [autoSaveRecoveryChecked, setAutoSaveRecoveryChecked] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(() => {
     if (typeof window === 'undefined') return 1200;
     return window.innerWidth;
@@ -435,6 +440,11 @@ export const Layout: React.FC = () => {
     cleanGameSgfRef.current = sgf ?? generateCurrentSgf();
   }, [generateCurrentSgf]);
 
+  const markCurrentGameCleanAndClearAutoSave = useCallback((sgf?: string) => {
+    markCurrentGameClean(sgf);
+    clearAutoSavedGame();
+  }, [markCurrentGameClean]);
+
   useEffect(() => {
     if (cleanGameSgfRef.current === null) markCurrentGameClean();
   }, [markCurrentGameClean]);
@@ -459,11 +469,54 @@ export const Layout: React.FC = () => {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  useEffect(() => {
+    if (autoSaveRecoveryCheckedRef.current) return;
+    autoSaveRecoveryCheckedRef.current = true;
+    const snapshot = readAutoSavedGame();
+    if (snapshot && snapshot.sgf !== generateCurrentSgf()) {
+      setAutoSaveRecovery(snapshot);
+    }
+    setAutoSaveRecoveryChecked(true);
+  }, [generateCurrentSgf]);
+
+  useEffect(() => {
+    if (!autoSaveRecoveryChecked || autoSaveRecovery) return;
+    if (!hasUnsavedChanges()) {
+      clearAutoSavedGame();
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      writeAutoSavedGame(generateCurrentSgf());
+    }, 500);
+    return () => window.clearTimeout(timeout);
+  }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, treeVersion]);
+
+  const dismissAutoSaveRecovery = useCallback(() => {
+    clearAutoSavedGame();
+    setAutoSaveRecovery(null);
+  }, []);
+
+  const restoreAutoSavedGame = useCallback(() => {
+    const snapshot = autoSaveRecovery;
+    if (!snapshot) return;
+    try {
+      const parsed = parseSgf(snapshot.sgf);
+      loadGame(parsed);
+      navigateEnd();
+      setAutoSaveRecovery(null);
+      toast('Restored auto-saved game.', 'success');
+    } catch {
+      clearAutoSavedGame();
+      setAutoSaveRecovery(null);
+      toast('Failed to restore auto-saved game.', 'error');
+    }
+  }, [autoSaveRecovery, loadGame, navigateEnd, toast]);
+
   const handleSaveCurrentSgf = useCallback(() => {
     const saved = downloadSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
-    markCurrentGameClean(saved);
+    markCurrentGameCleanAndClearAutoSave(saved);
     toast('Downloaded SGF.', 'success');
-  }, [markCurrentGameClean, sgfExportOptions, toast]);
+  }, [markCurrentGameCleanAndClearAutoSave, sgfExportOptions, toast]);
 
   const confirmReplaceCurrentGame = useCallback(async (): Promise<UnsavedChangesChoice> => {
     if (!hasUnsavedChanges()) return 'discard';
@@ -941,7 +994,7 @@ export const Layout: React.FC = () => {
       const parsed = parseSgf(text);
       if (!(await prepareForGameReplacement())) return;
       loadGame(parsed);
-      markCurrentGameClean();
+      markCurrentGameCleanAndClearAutoSave();
       toast('Loaded SGF.', 'success');
     } catch {
       toast('Failed to parse SGF file.', 'error');
@@ -955,7 +1008,7 @@ export const Layout: React.FC = () => {
       const parsed = parseSgf(sgfText);
       if (!(await prepareForGameReplacement())) return false;
       loadGame(parsed);
-      markCurrentGameClean();
+      markCurrentGameCleanAndClearAutoSave();
       return true;
     } catch {
       toast('Failed to load SGF from library.', 'error');
@@ -1011,7 +1064,7 @@ export const Layout: React.FC = () => {
       if (!(await prepareForGameReplacement())) return false;
       loadGame(parsed);
       navigateEnd();
-      markCurrentGameClean();
+      markCurrentGameCleanAndClearAutoSave();
       toast(result.source === 'ogs' ? `Downloaded OGS game ${result.gameId ?? ''}.` : 'Loaded SGF.', 'success');
       return true;
     } catch {
@@ -1030,7 +1083,7 @@ export const Layout: React.FC = () => {
       if (!(await prepareForGameReplacement())) return;
       loadGame(parsed);
       navigateStart();
-      markCurrentGameClean();
+      markCurrentGameCleanAndClearAutoSave();
       closePhotoBoard();
       toast('Imported board position.', 'success');
     } catch {
@@ -1208,6 +1261,13 @@ export const Layout: React.FC = () => {
     >
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+        {autoSaveRecovery && (
+          <AutoSaveRecoveryModal
+            snapshot={autoSaveRecovery}
+            onRestore={restoreAutoSavedGame}
+            onDismiss={dismissAutoSaveRecovery}
+          />
+        )}
         {isUnsavedChangesOpen && <UnsavedChangesModal onChoice={handleUnsavedChangesChoice} />}
         {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
         {isGameReportOpen && (
@@ -1318,7 +1378,7 @@ export const Layout: React.FC = () => {
             if (after.isAiPlaying && after.aiColor === after.currentPlayer) {
               window.setTimeout(() => after.makeAiMove(), 0);
             }
-            markCurrentGameClean();
+            markCurrentGameCleanAndClearAutoSave();
             setIsNewGameOpen(false);
           }}
             defaultKomi={komi}
@@ -1416,7 +1476,7 @@ export const Layout: React.FC = () => {
           isMobile={isMobile}
           onOpenRecent={handleOpenRecent}
           onLibraryUpdated={handleLibraryUpdated}
-          onCurrentSaved={markCurrentGameClean}
+          onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
           isAnalysisRunning={isGameAnalysisRunning}
           onStopAnalysis={stopGameAnalysis}
           analysisContent={
