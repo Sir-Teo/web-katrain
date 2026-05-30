@@ -8,6 +8,7 @@ import {
   duplicateLibraryItems,
   extractLibraryMetadata,
   formatLibrarySize,
+  getLibraryFolderOptions,
   getLibraryStats,
   librarySgfDownloadFilename,
   normalizeLibraryItems,
@@ -153,5 +154,20 @@ describe('library storage helpers', () => {
     expect(formatLibrarySize(0)).toBe('0 B');
     expect(formatLibrarySize(1536)).toBe('1.5 KB');
     expect(formatLibrarySize(12 * 1024 * 1024)).toBe('12 MB');
+  });
+
+  it('builds stable nested folder picker options', () => {
+    const games = { ...createLibraryFolder('Games', null), id: 'games', createdAt: 2 };
+    const archives = { ...createLibraryFolder('Archives', null), id: 'archives', createdAt: 1 };
+    const year = { ...createLibraryFolder('2026', games.id), id: 'year', createdAt: 3 };
+    const orphan = { ...createLibraryFolder('Orphan', 'missing'), id: 'orphan', createdAt: 4 };
+    const file = createLibraryItem('Game', sgf, games.id);
+
+    expect(getLibraryFolderOptions([file, games, archives, year, orphan])).toEqual([
+      { id: 'archives', name: 'Archives', depth: 0 },
+      { id: 'games', name: 'Games', depth: 0 },
+      { id: 'year', name: '2026', depth: 1 },
+      { id: 'orphan', name: 'Orphan', depth: 0 },
+    ]);
   });
 });

@@ -55,6 +55,12 @@ export type LibraryStats = {
   size: number;
 };
 
+export type LibraryFolderOption = {
+  id: string;
+  name: string;
+  depth: number;
+};
+
 const LEGACY_STORAGE_KEY = 'web-katrain:library:v1';
 const MIGRATION_FLAG_KEY = 'web-katrain:library_migrated_to_idb:v1';
 const PRELOADED_VERSION_KEY = 'web-katrain:library_preloaded_version:v1';
@@ -183,6 +189,44 @@ export const getLibraryStats = (items: LibraryItem[]): LibraryStats =>
     },
     { files: 0, folders: 0, size: 0 }
   );
+
+export const getLibraryFolderOptions = (items: LibraryItem[]): LibraryFolderOption[] => {
+  const folders = items.filter((item): item is LibraryFolder => item.type === 'folder');
+  const folderIds = new Set(folders.map((folder) => folder.id));
+  const childrenByParent = new Map<string | null, LibraryFolder[]>();
+
+  for (const folder of folders) {
+    const parentId = folder.parentId && folderIds.has(folder.parentId) ? folder.parentId : null;
+    const siblings = childrenByParent.get(parentId) ?? [];
+    siblings.push(folder);
+    childrenByParent.set(parentId, siblings);
+  }
+
+  for (const siblings of childrenByParent.values()) {
+    siblings.sort((a, b) => a.name.localeCompare(b.name) || a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+  }
+
+  const options: LibraryFolderOption[] = [];
+  const visited = new Set<string>();
+  const walk = (parentId: string | null, depth: number) => {
+    const children = childrenByParent.get(parentId) ?? [];
+    for (const child of children) {
+      if (visited.has(child.id)) continue;
+      visited.add(child.id);
+      options.push({ id: child.id, name: child.name, depth });
+      walk(child.id, depth + 1);
+    }
+  };
+
+  walk(null, 0);
+  for (const folder of folders) {
+    if (visited.has(folder.id)) continue;
+    visited.add(folder.id);
+    options.push({ id: folder.id, name: folder.name, depth: 0 });
+    walk(folder.id, 1);
+  }
+  return options;
+};
 
 export const formatLibrarySize = (bytes: number): string => {
   const normalized = Math.max(0, Number.isFinite(bytes) ? bytes : 0);

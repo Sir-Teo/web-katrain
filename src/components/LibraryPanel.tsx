@@ -27,6 +27,7 @@ import {
   duplicateLibraryItem,
   duplicateLibraryItems,
   formatLibrarySize,
+  getLibraryFolderOptions,
   getLibraryStats,
   librarySgfDownloadFilename,
   loadLibrary,
@@ -69,7 +70,13 @@ type LibraryTextDialogState = {
   initialValue: string;
   placeholder?: string;
   confirmLabel: string;
-  onSubmit: (value: string) => void;
+  folderSelect?: {
+    label: string;
+    rootLabel: string;
+    initialFolderId: string | null;
+    options: Array<{ id: string; name: string; depth: number }>;
+  };
+  onSubmit: (value: string, folderId?: string | null) => void;
 };
 
 type LibraryConfirmDialogState = {
@@ -91,6 +98,7 @@ const LibraryTextDialog: React.FC<{
   onClose: () => void;
 }> = ({ dialog, onClose }) => {
   const [value, setValue] = useState(dialog.initialValue);
+  const [folderId, setFolderId] = useState<string | null>(dialog.folderSelect?.initialFolderId ?? null);
   const inputRef = useRef<HTMLInputElement>(null);
   const trimmed = value.trim();
 
@@ -101,7 +109,7 @@ const LibraryTextDialog: React.FC<{
 
   const submit = () => {
     if (!trimmed) return;
-    dialog.onSubmit(trimmed);
+    dialog.onSubmit(trimmed, dialog.folderSelect ? folderId : undefined);
     onClose();
   };
 
@@ -137,6 +145,27 @@ const LibraryTextDialog: React.FC<{
               className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none"
             />
           </label>
+          {dialog.folderSelect && (
+            <label className="block space-y-1">
+              <span className="text-sm font-medium text-[var(--ui-text-muted)]">{dialog.folderSelect.label}</span>
+              <select
+                value={folderId ?? ''}
+                onChange={(e) => setFolderId(e.target.value || null)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Escape') onClose();
+                }}
+                className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none"
+              >
+                <option value="">{dialog.folderSelect.rootLabel}</option>
+                {dialog.folderSelect.options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {`${'-- '.repeat(option.depth)}${option.name}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="flex justify-end gap-2">
             <button type="button" className="panel-action-button" onClick={onClose}>
               Cancel
@@ -447,9 +476,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [filteredItems, sortKey]);
 
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
+  const folderOptions = useMemo(() => getLibraryFolderOptions(items), [items]);
   const currentFolder = folderItems.find((folder) => folder.id === activeFolderId) ?? null;
   const currentFolderName = currentFolder?.name ?? 'Root';
   const libraryStats = useMemo(() => getLibraryStats(items), [items]);
+  const canSaveCurrentToLibrary = libraryStatus !== 'loading' && libraryStatus !== 'error';
   const libraryStatsText = [
     `${libraryStats.files} game${libraryStats.files === 1 ? '' : 's'}`,
     `${libraryStats.folders} folder${libraryStats.folders === 1 ? '' : 's'}`,
@@ -559,6 +590,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleSaveCurrent = () => {
+    if (!canSaveCurrentToLibrary) {
+      onToast(
+        libraryStatus === 'loading' ? 'Library is still loading.' : 'Library storage is unavailable.',
+        libraryStatus === 'loading' ? 'info' : 'error'
+      );
+      return;
+    }
     const sgf = getCurrentSgf();
     if (!sgf.trim()) {
       onToast('Nothing to save yet.', 'info');
@@ -570,8 +608,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       initialValue: suggestLibraryItemNameFromSgf(sgf, `Game ${items.length + 1}`),
       placeholder: 'Game name',
       confirmLabel: 'Save',
-      onSubmit: (name) => {
-        const newItem = createLibraryItem(name, sgf, activeFolderId);
+      folderSelect: {
+        label: 'Save to folder',
+        rootLabel: 'Root',
+        initialFolderId: currentFolder?.id ?? null,
+        options: folderOptions,
+      },
+      onSubmit: (name, targetFolderId) => {
+        const newItem = createLibraryItem(name, sgf, targetFolderId ?? null);
         setItems((prev) => [newItem, ...prev]);
         setActiveId(newItem.id);
         onCurrentSaved?.();
@@ -1416,7 +1460,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               type="button"
               className={headerActionClass}
               onClick={handleSaveCurrent}
-              title="Save current game to Library"
+              disabled={!canSaveCurrentToLibrary}
+              title={canSaveCurrentToLibrary ? 'Save current game to Library' : 'Library is not ready'}
               aria-label="Save current game to Library"
             >
               <FaSave />
