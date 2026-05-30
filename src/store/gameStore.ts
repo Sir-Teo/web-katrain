@@ -288,6 +288,19 @@ const collectNodesInTree = (root: GameNode): GameNode[] => {
   return out;
 };
 
+const nodeMoveIndex = (node: GameNode): number => node.gameState.moveHistory.length - 1;
+
+const nodeIsInMoveRange = (node: GameNode, moveRange: [number, number] | null): boolean => {
+  if (!moveRange) return true;
+  const moveIndex = nodeMoveIndex(node);
+  return moveIndex >= moveRange[0] && moveIndex <= moveRange[1];
+};
+
+const nodeIsParentOfMoveInRange = (node: GameNode, moveRange: [number, number] | null): boolean => {
+  if (!moveRange) return false;
+  return node.children.some((child) => nodeIsInMoveRange(child, moveRange));
+};
+
 const computePointsLostForNode = (node: GameNode): number | null => {
   const move = node.move;
   const parent = node.parent;
@@ -300,6 +313,29 @@ const computePointsLostForNode = (node: GameNode): number | null => {
     return sign * (parentScore - childScore);
   }
   return null;
+};
+
+const nodeHasMistakeContext = (node: GameNode, mistakesThreshold: number): boolean => {
+  let maxLoss = Math.max(0, computePointsLostForNode(node) ?? 0);
+  for (const child of node.children) {
+    maxLoss = Math.max(maxLoss, Math.max(0, computePointsLostForNode(child) ?? 0));
+  }
+  return maxLoss > mistakesThreshold;
+};
+
+export const selectFullGameAnalysisNodes = (args: {
+  rootNode: GameNode;
+  moveRange: [number, number] | null;
+  mistakesOnly: boolean;
+  mistakesThreshold: number;
+}): GameNode[] => {
+  return collectNodesInTree(args.rootNode).filter((node) => {
+    if (args.moveRange && !nodeIsInMoveRange(node, args.moveRange) && !nodeIsParentOfMoveInRange(node, args.moveRange)) {
+      return false;
+    }
+    if (args.mistakesOnly && !nodeHasMistakeContext(node, args.mistakesThreshold)) return false;
+    return true;
+  });
 };
 
 const normalizeRegionOfInterest = (roi: RegionOfInterest | null, boardSize: number): RegionOfInterest | null => {
@@ -1214,7 +1250,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       : null;
     const mistakesOnly = opts.mistakesOnly === true;
 
-    const nodes = collectNodesInTree(state.rootNode);
+    const thresholds = state.settings.trainerEvalThresholds?.length ? state.settings.trainerEvalThresholds : [12, 6, 3, 1.5, 0.5, 0];
+    const mistakesThreshold =
+      thresholds.length >= 4 ? thresholds[thresholds.length - 4]! : 3;
+    const nodes = selectFullGameAnalysisNodes({
+      rootNode: state.rootNode,
+      moveRange,
+      mistakesOnly,
+      mistakesThreshold,
+    });
     const total = nodes.length;
     if (total <= 1) {
       set({ isGameAnalysisRunning: false, gameAnalysisType: null, gameAnalysisDone: 0, gameAnalysisTotal: total });
@@ -1227,10 +1271,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let done = 0;
       let lastUiUpdate = performance.now();
       let metaSynced = false;
-
-      const thresholds = get().settings.trainerEvalThresholds?.length ? get().settings.trainerEvalThresholds : [12, 6, 3, 1.5, 0.5, 0];
-      const mistakesThreshold =
-        thresholds.length >= 4 ? thresholds[thresholds.length - 4]! : 3;
 
       for (const node of nodes) {
         if (token !== gameAnalysisToken) return;
@@ -1245,24 +1285,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           await sleep(50);
         }
 
-        const moveIndex = node.gameState.moveHistory.length - 1;
-        if (moveRange && !(moveIndex >= moveRange[0] && moveIndex <= moveRange[1])) {
-          done++;
-          continue;
-        }
-
-        if (mistakesOnly) {
-          let maxLoss = Math.max(0, computePointsLostForNode(node) ?? 0);
-          for (const child of node.children) {
-            maxLoss = Math.max(maxLoss, Math.max(0, computePointsLostForNode(child) ?? 0));
-          }
-          if (maxLoss <= mistakesThreshold) {
-            done++;
-            continue;
-          }
-        }
-
-        const already = node.analysis && nodeAnalysisVisitCount(node) >= visits;
+        const already = node.analysis && node.analysis.moves.length > 0 && nodeAnalysisVisitCount(node) >= visits;
         if (!already) {
           try {
             const s = get();
