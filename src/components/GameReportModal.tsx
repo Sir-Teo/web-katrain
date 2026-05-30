@@ -40,6 +40,7 @@ function fmtNum(x: number | undefined, digits = 2): string {
 export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setReportHoverMove }) => {
   const {
     currentNode,
+    activeBranchChildIds,
     trainerEvalThresholds,
     treeVersion,
     jumpToNode,
@@ -50,6 +51,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
+      activeBranchChildIds: state.activeBranchChildIds,
       trainerEvalThresholds: state.settings.trainerEvalThresholds,
       treeVersion: state.treeVersion,
       jumpToNode: state.jumpToNode,
@@ -248,8 +250,16 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     void gameAnalysisDone;
     void gameAnalysisTotal;
     const thresholds = trainerEvalThresholds?.length ? trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS;
-    return computeGameReport({ currentNode, thresholds, phaseFilter });
-  }, [currentNode, phaseFilter, trainerEvalThresholds, treeVersion, gameAnalysisDone, gameAnalysisTotal]);
+    return computeGameReport({ currentNode, thresholds, activeBranchChildIds, phaseFilter });
+  }, [
+    activeBranchChildIds,
+    currentNode,
+    phaseFilter,
+    trainerEvalThresholds,
+    treeVersion,
+    gameAnalysisDone,
+    gameAnalysisTotal,
+  ]);
 
   const analyzedMoves = report.stats.black.numMoves + report.stats.white.numMoves;
   const totalMoves = report.movesInFilter;

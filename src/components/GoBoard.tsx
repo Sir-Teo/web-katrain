@@ -13,6 +13,7 @@ import {
   getWheelNavigationAction,
   WHEEL_NAVIGATION_THROTTLE_MS,
 } from '../utils/wheelNavigation';
+import { getActiveChild } from '../utils/branchNavigation';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -143,6 +144,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     currentPlayer,
     settings,
     currentNode,
+    activeBranchChildIds,
     boardRotation,
     regionOfInterest,
     isSelectingRegionOfInterest,
@@ -167,6 +169,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       currentPlayer: state.currentPlayer,
       settings: state.settings,
       currentNode: state.currentNode,
+      activeBranchChildIds: state.activeBranchChildIds,
       boardRotation: state.boardRotation,
       regionOfInterest: state.regionOfInterest,
       isSelectingRegionOfInterest: state.isSelectingRegionOfInterest,
@@ -966,7 +969,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
 
     if (settings.showNextMovePreview) {
-      const nextMove = currentNode.children[0]?.move;
+      const nextMove = getActiveChild(currentNode, activeBranchChildIds)?.move;
       if (nextMove && nextMove.x >= 0 && nextMove.y >= 0 && !board[nextMove.y]?.[nextMove.x]) {
         drawGhost(nextMove.x, nextMove.y, nextMove.player, 0.35);
       }
@@ -990,6 +993,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     toDisplay,
     boardTheme,
     currentNode,
+    activeBranchChildIds,
     settings.showNextMovePreview,
     scoringMode,
   ]);

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
+import { parseSgf } from '../src/utils/sgf';
 import { computeGameReport, getMovePhase, getPhaseThresholds, getPointLossBucket } from '../src/utils/gameReport';
 import type { AnalysisResult, CandidateMove } from '../src/types';
 
@@ -172,6 +173,55 @@ describe('computeGameReport', () => {
     expect(report.stats.black.numMoves).toBe(0);
     expect(report.stats.white.numMoves).toBe(0);
     expect(report.moveEntries).toHaveLength(0);
+  });
+
+  it('uses active branch preferences for report line totals', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+
+    store.loadGame(parseSgf('(;GM[1]SZ[9];B[dd](;W[ee];B[ff])(;W[cc];B[bb])(;W[gg];B[hh]))'));
+    store.navigateEnd();
+    store.switchToBranchIndex(3);
+
+    const state = useGameStore.getState();
+    const root = state.rootNode;
+    const black = root.children[0]!;
+    const whiteBranch = black.children[2]!;
+    const blackBranch = whiteBranch.children[0]!;
+
+    root.analysis = analysis({
+      rootScoreLead: 0,
+      rootWinRate: 0.5,
+      boardSize: 9,
+      moves: [{ x: 3, y: 3, winRate: 0.5, scoreLead: 0, visits: 100, pointsLost: 0, order: 0, prior: 1 }],
+    });
+    black.analysis = analysis({
+      rootScoreLead: -1,
+      rootWinRate: 0.5,
+      boardSize: 9,
+      moves: [{ x: 6, y: 6, winRate: 0.5, scoreLead: -1, visits: 100, pointsLost: 0, order: 0, prior: 1 }],
+    });
+    whiteBranch.analysis = analysis({
+      rootScoreLead: -1,
+      rootWinRate: 0.5,
+      boardSize: 9,
+      moves: [{ x: 7, y: 7, winRate: 0.5, scoreLead: -1, visits: 100, pointsLost: 0, order: 0, prior: 1 }],
+    });
+    blackBranch.analysis = analysis({
+      rootScoreLead: -2,
+      rootWinRate: 0.5,
+      rootVisits: 100,
+      boardSize: 9,
+    });
+
+    const report = computeGameReport({
+      currentNode: root,
+      activeBranchChildIds: state.activeBranchChildIds,
+      thresholds: [12, 6, 3, 1.5, 0.5, 0],
+    });
+
+    expect(report.movesInFilter).toBe(3);
+    expect(report.moveEntries.map((entry) => entry.move)).toEqual(['D6', 'G3', 'H2']);
   });
 
   it('skips mixed parent MCTS and child quick evals', () => {

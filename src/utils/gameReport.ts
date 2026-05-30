@@ -1,4 +1,5 @@
 import type { CandidateMove, GameNode, Player } from '../types';
+import { getCurrentLineNodes, type ActiveBranchMap } from './branchNavigation';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
 const OPENING_BOARD_AREA_FRACTION = 0.16;
@@ -94,21 +95,8 @@ function xyToGtp(x: number, y: number, boardSize: number): string {
   return `${letter}${boardSize - y}`;
 }
 
-function nodesForCurrentBranch(currentNode: GameNode): GameNode[] {
-  const path: GameNode[] = [];
-  let cursor: GameNode | null = currentNode;
-  while (cursor) {
-    path.push(cursor);
-    cursor = cursor.parent;
-  }
-  path.reverse();
-
-  cursor = currentNode;
-  while (cursor.children.length > 0) {
-    cursor = cursor.children[0]!;
-    path.push(cursor);
-  }
-  return path;
+function nodesForCurrentBranch(currentNode: GameNode, activeBranchChildIds: ActiveBranchMap = {}): GameNode[] {
+  return getCurrentLineNodes(currentNode, activeBranchChildIds);
 }
 
 export type PlayerReportStats = {
@@ -148,6 +136,7 @@ export type GameReport = {
 export function computeGameReport(args: {
   currentNode: GameNode;
   thresholds: number[];
+  activeBranchChildIds?: ActiveBranchMap;
   depthFilter?: [number, number] | null;
   phaseFilter?: GameReportPhaseFilter;
 }): GameReport {
@@ -173,7 +162,7 @@ export function computeGameReport(args: {
   const moveEntries: MoveReportEntry[] = [];
   let movesInFilter = 0;
 
-  const seq = nodesForCurrentBranch(args.currentNode);
+  const seq = nodesForCurrentBranch(args.currentNode, args.activeBranchChildIds);
   for (let depth = 0; depth < seq.length; depth++) {
     const n = seq[depth]!;
     const move = n.move;

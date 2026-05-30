@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import type { GameNode } from '../types';
+import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { publicUrl } from '../utils/publicUrl';
 
 const SCORE_GRANULARITY = 5;
@@ -57,9 +57,10 @@ export const ScoreWinrateGraph: React.FC<{
   showWinrate: boolean;
   range?: { start: number; end: number } | null;
 }> = ({ showScore, showWinrate, range = null }) => {
-  const { currentNode, jumpToNode, treeVersion, gameAnalysisDone } = useGameStore(
+  const { currentNode, activeBranchChildIds, jumpToNode, treeVersion, gameAnalysisDone } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
+      activeBranchChildIds: state.activeBranchChildIds,
       jumpToNode: state.jumpToNode,
       treeVersion: state.treeVersion,
       gameAnalysisDone: state.gameAnalysisDone,
@@ -73,23 +74,11 @@ export const ScoreWinrateGraph: React.FC<{
   const { nodes, highlightedIndex } = useMemo(() => {
     void treeVersion;
     void gameAnalysisDone;
-    const path: GameNode[] = [];
-    let node: GameNode | null = currentNode;
-    while (node) {
-      path.push(node);
-      node = node.parent;
-    }
-    path.reverse(); // [Root..Current]
+    const lineNodes = getCurrentLineNodes(currentNode, activeBranchChildIds);
+    const currentIndex = lineNodes.findIndex((node) => node.id === currentNode.id);
 
-    const out: GameNode[] = [...path];
-    let cursor: GameNode = currentNode;
-    while (cursor.children.length > 0) {
-      cursor = cursor.children[0]!;
-      out.push(cursor);
-    }
-
-    return { nodes: out, highlightedIndex: Math.max(0, path.length - 1) };
-  }, [currentNode, treeVersion, gameAnalysisDone]);
+    return { nodes: lineNodes, highlightedIndex: Math.max(0, currentIndex) };
+  }, [activeBranchChildIds, currentNode, treeVersion, gameAnalysisDone]);
 
   const { displayNodes, highlighted } = useMemo(() => {
     if (nodes.length === 0) return { displayNodes: nodes, highlighted: 0 };
