@@ -81,6 +81,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
     toggleEditMode,
     setEditTool,
     clearCurrentNodeAnnotations,
+    clearCurrentNodeSetupStones,
     makeCurrentNodeMainBranch,
     deleteCurrentNode,
     pruneCurrentBranch,
@@ -96,6 +97,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
       toggleEditMode: state.toggleEditMode,
       setEditTool: state.setEditTool,
       clearCurrentNodeAnnotations: state.clearCurrentNodeAnnotations,
+      clearCurrentNodeSetupStones: state.clearCurrentNodeSetupStones,
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
       deleteCurrentNode: state.deleteCurrentNode,
       pruneCurrentBranch: state.pruneCurrentBranch,
@@ -187,6 +189,18 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
                     <span className="hidden sm:inline">{item.label}</span>
                   </button>
                 ))}
+                {group.title === 'Setup' && (
+                  <button
+                    type="button"
+                    className={[toolButtonClass(false), setupCount === 0 ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                    onClick={clearCurrentNodeSetupStones}
+                    disabled={setupCount === 0}
+                    title="Clear setup stones on this node"
+                  >
+                    <FaTrash />
+                    <span className="hidden sm:inline">All</span>
+                  </button>
+                )}
               </div>
             ))}
             <div className="flex items-center gap-1.5 pr-2 border-r border-[var(--ui-border)] max-sm:w-full max-sm:border-r-0 max-sm:border-b max-sm:pb-2">

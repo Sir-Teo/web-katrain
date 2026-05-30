@@ -124,6 +124,7 @@ interface GameStore extends GameState {
   toggleEditMode: () => void;
   setEditTool: (tool: EditTool) => void;
   applyEditTool: (x: number, y: number) => void;
+  clearCurrentNodeSetupStones: () => void;
   applySetupStones: (stones: Array<{ x: number; y: number; player: Player | null }>) => number;
   clearCurrentNodeAnnotations: () => void;
   selfplayToEnd: () => void;
@@ -493,6 +494,15 @@ const removeValue = (props: Record<string, string[]>, key: string, shouldRemove:
 
 const removeSetupCoord = (props: Record<string, string[]>, coord: string): void => {
   for (const key of SETUP_PROPERTIES) removeValue(props, key, (value) => value === coord);
+};
+
+const removeSetupProperties = (props: Record<string, string[]>): number => {
+  let removed = 0;
+  for (const key of SETUP_PROPERTIES) {
+    removed += props[key]?.length ?? 0;
+    delete props[key];
+  }
+  return removed;
 };
 
 const removeMarkupCoord = (props: Record<string, string[]>, coord: string): void => {
@@ -1302,6 +1312,45 @@ export const useGameStore = create<GameStore>((set, get) => ({
         analysisData: null,
         treeVersion: state.treeVersion + 1,
         notification: { message: `Edited ${setupWord}.${summary}`, type: pruned > 0 ? 'success' : 'info' },
+      };
+    }),
+
+  clearCurrentNodeSetupStones: () => set((state) => {
+      const node = state.currentNode;
+      const props = ensureNodeProperties(node);
+      const removed = removeSetupProperties(props);
+      if (removed === 0) return {};
+
+      if (node.parent) {
+        const rebuilt = replayChildMove(node.parent, node);
+        if (rebuilt) node.gameState = rebuilt;
+      } else {
+        const boardSize = getBoardSizeFromBoard(node.gameState.board);
+        const board = createEmptyBoard(boardSize);
+        const handicap = Number.parseInt(props.HA?.[0] ?? '0', 10);
+        const safeHandicap = Number.isFinite(handicap) ? Math.max(0, Math.min(handicap, getMaxHandicap(boardSize))) : 0;
+        if (safeHandicap > 0) applyHandicapStones(board, boardSize, safeHandicap);
+        node.gameState = {
+          ...node.gameState,
+          board,
+        };
+      }
+
+      node.analysis = null;
+      node.analysisVisitsRequested = 0;
+      clearAnalysisInSubtree(node);
+      const pruned = rebuildDescendants(node);
+      const summary = pruned > 0 ? ` ${pruned} descendant ${pruned === 1 ? 'node was' : 'nodes were'} pruned.` : '';
+      return {
+        currentNode: node,
+        board: node.gameState.board,
+        currentPlayer: node.gameState.currentPlayer,
+        moveHistory: node.gameState.moveHistory,
+        capturedBlack: node.gameState.capturedBlack,
+        capturedWhite: node.gameState.capturedWhite,
+        analysisData: null,
+        treeVersion: state.treeVersion + 1,
+        notification: { message: `Cleared ${removed} setup stone${removed === 1 ? '' : 's'}.${summary}`, type: pruned > 0 ? 'success' : 'info' },
       };
     }),
 

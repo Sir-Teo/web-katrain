@@ -338,6 +338,12 @@ describe('GameStore loadGame', () => {
         expect(state.rootNode.properties?.AW).toEqual(['cc']);
         expect(state.rootNode.children).toHaveLength(0);
         expect(state.notification?.message).toContain('1 descendant node was pruned');
+
+        useGameStore.getState().clearCurrentNodeSetupStones();
+        const cleared = useGameStore.getState();
+        expect(cleared.rootNode.gameState.board[2]?.[2]).toBeNull();
+        expect(cleared.rootNode.properties?.AW).toBeUndefined();
+        expect(cleared.notification?.message).toContain('Cleared 1 setup stone');
     });
 
     it('applies photo board setup stones in one batch edit', () => {
