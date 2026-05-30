@@ -26,6 +26,8 @@ import {
   deleteLibraryItem,
   duplicateLibraryItem,
   duplicateLibraryItems,
+  formatLibrarySize,
+  getLibraryStats,
   loadLibrary,
   restoreLibrary,
   saveLibrary,
@@ -445,6 +447,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
   const currentFolder = folderItems.find((folder) => folder.id === activeFolderId) ?? null;
   const currentFolderName = currentFolder?.name ?? 'Root';
+  const libraryStats = useMemo(() => getLibraryStats(items), [items]);
+  const libraryStatsText = [
+    `${libraryStats.files} game${libraryStats.files === 1 ? '' : 's'}`,
+    `${libraryStats.folders} folder${libraryStats.folders === 1 ? '' : 's'}`,
+    formatLibrarySize(libraryStats.size),
+  ].join(' · ');
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const parentById = useMemo(() => {
     const map = new Map<string, string | null>();
@@ -1672,6 +1680,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 )}
               </div>
+              {items.length > 0 && (
+                <div className="library-stats" aria-label="Library totals">
+                  {libraryStatsText}
+                </div>
+              )}
                 </>
               ),
             })}

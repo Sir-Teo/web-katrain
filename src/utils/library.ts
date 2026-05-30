@@ -48,6 +48,12 @@ export type DuplicateLibraryItemResult = {
   duplicatedIds: string[];
 };
 
+export type LibraryStats = {
+  files: number;
+  folders: number;
+  size: number;
+};
+
 const LEGACY_STORAGE_KEY = 'web-katrain:library:v1';
 const MIGRATION_FLAG_KEY = 'web-katrain:library_migrated_to_idb:v1';
 const PRELOADED_VERSION_KEY = 'web-katrain:library_preloaded_version:v1';
@@ -126,6 +132,33 @@ export const extractLibraryMetadata = (sgf: string): LibraryFileMetadata => {
     handicap: numberProp(props.HA?.[0]),
     rules: props.RU?.[0] || undefined,
   };
+};
+
+export const getLibraryStats = (items: LibraryItem[]): LibraryStats =>
+  items.reduce<LibraryStats>(
+    (stats, item) => {
+      if (item.type === 'folder') {
+        stats.folders += 1;
+      } else {
+        stats.files += 1;
+        stats.size += item.size;
+      }
+      return stats;
+    },
+    { files: 0, folders: 0, size: 0 }
+  );
+
+export const formatLibrarySize = (bytes: number): string => {
+  const normalized = Math.max(0, Number.isFinite(bytes) ? bytes : 0);
+  if (normalized < 1024) return `${normalized} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = normalized / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
 };
 
 const countMoves = (sgf: string): number => {

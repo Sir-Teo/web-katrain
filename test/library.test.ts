@@ -7,6 +7,8 @@ import {
   duplicateLibraryItem,
   duplicateLibraryItems,
   extractLibraryMetadata,
+  formatLibrarySize,
+  getLibraryStats,
   normalizeLibraryItems,
   parseLibraryBackup,
 } from '../src/utils/library';
@@ -125,5 +127,20 @@ describe('library storage helpers', () => {
 
     expect(result.duplicatedIds).toHaveLength(2);
     expect(result.items.map((item) => item.name)).toEqual(['Second (copy)', 'First (copy)', 'First', 'Second']);
+  });
+
+  it('summarizes total library files, folders, and stored size', () => {
+    const folder = createLibraryFolder('Folder', null);
+    const first = createLibraryItem('First', sgf, folder.id);
+    const second = createLibraryItem('Second', '(;GM[1]SZ[9];B[dd])', null);
+
+    expect(getLibraryStats([folder, first, second])).toEqual({
+      files: 2,
+      folders: 1,
+      size: first.size + second.size,
+    });
+    expect(formatLibrarySize(0)).toBe('0 B');
+    expect(formatLibrarySize(1536)).toBe('1.5 KB');
+    expect(formatLibrarySize(12 * 1024 * 1024)).toBe('12 MB');
   });
 });
