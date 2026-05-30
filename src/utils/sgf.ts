@@ -203,6 +203,62 @@ export const coordinateToSgf = (x: number, y: number): string => {
   return xChar + yChar;
 };
 
+export const expandSgfPointList = (value: string, boardSize?: number): Array<{ x: number; y: number }> => {
+  const isInBounds = (point: { x: number; y: number }) =>
+    point.x >= 0 &&
+    point.y >= 0 &&
+    (boardSize === undefined || (point.x < boardSize && point.y < boardSize));
+
+  const pointFromCoord = (coord: string): { x: number; y: number } | null => {
+    const point = sgfCoordToXy(coord);
+    return isInBounds(point) ? point : null;
+  };
+
+  const sep = value.indexOf(':');
+  if (sep < 0) {
+    const point = pointFromCoord(value);
+    return point ? [point] : [];
+  }
+
+  const start = pointFromCoord(value.slice(0, sep));
+  const end = pointFromCoord(value.slice(sep + 1));
+  if (!start || !end) return [];
+
+  const xMin = Math.min(start.x, end.x);
+  const xMax = Math.max(start.x, end.x);
+  const yMin = Math.min(start.y, end.y);
+  const yMax = Math.max(start.y, end.y);
+  const points: Array<{ x: number; y: number }> = [];
+
+  for (let y = yMin; y <= yMax; y++) {
+    for (let x = xMin; x <= xMax; x++) {
+      points.push({ x, y });
+    }
+  }
+
+  return points;
+};
+
+const POINT_LIST_PROPERTIES = ['AB', 'AW', 'AE', 'TR', 'SQ', 'CR', 'MA'] as const;
+
+const expandPointListPropertyValues = (values: string[] | undefined, boardSize: BoardSize): string[] | undefined => {
+  if (!values) return undefined;
+
+  return values.flatMap((value) => {
+    if (!value.includes(':')) return [value];
+    const expanded = expandSgfPointList(value, boardSize).map(({ x, y }) => coordinateToSgf(x, y));
+    return expanded.length > 0 ? expanded : [value];
+  });
+};
+
+const expandPointListPropertiesInTree = (node: ParsedSgfNode, boardSize: BoardSize): void => {
+  for (const key of POINT_LIST_PROPERTIES) {
+    const expanded = expandPointListPropertyValues(node.props[key], boardSize);
+    if (expanded) node.props[key] = expanded;
+  }
+  for (const child of node.children) expandPointListPropertiesInTree(child, boardSize);
+};
+
 export const generateSgf = (gameState: GameState): string => {
   const { moveHistory } = gameState;
   const date = new Date().toISOString().split('T')[0];
@@ -590,10 +646,11 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
         initialBoard = createEmptyBoard(boardSize);
     }
 
+    expandPointListPropertiesInTree(root, boardSize);
+
     const applyPlacement = (player: Player, coords: string[]) => {
         for (const coord of coords) {
-            const { x, y } = sgfCoordToXy(coord);
-            if (x >= 0 && x < boardSize && y >= 0 && y < boardSize) {
+            for (const { x, y } of expandSgfPointList(coord, boardSize)) {
                 initialBoard[y][x] = player;
             }
         }
@@ -602,8 +659,7 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
     if (root.props['AW']) applyPlacement('white', root.props['AW']);
     if (root.props['AE']) {
         for (const coord of root.props['AE']) {
-            const { x, y } = sgfCoordToXy(coord);
-            if (x >= 0 && x < boardSize && y >= 0 && y < boardSize) {
+            for (const { x, y } of expandSgfPointList(coord, boardSize)) {
                 initialBoard[y][x] = null;
             }
         }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FaDownload, FaRedo, FaWifi } from 'react-icons/fa';
 import { PWA_OFFLINE_READY_EVENT, PWA_UPDATE_READY_EVENT } from '../utils/pwa';
 
@@ -15,6 +15,7 @@ type BannerState =
 
 export const PwaInstallBanner: React.FC = () => {
   const [banner, setBanner] = useState<BannerState>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -33,6 +34,39 @@ export const PwaInstallBanner: React.FC = () => {
       window.removeEventListener(PWA_UPDATE_READY_EVENT, onUpdateReady);
     };
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!banner) {
+      root.removeAttribute('data-pwa-banner');
+      root.style.removeProperty('--pwa-banner-height');
+      return;
+    }
+
+    root.dataset.pwaBanner = banner.type;
+    const updateHeight = () => {
+      const height = bannerRef.current?.getBoundingClientRect().height ?? 0;
+      root.style.setProperty('--pwa-banner-height', `${Math.ceil(height + 12)}px`);
+    };
+    updateHeight();
+    if (typeof ResizeObserver === 'undefined' || !bannerRef.current) {
+      window.addEventListener('resize', updateHeight);
+      return () => {
+        window.removeEventListener('resize', updateHeight);
+        root.removeAttribute('data-pwa-banner');
+        root.style.removeProperty('--pwa-banner-height');
+      };
+    }
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(bannerRef.current);
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateHeight);
+      root.removeAttribute('data-pwa-banner');
+      root.style.removeProperty('--pwa-banner-height');
+    };
+  }, [banner]);
 
   if (!banner) return null;
 
@@ -61,7 +95,7 @@ export const PwaInstallBanner: React.FC = () => {
   };
 
   return (
-    <div className="pwa-install-banner" role="status" aria-live="polite">
+    <div ref={bannerRef} className="pwa-install-banner" role="status" aria-live="polite">
       <div className="pwa-install-icon">{icon}</div>
       <div className="min-w-0">
         <div className="pwa-install-title">{title}</div>

@@ -139,16 +139,25 @@
     --ui-gap: 10px;
   }
 
+  @media (max-width: 1023px) {
+    :root {
+      --ui-bar-height: 56px;
+      --ui-bar-pad-y: 6px;
+      --ui-control-size: 44px;
+      --mobile-tabbar-height: 68px;
+    }
+  }
+
   @media (max-width: 640px) {
     :root {
       --ui-font-size: 14px;
-      --ui-bar-height: 50px;
+      --ui-bar-height: 56px;
       --ui-bar-pad-x: 10px;
       --ui-bar-pad-y: 6px;
-      --ui-control-size: 34px;
+      --ui-control-size: 44px;
       --ui-panel-pad: 10px;
       --ui-gap: 6px;
-      --mobile-tabbar-height: 62px;
+      --mobile-tabbar-height: 68px;
     }
 
     .panel-section-header {
@@ -718,7 +727,7 @@
   }
 
   .mobile-safe-bottom {
-    padding-bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--mobile-tabbar-height) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom));
   }
 
   .mobile-safe-area-bottom {
@@ -749,6 +758,13 @@
   }
 
   @media (max-height: 520px) and (orientation: landscape) {
+    :root {
+      --ui-bar-height: 52px;
+      --ui-bar-pad-y: 4px;
+      --ui-control-size: 44px;
+      --mobile-tabbar-height: 58px;
+    }
+
     .mobile-tabbar-label {
       display: none;
     }
@@ -912,13 +928,14 @@
     position: fixed;
     left: max(12px, env(safe-area-inset-left));
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: calc(var(--ui-bar-height) + max(12px, env(safe-area-inset-bottom)));
     z-index: 80;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
     max-width: 760px;
+    box-sizing: border-box;
     margin: 0 auto;
     padding: 10px;
     border: 1px solid var(--ui-border-strong);
@@ -958,6 +975,7 @@
   .pwa-install-actions {
     display: flex;
     align-items: center;
+    min-width: 0;
     gap: 6px;
   }
 
@@ -989,15 +1007,23 @@
   @media (max-width: 640px) {
     .pwa-install-banner {
       grid-template-columns: auto minmax(0, 1fr);
+      max-width: calc(100vw - 24px);
     }
 
     .pwa-install-actions {
       grid-column: 1 / -1;
+      flex-wrap: wrap;
       justify-content: flex-end;
     }
 
     .pwa-install-detail {
       white-space: normal;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .pwa-install-banner {
+      bottom: calc(var(--mobile-tabbar-height) + var(--ui-bar-height) + max(12px, env(safe-area-inset-bottom)));
     }
   }
 

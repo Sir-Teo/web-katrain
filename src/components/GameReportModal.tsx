@@ -2,7 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { computeGameReport, type MoveReportEntry } from '../utils/gameReport';
+import {
+  GAME_REPORT_PHASES,
+  computeGameReport,
+  getPhaseLabel,
+  getPhaseMoveRange,
+  getPointLossBucket,
+  type GameReportPhaseFilter,
+  type MoveReportEntry,
+} from '../utils/gameReport';
 import type { CandidateMove, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
@@ -17,6 +25,7 @@ interface GameReportModalProps {
 }
 
 const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
+const HISTOGRAM_COLORS = ['#fb7185', '#f97316', '#f59e0b', '#84cc16', '#38bdf8', '#94a3b8'];
 
 function fmtPct(x: number | undefined): string {
   if (typeof x !== 'number' || !Number.isFinite(x)) return '--';
@@ -49,9 +58,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
     }),
     shallow
   );
-  const [depthFilter, setDepthFilter] = useState<[number, number] | null>(null);
+  const [phaseFilter, setPhaseFilter] = useState<GameReportPhaseFilter>('all');
   const [reportGraph, setReportGraph] = useState({ score: true, winrate: true });
   const [playerFilter, setPlayerFilter] = useState<'all' | Player>('all');
+  const [bucketFilter, setBucketFilter] = useState<number | null>(null);
+  const [reviewQueue, setReviewQueue] = useState<MoveReportEntry[]>([]);
+  const [reviewIndex, setReviewIndex] = useState(0);
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [isPreparingPdf, setIsPreparingPdf] = useState(false);
@@ -234,8 +246,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
     void gameAnalysisDone;
     void gameAnalysisTotal;
     const thresholds = trainerEvalThresholds?.length ? trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS;
-    return computeGameReport({ currentNode, thresholds, depthFilter });
-  }, [currentNode, depthFilter, trainerEvalThresholds, treeVersion, gameAnalysisDone, gameAnalysisTotal]);
+    return computeGameReport({ currentNode, thresholds, phaseFilter });
+  }, [currentNode, phaseFilter, trainerEvalThresholds, treeVersion, gameAnalysisDone, gameAnalysisTotal]);
 
   const analyzedMoves = report.stats.black.numMoves + report.stats.white.numMoves;
   const totalMoves = report.movesInFilter;
@@ -243,10 +255,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
   const playerFilterLabel = playerFilter === 'all' ? 'All players' : playerFilter === 'black' ? 'Black' : 'White';
   const statsPlayers: Array<Player> = playerFilter === 'all' ? ['black', 'white'] : [playerFilter];
   const allMistakes = useMemo(() => {
-    const entries = report.moveEntries.filter((entry) => playerFilter === 'all' || entry.player === playerFilter);
+    const entries = report.moveEntries.filter((entry) => {
+      if (playerFilter !== 'all' && entry.player !== playerFilter) return false;
+      if (bucketFilter != null && getPointLossBucket(entry.pointsLost, report.thresholds) !== bucketFilter) return false;
+      return true;
+    });
     entries.sort((a, b) => b.pointsLost - a.pointsLost);
     return entries;
-  }, [playerFilter, report.moveEntries]);
+  }, [bucketFilter, playerFilter, report.moveEntries, report.thresholds]);
   const topMistakes = useMemo(() => allMistakes.slice(0, 10), [allMistakes]);
   const pdfMistakes = topMistakes;
   const maxHist = Math.max(
@@ -258,23 +274,27 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
     const maxWhite = Math.max(1, ...report.histogram.map((row) => row.white));
     return { black: maxBlack, white: maxWhite };
   }, [report.histogram]);
+  const playerDistributions = useMemo(() => {
+    return (['black', 'white'] as const).map((player) => {
+      const total = report.histogram.reduce((acc, row) => acc + row[player], 0);
+      return {
+        player,
+        total,
+        segments: report.labels.map((label, idx) => ({
+          label,
+          count: report.histogram[idx]?.[player] ?? 0,
+          color: HISTOGRAM_COLORS[idx % HISTOGRAM_COLORS.length]!,
+        })),
+      };
+    });
+  }, [report.histogram, report.labels]);
+  const bucketFilterLabel = bucketFilter == null ? null : report.labels[bucketFilter] ?? null;
 
-  const phaseLabel = depthFilter
-    ? depthFilter[0] === 0 && depthFilter[1] === 0.14
-      ? 'Opening'
-      : depthFilter[0] === 0.14 && depthFilter[1] === 0.4
-        ? 'Midgame'
-        : 'Endgame'
-    : 'Entire Game';
+  const phaseLabel = getPhaseLabel(phaseFilter);
 
   const graphRange = useMemo(() => {
-    if (!depthFilter) return null;
-    const [fromFrac, toFrac] = depthFilter;
-    const boardSquares = boardSize * boardSize;
-    const start = Math.ceil(fromFrac * boardSquares);
-    const end = Math.max(start, Math.ceil(toFrac * boardSquares) - 1);
-    return { start, end };
-  }, [boardSize, depthFilter]);
+    return getPhaseMoveRange(boardSize, phaseFilter);
+  }, [boardSize, phaseFilter]);
 
   const preparePrint = async () => {
     if (isPreparingPdf) return;
@@ -299,6 +319,21 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
 
   const handlePrintReport = () => {
     void preparePrint();
+  };
+
+  const startReviewQueue = (entries: MoveReportEntry[]) => {
+    if (entries.length === 0) return;
+    setReviewQueue(entries);
+    setReviewIndex(0);
+    jumpToNode(entries[0]!.node);
+  };
+
+  const activeReview = reviewQueue[reviewIndex] ?? null;
+  const reviewStep = (delta: number) => {
+    if (reviewQueue.length === 0) return;
+    const next = Math.max(0, Math.min(reviewQueue.length - 1, reviewIndex + delta));
+    setReviewIndex(next);
+    jumpToNode(reviewQueue[next]!.node);
   };
 
   const formatPv = (pv?: string[], max = 12) => {
@@ -402,7 +437,16 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
 
   useEffect(() => {
     setPdfSnapshots([]);
-  }, [playerFilter, depthFilter, treeVersion]);
+  }, [bucketFilter, playerFilter, phaseFilter, treeVersion]);
+
+  useEffect(() => {
+    setBucketFilter(null);
+  }, [phaseFilter]);
+
+  useEffect(() => {
+    setReviewQueue([]);
+    setReviewIndex(0);
+  }, [bucketFilter, phaseFilter, playerFilter, treeVersion]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
@@ -420,20 +464,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
         <div className="px-5 py-4 space-y-4 overflow-y-auto overscroll-contain report-scroll">
           <div className="print-hide space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[
-              { key: 'all', label: 'Entire Game', filter: null },
-              { key: 'opening', label: 'Opening', filter: [0, 0.14] as [number, number] },
-              { key: 'midgame', label: 'Midgame', filter: [0.14, 0.4] as [number, number] },
-              { key: 'endgame', label: 'Endgame', filter: [0.4, 10] as [number, number] },
-            ].map((b) => {
-              const active =
-                (b.filter === null && depthFilter === null) ||
-                (b.filter !== null && depthFilter !== null && b.filter[0] === depthFilter[0] && b.filter[1] === depthFilter[1]);
+            {GAME_REPORT_PHASES.map((b) => {
+              const active = phaseFilter === b.key;
               return (
                 <button
                   key={b.key}
                   type="button"
-                  onClick={() => setDepthFilter(b.filter)}
+                  onClick={() => setPhaseFilter(b.key)}
                   className={[
                     'px-3 py-2 rounded-lg border text-sm font-semibold transition-colors',
                     active
@@ -467,6 +504,16 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                 {opt.label}
               </button>
             ))}
+            {bucketFilterLabel && (
+              <button
+                type="button"
+                onClick={() => setBucketFilter(null)}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]"
+                title="Clear loss bucket filter"
+              >
+                Loss {bucketFilterLabel} x
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -605,7 +652,59 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
           </div>
 
           <div className={sectionClass}>
-            <div className={sectionTitleClass}>Biggest Mistakes</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className={sectionTitleClass}>Biggest Mistakes</div>
+              <button
+                type="button"
+                onClick={() => startReviewQueue(topMistakes)}
+                disabled={topMistakes.length === 0}
+                className="px-3 py-1 rounded-full text-xs font-semibold border border-slate-700/60 text-slate-200 hover:bg-slate-800/80 disabled:opacity-40 print-hide"
+              >
+                Review {topMistakes.length}
+              </button>
+            </div>
+            {activeReview && (
+              <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-slate-950/40 p-3 print-hide">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className={sectionTitleClass}>Review Queue</span>
+                  <span className="font-mono text-slate-300">
+                    {reviewIndex + 1}/{reviewQueue.length}
+                  </span>
+                  <span className="text-slate-300">
+                    Move {activeReview.moveNumber} · {activeReview.player === 'black' ? 'Black' : 'White'} · {activeReview.move}
+                  </span>
+                  <span className="font-mono text-rose-300">-{fmtNum(activeReview.pointsLost, 2)}</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => reviewStep(-1)}
+                      disabled={reviewIndex === 0}
+                      className="px-2 py-1 rounded border border-slate-700/60 hover:bg-slate-800/80 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => reviewStep(1)}
+                      disabled={reviewIndex >= reviewQueue.length - 1}
+                      className="px-2 py-1 rounded border border-slate-700/60 hover:bg-slate-800/80 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReviewQueue([])}
+                      className="px-2 py-1 rounded border border-slate-700/60 hover:bg-slate-800/80"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-slate-400">
+                  Played {activeReview.move}; engine preferred {activeReview.topMove ?? '-'}.
+                </div>
+              </div>
+            )}
             {topMistakes.length === 0 ? (
               <div className="mt-2 text-sm text-slate-500">No analyzed moves in this range.</div>
             ) : (
@@ -629,7 +728,42 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-400/80" />White</span>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-12 gap-2 text-xs">
+            <div className="mt-3 space-y-2">
+              {playerDistributions.map(({ player, total, segments }) => (
+                <div key={player}>
+                  <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-500">
+                    <span>{player === 'black' ? 'Black distribution' : 'White distribution'}</span>
+                    <span>{total} moves</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-slate-800/70 overflow-hidden flex border border-slate-700/40">
+                    {total === 0 ? (
+                      <div className="h-full w-full bg-slate-800/70" />
+                    ) : (
+                      segments
+                        .filter((segment) => segment.count > 0)
+                        .map((segment) => (
+                          <button
+                            type="button"
+                            key={`${player}-${segment.label}`}
+                            className="h-full hover:brightness-125 focus-visible:z-10"
+                            onClick={() => {
+                              setPlayerFilter(player);
+                              setBucketFilter(report.labels.findIndex((label) => label === segment.label));
+                            }}
+                            title={`${segment.label}: ${segment.count}`}
+                            style={{
+                              width: `${(segment.count / total) * 100}%`,
+                              backgroundColor: segment.color,
+                            }}
+                            aria-label={`${player} ${segment.label}: ${segment.count}`}
+                          />
+                        ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 grid grid-cols-12 gap-2 text-xs">
               <div className="col-span-3 uppercase tracking-wide text-[10px] text-slate-500">Threshold</div>
               <div className="col-span-5 uppercase tracking-wide text-[10px] text-slate-500">Distribution</div>
               {playerFilter === 'all' ? (
@@ -645,7 +779,6 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
 
               {report.labels
                 .map((label, idx) => ({ label, idx }))
-                .reverse()
                 .map(({ label, idx }) => {
                   const row = report.histogram[idx]!;
                   const blackWidth = `${Math.round((row.black / maxHist) * 100)}%`;
@@ -658,7 +791,15 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                     <React.Fragment key={label}>
                       <div className="col-span-3 text-slate-300">{label}</div>
                       <div className="col-span-5">
-                        <div className="h-2 rounded-full bg-slate-800/70 overflow-hidden flex">
+                        <button
+                          type="button"
+                          className={[
+                            'h-2 w-full rounded-full bg-slate-800/70 overflow-hidden flex hover:brightness-125',
+                            bucketFilter === idx ? 'ring-2 ring-[var(--ui-accent)]' : '',
+                          ].join(' ')}
+                          onClick={() => setBucketFilter(bucketFilter === idx ? null : idx)}
+                          aria-label={`Filter loss bucket ${label}`}
+                        >
                           {playerFilter === 'all' ? (
                             <>
                               <div className="h-full bg-slate-200/80" style={{ width: blackWidth }} />
@@ -670,7 +811,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                               style={{ width: singleWidth }}
                             />
                           )}
-                        </div>
+                        </button>
                       </div>
                       {playerFilter === 'all' ? (
                         <>

@@ -19,6 +19,15 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
         notFound: path.resolve(__dirname, '404.html'),
       },
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/zustand/')) return 'react-vendor';
+          if (id.includes('/react-icons/')) return 'icons';
+          if (id.includes('/@tensorflow/')) return 'tfjs';
+          return 'vendor';
+        },
+      },
     },
   },
   resolve: {

@@ -74,7 +74,12 @@ interface RightPanelProps {
   engineDot: string;
   engineMeta: string;
   engineMetaTitle: string | undefined;
+  engineStatus: 'idle' | 'loading' | 'ready' | 'error';
   engineError: string | null;
+  engineBackend: string | null;
+  engineModelLabel: string | null;
+  requestedBackend: string;
+  modelUrl: string;
   statusText: string;
   lockAiDetails: boolean;
   // Notes
@@ -123,7 +128,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   engineDot,
   engineMeta,
   engineMetaTitle,
+  engineStatus,
   engineError,
+  engineBackend,
+  engineModelLabel,
+  requestedBackend,
+  modelUrl,
   statusText,
   lockAiDetails,
   currentNode,
@@ -497,6 +507,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   engineDot={engineDot}
                   engineMeta={engineMeta}
                   engineMetaTitle={engineMetaTitle}
+                  engineStatus={engineStatus}
+                  engineError={engineError}
+                  engineBackend={engineBackend}
+                  engineModelLabel={engineModelLabel}
+                  requestedBackend={requestedBackend}
+                  modelUrl={modelUrl}
                   isGameAnalysisRunning={isGameAnalysisRunning}
                   gameAnalysisType={gameAnalysisType}
                   gameAnalysisDone={gameAnalysisDone}

@@ -91,13 +91,14 @@ describe('GameStore loadGame', () => {
         const store = useGameStore.getState();
         store.resetGame();
 
-        const parsed = parseSgf('(;GM[1]SZ[9];B[cc];W[dd]AB[ee]AW[ff]AE[cc];B[cc])');
+        const parsed = parseSgf('(;GM[1]SZ[9];B[cc];W[dd]AB[ee:fe]AW[ff]AE[cc];B[cc])');
         store.loadGame(parsed);
 
         store.navigateEnd();
         const state = useGameStore.getState();
         const setupNode = state.rootNode.children[0]?.children[0];
         expect(setupNode?.gameState.board[4]?.[4]).toBe('black');
+        expect(setupNode?.gameState.board[4]?.[5]).toBe('black');
         expect(setupNode?.gameState.board[5]?.[5]).toBe('white');
         expect(setupNode?.gameState.board[2]?.[2]).toBe(null);
         expect(setupNode?.children[0]?.move).toEqual({ x: 2, y: 2, player: 'black' });

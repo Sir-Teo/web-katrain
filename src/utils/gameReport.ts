@@ -1,11 +1,59 @@
 import type { CandidateMove, GameNode, Player } from '../types';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
+const OPENING_BOARD_AREA_FRACTION = 0.16;
+const MIDDLE_GAME_BOARD_AREA_FRACTION = 0.5;
+
+export type GameReportPhase = 'opening' | 'middleGame' | 'endgame';
+export type GameReportPhaseFilter = 'all' | GameReportPhase;
+
+export const GAME_REPORT_PHASES: Array<{ key: GameReportPhaseFilter; label: string }> = [
+  { key: 'all', label: 'Entire Game' },
+  { key: 'opening', label: 'Opening' },
+  { key: 'middleGame', label: 'Middle Game' },
+  { key: 'endgame', label: 'Endgame' },
+];
+
+export function getPhaseThresholds(boardSize: number): { openingEnd: number; middleEnd: number } {
+  const size = Math.max(1, Math.trunc(boardSize));
+  const boardSquares = size * size;
+  const openingEnd = Math.max(1, Math.round(boardSquares * OPENING_BOARD_AREA_FRACTION));
+  const middleEnd = Math.max(openingEnd + 1, Math.round(boardSquares * MIDDLE_GAME_BOARD_AREA_FRACTION));
+  return { openingEnd, middleEnd };
+}
+
+export function getMovePhase(moveNumber: number, boardSize: number): GameReportPhase {
+  const move = Math.max(1, Math.trunc(moveNumber));
+  const { openingEnd, middleEnd } = getPhaseThresholds(boardSize);
+  if (move <= openingEnd) return 'opening';
+  if (move <= middleEnd) return 'middleGame';
+  return 'endgame';
+}
+
+export function getPhaseLabel(phase: GameReportPhaseFilter): string {
+  return GAME_REPORT_PHASES.find((item) => item.key === phase)?.label ?? 'Entire Game';
+}
+
+export function getPhaseMoveRange(
+  boardSize: number,
+  phase: GameReportPhaseFilter
+): { start: number; end: number } | null {
+  if (phase === 'all') return null;
+  const { openingEnd, middleEnd } = getPhaseThresholds(boardSize);
+  if (phase === 'opening') return { start: 1, end: openingEnd };
+  if (phase === 'middleGame') return { start: openingEnd + 1, end: middleEnd };
+  return { start: middleEnd + 1, end: Number.MAX_SAFE_INTEGER };
+}
 
 function evaluationClass(pointsLost: number, thresholds: number[]): number {
   let i = 0;
   while (i < thresholds.length - 1 && pointsLost < thresholds[i]!) i++;
   return i;
+}
+
+export function getPointLossBucket(pointsLost: number, thresholds: number[]): number {
+  const safeThresholds = thresholds.length ? thresholds : [12, 6, 3, 1.5, 0.5, 0];
+  return evaluationClass(Math.max(0, pointsLost), safeThresholds);
 }
 
 function computePointsLostStrict(node: GameNode): number | null {
@@ -81,6 +129,7 @@ export type MoveReportEntry = {
   player: Player;
   move: string;
   pointsLost: number;
+  phase: GameReportPhase;
   topMove?: string;
   isTopMove?: boolean;
   pv?: string[];
@@ -99,9 +148,11 @@ export function computeGameReport(args: {
   currentNode: GameNode;
   thresholds: number[];
   depthFilter?: [number, number] | null;
+  phaseFilter?: GameReportPhaseFilter;
 }): GameReport {
   const thresholds = args.thresholds?.length ? args.thresholds : [12, 6, 3, 1.5, 0.5, 0];
   const depthFilter = args.depthFilter ?? null;
+  const phaseFilter = args.phaseFilter ?? 'all';
   const [fromFrac, toFrac] = depthFilter ?? [0, 1e9]; // KaTrain uses fractions of board area.
   const boardSize = args.currentNode.gameState.board.length;
   const boardSquares = boardSize * boardSize;
@@ -126,13 +177,15 @@ export function computeGameReport(args: {
     const n = seq[depth]!;
     const move = n.move;
     if (!move || !n.parent) continue;
+    const moveNumber = n.gameState.moveHistory.length;
+    const phase = getMovePhase(moveNumber, boardSize);
+    if (phaseFilter !== 'all' && phase !== phaseFilter) continue;
     if (depth < fromDepth || depth >= toDepth) continue;
     movesInFilter += 1;
     const pointsLostRaw = computePointsLostStrict(n);
     if (pointsLostRaw == null) continue;
     const pointsLost = Math.max(0, pointsLostRaw);
-    const cls = evaluationClass(pointsLost, thresholds);
-    const bucket = thresholds.length - 1 - cls;
+    const bucket = getPointLossBucket(pointsLost, thresholds);
     const player: Player = move.player;
 
     const parent = n.parent;
@@ -164,10 +217,11 @@ export function computeGameReport(args: {
 
     moveEntries.push({
       node: n,
-      moveNumber: n.gameState.moveHistory.length,
+      moveNumber,
       player,
       move: xyToGtp(move.x, move.y, boardSize),
       pointsLost,
+      phase,
       topMove: top ? xyToGtp(top.x, top.y, boardSize) : undefined,
       isTopMove: top ? top.x === move.x && top.y === move.y : undefined,
       pv: top?.pv,

@@ -4,6 +4,7 @@ import {
   eventMatchesBinding,
   findShortcutCollision,
   getShortcutBindings,
+  SHORTCUT_DEFINITIONS,
   shortcutDisplay,
   type ShortcutBinding,
 } from '../src/utils/shortcuts';
@@ -34,6 +35,20 @@ describe('shortcut utilities', () => {
     const binding: ShortcutBinding = { key: 's', ctrl: true };
     const collision = findShortcutCollision(binding, 'open-sgf', {});
     expect(collision?.id).toBe('save-sgf');
+  });
+
+  it('keeps default shortcuts collision-free', () => {
+    const seen = new Map<string, string>();
+    const signature = (binding: ShortcutBinding) =>
+      `${binding.ctrl ? 'C' : '-'}${binding.shift ? 'S' : '-'}${binding.alt ? 'A' : '-'}:${binding.key.length === 1 ? binding.key.toLowerCase() : binding.key}`;
+
+    for (const shortcut of SHORTCUT_DEFINITIONS) {
+      for (const binding of shortcut.defaultBindings) {
+        const key = signature(binding);
+        expect(seen.get(key), `${shortcut.id} conflicts with ${seen.get(key)} on ${key}`).toBeUndefined();
+        seen.set(key, shortcut.id);
+      }
+    }
   });
 
   it('supports disabled and overridden bindings', () => {

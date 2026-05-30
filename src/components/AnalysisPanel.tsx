@@ -14,6 +14,12 @@ interface AnalysisPanelProps {
   engineDot: string;
   engineMeta: string;
   engineMetaTitle?: string;
+  engineStatus: 'idle' | 'loading' | 'ready' | 'error';
+  engineError: string | null;
+  engineBackend: string | null;
+  engineModelLabel: string | null;
+  requestedBackend: string;
+  modelUrl: string;
   isGameAnalysisRunning: boolean;
   gameAnalysisType: string | null;
   gameAnalysisDone: number;
@@ -37,6 +43,12 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   engineDot,
   engineMeta,
   engineMetaTitle,
+  engineStatus,
+  engineError,
+  engineBackend,
+  engineModelLabel,
+  requestedBackend,
+  modelUrl,
   isGameAnalysisRunning,
   gameAnalysisType,
   gameAnalysisDone,
@@ -54,6 +66,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   void mode;
   const activeTab: 'graph' | 'stats' =
     modePanels.statsOpen && !modePanels.graphOpen ? 'stats' : 'graph';
+  const activeBackend = engineBackend ?? requestedBackend;
+  const isFallback = !!engineBackend && engineBackend !== requestedBackend;
+  const modelSource = modelUrl.startsWith('/models/') || modelUrl.startsWith('models/')
+    ? 'Bundled'
+    : modelUrl.startsWith('http')
+      ? 'Remote'
+      : 'Local';
 
   return (
     <div className="flex flex-col min-h-0">
@@ -81,6 +100,42 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           </div>
         </div>
       )}
+      <div className="panel-section-content border-b border-[var(--ui-border)]">
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div>
+            <div className="ui-text-faint">State</div>
+            <div className={engineStatus === 'error' ? 'text-[var(--ui-danger)] font-semibold' : 'text-[var(--ui-text)] font-semibold'}>
+              {engineStatus}
+            </div>
+          </div>
+          <div>
+            <div className="ui-text-faint">Backend</div>
+            <div className="text-[var(--ui-text)] font-semibold">
+              {activeBackend}{isFallback ? ' fallback' : ''}
+            </div>
+          </div>
+          <div>
+            <div className="ui-text-faint">Model</div>
+            <div className="text-[var(--ui-text)] truncate" title={engineModelLabel ?? modelUrl}>
+              {engineModelLabel ?? 'Not loaded'}
+            </div>
+          </div>
+          <div>
+            <div className="ui-text-faint">Source</div>
+            <div className="text-[var(--ui-text)]">{modelSource}</div>
+          </div>
+        </div>
+        {isFallback && (
+          <div className="mt-2 text-[11px] text-[var(--ui-warning)]">
+            Requested {requestedBackend}, running {engineBackend}.
+          </div>
+        )}
+        {engineError && (
+          <div className="mt-2 text-[11px] text-[var(--ui-danger)] break-words">
+            {engineError}
+          </div>
+        )}
+      </div>
       {!compact && (
         <div className="panel-toolbar">
           <button

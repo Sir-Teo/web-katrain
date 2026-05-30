@@ -163,6 +163,19 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         </button>
         <button
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { onSettings(); closeViewMenuIfMobile(); }}
+        >
+          <span className="flex items-center gap-2"><FaCog /> Settings</span><span className="text-xs ui-text-faint">F8</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { onKeyboardHelp(); closeViewMenuIfMobile(); }}
+        >
+          <span className="flex items-center gap-2"><FaKeyboard /> Keyboard shortcuts</span><span className="text-xs ui-text-faint">?</span>
+        </button>
+        <div className="h-px bg-[var(--ui-border)] w-full" />
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { onCopySgf(); closeViewMenuIfMobile(); }}
         >
           <span className="flex items-center gap-2"><FaCopy /> Copy SGF</span><span className="text-xs ui-text-faint">Ctrl+C</span>
@@ -367,30 +380,30 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   );
 
   return (
-    <div className="ui-bar ui-bar-height ui-bar-pad border-b flex flex-wrap items-center gap-1 sm:gap-2 gap-y-1.5 select-none">
+    <div className="ui-bar ui-bar-height ui-bar-pad border-b flex flex-nowrap items-center gap-1 sm:gap-2 select-none overflow-visible min-w-0 w-full max-w-full">
       {/* Mobile menu */}
-      <div className="md:hidden">
+      <div className="lg:hidden shrink-0">
         <IconButton title="Menu" onClick={onOpenMenu} className={topIconClass}>
           <FaBars />
         </IconButton>
       </div>
 
       {/* New game */}
-      <div className="hidden md:flex items-center gap-1.5">
+      <div className="hidden 2xl:flex items-center gap-1.5 shrink-0">
         <button
           type="button"
           title="New game (Ctrl+N)"
           onClick={onNewGame}
-          className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors"
+          className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap"
         >
           <FaPlus size={12} /> New
         </button>
       </div>
 
       {/* Divider */}
-      <div className="hidden md:block h-6 w-px bg-[var(--ui-border)]" />
+      <div className="hidden 2xl:block h-6 w-px bg-[var(--ui-border)] shrink-0" />
 
-      <div className="hidden xl:block flex-grow" />
+      <div className="hidden lg:block flex-1 min-w-2" />
 
       {/* Engine status */}
       <EngineStatusBadge
@@ -400,12 +413,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         tone={engineError ? 'error' : 'default'}
         variant="pill"
         showErrorTag={!!engineError}
-        className="hidden lg:flex"
-        maxWidthClassName="max-w-[200px]"
+        className="hidden xl:flex shrink min-w-0"
+        maxWidthClassName="max-w-[180px]"
       />
 
       {/* Analysis badges */}
-      <div className="hidden xl:flex items-center gap-1.5 text-xs">
+      <div className="hidden 2xl:flex items-center gap-1.5 text-xs shrink-0">
         {winRateLabel && (
           <div className="px-2 py-0.5 rounded-md ui-success-soft border text-[var(--ui-success)] font-medium">
             Win {winRateLabel}
@@ -424,7 +437,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       {/* Mode badges */}
-      <div className="flex items-center gap-1.5">
+      <div className="hidden 2xl:flex items-center gap-1.5 shrink-0">
         {regionOfInterest && (
           <button
             type="button"
@@ -452,7 +465,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button
             type="button"
             className={[
-              'px-2 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors',
+              'min-h-11 px-2 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors',
               isAnalysisMode
                 ? 'bg-[var(--ui-accent-soft)] border border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm shadow-black/20'
                 : 'bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white',
@@ -467,7 +480,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       {/* Right controls */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 shrink-0">
         {!isMobile && (
           <IconButton
             title="Open side panel"
@@ -477,7 +490,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <FaChevronLeft />
           </IconButton>
         )}
-        <div className="hidden md:flex items-center gap-1.5">
+        <div className="hidden 2xl:flex items-center gap-1.5">
           <IconButton title="Settings (F8)" onClick={onSettings} className={topIconClass}>
             <FaCog />
           </IconButton>
@@ -500,7 +513,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           ) : (
             <button
               type="button"
-              className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors"
+              className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap"
               onClick={() => setViewMenuOpen(!viewMenuOpen)}
               title="View options"
             >
@@ -543,7 +556,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button
             type="button"
             className={[
-              'px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors',
+              'px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap',
               isAnalysisMode
                 ? 'bg-[var(--ui-accent-soft)] border border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm shadow-black/20'
                 : 'bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white',
@@ -560,7 +573,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <div className="relative" data-menu-popover>
             <button
               type="button"
-              className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors"
+              className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap"
               onClick={() => setAnalysisMenuOpen(!analysisMenuOpen)}
               title="Analysis actions"
             >

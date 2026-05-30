@@ -72,7 +72,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { id: 'game-report-modal', category: 'Modals', label: 'Game report', defaultBindings: [{ key: 'F3' }] },
   { id: 'settings-modal', category: 'Modals', label: 'Settings', defaultBindings: [{ key: 'F8' }] },
   { id: 'escape', category: 'Modals', label: 'Close / cancel', defaultBindings: [{ key: 'Escape' }] },
-  { id: 'fullscreen', category: 'View', label: 'Toggle fullscreen', defaultBindings: [{ key: 'f' }] },
+  { id: 'fullscreen', category: 'View', label: 'Toggle fullscreen', defaultBindings: [{ key: 'F11' }] },
 ];
 
 const shortcutById = new Map(SHORTCUT_DEFINITIONS.map((shortcut) => [shortcut.id, shortcut]));

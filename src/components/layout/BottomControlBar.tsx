@@ -102,7 +102,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           )}
           <button
             ref={passBtnRef}
-            className="relative px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[var(--ui-surface-2)] hover:brightness-110 rounded-lg text-[11px] sm:text-xs font-medium text-[var(--ui-text)] transition-colors"
+            className="relative min-h-11 min-w-11 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[var(--ui-surface-2)] hover:brightness-110 rounded-lg text-[11px] sm:text-xs font-medium text-[var(--ui-text)] transition-colors"
             onClick={passTurn}
             aria-label="Pass turn"
             title="Pass (P)"

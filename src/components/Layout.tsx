@@ -1,14 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
-import { SettingsModal } from './SettingsModal';
-import { GameAnalysisModal } from './GameAnalysisModal';
-import { GameReportModal } from './GameReportModal';
-import { KeyboardHelpModal } from './KeyboardHelpModal';
 import { AnalysisPanel } from './AnalysisPanel';
 import { EditToolbar } from './EditToolbar';
-import { NewGameModal, type GameInfoValues, type AiConfigValues, type TimerConfigValues } from './NewGameModal';
+import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
 import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import type { LibraryFile } from '../utils/library';
@@ -41,6 +37,12 @@ import {
 import { PanelEdgeToggle } from './layout/ui';
 import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+
+const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
+const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
+const GameReportModal = lazy(() => import('./GameReportModal').then((module) => ({ default: module.GameReportModal })));
+const KeyboardHelpModal = lazy(() => import('./KeyboardHelpModal').then((module) => ({ default: module.KeyboardHelpModal })));
+const NewGameModal = lazy(() => import('./NewGameModal').then((module) => ({ default: module.NewGameModal })));
 
 function computePointsLost(args: { currentNode: GameNode }): number | null {
   const node = args.currentNode;
@@ -659,19 +661,36 @@ export const Layout: React.FC = () => {
   );
 
   const engineMeta = useMemo(() => {
+    const stateLabel = engineError
+      ? 'Error'
+      : engineStatus === 'loading'
+        ? 'Loading'
+        : engineStatus === 'ready'
+          ? 'Ready'
+          : 'Idle';
+    const requestedBackend = settings.katagoBackend;
+    const fallback = !!engineBackend && engineBackend !== requestedBackend;
     const parts: string[] = [];
-    if (engineBackend) parts.push(engineBackend);
+    parts.push(fallback ? 'Fallback' : stateLabel);
+    parts.push(engineBackend ?? requestedBackend);
     if (engineModelLabel) parts.push(engineModelLabel);
-    return parts.length > 0 ? parts.join(' · ') : engineStatus;
-  }, [engineBackend, engineModelLabel, engineStatus]);
+    return parts.join(' · ');
+  }, [engineBackend, engineError, engineModelLabel, engineStatus, settings.katagoBackend]);
 
   const engineMetaTitle = useMemo(() => {
-    const parts: string[] = [];
-    if (engineBackend) parts.push(engineBackend);
-    if (engineModelLabel) parts.push(engineModelLabel);
-    if (parts.length === 0) return undefined;
-    return `Engine: ${parts.join(' · ')}`;
-  }, [engineBackend, engineModelLabel]);
+    const requestedBackend = settings.katagoBackend;
+    const actualBackend = engineBackend ?? requestedBackend;
+    const lines = [
+      `State: ${engineError ? 'error' : engineStatus}`,
+      `Backend: ${actualBackend}`,
+    ];
+    if (engineModelLabel) lines.push(`Model: ${engineModelLabel}`);
+    if (engineBackend && engineBackend !== requestedBackend) {
+      lines.push(`Fallback: requested ${requestedBackend}, running ${engineBackend}.`);
+    }
+    if (engineError) lines.push(`Error: ${engineError}`);
+    return lines.filter(Boolean).join('\n');
+  }, [engineBackend, engineError, engineModelLabel, engineStatus, settings.katagoBackend]);
 
   const statusText = engineError
     ? `Engine error: ${engineError}`
@@ -1021,22 +1040,23 @@ export const Layout: React.FC = () => {
       onDragOver={handleAppDragOver}
       onDrop={handleAppDrop}
     >
-      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
-      {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
-      {isGameReportOpen && (
-        <GameReportModal
-          onClose={() => {
-            setIsGameReportOpen(false);
-            setReportHoverMove(null);
-          }}
-          setReportHoverMove={setReportHoverMove}
-        />
-      )}
-      {isKeyboardHelpOpen && <KeyboardHelpModal onClose={() => setIsKeyboardHelpOpen(false)} />}
-      {isNewGameOpen && (
-        <NewGameModal
-          onClose={() => setIsNewGameOpen(false)}
-          onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap }) => {
+      <Suspense fallback={null}>
+        {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+        {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
+        {isGameReportOpen && (
+          <GameReportModal
+            onClose={() => {
+              setIsGameReportOpen(false);
+              setReportHoverMove(null);
+            }}
+            setReportHoverMove={setReportHoverMove}
+          />
+        )}
+        {isKeyboardHelpOpen && <KeyboardHelpModal onClose={() => setIsKeyboardHelpOpen(false)} />}
+        {isNewGameOpen && (
+          <NewGameModal
+            onClose={() => setIsNewGameOpen(false)}
+            onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap }) => {
             startNewGame({ komi: nextKomi, rules, boardSize: nextBoardSize, handicap: nextHandicap });
             setRootProperty('PB', info.blackName);
             setRootProperty('PW', info.whiteName);
@@ -1118,15 +1138,16 @@ export const Layout: React.FC = () => {
             }
             setIsNewGameOpen(false);
           }}
-          defaultKomi={komi}
-          defaultRules={settings.gameRules}
-          defaultBoardSize={settings.defaultBoardSize}
-          defaultHandicap={settings.defaultHandicap}
-          defaultInfo={defaultGameInfo}
-          defaultAiConfig={defaultAiConfig}
-          defaultTimerConfig={defaultTimerConfig}
-        />
-      )}
+            defaultKomi={komi}
+            defaultRules={settings.gameRules}
+            defaultBoardSize={settings.defaultBoardSize}
+            defaultHandicap={settings.defaultHandicap}
+            defaultInfo={defaultGameInfo}
+            defaultAiConfig={defaultAiConfig}
+            defaultTimerConfig={defaultTimerConfig}
+          />
+        )}
+      </Suspense>
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".sgf" />
 
@@ -1153,7 +1174,7 @@ export const Layout: React.FC = () => {
         onOpenRecent={handleOpenRecent}
       />
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <LibraryPanel
           open={libraryOpen}
           onClose={handleCloseLibrary}
@@ -1177,6 +1198,12 @@ export const Layout: React.FC = () => {
                 engineDot={engineDot}
                 engineMeta={engineMeta}
                 engineMetaTitle={engineMetaTitle}
+                engineStatus={engineStatus}
+                engineError={engineError}
+                engineBackend={engineBackend}
+                engineModelLabel={engineModelLabel}
+                requestedBackend={settings.katagoBackend}
+                modelUrl={settings.katagoModelUrl}
                 isGameAnalysisRunning={isGameAnalysisRunning}
                 gameAnalysisType={gameAnalysisType}
                 gameAnalysisDone={gameAnalysisDone}
@@ -1204,8 +1231,8 @@ export const Layout: React.FC = () => {
 
         {/* Main board column */}
         <div
-          className={['flex flex-col flex-1 min-w-0 min-h-0 relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
-          style={isMobile ? { paddingBottom: `calc(var(--mobile-tabbar-height) + ${settings.showBoardControls && bottomBarOpen && mobileTab === 'board' ? 'var(--ui-bar-height) + ' : ''}env(safe-area-inset-bottom))` } : undefined}
+          className={['flex flex-col flex-1 min-w-0 min-h-0 w-full max-w-full relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
+          style={isMobile ? { paddingBottom: `calc(var(--mobile-tabbar-height) + ${settings.showBoardControls && bottomBarOpen && mobileTab === 'board' ? 'var(--ui-bar-height) + ' : ''}var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))` } : undefined}
         >
           {topBarOpen && (
             <TopControlBar
@@ -1305,6 +1332,21 @@ export const Layout: React.FC = () => {
               onResign={handleResign}
             />
           )}
+
+          {!isMobile && (
+            <div
+              className="absolute right-3 z-30"
+              style={{ top: topBarOpen ? 'calc(var(--ui-bar-height) + 8px)' : 8 }}
+            >
+              <PanelEdgeToggle
+                side="top"
+                state={topBarOpen ? 'open' : 'closed'}
+                title={topBarOpen ? 'Hide top bar' : 'Show top bar'}
+                onClick={() => setTopBarOpen((prev) => !prev)}
+                className="rounded-lg border border-[var(--ui-border)]"
+              />
+            </div>
+          )}
         </div>
 
         {isDesktop && showSidebar && (
@@ -1353,7 +1395,12 @@ export const Layout: React.FC = () => {
           engineDot={engineDot}
           engineMeta={engineMeta}
           engineMetaTitle={engineMetaTitle}
+          engineStatus={engineStatus}
           engineError={engineError}
+          engineBackend={engineBackend}
+          engineModelLabel={engineModelLabel}
+          requestedBackend={settings.katagoBackend}
+          modelUrl={settings.katagoModelUrl}
           statusText={statusText}
           lockAiDetails={lockAiDetails}
           currentNode={currentNode}
@@ -1400,17 +1447,6 @@ export const Layout: React.FC = () => {
 
         {!isMobile && (
           <>
-            <div
-              className="absolute left-1/2 -translate-x-1/2 z-30"
-              style={{ top: topBarOpen ? 'var(--ui-bar-height)' : 0 }}
-            >
-              <PanelEdgeToggle
-                side="top"
-                state={topBarOpen ? 'open' : 'closed'}
-                title={topBarOpen ? 'Hide top bar' : 'Show top bar'}
-                onClick={() => setTopBarOpen((prev) => !prev)}
-              />
-            </div>
             {settings.showBoardControls && (
               <div
                 className="absolute left-1/2 -translate-x-1/2 z-30"

@@ -3,12 +3,14 @@ import type { BoardState, Player } from '../types';
 export const getOpponent = (player: Player): Player => player === 'black' ? 'white' : 'black';
 
 export const boardsEqual = (a: BoardState, b: BoardState): boolean => {
+  if (a.length !== b.length) return false;
   const size = a.length;
   for (let y = 0; y < size; y++) {
     const rowA = a[y];
     const rowB = b[y];
+    if (!rowA || !rowB || rowA.length !== rowB.length) return false;
     for (let x = 0; x < size; x++) {
-      if (rowA?.[x] !== rowB?.[x]) return false;
+      if (rowA[x] !== rowB[x]) return false;
     }
   }
   return true;

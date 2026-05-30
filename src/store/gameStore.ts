@@ -2,7 +2,7 @@ import { createWithEqualityFn as create } from 'zustand/traditional';
 import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
 import { applyCapturesInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
-import { coordinateToSgf, extractKaTrainUserNoteFromSgfComment, sgfCoordToXy, type ParsedSgf } from '../utils/sgf';
+import { coordinateToSgf, expandSgfPointList, extractKaTrainUserNoteFromSgfComment, type ParsedSgf } from '../utils/sgf';
 import { getKataGoEngineClient, isKataGoCanceledError } from '../engine/katago/client';
 import type { KataGoAnalysisPayload } from '../engine/katago/types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
@@ -506,15 +506,17 @@ const applySetupPropsToBoard = (
   const next = cloneBoard(board);
   const place = (player: Player, coords: string[] | undefined) => {
     for (const coord of coords ?? []) {
-      const { x, y } = sgfCoordToXy(coord);
-      if (x >= 0 && y >= 0 && x < boardSize && y < boardSize) next[y]![x] = player;
+      for (const { x, y } of expandSgfPointList(coord, boardSize)) {
+        next[y]![x] = player;
+      }
     }
   };
   place('black', props.AB);
   place('white', props.AW);
   for (const coord of props.AE ?? []) {
-    const { x, y } = sgfCoordToXy(coord);
-    if (x >= 0 && y >= 0 && x < boardSize && y < boardSize) next[y]![x] = null;
+    for (const { x, y } of expandSgfPointList(coord, boardSize)) {
+      next[y]![x] = null;
+    }
   }
   return next;
 };

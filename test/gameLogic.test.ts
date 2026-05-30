@@ -14,6 +14,7 @@ describe('Game Logic', () => {
     expect(boardsEqual(a, b)).toBe(true);
     b[0][0] = 'black';
     expect(boardsEqual(a, b)).toBe(false);
+    expect(boardsEqual([[null]], [[null, null]])).toBe(false);
   });
 
   it('should calculate liberties correctly', () => {

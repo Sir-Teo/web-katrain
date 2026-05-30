@@ -7,7 +7,8 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
-import { sgfCoordToXy } from '../utils/sgf';
+import { expandSgfPointList, sgfCoordToXy } from '../utils/sgf';
+import { getHorizontalSwipeNavigationAction } from '../utils/swipeNavigation';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -208,6 +209,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
 
   const containerRef = useRef<HTMLDivElement>(null);
   const boardSnapshotRef = useRef<HTMLDivElement>(null);
+  const swipeStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const suppressNextClickRef = useRef(false);
   const gridCanvasRef = useRef<HTMLCanvasElement>(null);
   const ownershipCanvasRef = useRef<HTMLCanvasElement>(null);
   const ghostCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -324,8 +327,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   const yGridSpaces = (boardSize - 1) + gridSpacesMarginY.bottom + gridSpacesMarginY.top;
 
   const cellSize = useMemo(() => {
-    const w = containerSize.width > 0 ? containerSize.width : 640;
-    const h = containerSize.height > 0 ? containerSize.height : 640;
+    const fallbackWidth = typeof window !== 'undefined' ? Math.max(260, window.innerWidth - 16) : 640;
+    const fallbackHeight = typeof window !== 'undefined' ? Math.max(260, window.innerHeight - 160) : 640;
+    const w = containerSize.width > 0 ? containerSize.width : fallbackWidth;
+    const h = containerSize.height > 0 ? containerSize.height : fallbackHeight;
     const grid = Math.floor(Math.min(w / xGridSpaces, h / yGridSpaces) + 0.1);
     return Math.max(10, Math.min(80, grid));
   }, [containerSize.height, containerSize.width, xGridSpaces, yGridSpaces]);
@@ -746,10 +751,20 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       ctx.fillText(label, pt.cx, pt.cy + fontSize * 0.02);
     };
 
-    for (const coord of props.TR ?? []) drawTriangle(coord);
-    for (const coord of props.SQ ?? []) drawSquare(coord);
-    for (const coord of props.CR ?? []) drawCircle(coord);
-    for (const coord of props.MA ?? []) drawCross(coord);
+    const forEachPoint = (coord: string, draw: (coord: string) => void) => {
+      if (!coord.includes(':')) {
+        draw(coord);
+        return;
+      }
+      for (const point of expandSgfPointList(coord, boardSize)) {
+        draw(`${String.fromCharCode(97 + point.x)}${String.fromCharCode(97 + point.y)}`);
+      }
+    };
+
+    for (const coord of props.TR ?? []) forEachPoint(coord, drawTriangle);
+    for (const coord of props.SQ ?? []) forEachPoint(coord, drawSquare);
+    for (const coord of props.CR ?? []) forEachPoint(coord, drawCircle);
+    for (const coord of props.MA ?? []) forEachPoint(coord, drawCross);
     for (const label of props.LB ?? []) drawLabel(label);
   }, [
     board,
@@ -1031,7 +1046,64 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     b: { x: number; y: number } | null
   ): boolean => (a?.x === b?.x && a?.y === b?.y);
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isEditMode || isSelectingRegionOfInterest || e.touches.length !== 1) {
+      swipeStartRef.current = null;
+      return;
+    }
+    const touch = e.touches.item(0);
+    if (!touch) return;
+    swipeStartRef.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) return;
+
+    let endX: number | null = null;
+    let endY: number | null = null;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const candidate = e.changedTouches.item(i);
+      if (candidate?.identifier === start.id) {
+        endX = candidate.clientX;
+        endY = candidate.clientY;
+        break;
+      }
+    }
+    if (endX == null || endY == null) {
+      const fallback = e.changedTouches.item(0);
+      if (!fallback) return;
+      endX = fallback.clientX;
+      endY = fallback.clientY;
+    }
+
+    const action = getHorizontalSwipeNavigationAction({
+      startX: start.x,
+      startY: start.y,
+      endX,
+      endY,
+      isEditMode,
+      isSelectingRegionOfInterest,
+    });
+    if (!action) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    suppressNextClickRef.current = true;
+    if (action === 'next') navigateForward();
+    else navigateBack();
+  };
+
+  const handleTouchCancel = () => {
+    swipeStartRef.current = null;
+  };
+
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
     if (isSelectingRegionOfInterest) return;
     const pt = eventToInternal(e);
     if (!pt) return;
@@ -1627,7 +1699,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   }, [boardHeight, boardWidth, boardSize, cellSize, lastMove, originX, originY]);
 
   return (
-    <div ref={containerRef} className="w-full h-full flex items-center justify-center">
+    <div ref={containerRef} className="w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center">
       <div
         className={[
           'relative shadow-lg rounded-sm select-none touch-none',
@@ -1649,6 +1721,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         onWheel={handleWheel}
       >
         {/* Region of interest (KaTrain-style) */}

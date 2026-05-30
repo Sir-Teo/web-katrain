@@ -22,6 +22,21 @@ describe('SGF Parser', () => {
       expect(result.moves[0]).toEqual({ x: 9, y: 9, player: 'black' });
   });
 
+  it('expands compressed point lists for setup stones and markup', () => {
+      const sgf = '(;GM[1]SZ[9]AB[aa:bb]AW[cc]AE[ab];B[dd]TR[ee:ff]SQ[gg])';
+      const result = parseSgf(sgf);
+
+      expect(result.initialBoard[0][0]).toBe('black');
+      expect(result.initialBoard[0][1]).toBe('black');
+      expect(result.initialBoard[1][0]).toBe(null);
+      expect(result.initialBoard[1][1]).toBe('black');
+      expect(result.initialBoard[2][2]).toBe('white');
+
+      const node = result.tree?.children[0];
+      expect(node?.props.TR).toEqual(['ee', 'fe', 'ef', 'ff']);
+      expect(node?.props.SQ).toEqual(['gg']);
+  });
+
   it('handles pass', () => {
       const sgf = '(;GM[1]SZ[19];B[];W[tt])';
       const result = parseSgf(sgf);
