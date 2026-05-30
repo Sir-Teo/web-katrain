@@ -10,7 +10,7 @@ import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExpo
 import { clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { LibraryFile } from '../utils/library';
 import { loadLibrary } from '../utils/library';
-import { loadSgfOrOgs } from '../utils/ogs';
+import { isOgsUrl, loadSgfOrOgs } from '../utils/ogs';
 import type { CandidateMove, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
@@ -1079,6 +1079,25 @@ export const Layout: React.FC = () => {
     await handleOpenSgfFromText(sgfText);
   };
 
+  const handlePasteSgfShortcut = async () => {
+    setAnalysisMenuOpen(false);
+    setViewMenuOpen(false);
+    setMenuOpen(false);
+
+    try {
+      const clipboardText = await navigator.clipboard?.readText?.();
+      const trimmed = clipboardText?.trim() ?? '';
+      if (trimmed && (trimmed.startsWith('(') || isOgsUrl(trimmed))) {
+        await handleOpenSgfFromText(trimmed);
+        return;
+      }
+    } catch {
+      // Fall back to the modal when direct clipboard access is unavailable.
+    }
+
+    setIsPasteSgfOpen(true);
+  };
+
   const handlePhotoBoardImport = async (sgfText: string) => {
     try {
       const parsed = parseSgf(sgfText);
@@ -1203,7 +1222,7 @@ export const Layout: React.FC = () => {
     setViewMenuOpen,
     setMenuOpen,
     setIsKeyboardHelpOpen,
-    openPasteSgf: handlePasteSgf,
+    openPasteSgf: handlePasteSgfShortcut,
     openNewGame: () => void openNewGameWithGuard(),
     toggleLibrary: handleToggleLibrary,
     closeLibrary: handleCloseLibrary,
