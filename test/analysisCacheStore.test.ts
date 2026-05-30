@@ -3,6 +3,7 @@ import type { AnalysisResult } from '../src/types';
 import { useGameStore } from '../src/store/gameStore';
 import { analysisQueue } from '../src/utils/analysisQueue';
 import { getHandicapPoints } from '../src/utils/boardSize';
+import { coordinateToSgf } from '../src/utils/sgf';
 
 const analysis = (visits: number): AnalysisResult => ({
   rootWinRate: 0.5,
@@ -230,6 +231,7 @@ describe('analysis cache store actions', () => {
 
     expect(changed.rootNode.properties?.HA).toEqual(['4']);
     expect(changed.rootNode.properties?.PL).toEqual(['W']);
+    expect(changed.rootNode.properties?.AB).toEqual(getHandicapPoints(19, 4).map(([x, y]) => coordinateToSgf(x, y)));
     expect(changed.rootNode.gameState.currentPlayer).toBe('white');
     expect(changed.currentPlayer).toBe('white');
     for (const [x, y] of getHandicapPoints(19, 4)) {
@@ -265,6 +267,7 @@ describe('analysis cache store actions', () => {
 
     expect(changed.rootNode.properties?.HA).toBeUndefined();
     expect(changed.rootNode.properties?.PL).toBeUndefined();
+    expect(changed.rootNode.properties?.AB).toBeUndefined();
     expect(changed.rootNode.gameState.currentPlayer).toBe('black');
     for (const [x, y] of getHandicapPoints(19, 4)) {
       expect(changed.rootNode.gameState.board[y]?.[x]).toBeNull();
@@ -275,6 +278,7 @@ describe('analysis cache store actions', () => {
     useGameStore.getState().setHandicap(4);
     const root = useGameStore.getState().rootNode;
     root.properties = { ...(root.properties ?? {}), HA: ['04'], PL: ['W'] };
+    delete root.properties.AB;
     root.analysis = analysis(50);
     useGameStore.setState({ analysisData: root.analysis, analysisCacheSize: 1 });
 
@@ -283,6 +287,7 @@ describe('analysis cache store actions', () => {
 
     expect(changed.rootNode.properties?.HA).toEqual(['4']);
     expect(changed.rootNode.properties?.PL).toEqual(['W']);
+    expect(changed.rootNode.properties?.AB).toEqual(getHandicapPoints(19, 4).map(([x, y]) => coordinateToSgf(x, y)));
     expect(changed.rootNode.analysis).not.toBeNull();
     expect(changed.analysisData).not.toBeNull();
     expect(changed.analysisCacheSize).toBe(1);

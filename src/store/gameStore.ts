@@ -643,6 +643,70 @@ const applyRootHandicap = (board: BoardState, boardSize: BoardSize, oldHandicap:
   return next;
 };
 
+const rootSetupPropertiesFromBoard = (
+  board: BoardState,
+  boardSize: BoardSize,
+  handicap: number
+): { AB?: string[]; AW?: string[] } => {
+  const ab: string[] = [];
+  const aw: string[] = [];
+  const seenBlack = new Set<string>();
+  const addBlack = (x: number, y: number) => {
+    if (board[y]?.[x] !== 'black') return;
+    const coord = coordinateToSgf(x, y);
+    if (!seenBlack.has(coord)) {
+      seenBlack.add(coord);
+      ab.push(coord);
+    }
+  };
+
+  for (const [x, y] of getHandicapPoints(boardSize, handicap)) addBlack(x, y);
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      const stone = board[y]?.[x] ?? null;
+      if (stone === 'black') addBlack(x, y);
+      else if (stone === 'white') aw.push(coordinateToSgf(x, y));
+    }
+  }
+
+  return {
+    ...(ab.length > 0 ? { AB: ab } : {}),
+    ...(aw.length > 0 ? { AW: aw } : {}),
+  };
+};
+
+const syncRootSetupPropertiesFromBoard = (
+  props: Record<string, string[]>,
+  board: BoardState,
+  boardSize: BoardSize,
+  handicap: number
+): void => {
+  const setup = rootSetupPropertiesFromBoard(board, boardSize, handicap);
+  delete props.AB;
+  delete props.AW;
+  delete props.AE;
+  if (setup.AB) props.AB = setup.AB;
+  if (setup.AW) props.AW = setup.AW;
+};
+
+const rootSetupPropertiesMatchBoard = (
+  props: Record<string, string[]> | undefined,
+  board: BoardState,
+  boardSize: BoardSize,
+  handicap: number
+): boolean => {
+  const setup = rootSetupPropertiesFromBoard(board, boardSize, handicap);
+  return JSON.stringify({
+    AB: props?.AB ?? [],
+    AW: props?.AW ?? [],
+    AE: props?.AE ?? [],
+  }) === JSON.stringify({
+    AB: setup.AB ?? [],
+    AW: setup.AW ?? [],
+    AE: [],
+  });
+};
+
 const replayChildMove = (parent: GameNode, child: GameNode): GameState | null => {
   const move = child.move;
   if (!move) return child.gameState;
@@ -2438,9 +2502,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const nextHandicapText = nextHandicap > 0 ? String(nextHandicap) : '';
     if (currentHandicap === nextHandicap) {
       const hasHandicapPlayer = current.rootNode.properties?.PL?.[0] === 'W';
+      const setupMatchesBoard = rootSetupPropertiesMatchBoard(
+        current.rootNode.properties,
+        current.rootNode.gameState.board,
+        boardSize,
+        nextHandicap
+      );
       if (
         currentHandicapText === nextHandicapText &&
-        (nextHandicap > 0 ? hasHandicapPlayer : !hasHandicapPlayer)
+        (nextHandicap > 0 ? hasHandicapPlayer : !hasHandicapPlayer) &&
+        setupMatchesBoard
       ) {
         return;
       }
@@ -2453,6 +2524,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
           delete state.rootNode.properties.HA;
           if (state.rootNode.properties.PL?.[0] === 'W') delete state.rootNode.properties.PL;
         }
+        const rootBoardSize = getBoardSizeFromBoard(state.rootNode.gameState.board);
+        syncRootSetupPropertiesFromBoard(
+          state.rootNode.properties,
+          state.rootNode.gameState.board,
+          rootBoardSize,
+          nextHandicap
+        );
         return { rootNode: state.rootNode, treeVersion: state.treeVersion + 1 };
       });
       return;
@@ -2486,6 +2564,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         capturedBlack: 0,
         capturedWhite: 0,
       };
+      syncRootSetupPropertiesFromBoard(root.properties, nextBoard, rootBoardSize, nextHandicap);
       clearAnalysisInSubtree(root);
       rebuildDescendants(root);
       const currentNode = findNodeById(root, state.currentNode.id) ?? root;
@@ -3702,6 +3781,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newRoot.properties.HA = [String(safeHandicap)];
       newRoot.properties.PL = ['W'];
     }
+    syncRootSetupPropertiesFromBoard(newRoot.properties, board, normalizedBoardSize, safeHandicap);
 
     set({
       settings: nextSettings,
@@ -3790,17 +3870,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().resetGame();
 
     const state = get();
-    const currentBoard = sgf.initialBoard
+    let currentBoard = sgf.initialBoard
       ? sgf.initialBoard
       : createEmptyBoard(state.settings.defaultBoardSize ?? DEFAULT_BOARD_SIZE);
     const boardSize = getBoardSizeFromBoard(currentBoard);
 
     const sgfProps = sgf.tree?.props;
+    const hasExplicitRootSetup = !!(sgfProps?.['AB']?.length || sgfProps?.['AW']?.length || sgfProps?.['AE']?.length);
     const plRaw = sgfProps?.['PL']?.[0]?.toUpperCase();
     const pl: Player | null = plRaw === 'B' ? 'black' : plRaw === 'W' ? 'white' : null;
     const firstMovePlayer = sgf.moves[0]?.player;
     const ha = parseInt(sgfProps?.['HA']?.[0] ?? '0', 10);
     const safeHandicap = Number.isFinite(ha) ? Math.max(0, Math.min(ha, getMaxHandicap(boardSize))) : 0;
+    if (safeHandicap > 0 && !hasExplicitRootSetup) {
+      currentBoard = cloneBoard(currentBoard);
+      applyHandicapStones(currentBoard, boardSize, safeHandicap);
+    }
     const rootPlayer: Player = pl ?? firstMovePlayer ?? (safeHandicap > 0 ? 'white' : 'black');
     const rules = parseSgfRu(sgfProps?.['RU']?.[0]) ?? state.settings.gameRules;
 
@@ -3818,6 +3903,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (safeHandicap > 0) {
       newRoot.properties.HA = [String(safeHandicap)];
       newRoot.properties.PL = ['W'];
+      if (!hasExplicitRootSetup) syncRootSetupPropertiesFromBoard(newRoot.properties, rootState.board, boardSize, safeHandicap);
     }
 
     const applyKtAnalysis = (node: GameNode, kt: string[]) => {
@@ -3948,6 +4034,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (safeHandicap > 0) {
         rootPropsCopy['HA'] = [String(safeHandicap)];
         if (!rootPropsCopy['PL']?.length) rootPropsCopy['PL'] = ['W'];
+        if (!hasExplicitRootSetup) syncRootSetupPropertiesFromBoard(rootPropsCopy, rootState.board, boardSize, safeHandicap);
       }
       newRoot.properties = rootPropsCopy;
       const rootMove = extractMove(sgf.tree.props);

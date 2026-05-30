@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
 import { DEFAULT_BOARD_SIZE, type AnalysisResult } from '../src/types';
-import { generateSgfFromTree, parseSgf } from '../src/utils/sgf';
+import { getHandicapPoints } from '../src/utils/boardSize';
+import { coordinateToSgf, generateSgfFromTree, parseSgf } from '../src/utils/sgf';
 
 describe('GameStore loadGame', () => {
     it('loads a game from SGF data', () => {
@@ -161,14 +162,19 @@ describe('GameStore loadGame', () => {
         const store = useGameStore.getState();
         store.resetGame();
 
-        const parsed = parseSgf('(;GM[1]SZ[19]HA[1])');
+        const parsed = parseSgf('(;GM[1]SZ[19]HA[4])');
         store.loadGame(parsed);
 
         const state = useGameStore.getState();
+        const handicapPoints = getHandicapPoints(19, 4);
         expect(state.currentPlayer).toBe('white');
         expect(state.rootNode.gameState.currentPlayer).toBe('white');
-        expect(state.rootNode.properties?.HA).toEqual(['1']);
+        expect(state.rootNode.properties?.HA).toEqual(['4']);
         expect(state.rootNode.properties?.PL).toEqual(['W']);
+        expect(state.rootNode.properties?.AB).toEqual(handicapPoints.map(([x, y]) => coordinateToSgf(x, y)));
+        for (const [x, y] of handicapPoints) {
+            expect(state.rootNode.gameState.board[y]?.[x]).toBe('black');
+        }
     });
 
     it('preserves explicit PL on handicap roots', () => {
@@ -183,6 +189,22 @@ describe('GameStore loadGame', () => {
         expect(state.rootNode.gameState.currentPlayer).toBe('black');
         expect(state.rootNode.properties?.HA).toEqual(['1']);
         expect(state.rootNode.properties?.PL).toEqual(['B']);
+    });
+
+    it('preserves explicit setup stones on handicap roots', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        const parsed = parseSgf('(;GM[1]SZ[19]HA[4]AB[dd][pp])');
+        store.loadGame(parsed);
+
+        const state = useGameStore.getState();
+        expect(state.rootNode.properties?.HA).toEqual(['4']);
+        expect(state.rootNode.properties?.AB).toEqual(['dd', 'pp']);
+        expect(state.rootNode.gameState.board[3]?.[3]).toBe('black');
+        expect(state.rootNode.gameState.board[15]?.[15]).toBe('black');
+        expect(state.rootNode.gameState.board[3]?.[15]).toBeNull();
+        expect(state.rootNode.gameState.board[15]?.[3]).toBeNull();
     });
 
     it('edits and removes root SGF metadata safely', () => {
