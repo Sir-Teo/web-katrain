@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   createLibraryBackup,
+  createLibraryFolder,
   createLibraryItem,
+  deleteLibraryItem,
   extractLibraryMetadata,
   normalizeLibraryItems,
   parseLibraryBackup,
@@ -59,5 +61,17 @@ describe('library storage helpers', () => {
     const restored = parseLibraryBackup(backup);
     expect(restored).toHaveLength(1);
     expect(restored[0]?.name).toBe('Backup Game');
+  });
+
+  it('deletes folders with all descendants', () => {
+    const folder = createLibraryFolder('Folder', null);
+    const nestedFolder = createLibraryFolder('Nested', folder.id);
+    const directFile = createLibraryItem('Direct', sgf, folder.id);
+    const nestedFile = createLibraryItem('Nested Game', sgf, nestedFolder.id);
+    const rootFile = createLibraryItem('Root', sgf, null);
+
+    const remaining = deleteLibraryItem([folder, nestedFolder, directFile, nestedFile, rootFile], folder.id);
+
+    expect(remaining).toEqual([rootFile]);
   });
 });

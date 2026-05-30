@@ -38,6 +38,138 @@ import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
 
+type LibraryTextDialogState = {
+  title: string;
+  label: string;
+  initialValue: string;
+  placeholder?: string;
+  confirmLabel: string;
+  onSubmit: (value: string) => void;
+};
+
+type LibraryConfirmDialogState = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+};
+
+const LibraryTextDialog: React.FC<{
+  dialog: LibraryTextDialogState;
+  onClose: () => void;
+}> = ({ dialog, onClose }) => {
+  const [value, setValue] = useState(dialog.initialValue);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const trimmed = value.trim();
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const submit = () => {
+    if (!trimmed) return;
+    dialog.onSubmit(trimmed);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="library-text-dialog-title"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+      >
+        <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
+          <h2 id="library-text-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
+            {dialog.title}
+          </h2>
+          <button type="button" onClick={onClose} className="ui-text-faint hover:text-white" aria-label="Close">
+            <FaTimes />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-[var(--ui-text-muted)]">{dialog.label}</span>
+            <input
+              ref={inputRef}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') submit();
+                if (e.key === 'Escape') onClose();
+              }}
+              placeholder={dialog.placeholder}
+              className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <button type="button" className="panel-action-button" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="panel-action-button active"
+              onClick={submit}
+              disabled={!trimmed}
+            >
+              {dialog.confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const LibraryConfirmDialog: React.FC<{
+  dialog: LibraryConfirmDialogState;
+  onClose: () => void;
+}> = ({ dialog, onClose }) => {
+  const confirm = () => {
+    dialog.onConfirm();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="library-confirm-dialog-title"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+      >
+        <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
+          <h2 id="library-confirm-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
+            {dialog.title}
+          </h2>
+          <button type="button" onClick={onClose} className="ui-text-faint hover:text-white" aria-label="Close">
+            <FaTimes />
+          </button>
+        </div>
+        <div className="p-4 space-y-4">
+          <p className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
+          <div className="flex justify-end gap-2">
+            <button type="button" className="panel-action-button" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={['panel-action-button', dialog.danger ? 'danger' : 'active'].join(' ')}
+              onClick={confirm}
+            >
+              {dialog.confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface LibraryPanelProps {
   open: boolean;
   docked?: boolean;
@@ -97,6 +229,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragOverRoot, setDragOverRoot] = useState(false);
+  const [textDialog, setTextDialog] = useState<LibraryTextDialogState | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<LibraryConfirmDialogState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
@@ -335,42 +469,71 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleSaveCurrent = () => {
-    const name = window.prompt('Save to Library as:', `Game ${items.length + 1}`) ?? '';
-    if (!name.trim()) return;
     const sgf = getCurrentSgf();
     if (!sgf.trim()) {
       onToast('Nothing to save yet.', 'info');
       return;
     }
-    const newItem = createLibraryItem(name, sgf, activeFolderId);
-    setItems((prev) => [newItem, ...prev]);
-    setActiveId(newItem.id);
-    onCurrentSaved?.();
-    onToast(`Saved "${newItem.name}" to Library.`, 'success');
+    setTextDialog({
+      title: 'Save to Library',
+      label: 'Name',
+      initialValue: `Game ${items.length + 1}`,
+      placeholder: 'Game name',
+      confirmLabel: 'Save',
+      onSubmit: (name) => {
+        const newItem = createLibraryItem(name, sgf, activeFolderId);
+        setItems((prev) => [newItem, ...prev]);
+        setActiveId(newItem.id);
+        onCurrentSaved?.();
+        onToast(`Saved "${newItem.name}" to Library.`, 'success');
+      },
+    });
   };
 
   const handleRename = (item: LibraryItem) => {
-    const next = window.prompt(`Rename ${isFolder(item) ? 'folder' : 'file'}:`, item.name) ?? '';
-    if (!next.trim()) return;
-    setItems((prev) => updateLibraryItem(prev, item.id, { name: next.trim() }));
+    setTextDialog({
+      title: `Rename ${isFolder(item) ? 'Folder' : 'File'}`,
+      label: 'Name',
+      initialValue: item.name,
+      placeholder: isFolder(item) ? 'Folder name' : 'Game name',
+      confirmLabel: 'Rename',
+      onSubmit: (next) => {
+        setItems((prev) => updateLibraryItem(prev, item.id, { name: next }));
+      },
+    });
   };
 
   const handleCreateFolder = () => {
-    const name = window.prompt('New folder name:', 'New Folder') ?? '';
-    if (!name.trim()) return;
-    const folder = createLibraryFolder(name.trim(), activeFolderId);
-    setItems((prev) => [folder, ...prev]);
-    setExpandedFolderIds((prev) => new Set(prev).add(folder.id));
-    setCurrentFolderId(folder.id);
-    onToast(`Created folder "${folder.name}".`, 'success');
+    setTextDialog({
+      title: 'New Folder',
+      label: 'Name',
+      initialValue: 'New Folder',
+      placeholder: 'Folder name',
+      confirmLabel: 'Create',
+      onSubmit: (name) => {
+        const folder = createLibraryFolder(name, activeFolderId);
+        setItems((prev) => [folder, ...prev]);
+        setExpandedFolderIds((prev) => new Set(prev).add(folder.id));
+        setCurrentFolderId(folder.id);
+        onToast(`Created folder "${folder.name}".`, 'success');
+      },
+    });
   };
 
   const handleClearLibrary = () => {
-    if (!window.confirm('Clear the entire library?')) return;
-    setItems([]);
-    setSelectedIds(new Set());
-    setCurrentFolderId(null);
-    onToast('Library cleared.', 'info');
+    setConfirmDialog({
+      title: 'Clear Library',
+      message: 'Clear the entire library?',
+      confirmLabel: 'Clear',
+      danger: true,
+      onConfirm: () => {
+        setItems([]);
+        setSelectedIds(new Set());
+        setActiveId(null);
+        setCurrentFolderId(null);
+        onToast('Library cleared.', 'info');
+      },
+    });
   };
 
   const handleGoUp = () => {
@@ -384,9 +547,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const message = isFolderItem
       ? `Delete folder "${item.name}" and its contents?`
       : `Delete "${item.name}" from Library?`;
-    if (!window.confirm(message)) return;
-    setItems((prev) => deleteLibraryItem(prev, item.id));
-    if (activeId === item.id) setActiveId(null);
+    setConfirmDialog({
+      title: isFolderItem ? 'Delete Folder' : 'Delete Game',
+      message,
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: () => {
+        setItems((prev) => deleteLibraryItem(prev, item.id));
+        if (activeId === item.id || (isFolderItem && activeId && isDescendantOf(activeId, item.id))) {
+          setActiveId(null);
+        }
+      },
+    });
   };
 
   const handleDownload = (item: LibraryFile) => {
@@ -477,16 +649,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleBulkDelete = () => {
     if (visibleSelectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${visibleSelectedIds.size} item(s) from Library?`)) return;
-    setItems((prev) => {
-      let next = prev;
-      for (const id of visibleSelectedIds) {
-        next = deleteLibraryItem(next, id);
-      }
-      return next;
+    setConfirmDialog({
+      title: 'Delete Selected',
+      message: `Delete ${visibleSelectedIds.size} item(s) from Library?`,
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: () => {
+        setItems((prev) => {
+          let next = prev;
+          for (const id of visibleSelectedIds) {
+            next = deleteLibraryItem(next, id);
+          }
+          return next;
+        });
+        if (
+          activeId &&
+          Array.from(visibleSelectedIds).some((id) => activeId === id || isDescendantOf(activeId, id))
+        ) {
+          setActiveId(null);
+        }
+        setSelectedIds(new Set());
+      },
     });
-    if (activeId && visibleSelectedIds.has(activeId)) setActiveId(null);
-    setSelectedIds(new Set());
   };
 
   const handleBulkExport = async () => {
@@ -860,6 +1044,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   return (
     <>
+      {textDialog && <LibraryTextDialog dialog={textDialog} onClose={() => setTextDialog(null)} />}
+      {confirmDialog && <LibraryConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />}
       <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={onClose} />
       <div
         ref={panelRef}
