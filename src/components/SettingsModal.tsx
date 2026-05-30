@@ -16,6 +16,7 @@ import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { UI_THEME_OPTIONS } from '../utils/uiThemes';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
+import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
 
 let uploadedModelUrl: string | null = null;
 let lastManualModelUrl: string | null = null;
@@ -123,6 +124,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         { id: 'general', label: 'General' },
         { id: 'analysis', label: 'Analysis' },
         { id: 'ai', label: 'AI/Engine' },
+        { id: 'shortcuts', label: 'Shortcuts' },
     ];
     React.useEffect(() => {
         if (typeof window === 'undefined') {
@@ -1728,6 +1730,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 </div>  
                             </div>  
                         )}  
+
+                        {activeTab === 'shortcuts' && (
+                            <div
+                                id="panel-shortcuts"
+                                role="tabpanel"
+                                aria-labelledby="tab-shortcuts"
+                                tabIndex={3}
+                            >
+                                <ShortcutSettingsPanel />
+                            </div>
+                        )}
                     </div>  
                 </div>
                 <div className="sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t backdrop-blur">

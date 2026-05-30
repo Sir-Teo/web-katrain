@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { loadSgfOrOgs } from '../utils/ogs';
 import type { UiMode } from '../components/layout/types';
+import { eventMatchesShortcut, loadShortcutOverrides } from '../utils/shortcuts';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
@@ -110,10 +111,9 @@ export function useKeyboardShortcuts({
           active.isContentEditable);
       if (isTyping) return;
 
-      const ctrl = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;
-      const key = e.key;
-      const keyLower = key.toLowerCase();
+      const overrides = loadShortcutOverrides();
+      const matches = (id: string) => eventMatchesShortcut(e, id, overrides);
 
       const jumpBack = (n: number) => {
         for (let i = 0; i < n; i++) navigateBack();
@@ -169,44 +169,44 @@ export function useKeyboardShortcuts({
       };
 
       // File operations
-      if (ctrl && keyLower === 's') {
+      if (matches('save-sgf')) {
         e.preventDefault();
         downloadSgfFromTree(rootNode, sgfExportOptions);
         return;
       }
-      if (ctrl && keyLower === 'l') {
+      if (matches('toggle-library')) {
         e.preventDefault();
         toggleLibrary();
         return;
       }
-      if (ctrl && keyLower === 'o') {
+      if (matches('open-sgf')) {
         e.preventDefault();
         fileInputRef.current?.click();
         return;
       }
-      if (ctrl && keyLower === 'b') {
+      if (matches('toggle-sidebar')) {
         e.preventDefault();
         toggleSidebar();
         return;
       }
-      if (ctrl && keyLower === 'c') {
+      if (matches('copy-sgf')) {
         e.preventDefault();
         void copySgfToClipboard();
         return;
       }
-      if (ctrl && keyLower === 'v') {
+      if (matches('paste-sgf')) {
         e.preventDefault();
         void pasteSgfFromClipboard();
         return;
       }
-      if (ctrl && keyLower === 'n') {
+      if (matches('new-game')) {
         e.preventDefault();
         openNewGame();
         return;
       }
 
       // Escape
-      if (key === 'Escape') {
+      if (matches('escape')) {
         e.preventDefault();
         if (isSelectingRegionOfInterest) cancelSelectRegionOfInterest();
         analyzeExtra('stop');
@@ -222,14 +222,14 @@ export function useKeyboardShortcuts({
       }
 
       // Keyboard help
-      if (key === '?' || (shift && key === '/')) {
+      if (matches('keyboard-help')) {
         e.preventDefault();
         setIsKeyboardHelpOpen(true);
         return;
       }
 
       // Fullscreen
-      if (keyLower === 'f') {
+      if (matches('fullscreen')) {
         e.preventDefault();
         if (!document.fullscreenElement) {
           document.documentElement.requestFullscreen?.().catch(() => {});
@@ -240,134 +240,134 @@ export function useKeyboardShortcuts({
       }
 
       // Continuous analysis
-      if (key === ' ' || key === 'Spacebar') {
+      if (matches('continuous-analysis')) {
         e.preventDefault();
         toggleContinuousAnalysis(shift);
         return;
       }
 
       // Game control
-      if (keyLower === 'p') {
+      if (matches('pass')) {
         e.preventDefault();
         passTurn();
         return;
       }
 
-      if (keyLower === 'o') {
+      if (matches('rotate-board')) {
         e.preventDefault();
         rotateBoard();
         return;
       }
 
       // Display toggles
-      if (keyLower === 'k') {
+      if (matches('toggle-coordinates')) {
         e.preventDefault();
         updateSettings({ showCoordinates: !settings.showCoordinates });
         return;
       }
-      if (keyLower === 'm') {
+      if (matches('toggle-move-numbers')) {
         e.preventDefault();
         updateSettings({ showMoveNumbers: !settings.showMoveNumbers });
         return;
       }
 
       // Visualization toggles
-      if (keyLower === 'q') {
+      if (matches('toggle-children')) {
         e.preventDefault();
         updateSettings({ analysisShowChildren: !settings.analysisShowChildren });
         return;
       }
-      if (keyLower === 'w') {
+      if (matches('toggle-eval')) {
         e.preventDefault();
         updateSettings({ analysisShowEval: !settings.analysisShowEval });
         return;
       }
-      if (keyLower === 'e') {
+      if (matches('toggle-hints')) {
         e.preventDefault();
         if (!settings.analysisShowPolicy) updateSettings({ analysisShowHints: !settings.analysisShowHints });
         return;
       }
-      if (keyLower === 'r') {
+      if (matches('toggle-policy')) {
         e.preventDefault();
         updateSettings({ analysisShowPolicy: !settings.analysisShowPolicy });
         return;
       }
-      if (keyLower === 't') {
+      if (matches('toggle-territory')) {
         e.preventDefault();
         updateSettings({ analysisShowOwnership: !settings.analysisShowOwnership });
         return;
       }
 
       // Analysis actions
-      if (keyLower === 'a') {
+      if (matches('analysis-extra')) {
         e.preventDefault();
         analyzeExtra('extra');
         return;
       }
-      if (keyLower === 's') {
+      if (matches('analysis-equalize')) {
         e.preventDefault();
         analyzeExtra('equalize');
         return;
       }
-      if (keyLower === 'd') {
+      if (matches('analysis-sweep')) {
         e.preventDefault();
         analyzeExtra('sweep');
         return;
       }
-      if (keyLower === 'f') {
+      if (matches('analysis-alternative')) {
         e.preventDefault();
         analyzeExtra('alternative');
         return;
       }
-      if (keyLower === 'g') {
+      if (matches('select-region')) {
         e.preventDefault();
         startSelectRegionOfInterest();
         return;
       }
-      if (keyLower === 'h') {
+      if (matches('reset-analysis')) {
         e.preventDefault();
         resetCurrentAnalysis();
         return;
       }
-      if (keyLower === 'i') {
+      if (matches('toggle-insert')) {
         e.preventDefault();
         toggleInsertMode();
         return;
       }
-      if (keyLower === 'l') {
+      if (matches('selfplay')) {
         e.preventDefault();
         selfplayToEnd();
         return;
       }
 
       // Branch navigation
-      if (keyLower === 'b') {
+      if (matches('undo-main-branch') || matches('undo-branch-point')) {
         e.preventDefault();
         if (isInsertMode) {
           toast('Finish inserting before navigating.', 'error');
           return;
         }
-        if (shift) undoToMainBranch();
+        if (matches('undo-main-branch')) undoToMainBranch();
         else undoToBranchPoint();
         return;
       }
 
       // Find mistakes
-      if (keyLower === 'n') {
+      if (matches('next-mistake') || matches('prev-mistake')) {
         e.preventDefault();
-        findMistake(shift ? 'undo' : 'redo');
+        findMistake(matches('prev-mistake') ? 'undo' : 'redo');
         return;
       }
 
       // Tab toggle
-      if (key === 'Tab') {
+      if (matches('toggle-analysis')) {
         e.preventDefault();
         toggleAnalysisMode();
         return;
       }
 
       // Home/End
-      if (key === 'Home') {
+      if (matches('nav-start')) {
         e.preventDefault();
         if (isInsertMode) {
           toast('Finish inserting before navigating.', 'error');
@@ -376,7 +376,7 @@ export function useKeyboardShortcuts({
         navigateStart();
         return;
       }
-      if (key === 'End') {
+      if (matches('nav-end')) {
         e.preventDefault();
         if (isInsertMode) {
           toast('Finish inserting before navigating.', 'error');
@@ -387,7 +387,7 @@ export function useKeyboardShortcuts({
       }
 
       // Arrow up/down (branch switch)
-      if (key === 'ArrowUp') {
+      if (matches('branch-prev')) {
         e.preventDefault();
         if (isInsertMode) {
           toast('Finish inserting before navigating.', 'error');
@@ -396,7 +396,7 @@ export function useKeyboardShortcuts({
         switchBranch(-1);
         return;
       }
-      if (key === 'ArrowDown') {
+      if (matches('branch-next')) {
         e.preventDefault();
         if (isInsertMode) {
           toast('Finish inserting before navigating.', 'error');
@@ -407,10 +407,9 @@ export function useKeyboardShortcuts({
       }
 
       // Arrow left/right (navigation)
-      if (key === 'ArrowLeft' || keyLower === 'z') {
+      if (matches('nav-back') || matches('nav-back-10')) {
         e.preventDefault();
-        if (ctrl) navigateStart();
-        else if (shift) jumpBack(10);
+        if (matches('nav-back-10')) jumpBack(10);
         else {
           if (mode === 'play') {
             const st = useGameStore.getState();
@@ -424,20 +423,19 @@ export function useKeyboardShortcuts({
         }
         return;
       }
-      if (key === 'ArrowRight' || keyLower === 'x') {
+      if (matches('nav-forward') || matches('nav-forward-10')) {
         e.preventDefault();
         if (isInsertMode) {
           toast('Finish inserting before navigating.', 'error');
           return;
         }
-        if (ctrl) navigateEnd();
-        else if (shift) jumpForward(10);
+        if (matches('nav-forward-10')) jumpForward(10);
         else navigateForward();
         return;
       }
 
       // PageUp (make main branch)
-      if (key === 'PageUp') {
+      if (matches('make-main-branch')) {
         e.preventDefault();
         if (isInsertMode) {
           toast('Finish inserting before navigating.', 'error');
@@ -448,24 +446,24 @@ export function useKeyboardShortcuts({
       }
 
       // Enter (AI move)
-      if (key === 'Enter') {
+      if (matches('ai-move')) {
         e.preventDefault();
         makeAiMove();
         return;
       }
 
       // Function keys (modals)
-      if (key === 'F2') {
+      if (matches('game-analysis-modal')) {
         e.preventDefault();
         setIsGameAnalysisOpen(true);
         return;
       }
-      if (key === 'F3') {
+      if (matches('game-report-modal')) {
         e.preventDefault();
         setIsGameReportOpen(true);
         return;
       }
-      if (key === 'F8') {
+      if (matches('settings-modal')) {
         e.preventDefault();
         setIsSettingsOpen(true);
         return;
