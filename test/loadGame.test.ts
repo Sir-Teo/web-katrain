@@ -193,6 +193,44 @@ describe('GameStore loadGame', () => {
         expect(useGameStore.getState().currentNode.move).toEqual({ x: 6, y: 6, player: 'white' });
     });
 
+    it('searches for the next mistake on the active branch line', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        store.loadGame(parseSgf('(;GM[1]SZ[9];B[dd](;W[ee];B[ff])(;W[cc];B[bb])(;W[gg];B[hh]))'));
+        store.navigateEnd();
+        store.switchToBranchIndex(3);
+
+        const state = useGameStore.getState();
+        const root = state.rootNode;
+        const firstMove = root.children[0]!;
+        const firstBranch = firstMove.children[0]!;
+        const activeBranch = firstMove.children[2]!;
+        const emptyTerritory = Array.from({ length: 9 }, () => Array(9).fill(0));
+        const analyzed = (moves: AnalysisResult['moves']): AnalysisResult => ({
+            rootWinRate: 0.5,
+            rootScoreLead: 0,
+            moves,
+            territory: emptyTerritory,
+            ownershipMode: 'none',
+        });
+
+        root.analysis = analyzed([{ x: 3, y: 3, winRate: 0.5, scoreLead: 0, visits: 100, pointsLost: 0, order: 0 }]);
+        firstMove.analysis = analyzed([
+            { x: 4, y: 4, winRate: 0.5, scoreLead: 0, visits: 100, pointsLost: 0, order: 0 },
+            { x: 6, y: 6, winRate: 0.5, scoreLead: 0, visits: 100, pointsLost: 5, order: 1 },
+        ]);
+        firstBranch.analysis = analyzed([{ x: 5, y: 5, winRate: 0.5, scoreLead: 0, visits: 100, pointsLost: 0, order: 0 }]);
+        activeBranch.analysis = analyzed([{ x: 7, y: 7, winRate: 0.5, scoreLead: 0, visits: 100, pointsLost: 0, order: 0 }]);
+
+        store.navigateStart();
+        store.navigateNextMistake();
+
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 3, y: 3, player: 'black' });
+        store.navigateForward();
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 6, y: 6, player: 'white' });
+    });
+
     it('copies and pastes branches at the current node', () => {
         const store = useGameStore.getState();
         store.resetGame();

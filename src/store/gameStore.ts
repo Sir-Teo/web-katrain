@@ -3689,7 +3689,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let node: GameNode | null = state.currentNode;
       if (direction === 'redo') {
           while (node && node.children.length > 0) {
-              const next: GameNode = node.children[0]!;
+              const next = getActiveChild(node, state.activeBranchChildIds);
+              if (!next) break;
               if (isMistake(next)) break; // stop one move before the mistake
               node = next;
           }
@@ -3712,6 +3713,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           capturedBlack: node.gameState.capturedBlack,
           capturedWhite: node.gameState.capturedWhite,
           analysisData: node.analysis || null,
+          activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, node),
       };
   }),
 
