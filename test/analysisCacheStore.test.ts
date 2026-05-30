@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import type { AnalysisResult } from '../src/types';
 import { useGameStore } from '../src/store/gameStore';
 import { analysisQueue } from '../src/utils/analysisQueue';
@@ -244,6 +244,18 @@ describe('analysis cache store actions', () => {
     expect(changed.isSelfplayToEnd).toBe(false);
     expect(changed.isGameAnalysisRunning).toBe(false);
     expect(changed.engineStatus).toBe('idle');
+  });
+
+  it('stamps new games with the current SGF date', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 4, 30, 12, 0, 0));
+
+    try {
+      useGameStore.getState().startNewGame({ komi: 6.5, rules: 'japanese', boardSize: 19, handicap: 0 });
+      expect(useGameStore.getState().rootNode.properties?.DT).toEqual(['2026-05-30']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('routes SGF HA edits through handicap state and clears handicap stones', () => {

@@ -7,7 +7,7 @@ import { EditToolbar } from './EditToolbar';
 import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
 import { FaTimes } from 'react-icons/fa';
-import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
+import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { LibraryFile } from '../utils/library';
 import { loadLibrary, saveLibrary, updateLibraryFileSgf, updateLibraryItem } from '../utils/library';
@@ -422,7 +422,7 @@ export const Layout: React.FC = () => {
     blackRank: getRootProp('BR'),
     whiteRank: getRootProp('WR'),
     event: getRootProp('EV'),
-    date: getRootProp('DT'),
+    date: formatSgfDate(),
     place: getRootProp('PC'),
     gameName: getRootProp('GN'),
   };

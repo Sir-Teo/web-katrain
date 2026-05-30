@@ -10,6 +10,13 @@ export const KATRAIN_SGF_SEPARATOR_MARKER = "\u3164\u3164";
 
 const stripNewlines = (value: string): string => value.replace(/^\n+/, '').replace(/\n+$/, '');
 
+export const formatSgfDate = (date = new Date()): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export function extractKaTrainUserNoteFromSgfComment(values: string[] | undefined): string {
     const comments: string[] = [];
     for (const v of values ?? []) {
@@ -262,7 +269,7 @@ const expandPointListPropertiesInTree = (node: ParsedSgfNode, boardSize: BoardSi
 
 export const generateSgf = (gameState: GameState): string => {
   const { moveHistory } = gameState;
-  const date = new Date().toISOString().split('T')[0];
+  const date = formatSgfDate();
   const boardSize = normalizeBoardSize(gameState.board.length, DEFAULT_BOARD_SIZE);
 
   let sgf = `(;GM[1]FF[4]CA[UTF-8]AP[WebKatrain:0.1]ST[2]\n`;
@@ -486,7 +493,7 @@ function serializeSequence(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
 }
 
 export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportOptions): string => {
-    const date = new Date().toISOString().split('T')[0];
+    const date = formatSgfDate();
     const trainer = normalizeTrainerConfig(opts);
     const boardSize = normalizeBoardSize(rootNode.gameState.board.length, DEFAULT_BOARD_SIZE);
 
