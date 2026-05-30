@@ -779,6 +779,214 @@
     text-overflow: ellipsis;
   }
 
+  .manual-score-launch,
+  .manual-score-panel {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 28;
+    border: 1px solid var(--ui-border-strong);
+    border-radius: 8px;
+    color: var(--ui-text);
+    background: color-mix(in srgb, var(--ui-panel) 94%, transparent);
+    box-shadow: 0 14px 34px rgb(0 0 0 / 32%);
+    backdrop-filter: blur(12px);
+  }
+
+  .manual-score-launch {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .manual-score-launch:hover:not(:disabled) {
+    background: var(--ui-surface-2);
+  }
+
+  .manual-score-launch:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+
+  .manual-score-panel {
+    width: min(280px, calc(100vw - 24px));
+    overflow: hidden;
+  }
+
+  .manual-score-header,
+  .manual-score-actions,
+  .manual-score-totals > div,
+  .manual-score-breakdown > div {
+    display: flex;
+    align-items: center;
+  }
+
+  .manual-score-header {
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 34px;
+    padding: 7px 8px 7px 10px;
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .manual-score-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .manual-score-icon {
+    display: inline-flex;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: var(--ui-text-muted);
+  }
+
+  .manual-score-icon:hover {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+  }
+
+  .manual-score-result {
+    margin: 10px 10px 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.1;
+  }
+
+  .manual-score-result.black {
+    color: #f8fafc;
+    background: #101827;
+  }
+
+  .manual-score-result.white {
+    color: #0f172a;
+    background: #f8fafc;
+  }
+
+  .manual-score-totals {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    padding: 0 10px 8px;
+  }
+
+  .manual-score-totals > div {
+    gap: 7px;
+    min-width: 0;
+    padding: 5px 7px;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    background: var(--ui-surface);
+    font-size: 12px;
+  }
+
+  .manual-score-totals strong {
+    margin-left: auto;
+    font-family: var(--ui-font-mono);
+    font-size: 13px;
+  }
+
+  .manual-score-stone {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    border: 1px solid var(--ui-border-strong);
+  }
+
+  .manual-score-stone.black {
+    background: #111827;
+  }
+
+  .manual-score-stone.white {
+    background: #f8fafc;
+  }
+
+  .manual-score-breakdown {
+    display: grid;
+    gap: 3px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--ui-border);
+    color: var(--ui-text-muted);
+    font-size: 11px;
+  }
+
+  .manual-score-breakdown > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px 42px;
+    gap: 6px;
+  }
+
+  .manual-score-breakdown b {
+    color: var(--ui-text);
+    font-family: var(--ui-font-mono);
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .manual-score-actions {
+    gap: 6px;
+    padding: 8px 10px 10px;
+    border-top: 1px solid var(--ui-border);
+  }
+
+  .manual-score-actions button {
+    display: inline-flex;
+    min-height: 30px;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    color: var(--ui-text-muted);
+    background: var(--ui-surface);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .manual-score-actions button:hover {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+  }
+
+  .manual-score-actions button.primary {
+    color: var(--ui-accent-contrast);
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+  }
+
+  @media (max-width: 640px) {
+    .manual-score-launch,
+    .manual-score-panel {
+      left: 8px;
+      top: 8px;
+    }
+
+    .manual-score-panel {
+      width: min(250px, calc(100vw - 16px));
+    }
+
+    .manual-score-result {
+      font-size: 19px;
+    }
+  }
+
   .status-bar {
     background: var(--ui-panel);
     border-top: 1px solid var(--ui-border);

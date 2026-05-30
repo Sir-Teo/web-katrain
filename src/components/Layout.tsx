@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { AnalysisPanel } from './AnalysisPanel';
 import { EditToolbar } from './EditToolbar';
+import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
 import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
@@ -15,6 +16,7 @@ import type { CandidateMove, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
+import { computeManualScoreEstimate, toggleDeadStoneChain } from '../utils/scoring';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { normalizeBoardSize } from '../utils/boardSize';
@@ -291,6 +293,8 @@ export const Layout: React.FC = () => {
   const [libraryVersion, setLibraryVersion] = useState(0);
   const [recentLibraryItems, setRecentLibraryItems] = useState<LibraryFile[]>([]);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
+  const [scoringMode, setScoringMode] = useState(false);
+  const [manualDeadStones, setManualDeadStones] = useState<Set<string>>(() => new Set());
   const fileDragCounter = useRef(0);
   const cleanGameSgfRef = useRef<string | null>(null);
   const unsavedChangesResolveRef = useRef<((choice: UnsavedChangesChoice) => void) | null>(null);
@@ -374,6 +378,22 @@ export const Layout: React.FC = () => {
     return null;
   }, [board, capturedBlack, capturedWhite, currentNode, komi, rootNode, settings.gameRules]);
 
+  useEffect(() => {
+    setManualDeadStones(new Set());
+  }, [boardSize, currentNode.id]);
+
+  const manualScoreEstimate = useMemo(
+    () =>
+      computeManualScoreEstimate({
+        board,
+        komi,
+        capturedBlack,
+        capturedWhite,
+        deadStones: manualDeadStones,
+      }),
+    [board, capturedBlack, capturedWhite, komi, manualDeadStones]
+  );
+
   const rootProps = rootNode.properties ?? {};
   const getRootProp = (key: string) => rootProps[key]?.[0] ?? '';
   const defaultGameInfo: GameInfoValues = {
@@ -441,6 +461,37 @@ export const Layout: React.FC = () => {
     useGameStore.setState({ notification: { message, type } });
     window.setTimeout(() => useGameStore.setState({ notification: null }), 2500);
   }, []);
+
+  const toggleScoringMode = useCallback(() => {
+    if (!scoringMode && (isEditMode || isInsertMode || isSelectingRegionOfInterest)) {
+      toast('Finish editing before scoring.', 'error');
+      return;
+    }
+    setScoringMode((prev) => !prev);
+  }, [isEditMode, isInsertMode, isSelectingRegionOfInterest, scoringMode, toast]);
+
+  const clearManualDeadStones = useCallback(() => {
+    setManualDeadStones(new Set());
+  }, []);
+
+  const toggleManualDeadStone = useCallback((x: number, y: number) => {
+    setManualDeadStones((prev) => toggleDeadStoneChain(board, prev, x, y));
+  }, [board]);
+
+  useEffect(() => {
+    if (!scoringMode) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setScoringMode(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [scoringMode]);
+
+  useEffect(() => {
+    if (scoringMode && (isEditMode || isInsertMode || isSelectingRegionOfInterest)) {
+      setScoringMode(false);
+    }
+  }, [isEditMode, isInsertMode, isSelectingRegionOfInterest, scoringMode]);
 
   const generateCurrentSgf = useCallback(
     () => generateSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions),
@@ -841,6 +892,8 @@ export const Layout: React.FC = () => {
       ? 'Selfplay to end… (Esc to stop)'
       : isSelectingRegionOfInterest
         ? 'Select region of interest (drag on board, Esc cancels)'
+        : scoringMode
+          ? 'Scoring mode'
         : notification?.message
           ? notification.message
           : isInsertMode
@@ -1333,6 +1386,7 @@ export const Layout: React.FC = () => {
   const gamepadStatus = useGamepadNavigation({
     enabled:
       settings.gamepadNavigation &&
+      !scoringMode &&
       !isSelectingRegionOfInterest &&
       !isInsertMode &&
       !isEditMode &&
@@ -1702,6 +1756,16 @@ export const Layout: React.FC = () => {
               </div>
             )}
             <EditToolbar isMobile={isMobile} />
+            <ManualScorePanel
+              active={scoringMode}
+              disabled={isEditMode || isInsertMode || isSelectingRegionOfInterest}
+              score={manualScoreEstimate}
+              blackName={blackName}
+              whiteName={whiteName}
+              onToggle={toggleScoringMode}
+              onClear={clearManualDeadStones}
+              onDone={() => setScoringMode(false)}
+            />
             <div className="flex-1 flex items-center justify-center min-h-0 min-w-0">
               <GoBoard
                 hoveredMove={activeHoverMove}
@@ -1709,6 +1773,10 @@ export const Layout: React.FC = () => {
                 pvUpToMove={pvUpToMove}
                 uiMode={boardUiMode}
                 forcePvOverlay={!!reportHoverMove}
+                scoringMode={scoringMode}
+                scoreTerritory={manualScoreEstimate.territory}
+                deadStones={manualDeadStones}
+                onToggleDeadStone={toggleManualDeadStone}
               />
             </div>
           </div>

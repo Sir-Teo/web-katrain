@@ -114,9 +114,23 @@ interface GoBoardProps {
   pvUpToMove: number | null;
   uiMode: 'play' | 'analyze';
   forcePvOverlay?: boolean;
+  scoringMode?: boolean;
+  scoreTerritory?: number[][] | null;
+  deadStones?: ReadonlySet<string>;
+  onToggleDeadStone?: (x: number, y: number) => void;
 }
 
-export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUpToMove, uiMode, forcePvOverlay = false }) => {
+export const GoBoard: React.FC<GoBoardProps> = ({
+  hoveredMove,
+  onHoverMove,
+  pvUpToMove,
+  uiMode,
+  forcePvOverlay = false,
+  scoringMode = false,
+  scoreTerritory = null,
+  deadStones,
+  onToggleDeadStone,
+}) => {
   const {
     board,
     playMove,
@@ -180,6 +194,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     (e: React.WheelEvent<HTMLDivElement>) => {
       // Allow browser zoom
       if (e.ctrlKey || e.metaKey) return;
+      if (scoringMode) return;
       if (wheelThrottleRef.current !== null) return;
 
       const { deltaX, deltaY } = e;
@@ -220,6 +235,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       navigateForward,
       navigateNextMistake,
       navigatePrevMistake,
+      scoringMode,
     ]
   );
 
@@ -460,7 +476,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     showOwnership && currentNode.parent?.analysis && (currentNode.parent.analysis.ownershipMode ?? 'root') !== 'none'
       ? currentNode.parent.analysis.territory
       : null;
-  const territory = analysisTerritory ?? parentTerritory ?? null;
+  const territory = (scoringMode ? scoreTerritory : null) ?? analysisTerritory ?? parentTerritory ?? null;
   const shouldShowHints = isAnalysisMode && !!analysisData && settings.analysisShowHints && !settings.analysisShowPolicy;
   const hintMoveMap = useMemo(() => {
     if (!shouldShowHints || !analysisData) return null;
@@ -551,7 +567,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
         const left = cx - radius + offsetX;
         const top = cy - radius + offsetY;
 
-        const ownershipVal = isAnalysisMode && settings.analysisShowOwnership && territory ? (territory[y]?.[x] ?? 0) : null;
+        const deadStoneKey = `${x},${y}`;
+        const isDeadScoringStone = scoringMode && !!deadStones?.has(deadStoneKey);
+        const ownershipVal =
+          (scoringMode || (isAnalysisMode && settings.analysisShowOwnership)) && territory
+            ? (territory[y]?.[x] ?? 0)
+            : null;
         const ownershipAbs = ownershipVal !== null ? Math.min(1, Math.abs(ownershipVal)) : 0;
         const owner =
           ownershipVal !== null
@@ -560,7 +581,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
               : 'white'
             : null;
         const stoneAlpha =
-          ownershipVal !== null && owner
+          isDeadScoringStone
+            ? 0.45
+            : ownershipVal !== null && owner
             ? cell === owner
               ? STONE_MIN_ALPHA + (1 - STONE_MIN_ALPHA) * ownershipAbs
               : STONE_MIN_ALPHA
@@ -620,6 +643,29 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
           ctx.strokeRect(markLeft, markTop, markSize, markSize);
         }
 
+        if (isDeadScoringStone) {
+          const cross = stoneDiameter * 0.28;
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.lineWidth = Math.max(2, stoneDiameter * 0.075);
+          ctx.strokeStyle = 'rgba(12, 18, 28, 0.62)';
+          ctx.beginPath();
+          ctx.moveTo(cx - cross, cy - cross);
+          ctx.lineTo(cx + cross, cy + cross);
+          ctx.moveTo(cx + cross, cy - cross);
+          ctx.lineTo(cx - cross, cy + cross);
+          ctx.stroke();
+          ctx.lineWidth = Math.max(2, stoneDiameter * 0.052);
+          ctx.strokeStyle = 'rgba(251, 113, 133, 0.96)';
+          ctx.beginPath();
+          ctx.moveTo(cx - cross, cy - cross);
+          ctx.lineTo(cx + cross, cy + cross);
+          ctx.moveTo(cx + cross, cy - cross);
+          ctx.lineTo(cx - cross, cy + cross);
+          ctx.stroke();
+          ctx.restore();
+        }
+
         if (settings.showMoveNumbers && moveNumber != null) {
           ctx.fillStyle = 'rgba(217,173,102,0.8)';
           ctx.fillText(String(moveNumber), cx, cy);
@@ -631,10 +677,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     boardSize,
     boardTheme,
     cellSize,
+    deadStones,
     isAnalysisMode,
     moveNumbers,
     originX,
     originY,
+    scoringMode,
     settings.analysisShowOwnership,
     settings.showMoveNumbers,
     setupOverlayCanvas,
@@ -804,6 +852,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
     if (isSelectingRegionOfInterest) return;
+    if (scoringMode) return;
 
     const blackImages = stoneImagesRef.current.black;
     const whiteImages = stoneImagesRef.current.white;
@@ -942,6 +991,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     boardTheme,
     currentNode,
     settings.showNextMovePreview,
+    scoringMode,
   ]);
 
   useEffect(() => {
@@ -1067,7 +1117,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   ): boolean => (a?.x === b?.x && a?.y === b?.y);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isEditMode || isSelectingRegionOfInterest || e.touches.length !== 1) {
+    if (scoringMode || isEditMode || isSelectingRegionOfInterest || e.touches.length !== 1) {
       swipeStartRef.current = null;
       return;
     }
@@ -1128,6 +1178,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     const pt = eventToInternal(e);
     if (!pt) return;
 
+    if (scoringMode) {
+      if (board[pt.y]?.[pt.x]) onToggleDeadStone?.(pt.x, pt.y);
+      return;
+    }
+
     if (isEditMode) {
       applyEditTool(pt.x, pt.y);
       return;
@@ -1175,6 +1230,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       }
     }
     setCursorPt((prev) => (samePoint(prev, pt) ? prev : pt));
+    if (scoringMode) {
+      if (hoveredMove) onHoverMove(null);
+      return;
+    }
     if (!isSelectingRegionOfInterest) {
       if (shouldShowHints && hintMoveMap && pt) {
         const move = hintMoveMap.get(`${pt.x},${pt.y}`) ?? null;
@@ -1236,7 +1295,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   };
 
   const ownershipTexture = useMemo(() => {
-    if (!isAnalysisMode || !settings.analysisShowOwnership) return null;
+    if (!scoringMode && (!isAnalysisMode || !settings.analysisShowOwnership)) return null;
     if (!territory) return null;
 
     const width = boardSize + 2;
@@ -1269,7 +1328,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     }
 
     return { width, height, bytes };
-  }, [boardSize, isAnalysisMode, settings.analysisShowOwnership, territory, toInternal]);
+  }, [boardSize, isAnalysisMode, scoringMode, settings.analysisShowOwnership, territory, toInternal]);
 
   useEffect(() => {
     const canvas = ownershipCanvasRef.current;
@@ -1723,7 +1782,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       <div
         className={[
           'relative shadow-lg rounded-sm select-none touch-none',
-          isEditMode ? 'cursor-crosshair' : 'cursor-pointer',
+          isEditMode || scoringMode ? 'cursor-crosshair' : 'cursor-pointer',
         ].join(' ')}
         data-board-snapshot="true"
         ref={boardSnapshotRef}
