@@ -75,6 +75,34 @@ describe('GameStore loadGame', () => {
         expect(endState.currentNode.move).toEqual({ x: 3, y: 3, player: 'white' });
     });
 
+    it('promotes, deletes, and prunes branches from the game tree', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        store.loadGame(parseSgf('(;GM[1]SZ[9];B[dd](;W[ee];B[ff])(;W[cc];B[bb])(;W[gg];B[hh]))'));
+        store.navigateEnd();
+        store.switchBranch(1);
+
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 1, y: 1, player: 'black' });
+
+        store.makeCurrentNodeMainBranch();
+        store.navigateStart();
+        store.navigateEnd();
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 1, y: 1, player: 'black' });
+
+        store.deleteCurrentNode();
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 2, y: 2, player: 'white' });
+
+        store.loadGame(parseSgf('(;GM[1]SZ[9];B[dd](;W[ee];B[ff])(;W[cc];B[bb])(;W[gg];B[hh]))'));
+        store.navigateEnd();
+        store.switchBranch(1);
+        store.pruneCurrentBranch();
+
+        const branchPoint = useGameStore.getState().rootNode.children[0];
+        expect(branchPoint?.children).toHaveLength(1);
+        expect(branchPoint?.children[0]?.move).toEqual({ x: 2, y: 2, player: 'white' });
+    });
+
     it('opens problem collections at the first problem without leaving joseki roots', () => {
         const store = useGameStore.getState();
         store.resetGame();

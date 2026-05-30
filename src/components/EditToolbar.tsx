@@ -8,7 +8,10 @@ import {
   FaHashtag,
   FaRegCircle,
   FaRegSquare,
+  FaSitemap,
+  FaStar,
   FaTimes,
+  FaTrash,
 } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -67,7 +70,18 @@ const toolButtonClass = (active: boolean) =>
   ].join(' ');
 
 export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => {
-  const { isEditMode, editTool, currentNode, treeVersion, toggleEditMode, setEditTool, clearCurrentNodeAnnotations } = useGameStore(
+  const {
+    isEditMode,
+    editTool,
+    currentNode,
+    treeVersion,
+    toggleEditMode,
+    setEditTool,
+    clearCurrentNodeAnnotations,
+    makeCurrentNodeMainBranch,
+    deleteCurrentNode,
+    pruneCurrentBranch,
+  } = useGameStore(
     (state) => ({
       isEditMode: state.isEditMode,
       editTool: state.editTool,
@@ -76,6 +90,9 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
       toggleEditMode: state.toggleEditMode,
       setEditTool: state.setEditTool,
       clearCurrentNodeAnnotations: state.clearCurrentNodeAnnotations,
+      makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
+      deleteCurrentNode: state.deleteCurrentNode,
+      pruneCurrentBranch: state.pruneCurrentBranch,
     }),
     shallow
   );
@@ -85,6 +102,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
   const markerCount =
     (nodeProps.TR?.length ?? 0) + (nodeProps.SQ?.length ?? 0) + (nodeProps.CR?.length ?? 0) + (nodeProps.MA?.length ?? 0);
   const labelCount = nodeProps.LB?.length ?? 0;
+  const canEditBranch = Boolean(currentNode.parent);
   void treeVersion;
 
   return (
@@ -141,7 +159,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
             {TOOL_GROUPS.map((group) => (
               <div
                 key={group.title}
-                className="flex items-center gap-1.5 pr-2 border-r border-[var(--ui-border)] last:border-r-0 last:pr-0 max-sm:w-full max-sm:border-r-0 max-sm:border-b max-sm:pb-2 max-sm:last:border-b-0 max-sm:last:pb-0"
+                className="flex items-center gap-1.5 pr-2 border-r border-[var(--ui-border)] max-sm:w-full max-sm:border-r-0 max-sm:border-b max-sm:pb-2 max-sm:last:border-b-0 max-sm:last:pb-0"
               >
                 <div className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
                   {group.title}
@@ -163,6 +181,41 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
                 ))}
               </div>
             ))}
+            <div className="flex items-center gap-1.5 pr-2 border-r border-[var(--ui-border)] max-sm:w-full max-sm:border-r-0 max-sm:border-b max-sm:pb-2">
+              <div className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
+                Branch
+              </div>
+              <button
+                type="button"
+                onClick={makeCurrentNodeMainBranch}
+                disabled={!canEditBranch}
+                className={[toolButtonClass(false), !canEditBranch ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                title="Make current variation the main branch"
+              >
+                <FaStar />
+                <span className="hidden sm:inline">Main</span>
+              </button>
+              <button
+                type="button"
+                onClick={deleteCurrentNode}
+                disabled={!canEditBranch}
+                className={[toolButtonClass(false), !canEditBranch ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                title="Delete current node"
+              >
+                <FaTrash />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
+              <button
+                type="button"
+                onClick={pruneCurrentBranch}
+                disabled={!canEditBranch}
+                className={[toolButtonClass(false), !canEditBranch ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                title="Prune sibling branches"
+              >
+                <FaSitemap />
+                <span className="hidden sm:inline">Prune</span>
+              </button>
+            </div>
             <button
               type="button"
               onClick={clearCurrentNodeAnnotations}
