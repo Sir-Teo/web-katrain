@@ -250,6 +250,7 @@ interface LibraryPanelProps {
   loadedFileId?: string | null;
   onLoadedFileChange?: (id: string | null, name?: string | null) => void;
   externalFileUpdate?: { id: string; sgf: string; updatedAt: number } | null;
+  externalItemRename?: { id: string; name: string; updatedAt: number } | null;
 }
 
 export const LibraryPanel: React.FC<LibraryPanelProps> = ({
@@ -270,6 +271,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   loadedFileId = null,
   onLoadedFileChange,
   externalFileUpdate = null,
+  externalItemRename = null,
 }) => {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
@@ -304,6 +306,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
   const lastExternalFileUpdateRef = useRef<string | null>(null);
+  const lastExternalItemRenameRef = useRef<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const headerActionClass = 'panel-icon-button';
@@ -386,6 +389,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       updateLibraryFileSgf(prev, externalFileUpdate.id, externalFileUpdate.sgf, externalFileUpdate.updatedAt)
     );
   }, [externalFileUpdate]);
+
+  useEffect(() => {
+    if (!didLoadLibraryRef.current || !externalItemRename) return;
+    const key = `${externalItemRename.id}:${externalItemRename.updatedAt}`;
+    if (lastExternalItemRenameRef.current === key) return;
+    lastExternalItemRenameRef.current = key;
+    setItems((prev) =>
+      updateLibraryItem(prev, externalItemRename.id, { name: externalItemRename.name }, externalItemRename.updatedAt)
+    );
+  }, [externalItemRename]);
 
   const activeFolderId = useMemo(() => {
     if (!currentFolderId) return null;

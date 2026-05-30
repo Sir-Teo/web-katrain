@@ -15,6 +15,7 @@ import {
   parseLibraryBackup,
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
+  updateLibraryItem,
 } from '../src/utils/library';
 
 describe('library storage helpers', () => {
@@ -74,6 +75,17 @@ describe('library storage helpers', () => {
 
     expect(updateLibraryFileSgf(items, 'missing', sgf, 456)).toBe(items);
     expect(updateLibraryFileSgf(items, folder.id, sgf, 456)).toBe(items);
+  });
+
+  it('renames library items with a deterministic timestamp', () => {
+    const item = createLibraryItem('Game', sgf, null, 123);
+
+    expect(updateLibraryItem([item], item.id, { name: 'Renamed' }, 789)[0]).toMatchObject({
+      id: item.id,
+      name: 'Renamed',
+      createdAt: 123,
+      updatedAt: 789,
+    });
   });
 
   it('suggests library names from SGF metadata and keeps downloads single-extension', () => {

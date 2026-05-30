@@ -669,8 +669,13 @@ const isLibraryFile = (item: LibraryItem): item is LibraryFile => item.type === 
 
 type LibraryItemUpdates = Partial<Pick<LibraryItem, 'name' | 'parentId'>>;
 
-export const updateLibraryItem = (items: LibraryItem[], id: string, updates: LibraryItemUpdates): LibraryItem[] => {
-  return items.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: Date.now() } : item));
+export const updateLibraryItem = (
+  items: LibraryItem[],
+  id: string,
+  updates: LibraryItemUpdates,
+  timestamp = Date.now()
+): LibraryItem[] => {
+  return items.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: timestamp } : item));
 };
 
 const collectDescendants = (items: LibraryItem[], id: string): Set<string> => {

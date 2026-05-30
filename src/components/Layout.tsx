@@ -10,7 +10,7 @@ import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { LibraryFile } from '../utils/library';
-import { loadLibrary, saveLibrary, updateLibraryFileSgf } from '../utils/library';
+import { loadLibrary, saveLibrary, updateLibraryFileSgf, updateLibraryItem } from '../utils/library';
 import { isOgsUrl, loadSgfOrOgs } from '../utils/ogs';
 import type { CandidateMove, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
@@ -301,6 +301,11 @@ export const Layout: React.FC = () => {
     sgf: string;
     updatedAt: number;
   } | null>(null);
+  const [externalLibraryItemRename, setExternalLibraryItemRename] = useState<{
+    id: string;
+    name: string;
+    updatedAt: number;
+  } | null>(null);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
   const [scoringMode, setScoringMode] = useState(false);
   const [manualDeadStones, setManualDeadStones] = useState<Set<string>>(() => new Set());
@@ -545,6 +550,28 @@ export const Layout: React.FC = () => {
       return false;
     }
   }, [loadedLibraryFileId, markCurrentGameCleanAndClearAutoSave, setLoadedLibraryFile, toast]);
+
+  const renameLoadedLibraryFile = useCallback(async (name: string) => {
+    const nextName = name.trim();
+    if (!loadedLibraryFileId || !nextName || nextName === loadedLibraryFileName) return;
+    try {
+      const items = await loadLibrary();
+      const loadedItem = items.find((item) => item.id === loadedLibraryFileId);
+      if (!loadedItem || loadedItem.type !== 'file') {
+        setLoadedLibraryFile(null);
+        toast('Loaded library file was not found.', 'error');
+        return;
+      }
+      const updatedAt = Date.now();
+      await saveLibrary(updateLibraryItem(items, loadedLibraryFileId, { name: nextName }, updatedAt));
+      setLoadedLibraryFile(loadedLibraryFileId, nextName);
+      setExternalLibraryItemRename({ id: loadedLibraryFileId, name: nextName, updatedAt });
+      setLibraryVersion((prev) => prev + 1);
+      toast(`Renamed "${loadedItem.name}" to "${nextName}".`, 'success');
+    } catch {
+      toast('Failed to rename loaded library file.', 'error');
+    }
+  }, [loadedLibraryFileId, loadedLibraryFileName, setLoadedLibraryFile, toast]);
 
   useEffect(() => {
     if (cleanGameSgfRef.current === null) markCurrentGameClean();
@@ -1722,6 +1749,7 @@ export const Layout: React.FC = () => {
           loadedFileId={loadedLibraryFileId}
           onLoadedFileChange={setLoadedLibraryFile}
           externalFileUpdate={externalLibraryFileUpdate}
+          externalItemRename={externalLibraryItemRename}
           isAnalysisRunning={isGameAnalysisRunning}
           onStopAnalysis={stopGameAnalysis}
           analysisContent={
@@ -2069,6 +2097,7 @@ export const Layout: React.FC = () => {
         endResult={endResult}
         gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
         loadedFileName={loadedLibraryFileName}
+        onLoadedFileRename={renameLoadedLibraryFile}
         unsavedChanges={currentGameDirty}
       />
     </div>
