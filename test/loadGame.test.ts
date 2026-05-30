@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
 import { DEFAULT_BOARD_SIZE } from '../src/types';
-import { parseSgf } from '../src/utils/sgf';
+import { generateSgfFromTree, parseSgf } from '../src/utils/sgf';
 
 describe('GameStore loadGame', () => {
     it('loads a game from SGF data', () => {
@@ -85,5 +85,58 @@ describe('GameStore loadGame', () => {
         const state = useGameStore.getState();
         expect(state.komi).toBe(0);
         expect(state.rootNode.gameState.komi).toBe(0);
+    });
+
+    it('loads non-root setup properties into descendant board states', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        const parsed = parseSgf('(;GM[1]SZ[9];B[cc];W[dd]AB[ee]AW[ff]AE[cc];B[cc])');
+        store.loadGame(parsed);
+
+        store.navigateEnd();
+        const state = useGameStore.getState();
+        const setupNode = state.rootNode.children[0]?.children[0];
+        expect(setupNode?.gameState.board[4]?.[4]).toBe('black');
+        expect(setupNode?.gameState.board[5]?.[5]).toBe('white');
+        expect(setupNode?.gameState.board[2]?.[2]).toBe(null);
+        expect(setupNode?.children[0]?.move).toEqual({ x: 2, y: 2, player: 'black' });
+        expect(state.currentNode.move).toEqual({ x: 2, y: 2, player: 'black' });
+    });
+
+    it('round trips edit markers and labels through the game tree writer', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        const parsed = parseSgf('(;GM[1]SZ[19];B[pd]TR[dd]LB[cc:A];W[dp]SQ[qq])');
+        store.loadGame(parsed);
+
+        const output = generateSgfFromTree(useGameStore.getState().rootNode);
+        expect(output).toContain('TR[dd]');
+        expect(output).toContain('LB[cc:A]');
+        expect(output).toContain('SQ[qq]');
+    });
+
+    it('adds edit-mode annotations and prunes invalid descendants after setup changes', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+        store.playMove(2, 2);
+        useGameStore.getState().navigateStart();
+
+        useGameStore.getState().setEditTool('marker-triangle');
+        useGameStore.getState().applyEditTool(3, 3);
+        expect(useGameStore.getState().rootNode.properties?.TR).toEqual(['dd']);
+
+        useGameStore.getState().setEditTool('label-alpha');
+        useGameStore.getState().applyEditTool(4, 4);
+        expect(useGameStore.getState().rootNode.properties?.LB).toEqual(['ee:A']);
+
+        useGameStore.getState().setEditTool('setup-white');
+        useGameStore.getState().applyEditTool(2, 2);
+        const state = useGameStore.getState();
+        expect(state.rootNode.gameState.board[2]?.[2]).toBe('white');
+        expect(state.rootNode.properties?.AW).toEqual(['cc']);
+        expect(state.rootNode.children).toHaveLength(0);
+        expect(state.notification?.message).toContain('1 descendant node was pruned');
     });
 });

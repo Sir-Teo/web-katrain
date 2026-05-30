@@ -52,4 +52,15 @@ describe('SGF Parser', () => {
       expect(bNode.children[0]!.props['W']?.[0]).toBe('dd');
       expect(bNode.children[1]!.props['W']?.[0]).toBe('dp');
   });
+
+  it('preserves SGF edit markers and labels in parsed nodes', () => {
+      const sgf = '(;GM[1]SZ[19];B[pd]TR[dd]SQ[qq]CR[dp]MA[pp]LB[cc:A][dc:1])';
+      const result = parseSgf(sgf);
+      const node = result.tree?.children[0];
+      expect(node?.props.TR).toEqual(['dd']);
+      expect(node?.props.SQ).toEqual(['qq']);
+      expect(node?.props.CR).toEqual(['dp']);
+      expect(node?.props.MA).toEqual(['pp']);
+      expect(node?.props.LB).toEqual(['cc:A', 'dc:1']);
+  });
 });

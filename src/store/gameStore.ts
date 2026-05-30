@@ -1,8 +1,8 @@
 import { createWithEqualityFn as create } from 'zustand/traditional';
-import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference } from '../types';
+import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
 import { applyCapturesInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
-import { extractKaTrainUserNoteFromSgfComment, type ParsedSgf } from '../utils/sgf';
+import { coordinateToSgf, extractKaTrainUserNoteFromSgfComment, sgfCoordToXy, type ParsedSgf } from '../utils/sgf';
 import { getKataGoEngineClient, isKataGoCanceledError } from '../engine/katago/client';
 import type { KataGoAnalysisPayload } from '../engine/katago/types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
@@ -26,6 +26,8 @@ interface GameStore extends GameState {
   isInsertMode: boolean;
   insertAfterNodeId: string | null; // Main-branch continuation to copy after insert.
   insertAnchorNodeId: string | null; // Where insert mode started.
+  isEditMode: boolean;
+  editTool: EditTool;
   isSelfplayToEnd: boolean;
   isGameAnalysisRunning: boolean;
   gameAnalysisType: 'quick' | 'fast' | 'full' | null;
@@ -99,6 +101,10 @@ interface GameStore extends GameState {
   cancelSelectRegionOfInterest: () => void;
   setRegionOfInterest: (roi: RegionOfInterest | null) => void;
   toggleInsertMode: () => void;
+  toggleEditMode: () => void;
+  setEditTool: (tool: EditTool) => void;
+  applyEditTool: (x: number, y: number) => void;
+  clearCurrentNodeAnnotations: () => void;
   selfplayToEnd: () => void;
   stopSelfplayToEnd: () => void;
   startQuickGameAnalysis: () => void;
@@ -410,6 +416,193 @@ const findNodeById = (root: GameNode, id: string): GameNode | null => {
   return null;
 };
 
+const MARKER_PROPERTIES = ['TR', 'SQ', 'CR', 'MA'] as const;
+type MarkerProperty = (typeof MARKER_PROPERTIES)[number];
+const SETUP_PROPERTIES = ['AB', 'AW', 'AE'] as const;
+
+const editToolToMarkerProperty = (tool: EditTool): MarkerProperty | null => {
+  switch (tool) {
+    case 'marker-triangle':
+      return 'TR';
+    case 'marker-square':
+      return 'SQ';
+    case 'marker-circle':
+      return 'CR';
+    case 'marker-cross':
+      return 'MA';
+    default:
+      return null;
+  }
+};
+
+const cloneBoard = (board: BoardState): BoardState => board.map((row) => [...row]);
+
+const ensureNodeProperties = (node: GameNode): Record<string, string[]> => {
+  node.properties = node.properties ?? {};
+  return node.properties;
+};
+
+const removeValue = (props: Record<string, string[]>, key: string, shouldRemove: (value: string) => boolean): void => {
+  const values = props[key];
+  if (!values) return;
+  const next = values.filter((value) => !shouldRemove(value));
+  if (next.length > 0) props[key] = next;
+  else delete props[key];
+};
+
+const removeSetupCoord = (props: Record<string, string[]>, coord: string): void => {
+  for (const key of SETUP_PROPERTIES) removeValue(props, key, (value) => value === coord);
+};
+
+const removeMarkupCoord = (props: Record<string, string[]>, coord: string): void => {
+  for (const key of MARKER_PROPERTIES) removeValue(props, key, (value) => value === coord);
+  removeValue(props, 'LB', (value) => value.split(':', 1)[0] === coord);
+};
+
+const addUniqueValue = (props: Record<string, string[]>, key: string, value: string): void => {
+  const values = props[key] ?? [];
+  if (!values.includes(value)) props[key] = [...values, value];
+};
+
+const nextAlphaLabel = (props: Record<string, string[]>): string => {
+  let max = -1;
+  for (const value of props.LB ?? []) {
+    const label = value.slice(value.indexOf(':') + 1).trim().toUpperCase();
+    if (/^[A-Z]+$/.test(label)) {
+      let n = 0;
+      for (const ch of label) n = n * 26 + (ch.charCodeAt(0) - 64);
+      max = Math.max(max, n - 1);
+    }
+  }
+  let n = max + 1;
+  let label = '';
+  do {
+    label = String.fromCharCode(65 + (n % 26)) + label;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return label;
+};
+
+const nextNumberLabel = (props: Record<string, string[]>): string => {
+  let max = 0;
+  for (const value of props.LB ?? []) {
+    const label = value.slice(value.indexOf(':') + 1).trim();
+    if (/^\d+$/.test(label)) max = Math.max(max, Number.parseInt(label, 10));
+  }
+  return String(max + 1);
+};
+
+const applySetupPropsToBoard = (
+  board: BoardState,
+  props: Record<string, string[]> | undefined,
+  boardSize = board.length
+): BoardState => {
+  if (!props?.AB?.length && !props?.AW?.length && !props?.AE?.length) return board;
+  const next = cloneBoard(board);
+  const place = (player: Player, coords: string[] | undefined) => {
+    for (const coord of coords ?? []) {
+      const { x, y } = sgfCoordToXy(coord);
+      if (x >= 0 && y >= 0 && x < boardSize && y < boardSize) next[y]![x] = player;
+    }
+  };
+  place('black', props.AB);
+  place('white', props.AW);
+  for (const coord of props.AE ?? []) {
+    const { x, y } = sgfCoordToXy(coord);
+    if (x >= 0 && y >= 0 && x < boardSize && y < boardSize) next[y]![x] = null;
+  }
+  return next;
+};
+
+const applySetupPropsToNode = (node: GameNode, props: Record<string, string[]> | undefined, boardSize?: number): void => {
+  const nextBoard = applySetupPropsToBoard(node.gameState.board, props, boardSize ?? node.gameState.board.length);
+  if (nextBoard !== node.gameState.board) {
+    node.gameState = { ...node.gameState, board: nextBoard };
+  }
+};
+
+const countNodes = (node: GameNode): number => {
+  let count = 0;
+  const stack = [node];
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    count++;
+    for (const child of n.children) stack.push(child);
+  }
+  return count;
+};
+
+const clearAnalysisInSubtree = (node: GameNode): void => {
+  const stack = [node];
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    n.analysis = null;
+    n.analysisVisitsRequested = 0;
+    for (const child of n.children) stack.push(child);
+  }
+};
+
+const replayChildMove = (parent: GameNode, child: GameNode): GameState | null => {
+  const move = child.move;
+  if (!move) return child.gameState;
+  const parentState = parent.gameState;
+  const nextPlayer: Player = move.player === 'black' ? 'white' : 'black';
+
+  if (move.x < 0 || move.y < 0) {
+    const passMove: Move = { x: -1, y: -1, player: move.player };
+    return {
+      board: cloneBoard(parentState.board),
+      currentPlayer: nextPlayer,
+      moveHistory: [...parentState.moveHistory, passMove],
+      capturedBlack: parentState.capturedBlack,
+      capturedWhite: parentState.capturedWhite,
+      komi: parentState.komi,
+    };
+  }
+
+  if (parentState.board[move.y]?.[move.x] !== null) return null;
+
+  const tentativeBoard = cloneBoard(parentState.board);
+  tentativeBoard[move.y]![move.x] = move.player;
+  const captured = applyCapturesInPlace(tentativeBoard, move.x, move.y, move.player);
+  if (captured.length === 0) {
+    const { liberties } = getLiberties(tentativeBoard, move.x, move.y);
+    if (liberties === 0) return null;
+  }
+
+  if (parent.parent && boardsEqual(tentativeBoard, parent.parent.gameState.board)) return null;
+
+  const newCapturedBlack = parentState.capturedBlack + (move.player === 'white' ? captured.length : 0);
+  const newCapturedWhite = parentState.capturedWhite + (move.player === 'black' ? captured.length : 0);
+  return {
+    board: applySetupPropsToBoard(tentativeBoard, child.properties),
+    currentPlayer: nextPlayer,
+    moveHistory: [...parentState.moveHistory, { x: move.x, y: move.y, player: move.player }],
+    capturedBlack: newCapturedBlack,
+    capturedWhite: newCapturedWhite,
+    komi: parentState.komi,
+  };
+};
+
+const rebuildDescendants = (node: GameNode): number => {
+  let pruned = 0;
+  const kept: GameNode[] = [];
+  for (const child of node.children) {
+    const rebuiltState = replayChildMove(node, child);
+    if (!rebuiltState) {
+      pruned += countNodes(child);
+      continue;
+    }
+    child.gameState = rebuiltState;
+    child.analysis = null;
+    child.analysisVisitsRequested = 0;
+    pruned += rebuildDescendants(child);
+    kept.push(child);
+  }
+  node.children = kept;
+  return pruned;
+};
+
 // Initial state helpers
 const initialBoard = createEmptyBoard(DEFAULT_BOARD_SIZE);
 const initialGameState: GameState = {
@@ -561,6 +754,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isInsertMode: false,
   insertAfterNodeId: null,
   insertAnchorNodeId: null,
+  isEditMode: false,
+  editTool: 'setup-black',
   isSelfplayToEnd: false,
   isGameAnalysisRunning: false,
   gameAnalysisType: null,
@@ -917,6 +1112,114 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }));
     if (numCopied > 0) setTimeout(() => set({ notification: null }), 1800);
   },
+
+  toggleEditMode: () =>
+    set((state) => ({
+      isEditMode: !state.isEditMode,
+      isSelectingRegionOfInterest: false,
+      notification: !state.isEditMode
+        ? { message: 'Edit mode: setup stones, labels, and markers are active.', type: 'info' }
+        : { message: 'Edit mode off.', type: 'info' },
+    })),
+
+  setEditTool: (tool) =>
+    set(() => ({
+      editTool: tool,
+      isEditMode: true,
+      isSelectingRegionOfInterest: false,
+    })),
+
+  clearCurrentNodeAnnotations: () =>
+    set((state) => {
+      const props = ensureNodeProperties(state.currentNode);
+      let changed = false;
+      for (const key of [...MARKER_PROPERTIES, 'LB']) {
+        if (props[key]?.length) {
+          delete props[key];
+          changed = true;
+        }
+      }
+      if (!changed) return {};
+      return {
+        treeVersion: state.treeVersion + 1,
+        notification: { message: 'Cleared markers and labels on this node.', type: 'info' },
+      };
+    }),
+
+  applyEditTool: (x, y) =>
+    set((state) => {
+      const boardSize = state.board.length;
+      if (x < 0 || y < 0 || x >= boardSize || y >= boardSize) return {};
+
+      const node = state.currentNode;
+      const props = ensureNodeProperties(node);
+      const coord = coordinateToSgf(x, y);
+      const tool = state.editTool;
+      const markerProp = editToolToMarkerProperty(tool);
+
+      if (markerProp) {
+        removeMarkupCoord(props, coord);
+        addUniqueValue(props, markerProp, coord);
+        return {
+          treeVersion: state.treeVersion + 1,
+          notification: { message: `Added ${markerProp} marker.`, type: 'info' },
+        };
+      }
+
+      if (tool === 'label-alpha' || tool === 'label-number') {
+        removeMarkupCoord(props, coord);
+        const label = tool === 'label-alpha' ? nextAlphaLabel(props) : nextNumberLabel(props);
+        addUniqueValue(props, 'LB', `${coord}:${label}`);
+        return {
+          treeVersion: state.treeVersion + 1,
+          notification: { message: `Added label ${label}.`, type: 'info' },
+        };
+      }
+
+      if (tool === 'marker-erase') {
+        const before = JSON.stringify({ TR: props.TR, SQ: props.SQ, CR: props.CR, MA: props.MA, LB: props.LB });
+        removeMarkupCoord(props, coord);
+        const after = JSON.stringify({ TR: props.TR, SQ: props.SQ, CR: props.CR, MA: props.MA, LB: props.LB });
+        if (before === after) return {};
+        return {
+          treeVersion: state.treeVersion + 1,
+          notification: { message: 'Removed marker or label.', type: 'info' },
+        };
+      }
+
+      if (tool !== 'setup-black' && tool !== 'setup-white' && tool !== 'setup-erase') return {};
+
+      const nextBoard = cloneBoard(node.gameState.board);
+      const nextStone = tool === 'setup-black' ? 'black' : tool === 'setup-white' ? 'white' : null;
+      if ((nextBoard[y]?.[x] ?? null) === nextStone) return {};
+      nextBoard[y]![x] = nextStone;
+
+      removeSetupCoord(props, coord);
+      if (tool === 'setup-black') addUniqueValue(props, 'AB', coord);
+      else if (tool === 'setup-white') addUniqueValue(props, 'AW', coord);
+      else addUniqueValue(props, 'AE', coord);
+
+      node.gameState = { ...node.gameState, board: nextBoard };
+      node.analysis = null;
+      node.analysisVisitsRequested = 0;
+      clearAnalysisInSubtree(node);
+      const pruned = rebuildDescendants(node);
+
+      const setupWord =
+        tool === 'setup-black' ? 'black setup stone' : tool === 'setup-white' ? 'white setup stone' : 'setup stone';
+      const summary = pruned > 0 ? ` ${pruned} descendant ${pruned === 1 ? 'node was' : 'nodes were'} pruned.` : '';
+      return {
+        currentNode: node,
+        board: node.gameState.board,
+        currentPlayer: node.gameState.currentPlayer,
+        moveHistory: node.gameState.moveHistory,
+        capturedBlack: node.gameState.capturedBlack,
+        capturedWhite: node.gameState.capturedWhite,
+        analysisData: null,
+        treeVersion: state.treeVersion + 1,
+        notification: { message: `Edited ${setupWord}.${summary}`, type: pruned > 0 ? 'success' : 'info' },
+      };
+    }),
 
   selfplayToEnd: () => {
     const token = ++selfplayToken;
@@ -2816,6 +3119,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isInsertMode: false,
       insertAfterNodeId: null,
       insertAnchorNodeId: null,
+      isEditMode: false,
+      editTool: 'setup-black',
       isSelfplayToEnd: false,
       isAiPlaying: false,
       aiColor: null,
@@ -2861,6 +3166,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isInsertMode: false,
       insertAfterNodeId: null,
       insertAnchorNodeId: null,
+      isEditMode: false,
+      editTool: 'setup-black',
       isSelfplayToEnd: false,
       isAiPlaying: false,
       aiColor: null,
@@ -3040,6 +3347,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           const propsNoComments = cloneProps(node.props);
           delete propsNoComments['C'];
           mergeProps(parent.properties ?? (parent.properties = {}), propsNoComments);
+          applySetupPropsToNode(parent, propsNoComments, boardSize);
           for (const child of node.children) buildFromSgfNode(parent, child);
           return;
         }
@@ -3047,6 +3355,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const childNode = applyMoveToNode(parent, move);
         if (!childNode) return;
         childNode.properties = cloneProps(node.props);
+        applySetupPropsToNode(childNode, childNode.properties, boardSize);
         const nodeNote = extractKaTrainUserNoteFromSgfComment(childNode.properties['C']);
         if (nodeNote) childNode.note = nodeNote;
         delete childNode.properties['C'];
@@ -3062,6 +3371,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const first = applyMoveToNode(newRoot, rootMove);
         if (first) {
           first.properties = cloneProps(sgf.tree.props);
+          applySetupPropsToNode(first, first.properties, boardSize);
           const firstNote = extractKaTrainUserNoteFromSgfComment(first.properties['C']);
           if (firstNote) first.note = firstNote;
           delete first.properties['C'];
@@ -3101,6 +3411,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       capturedWhite: current.gameState.capturedWhite,
       komi: rootState.komi,
       boardRotation: 0,
+      isEditMode: false,
+      editTool: state.editTool,
       analysisData: current.analysis || null,
 	      treeVersion: state.treeVersion + 1,
 	      settings: { ...state.settings, gameRules: rules, defaultBoardSize: boardSize, defaultHandicap: safeHandicap },

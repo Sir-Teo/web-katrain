@@ -56,6 +56,18 @@ export interface AnalysisResult {
 
 export type RegionOfInterest = { xMin: number; xMax: number; yMin: number; yMax: number };
 
+export type EditTool =
+  | 'setup-black'
+  | 'setup-white'
+  | 'setup-erase'
+  | 'marker-triangle'
+  | 'marker-square'
+  | 'marker-circle'
+  | 'marker-cross'
+  | 'label-alpha'
+  | 'label-number'
+  | 'marker-erase';
+
 export interface GameNode {
   id: string;
   parent: GameNode | null;

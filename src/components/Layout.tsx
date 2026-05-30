@@ -7,6 +7,7 @@ import { GameAnalysisModal } from './GameAnalysisModal';
 import { GameReportModal } from './GameReportModal';
 import { KeyboardHelpModal } from './KeyboardHelpModal';
 import { AnalysisPanel } from './AnalysisPanel';
+import { EditToolbar } from './EditToolbar';
 import { NewGameModal, type GameInfoValues, type AiConfigValues, type TimerConfigValues } from './NewGameModal';
 import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
@@ -1253,6 +1254,7 @@ export const Layout: React.FC = () => {
                 </button>
               </div>
             )}
+            <EditToolbar isMobile={isMobile} />
             <div className="flex-1 flex items-center justify-center min-h-0 min-w-0">
               <GoBoard
                 hoveredMove={activeHoverMove}

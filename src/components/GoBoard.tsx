@@ -7,6 +7,7 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
+import { sgfCoordToXy } from '../utils/sgf';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -114,6 +115,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   const {
     board,
     playMove,
+    isEditMode,
+    editTool,
+    applyEditTool,
     moveHistory,
     analysisData,
     isAnalysisMode,
@@ -135,6 +139,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     (state) => ({
       board: state.board,
       playMove: state.playMove,
+      isEditMode: state.isEditMode,
+      editTool: state.editTool,
+      applyEditTool: state.applyEditTool,
       moveHistory: state.moveHistory,
       analysisData: state.analysisData,
       isAnalysisMode: state.isAnalysisMode,
@@ -205,6 +212,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   const ownershipCanvasRef = useRef<HTMLCanvasElement>(null);
   const ghostCanvasRef = useRef<HTMLCanvasElement>(null);
   const stonesCanvasRef = useRef<HTMLCanvasElement>(null);
+  const markupCanvasRef = useRef<HTMLCanvasElement>(null);
   const lastMoveCanvasRef = useRef<HTMLCanvasElement>(null);
   const ringsCanvasRef = useRef<HTMLCanvasElement>(null);
   const pvCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -419,6 +427,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   }, [analysisData, isAnalysisMode, settings.analysisShowHints, settings.analysisShowPolicy]);
 
   const showOwnership = isAnalysisMode && settings.analysisShowOwnership;
+  const editSetupPlayer: 'black' | 'white' | null =
+    editTool === 'setup-black' ? 'black' : editTool === 'setup-white' ? 'white' : null;
   const analysisTerritory =
     showOwnership && analysisData && (analysisData.ownershipMode ?? 'root') !== 'none' ? analysisData.territory : null;
   const parentTerritory =
@@ -609,6 +619,151 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
   ]);
 
   useEffect(() => {
+    const canvas = markupCanvasRef.current;
+    if (!canvas) return;
+    const ctx = setupOverlayCanvas(canvas);
+    if (!ctx) return;
+
+    const props = currentNode.properties ?? {};
+    const fontFamily =
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+    const radius = cellSize * 0.27;
+    const lineWidth = Math.max(2, cellSize * 0.045);
+
+    const pointFromCoord = (coord: string): { x: number; y: number; cx: number; cy: number; stone: 'black' | 'white' | null } | null => {
+      const { x, y } = sgfCoordToXy(coord);
+      if (x < 0 || y < 0 || x >= boardSize || y >= boardSize) return null;
+      const d = toDisplay(x, y);
+      return {
+        x,
+        y,
+        cx: originX + d.x * cellSize,
+        cy: originY + d.y * cellSize,
+        stone: board[y]?.[x] ?? null,
+      };
+    };
+
+    const colorsForStone = (stone: 'black' | 'white' | null) => {
+      if (stone === 'black') {
+        return {
+          main: 'rgba(255,255,255,0.94)',
+          halo: 'rgba(0,0,0,0.45)',
+          fill: 'rgba(12,18,28,0.36)',
+        };
+      }
+      return {
+        main: 'rgba(20,28,40,0.94)',
+        halo: 'rgba(255,255,255,0.72)',
+        fill: stone === 'white' ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.64)',
+      };
+    };
+
+    const strokeWithHalo = (draw: () => void, colors: ReturnType<typeof colorsForStone>) => {
+      ctx.lineWidth = lineWidth + 2;
+      ctx.strokeStyle = colors.halo;
+      draw();
+      ctx.stroke();
+      ctx.lineWidth = lineWidth;
+      ctx.strokeStyle = colors.main;
+      draw();
+      ctx.stroke();
+    };
+
+    const drawTriangle = (coord: string) => {
+      const pt = pointFromCoord(coord);
+      if (!pt) return;
+      const colors = colorsForStone(pt.stone);
+      const draw = () => {
+        ctx.beginPath();
+        ctx.moveTo(pt.cx, pt.cy - radius);
+        ctx.lineTo(pt.cx + radius * 0.9, pt.cy + radius * 0.58);
+        ctx.lineTo(pt.cx - radius * 0.9, pt.cy + radius * 0.58);
+        ctx.closePath();
+      };
+      strokeWithHalo(draw, colors);
+    };
+
+    const drawSquare = (coord: string) => {
+      const pt = pointFromCoord(coord);
+      if (!pt) return;
+      const colors = colorsForStone(pt.stone);
+      const size = radius * 1.6;
+      strokeWithHalo(() => {
+        ctx.beginPath();
+        ctx.rect(pt.cx - size / 2, pt.cy - size / 2, size, size);
+      }, colors);
+    };
+
+    const drawCircle = (coord: string) => {
+      const pt = pointFromCoord(coord);
+      if (!pt) return;
+      const colors = colorsForStone(pt.stone);
+      strokeWithHalo(() => {
+        ctx.beginPath();
+        ctx.arc(pt.cx, pt.cy, radius * 0.86, 0, Math.PI * 2);
+      }, colors);
+    };
+
+    const drawCross = (coord: string) => {
+      const pt = pointFromCoord(coord);
+      if (!pt) return;
+      const colors = colorsForStone(pt.stone);
+      strokeWithHalo(() => {
+        ctx.beginPath();
+        ctx.moveTo(pt.cx - radius * 0.78, pt.cy - radius * 0.78);
+        ctx.lineTo(pt.cx + radius * 0.78, pt.cy + radius * 0.78);
+        ctx.moveTo(pt.cx + radius * 0.78, pt.cy - radius * 0.78);
+        ctx.lineTo(pt.cx - radius * 0.78, pt.cy + radius * 0.78);
+      }, colors);
+    };
+
+    const drawLabel = (value: string) => {
+      const sep = value.indexOf(':');
+      if (sep < 0) return;
+      const coord = value.slice(0, sep);
+      const label = value.slice(sep + 1).trim();
+      if (!label) return;
+      const pt = pointFromCoord(coord);
+      if (!pt) return;
+      const colors = colorsForStone(pt.stone);
+      const bgRadius = Math.max(radius * 0.98, cellSize * 0.18);
+      ctx.beginPath();
+      ctx.arc(pt.cx, pt.cy, bgRadius, 0, Math.PI * 2);
+      ctx.fillStyle = colors.fill;
+      ctx.fill();
+      ctx.lineWidth = Math.max(1, lineWidth * 0.5);
+      ctx.strokeStyle = colors.halo;
+      ctx.stroke();
+
+      const fontSize = Math.max(10, Math.min(cellSize * 0.42, label.length > 2 ? (cellSize * 0.86) / label.length : cellSize * 0.42));
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 ${fontSize}px ${fontFamily}`;
+      ctx.lineWidth = Math.max(2, fontSize * 0.16);
+      ctx.strokeStyle = colors.halo;
+      ctx.strokeText(label, pt.cx, pt.cy + fontSize * 0.02);
+      ctx.fillStyle = colors.main;
+      ctx.fillText(label, pt.cx, pt.cy + fontSize * 0.02);
+    };
+
+    for (const coord of props.TR ?? []) drawTriangle(coord);
+    for (const coord of props.SQ ?? []) drawSquare(coord);
+    for (const coord of props.CR ?? []) drawCircle(coord);
+    for (const coord of props.MA ?? []) drawCross(coord);
+    for (const label of props.LB ?? []) drawLabel(label);
+  }, [
+    board,
+    boardSize,
+    cellSize,
+    currentNode,
+    originX,
+    originY,
+    setupOverlayCanvas,
+    toDisplay,
+    treeVersion,
+  ]);
+
+  useEffect(() => {
     const canvas = ghostCanvasRef.current;
     if (!canvas) return;
     const ctx = setupOverlayCanvas(canvas);
@@ -645,6 +800,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
       ctx.restore();
     };
 
+    if (isEditMode) {
+      if (editSetupPlayer && cursorPt) {
+        const existing = board[cursorPt.y]?.[cursorPt.x] ?? null;
+        drawGhost(cursorPt.x, cursorPt.y, editSetupPlayer, existing === editSetupPlayer ? 0.25 : 0.68);
+      }
+      return;
+    }
+
     if (cursorPt && !board[cursorPt.y]?.[cursorPt.x]) {
       drawGhost(cursorPt.x, cursorPt.y, currentPlayer, 0.6);
     }
@@ -666,6 +829,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     cellSize,
     cursorPt,
     currentPlayer,
+    editSetupPlayer,
+    isEditMode,
     hoveredMove,
     isAnalysisMode,
     isSelectingRegionOfInterest,
@@ -806,6 +971,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
     if (isSelectingRegionOfInterest) return;
     const pt = eventToInternal(e);
     if (!pt) return;
+
+    if (isEditMode) {
+      applyEditTool(pt.x, pt.y);
+      return;
+    }
 
     // KaTrain minimal_time_use enforcement in byo-yomi (Play mode only).
     const isAiTurn = isAiPlaying && aiColor === currentPlayer;
@@ -1537,6 +1707,19 @@ export const GoBoard: React.FC<GoBoardProps> = ({ hoveredMove, onHoverMove, pvUp
             width: boardWidth,
             height: boardHeight,
             zIndex: 8,
+          }}
+        />
+
+        {/* SGF Markers and Labels */}
+        <canvas
+          ref={markupCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 15,
           }}
         />
 

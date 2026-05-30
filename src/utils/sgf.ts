@@ -183,7 +183,7 @@ function buildKaTrainAutoCommentSegment(args: { node: GameNode; trainer: KaTrain
 }
 
 // Helper to convert SGF coord (e.g. "pd") to {x,y}
-const sgfCoordToXy = (coord: string): { x: number, y: number } => {
+export const sgfCoordToXy = (coord: string): { x: number, y: number } => {
     if (!coord || coord.length < 2) return { x: -1, y: -1 }; // Pass or empty
     if (coord === 'tt') return { x: -1, y: -1 }; // Pass in some SGF versions
 
@@ -194,7 +194,7 @@ const sgfCoordToXy = (coord: string): { x: number, y: number } => {
     return { x, y };
 };
 
-const coordinateToSgf = (x: number, y: number): string => {
+export const coordinateToSgf = (x: number, y: number): string => {
   // SGF uses 'aa' for top left 0,0. 'sa' for 18,0. 'ss' for 18,18.
   // x corresponds to letter index 'a' + x.
   const aCode = 'a'.charCodeAt(0);
