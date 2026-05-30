@@ -74,4 +74,16 @@ describe('GameStore loadGame', () => {
         const endState = useGameStore.getState();
         expect(endState.currentNode.move).toEqual({ x: 3, y: 3, player: 'white' });
     });
+
+    it('preserves explicit zero komi from SGF data', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        const parsed = parseSgf('(;GM[1]SZ[19]KM[0];B[pd])');
+        store.loadGame(parsed);
+
+        const state = useGameStore.getState();
+        expect(state.komi).toBe(0);
+        expect(state.rootNode.gameState.komi).toBe(0);
+    });
 });

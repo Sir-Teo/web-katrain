@@ -2873,7 +2873,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       moveHistory: [],
       capturedBlack: 0,
       capturedWhite: 0,
-      komi: sgf.komi || 6.5,
+      komi: sgf.komi ?? 6.5,
     };
 
     const newRoot = createNode(null, null, rootState, createRootNodeId());
