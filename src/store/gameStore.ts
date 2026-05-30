@@ -2123,6 +2123,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           priority: ANALYSIS_QUEUE_PRIORITY.interactive,
           staleKey: 'interactive-analysis',
           cacheKey: interactiveCacheKey,
+          bypassCache: opts?.force === true,
           preempt: true,
           run: (ctx) => getKataGoEngineClient().analyze({
 	          positionId: node.id,

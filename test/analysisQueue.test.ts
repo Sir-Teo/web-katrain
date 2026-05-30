@@ -150,4 +150,46 @@ describe('AnalysisQueue', () => {
     expect(second).toEqual({ visits: 100 });
     expect(runs).toBe(1);
   });
+
+  it('can bypass a cached result while keeping the cache key updated', async () => {
+    const queue = new AnalysisQueue();
+    let runs = 0;
+
+    const first = await queue.enqueue({
+      id: 'cache-one',
+      group: 'interactive',
+      priority: 1,
+      cacheKey: 'position-a',
+      run: async () => {
+        runs++;
+        return { visits: 100 };
+      },
+    });
+    const refreshed = await queue.enqueue({
+      id: 'cache-refresh',
+      group: 'interactive',
+      priority: 1,
+      cacheKey: 'position-a',
+      bypassCache: true,
+      run: async () => {
+        runs++;
+        return { visits: 200 };
+      },
+    });
+    const reusedRefresh = await queue.enqueue({
+      id: 'cache-two',
+      group: 'interactive',
+      priority: 1,
+      cacheKey: 'position-a',
+      run: async () => {
+        runs++;
+        return { visits: 300 };
+      },
+    });
+
+    expect(first).toEqual({ visits: 100 });
+    expect(refreshed).toEqual({ visits: 200 });
+    expect(reusedRefresh).toEqual({ visits: 200 });
+    expect(runs).toBe(2);
+  });
 });

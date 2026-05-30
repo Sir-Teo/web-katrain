@@ -96,6 +96,7 @@ export type AnalysisQueueEnqueueOptions<T> = {
   priority: number;
   staleKey?: string;
   cacheKey?: string;
+  bypassCache?: boolean;
   preempt?: boolean;
   run: (ctx: AnalysisQueueContext) => Promise<T>;
 };
@@ -117,7 +118,7 @@ export class AnalysisQueue {
     const staleVersion = opts.staleKey ? this.bumpStaleVersion(opts.staleKey) : undefined;
     if (opts.staleKey) this.cancelPendingStaleJobs(opts.staleKey, staleVersion);
 
-    const cached = opts.cacheKey ? this.cache.get(opts.cacheKey) : undefined;
+    const cached = opts.cacheKey && !opts.bypassCache ? this.cache.get(opts.cacheKey) : undefined;
     if (cached !== undefined) return Promise.resolve(cached as T);
 
     return new Promise<T>((resolve, reject) => {
