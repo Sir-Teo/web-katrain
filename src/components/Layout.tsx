@@ -53,6 +53,7 @@ import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
+import { getCurrentLineMoveCount } from '../utils/branchNavigation';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -93,6 +94,7 @@ export const Layout: React.FC = () => {
     aiColor,
     navigateBack,
     navigateForward,
+    navigateToMove,
     navigateStart,
     navigateEnd,
     switchBranch,
@@ -162,6 +164,7 @@ export const Layout: React.FC = () => {
       aiColor: state.aiColor,
       navigateBack: state.navigateBack,
       navigateForward: state.navigateForward,
+      navigateToMove: state.navigateToMove,
       navigateStart: state.navigateStart,
       navigateEnd: state.navigateEnd,
       switchBranch: state.switchBranch,
@@ -984,6 +987,10 @@ export const Layout: React.FC = () => {
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
   const scoreLead = analysisData?.rootScoreLead ?? currentNode.analysis?.rootScoreLead;
+  const totalMovesInCurrentLine = useMemo(() => {
+    void treeVersion;
+    return getCurrentLineMoveCount(currentNode);
+  }, [currentNode, treeVersion]);
   const passPolicyColor = useMemo(() => {
     if (!isAnalysisMode || !settings.analysisShowPolicy) return null;
     const policy = analysisData?.policy;
@@ -1903,12 +1910,14 @@ export const Layout: React.FC = () => {
               passTurn={passTurn}
               navigateBack={navigateBack}
               navigateForward={navigateForward}
+              navigateToMove={navigateToMove}
               navigateStart={navigateStart}
               navigateEnd={navigateEnd}
               findMistake={findMistake}
               rotateBoard={rotateBoard}
               currentPlayer={currentPlayer}
               moveHistory={moveHistory}
+              totalMovesInCurrentLine={totalMovesInCurrentLine}
               boardSize={boardSize}
               handicap={handicap}
               isInsertMode={isInsertMode}
@@ -2063,12 +2072,14 @@ export const Layout: React.FC = () => {
                     passTurn={passTurn}
                     navigateBack={navigateBack}
                     navigateForward={navigateForward}
+                    navigateToMove={navigateToMove}
                     navigateStart={navigateStart}
                     navigateEnd={navigateEnd}
                     findMistake={findMistake}
                     rotateBoard={rotateBoard}
                     currentPlayer={currentPlayer}
                     moveHistory={moveHistory}
+                    totalMovesInCurrentLine={totalMovesInCurrentLine}
                     boardSize={boardSize}
                     handicap={handicap}
                     isInsertMode={isInsertMode}

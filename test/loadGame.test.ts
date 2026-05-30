@@ -146,6 +146,25 @@ describe('GameStore loadGame', () => {
         expect(useGameStore.getState().currentNode.move).toEqual({ x: 1, y: 1, player: 'black' });
     });
 
+    it('jumps to move numbers on the current branch line', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        store.loadGame(parseSgf('(;GM[1]SZ[9];B[dd](;W[ee];B[ff])(;W[cc];B[bb])(;W[gg];B[hh]))'));
+        store.navigateEnd();
+        store.switchToBranchIndex(3);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 7, y: 7, player: 'black' });
+
+        store.navigateToMove(2);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 6, y: 6, player: 'white' });
+
+        store.navigateToMove(0);
+        expect(useGameStore.getState().currentNode.move).toBe(null);
+
+        store.navigateToMove(99);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 5, y: 5, player: 'black' });
+    });
+
     it('copies and pastes branches at the current node', () => {
         const store = useGameStore.getState();
         store.resetGame();

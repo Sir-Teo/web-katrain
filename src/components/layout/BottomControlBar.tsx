@@ -22,12 +22,14 @@ interface BottomControlBarProps {
   passTurn: () => void;
   navigateBack: () => void;
   navigateForward: () => void;
+  navigateToMove: (moveNumber: number) => void;
   navigateStart: () => void;
   navigateEnd: () => void;
   findMistake: (dir: 'undo' | 'redo') => void;
   rotateBoard: () => void;
   currentPlayer: Player;
   moveHistory: Move[];
+  totalMovesInCurrentLine: number;
   boardSize: number;
   handicap: number;
   isInsertMode: boolean;
@@ -45,12 +47,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   passTurn,
   navigateBack,
   navigateForward,
+  navigateToMove,
   navigateStart,
   navigateEnd,
   findMistake,
   rotateBoard,
   currentPlayer,
   moveHistory,
+  totalMovesInCurrentLine,
   boardSize,
   handicap,
   isInsertMode,
@@ -66,6 +70,9 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const passBtnRef = useRef<HTMLButtonElement>(null);
   const [passBtnHeight, setPassBtnHeight] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [isMoveNumberEditing, setIsMoveNumberEditing] = useState(false);
+  const [moveNumberDraft, setMoveNumberDraft] = useState('');
+  const skipMoveNumberBlurCommit = useRef(false);
 
   useEffect(() => {
     const el = passBtnRef.current;
@@ -89,6 +96,46 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
   }, [moreOpen]);
+
+  const openMoveNumberEditor = () => {
+    if (isInsertMode) return;
+    setMoveNumberDraft(String(moveHistory.length));
+    setIsMoveNumberEditing(true);
+  };
+
+  const commitMoveNumberEdit = () => {
+    const parsed = Number.parseInt(moveNumberDraft.trim(), 10);
+    if (Number.isFinite(parsed)) {
+      navigateToMove(parsed);
+    } else {
+      setMoveNumberDraft(String(moveHistory.length));
+    }
+    setIsMoveNumberEditing(false);
+  };
+
+  const cancelMoveNumberEdit = () => {
+    skipMoveNumberBlurCommit.current = true;
+    setMoveNumberDraft(String(moveHistory.length));
+    setIsMoveNumberEditing(false);
+  };
+
+  const handleMoveNumberKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    event.stopPropagation();
+    if (event.key === 'Enter') {
+      event.currentTarget.blur();
+    } else if (event.key === 'Escape') {
+      cancelMoveNumberEdit();
+      event.currentTarget.blur();
+    }
+  };
+
+  const handleMoveNumberBlur = () => {
+    if (skipMoveNumberBlurCommit.current) {
+      skipMoveNumberBlurCommit.current = false;
+      return;
+    }
+    commitMoveNumberEdit();
+  };
 
   if (isMobile) {
     return (
@@ -161,7 +208,34 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
               </>
             )}
             <span className="mobile-bottom-meta-divider text-slate-600 mx-1">|</span>
-            <span className="ui-text-faint">#{moveHistory.length}</span>
+            {isMoveNumberEditing ? (
+              <span className="inline-flex items-center gap-0.5">
+                <span className="ui-text-faint">#</span>
+                <input
+                  value={moveNumberDraft}
+                  onChange={(event) => setMoveNumberDraft(event.target.value)}
+                  onKeyDown={handleMoveNumberKeyDown}
+                  onBlur={handleMoveNumberBlur}
+                  onFocus={(event) => event.currentTarget.select()}
+                  aria-label="Move number"
+                  inputMode="numeric"
+                  min={0}
+                  max={totalMovesInCurrentLine}
+                  className="w-6 bg-transparent p-0 text-right text-[var(--ui-text)] outline-none"
+                  autoFocus
+                />
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="font-mono text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-50"
+                title="Set move number"
+                onClick={openMoveNumberEditor}
+                disabled={isInsertMode}
+              >
+                #{moveHistory.length}/{totalMovesInCurrentLine}
+              </button>
+            )}
           </div>
           <IconButton title="Forward (→)" onClick={navigateForward} disabled={isInsertMode}>
             <FaChevronRight />
@@ -431,13 +505,42 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         </IconButton>
 
         {/* Move counter */}
-        <div className="px-3 py-1.5 rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] text-sm text-[var(--ui-text-muted)] font-mono flex items-center gap-2 min-w-[120px] justify-center">
+        <div className="px-3 py-1.5 rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] text-sm text-[var(--ui-text-muted)] font-mono flex items-center gap-2 min-w-[138px] justify-center">
           <span className={currentPlayer === 'black' ? 'text-white font-semibold' : 'text-slate-500'}>B</span>
           <span className="text-slate-600">·</span>
           <span className={currentPlayer === 'white' ? 'text-white font-semibold' : 'text-slate-500'}>W</span>
           <span className="text-slate-600 mx-1">|</span>
-          <span className="ui-text-faint">Move</span>
-          <span className="text-white font-semibold">{moveHistory.length}</span>
+          {isMoveNumberEditing ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="ui-text-faint">Move</span>
+              <input
+                value={moveNumberDraft}
+                onChange={(event) => setMoveNumberDraft(event.target.value)}
+                onKeyDown={handleMoveNumberKeyDown}
+                onBlur={handleMoveNumberBlur}
+                onFocus={(event) => event.currentTarget.select()}
+                aria-label="Move number"
+                inputMode="numeric"
+                min={0}
+                max={totalMovesInCurrentLine}
+                className="w-7 bg-transparent p-0 text-right font-semibold text-white outline-none"
+                autoFocus
+              />
+              <span className="ui-text-faint">/{totalMovesInCurrentLine}</span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded px-1 text-left hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+              title="Set move number"
+              onClick={openMoveNumberEditor}
+              disabled={isInsertMode}
+            >
+              <span className="ui-text-faint">Move</span>
+              <span className="text-white font-semibold">{moveHistory.length}</span>
+              <span className="ui-text-faint">/{totalMovesInCurrentLine}</span>
+            </button>
+          )}
         </div>
 
         <IconButton title="Forward (→)" onClick={navigateForward} disabled={isInsertMode}>

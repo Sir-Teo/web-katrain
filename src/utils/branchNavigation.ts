@@ -98,3 +98,40 @@ export function findBranchTargetByIndex(currentNode: GameNode, branchIndex: numb
 
   return target;
 }
+
+export function getCurrentLineNodes(currentNode: GameNode): GameNode[] {
+  const path: GameNode[] = [];
+  let node: GameNode | null = currentNode;
+  while (node) {
+    path.push(node);
+    node = node.parent;
+  }
+  path.reverse();
+
+  node = currentNode.children[0] ?? null;
+  while (node) {
+    path.push(node);
+    node = node.children[0] ?? null;
+  }
+
+  return path;
+}
+
+export function getCurrentLineMoveCount(currentNode: GameNode): number {
+  return getCurrentLineNodes(currentNode).filter((node) => node.move).length;
+}
+
+export function findCurrentLineMoveTarget(currentNode: GameNode, moveNumber: number): GameNode | null {
+  if (!Number.isFinite(moveNumber)) return null;
+  const targetMoveNumber = Math.max(0, Math.floor(moveNumber));
+  let seenMoves = 0;
+  let lastNode: GameNode | null = null;
+
+  for (const node of getCurrentLineNodes(currentNode)) {
+    lastNode = node;
+    if (node.move) seenMoves++;
+    if (seenMoves === targetMoveNumber) return node;
+  }
+
+  return lastNode;
+}

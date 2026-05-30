@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { GameNode, GameState, Move } from '../src/types';
-import { findBranchRoot, findBranchTargetByIndex, findSiblingBranchTarget, getBranchInfo } from '../src/utils/branchNavigation';
+import {
+  findBranchRoot,
+  findBranchTargetByIndex,
+  findCurrentLineMoveTarget,
+  findSiblingBranchTarget,
+  getBranchInfo,
+  getCurrentLineMoveCount,
+} from '../src/utils/branchNavigation';
 
 const makeState = (): GameState => ({
   board: [[null]],
@@ -98,6 +105,22 @@ describe('branch navigation', () => {
     expect(findBranchTargetByIndex(a2, 2)?.id).toBe('b1');
     expect(findBranchTargetByIndex(a2, 3)?.id).toBe('c');
     expect(findBranchTargetByIndex(a2, 4)).toBeNull();
+  });
+
+  it('finds move targets on the current branch line', () => {
+    const root = makeNode('root', null);
+    const a = makeNode('a', root, { x: 0, y: 0, player: 'black' });
+    const a1 = makeNode('a1', a, { x: 0, y: 0, player: 'white' });
+    const b = makeNode('b', root, { x: 0, y: 0, player: 'black' });
+    const b1 = makeNode('b1', b, { x: 0, y: 0, player: 'white' });
+    makeNode('b2', b1, { x: 0, y: 0, player: 'black' });
+
+    expect(getCurrentLineMoveCount(b1)).toBe(3);
+    expect(findCurrentLineMoveTarget(b1, 0)?.id).toBe('root');
+    expect(findCurrentLineMoveTarget(b1, 1)?.id).toBe('b');
+    expect(findCurrentLineMoveTarget(b1, 3)?.id).toBe('b2');
+    expect(findCurrentLineMoveTarget(b1, 99)?.id).toBe('b2');
+    expect(findCurrentLineMoveTarget(a1, 2)?.id).toBe('a1');
   });
 
   it('returns null when the current path has no sibling branch', () => {

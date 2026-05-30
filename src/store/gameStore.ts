@@ -18,7 +18,7 @@ import {
   isAnalysisQueueCanceledError,
   isAnalysisQueueStaleError,
 } from '../utils/analysisQueue';
-import { findBranchTargetByIndex, findSiblingBranchTarget } from '../utils/branchNavigation';
+import { findBranchTargetByIndex, findCurrentLineMoveTarget, findSiblingBranchTarget } from '../utils/branchNavigation';
 
 type BranchClipboardNode = {
   move: Move | null;
@@ -84,6 +84,7 @@ interface GameStore extends GameState {
   undoMove: () => void; // Go back
   navigateBack: () => void;
   navigateForward: () => void; // Go forward (main branch)
+  navigateToMove: (moveNumber: number) => void;
   navigateStart: () => void;
   navigateEnd: () => void;
   switchBranch: (direction: 1 | -1) => void;
@@ -3568,6 +3569,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
           capturedBlack: next.gameState.capturedBlack,
           capturedWhite: next.gameState.capturedWhite,
           analysisData: next.analysis || null,
+      };
+  }),
+
+  navigateToMove: (moveNumber) => set((state) => {
+      const target = findCurrentLineMoveTarget(state.currentNode, moveNumber);
+      if (!target || target.id === state.currentNode.id) return {};
+
+      return {
+          currentNode: target,
+          board: target.gameState.board,
+          currentPlayer: target.gameState.currentPlayer,
+          moveHistory: target.gameState.moveHistory,
+          capturedBlack: target.gameState.capturedBlack,
+          capturedWhite: target.gameState.capturedWhite,
+          analysisData: target.analysis || null,
       };
   }),
 
