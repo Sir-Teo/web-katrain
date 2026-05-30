@@ -21,7 +21,11 @@ For detailed architecture diagrams and flow explanations, see [docs/diagram.md](
 
 ## Models
 
-Models live in `public/models/`. Settings lets you swap URLs or upload weights for the session.
+The default model is the recommended strong browser weight `kata1-b18c384nbt-s9996604416-d4316597426.bin.gz`
+(about 96 MB). It is much stronger than the bundled tiny test model while avoiding the 259 MB b28 and 824 MB b40
+networks that are less practical on mobile and many laptops.
+
+Models can also live in `public/models/`. Settings lets you swap URLs or upload weights for the session.
 Optional parity assets can be pulled from sibling checkouts:
 
 - `../katrain-ref/` – KaTrain reference (Python/Kivy)

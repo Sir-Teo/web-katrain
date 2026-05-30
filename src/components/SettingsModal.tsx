@@ -4,6 +4,13 @@ import { useGameStore } from '../store/gameStore';
 import { FaTimes } from 'react-icons/fa';
 import type { GameSettings } from '../types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
+import {
+    KATAGO_RECOMMENDED_MODEL_NAME,
+    KATAGO_RECOMMENDED_MODEL_SIZE,
+    KATAGO_RECOMMENDED_MODEL_UPLOADED,
+    KATAGO_RECOMMENDED_MODEL_URL,
+    KATAGO_SMALL_MODEL_PATH,
+} from '../engine/katago/modelDefaults';
 import { publicUrl } from '../utils/publicUrl';
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { getEngineModelLabel } from '../utils/engineLabel';
@@ -12,9 +19,6 @@ import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 
 let uploadedModelUrl: string | null = null;
 let lastManualModelUrl: string | null = null;
-
-const KATRAIN_DEFAULT_MODEL_URL =
-    'https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz';
 
 const OFFICIAL_MODELS: Array<{
     label: string;
@@ -25,6 +29,15 @@ const OFFICIAL_MODELS: Array<{
     size: string;
     downloadAndLoad?: boolean;
 }> = [
+    {
+        label: 'Recommended Strong (b18)',
+        name: KATAGO_RECOMMENDED_MODEL_NAME,
+        url: KATAGO_RECOMMENDED_MODEL_URL,
+        badge: 'Default',
+        uploaded: KATAGO_RECOMMENDED_MODEL_UPLOADED,
+        size: KATAGO_RECOMMENDED_MODEL_SIZE,
+        downloadAndLoad: true,
+    },
     {
         label: 'Latest / Strongest (b40)',
         name: 'kata1-zhizi-b40c768nbt-fdx6d',
@@ -48,15 +61,6 @@ const OFFICIAL_MODELS: Array<{
         badge: 'Latest b28',
         uploaded: '2026-03-28',
         size: '~259 MB',
-    },
-    {
-        label: 'Strongest (b18)',
-        name: 'kata1-b18c384nbt-s9996604416-d4316597426',
-        url: KATRAIN_DEFAULT_MODEL_URL,
-        badge: 'Strongest b18',
-        uploaded: '2024-05-26',
-        size: '~96 MB',
-        downloadAndLoad: true,
     },
     {
         label: 'Adam (b28)',
@@ -125,7 +129,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
     const DEFAULT_ANIM_PV_TIME = 0.5;
-    const SMALL_MODEL_URL = publicUrl('models/katago-small.bin.gz');
+    const SMALL_MODEL_URL = publicUrl(KATAGO_SMALL_MODEL_PATH);
     const isUploadedModel = settings.katagoModelUrl.startsWith('blob:');
     const sectionClass =
         'rounded-2xl border ui-surface p-4 sm:p-5 shadow-[0_14px_40px_rgba(0,0,0,0.35)]';
@@ -211,7 +215,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const handleClearUpload = () => {
         if (!isUploadedModel) return;
         revokeUploadedModelUrl();
-        updateSettings({ katagoModelUrl: lastManualModelUrl ?? KATRAIN_DEFAULT_MODEL_URL });
+        updateSettings({ katagoModelUrl: lastManualModelUrl ?? KATAGO_RECOMMENDED_MODEL_URL });
     };
 
     const handleDownloadAndLoad = async (url: string) => {
@@ -1384,10 +1388,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <button
                                                 type="button"
                                                 className={pillButtonClass}
-                                                onClick={() => updateSettings({ katagoModelUrl: KATRAIN_DEFAULT_MODEL_URL })}
-                                                title="KaTrain default weights"
+                                                onClick={() => updateSettings({ katagoModelUrl: KATAGO_RECOMMENDED_MODEL_URL })}
+                                                title="Recommended strong browser weights"
                                             >
-                                                KaTrain Default
+                                                Recommended b18
                                             </button>
                                             <button
                                                 type="button"
@@ -1500,7 +1504,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             value={settings.katagoModelUrl}
                                             onChange={(e) => updateSettings({ katagoModelUrl: e.target.value })}
                                             className={`${inputClass} text-xs`}
-                                            placeholder={KATRAIN_DEFAULT_MODEL_URL}
+                                            placeholder={KATAGO_RECOMMENDED_MODEL_URL}
                                         />
                                         <p className={subtextClass}>
                                             Use a local path under <span className="font-mono">{publicUrl('models/')}</span> or a full URL (must allow CORS).
