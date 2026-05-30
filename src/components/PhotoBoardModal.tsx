@@ -6,7 +6,7 @@ import { buildPhotoBoardSetupSgf, type PhotoBoardStone } from '../utils/photoBoa
 
 interface PhotoBoardModalProps {
   onClose: () => void;
-  onImportSgf: (sgf: string) => void;
+  onImportSgf: (sgf: string) => void | Promise<void>;
   defaultBoardSize: BoardSize;
   defaultKomi: number;
   initialPhotoFile?: File | null;
@@ -102,7 +102,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       nextPlayer,
       sourceName: photoName,
     });
-    onImportSgf(sgf);
+    void onImportSgf(sgf);
   };
 
   const toolButtonClass = (active: boolean) => [

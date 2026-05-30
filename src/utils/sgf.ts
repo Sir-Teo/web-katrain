@@ -511,7 +511,7 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
     return sgf;
 };
 
-export const downloadSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportOptions) => {
+export const downloadSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportOptions): string => {
     const sgfContent = generateSgfFromTree(rootNode, opts);
     const blob = new Blob([sgfContent], { type: 'application/x-go-sgf' });
     const url = URL.createObjectURL(blob);
@@ -522,6 +522,7 @@ export const downloadSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    return sgfContent;
 };
 
 export interface ParsedSgfNode {

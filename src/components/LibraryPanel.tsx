@@ -48,10 +48,11 @@ interface LibraryPanelProps {
   isAnalysisRunning?: boolean;
   onStopAnalysis?: () => void;
   getCurrentSgf: () => string;
-  onLoadSgf: (sgf: string) => void;
+  onLoadSgf: (sgf: string) => boolean | Promise<boolean>;
   onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
   onOpenRecent?: (sgf: string) => void;
   onLibraryUpdated?: () => void;
+  onCurrentSaved?: () => void;
 }
 
 export const LibraryPanel: React.FC<LibraryPanelProps> = ({
@@ -67,6 +68,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   onLoadSgf,
   onToast,
   onLibraryUpdated,
+  onCurrentSaved,
 }) => {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
@@ -343,6 +345,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const newItem = createLibraryItem(name, sgf, activeFolderId);
     setItems((prev) => [newItem, ...prev]);
     setActiveId(newItem.id);
+    onCurrentSaved?.();
     onToast(`Saved "${newItem.name}" to Library.`, 'success');
   };
 
@@ -517,10 +520,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast('Moved selected items.', 'success');
   };
 
-  const handleLoad = (item: LibraryItem) => {
+  const handleLoad = async (item: LibraryItem) => {
     if (!isFile(item)) return;
     try {
-      onLoadSgf(item.sgf);
+      const loaded = await onLoadSgf(item.sgf);
+      if (!loaded) return;
       setActiveId(item.id);
       setCurrentFolderId(item.parentId ?? null);
       onToast(`Loaded "${item.name}".`, 'success');
@@ -648,7 +652,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
         ].join(' ')}
         style={{ paddingLeft: 12 + depth * 16 }}
-        onClick={() => handleLoad(item)}
+        onClick={() => void handleLoad(item)}
         draggable
         onDragStart={handleItemDragStart(item.id)}
         onDragEnd={handleItemDragEnd}

@@ -1,14 +1,15 @@
 import { useEffect } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { downloadSgfFromTree, generateSgfFromTree, type KaTrainSgfExportOptions } from '../utils/sgf';
+import { generateSgfFromTree, type KaTrainSgfExportOptions } from '../utils/sgf';
 import type { UiMode } from '../components/layout/types';
 import { eventMatchesShortcut, loadShortcutOverrides } from '../utils/shortcuts';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
   sgfExportOptions: KaTrainSgfExportOptions;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  saveSgf: () => void;
+  openSgf: () => void;
   setIsSettingsOpen: (v: boolean) => void;
   setIsGameAnalysisOpen: (v: boolean) => void;
   setIsGameReportOpen: (v: boolean) => void;
@@ -27,7 +28,8 @@ interface UseKeyboardShortcutsOptions {
 export function useKeyboardShortcuts({
   mode,
   sgfExportOptions,
-  fileInputRef,
+  saveSgf,
+  openSgf,
   setIsSettingsOpen,
   setIsGameAnalysisOpen,
   setIsGameReportOpen,
@@ -147,7 +149,7 @@ export function useKeyboardShortcuts({
       // File operations
       if (matches('save-sgf')) {
         e.preventDefault();
-        downloadSgfFromTree(rootNode, sgfExportOptions);
+        saveSgf();
         return;
       }
       if (matches('toggle-library')) {
@@ -157,7 +159,7 @@ export function useKeyboardShortcuts({
       }
       if (matches('open-sgf')) {
         e.preventDefault();
-        fileInputRef.current?.click();
+        openSgf();
         return;
       }
       if (matches('toggle-sidebar')) {
@@ -483,7 +485,8 @@ export function useKeyboardShortcuts({
     undoToMainBranch,
     makeCurrentNodeMainBranch,
     sgfExportOptions,
-    fileInputRef,
+    saveSgf,
+    openSgf,
     setIsSettingsOpen,
     setIsGameAnalysisOpen,
     setIsGameReportOpen,

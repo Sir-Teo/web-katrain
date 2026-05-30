@@ -40,6 +40,7 @@ import { PanelEdgeToggle } from './layout/ui';
 import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
+import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -221,6 +222,7 @@ export const Layout: React.FC = () => {
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
   const [photoBoardInitialFile, setPhotoBoardInitialFile] = useState<File | null>(null);
   const [isPasteSgfOpen, setIsPasteSgfOpen] = useState(false);
+  const [isUnsavedChangesOpen, setIsUnsavedChangesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
@@ -277,6 +279,8 @@ export const Layout: React.FC = () => {
   const [recentLibraryItems, setRecentLibraryItems] = useState<LibraryFile[]>([]);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
   const fileDragCounter = useRef(0);
+  const cleanGameSgfRef = useRef<string | null>(null);
+  const unsavedChangesResolveRef = useRef<((choice: UnsavedChangesChoice) => void) | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() => {
     if (typeof window === 'undefined') return 1200;
     return window.innerWidth;
@@ -417,10 +421,70 @@ export const Layout: React.FC = () => {
   };
 
   // Toast helper
-  const toast = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+  const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info') => {
     useGameStore.setState({ notification: { message, type } });
     window.setTimeout(() => useGameStore.setState({ notification: null }), 2500);
-  };
+  }, []);
+
+  const generateCurrentSgf = useCallback(
+    () => generateSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions),
+    [sgfExportOptions]
+  );
+
+  const markCurrentGameClean = useCallback((sgf?: string) => {
+    cleanGameSgfRef.current = sgf ?? generateCurrentSgf();
+  }, [generateCurrentSgf]);
+
+  useEffect(() => {
+    if (cleanGameSgfRef.current === null) markCurrentGameClean();
+  }, [markCurrentGameClean]);
+
+  const hasUnsavedChanges = useCallback(() => {
+    if (cleanGameSgfRef.current === null) return false;
+    try {
+      return generateCurrentSgf() !== cleanGameSgfRef.current;
+    } catch {
+      return false;
+    }
+  }, [generateCurrentSgf]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleSaveCurrentSgf = useCallback(() => {
+    const saved = downloadSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
+    markCurrentGameClean(saved);
+    toast('Downloaded SGF.', 'success');
+  }, [markCurrentGameClean, sgfExportOptions, toast]);
+
+  const confirmReplaceCurrentGame = useCallback(async (): Promise<UnsavedChangesChoice> => {
+    if (!hasUnsavedChanges()) return 'discard';
+    setIsUnsavedChangesOpen(true);
+    return new Promise((resolve) => {
+      unsavedChangesResolveRef.current = resolve;
+    });
+  }, [hasUnsavedChanges]);
+
+  const prepareForGameReplacement = useCallback(async () => {
+    const choice = await confirmReplaceCurrentGame();
+    if (choice === 'cancel') return false;
+    if (choice === 'save') handleSaveCurrentSgf();
+    return true;
+  }, [confirmReplaceCurrentGame, handleSaveCurrentSgf]);
+
+  const handleUnsavedChangesChoice = useCallback((choice: UnsavedChangesChoice) => {
+    setIsUnsavedChangesOpen(false);
+    unsavedChangesResolveRef.current?.(choice);
+    unsavedChangesResolveRef.current = null;
+  }, []);
 
   // Persist UI state
   useEffect(() => {
@@ -863,25 +927,39 @@ export const Layout: React.FC = () => {
 
   const handleLoadClick = () => fileInputRef.current?.click();
 
+  const openNewGameWithGuard = useCallback(async () => {
+    setMenuOpen(false);
+    if (!(await prepareForGameReplacement())) return;
+    setIsNewGameOpen(true);
+  }, [prepareForGameReplacement]);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
     try {
+      const text = await file.text();
       const parsed = parseSgf(text);
+      if (!(await prepareForGameReplacement())) return;
       loadGame(parsed);
+      markCurrentGameClean();
+      toast('Loaded SGF.', 'success');
     } catch {
       toast('Failed to parse SGF file.', 'error');
+    } finally {
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
-  const handleLoadFromLibrary = (sgfText: string) => {
+  const handleLoadFromLibrary = async (sgfText: string): Promise<boolean> => {
     try {
       const parsed = parseSgf(sgfText);
+      if (!(await prepareForGameReplacement())) return false;
       loadGame(parsed);
+      markCurrentGameClean();
+      return true;
     } catch {
       toast('Failed to load SGF from library.', 'error');
+      return false;
     }
   };
 
@@ -929,13 +1007,12 @@ export const Layout: React.FC = () => {
     try {
       const result = await loadSgfOrOgs(text);
       if (!result.sgf.trim()) return false;
-      if (result.source === 'ogs') {
-        toast(`Downloaded OGS game ${result.gameId ?? ''}.`, 'success');
-      }
       const parsed = parseSgf(result.sgf);
+      if (!(await prepareForGameReplacement())) return false;
       loadGame(parsed);
       navigateEnd();
-      toast('Loaded SGF.', 'success');
+      markCurrentGameClean();
+      toast(result.source === 'ogs' ? `Downloaded OGS game ${result.gameId ?? ''}.` : 'Loaded SGF.', 'success');
       return true;
     } catch {
       toast('Failed to load SGF or OGS URL.', 'error');
@@ -947,11 +1024,13 @@ export const Layout: React.FC = () => {
     await handleOpenSgfFromText(sgfText);
   };
 
-  const handlePhotoBoardImport = (sgfText: string) => {
+  const handlePhotoBoardImport = async (sgfText: string) => {
     try {
       const parsed = parseSgf(sgfText);
+      if (!(await prepareForGameReplacement())) return;
       loadGame(parsed);
       navigateStart();
+      markCurrentGameClean();
       closePhotoBoard();
       toast('Imported board position.', 'success');
     } catch {
@@ -1048,7 +1127,8 @@ export const Layout: React.FC = () => {
   useKeyboardShortcuts({
     mode,
     sgfExportOptions,
-    fileInputRef,
+    saveSgf: handleSaveCurrentSgf,
+    openSgf: handleLoadClick,
     setIsSettingsOpen,
     setIsGameAnalysisOpen,
     setIsGameReportOpen,
@@ -1057,7 +1137,7 @@ export const Layout: React.FC = () => {
     setMenuOpen,
     setIsKeyboardHelpOpen,
     openPasteSgf: handlePasteSgf,
-    openNewGame: () => setIsNewGameOpen(true),
+    openNewGame: () => void openNewGameWithGuard(),
     toggleLibrary: handleToggleLibrary,
     closeLibrary: handleCloseLibrary,
     toggleSidebar: handleToggleSidebar,
@@ -1103,7 +1183,8 @@ export const Layout: React.FC = () => {
       !isKeyboardHelpOpen &&
       !isNewGameOpen &&
       !isPhotoBoardOpen &&
-      !isPasteSgfOpen,
+      !isPasteSgfOpen &&
+      !isUnsavedChangesOpen,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
       forward: navigateForward,
@@ -1126,6 +1207,7 @@ export const Layout: React.FC = () => {
     >
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+        {isUnsavedChangesOpen && <UnsavedChangesModal onChoice={handleUnsavedChangesChoice} />}
         {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
         {isGameReportOpen && (
           <GameReportModal
@@ -1235,6 +1317,7 @@ export const Layout: React.FC = () => {
             if (after.isAiPlaying && after.aiColor === after.currentPlayer) {
               window.setTimeout(() => after.makeAiMove(), 0);
             }
+            markCurrentGameClean();
             setIsNewGameOpen(false);
           }}
             defaultKomi={komi}
@@ -1263,8 +1346,8 @@ export const Layout: React.FC = () => {
         open={menuOpen && isMobile}
         onClose={() => setMenuOpen(false)}
         onHome={openMobileHome}
-        onNewGame={() => setIsNewGameOpen(true)}
-        onSave={() => downloadSgfFromTree(rootNode, sgfExportOptions)}
+        onNewGame={() => void openNewGameWithGuard()}
+        onSave={handleSaveCurrentSgf}
         onLoad={handleLoadClick}
         onScanBoard={() => openPhotoBoard()}
         onCopy={handleCopySgf}
@@ -1287,7 +1370,7 @@ export const Layout: React.FC = () => {
           onClose={closeMobileHome}
           onNewGame={() => {
             closeMobileHome();
-            setIsNewGameOpen(true);
+            void openNewGameWithGuard();
           }}
           onOpenSgf={() => {
             closeMobileHome();
@@ -1332,6 +1415,7 @@ export const Layout: React.FC = () => {
           isMobile={isMobile}
           onOpenRecent={handleOpenRecent}
           onLibraryUpdated={handleLibraryUpdated}
+          onCurrentSaved={markCurrentGameClean}
           isAnalysisRunning={isGameAnalysisRunning}
           onStopAnalysis={stopGameAnalysis}
           analysisContent={
@@ -1416,7 +1500,7 @@ export const Layout: React.FC = () => {
               setIsGameAnalysisOpen={setIsGameAnalysisOpen}
               setIsGameReportOpen={setIsGameReportOpen}
               onOpenMenu={() => setMenuOpen(true)}
-              onNewGame={() => setIsNewGameOpen(true)}
+              onNewGame={() => void openNewGameWithGuard()}
               onOpenSidePanel={handleOpenSidePanel}
               onCopySgf={handleCopySgf}
               onPasteSgf={handlePasteSgf}
