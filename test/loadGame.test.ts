@@ -104,6 +104,32 @@ describe('GameStore loadGame', () => {
         expect(branchPoint?.children[0]?.move).toEqual({ x: 2, y: 2, player: 'white' });
     });
 
+    it('reorders sibling variations without promoting the full path', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        store.loadGame(parseSgf('(;GM[1]SZ[9];B[dd](;W[ee])(;W[cc])(;W[gg]))'));
+        store.navigateEnd();
+        store.switchBranch(1);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 2, y: 2, player: 'white' });
+
+        store.shiftCurrentVariation('left');
+        const parent = useGameStore.getState().rootNode.children[0]!;
+        expect(parent.children.map((child) => child.move)).toEqual([
+            { x: 2, y: 2, player: 'white' },
+            { x: 4, y: 4, player: 'white' },
+            { x: 6, y: 6, player: 'white' },
+        ]);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 2, y: 2, player: 'white' });
+
+        store.shiftCurrentVariation('right');
+        expect(parent.children.map((child) => child.move)).toEqual([
+            { x: 4, y: 4, player: 'white' },
+            { x: 2, y: 2, player: 'white' },
+            { x: 6, y: 6, player: 'white' },
+        ]);
+    });
+
     it('copies and pastes branches at the current node', () => {
         const store = useGameStore.getState();
         store.resetGame();

@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  FaArrowLeft,
+  FaArrowRight,
   FaCaretUp,
   FaCircle,
   FaCopy,
@@ -85,6 +87,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
     clearCurrentNodeSetupStones,
     passTurn,
     makeCurrentNodeMainBranch,
+    shiftCurrentVariation,
     deleteCurrentNode,
     pruneCurrentBranch,
     copyCurrentBranch,
@@ -102,6 +105,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
       clearCurrentNodeSetupStones: state.clearCurrentNodeSetupStones,
       passTurn: state.passTurn,
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
+      shiftCurrentVariation: state.shiftCurrentVariation,
       deleteCurrentNode: state.deleteCurrentNode,
       pruneCurrentBranch: state.pruneCurrentBranch,
       copyCurrentBranch: state.copyCurrentBranch,
@@ -116,6 +120,10 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
     (nodeProps.TR?.length ?? 0) + (nodeProps.SQ?.length ?? 0) + (nodeProps.CR?.length ?? 0) + (nodeProps.MA?.length ?? 0);
   const labelCount = nodeProps.LB?.length ?? 0;
   const canEditBranch = Boolean(currentNode.parent);
+  const siblingIndex = currentNode.parent?.children.findIndex((child) => child.id === currentNode.id) ?? -1;
+  const siblingCount = currentNode.parent?.children.length ?? 0;
+  const canShiftEarlier = siblingIndex > 0;
+  const canShiftLater = siblingIndex >= 0 && siblingIndex < siblingCount - 1;
   void treeVersion;
 
   return (
@@ -221,6 +229,26 @@ export const EditToolbar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false
               <div className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
                 Branch
               </div>
+              <button
+                type="button"
+                onClick={() => shiftCurrentVariation('left')}
+                disabled={!canShiftEarlier}
+                className={[toolButtonClass(false), !canShiftEarlier ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                title="Move variation earlier"
+              >
+                <FaArrowLeft />
+                <span className="hidden sm:inline">Earlier</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => shiftCurrentVariation('right')}
+                disabled={!canShiftLater}
+                className={[toolButtonClass(false), !canShiftLater ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                title="Move variation later"
+              >
+                <FaArrowRight />
+                <span className="hidden sm:inline">Later</span>
+              </button>
               <button
                 type="button"
                 onClick={makeCurrentNodeMainBranch}

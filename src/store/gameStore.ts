@@ -90,6 +90,7 @@ interface GameStore extends GameState {
   undoToBranchPoint: () => void;
   undoToMainBranch: () => void;
   makeCurrentNodeMainBranch: () => void;
+  shiftCurrentVariation: (direction: 'left' | 'right') => void;
   findMistake: (direction: 'undo' | 'redo') => void;
   deleteCurrentNode: () => void;
   pruneCurrentBranch: () => void;
@@ -3607,6 +3608,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
           node = parent;
       }
       return { treeVersion: state.treeVersion + 1 };
+  }),
+
+  shiftCurrentVariation: (direction) => set((state) => {
+      const node = state.currentNode;
+      const parent = node.parent;
+      if (!parent) return { notification: { message: 'Select a variation to reorder.', type: 'info' } };
+
+      const idx = parent.children.findIndex((child) => child.id === node.id);
+      const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+      if (idx < 0 || targetIdx < 0 || targetIdx >= parent.children.length) {
+          return { notification: { message: 'Variation is already at that edge.', type: 'info' } };
+      }
+
+      const swap = parent.children[targetIdx]!;
+      parent.children[targetIdx] = node;
+      parent.children[idx] = swap;
+
+      return {
+          treeVersion: state.treeVersion + 1,
+          notification: {
+              message: direction === 'left' ? 'Moved variation earlier.' : 'Moved variation later.',
+              type: 'success',
+          },
+      };
   }),
 
   findMistake: (direction) => set((state) => {
