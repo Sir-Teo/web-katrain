@@ -67,6 +67,15 @@ describe('library storage helpers', () => {
     }
   });
 
+  it('keeps the same item array when no saved file matches an SGF update', () => {
+    const item = createLibraryItem('Game', sgf, null, 123);
+    const folder = createLibraryFolder('Folder', null);
+    const items = [item, folder];
+
+    expect(updateLibraryFileSgf(items, 'missing', sgf, 456)).toBe(items);
+    expect(updateLibraryFileSgf(items, folder.id, sgf, 456)).toBe(items);
+  });
+
   it('suggests library names from SGF metadata and keeps downloads single-extension', () => {
     expect(suggestLibraryItemNameFromSgf(sgf)).toBe('Title Game');
     expect(suggestLibraryItemNameFromSgf('(;GM[1]SZ[19]PB[Black/One]PW[White:Two];B[pd])')).toBe('Black-One vs White-Two');

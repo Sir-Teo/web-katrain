@@ -543,8 +543,10 @@ export const updateLibraryFileSgf = (
   sgf: string,
   timestamp = Date.now()
 ): LibraryItem[] => {
-  return items.map((item) => {
+  let changed = false;
+  const nextItems = items.map((item) => {
     if (item.id !== id || item.type !== 'file') return item;
+    changed = true;
     return {
       ...item,
       sgf,
@@ -554,6 +556,7 @@ export const updateLibraryFileSgf = (
       metadata: extractLibraryMetadata(sgf),
     };
   });
+  return changed ? nextItems : items;
 };
 
 export const createLibraryFolder = (name: string, parentId: string | null = null): LibraryFolder => {

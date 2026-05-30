@@ -10,7 +10,7 @@ import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { LibraryFile } from '../utils/library';
-import { loadLibrary } from '../utils/library';
+import { loadLibrary, saveLibrary, updateLibraryFileSgf } from '../utils/library';
 import { isOgsUrl, loadSgfOrOgs } from '../utils/ogs';
 import type { CandidateMove, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
@@ -296,6 +296,11 @@ export const Layout: React.FC = () => {
   const [recentLibraryItems, setRecentLibraryItems] = useState<LibraryFile[]>([]);
   const [loadedLibraryFileId, setLoadedLibraryFileId] = useState<string | null>(null);
   const [loadedLibraryFileName, setLoadedLibraryFileName] = useState<string | null>(null);
+  const [externalLibraryFileUpdate, setExternalLibraryFileUpdate] = useState<{
+    id: string;
+    sgf: string;
+    updatedAt: number;
+  } | null>(null);
   const [isFileDragActive, setIsFileDragActive] = useState(false);
   const [scoringMode, setScoringMode] = useState(false);
   const [manualDeadStones, setManualDeadStones] = useState<Set<string>>(() => new Set());
@@ -518,6 +523,29 @@ export const Layout: React.FC = () => {
     setLoadedLibraryFileName(id ? (name?.trim() || 'Library game') : null);
   }, []);
 
+  const saveLoadedLibraryFile = useCallback(async (sgf: string): Promise<boolean> => {
+    if (!loadedLibraryFileId) return false;
+    try {
+      const items = await loadLibrary();
+      const loadedItem = items.find((item) => item.id === loadedLibraryFileId);
+      if (!loadedItem || loadedItem.type !== 'file') {
+        setLoadedLibraryFile(null);
+        toast('Loaded library file was not found. Downloading SGF instead.', 'info');
+        return false;
+      }
+      const updatedAt = Date.now();
+      await saveLibrary(updateLibraryFileSgf(items, loadedLibraryFileId, sgf, updatedAt));
+      setExternalLibraryFileUpdate({ id: loadedLibraryFileId, sgf, updatedAt });
+      setLibraryVersion((prev) => prev + 1);
+      markCurrentGameCleanAndClearAutoSave(sgf);
+      toast(`Updated "${loadedItem.name}" in Library.`, 'success');
+      return true;
+    } catch {
+      toast('Failed to update loaded library file. Downloading SGF instead.', 'error');
+      return false;
+    }
+  }, [loadedLibraryFileId, markCurrentGameCleanAndClearAutoSave, setLoadedLibraryFile, toast]);
+
   useEffect(() => {
     if (cleanGameSgfRef.current === null) markCurrentGameClean();
   }, [markCurrentGameClean]);
@@ -586,11 +614,13 @@ export const Layout: React.FC = () => {
     }
   }, [autoSaveRecovery, loadGame, navigateEnd, setLoadedLibraryFile, toast]);
 
-  const handleSaveCurrentSgf = useCallback(() => {
+  const handleSaveCurrentSgf = useCallback(async () => {
+    const sgf = generateCurrentSgf();
+    if (await saveLoadedLibraryFile(sgf)) return;
     const saved = downloadSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
     markCurrentGameCleanAndClearAutoSave(saved);
     toast('Downloaded SGF.', 'success');
-  }, [markCurrentGameCleanAndClearAutoSave, sgfExportOptions, toast]);
+  }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveLoadedLibraryFile, sgfExportOptions, toast]);
 
   const confirmReplaceCurrentGame = useCallback(async (): Promise<UnsavedChangesChoice> => {
     if (!hasUnsavedChanges()) return 'discard';
@@ -603,7 +633,7 @@ export const Layout: React.FC = () => {
   const prepareForGameReplacement = useCallback(async () => {
     const choice = await confirmReplaceCurrentGame();
     if (choice === 'cancel') return false;
-    if (choice === 'save') handleSaveCurrentSgf();
+    if (choice === 'save') await handleSaveCurrentSgf();
     return true;
   }, [confirmReplaceCurrentGame, handleSaveCurrentSgf]);
 
@@ -1684,6 +1714,7 @@ export const Layout: React.FC = () => {
           onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
           loadedFileId={loadedLibraryFileId}
           onLoadedFileChange={setLoadedLibraryFile}
+          externalFileUpdate={externalLibraryFileUpdate}
           isAnalysisRunning={isGameAnalysisRunning}
           onStopAnalysis={stopGameAnalysis}
           analysisContent={
