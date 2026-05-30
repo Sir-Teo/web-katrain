@@ -17,6 +17,9 @@ export const formatSgfDate = (date = new Date()): string => {
     return `${year}-${month}-${day}`;
 };
 
+const formatSgfNumber = (value: number): string =>
+    Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+
 export function extractKaTrainUserNoteFromSgfComment(values: string[] | undefined): string {
     const comments: string[] = [];
     for (const v of values ?? []) {
@@ -273,7 +276,7 @@ export const generateSgf = (gameState: GameState): string => {
   const boardSize = normalizeBoardSize(gameState.board.length, DEFAULT_BOARD_SIZE);
 
   let sgf = `(;GM[1]FF[4]CA[UTF-8]AP[WebKatrain:0.1]ST[2]\n`;
-  sgf += `SZ[${boardSize}]KM[${gameState.komi.toFixed(1)}]\n`;
+  sgf += `SZ[${boardSize}]KM[${formatSgfNumber(gameState.komi)}]\n`;
   sgf += `DT[${date}]\n`;
   // Add other metadata?
 
@@ -513,7 +516,7 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
     props.ST = props.ST?.length ? props.ST : ['2'];
     props.KTV = props.KTV?.length ? props.KTV : [KATRAIN_ANALYSIS_FORMAT_VERSION];
     props.SZ = [String(boardSize)];
-    props.KM = [rootNode.gameState.komi.toFixed(1)];
+    props.KM = [formatSgfNumber(rootNode.gameState.komi)];
     if (!props.DT?.length) props.DT = [date];
 
     const placements = rootPlacementsFromBoard(rootNode.gameState.board);

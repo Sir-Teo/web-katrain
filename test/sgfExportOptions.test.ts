@@ -21,6 +21,16 @@ describe('SGF export trainer options', () => {
     useGameStore.getState().resetGame();
   });
 
+  it('preserves komi precision on export', () => {
+    const store = useGameStore.getState();
+    store.startNewGame({ komi: 6.25, rules: 'japanese', boardSize: 19, handicap: 0 });
+
+    const sgf = generateSgfFromTree(useGameStore.getState().rootNode);
+
+    expect(sgf).toContain('KM[6.25]');
+    expect(sgf).not.toContain('KM[6.3]');
+  });
+
   it('respects KaTrain trainer/save_analysis (KT blobs)', () => {
     const store = useGameStore.getState();
     store.resetGame();
