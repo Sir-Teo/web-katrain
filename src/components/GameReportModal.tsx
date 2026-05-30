@@ -687,6 +687,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
                 })}
             </div>
           </div>
+          </div>
 
           <div className="hidden print-only space-y-6">
             <div className="pdf-page">
@@ -763,7 +764,6 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose }) => 
               ))
             )}
           </div>
-        </div>
         </div>
 
         <div className="px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex items-center justify-between print:hidden">
