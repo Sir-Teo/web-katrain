@@ -21,6 +21,12 @@ export interface PhotoBoardSetup {
   sourceName?: string;
 }
 
+export interface PhotoBoardMoveDelta {
+  x: number;
+  y: number;
+  player: Player;
+}
+
 const escapeSgfValue = (value: string): string =>
   value.replace(/\\/g, '\\\\').replace(/]/g, '\\]');
 
@@ -38,6 +44,35 @@ export function photoBoardStonesFromBoard(board: BoardState, boardSize: BoardSiz
     }
   }
   return stones;
+}
+
+export function findPhotoBoardMoveDelta(args: {
+  currentBoard: BoardState;
+  boardSize: BoardSize;
+  stones: PhotoBoardStone[];
+  currentPlayer: Player;
+}): PhotoBoardMoveDelta | null {
+  const { currentBoard, boardSize, stones, currentPlayer } = args;
+  if (stones.length !== boardSize * boardSize) return null;
+  if (currentBoard.length !== boardSize || currentBoard.some((row) => row.length !== boardSize)) return null;
+
+  const added: PhotoBoardMoveDelta[] = [];
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      const current = currentBoard[y]?.[x] ?? null;
+      const traced = stones[y * boardSize + x] ?? null;
+      if (current === traced) continue;
+      if (!current && traced) {
+        added.push({ x, y, player: traced });
+        continue;
+      }
+      return null;
+    }
+  }
+
+  if (added.length !== 1) return null;
+  const [move] = added;
+  return move && move.player === currentPlayer ? move : null;
 }
 
 export function buildPhotoBoardSetupSgf({

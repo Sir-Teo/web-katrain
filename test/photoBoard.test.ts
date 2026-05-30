@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPhotoBoardSetupSgf,
+  findPhotoBoardMoveDelta,
   isPhotoBoardImageFile,
   photoBoardStonesFromBoard,
   type PhotoBoardStone,
@@ -72,6 +73,37 @@ describe('photo board SGF import', () => {
 
   it('rejects current boards with the wrong size', () => {
     expect(() => photoBoardStonesFromBoard(createEmptyBoard(9), 13)).toThrow('Expected a 13x13 board.');
+  });
+
+  it('detects a single traced stone as the next current-player move', () => {
+    const board = createEmptyBoard(9);
+    board[0]![0] = 'black';
+    const stones = photoBoardStonesFromBoard(board, 9);
+    stones[1] = 'white';
+
+    expect(findPhotoBoardMoveDelta({ currentBoard: board, boardSize: 9, stones, currentPlayer: 'white' })).toEqual({
+      x: 1,
+      y: 0,
+      player: 'white',
+    });
+  });
+
+  it('rejects traced move deltas that are not exactly one current-player addition', () => {
+    const board = createEmptyBoard(9);
+    board[0]![0] = 'black';
+
+    const opponentMove = photoBoardStonesFromBoard(board, 9);
+    opponentMove[1] = 'white';
+    expect(findPhotoBoardMoveDelta({ currentBoard: board, boardSize: 9, stones: opponentMove, currentPlayer: 'black' })).toBeNull();
+
+    const twoMoves = photoBoardStonesFromBoard(board, 9);
+    twoMoves[1] = 'white';
+    twoMoves[2] = 'white';
+    expect(findPhotoBoardMoveDelta({ currentBoard: board, boardSize: 9, stones: twoMoves, currentPlayer: 'white' })).toBeNull();
+
+    const removedStone = photoBoardStonesFromBoard(board, 9);
+    removedStone[0] = null;
+    expect(findPhotoBoardMoveDelta({ currentBoard: board, boardSize: 9, stones: removedStone, currentPlayer: 'white' })).toBeNull();
   });
 
   it('recognizes board photo file types for drop import', () => {

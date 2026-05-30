@@ -1,15 +1,23 @@
 import React from 'react';
-import { FaCamera, FaEraser, FaFolderOpen, FaLayerGroup, FaTimes, FaTrash } from 'react-icons/fa';
+import { FaCamera, FaEraser, FaFolderOpen, FaLayerGroup, FaPlay, FaTimes, FaTrash } from 'react-icons/fa';
 import type { BoardSize, BoardState, Player } from '../types';
 import { BOARD_SIZES } from '../utils/boardSize';
-import { buildPhotoBoardSetupSgf, photoBoardStonesFromBoard, type PhotoBoardStone } from '../utils/photoBoard';
+import {
+  buildPhotoBoardSetupSgf,
+  findPhotoBoardMoveDelta,
+  photoBoardStonesFromBoard,
+  type PhotoBoardMoveDelta,
+  type PhotoBoardStone,
+} from '../utils/photoBoard';
 
 interface PhotoBoardModalProps {
   onClose: () => void;
   onImportSgf: (sgf: string) => void | Promise<void>;
+  onPlayMove?: (x: number, y: number) => void | Promise<void>;
   defaultBoardSize: BoardSize;
   defaultKomi: number;
   currentBoard?: BoardState;
+  currentPlayer?: Player;
   initialPhotoFile?: File | null;
 }
 
@@ -35,9 +43,11 @@ const gtpPoint = (index: number, boardSize: BoardSize): string => {
 export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   onClose,
   onImportSgf,
+  onPlayMove,
   defaultBoardSize,
   defaultKomi,
   currentBoard,
+  currentPlayer,
   initialPhotoFile = null,
 }) => {
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
@@ -73,6 +83,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     [currentBoardStones]
   );
   const canUseCurrentBoard = currentBoardStoneCount > 0;
+
+  const playMoveDelta = React.useMemo<PhotoBoardMoveDelta | null>(() => {
+    if (!onPlayMove || !currentBoard || !currentPlayer) return null;
+    return findPhotoBoardMoveDelta({ currentBoard, boardSize, stones, currentPlayer });
+  }, [boardSize, currentBoard, currentPlayer, onPlayMove, stones]);
 
   React.useEffect(() => {
     return () => {
@@ -136,6 +151,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       sourceName: photoName,
     });
     void onImportSgf(sgf);
+  };
+
+  const playMove = () => {
+    if (!onPlayMove || !playMoveDelta) return;
+    void onPlayMove(playMoveDelta.x, playMoveDelta.y);
   };
 
   const toolButtonClass = (active: boolean) => [
@@ -425,6 +445,23 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             >
               Cancel
             </button>
+            {onPlayMove && (
+              <button
+                type="button"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!playMoveDelta}
+                onClick={playMove}
+                title={
+                  playMoveDelta
+                    ? `Play ${playMoveDelta.player} at ${gtpPoint(playMoveDelta.y * boardSize + playMoveDelta.x, boardSize)}`
+                    : 'Trace exactly one next-player stone to play it as a move'
+                }
+              >
+                <span className="inline-flex items-center gap-2">
+                  <FaPlay aria-hidden="true" /> Play Move
+                </span>
+              </button>
+            )}
             <button
               type="button"
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] disabled:cursor-not-allowed disabled:opacity-50"

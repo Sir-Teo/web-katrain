@@ -76,6 +76,7 @@ export const Layout: React.FC = () => {
     startNewGame,
     passTurn,
     resign,
+    playMove,
     makeAiMove,
     isAiPlaying,
     aiColor,
@@ -140,6 +141,7 @@ export const Layout: React.FC = () => {
       startNewGame: state.startNewGame,
       passTurn: state.passTurn,
       resign: state.resign,
+      playMove: state.playMove,
       makeAiMove: state.makeAiMove,
       isAiPlaying: state.isAiPlaying,
       aiColor: state.aiColor,
@@ -1091,6 +1093,18 @@ export const Layout: React.FC = () => {
     }
   };
 
+  const handlePhotoBoardPlayMove = async (x: number, y: number) => {
+    const beforeNodeId = useGameStore.getState().currentNode.id;
+    playMove(x, y);
+    const after = useGameStore.getState();
+    if (after.currentNode.id === beforeNodeId) {
+      toast('Could not play photo board move.', 'error');
+      return;
+    }
+    closePhotoBoard();
+    toast('Played photo board move.', 'success');
+  };
+
   const handleLibraryUpdated = useCallback(() => {
     setLibraryVersion((prev) => prev + 1);
   }, []);
@@ -1284,9 +1298,11 @@ export const Layout: React.FC = () => {
           <PhotoBoardModal
             onClose={closePhotoBoard}
             onImportSgf={handlePhotoBoardImport}
+            onPlayMove={handlePhotoBoardPlayMove}
             defaultBoardSize={boardSize}
             defaultKomi={komi}
             currentBoard={board}
+            currentPlayer={currentPlayer}
             initialPhotoFile={photoBoardInitialFile}
           />
         )}
