@@ -62,7 +62,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { id: 'prev-mistake', category: 'Analysis', label: 'Previous mistake', defaultBindings: [{ key: 'n', shift: true }] },
   { id: 'new-game', category: 'File Operations', label: 'New game', defaultBindings: [{ key: 'n', ctrl: true }] },
   { id: 'save-sgf', category: 'File Operations', label: 'Save SGF', defaultBindings: [{ key: 's', ctrl: true }] },
-  { id: 'open-sgf', category: 'File Operations', label: 'Load SGF / Photo', defaultBindings: [{ key: 'o', ctrl: true }] },
+  { id: 'open-sgf', category: 'File Operations', label: 'Load SGF / Photo / Model', defaultBindings: [{ key: 'o', ctrl: true }] },
   { id: 'toggle-library', category: 'File Operations', label: 'Toggle library', defaultBindings: [{ key: 'l', ctrl: true }] },
   { id: 'toggle-sidebar', category: 'File Operations', label: 'Toggle sidebar', defaultBindings: [{ key: 'b', ctrl: true }] },
   { id: 'copy-sgf', category: 'File Operations', label: 'Copy SGF', defaultBindings: [{ key: 'c', ctrl: true }] },

@@ -285,7 +285,7 @@ async function main() {
         const topToggle = Array.from(document.querySelectorAll('button')).find((button) => (button.getAttribute('title') || '').includes('top bar')) || null;
         const editToolbar = document.querySelector('[data-edit-toolbar]');
         const board = document.querySelector('[data-board-snapshot="true"]');
-        const requiredFileActions = ['New game', 'Save SGF', 'Load SGF or board photo', 'Paste SGF / OGS', 'Photo Board'];
+        const requiredFileActions = ['New game', 'Save SGF', 'Load SGF, board photo, or model weights', 'Paste SGF / OGS', 'Photo Board'];
         const allButtons = Array.from(document.querySelectorAll('button'));
         return {
           viewport: '${viewport.width}x${viewport.height}',

@@ -126,7 +126,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           <section className="mt-3 grid grid-cols-1 gap-2">
             <HomeAction label="Continue Board" icon={<FaThLarge />} onClick={onClose} primary />
             <HomeAction label="New Game" icon={<FaPlay />} onClick={onNewGame} />
-            <HomeAction label="Open SGF / Photo" icon={<FaFolderOpen />} onClick={onOpenSgf} />
+            <HomeAction label="Open SGF / Photo / Model" icon={<FaFolderOpen />} onClick={onOpenSgf} />
             <HomeAction label="Photo Board" icon={<FaCamera />} onClick={onScanBoard} />
             <HomeAction label="Paste SGF / OGS" icon={<FaClipboard />} onClick={onPasteSgf} />
             <HomeAction label="Game Library" icon={<FaBook />} onClick={onOpenLibrary} />

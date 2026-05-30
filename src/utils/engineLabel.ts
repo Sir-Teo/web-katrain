@@ -5,6 +5,7 @@ export function getEngineModelLabel(
   if (engineModelName?.trim()) return engineModelName.trim();
   const rawUrl = modelUrl?.trim();
   if (!rawUrl) return null;
+  if (rawUrl.startsWith('blob:')) return 'Uploaded weights';
   const cleanUrl = rawUrl.split('#')[0]?.split('?')[0] ?? rawUrl;
   const base = cleanUrl.split('/').pop();
   if (!base) return null;

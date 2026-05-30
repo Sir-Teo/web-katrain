@@ -415,7 +415,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         <IconButton title="Save SGF (Ctrl+S)" onClick={onSaveSgf} className={topIconClass}>
           <FaSave />
         </IconButton>
-        <IconButton title="Load SGF or board photo (Ctrl+O)" onClick={onLoadSgf} className={topIconClass}>
+        <IconButton title="Load SGF, board photo, or model weights (Ctrl+O)" onClick={onLoadSgf} className={topIconClass}>
           <FaFolderOpen />
         </IconButton>
         <IconButton title="Paste SGF / OGS (Ctrl+V)" onClick={onPasteSgf} className={topIconClass}>

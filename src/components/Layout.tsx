@@ -19,6 +19,12 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { normalizeBoardSize } from '../utils/boardSize';
 import { PHOTO_BOARD_IMAGE_EXTENSIONS, isPhotoBoardImageFile } from '../utils/photoBoard';
+import {
+  createUploadedModelUrl,
+  isKataGoModelWeightsFile,
+  MODEL_UPLOAD_ACCEPT,
+  validateModelUploadFile,
+} from '../utils/modelUpload';
 
 // Layout components
 import { MenuDrawer } from './layout/MenuDrawer';
@@ -53,7 +59,7 @@ const PhotoBoardModal = lazy(() => import('./PhotoBoardModal').then((module) => 
 const PasteSgfModal = lazy(() => import('./PasteSgfModal').then((module) => ({ default: module.PasteSgfModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
-const mainFileInputAccept = ['.sgf', ...PHOTO_BOARD_IMAGE_EXTENSIONS, 'image/*'].join(',');
+const mainFileInputAccept = ['.sgf', ...PHOTO_BOARD_IMAGE_EXTENSIONS, 'image/*', MODEL_UPLOAD_ACCEPT].join(',');
 
 function computePointsLost(args: { currentNode: GameNode }): number | null {
   const node = args.currentNode;
@@ -985,6 +991,17 @@ export const Layout: React.FC = () => {
 
   const handleLoadClick = () => fileInputRef.current?.click();
 
+  const handleModelWeightsFile = useCallback((file: File): boolean => {
+    const error = validateModelUploadFile(file);
+    if (error) {
+      toast(error, 'error');
+      return false;
+    }
+    updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+    toast(`Loaded KataGo model weights "${file.name}".`, 'success');
+    return true;
+  }, [settings.katagoModelUrl, toast, updateSettings]);
+
   const openNewGameWithGuard = useCallback(async () => {
     setMenuOpen(false);
     if (!(await prepareForGameReplacement())) return;
@@ -995,6 +1012,10 @@ export const Layout: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      if (isKataGoModelWeightsFile(file)) {
+        handleModelWeightsFile(file);
+        return;
+      }
       if (isPhotoBoardImageFile(file)) {
         openPhotoBoard(file);
         toast('Opened photo board from image.', 'info');
@@ -1220,13 +1241,17 @@ export const Layout: React.FC = () => {
     setIsFileDragActive(false);
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
+    if (isKataGoModelWeightsFile(file)) {
+      handleModelWeightsFile(file);
+      return;
+    }
     if (isPhotoBoardImageFile(file)) {
       openPhotoBoard(file);
       toast('Opened photo board from dropped image.', 'info');
       return;
     }
     if (!file.name.toLowerCase().endsWith('.sgf')) {
-      toast('Drop an SGF file or board photo here.', 'error');
+      toast('Drop an SGF file, board photo, or KataGo model weights here.', 'error');
       return;
     }
     try {
@@ -1482,8 +1507,8 @@ export const Layout: React.FC = () => {
       {isFileDragActive && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
           <div className="rounded-xl border-2 border-dashed border-[var(--ui-accent)] px-6 py-4 text-center ui-panel">
-            <div className="text-sm font-semibold text-[var(--ui-accent)]">Drop SGF or board photo</div>
-            <div className="text-xs ui-text-faint">Release to load a game or trace a photo position.</div>
+            <div className="text-sm font-semibold text-[var(--ui-accent)]">Drop SGF, board photo, or model weights</div>
+            <div className="text-xs ui-text-faint">Release to load a game, trace a photo, or switch browser KataGo weights.</div>
           </div>
         </div>
       )}

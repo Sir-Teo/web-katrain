@@ -17,11 +17,16 @@ import { getEngineModelLabel } from '../utils/engineLabel';
 import { UI_THEME_OPTIONS } from '../utils/uiThemes';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
-
-let uploadedModelUrl: string | null = null;
-let lastManualModelUrl: string | null = null;
-const MAX_BROWSER_MODEL_UPLOAD_BYTES = 128 * 1024 * 1024;
-const MAX_BROWSER_MODEL_UPLOAD_LABEL = '128 MB';
+import {
+    clearUploadedModelUrl,
+    createUploadedModelUrl,
+    isUploadedModelUrl,
+    MAX_BROWSER_MODEL_UPLOAD_LABEL,
+    MODEL_UPLOAD_ACCEPT,
+    revokeUploadedModelUrl,
+    syncUploadedModelUrl,
+    validateModelUploadFile,
+} from '../utils/modelUpload';
 
 const OFFICIAL_MODELS: Array<{
     label: string;
@@ -81,12 +86,6 @@ const OFFICIAL_MODELS: Array<{
     },
 ];
 
-const revokeUploadedModelUrl = () => {
-    if (!uploadedModelUrl) return;
-    URL.revokeObjectURL(uploadedModelUrl);
-    uploadedModelUrl = null;
-};
-
 interface SettingsModalProps {
     onClose: () => void;
 }
@@ -141,7 +140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
     const DEFAULT_ANIM_PV_TIME = 0.5;
     const SMALL_MODEL_URL = publicUrl(KATAGO_SMALL_MODEL_PATH);
-    const isUploadedModel = settings.katagoModelUrl.startsWith('blob:');
+    const isUploadedModel = isUploadedModelUrl(settings.katagoModelUrl);
     const sectionClass =
         'rounded-2xl border ui-surface p-4 sm:p-5 shadow-[0_14px_40px_rgba(0,0,0,0.35)]';
     const sectionTitleClass = 'text-xs font-semibold ui-text-muted tracking-[0.12em] uppercase';
@@ -173,34 +172,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const maxHandicap = getMaxHandicap(settings.defaultBoardSize);
 
     React.useEffect(() => {
-        if (!isUploadedModel) {
-            lastManualModelUrl = settings.katagoModelUrl;
-        }
-        if (!uploadedModelUrl) return;
-        if (settings.katagoModelUrl !== uploadedModelUrl) {
-            revokeUploadedModelUrl();
-        }
-    }, [isUploadedModel, settings.katagoModelUrl]);
+        syncUploadedModelUrl(settings.katagoModelUrl);
+    }, [settings.katagoModelUrl]);
 
     const handleModelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
         setModelUploadError(null);
-        if (file.size > MAX_BROWSER_MODEL_UPLOAD_BYTES) {
-            setModelUploadError(
-                `This model is too large for the browser engine (${(file.size / (1024 * 1024)).toFixed(0)} MB). ` +
-                `Use the Strong b18 browser weights or another compressed model under ${MAX_BROWSER_MODEL_UPLOAD_LABEL}.`
-            );
+        const error = validateModelUploadFile(file);
+        if (error) {
+            setModelUploadError(error);
             event.target.value = '';
             return;
         }
-        if (!isUploadedModel) {
-            lastManualModelUrl = settings.katagoModelUrl;
-        }
-        if (uploadedModelUrl) URL.revokeObjectURL(uploadedModelUrl);
-        const objectUrl = URL.createObjectURL(file);
-        uploadedModelUrl = objectUrl;
-        updateSettings({ katagoModelUrl: objectUrl });
+        updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
         event.target.value = '';
     };
 
@@ -235,8 +220,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const handleClearUpload = () => {
         if (!isUploadedModel) return;
         setModelUploadError(null);
-        revokeUploadedModelUrl();
-        updateSettings({ katagoModelUrl: lastManualModelUrl ?? SMALL_MODEL_URL });
+        updateSettings({ katagoModelUrl: clearUploadedModelUrl(SMALL_MODEL_URL) });
     };
 
     const handleDownloadAndLoad = async (url: string) => {
@@ -244,18 +228,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         setDownloadError(null);
         setDownloadingUrl(url);
         try {
-            if (!isUploadedModel) {
-                lastManualModelUrl = settings.katagoModelUrl;
-            }
             revokeUploadedModelUrl();
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`Download failed (${response.status})`);
             }
             const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            uploadedModelUrl = objectUrl;
-            updateSettings({ katagoModelUrl: objectUrl });
+            updateSettings({ katagoModelUrl: createUploadedModelUrl(blob, settings.katagoModelUrl) });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Download failed.';
             const hint = message.toLowerCase().includes('failed to fetch')
@@ -1466,7 +1445,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <input
                                                 ref={modelUploadInputRef}
                                                 type="file"
-                                                accept=".bin,.bin.gz,.gz,application/gzip,application/octet-stream"
+                                                accept={MODEL_UPLOAD_ACCEPT}
                                                 onChange={handleModelUpload}
                                                 className="hidden"
                                             />
