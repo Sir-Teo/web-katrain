@@ -1490,6 +1490,7 @@ export const Layout: React.FC = () => {
           getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
           onLoadSgf={handleLoadFromLibrary}
           onToast={toast}
+          onOpenPhotoBoard={openPhotoBoard}
           isMobile={isMobile}
           onOpenRecent={handleOpenRecent}
           onLibraryUpdated={handleLibraryUpdated}

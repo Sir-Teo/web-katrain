@@ -34,12 +34,21 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
+import { PHOTO_BOARD_IMAGE_EXTENSIONS, isPhotoBoardImageFile } from '../utils/photoBoard';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { SectionHeader } from './layout/ui';
 import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils';
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
+const libraryImportAccept = [
+  '.sgf',
+  '.zip',
+  'application/zip',
+  'application/x-zip-compressed',
+  ...PHOTO_BOARD_IMAGE_EXTENSIONS,
+  'image/*',
+].join(',');
 
 type LibraryTextDialogState = {
   title: string;
@@ -185,6 +194,7 @@ interface LibraryPanelProps {
   getCurrentSgf: () => string;
   onLoadSgf: (sgf: string) => boolean | Promise<boolean>;
   onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
+  onOpenPhotoBoard?: (file: File) => void;
   onOpenRecent?: (sgf: string) => void;
   onLibraryUpdated?: () => void;
   onCurrentSaved?: () => void;
@@ -202,6 +212,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   getCurrentSgf,
   onLoadSgf,
   onToast,
+  onOpenPhotoBoard,
   onLibraryUpdated,
   onCurrentSaved,
 }) => {
@@ -754,9 +765,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleImportFilesToFolder = async (files: FileList | null, folderId: string | null) => {
     if (!files || files.length === 0) return;
     const imported: LibraryItem[] = [];
+    let openedPhotoBoard = false;
     for (const file of Array.from(files)) {
       const name = file.name.toLowerCase();
       try {
+        if (isPhotoBoardImageFile(file)) {
+          if (!openedPhotoBoard && onOpenPhotoBoard) {
+            onOpenPhotoBoard(file);
+            openedPhotoBoard = true;
+          }
+          continue;
+        }
         if (name.endsWith('.zip')) {
           imported.push(...(await importLibraryItemsFromZip(file, folderId)));
           continue;
@@ -769,12 +788,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       }
     }
     if (imported.length === 0) {
-      onToast('No SGF files were imported.', 'info');
+      onToast(
+        openedPhotoBoard ? 'Opened photo board from image.' : 'No SGF, ZIP, or board image files were imported.',
+        'info'
+      );
       return;
     }
     setItems((prev) => [...imported, ...prev]);
     const importedFiles = imported.filter(isFile).length;
-    onToast(`Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}.`, 'success');
+    onToast(
+      `Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}${openedPhotoBoard ? ' and opened photo board image' : ''}.`,
+      'success'
+    );
   };
 
   const handleImportFiles = async (files: FileList | null) =>
@@ -1163,8 +1188,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               type="button"
               className={headerActionClass}
               onClick={() => fileInputRef.current?.click()}
-              title="Import SGF or ZIP files"
-              aria-label="Import SGF or ZIP files"
+              title="Import SGF, ZIP, or board image files"
+              aria-label="Import SGF, ZIP, or board image files"
             >
               <FaFolderOpen />
             </button>
@@ -1208,7 +1233,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".sgf,.zip,application/zip,application/x-zip-compressed"
+              accept={libraryImportAccept}
               multiple
               onChange={(e) => void handleImportFiles(e.target.files)}
               className="hidden"
