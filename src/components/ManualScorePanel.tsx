@@ -8,6 +8,10 @@ interface ManualScorePanelProps {
   score: ManualScoreEstimate;
   blackName: string;
   whiteName: string;
+  capturedBlack: number;
+  capturedWhite: number;
+  komi: number;
+  deadStoneCount: number;
   onToggle: () => void;
   onClear: () => void;
   onDone: () => void;
@@ -21,6 +25,10 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   score,
   blackName,
   whiteName,
+  capturedBlack,
+  capturedWhite,
+  komi,
+  deadStoneCount,
   onToggle,
   onClear,
   onDone,
@@ -50,6 +58,9 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
           <FaCalculator size={13} />
           <span>Score</span>
         </div>
+        <span className="manual-score-count" title="Marked dead stones">
+          {deadStoneCount} dead
+        </span>
         <button type="button" className="manual-score-icon" onClick={onDone} title="Done" aria-label="Done scoring">
           <FaTimes size={12} />
         </button>
@@ -73,15 +84,30 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
       </div>
 
       <div className="manual-score-breakdown">
+        <div className="manual-score-breakdown-header" aria-hidden="true">
+          <span />
+          <b>B</b>
+          <b>W</b>
+        </div>
         <div>
           <span>Territory</span>
           <b>{score.blackTerritory}</b>
           <b>{score.whiteTerritory}</b>
         </div>
         <div>
+          <span>Prisoners</span>
+          <b>{capturedWhite}</b>
+          <b>{capturedBlack}</b>
+        </div>
+        <div>
           <span>Dead stones</span>
           <b>{score.whiteDeadStones}</b>
           <b>{score.blackDeadStones}</b>
+        </div>
+        <div>
+          <span>Komi</span>
+          <b className="manual-score-muted">-</b>
+          <b>{formatScoreValue(komi)}</b>
         </div>
       </div>
 

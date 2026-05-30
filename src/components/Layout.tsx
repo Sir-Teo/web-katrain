@@ -1909,6 +1909,10 @@ export const Layout: React.FC = () => {
               score={manualScoreEstimate}
               blackName={blackName}
               whiteName={whiteName}
+              capturedBlack={capturedBlack}
+              capturedWhite={capturedWhite}
+              komi={komi}
+              deadStoneCount={manualDeadStones.size}
               onToggle={toggleScoringMode}
               onClear={clearManualDeadStones}
               onDone={() => setScoringMode(false)}
