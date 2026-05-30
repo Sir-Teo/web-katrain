@@ -96,6 +96,7 @@ export const Layout: React.FC = () => {
     navigateStart,
     navigateEnd,
     switchBranch,
+    switchToBranchIndex,
     undoToBranchPoint,
     undoToMainBranch,
     makeCurrentNodeMainBranch,
@@ -164,6 +165,7 @@ export const Layout: React.FC = () => {
       navigateStart: state.navigateStart,
       navigateEnd: state.navigateEnd,
       switchBranch: state.switchBranch,
+      switchToBranchIndex: state.switchToBranchIndex,
       undoToBranchPoint: state.undoToBranchPoint,
       undoToMainBranch: state.undoToMainBranch,
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
@@ -1972,6 +1974,7 @@ export const Layout: React.FC = () => {
           navigateStart={navigateStart}
           navigateEnd={navigateEnd}
           switchBranch={switchBranch}
+          switchToBranchIndex={switchToBranchIndex}
           undoToBranchPoint={undoToBranchPoint}
           undoToMainBranch={undoToMainBranch}
           makeCurrentNodeMainBranch={makeCurrentNodeMainBranch}

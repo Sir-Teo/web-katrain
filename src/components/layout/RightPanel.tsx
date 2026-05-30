@@ -63,6 +63,7 @@ interface RightPanelProps {
   navigateStart: () => void;
   navigateEnd: () => void;
   switchBranch: (direction: 1 | -1) => void;
+  switchToBranchIndex: (index: number) => void;
   undoToBranchPoint: () => void;
   undoToMainBranch: () => void;
   makeCurrentNodeMainBranch: () => void;
@@ -119,6 +120,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   navigateStart,
   navigateEnd,
   switchBranch,
+  switchToBranchIndex,
   undoToBranchPoint,
   undoToMainBranch,
   makeCurrentNodeMainBranch,
@@ -172,6 +174,53 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     void treeVersion;
     return getBranchInfo(currentNode);
   }, [currentNode, treeVersion]);
+  const [isBranchIndexEditing, setIsBranchIndexEditing] = React.useState(false);
+  const [branchIndexDraft, setBranchIndexDraft] = React.useState('');
+  const skipBranchIndexBlurCommit = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isBranchIndexEditing) {
+      setBranchIndexDraft(branchInfo.currentIndex > 0 ? String(branchInfo.currentIndex) : '');
+    }
+  }, [branchInfo.currentIndex, isBranchIndexEditing]);
+
+  React.useEffect(() => {
+    if (!branchInfo.hasBranches && isBranchIndexEditing) setIsBranchIndexEditing(false);
+  }, [branchInfo.hasBranches, isBranchIndexEditing]);
+
+  const commitBranchIndexEdit = () => {
+    const parsed = Number.parseInt(branchIndexDraft.trim(), 10);
+    if (Number.isFinite(parsed)) {
+      guardInsertMode(() => switchToBranchIndex(parsed));
+    } else {
+      setBranchIndexDraft(branchInfo.currentIndex > 0 ? String(branchInfo.currentIndex) : '');
+    }
+    setIsBranchIndexEditing(false);
+  };
+
+  const cancelBranchIndexEdit = () => {
+    skipBranchIndexBlurCommit.current = true;
+    setBranchIndexDraft(branchInfo.currentIndex > 0 ? String(branchInfo.currentIndex) : '');
+    setIsBranchIndexEditing(false);
+  };
+
+  const handleBranchIndexKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    event.stopPropagation();
+    if (event.key === 'Enter') {
+      event.currentTarget.blur();
+    } else if (event.key === 'Escape') {
+      cancelBranchIndexEdit();
+      event.currentTarget.blur();
+    }
+  };
+
+  const handleBranchIndexBlur = () => {
+    if (skipBranchIndexBlurCommit.current) {
+      skipBranchIndexBlurCommit.current = false;
+      return;
+    }
+    commitBranchIndexEdit();
+  };
 
   const notesNodes = React.useMemo(() => {
     void treeVersion;
@@ -418,22 +467,62 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       <FaArrowDown size={12} />
                     </button>
                     {branchInfo.hasBranches && (
-                      <div
-                        className="min-w-[4.75rem] rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] leading-none text-[var(--ui-text-muted)]"
-                        title={
-                          branchInfo.isAtFork
-                            ? 'Current branch'
-                            : `Current branch, ${branchInfo.depthFromBranchRoot} move${branchInfo.depthFromBranchRoot === 1 ? '' : 's'} into this variation`
-                        }
-                      >
-                        <span className="uppercase tracking-wide">Branch</span>{' '}
-                        <span className="font-mono text-[var(--ui-text)]">
-                          {branchInfo.currentIndex}/{branchInfo.totalBranches}
-                        </span>
-                        {!branchInfo.isAtFork && (
-                          <span className="ml-1 font-mono text-[var(--ui-accent)]">+{branchInfo.depthFromBranchRoot}</span>
-                        )}
-                      </div>
+                      isBranchIndexEditing ? (
+                        <div
+                          className="flex min-w-[4.75rem] items-center rounded border border-[var(--ui-accent)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] leading-none text-[var(--ui-text-muted)]"
+                        >
+                          <input
+                            value={branchIndexDraft}
+                            onChange={(event) => setBranchIndexDraft(event.target.value)}
+                            onKeyDown={handleBranchIndexKeyDown}
+                            onBlur={handleBranchIndexBlur}
+                            onFocus={(event) => event.currentTarget.select()}
+                            aria-label="Branch number"
+                            inputMode="numeric"
+                            min={1}
+                            max={branchInfo.totalBranches}
+                            className="w-5 bg-transparent p-0 text-right font-mono text-[var(--ui-text)] outline-none"
+                            autoFocus
+                          />
+                          <span className="font-mono">/{branchInfo.totalBranches}</span>
+                          {!branchInfo.isAtFork && (
+                            <>
+                              {' '}
+                              <span className="font-mono text-[var(--ui-accent)]">+{branchInfo.depthFromBranchRoot}</span>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="min-w-[4.75rem] rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-left text-[10px] leading-none text-[var(--ui-text-muted)] hover:border-[var(--ui-border-strong)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                          title={
+                            branchInfo.isAtFork
+                              ? 'Set branch number'
+                              : `Set branch number, ${branchInfo.depthFromBranchRoot} move${branchInfo.depthFromBranchRoot === 1 ? '' : 's'} into this variation`
+                          }
+                          onClick={() => {
+                            if (isInsertMode) {
+                              toast('Finish inserting before navigating.', 'error');
+                              return;
+                            }
+                            setBranchIndexDraft(String(branchInfo.currentIndex));
+                            setIsBranchIndexEditing(true);
+                          }}
+                          disabled={isInsertMode}
+                        >
+                          <span className="uppercase tracking-wide">Branch</span>{' '}
+                          <span className="font-mono text-[var(--ui-text)]">
+                            {branchInfo.currentIndex}/{branchInfo.totalBranches}
+                          </span>
+                          {!branchInfo.isAtFork && (
+                            <>
+                              {' '}
+                              <span className="font-mono text-[var(--ui-accent)]">+{branchInfo.depthFromBranchRoot}</span>
+                            </>
+                          )}
+                        </button>
+                      )
                     )}
                     <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
                     <button

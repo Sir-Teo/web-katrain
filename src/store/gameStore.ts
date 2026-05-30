@@ -18,7 +18,7 @@ import {
   isAnalysisQueueCanceledError,
   isAnalysisQueueStaleError,
 } from '../utils/analysisQueue';
-import { findSiblingBranchTarget } from '../utils/branchNavigation';
+import { findBranchTargetByIndex, findSiblingBranchTarget } from '../utils/branchNavigation';
 
 type BranchClipboardNode = {
   move: Move | null;
@@ -87,6 +87,7 @@ interface GameStore extends GameState {
   navigateStart: () => void;
   navigateEnd: () => void;
   switchBranch: (direction: 1 | -1) => void;
+  switchToBranchIndex: (index: number) => void;
   undoToBranchPoint: () => void;
   undoToMainBranch: () => void;
   makeCurrentNodeMainBranch: () => void;
@@ -3542,6 +3543,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
   switchBranch: (direction) => set((state) => {
       const next = findSiblingBranchTarget(state.currentNode, direction);
       if (!next) return {};
+
+      return {
+          currentNode: next,
+          board: next.gameState.board,
+          currentPlayer: next.gameState.currentPlayer,
+          moveHistory: next.gameState.moveHistory,
+          capturedBlack: next.gameState.capturedBlack,
+          capturedWhite: next.gameState.capturedWhite,
+          analysisData: next.analysis || null,
+      };
+  }),
+
+  switchToBranchIndex: (index) => set((state) => {
+      if (!Number.isFinite(index)) return {};
+      const next = findBranchTargetByIndex(state.currentNode, index);
+      if (!next) return { notification: { message: 'Branch number unavailable.', type: 'info' } };
 
       return {
           currentNode: next,

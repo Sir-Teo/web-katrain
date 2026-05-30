@@ -131,6 +131,21 @@ describe('GameStore loadGame', () => {
         ]);
     });
 
+    it('switches to a numbered branch while preserving depth', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        store.loadGame(parseSgf('(;GM[1]SZ[9];B[dd](;W[ee];B[ff])(;W[cc];B[bb])(;W[gg];B[hh]))'));
+        store.navigateEnd();
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 5, y: 5, player: 'black' });
+
+        store.switchToBranchIndex(3);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 7, y: 7, player: 'black' });
+
+        store.switchToBranchIndex(2);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 1, y: 1, player: 'black' });
+    });
+
     it('copies and pastes branches at the current node', () => {
         const store = useGameStore.getState();
         store.resetGame();

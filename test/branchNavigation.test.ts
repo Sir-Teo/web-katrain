@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameNode, GameState, Move } from '../src/types';
-import { findBranchRoot, findSiblingBranchTarget, getBranchInfo } from '../src/utils/branchNavigation';
+import { findBranchRoot, findBranchTargetByIndex, findSiblingBranchTarget, getBranchInfo } from '../src/utils/branchNavigation';
 
 const makeState = (): GameState => ({
   board: [[null]],
@@ -84,6 +84,20 @@ describe('branch navigation', () => {
 
     expect(findSiblingBranchTarget(a, -1)?.id).toBe('b');
     expect(findSiblingBranchTarget(b, 1)?.id).toBe('a');
+  });
+
+  it('jumps to a numbered branch while preserving depth where possible', () => {
+    const root = makeNode('root', null);
+    const a = makeNode('a', root, { x: 0, y: 0, player: 'black' });
+    const a1 = makeNode('a1', a, { x: 0, y: 0, player: 'white' });
+    const a2 = makeNode('a2', a1, { x: 0, y: 0, player: 'black' });
+    const b = makeNode('b', root, { x: 0, y: 0, player: 'black' });
+    makeNode('b1', b, { x: 0, y: 0, player: 'white' });
+    makeNode('c', root, { x: 0, y: 0, player: 'black' });
+
+    expect(findBranchTargetByIndex(a2, 2)?.id).toBe('b1');
+    expect(findBranchTargetByIndex(a2, 3)?.id).toBe('c');
+    expect(findBranchTargetByIndex(a2, 4)).toBeNull();
   });
 
   it('returns null when the current path has no sibling branch', () => {

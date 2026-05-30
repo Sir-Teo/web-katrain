@@ -78,3 +78,23 @@ export function findSiblingBranchTarget(currentNode: GameNode, direction: 1 | -1
 
   return target;
 }
+
+export function findBranchTargetByIndex(currentNode: GameNode, branchIndex: number): GameNode | null {
+  const branch = findBranchRoot(currentNode);
+  if (!branch) return null;
+
+  const targetIndex = Math.floor(branchIndex) - 1;
+  const targetRoot = branch.forkNode.children[targetIndex] ?? null;
+  if (!targetRoot) return null;
+
+  let target = targetRoot;
+  let depth = 0;
+  while (depth < branch.depthFromBranchRoot && target.children.length > 0) {
+    const next = target.children[0] ?? null;
+    if (!next) break;
+    target = next;
+    if (target.move) depth++;
+  }
+
+  return target;
+}
