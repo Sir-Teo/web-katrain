@@ -104,6 +104,8 @@ export const Layout: React.FC = () => {
     applySetupStones,
     analyzeExtra,
     resetCurrentAnalysis,
+    clearAnalysisCache,
+    analysisCacheSize,
     toggleAnalysisMode,
     isAnalysisMode,
     isContinuousAnalysis,
@@ -170,6 +172,8 @@ export const Layout: React.FC = () => {
       applySetupStones: state.applySetupStones,
       analyzeExtra: state.analyzeExtra,
       resetCurrentAnalysis: state.resetCurrentAnalysis,
+      clearAnalysisCache: state.clearAnalysisCache,
+      analysisCacheSize: state.analysisCacheSize,
       toggleAnalysisMode: state.toggleAnalysisMode,
       isAnalysisMode: state.isAnalysisMode,
       isContinuousAnalysis: state.isContinuousAnalysis,
@@ -1817,6 +1821,8 @@ export const Layout: React.FC = () => {
               analyzeExtra={analyzeExtra}
               startSelectRegionOfInterest={startSelectRegionOfInterest}
               resetCurrentAnalysis={resetCurrentAnalysis}
+              clearAnalysisCache={clearAnalysisCache}
+              analysisCacheSize={analysisCacheSize}
               toggleInsertMode={toggleInsertMode}
               selfplayToEnd={selfplayToEnd}
               toggleContinuousAnalysis={toggleContinuousAnalysis}

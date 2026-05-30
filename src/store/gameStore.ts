@@ -58,6 +58,7 @@ interface GameStore extends GameState {
   isTeachMode: boolean;
   notification: { message: string, type: 'info' | 'error' | 'success' } | null;
   analysisData: AnalysisResult | null;
+  analysisCacheSize: number;
   settings: GameSettings;
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
   engineError: string | null;
@@ -74,6 +75,7 @@ interface GameStore extends GameState {
   toggleAnalysisMode: () => void;
   toggleContinuousAnalysis: (quiet?: boolean) => void;
   stopAnalysis: () => void;
+  clearAnalysisCache: () => void;
   toggleTeachMode: () => void;
   clearNotification: () => void;
   toggleTimerPaused: () => void;
@@ -595,6 +597,20 @@ const clearAnalysisInSubtree = (node: GameNode): void => {
   }
 };
 
+const countAnalyzedNodes = (node: GameNode): number => {
+  let count = 0;
+  const stack = [node];
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    if (n.analysis) count++;
+    for (const child of n.children) stack.push(child);
+  }
+  return count;
+};
+
+const getAnalysisCacheSize = (rootNode: GameNode): number =>
+  Math.max(countAnalyzedNodes(rootNode), analysisQueue.getCacheSize());
+
 const replayChildMove = (parent: GameNode, child: GameNode): GameState | null => {
   const move = child.move;
   if (!move) return child.gameState;
@@ -856,6 +872,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isTeachMode: false,
   notification: null,
   analysisData: null,
+  analysisCacheSize: getAnalysisCacheSize(initialRoot),
   settings: initialSettings,
   engineStatus: 'idle',
   engineError: null,
@@ -958,6 +975,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
       continuousToken++;
       analysisQueue.cancelGroup('interactive');
       set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null });
+  },
+
+  clearAnalysisCache: () => {
+      const removed = getAnalysisCacheSize(get().rootNode);
+      continuousToken++;
+      selfplayToken++;
+      gameAnalysisToken++;
+      analysisQueue.cancelWhere(() => true, 'Cleared analysis cache');
+      analysisQueue.clearCache();
+      set((state) => {
+        clearAnalysisInSubtree(state.rootNode);
+        return {
+          analysisData: null,
+          analysisCacheSize: 0,
+          isContinuousAnalysis: false,
+          isSelfplayToEnd: false,
+          isGameAnalysisRunning: false,
+          gameAnalysisType: null,
+          engineStatus: 'idle',
+          engineError: null,
+          treeVersion: state.treeVersion + 1,
+          notification: {
+            message: removed > 0 ? `Cleared ${removed} cached ${removed === 1 ? 'analysis' : 'analyses'}.` : 'No cached analysis to clear.',
+            type: 'info',
+          },
+        };
+      });
+      setTimeout(() => set({ notification: null }), 1800);
   },
 
   toggleTeachMode: () => set((state) => {
@@ -1609,6 +1654,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set((s) => ({
             gameAnalysisDone: done,
             gameAnalysisTotal: total,
+            analysisCacheSize: getAnalysisCacheSize(s.rootNode),
             treeVersion: s.treeVersion + 1,
           }));
           lastUiUpdate = now;
@@ -1623,6 +1669,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         gameAnalysisType: null,
         gameAnalysisDone: done,
         gameAnalysisTotal: total,
+        analysisCacheSize: getAnalysisCacheSize(s.rootNode),
         treeVersion: s.treeVersion + 1,
       }));
     })();
@@ -1761,6 +1808,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set((s) => ({
             gameAnalysisDone: done,
             gameAnalysisTotal: total,
+            analysisCacheSize: getAnalysisCacheSize(s.rootNode),
             treeVersion: s.treeVersion + 1,
           }));
           lastUiUpdate = now;
@@ -1775,6 +1823,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         gameAnalysisType: null,
         gameAnalysisDone: done,
         gameAnalysisTotal: total,
+        analysisCacheSize: getAnalysisCacheSize(s.rootNode),
         treeVersion: s.treeVersion + 1,
       }));
     })();
@@ -1924,6 +1973,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set((s) => ({
             gameAnalysisDone: done,
             gameAnalysisTotal: total,
+            analysisCacheSize: getAnalysisCacheSize(s.rootNode),
             treeVersion: s.treeVersion + 1,
           }));
           lastUiUpdate = now;
@@ -1938,6 +1988,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         gameAnalysisType: null,
         gameAnalysisDone: done,
         gameAnalysisTotal: total,
+        analysisCacheSize: getAnalysisCacheSize(s.rootNode),
         treeVersion: s.treeVersion + 1,
       }));
     })();
@@ -2076,6 +2127,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 next.engineModelName = engineInfo.modelName;
               }
               if (shouldBumpTree) next.treeVersion = s.treeVersion + 1;
+              if (isFinal) next.analysisCacheSize = getAnalysisCacheSize(s.rootNode);
               return next;
             });
           };
@@ -2260,6 +2312,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
       if (!engineChanged) return { settings: nextSettings };
 
+      analysisQueue.cancelWhere(() => true, 'Analysis settings changed');
+      analysisQueue.clearCache();
+
       const clearAnalysis = (node: GameNode) => {
         node.analysis = null;
         node.analysisVisitsRequested = 0;
@@ -2280,6 +2335,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         engineError: null,
         engineBackend: null,
         engineModelName: null,
+        analysisCacheSize: 0,
         treeVersion: rulesChanged ? state.treeVersion + 1 : state.treeVersion,
       };
     }),
@@ -3404,6 +3460,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     get().stopSelfplayToEnd();
     get().stopGameAnalysis();
+    analysisQueue.cancelWhere(() => true, 'Started new game');
+    analysisQueue.clearCache();
     if (state.settings.soundEnabled) {
       playNewGameSound();
     }
@@ -3458,6 +3516,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isAiPlaying: false,
       aiColor: null,
       analysisData: null,
+      analysisCacheSize: 0,
       timerPaused: true,
       timerMainTimeUsedSeconds: 0,
       timerPeriodsUsed: { black: 0, white: 0 },
@@ -3472,6 +3531,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     get().stopSelfplayToEnd();
     get().stopGameAnalysis();
+    analysisQueue.cancelWhere(() => true, 'Reset game');
+    analysisQueue.clearCache();
     if (state.settings.soundEnabled) {
         playNewGameSound();
     }
@@ -3505,6 +3566,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isAiPlaying: false,
       aiColor: null,
       analysisData: null,
+      analysisCacheSize: 0,
       timerPaused: true,
       timerMainTimeUsedSeconds: 0,
       timerPeriodsUsed: { black: 0, white: 0 },
@@ -3784,6 +3846,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isEditMode: false,
       editTool: state.editTool,
       analysisData: current.analysis || null,
+      analysisCacheSize: getAnalysisCacheSize(newRoot),
 	      treeVersion: state.treeVersion + 1,
 	      settings: { ...state.settings, gameRules: rules, defaultBoardSize: boardSize, defaultHandicap: safeHandicap },
 		    }));
@@ -3871,6 +3934,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       boardRotation: (((state.boardRotation ?? 0) + 1) % 4) as 0 | 1 | 2 | 3,
     })),
 }));
+
+analysisQueue.subscribeCacheSize((queueCacheSize) => {
+  useGameStore.setState((state) => ({
+    analysisCacheSize: Math.max(countAnalyzedNodes(state.rootNode), queueCacheSize),
+  }));
+});
 
 const makeHeuristicMove = (store: GameStore) => {
     const { board, currentPlayer, currentNode } = store;

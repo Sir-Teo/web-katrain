@@ -149,6 +149,35 @@ describe('AnalysisQueue', () => {
     expect(first).toEqual({ visits: 100 });
     expect(second).toEqual({ visits: 100 });
     expect(runs).toBe(1);
+    expect(queue.getCacheSize()).toBe(1);
+  });
+
+  it('reports cache size changes', async () => {
+    const queue = new AnalysisQueue();
+    const sizes: number[] = [];
+    const unsubscribe = queue.subscribeCacheSize((size) => sizes.push(size));
+
+    await queue.enqueue({
+      id: 'cache-one',
+      group: 'interactive',
+      priority: 1,
+      cacheKey: 'position-a',
+      run: async () => ({ visits: 100 }),
+    });
+    await queue.enqueue({
+      id: 'cache-two',
+      group: 'interactive',
+      priority: 1,
+      cacheKey: 'position-b',
+      run: async () => ({ visits: 200 }),
+    });
+
+    expect(queue.getCacheSize()).toBe(2);
+    queue.clearCache();
+    expect(queue.getCacheSize()).toBe(0);
+    expect(sizes).toEqual([0, 1, 2, 0]);
+
+    unsubscribe();
   });
 
   it('can bypass a cached result while keeping the cache key updated', async () => {

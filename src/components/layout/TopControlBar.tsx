@@ -20,6 +20,7 @@ import {
   FaKeyboard,
   FaEllipsisV,
   FaCamera,
+  FaTrash,
 } from 'react-icons/fa';
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
@@ -46,6 +47,8 @@ interface TopControlBarProps {
   analyzeExtra: (action: 'extra' | 'equalize' | 'sweep' | 'alternative' | 'stop') => void;
   startSelectRegionOfInterest: () => void;
   resetCurrentAnalysis: () => void;
+  clearAnalysisCache: () => void;
+  analysisCacheSize: number;
   toggleInsertMode: () => void;
   selfplayToEnd: () => void;
   toggleContinuousAnalysis: () => void;
@@ -102,6 +105,8 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   analyzeExtra,
   startSelectRegionOfInterest,
   resetCurrentAnalysis,
+  clearAnalysisCache,
+  analysisCacheSize,
   toggleInsertMode,
   selfplayToEnd,
   toggleContinuousAnalysis,
@@ -716,6 +721,19 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   >
                     <span className="flex items-center gap-2"><FaStop /> Reset analysis</span>
                     <span className="text-xs ui-text-faint">H</span>
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => { clearAnalysisCache(); setAnalysisMenuOpen(false); }}
+                    disabled={analysisCacheSize === 0 || isGameAnalysisRunning}
+                    title={
+                      analysisCacheSize > 0
+                        ? `Clear ${analysisCacheSize} cached ${analysisCacheSize === 1 ? 'analysis' : 'analyses'}`
+                        : 'No cached analysis'
+                    }
+                  >
+                    <span className="flex items-center gap-2"><FaTrash /> Clear analysis cache</span>
+                    <span className="text-xs ui-text-faint">{analysisCacheSize > 0 ? analysisCacheSize : '—'}</span>
                   </button>
                   <button
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"

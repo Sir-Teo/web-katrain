@@ -89,6 +89,8 @@ type AnalysisQueueJob<T> = {
   reject: (err: unknown) => void;
 };
 
+type AnalysisQueueCacheSizeListener = (size: number) => void;
+
 export type AnalysisQueueEnqueueOptions<T> = {
   id?: string;
   label?: string;
@@ -108,6 +110,7 @@ export class AnalysisQueue {
   private readonly active = new Set<AnalysisQueueJob<unknown>>();
   private readonly staleVersions = new Map<string, number>();
   private readonly cache = new Map<string, unknown>();
+  private readonly cacheSizeListeners = new Set<AnalysisQueueCacheSizeListener>();
   private readonly maxCacheEntries: number;
 
   constructor(maxCacheEntries = 128) {
@@ -176,7 +179,19 @@ export class AnalysisQueue {
   }
 
   clearCache(): void {
+    if (this.cache.size === 0) return;
     this.cache.clear();
+    this.emitCacheSize();
+  }
+
+  getCacheSize(): number {
+    return this.cache.size;
+  }
+
+  subscribeCacheSize(listener: AnalysisQueueCacheSizeListener): () => void {
+    this.cacheSizeListeners.add(listener);
+    listener(this.cache.size);
+    return () => this.cacheSizeListeners.delete(listener);
   }
 
   getSnapshot(): { active: AnalysisQueueJobSnapshot[]; pending: AnalysisQueueJobSnapshot[] } {
@@ -257,6 +272,7 @@ export class AnalysisQueue {
   }
 
   private writeCache(cacheKey: string, value: unknown): void {
+    const before = this.cache.size;
     if (this.cache.has(cacheKey)) this.cache.delete(cacheKey);
     this.cache.set(cacheKey, value);
     while (this.cache.size > this.maxCacheEntries) {
@@ -264,6 +280,11 @@ export class AnalysisQueue {
       if (oldest === undefined) break;
       this.cache.delete(oldest);
     }
+    if (this.cache.size !== before) this.emitCacheSize();
+  }
+
+  private emitCacheSize(): void {
+    for (const listener of this.cacheSizeListeners) listener(this.cache.size);
   }
 
   private snapshotOf(job: AnalysisQueueJob<unknown>, state: 'pending' | 'active'): AnalysisQueueJobSnapshot {
