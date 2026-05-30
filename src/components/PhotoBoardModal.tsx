@@ -13,6 +13,7 @@ import {
 interface PhotoBoardModalProps {
   onClose: () => void;
   onImportSgf: (sgf: string) => void | Promise<void>;
+  onAddSetupStones?: (stones: Array<{ x: number; y: number; player: Player }>, boardSize: BoardSize) => void | Promise<void>;
   onPlayMove?: (x: number, y: number) => void | Promise<void>;
   defaultBoardSize: BoardSize;
   defaultKomi: number;
@@ -43,6 +44,7 @@ const gtpPoint = (index: number, boardSize: BoardSize): string => {
 export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   onClose,
   onImportSgf,
+  onAddSetupStones,
   onPlayMove,
   defaultBoardSize,
   defaultKomi,
@@ -105,6 +107,23 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     return { black, white, total: black + white };
   }, [stones]);
 
+  const tracedSetupStones = React.useMemo(
+    () =>
+      stones.flatMap((stone, index) => {
+        if (!stone) return [];
+        return [{ x: index % boardSize, y: Math.floor(index / boardSize), player: stone }];
+      }),
+    [boardSize, stones]
+  );
+
+  const canAddToCurrent = !!onAddSetupStones && counts.total > 0 && currentBoardSize === boardSize;
+  const addToCurrentTitle =
+    counts.total === 0
+      ? 'Trace at least one stone to add it to the current board'
+      : currentBoardSize !== boardSize
+        ? `Current board is ${currentBoardSize ?? '?'}x${currentBoardSize ?? '?'}, not ${boardSize}x${boardSize}`
+        : 'Add traced stones as setup stones on the current board';
+
   const choosePhoto = React.useCallback((file: File | undefined) => {
     if (!file) return;
     if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
@@ -151,6 +170,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       sourceName: photoName,
     });
     void onImportSgf(sgf);
+  };
+
+  const addToCurrent = () => {
+    if (!onAddSetupStones || !canAddToCurrent) return;
+    void onAddSetupStones(tracedSetupStones, boardSize);
   };
 
   const playMove = () => {
@@ -459,6 +483,19 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               >
                 <span className="inline-flex items-center gap-2">
                   <FaPlay aria-hidden="true" /> Play Move
+                </span>
+              </button>
+            )}
+            {onAddSetupStones && (
+              <button
+                type="button"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canAddToCurrent}
+                onClick={addToCurrent}
+                title={addToCurrentTitle}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <FaLayerGroup aria-hidden="true" /> Add to Current
                 </span>
               </button>
             )}

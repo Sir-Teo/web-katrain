@@ -287,4 +287,24 @@ describe('GameStore loadGame', () => {
         expect(state.rootNode.children).toHaveLength(0);
         expect(state.notification?.message).toContain('1 descendant node was pruned');
     });
+
+    it('applies photo board setup stones in one batch edit', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+        store.playMove(2, 2);
+        useGameStore.getState().navigateStart();
+
+        const changed = useGameStore.getState().applySetupStones([
+            { x: 2, y: 2, player: 'white' },
+            { x: 3, y: 3, player: 'black' },
+        ]);
+
+        const state = useGameStore.getState();
+        expect(changed).toBe(2);
+        expect(state.rootNode.gameState.board[2]?.[2]).toBe('white');
+        expect(state.rootNode.gameState.board[3]?.[3]).toBe('black');
+        expect(state.rootNode.properties?.AW).toEqual(['cc']);
+        expect(state.rootNode.properties?.AB).toEqual(['dd']);
+        expect(state.rootNode.children).toHaveLength(0);
+    });
 });

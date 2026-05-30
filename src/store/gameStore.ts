@@ -110,6 +110,7 @@ interface GameStore extends GameState {
   toggleEditMode: () => void;
   setEditTool: (tool: EditTool) => void;
   applyEditTool: (x: number, y: number) => void;
+  applySetupStones: (stones: Array<{ x: number; y: number; player: Player | null }>) => number;
   clearCurrentNodeAnnotations: () => void;
   selfplayToEnd: () => void;
   stopSelfplayToEnd: () => void;
@@ -1248,6 +1249,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
         notification: { message: `Edited ${setupWord}.${summary}`, type: pruned > 0 ? 'success' : 'info' },
       };
     }),
+
+  applySetupStones: (stones) => {
+    let changed = 0;
+    set((state) => {
+      const boardSize = state.board.length;
+      const node = state.currentNode;
+      const props = ensureNodeProperties(node);
+      const nextBoard = cloneBoard(node.gameState.board);
+
+      for (const stone of stones) {
+        if (stone.x < 0 || stone.y < 0 || stone.x >= boardSize || stone.y >= boardSize) continue;
+        if ((nextBoard[stone.y]?.[stone.x] ?? null) === stone.player) continue;
+        const coord = coordinateToSgf(stone.x, stone.y);
+        nextBoard[stone.y]![stone.x] = stone.player;
+        removeSetupCoord(props, coord);
+        if (stone.player === 'black') addUniqueValue(props, 'AB', coord);
+        else if (stone.player === 'white') addUniqueValue(props, 'AW', coord);
+        else addUniqueValue(props, 'AE', coord);
+        changed++;
+      }
+
+      if (changed === 0) return {};
+
+      node.gameState = { ...node.gameState, board: nextBoard };
+      node.analysis = null;
+      node.analysisVisitsRequested = 0;
+      clearAnalysisInSubtree(node);
+      rebuildDescendants(node);
+
+      return {
+        currentNode: node,
+        board: node.gameState.board,
+        currentPlayer: node.gameState.currentPlayer,
+        moveHistory: node.gameState.moveHistory,
+        capturedBlack: node.gameState.capturedBlack,
+        capturedWhite: node.gameState.capturedWhite,
+        analysisData: null,
+        treeVersion: state.treeVersion + 1,
+      };
+    });
+    return changed;
+  },
 
   selfplayToEnd: () => {
     const token = ++selfplayToken;

@@ -90,6 +90,7 @@ export const Layout: React.FC = () => {
     makeCurrentNodeMainBranch,
     findMistake,
     loadGame,
+    applySetupStones,
     analyzeExtra,
     resetCurrentAnalysis,
     toggleAnalysisMode,
@@ -155,6 +156,7 @@ export const Layout: React.FC = () => {
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
       findMistake: state.findMistake,
       loadGame: state.loadGame,
+      applySetupStones: state.applySetupStones,
       analyzeExtra: state.analyzeExtra,
       resetCurrentAnalysis: state.resetCurrentAnalysis,
       toggleAnalysisMode: state.toggleAnalysisMode,
@@ -1112,6 +1114,23 @@ export const Layout: React.FC = () => {
     }
   };
 
+  const handlePhotoBoardAddSetup = async (
+    stones: Array<{ x: number; y: number; player: Player }>,
+    scannedBoardSize: number
+  ) => {
+    if (scannedBoardSize !== boardSize) {
+      toast(`Photo board is ${scannedBoardSize}x${scannedBoardSize}; current board is ${boardSize}x${boardSize}.`, 'error');
+      return;
+    }
+    const changed = applySetupStones(stones);
+    if (changed === 0) {
+      toast('No new photo board stones to add.', 'info');
+      return;
+    }
+    closePhotoBoard();
+    toast(`Added ${changed} setup stone${changed === 1 ? '' : 's'} from photo board.`, 'success');
+  };
+
   const handlePhotoBoardPlayMove = async (x: number, y: number) => {
     const beforeNodeId = useGameStore.getState().currentNode.id;
     playMove(x, y);
@@ -1317,6 +1336,7 @@ export const Layout: React.FC = () => {
           <PhotoBoardModal
             onClose={closePhotoBoard}
             onImportSgf={handlePhotoBoardImport}
+            onAddSetupStones={handlePhotoBoardAddSetup}
             onPlayMove={handlePhotoBoardPlayMove}
             defaultBoardSize={boardSize}
             defaultKomi={komi}
