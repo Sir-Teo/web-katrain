@@ -5,6 +5,8 @@ import {
   isKataGoModelWeightsFile,
   MAX_BROWSER_MODEL_UPLOAD_BYTES,
   resetModelUploadStateForTests,
+  restorePersistedUploadedModelUrl,
+  savePersistedUploadedModel,
   validateModelUploadFile,
 } from '../src/utils/modelUpload';
 
@@ -45,5 +47,10 @@ describe('model upload helpers', () => {
 
     expect(clearUploadedModelUrl('/models/fallback.bin.gz')).toBe('/models/katago-small.bin.gz');
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:second');
+  });
+
+  it('gracefully skips persistent upload storage when IndexedDB is unavailable', async () => {
+    expect(await savePersistedUploadedModel(new Blob(['weights'], { type: 'application/gzip' }))).toBe(false);
+    await expect(restorePersistedUploadedModelUrl('/models/katago-small.bin.gz')).resolves.toBeNull();
   });
 });

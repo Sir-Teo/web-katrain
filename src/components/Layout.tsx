@@ -25,6 +25,8 @@ import {
   createUploadedModelUrl,
   isKataGoModelWeightsFile,
   MODEL_UPLOAD_ACCEPT,
+  restorePersistedUploadedModelUrl,
+  savePersistedUploadedModel,
   validateModelUploadFile,
 } from '../utils/modelUpload';
 
@@ -299,6 +301,8 @@ export const Layout: React.FC = () => {
   const cleanGameSgfRef = useRef<string | null>(null);
   const unsavedChangesResolveRef = useRef<((choice: UnsavedChangesChoice) => void) | null>(null);
   const autoSaveRecoveryCheckedRef = useRef(false);
+  const uploadedModelRestorePromiseRef = useRef<ReturnType<typeof restorePersistedUploadedModelUrl> | null>(null);
+  const uploadedModelRestoreHandledRef = useRef(false);
   const [autoSaveRecovery, setAutoSaveRecovery] = useState<AutoSavedGame | null>(null);
   const [autoSaveRecoveryChecked, setAutoSaveRecoveryChecked] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(() => {
@@ -1044,14 +1048,39 @@ export const Layout: React.FC = () => {
 
   const handleLoadClick = () => fileInputRef.current?.click();
 
-  const handleModelWeightsFile = useCallback((file: File): boolean => {
+  useEffect(() => {
+    if (uploadedModelRestoreHandledRef.current) return;
+    let cancelled = false;
+    const restorePromise = uploadedModelRestorePromiseRef.current ?? restorePersistedUploadedModelUrl(settings.katagoModelUrl);
+    uploadedModelRestorePromiseRef.current = restorePromise;
+
+    void restorePromise.then((restored) => {
+      if (cancelled || uploadedModelRestoreHandledRef.current) return;
+      uploadedModelRestoreHandledRef.current = true;
+      if (!restored) return;
+      updateSettings({ katagoModelUrl: restored.url });
+      toast(`Restored uploaded KataGo model weights "${restored.name}".`, 'success');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.katagoModelUrl, toast, updateSettings]);
+
+  const handleModelWeightsFile = useCallback(async (file: File): Promise<boolean> => {
     const error = validateModelUploadFile(file);
     if (error) {
       toast(error, 'error');
       return false;
     }
     updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
-    toast(`Loaded KataGo model weights "${file.name}".`, 'success');
+    const persisted = await savePersistedUploadedModel(file);
+    toast(
+      persisted
+        ? `Loaded and saved KataGo model weights "${file.name}".`
+        : `Loaded KataGo model weights "${file.name}" for this session.`,
+      'success'
+    );
     return true;
   }, [settings.katagoModelUrl, toast, updateSettings]);
 
@@ -1066,7 +1095,7 @@ export const Layout: React.FC = () => {
     if (!file) return;
     try {
       if (isKataGoModelWeightsFile(file)) {
-        handleModelWeightsFile(file);
+        await handleModelWeightsFile(file);
         return;
       }
       if (isPhotoBoardImageFile(file)) {
@@ -1295,7 +1324,7 @@ export const Layout: React.FC = () => {
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
     if (isKataGoModelWeightsFile(file)) {
-      handleModelWeightsFile(file);
+      await handleModelWeightsFile(file);
       return;
     }
     if (isPhotoBoardImageFile(file)) {

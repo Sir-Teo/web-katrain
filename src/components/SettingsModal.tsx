@@ -24,6 +24,7 @@ import {
     MAX_BROWSER_MODEL_UPLOAD_LABEL,
     MODEL_UPLOAD_ACCEPT,
     revokeUploadedModelUrl,
+    savePersistedUploadedModel,
     syncUploadedModelUrl,
     validateModelUploadFile,
 } from '../utils/modelUpload';
@@ -175,7 +176,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         syncUploadedModelUrl(settings.katagoModelUrl);
     }, [settings.katagoModelUrl]);
 
-    const handleModelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleModelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
         setModelUploadError(null);
@@ -186,6 +187,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             return;
         }
         updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+        const persisted = await savePersistedUploadedModel(file);
+        if (!persisted) {
+            setModelUploadError('Loaded for this session, but browser storage could not save the upload for reload.');
+        }
         event.target.value = '';
     };
 
@@ -235,6 +240,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             }
             const blob = await response.blob();
             updateSettings({ katagoModelUrl: createUploadedModelUrl(blob, settings.katagoModelUrl) });
+            const persisted = await savePersistedUploadedModel(new File([blob], url.split('/').pop() || 'downloaded-model.bin.gz', { type: blob.type }));
+            if (!persisted) {
+                setDownloadError('Loaded for this session, but browser storage could not save the download for reload.');
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Download failed.';
             const hint = message.toLowerCase().includes('failed to fetch')
@@ -1451,7 +1460,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             />
                                             {isUploadedModel ? (
                                                 <p className={subtextClass}>
-                                                    Uploaded weights stay in memory for this session only.
+                                                    Uploaded weights are saved in this browser and restored after reload.
                                                 </p>
                                             ) : null}
                                             {modelUploadError ? (
@@ -1506,7 +1515,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                     >
                                                                         {downloadingUrl === model.url ? 'Downloading...' : 'Download & Load'}
                                                                     </button>
-                                                                    <span className="text-[10px] text-[var(--ui-accent)]">Session memory</span>
+                                                                    <span className="text-[10px] text-[var(--ui-accent)]">Saved in browser</span>
                                                                 </div>
                                                             ) : model.browserLoadable === false ? (
                                                                 <span className="text-[10px] text-rose-400">
@@ -1528,7 +1537,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 <p className="text-xs text-rose-400">{downloadError}</p>
                                             ) : null}
                                             <p className={subtextClass}>
-                                                Download only browser-sized weights, then use "Upload Weights" above. Large b28/b40 weights are for native KataGo, not this browser engine.
+                                                Download only browser-sized weights, then use "Upload Weights" above. Saved browser uploads use IndexedDB; large b28/b40 weights are for native KataGo, not this browser engine.
                                             </p>
                                         </div>
                                         <input
