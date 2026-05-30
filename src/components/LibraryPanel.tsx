@@ -17,6 +17,7 @@ import {
   FaFileAlt,
   FaFileArchive,
   FaCopy,
+  FaPlay,
 } from 'react-icons/fa';
 import {
   createLibraryBackup,
@@ -73,6 +74,12 @@ type LibraryConfirmDialogState = {
   confirmLabel: string;
   danger?: boolean;
   onConfirm: () => void;
+};
+
+type LibraryContextMenuState = {
+  x: number;
+  y: number;
+  itemId: string | null;
 };
 
 const LibraryTextDialog: React.FC<{
@@ -253,6 +260,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [dragOverRoot, setDragOverRoot] = useState(false);
   const [textDialog, setTextDialog] = useState<LibraryTextDialogState | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<LibraryConfirmDialogState | null>(null);
+  const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
@@ -388,6 +396,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onLibraryUpdated?.();
   }, [items, onLibraryUpdated]);
 
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const close = () => setContextMenu(null);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [contextMenu]);
+
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -419,6 +445,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
   const currentFolder = folderItems.find((folder) => folder.id === activeFolderId) ?? null;
   const currentFolderName = currentFolder?.name ?? 'Root';
+  const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const parentById = useMemo(() => {
     const map = new Map<string, string | null>();
     for (const item of items) map.set(item.id, item.parentId ?? null);
@@ -490,6 +517,40 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     return false;
   };
 
+  const contextMenuItem = contextMenu?.itemId ? (itemById.get(contextMenu.itemId) ?? null) : null;
+  const contextMenuSelection = useMemo(() => {
+    if (!contextMenuItem) return new Set<string>();
+    if (visibleSelectedIds.has(contextMenuItem.id)) return visibleSelectedIds;
+    return new Set([contextMenuItem.id]);
+  }, [contextMenuItem, visibleSelectedIds]);
+
+  const clampContextMenuPosition = (x: number, y: number): { x: number; y: number } => {
+    if (typeof window === 'undefined') return { x, y };
+    const menuWidth = 230;
+    const menuHeight = 300;
+    return {
+      x: Math.min(Math.max(8, x), Math.max(8, window.innerWidth - menuWidth - 8)),
+      y: Math.min(Math.max(8, y), Math.max(8, window.innerHeight - menuHeight - 8)),
+    };
+  };
+
+  const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const position = clampContextMenuPosition(event.clientX, event.clientY);
+    if (item && !visibleSelectedIds.has(item.id)) {
+      setSelectedIds(new Set([item.id]));
+    }
+    setContextMenu({ ...position, itemId: item?.id ?? null });
+  };
+
+  const closeContextMenu = () => setContextMenu(null);
+
+  const runContextAction = (action: () => void) => {
+    closeContextMenu();
+    action();
+  };
+
   const handleSaveCurrent = () => {
     const sgf = getCurrentSgf();
     if (!sgf.trim()) {
@@ -525,7 +586,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     });
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = (parentId: string | null = activeFolderId) => {
     setTextDialog({
       title: 'New Folder',
       label: 'Name',
@@ -533,7 +594,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       placeholder: 'Folder name',
       confirmLabel: 'Create',
       onSubmit: (name) => {
-        const folder = createLibraryFolder(name, activeFolderId);
+        const folder = createLibraryFolder(name, parentId);
         setItems((prev) => [folder, ...prev]);
         setExpandedFolderIds((prev) => new Set(prev).add(folder.id));
         setCurrentFolderId(folder.id);
@@ -768,6 +829,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast('Moved selected items.', 'success');
   };
 
+  const handleMoveToRoot = (item: LibraryItem) => {
+    if (!item.parentId) return;
+    setItems((prev) => prev.map((candidate) => (
+      candidate.id === item.id ? { ...candidate, parentId: null, updatedAt: Date.now() } : candidate
+    )));
+    onToast(`Moved "${item.name}" to Root.`, 'success');
+  };
+
   const handleLoad = async (item: LibraryItem) => {
     if (!isFile(item)) return;
     try {
@@ -915,6 +984,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         ].join(' ')}
         style={{ paddingLeft: 12 + depth * 16 }}
         onClick={() => void handleLoad(item)}
+        onContextMenu={(event) => openContextMenu(event, item)}
         draggable
         onDragStart={handleItemDragStart(item.id)}
         onDragEnd={handleItemDragEnd}
@@ -1015,6 +1085,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             setCurrentFolderId(item.id);
             setExpandedFolderIds((prev) => new Set(prev).add(item.id));
           }}
+          onContextMenu={(event) => openContextMenu(event, item)}
           draggable
           onDragStart={handleItemDragStart(item.id)}
           onDragEnd={handleItemDragEnd}
@@ -1121,6 +1192,131 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     );
   };
 
+  const renderContextMenu = () => {
+    if (!contextMenu) return null;
+    const menuButtonClass = 'library-context-menu-item';
+    const dangerMenuButtonClass = 'library-context-menu-item danger';
+
+    return (
+      <div
+        className="library-context-menu"
+        style={{ left: contextMenu.x, top: contextMenu.y }}
+        role="menu"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {!contextMenuItem ? (
+          <button
+            type="button"
+            role="menuitem"
+            className={menuButtonClass}
+            onClick={() => runContextAction(() => handleCreateFolder())}
+          >
+            <FaPlus size={12} /> New folder
+          </button>
+        ) : contextMenuSelection.size > 1 && contextMenuSelection.has(contextMenuItem.id) ? (
+          <>
+            <div className="library-context-menu-header">{contextMenuSelection.size} selected</div>
+            <button
+              type="button"
+              role="menuitem"
+              className={menuButtonClass}
+              onClick={() => runContextAction(handleBulkDuplicate)}
+            >
+              <FaCopy size={12} /> Duplicate selected
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={menuButtonClass}
+              onClick={() => runContextAction(() => void handleBulkExport())}
+            >
+              <FaDownload size={12} /> Export selected as ZIP
+            </button>
+            <div className="library-context-menu-separator" />
+            <button
+              type="button"
+              role="menuitem"
+              className={dangerMenuButtonClass}
+              onClick={() => runContextAction(handleBulkDelete)}
+            >
+              <FaTrash size={12} /> Delete selected
+            </button>
+          </>
+        ) : (
+          <>
+            {isFile(contextMenuItem) && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => void handleLoad(contextMenuItem))}
+              >
+                <FaPlay size={12} /> Load
+              </button>
+            )}
+            {isFolder(contextMenuItem) && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => handleCreateFolder(contextMenuItem.id))}
+              >
+                <FaPlus size={12} /> New folder inside
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              className={menuButtonClass}
+              onClick={() => runContextAction(() => handleRename(contextMenuItem))}
+            >
+              <FaPen size={12} /> Rename
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={menuButtonClass}
+              onClick={() => runContextAction(() => handleDuplicate(contextMenuItem))}
+            >
+              <FaCopy size={12} /> Duplicate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={menuButtonClass}
+              onClick={() => runContextAction(() => {
+                if (isFile(contextMenuItem)) handleDownload(contextMenuItem);
+                else void handleExportFolderZip(contextMenuItem);
+              })}
+            >
+              <FaDownload size={12} /> {isFile(contextMenuItem) ? 'Download SGF' : 'Export folder as ZIP'}
+            </button>
+            {contextMenuItem.parentId && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => handleMoveToRoot(contextMenuItem))}
+              >
+                <FaArrowUp size={12} /> Move to Root
+              </button>
+            )}
+            <div className="library-context-menu-separator" />
+            <button
+              type="button"
+              role="menuitem"
+              className={dangerMenuButtonClass}
+              onClick={() => runContextAction(() => handleDelete(contextMenuItem))}
+            >
+              <FaTrash size={12} /> Delete
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
   if (!open) return null;
 
   const renderSection = (args: {
@@ -1203,7 +1399,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <button
               type="button"
               className={headerActionClass}
-              onClick={handleCreateFolder}
+              onClick={() => handleCreateFolder()}
               title="Create new folder"
               aria-label="Create new folder"
             >
@@ -1435,6 +1631,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
+                onContextMenu={(event) => {
+                  if ((event.target as HTMLElement | null)?.closest?.('.library-tree-node')) return;
+                  openContextMenu(event, null);
+                }}
               >
                 {isSearching ? (
                   sortedItems.length === 0 ? (
@@ -1517,6 +1717,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </div>
         </div>
       </div>
+      {renderContextMenu()}
     </>
   );
 };
