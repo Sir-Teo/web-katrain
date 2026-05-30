@@ -327,6 +327,7 @@ async function buildRootEval(args: {
   ownershipMode: OwnershipMode;
   rules: GameRules;
   nnRandomize: boolean;
+  rootSymmetrySamples?: number;
   komi: number;
   currentPlayer: Player;
   conservativePass: boolean;
@@ -341,6 +342,7 @@ async function buildRootEval(args: {
   regionOfInterest?: RegionOfInterest | null;
   outputScaleMultiplier: number;
   node?: Node;
+  preserveExistingChildren?: boolean;
 }): Promise<{
   rootLibertyMap: Uint8Array;
   rootOwnership: Float32Array;
@@ -353,29 +355,26 @@ async function buildRootEval(args: {
   recentScoreCenter: number;
 }> {
   const includeOwnership = args.ownershipMode !== 'none';
-  const rootEval = (
-    await evaluateBatch({
-      model: args.model,
-      includeOwnership,
-      rules: args.rules,
-      nnRandomize: args.nnRandomize,
-      policyOptimism: ROOT_POLICY_OPTIMISM,
-      komi: args.komi,
-      states: [
-        {
-          stones: args.rootStones,
-          koPoint: args.rootKoPoint,
-          prevStones: args.rootPrevStones,
-          prevKoPoint: args.rootPrevKoPoint,
-          prevPrevStones: args.rootPrevPrevStones,
-          prevPrevKoPoint: args.rootPrevPrevKoPoint,
-          currentPlayer: args.currentPlayer,
-          recentMoves: takeRecentMoves(args.rootMoves, [], 5),
-          conservativePassAndIsRoot: args.conservativePass,
-        },
-      ],
-    })
-  )[0]!;
+  const rootEval = await evaluateRootEval({
+    model: args.model,
+    includeOwnership,
+    rules: args.rules,
+    nnRandomize: args.nnRandomize,
+    rootSymmetrySamples: args.rootSymmetrySamples,
+    policyOptimism: ROOT_POLICY_OPTIMISM,
+    komi: args.komi,
+    state: {
+      stones: args.rootStones,
+      koPoint: args.rootKoPoint,
+      prevStones: args.rootPrevStones,
+      prevKoPoint: args.rootPrevKoPoint,
+      prevPrevStones: args.rootPrevPrevStones,
+      prevPrevKoPoint: args.rootPrevPrevKoPoint,
+      currentPlayer: args.currentPlayer,
+      recentMoves: takeRecentMoves(args.rootMoves, [], 5),
+      conservativePassAndIsRoot: args.conservativePass,
+    },
+  });
 
   const rootLibertyMap = new Uint8Array(rootEval.libertyMap);
   const rootOwnership = new Float32Array(BOARD_AREA);
@@ -394,6 +393,7 @@ async function buildRootEval(args: {
   const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);
   const rootPolicy = new Float32Array(BOARD_AREA + 1);
   const policyNode = args.node ?? new Node(playerToColor(args.currentPlayer));
+  const previousEdges = args.preserveExistingChildren === true ? policyNode.edges : null;
   expandNode({
     node: policyNode,
     stones: args.rootStones,
@@ -407,6 +407,16 @@ async function buildRootEval(args: {
     policyOut: rootPolicy,
     policyOutputScaling: args.outputScaleMultiplier,
   });
+  if (previousEdges && policyNode.edges) {
+    const previousByMove = new Map<number, Edge>();
+    for (const edge of previousEdges) previousByMove.set(edge.move, edge);
+    for (const edge of policyNode.edges) {
+      const previous = previousByMove.get(edge.move);
+      if (!previous) continue;
+      edge.child = previous.child;
+      edge.pvCache = previous.pvCache;
+    }
+  }
 
   const recentScoreCenter = computeRecentScoreCenter(-rootEval.blackScoreMean);
   const rootValue = 2 * rootEval.blackWinProb - 1;
@@ -1075,6 +1085,125 @@ const getSymPosMap = (): Int16Array<ArrayBufferLike> => {
   return SYM_POS_MAP;
 };
 
+function clampRootSymmetrySamples(samples?: number): number {
+  if (typeof samples !== 'number' || !Number.isFinite(samples)) return 1;
+  return Math.max(1, Math.min(NUM_SYMMETRIES, Math.floor(samples)));
+}
+
+function averageRootEvals(evals: NeuralEval[]): NeuralEval {
+  const first = evals[0];
+  if (!first) throw new Error('No root evaluations to average');
+  if (evals.length === 1) return first;
+
+  const inv = 1.0 / evals.length;
+  const symPosMap = getSymPosMap();
+  const policyProbSums = new Float64Array(BOARD_AREA);
+  const ownershipSums = first.ownership ? new Float64Array(BOARD_AREA) : null;
+  let passProbSum = 0;
+  let blackWinProb = 0;
+  let blackScoreLead = 0;
+  let blackScoreMean = 0;
+  let blackScoreMeanSq = 0;
+  let blackNoResultProb = 0;
+
+  for (const ev of evals) {
+    const sym = ev.symmetry;
+    const symOff = sym * BOARD_AREA;
+    let maxLogit = ev.passLogit;
+    for (let p = 0; p < BOARD_AREA; p++) {
+      const logit = ev.policy[p]!;
+      if (logit > maxLogit) maxLogit = logit;
+    }
+
+    let probSum = Math.exp(ev.passLogit - maxLogit);
+    for (let p = 0; p < BOARD_AREA; p++) probSum += Math.exp(ev.policy[p]! - maxLogit);
+    const probScale = inv / probSum;
+    passProbSum += Math.exp(ev.passLogit - maxLogit) * probScale;
+
+    for (let p = 0; p < BOARD_AREA; p++) {
+      const symPos = sym === 0 ? p : symPosMap[symOff + p]!;
+      policyProbSums[p] += Math.exp(ev.policy[symPos]! - maxLogit) * probScale;
+      if (ownershipSums) {
+        if (!ev.ownership) throw new Error('Missing ownership output');
+        ownershipSums[p] += ev.ownership[symPos]! * inv;
+      }
+    }
+
+    blackWinProb += ev.blackWinProb * inv;
+    blackScoreLead += ev.blackScoreLead * inv;
+    blackScoreMean += ev.blackScoreMean * inv;
+    blackScoreMeanSq += (ev.blackScoreStdev * ev.blackScoreStdev + ev.blackScoreMean * ev.blackScoreMean) * inv;
+    blackNoResultProb += ev.blackNoResultProb * inv;
+  }
+
+  const minPolicyProb = 1e-30;
+  const policy = new Float32Array(BOARD_AREA);
+  for (let p = 0; p < BOARD_AREA; p++) policy[p] = Math.log(Math.max(minPolicyProb, policyProbSums[p]!));
+
+  let ownership: Float32Array | undefined;
+  if (ownershipSums) {
+    ownership = new Float32Array(BOARD_AREA);
+    for (let p = 0; p < BOARD_AREA; p++) ownership[p] = ownershipSums[p]!;
+  }
+
+  return {
+    policy,
+    symmetry: 0,
+    passLogit: Math.log(Math.max(minPolicyProb, passProbSum)),
+    blackWinProb,
+    blackScoreLead,
+    blackScoreMean,
+    blackScoreStdev: Math.sqrt(Math.max(0, blackScoreMeanSq - blackScoreMean * blackScoreMean)),
+    blackNoResultProb,
+    libertyMap: new Uint8Array(first.libertyMap),
+    areaMap: new Uint8Array(first.areaMap),
+    ownership,
+  };
+}
+
+async function evaluateRootEval(args: {
+  model: KataGoModelV8Tf;
+  includeOwnership?: boolean;
+  rules: GameRules;
+  nnRandomize: boolean;
+  rootSymmetrySamples?: number;
+  policyOptimism: number;
+  komi: number;
+  state: EvalState;
+}): Promise<NeuralEval> {
+  const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples);
+  if (rootSymmetrySamples <= 1) {
+    return (
+      await evaluateBatch({
+        model: args.model,
+        includeOwnership: args.includeOwnership,
+        rules: args.rules,
+        nnRandomize: args.nnRandomize,
+        policyOptimism: args.policyOptimism,
+        komi: args.komi,
+        states: [args.state],
+      })
+    )[0]!;
+  }
+
+  const states = new Array<EvalState>(rootSymmetrySamples);
+  for (let symmetry = 0; symmetry < rootSymmetrySamples; symmetry++) {
+    states[symmetry] = { ...args.state, symmetry };
+  }
+
+  return averageRootEvals(
+    await evaluateBatch({
+      model: args.model,
+      includeOwnership: args.includeOwnership,
+      rules: args.rules,
+      nnRandomize: false,
+      policyOptimism: args.policyOptimism,
+      komi: args.komi,
+      states,
+    })
+  );
+}
+
 type EvalBatchScratch = {
   spatialBatch: Float32Array;
   globalBatch: Float32Array;
@@ -1159,6 +1288,21 @@ type EvalState = {
   prevPrevLibertyMap?: Uint8Array;
   komi?: number;
   conservativePassAndIsRoot?: boolean;
+  symmetry?: number;
+};
+
+type NeuralEval = {
+  policy: Float32Array; // len 361, in symmetry space if symmetry != 0
+  symmetry: number; // 0..7, where 0 is identity
+  passLogit: number;
+  blackWinProb: number;
+  blackScoreLead: number;
+  blackScoreMean: number;
+  blackScoreStdev: number;
+  blackNoResultProb: number;
+  libertyMap: Uint8Array;
+  areaMap: Uint8Array;
+  ownership?: Float32Array; // len 361, raw logits (player-to-move perspective, symmetry space if symmetry != 0)
 };
 
 async function evaluateBatch(args: {
@@ -1169,21 +1313,7 @@ async function evaluateBatch(args: {
   policyOptimism: number;
   komi: number;
   states: EvalState[];
-}): Promise<
-  Array<{
-    policy: Float32Array; // len 361, in symmetry space if symmetry != 0
-    symmetry: number; // 0..7, where 0 is identity
-    passLogit: number;
-    blackWinProb: number;
-    blackScoreLead: number;
-    blackScoreMean: number;
-    blackScoreStdev: number;
-    blackNoResultProb: number;
-    libertyMap: Uint8Array;
-    areaMap: Uint8Array;
-    ownership?: Float32Array; // len 361, raw logits (player-to-move perspective, symmetry space if symmetry != 0)
-  }>
-> {
+}): Promise<NeuralEval[]> {
   const { model, states } = args;
   const includeOwnership = args.includeOwnership === true;
   const rules = args.rules;
@@ -1285,7 +1415,13 @@ async function evaluateBatch(args: {
       outGlobal: globalScratch,
     });
 
-    const sym = nnRandomize ? ((Math.random() * NUM_SYMMETRIES) | 0) : 0;
+    const requestedSymmetry = state.symmetry;
+    const sym =
+      typeof requestedSymmetry === 'number' && Number.isFinite(requestedSymmetry)
+        ? Math.max(0, Math.min(NUM_SYMMETRIES - 1, Math.floor(requestedSymmetry)))
+        : nnRandomize
+          ? ((Math.random() * NUM_SYMMETRIES) | 0)
+          : 0;
     symmetries[i] = sym;
     const spatialOffset = i * BOARD_AREA * 22;
     if (sym === 0) {
@@ -1354,19 +1490,7 @@ async function evaluateBatch(args: {
     passLogits = mixedPass;
   }
 
-  const results: Array<{
-    policy: Float32Array;
-    symmetry: number;
-    passLogit: number;
-    blackWinProb: number;
-    blackScoreLead: number;
-    blackScoreMean: number;
-    blackScoreStdev: number;
-    blackNoResultProb: number;
-    libertyMap: Uint8Array;
-    areaMap: Uint8Array;
-    ownership?: Float32Array;
-  }> = [];
+  const results: NeuralEval[] = [];
   for (let i = 0; i < batch; i++) {
     const pOff = i * BOARD_AREA;
     const sym = symmetries[i]!;
@@ -1411,6 +1535,7 @@ export class MctsSearch {
   readonly nnRandomize: boolean;
   readonly conservativePass: boolean;
   readonly wideRootNoise: number;
+  readonly rootSymmetrySamples: number;
   private readonly outputScaleMultiplier: number;
 
   private rootStones: Uint8Array<ArrayBuffer>;
@@ -1453,6 +1578,7 @@ export class MctsSearch {
     nnRandomize: boolean;
     conservativePass: boolean;
     wideRootNoise: number;
+    rootSymmetrySamples: number;
     rootStones: Uint8Array<ArrayBuffer>;
     rootKoPoint: number;
     rootPrevStones: Uint8Array<ArrayBuffer>;
@@ -1481,6 +1607,7 @@ export class MctsSearch {
     this.nnRandomize = args.nnRandomize;
     this.conservativePass = args.conservativePass;
     this.wideRootNoise = args.wideRootNoise;
+    this.rootSymmetrySamples = args.rootSymmetrySamples;
 
     this.rootStones = args.rootStones;
     this.rootKoPoint = args.rootKoPoint;
@@ -1517,9 +1644,11 @@ export class MctsSearch {
     maxChildren: number;
     ownershipMode: OwnershipMode;
     wideRootNoise: number;
+    rootSymmetrySamples?: number;
     regionOfInterest?: RegionOfInterest | null;
   }): Promise<MctsSearch> {
     const outputScaleMultiplier = args.model.postProcessParams?.outputScaleMultiplier ?? 1.0;
+    const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples);
     const rootStones = boardStateToStones(args.board);
     const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory });
 
@@ -1552,6 +1681,7 @@ export class MctsSearch {
       ownershipMode: args.ownershipMode,
       rules: args.rules,
       nnRandomize: args.nnRandomize,
+      rootSymmetrySamples,
       komi: args.komi,
       currentPlayer: args.currentPlayer,
       conservativePass: args.conservativePass,
@@ -1590,6 +1720,7 @@ export class MctsSearch {
       nnRandomize: args.nnRandomize,
       conservativePass: args.conservativePass,
       wideRootNoise: args.wideRootNoise,
+      rootSymmetrySamples,
       rootStones,
       rootKoPoint,
       rootPrevStones,
@@ -1661,6 +1792,7 @@ export class MctsSearch {
       ownershipMode: this.ownershipMode,
       rules: args.rules,
       nnRandomize: this.nnRandomize,
+      rootSymmetrySamples: this.rootSymmetrySamples,
       komi: args.komi,
       currentPlayer: args.currentPlayer,
       conservativePass: this.conservativePass,
@@ -1674,7 +1806,8 @@ export class MctsSearch {
       maxChildren: this.maxChildren,
       regionOfInterest: args.regionOfInterest,
       outputScaleMultiplier: this.outputScaleMultiplier,
-      node: shouldExpandRoot ? child : undefined,
+      node: child,
+      preserveExistingChildren: !shouldExpandRoot,
     });
 
     const rootPrevLibertyMap =
@@ -2230,6 +2363,7 @@ export async function analyzeMcts(args: {
   maxTimeMs?: number;
   batchSize?: number;
   maxChildren?: number;
+  rootSymmetrySamples?: number;
   regionOfInterest?: RegionOfInterest | null;
 }): Promise<{
   rootWinRate: number;
@@ -2266,6 +2400,7 @@ export async function analyzeMcts(args: {
   const wideRootNoise = Math.max(0, Math.min(args.wideRootNoise ?? 0.04, 5));
   const rules: GameRules = args.rules ?? 'japanese';
   const nnRandomize = args.nnRandomize !== false;
+  const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples ?? (tf.getBackend() === 'webgpu' && nnRandomize ? NUM_SYMMETRIES : 1));
   const pvDepth = 1 + analysisPvLen;
   const rand = new Rand();
 
@@ -2288,28 +2423,25 @@ export async function analyzeMcts(args: {
   const rootPos: SimPosition = { stones: rootStones.slice(), koPoint: rootKoPoint };
   const rootNode = new Node(playerToColor(args.currentPlayer));
 
-  const rootEval = (
-    await evaluateBatch({
-      model: args.model,
-      includeOwnership: true,
-      rules,
-      nnRandomize,
-      policyOptimism: ROOT_POLICY_OPTIMISM,
-      komi: args.komi,
-      states: [
-        {
-          stones: rootPos.stones,
-          koPoint: rootPos.koPoint,
-          prevStones: rootPrevStones,
-          prevKoPoint: rootPrevKoPoint,
-          prevPrevStones: rootPrevPrevStones,
-          prevPrevKoPoint: rootPrevPrevKoPoint,
-          currentPlayer: args.currentPlayer,
-          recentMoves: takeRecentMoves(rootMoves, [], 5),
-        },
-      ],
-    })
-  )[0]!;
+  const rootEval = await evaluateRootEval({
+    model: args.model,
+    includeOwnership: true,
+    rules,
+    nnRandomize,
+    rootSymmetrySamples,
+    policyOptimism: ROOT_POLICY_OPTIMISM,
+    komi: args.komi,
+    state: {
+      stones: rootPos.stones,
+      koPoint: rootPos.koPoint,
+      prevStones: rootPrevStones,
+      prevKoPoint: rootPrevKoPoint,
+      prevPrevStones: rootPrevPrevStones,
+      prevPrevKoPoint: rootPrevPrevKoPoint,
+      currentPlayer: args.currentPlayer,
+      recentMoves: takeRecentMoves(rootMoves, [], 5),
+    },
+  });
   if (!rootEval.ownership) throw new Error('Missing ownership output');
 
   const rootOwnershipSign = args.currentPlayer === 'black' ? 1 : -1;

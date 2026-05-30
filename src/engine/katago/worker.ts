@@ -243,6 +243,7 @@ let searchKey: {
   komi: number;
   currentPlayer: 'black' | 'white';
   wideRootNoise: number;
+  rootSymmetrySamples: number;
   rules: GameRules;
   nnRandomize: boolean;
   conservativePass: boolean;
@@ -278,7 +279,7 @@ function ensureBoardSizeForWorker(boardSize: number): void {
 }
 
 const normalizeBackendPreference = (backend?: KataGoBackendPreference): KataGoBackendPreference =>
-  backend === 'webgpu' || backend === 'cpu' ? backend : 'wasm';
+  backend === 'wasm' || backend === 'cpu' ? backend : 'webgpu';
 
 async function initWasmBackend(): Promise<void> {
   try {
@@ -580,6 +581,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
     const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
+    const rootSymmetrySamples = tf.getBackend() === 'webgpu' && nnRandomize ? 8 : 1;
     const conservativePass = msg.conservativePass !== false;
     const roiKey = regionKey(msg.regionOfInterest);
     const reportEveryMsRaw = msg.reportDuringSearchEveryMs;
@@ -604,6 +606,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.komi === msg.komi &&
       searchKey.currentPlayer === msg.currentPlayer &&
       searchKey.wideRootNoise === wideRootNoise &&
+      searchKey.rootSymmetrySamples === rootSymmetrySamples &&
       searchKey.rules === rules &&
       searchKey.nnRandomize === nnRandomize &&
       searchKey.conservativePass === conservativePass &&
@@ -628,6 +631,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         searchKey.ownershipMode === ownershipMode &&
         searchKey.komi === msg.komi &&
         searchKey.wideRootNoise === wideRootNoise &&
+        searchKey.rootSymmetrySamples === rootSymmetrySamples &&
         searchKey.rules === rules &&
         searchKey.nnRandomize === nnRandomize &&
         searchKey.conservativePass === conservativePass &&
@@ -661,6 +665,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
               komi: msg.komi,
               currentPlayer: msg.currentPlayer,
               wideRootNoise,
+              rootSymmetrySamples,
               rules,
               nnRandomize,
               conservativePass,
@@ -686,6 +691,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         maxChildren,
         ownershipMode,
         wideRootNoise,
+        rootSymmetrySamples,
         regionOfInterest: msg.regionOfInterest,
       });
       if (typeof msg.positionId === 'string') {
@@ -699,6 +705,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           komi: msg.komi,
           currentPlayer: msg.currentPlayer,
           wideRootNoise,
+          rootSymmetrySamples,
           rules,
           nnRandomize,
           conservativePass,

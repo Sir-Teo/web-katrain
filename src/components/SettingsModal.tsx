@@ -1512,8 +1512,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 onChange={(e) => updateSettings({ katagoBackend: e.target.value as GameSettings['katagoBackend'] })}
                                                 className={selectClass}
                                             >
-                                                <option value="wasm">WASM</option>
                                                 <option value="webgpu">WebGPU</option>
+                                                <option value="wasm">WASM</option>
                                                 <option value="cpu">CPU</option>
                                             </select>
                                         </div>

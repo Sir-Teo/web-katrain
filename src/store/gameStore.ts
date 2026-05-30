@@ -401,7 +401,7 @@ const defaultSettings: GameSettings = {
   analysisShowPolicy: false,
   analysisShowOwnership: true,
   katagoModelUrl: publicUrl(DEFAULT_MODEL_PATH),
-  katagoBackend: 'wasm',
+  katagoBackend: 'webgpu',
   katagoVisits: 500,
   katagoFastVisits: 25,
   katagoMaxTimeMs: 8000,

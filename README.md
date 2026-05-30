@@ -1,6 +1,6 @@
 # web-katrain
 
-Browser-based KaTrain-style UI with in-browser KataGo analysis using TensorFlow.js (WASM by default, with WebGPU/CPU selectable in settings).
+Browser-based KaTrain-style UI with in-browser KataGo analysis using TensorFlow.js (WebGPU by default, with WASM/CPU fallback and selectable in settings).
 
 ## How it works
 
@@ -31,6 +31,8 @@ Optional parity assets can be pulled from sibling checkouts:
 Set `FETCH_KATRAIN_MODEL=1` if you also want to copy/download KaTrain’s heavier default model into `public/models/` for local testing.
 
 ## Performance
+
+WebGPU is the preferred analysis backend. When WebGPU is active with random symmetry enabled, root analysis samples all 8 neural symmetries for a stronger, steadier root policy; WASM and CPU remain fallbacks.
 
 For threaded WASM (XNNPACK), serve with COOP/COEP headers to enable `SharedArrayBuffer`:
 `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`.
