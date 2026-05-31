@@ -18,13 +18,14 @@ import {
   type MoveReportEntry,
   type MovePolicyCategory,
 } from '../utils/gameReport';
-import type { CandidateMove, Player } from '../types';
+import type { CandidateMove, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { PanelHeaderButton } from './layout/ui';
 import { captureBoardSnapshot } from '../utils/boardSnapshot';
 import { normalizeBoardSize } from '../utils/boardSize';
 import { captureReportBoardSnapshot } from '../utils/reportBoardSnapshot';
+import { formatGameInfoPlayer, readRootInfoValue } from '../utils/gameInfoDisplay';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -123,6 +124,12 @@ function policyCategoryColor(category: MovePolicyCategory): string {
   }
 }
 
+function rootPropertiesForNode(node: GameNode): Record<string, string[]> {
+  let root = node;
+  while (root.parent) root = root.parent;
+  return root.properties ?? {};
+}
+
 export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setReportHoverMove }) => {
   const {
     currentNode,
@@ -175,6 +182,22 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] ui-text-faint';
   const labelClass = 'text-[var(--ui-text-muted)]';
   const generatedAt = useMemo(() => new Date(), []);
+  const playerNames = useMemo(() => {
+    void treeVersion;
+    const rootProps = rootPropertiesForNode(currentNode);
+    return {
+      black: formatGameInfoPlayer(
+        readRootInfoValue(rootProps, 'PB'),
+        readRootInfoValue(rootProps, 'BR'),
+        'Black'
+      ),
+      white: formatGameInfoPlayer(
+        readRootInfoValue(rootProps, 'PW'),
+        readRootInfoValue(rootProps, 'WR'),
+        'White'
+      ),
+    } satisfies Record<Player, string>;
+  }, [currentNode, treeVersion]);
   const reportThresholds = useMemo(
     () => (trainerEvalThresholds?.length ? trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS),
     [trainerEvalThresholds]
@@ -408,7 +431,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       : hasReviewTargets
         ? `${analyzedMoves}/${totalMoves} moves have report-grade consecutive analysis. Run fast review to fill the gaps.`
         : 'Load or play a game with moves before running a report review.';
-  const playerFilterLabel = playerFilter === 'all' ? 'All players' : playerFilter === 'black' ? 'Black' : 'White';
+  const playerFilterLabel = playerFilter === 'all' ? 'All players' : playerNames[playerFilter];
   const statsPlayers: Array<Player> = playerFilter === 'all' ? ['black', 'white'] : [playerFilter];
   const filteredReportEntries = useMemo(() => {
     return report.moveEntries.filter((entry) => {
@@ -602,7 +625,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       }
       useGameStore.setState({
         notification: {
-          message: `Practice move ${entry.moveNumber}: try a correction for ${entry.player === 'black' ? 'Black' : 'White'}.`,
+          message: `Practice move ${entry.moveNumber}: try a correction for ${playerNames[entry.player]}.`,
           type: 'info',
         },
       });
@@ -793,6 +816,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <h2 id="game-report-title" className="text-lg font-semibold text-[var(--ui-text)]">
               Game Analysis Summary
             </h2>
+            <div className="mt-1 text-sm ui-text-muted">
+              {playerNames.black} vs {playerNames.white}
+            </div>
           </div>
           <div className="flex items-center gap-2 print-hide">
             <button
@@ -857,8 +883,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className="flex flex-wrap items-center gap-2 print-hide">
             {[
               { key: 'all', label: 'All players' },
-              { key: 'black', label: 'Black' },
-              { key: 'white', label: 'White' },
+              { key: 'black', label: playerNames.black },
+              { key: 'white', label: playerNames.white },
             ].map((opt) => (
               <button
                 key={opt.key}
@@ -967,8 +993,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className={['mt-3 grid gap-2 text-sm', statsPlayers.length === 2 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>
               <div className="text-slate-500 text-xs uppercase tracking-wide">Metric</div>
               {statsPlayers.map((player) => (
-                <div key={player} className="text-center text-xs uppercase tracking-wide text-slate-500">
-                  {player === 'black' ? 'Black' : 'White'}
+                <div key={player} className="min-w-0 truncate text-center text-xs font-semibold text-slate-500" title={playerNames[player]}>
+                  {playerNames[player]}
                 </div>
               ))}
 
@@ -1007,7 +1033,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                           ].join(' ')}
                           aria-hidden="true"
                         />
-                        <span>{player === 'black' ? 'Black' : 'White'}</span>
+                        <span className="min-w-0 truncate" title={playerNames[player]}>{playerNames[player]}</span>
                       </div>
                       <div className="text-right">
                         <div className="text-[10px] uppercase tracking-wide text-slate-500">Policy accuracy</div>
@@ -1041,7 +1067,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         const count = distribution?.[category] ?? 0;
                         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                         const active = policyFilter === category && (playerFilter === 'all' || playerFilter === player);
-                        const playerLabel = player === 'black' ? 'Black' : 'White';
+                        const playerLabel = playerNames[player];
                         const categoryLabel = policyCategoryLabel(category);
                         const moveWord = count === 1 ? 'move' : 'moves';
                         return (
@@ -1311,7 +1337,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     {reviewIndex + 1}/{reviewQueue.length}
                   </span>
                   <span className="text-slate-300">
-                    Move {activeReview.moveNumber} · {activeReview.player === 'black' ? 'Black' : 'White'} · {activeReview.move}
+                    Move {activeReview.moveNumber} · {playerNames[activeReview.player]} · {activeReview.move}
                   </span>
                   <span className="font-mono text-rose-300">-{fmtNum(activeReview.pointsLost, 2)}</span>
                   {activeReview.policy && (
@@ -1428,7 +1454,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 </>
               ) : (
                 <div className="col-span-4 text-center uppercase tracking-wide text-[10px] text-slate-500">
-                  {playerFilter === 'black' ? 'Black' : 'White'}
+                  {playerNames[playerFilter]}
                 </div>
               )}
 
@@ -1491,6 +1517,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 <div>
                   <div className="pdf-cover-subtitle">KaTrain Official Report</div>
                   <div className="pdf-cover-title pdf-title">Game Analysis Summary</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-700">
+                    {playerNames.black} vs {playerNames.white}
+                  </div>
                 </div>
                 <div className="text-xs text-slate-600">
                   {generatedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
@@ -1522,8 +1551,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 <div className={['mt-2 grid gap-x-4 gap-y-1 text-xs', statsPlayers.length === 2 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>
                   <div className="font-semibold uppercase tracking-wide text-slate-500">Metric</div>
                   {statsPlayers.map((player) => (
-                    <div key={`pdf-stats-${player}`} className="text-center font-semibold uppercase tracking-wide text-slate-500">
-                      {player === 'black' ? 'Black' : 'White'}
+                    <div key={`pdf-stats-${player}`} className="truncate text-center font-semibold text-slate-500">
+                      {playerNames[player]}
                     </div>
                   ))}
                   {keyStatRows.map(({ label, value }) => (
@@ -1547,7 +1576,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     return (
                       <div key={`pdf-policy-${player}`} className="rounded border border-slate-300 p-2">
                         <div className="flex items-center justify-between gap-3">
-                          <div className="font-semibold text-slate-900">{player === 'black' ? 'Black' : 'White'}</div>
+                          <div className="truncate font-semibold text-slate-900">{playerNames[player]}</div>
                           <div className="font-mono text-slate-700">Policy acc. {fmtNum(report.stats[player].policyAccuracy, 1)}</div>
                         </div>
                         <div className="mt-2 flex h-2 overflow-hidden rounded bg-slate-200">
@@ -1605,7 +1634,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                           <span className="font-semibold text-slate-900">Move {entry.moveNumber}</span>
                           <span className="text-slate-700">
                             {' '}
-                            {entry.player === 'black' ? 'Black' : 'White'} {entry.move}
+                            {playerNames[entry.player]} {entry.move}
                           </span>
                         </div>
                         <div className="font-mono text-slate-700">
@@ -1633,7 +1662,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                           <span className="font-semibold text-slate-900">Move {entry.moveNumber}</span>
                           <span className="text-slate-700">
                             {' '}
-                            {entry.player === 'black' ? 'Black' : 'White'} {entry.move}
+                            {playerNames[entry.player]} {entry.move}
                           </span>
                         </div>
                         <div className="font-mono text-slate-700">
@@ -1666,7 +1695,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         Mistake {idx + 1} of {pdfMistakes.length}
                       </div>
                       <div className="text-lg font-semibold text-slate-900">
-                        Move {entry.moveNumber} - {entry.player === 'black' ? 'Black' : 'White'}
+                        Move {entry.moveNumber} - {playerNames[entry.player]}
                       </div>
                       <div className="text-sm text-slate-700">
                         Played {entry.move} • Best {entry.topMove ?? '-'} • Loss {fmtNum(entry.pointsLost, 2)} • Win {fmtWinSwing(entry.winRateSwing)}
