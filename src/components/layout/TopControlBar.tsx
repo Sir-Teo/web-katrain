@@ -28,6 +28,7 @@ import { EngineStatusBadge, IconButton } from './ui';
 import { BOARD_THEME_OPTIONS } from '../../utils/boardThemes';
 import { UI_THEME_OPTIONS } from '../../utils/uiThemes';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
+import { isFullscreenActive, subscribeFullscreenChange, toggleAppFullscreen } from '../../utils/fullscreen';
 
 const TOP_CONTROL_SHORTCUT_IDS = [
   'settings-modal',
@@ -169,23 +170,18 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const saveControlTitle = withShortcut(stripShortcutSuffix(saveTitle), 'save-sgf');
   const [isFullscreen, setIsFullscreen] = React.useState(() => {
     if (typeof document === 'undefined') return false;
-    return !!document.fullscreenElement;
+    return isFullscreenActive();
   });
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return;
-    const handle = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handle);
-    return () => document.removeEventListener('fullscreenchange', handle);
+    const handle = () => setIsFullscreen(isFullscreenActive());
+    return subscribeFullscreenChange(handle);
   }, []);
 
   const toggleFullscreen = () => {
     if (typeof document === 'undefined') return;
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => { });
-    } else {
-      document.exitFullscreen?.().catch(() => { });
-    }
+    void toggleAppFullscreen().catch(() => {});
   };
   const closeViewMenu = () => setViewMenuOpen(false);
   const closeViewMenuIfMobile = () => {

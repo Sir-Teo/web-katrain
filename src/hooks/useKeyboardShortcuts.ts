@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { generateSgfFromTree, type KaTrainSgfExportOptions } from '../utils/sgf';
 import type { UiMode } from '../components/layout/types';
 import { eventMatchesShortcut, loadShortcutOverrides } from '../utils/shortcuts';
+import { toggleAppFullscreen } from '../utils/fullscreen';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
@@ -209,11 +210,7 @@ export function useKeyboardShortcuts({
       // Fullscreen
       if (matches('fullscreen')) {
         e.preventDefault();
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen?.().catch(() => {});
-        } else {
-          document.exitFullscreen?.().catch(() => {});
-        }
+        void toggleAppFullscreen().catch(() => {});
         return;
       }
 
