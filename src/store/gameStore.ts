@@ -3782,13 +3782,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }),
 
   pruneCurrentBranch: () => set((state) => {
+      let removedNodes = 0;
       let node: GameNode | null = state.currentNode;
       while (node && node.parent) {
           const parent: GameNode = node.parent;
-          parent.children = [node];
+          const keptNode = node;
+          const siblings = parent.children.filter((child) => child.id !== keptNode.id);
+          removedNodes += siblings.reduce((total, child) => total + countNodes(child), 0);
+          if (siblings.length > 0) parent.children = [keptNode];
           node = parent;
       }
-      return { treeVersion: state.treeVersion + 1 };
+
+      if (removedNodes === 0) {
+          return { notification: { message: 'No other branches on the current line.', type: 'info' } };
+      }
+
+      return {
+          activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, state.currentNode),
+          notification: {
+              message: `Kept current line and deleted ${removedNodes} other branch node${removedNodes === 1 ? '' : 's'}.`,
+              type: 'success',
+          },
+          treeVersion: state.treeVersion + 1,
+      };
   }),
 
   copyCurrentBranch: () => set((state) => {

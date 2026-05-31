@@ -103,6 +103,18 @@ describe('GameStore loadGame', () => {
         const branchPoint = useGameStore.getState().rootNode.children[0];
         expect(branchPoint?.children).toHaveLength(1);
         expect(branchPoint?.children[0]?.move).toEqual({ x: 2, y: 2, player: 'white' });
+        expect(useGameStore.getState().notification).toMatchObject({
+            message: 'Kept current line and deleted 4 other branch nodes.',
+            type: 'success',
+        });
+
+        const treeVersion = useGameStore.getState().treeVersion;
+        store.pruneCurrentBranch();
+        expect(useGameStore.getState().treeVersion).toBe(treeVersion);
+        expect(useGameStore.getState().notification).toMatchObject({
+            message: 'No other branches on the current line.',
+            type: 'info',
+        });
     });
 
     it('reorders sibling variations without promoting the full path', () => {

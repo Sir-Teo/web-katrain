@@ -5,6 +5,7 @@ import {
   FaCaretUp,
   FaCircle,
   FaCopy,
+  FaCut,
   FaEdit,
   FaEraser,
   FaExchangeAlt,
@@ -14,7 +15,6 @@ import {
   FaPaste,
   FaRegCircle,
   FaRegSquare,
-  FaSitemap,
   FaStar,
   FaTimes,
   FaTrash,
@@ -129,6 +129,13 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   const siblingCount = currentNode.parent?.children.length ?? 0;
   const canShiftEarlier = siblingIndex > 0;
   const canShiftLater = siblingIndex >= 0 && siblingIndex < siblingCount - 1;
+  let branchSiblingCount = 0;
+  let branchCursor = currentNode;
+  while (branchCursor.parent) {
+    branchSiblingCount += Math.max(0, branchCursor.parent.children.length - 1);
+    branchCursor = branchCursor.parent;
+  }
+  const canPruneOtherBranches = branchSiblingCount > 0;
   void treeVersion;
 
   return (
@@ -301,12 +308,16 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
               <button
                 type="button"
                 onClick={pruneCurrentBranch}
-                disabled={!canEditBranch}
-                className={[toolButtonClass(false), !canEditBranch ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
-                title="Prune sibling branches"
+                disabled={!canPruneOtherBranches}
+                className={[toolButtonClass(false), !canPruneOtherBranches ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                title={
+                  canPruneOtherBranches
+                    ? `Delete ${branchSiblingCount} other branch${branchSiblingCount === 1 ? '' : 'es'} and keep the current line`
+                    : 'No other branches on the current line'
+                }
               >
-                <FaSitemap />
-                <span className="hidden sm:inline">Prune</span>
+                <FaCut />
+                <span className="hidden sm:inline">Others</span>
               </button>
             </div>
             <button
