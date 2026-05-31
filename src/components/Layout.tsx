@@ -54,6 +54,7 @@ import { LibraryPanel } from './LibraryPanel';
 import { MobileHome } from './MobileHome';
 import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
 import { AboutDialog } from './AboutDialog';
+import type { CommandPaletteCommand } from './CommandPaletteModal';
 import {
   type UiMode,
   type UiState,
@@ -77,6 +78,7 @@ import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
 const GameReportModal = lazy(() => import('./GameReportModal').then((module) => ({ default: module.GameReportModal })));
+const CommandPaletteModal = lazy(() => import('./CommandPaletteModal').then((module) => ({ default: module.CommandPaletteModal })));
 const KeyboardHelpModal = lazy(() => import('./KeyboardHelpModal').then((module) => ({ default: module.KeyboardHelpModal })));
 const NewGameModal = lazy(() => import('./NewGameModal').then((module) => ({ default: module.NewGameModal })));
 const PhotoBoardModal = lazy(() => import('./PhotoBoardModal').then((module) => ({ default: module.PhotoBoardModal })));
@@ -282,6 +284,7 @@ export const Layout: React.FC = () => {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isGameAnalysisOpen, setIsGameAnalysisOpen] = useState(false);
   const [isGameReportOpen, setIsGameReportOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
@@ -1630,6 +1633,8 @@ export const Layout: React.FC = () => {
     };
   }, [libraryOpen, libraryVersion]);
 
+  const saveControlLabel = loadedLibraryFileId ? 'Save to Library' : 'Save SGF';
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
     mode,
@@ -1642,6 +1647,7 @@ export const Layout: React.FC = () => {
     setAnalysisMenuOpen,
     setViewMenuOpen,
     setMenuOpen,
+    setIsCommandPaletteOpen,
     setIsKeyboardHelpOpen,
     openPasteSgf: handlePasteSgfShortcut,
     openNewGame: () => void openNewGameWithGuard(),
@@ -1650,6 +1656,152 @@ export const Layout: React.FC = () => {
     toggleSidebar: handleToggleSidebar,
     toast,
   });
+
+  const commandPaletteCommands: CommandPaletteCommand[] = (() => {
+    const closeFloatingMenus = () => {
+      setAnalysisMenuOpen(false);
+      setViewMenuOpen(false);
+      setMenuOpen(false);
+    };
+    const openSimpleModal = (open: () => void) => {
+      closeFloatingMenus();
+      open();
+    };
+
+    return [
+      {
+        id: 'quick-new-game',
+        label: 'Quick new game',
+        category: 'Game',
+        run: () => { void startQuickNewGame(); },
+        keywords: ['restart', 'fresh board'],
+      },
+      {
+        id: 'new-game',
+        label: 'New game setup',
+        category: 'Game',
+        shortcutId: 'new-game',
+        run: () => { void openNewGameWithGuard(); },
+        keywords: ['board size', 'handicap', 'players'],
+      },
+      {
+        id: 'save-sgf',
+        label: saveControlLabel,
+        category: 'File',
+        shortcutId: 'save-sgf',
+        run: () => { void handleSaveCurrentSgf(); },
+        keywords: ['download', 'export'],
+      },
+      {
+        id: 'save-library',
+        label: 'Save copy to library',
+        category: 'File',
+        run: () => { void openSaveToLibraryDialog(); },
+        keywords: ['archive', 'collection'],
+      },
+      {
+        id: 'load-sgf',
+        label: 'Load SGF / photo / model',
+        category: 'File',
+        shortcutId: 'open-sgf',
+        run: handleLoadClick,
+        keywords: ['open', 'import', 'weights'],
+      },
+      {
+        id: 'photo-board',
+        label: 'Open photo board',
+        category: 'File',
+        run: () => openPhotoBoard(),
+        keywords: ['scan', 'camera', 'image'],
+      },
+      {
+        id: 'paste-sgf',
+        label: 'Paste SGF or OGS URL',
+        category: 'File',
+        shortcutId: 'paste-sgf',
+        run: handlePasteSgf,
+        keywords: ['clipboard', 'load'],
+      },
+      {
+        id: 'copy-sgf',
+        label: 'Copy SGF',
+        category: 'File',
+        shortcutId: 'copy-sgf',
+        run: () => { void handleCopySgf(); },
+        keywords: ['clipboard'],
+      },
+      {
+        id: 'toggle-library',
+        label: libraryOpen ? 'Hide library' : 'Show library',
+        category: 'View',
+        shortcutId: 'toggle-library',
+        run: handleToggleLibrary,
+        keywords: ['games', 'collection'],
+      },
+      {
+        id: 'toggle-sidebar',
+        label: showSidebar ? 'Hide side panel' : 'Show side panel',
+        category: 'View',
+        shortcutId: 'toggle-sidebar',
+        run: handleToggleSidebar,
+        keywords: ['layout', 'panels'],
+      },
+      {
+        id: 'toggle-analysis',
+        label: isAnalysisMode ? 'Turn analysis off' : 'Turn analysis on',
+        category: 'Analysis',
+        shortcutId: 'toggle-analysis',
+        run: toggleAnalysisMode,
+        keywords: ['engine', 'ai'],
+      },
+      {
+        id: 'game-review',
+        label: isGameAnalysisRunning ? 'Stop game review' : 'Fast game review',
+        category: 'Analysis',
+        run: isGameAnalysisRunning ? stopGameAnalysis : () => startFastGameAnalysis(),
+        keywords: ['analyze all', 'report'],
+      },
+      {
+        id: 'game-report',
+        label: 'Open game report',
+        category: 'Analysis',
+        shortcutId: 'game-report-modal',
+        run: () => openSimpleModal(() => setIsGameReportOpen(true)),
+        keywords: ['review', 'mistakes'],
+      },
+      {
+        id: 'game-analysis',
+        label: 'Open game re-analysis',
+        category: 'Analysis',
+        shortcutId: 'game-analysis-modal',
+        run: () => openSimpleModal(() => setIsGameAnalysisOpen(true)),
+        keywords: ['depth', 'range'],
+      },
+      {
+        id: 'settings',
+        label: 'Open settings',
+        category: 'Help & Settings',
+        shortcutId: 'settings-modal',
+        run: () => openSimpleModal(() => setIsSettingsOpen(true)),
+        keywords: ['preferences', 'configuration'],
+      },
+      {
+        id: 'keyboard-help',
+        label: 'Open keyboard shortcuts',
+        category: 'Help & Settings',
+        shortcutId: 'keyboard-help',
+        run: () => openSimpleModal(() => setIsKeyboardHelpOpen(true)),
+        keywords: ['hotkeys', 'keys'],
+      },
+      {
+        id: 'about',
+        label: 'About web-KaTrain',
+        category: 'Help & Settings',
+        run: () => openSimpleModal(() => setIsAboutOpen(true)),
+        keywords: ['version', 'build'],
+      },
+    ];
+  })();
 
   const jumpBack = (n: number) => {
     for (let i = 0; i < n; i++) navigateBack();
@@ -1724,7 +1876,6 @@ export const Layout: React.FC = () => {
     },
   });
   const currentGameDirty = hasUnsavedChanges();
-  const saveControlLabel = loadedLibraryFileId ? 'Save to Library' : 'Save SGF';
   const desktopBottomControlsHeight =
     !isMobile && settings.showBoardControls && bottomBarOpen ? 'var(--ui-bar-height)' : '0px';
   const mobileBottomControlsHeight =
@@ -1772,6 +1923,12 @@ export const Layout: React.FC = () => {
               setReportHoverMove(null);
             }}
             setReportHoverMove={setReportHoverMove}
+          />
+        )}
+        {isCommandPaletteOpen && (
+          <CommandPaletteModal
+            commands={commandPaletteCommands}
+            onClose={() => setIsCommandPaletteOpen(false)}
           />
         )}
         {isKeyboardHelpOpen && <KeyboardHelpModal onClose={() => setIsKeyboardHelpOpen(false)} />}
@@ -1927,6 +2084,7 @@ export const Layout: React.FC = () => {
         onCopy={handleCopySgf}
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
+        onCommandPalette={() => setIsCommandPaletteOpen(true)}
         onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
         onAbout={() => setIsAboutOpen(true)}
         recentItems={recentLibraryItems}
@@ -2099,6 +2257,7 @@ export const Layout: React.FC = () => {
               onPasteSgf={handlePasteSgf}
               onScanBoard={() => openPhotoBoard()}
               onSettings={() => setIsSettingsOpen(true)}
+              onCommandPalette={() => setIsCommandPaletteOpen(true)}
               onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
               onAbout={() => setIsAboutOpen(true)}
               winRateLabel={winRateLabel}

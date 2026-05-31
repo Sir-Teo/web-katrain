@@ -19,6 +19,7 @@ interface UseKeyboardShortcutsOptions {
   setAnalysisMenuOpen: (v: boolean) => void;
   setViewMenuOpen: (v: boolean) => void;
   setMenuOpen: (v: boolean) => void;
+  setIsCommandPaletteOpen: (v: boolean) => void;
   setIsKeyboardHelpOpen: (v: boolean) => void;
   openPasteSgf: () => void;
   openNewGame: () => void;
@@ -39,6 +40,7 @@ export function useKeyboardShortcuts({
   setAnalysisMenuOpen,
   setViewMenuOpen,
   setMenuOpen,
+  setIsCommandPaletteOpen,
   setIsKeyboardHelpOpen,
   openPasteSgf,
   openNewGame,
@@ -190,8 +192,19 @@ export function useKeyboardShortcuts({
         setAnalysisMenuOpen(false);
         setViewMenuOpen(false);
         setMenuOpen(false);
+        setIsCommandPaletteOpen(false);
         setIsKeyboardHelpOpen(false);
         closeLibrary();
+        return;
+      }
+
+      // Command palette
+      if (matches('command-palette')) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+        setAnalysisMenuOpen(false);
+        setViewMenuOpen(false);
+        setMenuOpen(false);
         return;
       }
 
@@ -500,6 +513,7 @@ export function useKeyboardShortcuts({
     setAnalysisMenuOpen,
     setViewMenuOpen,
     setMenuOpen,
+    setIsCommandPaletteOpen,
     setIsKeyboardHelpOpen,
     openNewGame,
     toggleLibrary,

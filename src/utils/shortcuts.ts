@@ -73,6 +73,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { id: 'toggle-sidebar', category: 'File Operations', label: 'Toggle sidebar', defaultBindings: [{ key: 'b', ctrl: true }] },
   { id: 'copy-sgf', category: 'File Operations', label: 'Copy SGF', defaultBindings: [{ key: 'c', ctrl: true }] },
   { id: 'paste-sgf', category: 'File Operations', label: 'Paste SGF / OGS URL', defaultBindings: [{ key: 'v', ctrl: true }] },
+  { id: 'command-palette', category: 'Modals', label: 'Command palette', defaultBindings: [{ key: 'k', ctrl: true }] },
   { id: 'keyboard-help', category: 'Modals', label: 'Keyboard shortcuts', defaultBindings: [{ key: '?' }, { key: '/', shift: true }] },
   { id: 'game-analysis-modal', category: 'Modals', label: 'Game re-analysis', defaultBindings: [{ key: 'F2' }] },
   { id: 'game-report-modal', category: 'Modals', label: 'Game report', defaultBindings: [{ key: 'F3' }] },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera, FaInfoCircle, FaBook, FaBolt } from 'react-icons/fa';
+import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera, FaInfoCircle, FaBook, FaBolt, FaSearch } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import type { LibraryFile } from '../../utils/library';
@@ -10,6 +10,7 @@ const MENU_DRAWER_SHORTCUT_IDS = [
   'open-sgf',
   'copy-sgf',
   'paste-sgf',
+  'command-palette',
   'settings-modal',
   'keyboard-help',
 ] as const;
@@ -28,6 +29,7 @@ interface MenuDrawerProps {
   onCopy: () => void;
   onPaste: () => void;
   onSettings: () => void;
+  onCommandPalette: () => void;
   onKeyboardHelp: () => void;
   onAbout: () => void;
   recentItems?: LibraryFile[];
@@ -48,6 +50,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onCopy,
   onPaste,
   onSettings,
+  onCommandPalette,
   onKeyboardHelp,
   onAbout,
   recentItems = [],
@@ -215,6 +218,19 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           </div>
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Settings</div>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onCommandPalette();
+                onClose();
+              }}
+              aria-label={`Open command palette, keyboard shortcut ${shortcutLabels['command-palette']}`}
+            >
+              <span className="flex items-center gap-2">
+                <FaSearch aria-hidden="true" /> Command Palette
+              </span>
+              <kbd className="text-xs ui-text-faint">{shortcutLabels['command-palette']}</kbd>
+            </button>
             <button
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
               onClick={() => {

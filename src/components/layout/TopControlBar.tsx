@@ -12,6 +12,7 @@ import {
   FaRobot,
   FaPlay,
   FaPlus,
+  FaSearch,
   FaStop,
   FaSyncAlt,
   FaTimes,
@@ -35,6 +36,7 @@ import { isFullscreenActive, subscribeFullscreenChange, toggleAppFullscreen } fr
 
 const TOP_CONTROL_SHORTCUT_IDS = [
   'settings-modal',
+  'command-palette',
   'keyboard-help',
   'copy-sgf',
   'paste-sgf',
@@ -122,6 +124,7 @@ interface TopControlBarProps {
   onPasteSgf: () => void;
   onScanBoard: () => void;
   onSettings: () => void;
+  onCommandPalette: () => void;
   onKeyboardHelp: () => void;
   onAbout: () => void;
   winRateLabel?: string | null;
@@ -181,6 +184,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   onPasteSgf,
   onScanBoard,
   onSettings,
+  onCommandPalette,
   onKeyboardHelp,
   onAbout,
   winRateLabel,
@@ -223,6 +227,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           onClick={() => { toggleFullscreen(); closeViewMenuIfMobile(); }}
         >
           <span>Fullscreen</span><span className="text-xs ui-text-faint">{isFullscreen ? 'on' : 'off'} · {shortcutLabels.fullscreen}</span>
+        </button>
+        <button
+          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
+          onClick={() => { closeViewMenu(); onCommandPalette(); }}
+        >
+          <span className="flex items-center gap-2"><FaSearch /> Command palette</span><span className="text-xs ui-text-faint">{shortcutLabels['command-palette']}</span>
         </button>
         <button
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
@@ -598,6 +608,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           </IconButton>
         )}
         <div className="hidden 2xl:flex items-center gap-1.5">
+          <IconButton title={withShortcut('Command palette', 'command-palette')} onClick={onCommandPalette} className={topIconClass}>
+            <FaSearch />
+          </IconButton>
           <IconButton title={withShortcut('Settings', 'settings-modal')} onClick={onSettings} className={topIconClass}>
             <FaCog />
           </IconButton>
