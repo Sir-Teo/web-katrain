@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera, FaInfoCircle, FaBook } from 'react-icons/fa';
+import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera, FaInfoCircle, FaBook, FaBolt } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import type { LibraryFile } from '../../utils/library';
@@ -18,6 +18,7 @@ interface MenuDrawerProps {
   open: boolean;
   onClose: () => void;
   onHome?: () => void;
+  onQuickNewGame: () => void;
   onNewGame: () => void;
   onSave: () => void;
   saveLabel?: string;
@@ -37,6 +38,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   open,
   onClose,
   onHome,
+  onQuickNewGame,
   onNewGame,
   onSave,
   saveLabel = 'Save SGF',
@@ -106,6 +108,18 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 </span>
               </button>
             )}
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+              onClick={() => {
+                onQuickNewGame();
+                onClose();
+              }}
+              aria-label="Start quick new game"
+            >
+              <span className="flex items-center gap-2">
+                <FaBolt aria-hidden="true" /> Quick New Game
+              </span>
+            </button>
             <button
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
               onClick={() => {

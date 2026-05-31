@@ -1259,6 +1259,34 @@ export const Layout: React.FC = () => {
     setIsNewGameOpen(true);
   }, [prepareForGameReplacement]);
 
+  const startQuickNewGame = useCallback(async () => {
+    setMenuOpen(false);
+    setMobileHomeOpen(false);
+    setIsNewGameOpen(false);
+    if (!(await prepareForGameReplacement())) return;
+    startNewGame({
+      komi,
+      rules: settings.gameRules,
+      boardSize: settings.defaultBoardSize,
+      handicap: settings.defaultHandicap,
+    });
+    setLoadedLibraryFile(null);
+    setScoringMode(false);
+    setManualDeadStones(new Set());
+    markCurrentGameCleanAndClearAutoSave();
+    toast(`Started ${settings.defaultBoardSize}x${settings.defaultBoardSize} game.`, 'success');
+  }, [
+    komi,
+    markCurrentGameCleanAndClearAutoSave,
+    prepareForGameReplacement,
+    settings.defaultBoardSize,
+    settings.defaultHandicap,
+    settings.gameRules,
+    startNewGame,
+    setLoadedLibraryFile,
+    toast,
+  ]);
+
   const loadLocalSgfText = async (text: string, sourceName: string): Promise<boolean> => {
     const parsed = parseSgf(text);
     if (!(await prepareForGameReplacement())) return false;
@@ -1818,6 +1846,7 @@ export const Layout: React.FC = () => {
         open={menuOpen && isMobile}
         onClose={() => setMenuOpen(false)}
         onHome={openMobileHome}
+        onQuickNewGame={() => void startQuickNewGame()}
         onNewGame={() => void openNewGameWithGuard()}
         onSave={handleSaveCurrentSgf}
         saveLabel={saveControlLabel}
@@ -1843,6 +1872,7 @@ export const Layout: React.FC = () => {
           engineMeta={engineMeta}
           recentItems={recentLibraryItems}
           onClose={closeMobileHome}
+          onQuickNewGame={() => void startQuickNewGame()}
           onNewGame={() => {
             closeMobileHome();
             void openNewGameWithGuard();
@@ -1987,6 +2017,7 @@ export const Layout: React.FC = () => {
               setIsGameAnalysisOpen={setIsGameAnalysisOpen}
               setIsGameReportOpen={setIsGameReportOpen}
               onOpenMenu={() => setMenuOpen(true)}
+              onQuickNewGame={() => void startQuickNewGame()}
               onNewGame={() => void openNewGameWithGuard()}
               onSaveSgf={handleSaveCurrentSgf}
               saveTitle={saveControlLabel}

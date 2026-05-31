@@ -23,6 +23,7 @@ import {
   FaTrash,
   FaInfoCircle,
   FaBook,
+  FaBolt,
 } from 'react-icons/fa';
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
@@ -92,6 +93,7 @@ interface TopControlBarProps {
   setIsGameReportOpen: (v: boolean) => void;
   // Menu callbacks
   onOpenMenu: () => void;
+  onQuickNewGame: () => void;
   onNewGame: () => void;
   onSaveSgf: () => void;
   saveTitle?: string;
@@ -150,6 +152,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   setIsGameAnalysisOpen,
   setIsGameReportOpen,
   onOpenMenu,
+  onQuickNewGame,
   onNewGame,
   onSaveSgf,
   saveTitle = 'Save SGF',
@@ -448,6 +451,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
       {/* Desktop file actions */}
       <div className="hidden lg:flex items-center gap-1 shrink-0">
+        <IconButton title="Quick new game" onClick={onQuickNewGame} className={topIconClass}>
+          <FaBolt />
+        </IconButton>
         <IconButton title={withShortcut('New game', 'new-game')} onClick={onNewGame} className={topIconClass}>
           <FaPlus />
         </IconButton>

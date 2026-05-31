@@ -7,6 +7,7 @@ import {
   FaCog,
   FaFolderOpen,
   FaPlay,
+  FaBolt,
   FaTimes,
   FaThLarge,
 } from 'react-icons/fa';
@@ -21,6 +22,7 @@ interface MobileHomeProps {
   engineMeta: string;
   recentItems: LibraryFile[];
   onClose: () => void;
+  onQuickNewGame: () => void;
   onNewGame: () => void;
   onOpenSgf: () => void;
   onScanBoard: () => void;
@@ -72,6 +74,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   engineMeta,
   recentItems,
   onClose,
+  onQuickNewGame,
   onNewGame,
   onOpenSgf,
   onScanBoard,
@@ -125,6 +128,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
           <section className="mt-3 grid grid-cols-1 gap-2">
             <HomeAction label="Continue Board" icon={<FaThLarge />} onClick={onClose} primary />
+            <HomeAction label="Quick New Game" icon={<FaBolt />} onClick={onQuickNewGame} />
             <HomeAction label="New Game" icon={<FaPlay />} onClick={onNewGame} />
             <HomeAction label="Open SGF / Photo / Model" icon={<FaFolderOpen />} onClick={onOpenSgf} />
             <HomeAction label="Photo Board" icon={<FaCamera />} onClick={onScanBoard} />
