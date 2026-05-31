@@ -1306,7 +1306,8 @@
   .manual-score-header,
   .manual-score-actions,
   .manual-score-totals > div,
-  .manual-score-breakdown > div {
+  .manual-score-breakdown > div,
+  .manual-score-details-toggle {
     display: flex;
     align-items: center;
   }
@@ -1416,13 +1417,37 @@
     background: #f8fafc;
   }
 
+  .manual-score-details {
+    border-top: 1px solid var(--ui-border);
+  }
+
+  .manual-score-details-toggle {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    color: var(--ui-text-muted);
+    background: var(--ui-surface);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .manual-score-details-toggle:hover {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+  }
+
   .manual-score-breakdown {
     display: grid;
     gap: 3px;
     padding: 8px 10px;
-    border-top: 1px solid var(--ui-border);
     color: var(--ui-text-muted);
     font-size: 11px;
+  }
+
+  .manual-score-breakdown[hidden] {
+    display: none;
   }
 
   .manual-score-breakdown > div {

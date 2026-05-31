@@ -7,6 +7,7 @@ describe('analysis summary formatting', () => {
     expect(formatAnalysisWinRate(null)).toBe('-');
     expect(formatAnalysisScoreLead(7.25)).toBe('B+7.3');
     expect(formatAnalysisScoreLead(-2)).toBe('W+2.0');
+    expect(formatAnalysisScoreLead(0)).toBe('Jigo');
   });
 
   it('turns points lost into beginner-readable move quality labels', () => {

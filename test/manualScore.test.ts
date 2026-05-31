@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BOARD_SIZE } from '../src/types';
-import { computeJapaneseManualScoreFromOwnership } from '../src/utils/manualScore';
+import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead } from '../src/utils/manualScore';
 
 function emptyBoard() {
   return Array.from({ length: DEFAULT_BOARD_SIZE }, () => Array.from({ length: DEFAULT_BOARD_SIZE }, () => null));
@@ -11,6 +11,13 @@ function grid(v: number) {
 }
 
 describe('computeJapaneseManualScoreFromOwnership', () => {
+  it('formats zero-point score leads as jigo', () => {
+    expect(formatResultScoreLead(0)).toBe('Jigo');
+    expect(formatResultScoreLead(-0.04)).toBe('Jigo');
+    expect(formatResultScoreLead(0.06)).toBe('B+0.1');
+    expect(formatResultScoreLead(-2.24)).toBe('W+2.2');
+  });
+
   it('computes a deterministic score when ownership is confident', () => {
     const score = computeJapaneseManualScoreFromOwnership({
       board: emptyBoard(),

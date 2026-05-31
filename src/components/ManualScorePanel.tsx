@@ -1,10 +1,11 @@
 import React from 'react';
-import { FaCalculator, FaTimes, FaUndo } from 'react-icons/fa';
+import { FaCalculator, FaChevronDown, FaChevronUp, FaTimes, FaUndo } from 'react-icons/fa';
 import type { ManualScoreEstimate } from '../utils/scoring';
 
 interface ManualScorePanelProps {
   active: boolean;
   disabled?: boolean;
+  isCompact?: boolean;
   commandBarOffset?: boolean;
   score: ManualScoreEstimate;
   blackName: string;
@@ -23,6 +24,7 @@ const formatScoreValue = (value: number): string => Number.isInteger(value) ? St
 export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   active,
   disabled = false,
+  isCompact = false,
   commandBarOffset = false,
   score,
   blackName,
@@ -35,6 +37,13 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   onClear,
   onDone,
 }) => {
+  const detailsId = React.useId();
+  const [showDetails, setShowDetails] = React.useState(!isCompact);
+
+  React.useEffect(() => {
+    if (active) setShowDetails(!isCompact);
+  }, [active, isCompact]);
+
   if (!active) {
     return (
       <button
@@ -52,7 +61,6 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   }
 
   const leaderClass = score.scoreLead >= 0 ? 'black' : 'white';
-
   return (
     <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : ''].join(' ')} aria-label="Manual score">
       <div className="manual-score-header">
@@ -85,31 +93,43 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         </div>
       </div>
 
-      <div className="manual-score-breakdown">
-        <div className="manual-score-breakdown-header" aria-hidden="true">
-          <span />
-          <b>B</b>
-          <b>W</b>
-        </div>
-        <div>
-          <span>Territory</span>
-          <b>{score.blackTerritory}</b>
-          <b>{score.whiteTerritory}</b>
-        </div>
-        <div>
-          <span>Prisoners</span>
-          <b>{capturedWhite}</b>
-          <b>{capturedBlack}</b>
-        </div>
-        <div>
-          <span>Dead stones</span>
-          <b>{score.whiteDeadStones}</b>
-          <b>{score.blackDeadStones}</b>
-        </div>
-        <div>
-          <span>Komi</span>
-          <b className="manual-score-muted">-</b>
-          <b>{formatScoreValue(komi)}</b>
+      <div className="manual-score-details">
+        <button
+          type="button"
+          className="manual-score-details-toggle"
+          onClick={() => setShowDetails((value) => !value)}
+          aria-expanded={showDetails}
+          aria-controls={detailsId}
+        >
+          <span>Details</span>
+          {showDetails ? <FaChevronUp size={11} /> : <FaChevronDown size={11} />}
+        </button>
+        <div id={detailsId} className="manual-score-breakdown" hidden={!showDetails}>
+          <div className="manual-score-breakdown-header" aria-hidden="true">
+            <span />
+            <b>B</b>
+            <b>W</b>
+          </div>
+          <div>
+            <span>Territory</span>
+            <b>{score.blackTerritory}</b>
+            <b>{score.whiteTerritory}</b>
+          </div>
+          <div>
+            <span>Prisoners</span>
+            <b>{capturedWhite}</b>
+            <b>{capturedBlack}</b>
+          </div>
+          <div>
+            <span>Dead stones</span>
+            <b>{score.whiteDeadStones}</b>
+            <b>{score.blackDeadStones}</b>
+          </div>
+          <div>
+            <span>Komi</span>
+            <b className="manual-score-muted">-</b>
+            <b>{formatScoreValue(komi)}</b>
+          </div>
         </div>
       </div>
 

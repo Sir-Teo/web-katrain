@@ -26,6 +26,7 @@ import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
 import { computeManualScoreEstimate, toggleDeadStoneChain } from '../utils/scoring';
+import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { normalizeBoardSize } from '../utils/boardSize';
@@ -1104,7 +1105,7 @@ export const Layout: React.FC = () => {
 
   const winRateLabel = typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : null;
   const scoreLeadLabel = typeof scoreLead === 'number' ? formatResultScoreLead(scoreLead) : null;
-  const pointsLostLabel = typeof pointsLost === 'number' ? formatResultScoreLead(pointsLost) : null;
+  const pointsLostLabel = typeof pointsLost === 'number' ? summarizePointsLost(pointsLost).label : null;
 
   const setMode = (next: UiMode) => {
     setUiState((prev) => ({ ...prev, mode: next }));
@@ -2062,6 +2063,7 @@ export const Layout: React.FC = () => {
             <ManualScorePanel
               active={scoringMode}
               disabled={isEditMode || isInsertMode || isSelectingRegionOfInterest}
+              isCompact={isMobile}
               commandBarOffset={isMobile && showAnalysisCommandBar}
               score={manualScoreEstimate}
               blackName={blackName}

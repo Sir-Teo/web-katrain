@@ -10,8 +10,11 @@ export function roundToHalf(x: number): number {
 }
 
 export function formatResultScoreLead(scoreLead: number): string {
-  const leadingPlayer = scoreLead >= 0 ? 'B' : 'W';
-  return `${leadingPlayer}+${Math.abs(scoreLead).toFixed(1)}`;
+  const roundedScoreLead = Math.round(scoreLead * 10) / 10;
+  if (Object.is(roundedScoreLead, 0) || Object.is(roundedScoreLead, -0)) return 'Jigo';
+
+  const leadingPlayer = roundedScoreLead > 0 ? 'B' : 'W';
+  return `${leadingPlayer}+${Math.abs(roundedScoreLead).toFixed(1)}`;
 }
 
 export function computeJapaneseManualScoreFromOwnership(args: {

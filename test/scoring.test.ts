@@ -72,6 +72,24 @@ describe('calculateTerritoryScore', () => {
     expect(score.whiteTerritory).toBe(0);
     expect(score.neutralPoints).toBe(9);
   });
+
+  it('reports an even manual score as jigo', () => {
+    const estimate = computeManualScoreEstimate({
+      board: boardFromRows([
+        '...',
+        '...',
+        '...',
+      ]),
+      komi: 0,
+      capturedBlack: 0,
+      capturedWhite: 0,
+      deadStones: new Set(),
+    });
+
+    expect(estimate.blackScore).toBe(0);
+    expect(estimate.whiteScore).toBe(0);
+    expect(estimate.result).toBe('Jigo');
+  });
 });
 
 describe('dead stone chains', () => {
