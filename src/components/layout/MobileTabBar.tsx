@@ -56,7 +56,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   return (
     <nav
       className={[
-        'lg:hidden w-full mobile-tabbar transition-colors',
+        'w-full mobile-tabbar transition-colors',
         hasControlBarAbove ? 'bg-transparent' : 'ui-bar border-t border-[var(--ui-border)] backdrop-blur-sm shadow-xl shadow-black/30'
       ].filter(Boolean).join(' ')}
       role="tablist"

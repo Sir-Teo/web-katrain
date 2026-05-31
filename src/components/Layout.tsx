@@ -71,6 +71,7 @@ import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChanges
 import { getCurrentLineMoveCount } from '../utils/branchNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
 import { getResignResult } from '../utils/resign';
+import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutViewport, isMobileLayoutViewport } from '../utils/responsiveLayout';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -315,8 +316,7 @@ export const Layout: React.FC = () => {
   const withLayoutShortcut = (label: string, id: LayoutShortcutId) => `${label} (${layoutShortcutLabels[id]})`;
   const [mobileHomeOpen, setMobileHomeOpen] = useState(() => {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') return false;
-    const isMobileViewport = window.matchMedia('(max-width: 1023px)').matches;
-    return isMobileViewport && localStorage.getItem(MOBILE_HOME_DISMISSED_KEY) !== 'true';
+    return isMobileLayoutViewport() && localStorage.getItem(MOBILE_HOME_DISMISSED_KEY) !== 'true';
   });
 
   useEffect(() => {
@@ -325,8 +325,7 @@ export const Layout: React.FC = () => {
     document.documentElement.dataset.uiDensity = settings.uiDensity;
   }, [settings.uiDensity, settings.uiTheme]);
   const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return window.matchMedia('(min-width: 1024px)').matches;
+    return isDesktopLayoutViewport();
   });
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
     if (typeof localStorage === 'undefined') return 300;
@@ -846,7 +845,7 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(min-width: 1024px)');
+    const mq = window.matchMedia(DESKTOP_LAYOUT_MEDIA);
     const update = () => setIsDesktop(mq.matches);
     update();
     mq.addEventListener('change', update);
