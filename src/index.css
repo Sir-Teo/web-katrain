@@ -812,6 +812,11 @@
     border-color: var(--ui-border-strong);
   }
 
+  .analysis-command-bar__button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+
   .analysis-command-bar__button:active:not(:disabled) {
     transform: translateY(1px);
   }

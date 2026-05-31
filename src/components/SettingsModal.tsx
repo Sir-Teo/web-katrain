@@ -18,6 +18,7 @@ import { UI_THEME_OPTIONS } from '../utils/uiThemes';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
+import { TOP_MOVE_METRIC_SELECT_OPTIONS } from '../utils/topMoveMetric';
 import {
     clearUploadedModelUrl,
     createUploadedModelUrl,
@@ -165,14 +166,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const pillButtonClass =
         'px-3 py-2 rounded-lg ui-surface-2 text-xs font-mono text-[var(--ui-text)] border transition-colors hover:brightness-110';
 
-    const TOP_MOVE_OPTIONS: Array<{ value: GameSettings['trainerTopMovesShow']; label: string }> = [
-        { value: 'top_move_delta_score', label: 'Δ Score (points lost)' },
-        { value: 'top_move_visits', label: 'Visits' },
-        { value: 'top_move_score', label: 'Score' },
-        { value: 'top_move_winrate', label: 'Winrate' },
-        { value: 'top_move_delta_winrate', label: 'Δ Winrate' },
-        { value: 'top_move_nothing', label: 'Nothing' },
-    ];
     const UI_DENSITY_OPTIONS: Array<{ value: GameSettings['uiDensity']; label: string; description: string }> = [
         { value: 'compact', label: 'Compact', description: 'Tighter bars and smaller controls.' },
         { value: 'comfortable', label: 'Comfortable', description: 'Balanced sizing for most screens.' },
@@ -799,7 +792,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         onChange={(e) => updateSettings({ trainerTopMovesShow: e.target.value as GameSettings['trainerTopMovesShow'] })}
                                                         className={selectClass}
                                                     >
-                                                        {TOP_MOVE_OPTIONS.map((o) => (
+                                                        {TOP_MOVE_METRIC_SELECT_OPTIONS.map((o) => (
                                                             <option key={o.value} value={o.value}>
                                                                 {o.label}
                                                             </option>
@@ -816,7 +809,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         }
                                                         className={selectClass}
                                                     >
-                                                        {TOP_MOVE_OPTIONS.map((o) => (
+                                                        {TOP_MOVE_METRIC_SELECT_OPTIONS.map((o) => (
                                                             <option key={o.value} value={o.value}>
                                                                 {o.label}
                                                             </option>

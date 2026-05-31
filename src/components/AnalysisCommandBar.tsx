@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  FaChartBar,
   FaFileAlt,
   FaLayerGroup,
   FaMap,
@@ -9,6 +10,8 @@ import {
 } from 'react-icons/fa';
 import type { AnalysisControlsState, UiMode } from './layout/types';
 import { formatAnalysisScoreLead, formatAnalysisWinRate, summarizePointsLost } from '../utils/analysisSummary';
+import { useGameStore } from '../store/gameStore';
+import { getTopMoveMetricLabel, nextTopMoveMetric } from '../utils/topMoveMetric';
 
 interface AnalysisCommandBarProps {
   mode: UiMode;
@@ -53,6 +56,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   stopGameAnalysis,
   onOpenGameReport,
 }) => {
+  const topMoveMetric = useGameStore((state) => state.settings.trainerTopMovesShow);
+  const updateSettings = useGameStore((state) => state.updateSettings);
   const shouldShow =
     mode === 'analyze' ||
     isAnalysisMode ||
@@ -82,6 +87,15 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const toggleOverlay = (key: keyof AnalysisControlsState) => {
     updateControls({ [key]: !analysisControls[key] });
   };
+  const cycleTopMoveMetric = () => {
+    const nextMetric = nextTopMoveMetric(topMoveMetric);
+    updateSettings({ trainerTopMovesShow: nextMetric });
+    if (!analysisControls.analysisShowHints || analysisControls.analysisShowPolicy) {
+      updateControls({ analysisShowHints: true, analysisShowPolicy: false });
+    }
+  };
+  const topMoveMetricLabel = getTopMoveMetricLabel(topMoveMetric, 'short');
+  const topMovesHiddenByPolicy = analysisControls.analysisShowPolicy;
 
   return (
     <div className="analysis-command-bar" data-analysis-command-bar="true">
@@ -133,13 +147,24 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         </button>
         <button
           type="button"
-          className={['analysis-command-bar__button', analysisControls.analysisShowHints ? 'active' : ''].join(' ')}
+          className={['analysis-command-bar__button', analysisControls.analysisShowHints && !topMovesHiddenByPolicy ? 'active' : ''].join(' ')}
           onClick={() => toggleOverlay('analysisShowHints')}
           aria-pressed={analysisControls.analysisShowHints}
-          title="Show or hide top move hints"
+          disabled={topMovesHiddenByPolicy}
+          title={topMovesHiddenByPolicy ? 'Policy overlay is showing; top move hints are hidden' : 'Show or hide top move hints'}
         >
           <FaLayerGroup size={12} aria-hidden="true" />
           <span>Top moves</span>
+        </button>
+        <button
+          type="button"
+          className={['analysis-command-bar__button', analysisControls.analysisShowHints && !topMovesHiddenByPolicy ? 'active' : ''].join(' ')}
+          onClick={cycleTopMoveMetric}
+          data-analysis-hint-metric="true"
+          title="Cycle the primary top move hint label"
+        >
+          <FaChartBar size={12} aria-hidden="true" />
+          <span>Hint: {topMoveMetricLabel}</span>
         </button>
         <button
           type="button"
