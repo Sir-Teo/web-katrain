@@ -64,7 +64,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
     );
   }
 
-  const leaderClass = score.scoreLead >= 0 ? 'black' : 'white';
+  const leaderClass = score.scoreLead > 0 ? 'black' : score.scoreLead < 0 ? 'white' : 'jigo';
   return (
     <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : ''].join(' ')} aria-label="Manual score">
       <div className="manual-score-header">
