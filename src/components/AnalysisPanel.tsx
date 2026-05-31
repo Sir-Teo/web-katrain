@@ -18,6 +18,12 @@ import { EngineStatusBadge } from './layout/ui';
 import { useGameStore } from '../store/gameStore';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { DEFAULT_EVAL_THRESHOLDS } from '../utils/nodeAnalysis';
+import {
+  ANALYSIS_VISIT_PRESETS,
+  clampAnalysisVisits,
+  mergeVisitPresets,
+  visitPresetLabel,
+} from '../utils/visitPresets';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -99,6 +105,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   void mode;
   const trainerTheme = useGameStore((state) => state.settings.trainerTheme);
   const trainerEvalThresholds = useGameStore((state) => state.settings.trainerEvalThresholds);
+  const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
+  const isAnalysisMode = useGameStore((state) => state.isAnalysisMode);
+  const updateSettings = useGameStore((state) => state.updateSettings);
   const [legendOpen, setLegendOpen] = React.useState(false);
   const graphMetrics = modePanels.graph;
   const activeTab: 'graph' | 'stats' =
@@ -129,6 +138,26 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       color: evalColorToCss(colors[index] ?? colors[colors.length - 1]!),
     }));
   }, [trainerEvalThresholds, trainerTheme]);
+  const liveVisits = React.useMemo(() => clampAnalysisVisits(katagoVisits), [katagoVisits]);
+  const liveVisitPresets = React.useMemo(
+    () => mergeVisitPresets(ANALYSIS_VISIT_PRESETS, liveVisits),
+    [liveVisits]
+  );
+  const applyLiveVisits = React.useCallback((visits: number) => {
+    const nextVisits = clampAnalysisVisits(visits);
+    if (nextVisits === liveVisits) return;
+
+    updateSettings({ katagoVisits: nextVisits });
+    useGameStore.setState({
+      notification: { message: `Live analysis depth: ${nextVisits} visits`, type: 'info' },
+    });
+    window.setTimeout(() => useGameStore.setState({ notification: null }), 1800);
+    if (isAnalysisMode) {
+      window.setTimeout(() => {
+        void useGameStore.getState().runAnalysis({ force: true, visits: nextVisits });
+      }, 0);
+    }
+  }, [isAnalysisMode, liveVisits, updateSettings]);
   const toggleGraphMetric = (metric: GraphMetric) => {
     updatePanels((current) => {
       const next = { ...current.graph, [metric]: !current.graph[metric] };
@@ -279,6 +308,45 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       </div>
     </div>
   );
+  const liveVisitPresetControls = (
+    <div
+      className="mt-3 border-t border-[var(--ui-border)] pt-3"
+      data-analysis-live-visit-presets="true"
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
+          MCTS depth
+        </div>
+        <div className="text-[11px] ui-text-faint">Kaya-style</div>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {liveVisitPresets.map((preset) => {
+          const active = liveVisits === preset;
+          return (
+            <button
+              key={preset}
+              type="button"
+              className={[
+                'rounded-md border px-2 py-1.5 text-left transition-colors disabled:opacity-45 disabled:cursor-not-allowed',
+                active
+                  ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
+                  : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+              ].join(' ')}
+              onClick={() => applyLiveVisits(preset)}
+              disabled={isGameAnalysisRunning}
+              aria-pressed={active}
+              title={isGameAnalysisRunning ? 'Stop game analysis before changing live visits' : `Set live analysis to ${preset} visits`}
+            >
+              <span className="block font-mono text-xs">{preset}</span>
+              <span className="block text-[10px] font-semibold uppercase tracking-wide">
+                {visitPresetLabel(preset, katagoVisits)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col min-h-0">
@@ -341,6 +409,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             {engineError}
           </div>
         )}
+        {liveVisitPresetControls}
       </div>
       {!compact && (
         <div className="panel-toolbar">

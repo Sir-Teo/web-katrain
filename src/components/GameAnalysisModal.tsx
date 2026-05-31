@@ -3,20 +3,17 @@ import { FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { ENGINE_MAX_VISITS } from '../engine/katago/limits';
+import {
+  ANALYSIS_MIN_VISITS,
+  ANALYSIS_VISIT_PRESETS,
+  clampAnalysisVisits,
+  mergeVisitPresets,
+  visitPresetLabel,
+} from '../utils/visitPresets';
 
 interface GameAnalysisModalProps {
   onClose: () => void;
 }
-
-const FULL_GAME_VISIT_PRESETS = [16, 250, 1000, 5000] as const;
-
-const visitPresetLabel = (visits: number, defaultVisits: number): string => {
-  if (visits === defaultVisits) return 'Default';
-  if (visits <= 16) return 'Fast';
-  if (visits <= 250) return 'Balanced';
-  if (visits <= 1000) return 'Deep';
-  return 'Thorough';
-};
 
 export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose }) => {
   const {
@@ -43,10 +40,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
   );
 
   const defaultStartMove = useMemo(() => currentNode.gameState.moveHistory.length, [currentNode]);
-  const defaultMaxVisits = useMemo(
-    () => Math.max(16, Math.min(ENGINE_MAX_VISITS, Math.floor(defaultVisits))),
-    [defaultVisits]
-  );
+  const defaultMaxVisits = useMemo(() => clampAnalysisVisits(defaultVisits), [defaultVisits]);
 
   const [visits, setVisits] = useState<number>(defaultMaxVisits);
   const [useMoveRange, setUseMoveRange] = useState<boolean>(false);
@@ -56,7 +50,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
 
   const isRunning = isGameAnalysisRunning && gameAnalysisType === 'full';
   const visitPresets = useMemo(
-    () => Array.from(new Set([...FULL_GAME_VISIT_PRESETS, defaultMaxVisits])).sort((a, b) => a - b),
+    () => mergeVisitPresets(ANALYSIS_VISIT_PRESETS, defaultMaxVisits),
     [defaultMaxVisits]
   );
 
@@ -65,10 +59,9 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
     if (!Number.isFinite(n)) return fallback;
     return n;
   };
-  const clampVisits = (v: number): number => Math.max(16, Math.min(ENGINE_MAX_VISITS, Math.floor(v)));
 
   const onStart = () => {
-    const v = clampVisits(visits);
+    const v = clampAnalysisVisits(visits);
     const range = useMoveRange ? ([startMove, endMove] as [number, number]) : null;
     startFullGameAnalysis({ visits: v, moveRange: range, mistakesOnly });
     onClose();
@@ -90,10 +83,10 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
               <label className="text-[var(--ui-text-muted)] block text-sm">Max Visits</label>
               <input
                 type="number"
-                min={16}
+                min={ANALYSIS_MIN_VISITS}
                 max={ENGINE_MAX_VISITS}
                 value={visits}
-                onChange={(e) => setVisits(clampVisits(clampInt(e.target.value, defaultMaxVisits)))}
+                onChange={(e) => setVisits(clampAnalysisVisits(clampInt(e.target.value, defaultMaxVisits)))}
                 className="w-full ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono"
               />
               <p className="text-xs ui-text-faint">Defaults to engine Visits ({defaultMaxVisits}).</p>
