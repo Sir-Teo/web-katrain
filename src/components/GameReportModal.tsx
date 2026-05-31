@@ -136,6 +136,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] ui-text-faint';
   const labelClass = 'text-[var(--ui-text-muted)]';
   const generatedAt = useMemo(() => new Date(), []);
+  const reportThresholds = useMemo(
+    () => (trainerEvalThresholds?.length ? trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS),
+    [trainerEvalThresholds]
+  );
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -301,21 +305,42 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     };
   }, []);
 
-  const report = useMemo(() => {
+  const reportsByPhase = useMemo(() => {
     void treeVersion;
     void gameAnalysisDone;
     void gameAnalysisTotal;
-    const thresholds = trainerEvalThresholds?.length ? trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS;
-    return computeGameReport({ currentNode, thresholds, activeBranchChildIds, phaseFilter });
+    const next = {} as Record<GameReportPhaseFilter, ReturnType<typeof computeGameReport>>;
+    for (const phase of GAME_REPORT_PHASES) {
+      next[phase.key] = computeGameReport({
+        currentNode,
+        thresholds: reportThresholds,
+        activeBranchChildIds,
+        phaseFilter: phase.key,
+      });
+    }
+    return next;
   }, [
     activeBranchChildIds,
     currentNode,
-    phaseFilter,
-    trainerEvalThresholds,
+    reportThresholds,
     treeVersion,
     gameAnalysisDone,
     gameAnalysisTotal,
   ]);
+
+  const report = reportsByPhase[phaseFilter] ?? reportsByPhase.all;
+  const phaseCounts = useMemo(() => {
+    return GAME_REPORT_PHASES.reduce(
+      (acc, phase) => {
+        const phaseReport = reportsByPhase[phase.key];
+        acc[phase.key] = {
+          analyzed: (phaseReport?.stats.black.numMoves ?? 0) + (phaseReport?.stats.white.numMoves ?? 0),
+        };
+        return acc;
+      },
+      {} as Record<GameReportPhaseFilter, { analyzed: number }>
+    );
+  }, [reportsByPhase]);
 
   const analyzedMoves = report.stats.black.numMoves + report.stats.white.numMoves;
   const totalMoves = report.movesInFilter;
@@ -571,6 +596,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   }, [phaseFilter]);
 
   useEffect(() => {
+    if (phaseFilter !== 'all' && phaseCounts[phaseFilter]?.analyzed === 0) {
+      setPhaseFilter('all');
+    }
+  }, [phaseCounts, phaseFilter]);
+
+  useEffect(() => {
     setReviewQueue([]);
     setReviewIndex(0);
     setReportHoverMove(null);
@@ -594,25 +625,39 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         <div className="px-5 py-4 space-y-4 overflow-y-auto overscroll-contain report-scroll">
           <div className="print-hide space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {GAME_REPORT_PHASES.map((b) => {
-              const active = phaseFilter === b.key;
-              return (
-                <button
-                  key={b.key}
-                  type="button"
-                  onClick={() => setPhaseFilter(b.key)}
-                  className={[
-                    'px-3 py-2 rounded-lg border text-sm font-semibold transition-colors',
-                    active
-                      ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]'
-                      : 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
-                  ].join(' ')}
-                >
-                  {b.label}
-                </button>
-              );
-            })}
-          </div>
+              {GAME_REPORT_PHASES.map((b) => {
+                const active = phaseFilter === b.key;
+                const count = phaseCounts[b.key]?.analyzed ?? 0;
+                const disabled = b.key !== 'all' && count === 0;
+                const moveWord = count === 1 ? 'move' : 'moves';
+                const tabLabel = disabled ? `${b.label}, no analyzed moves` : `${b.label}, ${count} analyzed ${moveWord}`;
+                return (
+                  <button
+                    key={b.key}
+                    type="button"
+                    onClick={() => {
+                      if (!disabled) setPhaseFilter(b.key);
+                    }}
+                    disabled={disabled}
+                    aria-label={tabLabel}
+                    title={disabled ? `No analyzed moves in ${b.label}` : `${count} analyzed ${moveWord} in ${b.label}`}
+                    className={[
+                      'min-w-0 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors',
+                      active
+                        ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]'
+                        : disabled
+                          ? 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text-muted)] opacity-55 cursor-not-allowed'
+                          : 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
+                    ].join(' ')}
+                  >
+                    <span className="min-w-0 truncate">{b.label}</span>
+                    <span className="shrink-0 rounded-full border border-current/20 px-1.5 py-0.5 font-mono text-[11px] leading-none opacity-80">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
           <div className="flex flex-wrap items-center gap-2 print-hide">
             {[
