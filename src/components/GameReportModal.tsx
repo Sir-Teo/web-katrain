@@ -4,6 +4,7 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import {
   GAME_REPORT_PHASES,
+  MOVE_POLICY_CATEGORIES,
   computeGameReport,
   getPhaseLabel,
   getPhaseMoveRange,
@@ -74,6 +75,21 @@ function policyCategoryClass(category: MovePolicyCategory | undefined): string {
       return 'text-rose-300 border-rose-400/40 bg-rose-400/10';
     default:
       return 'text-slate-400 border-slate-700/60 bg-slate-900/50';
+  }
+}
+
+function policyCategoryColor(category: MovePolicyCategory): string {
+  switch (category) {
+    case 'aiMove':
+      return '#38bdf8';
+    case 'good':
+      return '#34d399';
+    case 'inaccuracy':
+      return '#fbbf24';
+    case 'mistake':
+      return '#fb923c';
+    case 'blunder':
+      return '#fb7185';
   }
 }
 
@@ -670,6 +686,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 [
                   ['Moves', (p: Player) => String(report.stats[p].numMoves)],
                   ['Accuracy', (p: Player) => fmtNum(report.stats[p].accuracy, 1)],
+                  ['Policy accuracy', (p: Player) => fmtNum(report.stats[p].policyAccuracy, 1)],
                   ['Complexity', (p: Player) => fmtPct(report.stats[p].complexity)],
                   ['Mean point loss', (p: Player) => fmtNum(report.stats[p].meanPtLoss, 2)],
                   ['Weighted point loss', (p: Player) => fmtNum(report.stats[p].weightedPtLoss, 2)],
@@ -692,6 +709,79 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <p className="text-xs text-gray-500 mt-3">
               Requires analysis on consecutive moves (both parent and child) to compute point loss.
             </p>
+          </div>
+
+          <div className={sectionClass}>
+            <div className={sectionTitleClass}>Policy Quality</div>
+            <div className={['mt-3 grid gap-4', statsPlayers.length === 2 ? 'sm:grid-cols-2' : 'grid-cols-1'].join(' ')}>
+              {statsPlayers.map((player) => {
+                const distribution = report.stats[player].policyDistribution;
+                const total = distribution?.total ?? 0;
+                return (
+                  <div key={player} className="rounded-lg border border-slate-700/50 bg-slate-950/25 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                        <span
+                          className={[
+                            'h-2.5 w-2.5 rounded-full border',
+                            player === 'black' ? 'bg-slate-950 border-slate-400' : 'bg-slate-100 border-slate-300',
+                          ].join(' ')}
+                          aria-hidden="true"
+                        />
+                        <span>{player === 'black' ? 'Black' : 'White'}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase tracking-wide text-slate-500">Policy accuracy</div>
+                        <div className="font-mono text-sm text-slate-100">{fmtNum(report.stats[player].policyAccuracy, 1)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 h-4 rounded-full bg-slate-900/80 overflow-hidden flex border border-slate-700/50">
+                      {total === 0 ? (
+                        <div className="h-full w-full bg-slate-800/70" />
+                      ) : (
+                        MOVE_POLICY_CATEGORIES
+                          .filter((category) => (distribution?.[category] ?? 0) > 0)
+                          .map((category) => {
+                            const count = distribution?.[category] ?? 0;
+                            return (
+                              <div
+                                key={`${player}-${category}`}
+                                className="h-full"
+                                style={{
+                                  width: `${(count / total) * 100}%`,
+                                  backgroundColor: policyCategoryColor(category),
+                                }}
+                                title={`${policyCategoryLabel(category)}: ${count}`}
+                              />
+                            );
+                          })
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {MOVE_POLICY_CATEGORIES.map((category) => {
+                        const count = distribution?.[category] ?? 0;
+                        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                        return (
+                          <span
+                            key={`${player}-${category}-legend`}
+                            className="inline-flex items-center gap-1 rounded-full border border-slate-700/60 bg-slate-900/60 px-2 py-1 text-[10px] text-slate-300"
+                          >
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: policyCategoryColor(category) }}
+                              aria-hidden="true"
+                            />
+                            <span>{policyCategoryLabel(category)}</span>
+                            <span className="font-mono text-slate-400">{count}</span>
+                            <span className="font-mono text-slate-500">{pct}%</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className={sectionClass}>

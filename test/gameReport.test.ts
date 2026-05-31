@@ -108,6 +108,10 @@ describe('computeGameReport', () => {
 
     expect(report.stats.black.aiTopMove).toBe(1);
     expect(report.stats.white.aiTopMove).toBe(1);
+    expect(report.stats.black.policyAccuracy).toBe(100);
+    expect(report.stats.white.policyAccuracy).toBe(100);
+    expect(report.stats.black.policyDistribution).toMatchObject({ aiMove: 1, total: 1 });
+    expect(report.stats.white.policyDistribution).toMatchObject({ aiMove: 1, total: 1 });
 
     // Black points lost: 0 - (-5) = 5 -> bucket for ≥ 3 and < 6.
     // White points lost: -(( -5 ) - ( -6 )) = -1 -> clamped to 0 -> bucket < 0.5.
@@ -331,6 +335,11 @@ describe('computeGameReport', () => {
       },
     });
     expect(report.moveEntries[0]?.policy?.relativePrior).toBeCloseTo(0.55);
+    expect(report.stats.black.policyAccuracy).toBe(80);
+    expect(report.stats.black.policyDistribution).toMatchObject({
+      good: 1,
+      total: 1,
+    });
   });
 
   it('filters report totals and top mistakes by phase', () => {

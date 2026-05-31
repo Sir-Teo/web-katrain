@@ -9,8 +9,17 @@ const KAYA_PHASE_THRESHOLDS: Record<number, { openingEnd: number; middleEnd: num
 };
 
 export type MovePolicyCategory = 'aiMove' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
+export type MovePolicyDistribution = Record<MovePolicyCategory, number> & { total: number };
 
-const POLICY_CATEGORY_ORDER: MovePolicyCategory[] = ['aiMove', 'good', 'inaccuracy', 'mistake', 'blunder'];
+export const MOVE_POLICY_CATEGORIES: MovePolicyCategory[] = ['aiMove', 'good', 'inaccuracy', 'mistake', 'blunder'];
+
+const POLICY_CATEGORY_ACCURACY: Record<MovePolicyCategory, number> = {
+  aiMove: 100,
+  good: 80,
+  inaccuracy: 50,
+  mistake: 20,
+  blunder: 0,
+};
 
 const POLICY_CLASSIFICATION_THRESHOLDS = {
   goodMaxRank: 3,
@@ -128,13 +137,24 @@ export function classifyMoveByRankAndPolicy(rank: number, relativePrior: number)
   else if (relativePrior >= POLICY_CLASSIFICATION_THRESHOLDS.mistakeMinRelativePrior) priorCategory = 'mistake';
   else priorCategory = 'blunder';
 
-  const rankIndex = POLICY_CATEGORY_ORDER.indexOf(rankCategory);
-  const priorIndex = POLICY_CATEGORY_ORDER.indexOf(priorCategory);
-  return POLICY_CATEGORY_ORDER[Math.min(rankIndex, priorIndex)] ?? 'blunder';
+  const rankIndex = MOVE_POLICY_CATEGORIES.indexOf(rankCategory);
+  const priorIndex = MOVE_POLICY_CATEGORIES.indexOf(priorCategory);
+  return MOVE_POLICY_CATEGORIES[Math.min(rankIndex, priorIndex)] ?? 'blunder';
 }
 
 function finitePrior(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
+function createPolicyDistribution(): MovePolicyDistribution {
+  return {
+    aiMove: 0,
+    good: 0,
+    inaccuracy: 0,
+    mistake: 0,
+    blunder: 0,
+    total: 0,
+  };
 }
 
 function policyClassification(args: {
@@ -178,6 +198,8 @@ export type PlayerReportStats = {
   maxPtLoss?: number;
   aiTopMove?: number;
   aiTop5Move?: number;
+  policyAccuracy?: number;
+  policyDistribution?: MovePolicyDistribution;
 };
 
 export type MoveReportEntry = {
@@ -235,6 +257,11 @@ export function computeGameReport(args: {
   const aiApprovedMoveCount: Record<Player, number> = { black: 0, white: 0 };
   const playerPtLoss: Record<Player, number[]> = { black: [], white: [] };
   const weights: Record<Player, Array<{ weight: number; adj: number }>> = { black: [], white: [] };
+  const policyScores: Record<Player, number[]> = { black: [], white: [] };
+  const policyDistributions: Record<Player, MovePolicyDistribution> = {
+    black: createPolicyDistribution(),
+    white: createPolicyDistribution(),
+  };
   const moveEntries: MoveReportEntry[] = [];
   let movesInFilter = 0;
 
@@ -281,6 +308,13 @@ export function computeGameReport(args: {
     );
     if (approved) aiApprovedMoveCount[player] += 1;
 
+    const policy = policyClassification({ move, candidates: cands, topCandidate: top });
+    if (policy) {
+      policyDistributions[player][policy.category] += 1;
+      policyDistributions[player].total += 1;
+      policyScores[player].push(POLICY_CATEGORY_ACCURACY[policy.category]);
+    }
+
     moveEntries.push({
       node: n,
       moveNumber,
@@ -292,7 +326,7 @@ export function computeGameReport(args: {
       topCandidate: top ?? undefined,
       isTopMove: top ? top.x === move.x && top.y === move.y : undefined,
       pv: top?.pv,
-      policy: policyClassification({ move, candidates: cands, topCandidate: top }),
+      policy,
     });
   }
 
@@ -310,6 +344,7 @@ export function computeGameReport(args: {
     const totalPtLoss = pts.reduce((a, pt) => a + pt, 0);
     const meanPtLoss = totalPtLoss / pts.length;
     const accuracy = 100 * Math.pow(0.75, weightedPtLoss);
+    const policy = policyScores[player];
     acc[player] = {
       numMoves: pts.length,
       accuracy,
@@ -320,6 +355,8 @@ export function computeGameReport(args: {
       maxPtLoss: Math.max(...pts),
       aiTopMove: aiTopMoveCount[player] / pts.length,
       aiTop5Move: aiApprovedMoveCount[player] / pts.length,
+      policyAccuracy: policy.length > 0 ? policy.reduce((a, score) => a + score, 0) / policy.length : undefined,
+      policyDistribution: { ...policyDistributions[player] },
     };
     return acc;
   }, { black: { numMoves: 0 }, white: { numMoves: 0 } });
