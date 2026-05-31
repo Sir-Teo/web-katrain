@@ -9,6 +9,7 @@ import {
   getPhaseLabel,
   getPhaseMoveRange,
   getPointLossBucket,
+  getReportRecoveries,
   getReportTurningPoints,
   sortMoveReportEntries,
   type GameReportMistakeSort,
@@ -32,6 +33,7 @@ interface GameReportModalProps {
 const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
 const HISTOGRAM_COLORS = ['#fb7185', '#f97316', '#f59e0b', '#84cc16', '#38bdf8', '#94a3b8'];
 const CRITICAL_SWING_THRESHOLD = 5;
+const RECOVERY_THRESHOLD = 1.5;
 const POLICY_GUIDE: Array<{ category: MovePolicyCategory; detail: string }> = [
   { category: 'aiMove', detail: 'Engine top choice, or effectively tied with the top policy move.' },
   { category: 'good', detail: 'Rank 2-3, or at least 50% of the top move policy.' },
@@ -417,6 +419,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const pdfMistakes = topMistakes;
   const turningPoints = useMemo(
     () => getReportTurningPoints(filteredReportEntries, CRITICAL_SWING_THRESHOLD, 5),
+    [filteredReportEntries]
+  );
+  const recoveries = useMemo(
+    () => getReportRecoveries(filteredReportEntries, RECOVERY_THRESHOLD, 5),
     [filteredReportEntries]
   );
   const maxHist = Math.max(
@@ -1184,6 +1190,53 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
           <div className={sectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className={sectionTitleClass}>Best Recoveries</div>
+              <span className="rounded-full border border-slate-700/60 bg-slate-950/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                {recoveries.length} over {RECOVERY_THRESHOLD} pts
+              </span>
+            </div>
+            {recoveries.length === 0 ? (
+              <div className="mt-2 text-sm text-slate-500">No point-gaining recovery moves match these filters.</div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {recoveries.map((entry) => (
+                  <div
+                    key={`${entry.node.id}-recovery-${entry.moveNumber}`}
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-950/30 px-3 py-2 text-xs"
+                  >
+                    <span className="font-mono font-semibold text-slate-100">#{entry.moveNumber}</span>
+                    <span className="rounded-full border border-slate-700/60 px-2 py-0.5 font-semibold text-slate-300">
+                      {entry.player === 'black' ? 'B' : 'W'} {entry.move}
+                    </span>
+                    <span className="font-mono text-slate-400">
+                      {fmtSigned(entry.scoreBefore)} {'->'} {fmtSigned(entry.scoreAfter)}
+                    </span>
+                    <span className="font-mono font-semibold text-emerald-300">
+                      {entry.player === 'black' ? 'Black' : 'White'} +{fmtNum(entry.pointsGained, 1)}
+                    </span>
+                    {entry.policy && (
+                      <span className={[
+                        'rounded-full border px-2 py-0.5 font-semibold',
+                        policyCategoryClass(entry.policy.category),
+                      ].join(' ')}>
+                        {policyCategoryLabel(entry.policy.category)} #{entry.policy.rank || '?'}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => jumpToNode(entry.node)}
+                      className="ml-auto rounded border border-slate-700/60 px-2 py-1 text-slate-200 hover:bg-slate-800/80 print-hide"
+                    >
+                      Jump
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={sectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <div className={sectionTitleClass}>Biggest Mistakes</div>
                 <div
@@ -1533,6 +1586,35 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                           {fmtSigned(entry.scoreBefore)} {'->'} {fmtSigned(entry.scoreAfter)}
                         </div>
                         <div className="font-semibold text-slate-900">{swingGainLabel(entry)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mt-6">
+                <div className="pdf-section-title">Best Recoveries</div>
+                {recoveries.length === 0 ? (
+                  <div className="mt-2 text-sm text-slate-600">No point-gaining recovery moves match these filters.</div>
+                ) : (
+                  <div className="mt-2 space-y-2 text-sm">
+                    {recoveries.map((entry) => (
+                      <div
+                        key={`${entry.node.id}-pdf-recovery-${entry.moveNumber}`}
+                        className="flex items-center justify-between gap-4 rounded border border-slate-300 px-3 py-2"
+                      >
+                        <div>
+                          <span className="font-semibold text-slate-900">Move {entry.moveNumber}</span>
+                          <span className="text-slate-700">
+                            {' '}
+                            {entry.player === 'black' ? 'Black' : 'White'} {entry.move}
+                          </span>
+                        </div>
+                        <div className="font-mono text-slate-700">
+                          {fmtSigned(entry.scoreBefore)} {'->'} {fmtSigned(entry.scoreAfter)}
+                        </div>
+                        <div className="font-semibold text-slate-900">
+                          {entry.player === 'black' ? 'Black' : 'White'} +{fmtNum(entry.pointsGained, 1)}
+                        </div>
                       </div>
                     ))}
                   </div>

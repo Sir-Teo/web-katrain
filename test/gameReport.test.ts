@@ -7,6 +7,7 @@ import {
   getMovePhase,
   getPhaseThresholds,
   getPointLossBucket,
+  getReportRecoveries,
   getReportTurningPoints,
   sortMoveReportEntries,
   type MoveReportEntry,
@@ -69,6 +70,7 @@ function buildAnalyzedPassGame(boardSize: 9 | 13 | 19, moves: number): void {
 function reportEntry(args: {
   moveNumber: number;
   pointsLost: number;
+  pointsGained?: number;
   scoreSwing?: number;
   category?: MovePolicyCategory;
   relativePrior?: number;
@@ -80,7 +82,7 @@ function reportEntry(args: {
     player: 'black',
     move: 'D4',
     pointsLost: args.pointsLost,
-    pointsGained: 0,
+    pointsGained: args.pointsGained ?? 0,
     scoreBefore: 0,
     scoreAfter: args.scoreSwing ?? args.pointsLost,
     scoreDelta: args.scoreSwing ?? args.pointsLost,
@@ -414,6 +416,17 @@ describe('computeGameReport', () => {
     ];
 
     expect(getReportTurningPoints(entries, 5, 3).map((entry) => entry.moveNumber)).toEqual([3, 2, 4]);
+  });
+
+  it('finds point-gaining recovery moves by gain', () => {
+    const entries = [
+      reportEntry({ moveNumber: 1, pointsLost: 0, pointsGained: 1.4 }),
+      reportEntry({ moveNumber: 2, pointsLost: 0, pointsGained: 3 }),
+      reportEntry({ moveNumber: 3, pointsLost: 0, pointsGained: 2 }),
+      reportEntry({ moveNumber: 4, pointsLost: 0, pointsGained: 3 }),
+    ];
+
+    expect(getReportRecoveries(entries, 1.5, 3).map((entry) => entry.moveNumber)).toEqual([2, 4, 3]);
   });
 
   it('filters report totals and top mistakes by phase', () => {

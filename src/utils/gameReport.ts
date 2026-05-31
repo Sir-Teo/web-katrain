@@ -299,6 +299,21 @@ export function getReportTurningPoints(
     .slice(0, limit);
 }
 
+export function getReportRecoveries(
+  entries: MoveReportEntry[],
+  threshold = 1.5,
+  limit = 5
+): MoveReportEntry[] {
+  return [...entries]
+    .filter((entry) => entry.pointsGained >= threshold)
+    .sort((a, b) => {
+      const gainDiff = b.pointsGained - a.pointsGained;
+      if (gainDiff !== 0) return gainDiff;
+      return a.moveNumber - b.moveNumber;
+    })
+    .slice(0, limit);
+}
+
 export function computeGameReport(args: {
   currentNode: GameNode;
   thresholds: number[];
