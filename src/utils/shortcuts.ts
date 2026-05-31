@@ -199,10 +199,41 @@ export const findShortcutCollision = (
   return null;
 };
 
+export const createShortcutCollisionReplacement = (
+  overrides: ShortcutOverrides,
+  currentId: string,
+  conflictingId: string,
+  binding: ShortcutBinding
+): ShortcutOverrides => {
+  const next: ShortcutOverrides = { ...overrides };
+  const normalizedBinding = normalizeBinding(binding);
+  const collisionKey = bindingKey(normalizedBinding);
+  const conflictingBindings = getShortcutBindings(conflictingId, overrides);
+  const remainingConflictingBindings = conflictingBindings?.filter(
+    (candidate) => bindingKey(candidate) !== collisionKey
+  );
+
+  next[conflictingId] =
+    remainingConflictingBindings && remainingConflictingBindings.length > 0
+      ? remainingConflictingBindings.map(normalizeBinding)
+      : null;
+  next[currentId] = [normalizedBinding];
+  return next;
+};
+
 export const setShortcutOverride = (id: string, bindings: ShortcutBinding[] | null): void => {
   const overrides = loadShortcutOverrides();
   overrides[id] = bindings === null ? null : bindings.map(normalizeBinding);
   saveShortcutOverrides(overrides);
+};
+
+export const replaceShortcutCollisionOverride = (
+  currentId: string,
+  conflictingId: string,
+  binding: ShortcutBinding
+): void => {
+  const overrides = loadShortcutOverrides();
+  saveShortcutOverrides(createShortcutCollisionReplacement(overrides, currentId, conflictingId, binding));
 };
 
 export const resetShortcutOverride = (id: string): void => {

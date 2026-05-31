@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bindingToDisplay,
+  createShortcutCollisionReplacement,
   eventMatchesBinding,
   findShortcutCollision,
   getShortcutBindings,
@@ -54,5 +55,29 @@ describe('shortcut utilities', () => {
   it('supports disabled and overridden bindings', () => {
     expect(getShortcutBindings('save-sgf', { 'save-sgf': null })).toBe(null);
     expect(getShortcutBindings('save-sgf', { 'save-sgf': [{ key: 'F9' }] })).toEqual([{ key: 'F9', ctrl: false, shift: false, alt: false }]);
+  });
+
+  it('builds replacement overrides when resolving a shortcut collision', () => {
+    const next = createShortcutCollisionReplacement(
+      {},
+      'open-sgf',
+      'save-sgf',
+      { key: 's', ctrl: true }
+    );
+
+    expect(getShortcutBindings('open-sgf', next)).toEqual([{ key: 's', ctrl: true, shift: false, alt: false }]);
+    expect(getShortcutBindings('save-sgf', next)).toBe(null);
+  });
+
+  it('preserves non-conflicting bindings when replacing one binding from a multi-binding shortcut', () => {
+    const next = createShortcutCollisionReplacement(
+      {},
+      'settings-modal',
+      'keyboard-help',
+      { key: '?' }
+    );
+
+    expect(getShortcutBindings('settings-modal', next)).toEqual([{ key: '?', ctrl: false, shift: false, alt: false }]);
+    expect(getShortcutBindings('keyboard-help', next)).toEqual([{ key: '/', ctrl: false, shift: true, alt: false }]);
   });
 });

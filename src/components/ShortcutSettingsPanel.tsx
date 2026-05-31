@@ -1,11 +1,13 @@
 import React from 'react';
 import {
   bindingToDisplay,
+  createShortcutCollisionReplacement,
   eventToShortcutBinding,
   findShortcutCollision,
   getShortcutBindings,
   getShortcutGroups,
   loadShortcutOverrides,
+  replaceShortcutCollisionOverride,
   resetAllShortcutOverrides,
   resetShortcutOverride,
   setShortcutOverride,
@@ -15,10 +17,18 @@ import {
 
 const isBindingEmpty = (binding: ShortcutBinding | null): binding is null => !binding || !binding.key;
 
+type ShortcutCollisionState = {
+  binding: ShortcutBinding;
+  conflictId: string;
+  conflictLabel: string;
+  message: string;
+  targetId: string;
+};
+
 export const ShortcutSettingsPanel: React.FC = () => {
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [recordingId, setRecordingId] = React.useState<string | null>(null);
-  const [collision, setCollision] = React.useState<string | null>(null);
+  const [collision, setCollision] = React.useState<ShortcutCollisionState | null>(null);
 
   const refresh = () => setOverrides(loadShortcutOverrides());
 
@@ -30,7 +40,13 @@ export const ShortcutSettingsPanel: React.FC = () => {
     if (isBindingEmpty(binding)) return;
     const conflict = findShortcutCollision(binding, id, overrides);
     if (conflict) {
-      setCollision(`${bindingToDisplay(binding)} is already assigned to ${conflict.label}.`);
+      setCollision({
+        binding,
+        conflictId: conflict.id,
+        conflictLabel: conflict.label,
+        message: `${bindingToDisplay(binding)} is already assigned to ${conflict.label}.`,
+        targetId: id,
+      });
       return;
     }
     setShortcutOverride(id, [binding]);
@@ -58,6 +74,24 @@ export const ShortcutSettingsPanel: React.FC = () => {
     refresh();
   };
 
+  const handleReplaceCollision = () => {
+    if (!collision) return;
+    replaceShortcutCollisionOverride(collision.targetId, collision.conflictId, collision.binding);
+    setRecordingId(null);
+    setCollision(null);
+    refresh();
+  };
+
+  const previewReplacement = React.useMemo(() => {
+    if (!collision) return null;
+    return createShortcutCollisionReplacement(
+      overrides,
+      collision.targetId,
+      collision.conflictId,
+      collision.binding
+    );
+  }, [collision, overrides]);
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border ui-surface p-4">
@@ -75,8 +109,35 @@ export const ShortcutSettingsPanel: React.FC = () => {
           </button>
         </div>
         {collision && (
-          <div className="mt-3 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] px-3 py-2 text-sm text-[var(--ui-warning)]">
-            {collision}
+          <div
+            className="mt-3 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] px-3 py-2 text-sm text-[var(--ui-warning)]"
+            data-shortcut-collision="true"
+          >
+            <div className="font-semibold">Shortcut conflict</div>
+            <div className="mt-1">{collision.message}</div>
+            <div className="mt-1 text-xs">
+              Replace will assign {bindingToDisplay(collision.binding)} here and leave {collision.conflictLabel}{' '}
+              {shortcutDisplay(getShortcutBindings(collision.conflictId, previewReplacement ?? overrides)).toLowerCase()}.
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="px-3 py-2 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning)] text-xs font-semibold text-black"
+                onClick={handleReplaceCollision}
+              >
+                Replace
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
+                onClick={() => {
+                  setCollision(null);
+                  setRecordingId(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </div>
