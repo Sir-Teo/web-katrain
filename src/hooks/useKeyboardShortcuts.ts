@@ -6,6 +6,7 @@ import type { UiMode } from '../components/layout/types';
 import { eventMatchesShortcut, loadShortcutOverrides } from '../utils/shortcuts';
 import { toggleAppFullscreen } from '../utils/fullscreen';
 import { isEditableKeyboardTarget } from '../utils/keyboardTarget';
+import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
@@ -261,6 +262,14 @@ export function useKeyboardShortcuts({
         updateSettings({ analysisShowPolicy: !settings.analysisShowPolicy });
         return;
       }
+      if (matches('cycle-policy-metric')) {
+        e.preventDefault();
+        updateSettings({
+          analysisPolicyMetric: nextPolicyHeatmapMetric(settings.analysisPolicyMetric),
+          analysisShowPolicy: true,
+        });
+        return;
+      }
       if (matches('toggle-territory')) {
         e.preventDefault();
         updateSettings({ analysisShowOwnership: !settings.analysisShowOwnership });
@@ -459,6 +468,7 @@ export function useKeyboardShortcuts({
     settings.analysisShowEval,
     settings.analysisShowHints,
     settings.analysisShowPolicy,
+    settings.analysisPolicyMetric,
     settings.analysisShowOwnership,
     makeAiMove,
     rootNode,

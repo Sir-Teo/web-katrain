@@ -118,6 +118,7 @@ const ANALYSIS_OVERLAY_SHORTCUT_IDS = [
     'toggle-eval',
     'toggle-hints',
     'toggle-policy',
+    'cycle-policy-metric',
     'toggle-territory',
 ] as const;
 
@@ -837,7 +838,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 </div>
 
                                                 <div className="space-y-1">
-                                                    <label className="text-slate-300 block text-sm">Policy Heatmap</label>
+                                                    <label className="text-slate-300 block text-sm">Policy Heatmap ({shortcutLabels['cycle-policy-metric']})</label>
                                                     <select
                                                         value={settings.analysisPolicyMetric ?? 'policy'}
                                                         onChange={(e) => updateSettings({ analysisPolicyMetric: e.target.value as GameSettings['analysisPolicyMetric'] })}
