@@ -406,6 +406,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   }, [report.histogram, report.labels]);
   const bucketFilterLabel = bucketFilter == null ? null : report.labels[bucketFilter] ?? null;
   const policyFilterLabel = policyFilter ? policyCategoryLabel(policyFilter) : null;
+  const mistakeSortLabel = mistakeSort === 'policy' ? 'Quality' : 'Loss';
 
   const phaseLabel = getPhaseLabel(phaseFilter);
   const activeFilterLabels = useMemo(() => {
@@ -1272,7 +1273,34 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 </div>
               </div>
               <div className="mt-6 text-sm text-slate-700">
-                Filters: {activeFilterLabels.join(' - ')} • Showing top {pdfMistakes.length} mistakes
+                Filters: {activeFilterLabels.join(' - ')} • Sort: {mistakeSortLabel} • Showing top {pdfMistakes.length} mistakes
+              </div>
+              <div className="mt-6">
+                <div className="pdf-section-title">Critical Swings</div>
+                {turningPoints.length === 0 ? (
+                  <div className="mt-2 text-sm text-slate-600">No major score swings match these filters.</div>
+                ) : (
+                  <div className="mt-2 space-y-2 text-sm">
+                    {turningPoints.map((entry) => (
+                      <div
+                        key={`${entry.node.id}-pdf-swing-${entry.moveNumber}`}
+                        className="flex items-center justify-between gap-4 rounded border border-slate-300 px-3 py-2"
+                      >
+                        <div>
+                          <span className="font-semibold text-slate-900">Move {entry.moveNumber}</span>
+                          <span className="text-slate-700">
+                            {' '}
+                            {entry.player === 'black' ? 'Black' : 'White'} {entry.move}
+                          </span>
+                        </div>
+                        <div className="font-mono text-slate-700">
+                          {fmtSigned(entry.scoreBefore)} {'->'} {fmtSigned(entry.scoreAfter)}
+                        </div>
+                        <div className="font-semibold text-slate-900">{swingGainLabel(entry)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1319,7 +1347,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           </div>
         </div>
 
-        <div className="px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex items-center justify-between print:hidden">
+        <div className="px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex items-center justify-between print-hide">
           <button
             type="button"
             onClick={handlePrintReport}
