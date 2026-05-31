@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
+import { smoothAnalysisGraphValues } from '../utils/analysisSmoothing';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { publicUrl } from '../utils/publicUrl';
@@ -130,8 +131,11 @@ export const ScoreWinrateGraph: React.FC<{
     return { scoreValues: scores, winrateValues: winrates };
   }, [displayNodes, treeVersion, gameAnalysisDone]);
 
-  const scoreScale = useMemo(() => computeSymmetricScale(scoreValues, SCORE_GRANULARITY), [scoreValues]);
-  const winrateScale = useMemo(() => computeSymmetricScale(winrateValues, WINRATE_GRANULARITY), [winrateValues]);
+  const smoothedScoreValues = useMemo(() => smoothAnalysisGraphValues(scoreValues), [scoreValues]);
+  const smoothedWinrateValues = useMemo(() => smoothAnalysisGraphValues(winrateValues), [winrateValues]);
+
+  const scoreScale = useMemo(() => computeSymmetricScale(smoothedScoreValues, SCORE_GRANULARITY), [smoothedScoreValues]);
+  const winrateScale = useMemo(() => computeSymmetricScale(smoothedWinrateValues, WINRATE_GRANULARITY), [smoothedWinrateValues]);
 
   const count = displayNodes.length;
   const xScale = width / Math.max(count - 1, 15);
@@ -142,20 +146,20 @@ export const ScoreWinrateGraph: React.FC<{
   const scorePath = useMemo(
     () =>
       buildPath({
-        values: scoreValues,
+        values: smoothedScoreValues,
         xScale,
         yOf: (v) => height / 2 - (v / scoreScale) * (height / 2),
       }),
-    [scoreValues, xScale, scoreScale]
+    [smoothedScoreValues, xScale, scoreScale]
   );
   const winratePath = useMemo(
     () =>
       buildPath({
-        values: winrateValues,
+        values: smoothedWinrateValues,
         xScale,
         yOf: (v) => height / 2 - (v / winrateScale) * (height / 2),
       }),
-    [winrateValues, xScale, winrateScale]
+    [smoothedWinrateValues, xScale, winrateScale]
   );
 
   const evalColors = useMemo(() => getKaTrainEvalColors(trainerTheme), [trainerTheme]);
@@ -201,19 +205,19 @@ export const ScoreWinrateGraph: React.FC<{
   const clampedHighlighted = Math.min(Math.max(0, highlighted), Math.max(0, count - 1));
   const currentX = clampedHighlighted * xScale;
 
-  const currentScore = Number.isFinite(scoreValues[clampedHighlighted]!)
-    ? scoreValues[clampedHighlighted]!
-    : lastFinite(scoreValues);
-  const currentWin = Number.isFinite(winrateValues[clampedHighlighted]!)
-    ? winrateValues[clampedHighlighted]!
-    : lastFinite(winrateValues);
+  const currentScore = Number.isFinite(smoothedScoreValues[clampedHighlighted]!)
+    ? smoothedScoreValues[clampedHighlighted]!
+    : lastFinite(smoothedScoreValues);
+  const currentWin = Number.isFinite(smoothedWinrateValues[clampedHighlighted]!)
+    ? smoothedWinrateValues[clampedHighlighted]!
+    : lastFinite(smoothedWinrateValues);
 
   const currentScoreY = yScore(currentScore);
   const currentWinY = yWin(currentWin);
 
   const hoverX = hoverIndex !== null ? hoverIndex * xScale : 0;
-  const hoverScore = hoverIndex !== null ? (Number.isFinite(scoreValues[hoverIndex]!) ? scoreValues[hoverIndex]! : lastFinite(scoreValues.slice(0, hoverIndex + 1))) : 0;
-  const hoverWin = hoverIndex !== null ? (Number.isFinite(winrateValues[hoverIndex]!) ? winrateValues[hoverIndex]! : lastFinite(winrateValues.slice(0, hoverIndex + 1))) : 0;
+  const hoverScore = hoverIndex !== null ? (Number.isFinite(smoothedScoreValues[hoverIndex]!) ? smoothedScoreValues[hoverIndex]! : lastFinite(smoothedScoreValues.slice(0, hoverIndex + 1))) : 0;
+  const hoverWin = hoverIndex !== null ? (Number.isFinite(smoothedWinrateValues[hoverIndex]!) ? smoothedWinrateValues[hoverIndex]! : lastFinite(smoothedWinrateValues.slice(0, hoverIndex + 1))) : 0;
   const hoverScoreY = yScore(hoverScore);
   const hoverWinY = yWin(hoverWin);
 
