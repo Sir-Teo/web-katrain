@@ -34,7 +34,7 @@ import { MenuDrawer } from './layout/MenuDrawer';
 import { TopControlBar } from './layout/TopControlBar';
 import { BottomControlBar } from './layout/BottomControlBar';
 import { RightPanel } from './layout/RightPanel';
-import { StatusBar } from './layout/StatusBar';
+import { StatusBar, type AutoSaveStatus } from './layout/StatusBar';
 import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
 import { NotificationToast } from './layout/NotificationToast';
 import { LibraryPanel } from './LibraryPanel';
@@ -334,6 +334,7 @@ export const Layout: React.FC = () => {
   const uploadedModelRestoreHandledRef = useRef(false);
   const [autoSaveRecovery, setAutoSaveRecovery] = useState<AutoSavedGame | null>(null);
   const [autoSaveRecoveryChecked, setAutoSaveRecoveryChecked] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() => {
     if (typeof window === 'undefined') return 1200;
     return window.innerWidth;
@@ -538,6 +539,7 @@ export const Layout: React.FC = () => {
   const markCurrentGameCleanAndClearAutoSave = useCallback((sgf?: string) => {
     markCurrentGameClean(sgf);
     clearAutoSavedGame();
+    setAutoSaveStatus(null);
   }, [markCurrentGameClean]);
 
   const setLoadedLibraryFile = useCallback((id: string | null, name?: string | null) => {
@@ -628,10 +630,14 @@ export const Layout: React.FC = () => {
     if (!autoSaveRecoveryChecked || autoSaveRecovery) return;
     if (!hasUnsavedChanges()) {
       clearAutoSavedGame();
+      setAutoSaveStatus(null);
       return;
     }
+    setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
     const timeout = window.setTimeout(() => {
-      writeAutoSavedGame(generateCurrentSgf());
+      const savedAt = Date.now();
+      const saved = writeAutoSavedGame(generateCurrentSgf(), undefined, savedAt);
+      setAutoSaveStatus(saved ? { state: 'saved', savedAt } : { state: 'failed' });
     }, 500);
     return () => window.clearTimeout(timeout);
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, treeVersion]);
@@ -2145,6 +2151,7 @@ export const Layout: React.FC = () => {
         loadedFileName={loadedLibraryFileName}
         onLoadedFileRename={renameLoadedLibraryFile}
         unsavedChanges={currentGameDirty}
+        autoSaveStatus={autoSaveStatus}
       />
     </div>
   );

@@ -1,5 +1,11 @@
 import React from 'react';
+import { FaCheckCircle, FaExclamationTriangle, FaSyncAlt } from 'react-icons/fa';
 import { APP_BUILD_LABEL } from '../../utils/appInfo';
+
+export type AutoSaveStatus = {
+  state: 'pending' | 'saved' | 'failed';
+  savedAt?: number;
+};
 
 interface StatusBarProps {
   moveName: string;
@@ -16,6 +22,11 @@ interface StatusBarProps {
   loadedFileName?: string | null;
   onLoadedFileRename?: (name: string) => void;
   unsavedChanges?: boolean;
+  autoSaveStatus?: AutoSaveStatus | null;
+}
+
+function formatAutoSaveTime(savedAt: number): string {
+  return new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -33,6 +44,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   loadedFileName = null,
   onLoadedFileRename,
   unsavedChanges = false,
+  autoSaveStatus = null,
 }) => {
   const [isEditingLoadedFileName, setIsEditingLoadedFileName] = React.useState(false);
   const [loadedFileNameDraft, setLoadedFileNameDraft] = React.useState(loadedFileName ?? '');
@@ -153,6 +165,49 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       {unsavedChanges && (
         <div className="px-2 py-1 rounded bg-[var(--ui-warning-soft)] text-[var(--ui-warning)] font-semibold border border-[var(--ui-warning)] shadow-sm" title="Unsaved changes">
           Unsaved
+        </div>
+      )}
+
+      {unsavedChanges && autoSaveStatus && (
+        <div
+          className={[
+            'px-2 py-1 rounded font-semibold border shadow-sm hidden sm:flex items-center gap-1.5',
+            autoSaveStatus.state === 'failed'
+              ? 'bg-[var(--ui-danger-soft)] text-[var(--ui-danger)] border-[var(--ui-danger)]'
+              : autoSaveStatus.state === 'pending'
+                ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border-[var(--ui-accent)]'
+                : 'bg-[var(--ui-success-soft)] text-[var(--ui-success)] border-[var(--ui-success)]',
+          ].join(' ')}
+          data-autosave-status={autoSaveStatus.state}
+          role={autoSaveStatus.state === 'failed' ? 'alert' : 'status'}
+          aria-live={autoSaveStatus.state === 'failed' ? 'assertive' : 'polite'}
+          title={
+            autoSaveStatus.state === 'failed'
+              ? 'Recovery auto-save failed.'
+              : autoSaveStatus.state === 'pending'
+                ? 'Recovery auto-save is updating.'
+                : autoSaveStatus.savedAt
+                  ? `Recovery auto-saved at ${formatAutoSaveTime(autoSaveStatus.savedAt)}.`
+                  : 'Recovery auto-saved.'
+          }
+        >
+          {autoSaveStatus.state === 'failed' ? (
+            <FaExclamationTriangle aria-hidden="true" />
+          ) : autoSaveStatus.state === 'pending' ? (
+            <FaSyncAlt className="animate-spin" aria-hidden="true" />
+          ) : (
+            <FaCheckCircle aria-hidden="true" />
+          )}
+          <span>
+            {autoSaveStatus.state === 'failed'
+              ? 'Autosave failed'
+              : autoSaveStatus.state === 'pending'
+                ? 'Autosaving'
+                : 'Auto-saved'}
+          </span>
+          {autoSaveStatus.state === 'saved' && autoSaveStatus.savedAt && (
+            <span className="font-mono text-[var(--ui-text-muted)]">{formatAutoSaveTime(autoSaveStatus.savedAt)}</span>
+          )}
         </div>
       )}
 
