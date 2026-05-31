@@ -25,6 +25,7 @@ import {
   visitPresetLabel,
 } from '../utils/visitPresets';
 import { formatAnalysisScoreLead, summarizePointsLost } from '../utils/analysisSummary';
+import { getBestMoveSummary } from '../utils/bestMoveSummary';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -115,6 +116,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const trainerEvalThresholds = useGameStore((state) => state.settings.trainerEvalThresholds);
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
   const isAnalysisMode = useGameStore((state) => state.isAnalysisMode);
+  const currentNode = useGameStore((state) => state.currentNode);
   const updateSettings = useGameStore((state) => state.updateSettings);
   const [legendOpen, setLegendOpen] = React.useState(false);
   const graphMetrics = modePanels.graph;
@@ -154,6 +156,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const scoreLeadLabel = formatAnalysisScoreLead(scoreLead);
   const pointsSummary = summarizePointsLost(pointsLost);
   const pointsSummaryToneClass = pointsSummaryClass(pointsSummary.tone);
+  const bestMoveSummary = React.useMemo(
+    () => getBestMoveSummary(currentNode.analysis, currentNode.gameState.board.length),
+    [currentNode.analysis, currentNode.gameState.board.length]
+  );
   const applyLiveVisits = React.useCallback((visits: number) => {
     const nextVisits = clampAnalysisVisits(visits);
     if (nextVisits === liveVisits) return;
@@ -290,28 +296,49 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       </div>
     </div>
   ) : null;
+  const readoutGridStyle: React.CSSProperties = {
+    gridTemplateColumns: 'repeat(auto-fit, minmax(4.75rem, 1fr))',
+  };
+  const renderBestMoveReadout = (className: string, labelClassName = 'ui-text-faint') =>
+    bestMoveSummary ? (
+      <div
+        className={className}
+        title={bestMoveSummary.title}
+        data-analysis-panel-best-move="true"
+      >
+        <div className={labelClassName}>Best</div>
+        <div className="truncate font-mono text-sm text-[var(--ui-accent)]">
+          {bestMoveSummary.moveLabel}
+        </div>
+        <div className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+          {bestMoveSummary.detailLabel}
+        </div>
+      </div>
+    ) : null;
   const graphReadout = (
     <div
-      className="grid grid-cols-4 gap-1.5 text-[11px]"
+      className="grid gap-1.5 text-[11px]"
       data-analysis-graph-readout="true"
+      style={readoutGridStyle}
     >
-      <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
+      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
         <div className="ui-text-faint">Move</div>
         <div className="font-mono text-sm text-[var(--ui-text)]">{currentMoveNumber}</div>
       </div>
-      <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
+      {renderBestMoveReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
+      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
         <div className="ui-text-faint">Winrate</div>
         <div className="font-mono text-sm text-[var(--ui-success)]">
           {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
         </div>
       </div>
-      <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
+      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
         <div className="ui-text-faint">Score</div>
         <div className="font-mono text-sm text-[var(--ui-warning)]">
           {scoreLeadLabel}
         </div>
       </div>
-      <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
+      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
         <div className="ui-text-faint">Quality</div>
         <div className={['font-mono text-sm', pointsSummaryToneClass].join(' ')}>
           {pointsSummary.label}
@@ -522,7 +549,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             <div className="panel-compact-graph">
               <ScoreWinrateGraph showScore={graphMetrics.score} showWinrate={graphMetrics.winrate} />
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid gap-2" style={readoutGridStyle}>
+              {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
               <div className="px-2 py-1.5">
                 <div className="text-[11px] ui-text-faint">Winrate</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
@@ -551,7 +579,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             {graphReadout}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid gap-2" style={readoutGridStyle}>
+            {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
             <div className="px-2 py-1.5">
               <div className="text-[11px] ui-text-faint">Winrate</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">
