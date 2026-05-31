@@ -22,12 +22,15 @@ interface StatusBarProps {
   capturedWhite: number;
   endResult: string | null;
   gamepadName?: string | null;
+  loadedFileKind?: LoadedFileKind;
   onGamepadNavigationDisable?: () => void;
   loadedFileName?: string | null;
   onLoadedFileRename?: (name: string) => void;
   unsavedChanges?: boolean;
   autoSaveStatus?: AutoSaveStatus | null;
 }
+
+type LoadedFileKind = 'library' | 'file' | 'ogs' | 'pasted';
 
 function formatAutoSaveTime(savedAt: number): string {
   return new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -45,6 +48,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   capturedWhite,
   endResult,
   gamepadName,
+  loadedFileKind = 'library',
   onGamepadNavigationDisable,
   loadedFileName = null,
   onLoadedFileRename,
@@ -73,6 +77,25 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       setLoadedFileNameDraft(loadedFileName ?? '');
     }
   };
+
+  const loadedFileLabel: Record<LoadedFileKind, string> = {
+    library: 'Library:',
+    file: 'File:',
+    ogs: 'OGS:',
+    pasted: 'Imported:',
+  };
+  const loadedFileSource: Record<LoadedFileKind, string> = {
+    library: 'Library',
+    file: 'file',
+    ogs: 'OGS',
+    pasted: 'pasted SGF',
+  };
+  const loadedFileTitle =
+    loadedFileKind === 'library'
+      ? onLoadedFileRename
+        ? `Loaded from Library: ${loadedFileName}. Click to rename.`
+        : `Loaded from Library: ${loadedFileName}`
+      : `Loaded from ${loadedFileSource[loadedFileKind]}: ${loadedFileName}`;
 
   return (
     <div className="status-bar flex flex-wrap gap-2 px-3 py-2 items-center text-xs">
@@ -128,9 +151,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         {loadedFileName && (
           <div
             className="px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border border-[var(--ui-border)] shadow-sm hidden sm:flex items-center gap-1.5 max-w-[280px]"
-            title={onLoadedFileRename ? `Loaded from Library: ${loadedFileName}. Click to rename.` : `Loaded from Library: ${loadedFileName}`}
+            title={loadedFileTitle}
+            data-loaded-file-kind={loadedFileKind}
           >
-            <span className="text-[var(--ui-text-faint)]">Library:</span>
+            <span className="text-[var(--ui-text-faint)]">{loadedFileLabel[loadedFileKind]}</span>
             {isEditingLoadedFileName ? (
               <input
                 autoFocus
@@ -150,7 +174,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                   }
                 }}
               />
-            ) : (
+            ) : onLoadedFileRename ? (
               <button
                 type="button"
                 className="min-w-0 truncate text-left text-[var(--ui-text)] font-medium hover:text-white disabled:hover:text-[var(--ui-text)]"
@@ -163,6 +187,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               >
                 {loadedFileName}
               </button>
+            ) : (
+              <span className="min-w-0 truncate text-left text-[var(--ui-text)] font-medium">
+                {loadedFileName}
+              </span>
             )}
           </div>
         )}

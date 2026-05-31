@@ -331,8 +331,11 @@ const sanitizeSgfFilenameStem = (value: string): string | null => {
     return cleaned || null;
 };
 
-export const getSgfDownloadFilename = (rootNode: GameNode, timestamp = Date.now()): string => {
-    const props = rootNode.properties ?? {};
+export const getSgfDownloadFilenameFromProperties = (
+    properties: Record<string, string[]> | undefined,
+    timestamp = Date.now()
+): string => {
+    const props = properties ?? {};
     const gameName = props.GN?.find((value) => value.trim());
     const gameStem = gameName ? sanitizeSgfFilenameStem(gameName) : null;
     if (gameStem) return `${gameStem}.sgf`;
@@ -344,6 +347,9 @@ export const getSgfDownloadFilename = (rootNode: GameNode, timestamp = Date.now(
 
     return `game_${timestamp}.sgf`;
 };
+
+export const getSgfDownloadFilename = (rootNode: GameNode, timestamp = Date.now()): string =>
+    getSgfDownloadFilenameFromProperties(rootNode.properties, timestamp);
 
 function cloneProps(props: Record<string, string[]> | undefined): Record<string, string[]> {
     const out: Record<string, string[]> = {};

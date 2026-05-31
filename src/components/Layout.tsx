@@ -6,7 +6,7 @@ import { AnalysisPanel } from './AnalysisPanel';
 import { EditToolbar } from './EditToolbar';
 import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
-import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
+import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, getSgfDownloadFilenameFromProperties, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { LibraryFile } from '../utils/library';
 import { loadLibrary, saveLibrary, updateLibraryFileSgf, updateLibraryItem } from '../utils/library';
@@ -68,6 +68,13 @@ const PasteSgfModal = lazy(() => import('./PasteSgfModal').then((module) => ({ d
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 const mainFileInputAccept = ['.sgf', ...PHOTO_BOARD_IMAGE_EXTENSIONS, 'image/*', MODEL_UPLOAD_ACCEPT].join(',');
 const LAYOUT_SHORTCUT_IDS = ['toggle-library', 'toggle-sidebar'] as const;
+type LoadedExternalFile = { name: string; kind: 'file' | 'ogs' | 'pasted' };
+
+const getImportedSgfName = (parsed: ReturnType<typeof parseSgf>, fallback: string): string => {
+  const props = parsed.tree?.props ?? {};
+  const hasNamedProps = !!(props.GN?.some((value) => value.trim()) || props.PB?.[0]?.trim() || props.PW?.[0]?.trim());
+  return hasNamedProps ? getSgfDownloadFilenameFromProperties(props) : fallback;
+};
 
 type LayoutShortcutId = (typeof LAYOUT_SHORTCUT_IDS)[number];
 
@@ -314,6 +321,7 @@ export const Layout: React.FC = () => {
   const [recentLibraryItems, setRecentLibraryItems] = useState<LibraryFile[]>([]);
   const [loadedLibraryFileId, setLoadedLibraryFileId] = useState<string | null>(null);
   const [loadedLibraryFileName, setLoadedLibraryFileName] = useState<string | null>(null);
+  const [loadedExternalFile, setLoadedExternalFile] = useState<LoadedExternalFile | null>(null);
   const [externalLibraryFileUpdate, setExternalLibraryFileUpdate] = useState<{
     id: string;
     sgf: string;
@@ -547,6 +555,7 @@ export const Layout: React.FC = () => {
   const setLoadedLibraryFile = useCallback((id: string | null, name?: string | null) => {
     setLoadedLibraryFileId(id);
     setLoadedLibraryFileName(id ? (name?.trim() || 'Library game') : null);
+    setLoadedExternalFile(null);
   }, []);
 
   const saveLoadedLibraryFile = useCallback(async (sgf: string): Promise<boolean> => {
@@ -1202,8 +1211,9 @@ export const Layout: React.FC = () => {
       if (!(await prepareForGameReplacement())) return;
       loadGame(parsed);
       setLoadedLibraryFile(null);
+      setLoadedExternalFile({ kind: 'file', name: file.name || getImportedSgfName(parsed, 'Loaded SGF') });
       markCurrentGameCleanAndClearAutoSave();
-      toast('Loaded SGF.', 'success');
+      toast(`Loaded "${file.name || 'SGF'}".`, 'success');
     } catch {
       toast('Failed to parse SGF file.', 'error');
     } finally {
@@ -1272,6 +1282,11 @@ export const Layout: React.FC = () => {
       if (!(await prepareForGameReplacement())) return false;
       loadGame(parsed);
       setLoadedLibraryFile(null);
+      setLoadedExternalFile(
+        result.source === 'ogs'
+          ? { kind: 'ogs', name: `ogs-${result.gameId ?? 'game'}.sgf` }
+          : { kind: 'pasted', name: getImportedSgfName(parsed, 'Pasted SGF') }
+      );
       markCurrentGameCleanAndClearAutoSave();
       toast(result.source === 'ogs' ? `Downloaded OGS game ${result.gameId ?? ''}.` : 'Loaded SGF.', 'success');
       return true;
@@ -2156,8 +2171,9 @@ export const Layout: React.FC = () => {
         endResult={endResult}
         gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
         onGamepadNavigationDisable={handleDisableGamepadNavigation}
-        loadedFileName={loadedLibraryFileName}
-        onLoadedFileRename={renameLoadedLibraryFile}
+        loadedFileKind={loadedLibraryFileName ? 'library' : loadedExternalFile?.kind}
+        loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
+        onLoadedFileRename={loadedLibraryFileName ? renameLoadedLibraryFile : undefined}
         unsavedChanges={currentGameDirty}
         autoSaveStatus={autoSaveStatus}
       />
