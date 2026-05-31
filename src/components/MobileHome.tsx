@@ -28,7 +28,7 @@ interface MobileHomeProps {
   onOpenLibrary: () => void;
   onOpenReport: () => void;
   onOpenSettings: () => void;
-  onOpenRecent: (sgf: string) => void;
+  onOpenRecent: (item: LibraryFile) => void;
 }
 
 interface HomeActionProps {
@@ -143,7 +143,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                     type="button"
                     key={item.id}
                     className="min-h-12 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left hover:bg-[var(--ui-surface-2)]"
-                    onClick={() => onOpenRecent(item.sgf)}
+                    onClick={() => onOpenRecent(item)}
                   >
                     <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{item.name}</div>
                     <div className="mt-1 truncate text-xs ui-text-faint">

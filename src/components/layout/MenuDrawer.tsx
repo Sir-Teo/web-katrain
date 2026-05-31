@@ -2,6 +2,7 @@ import React from 'react';
 import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
+import type { LibraryFile } from '../../utils/library';
 
 const MENU_DRAWER_SHORTCUT_IDS = [
   'new-game',
@@ -26,8 +27,8 @@ interface MenuDrawerProps {
   onPaste: () => void;
   onSettings: () => void;
   onKeyboardHelp: () => void;
-  recentItems?: Array<{ id: string; name: string; updatedAt: number; sgf: string }>;
-  onOpenRecent?: (sgf: string) => void;
+  recentItems?: LibraryFile[];
+  onOpenRecent?: (item: LibraryFile) => void;
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -222,7 +223,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                   key={item.id}
                   className="w-full text-left px-3 py-2 rounded hover:bg-[var(--ui-surface-2)] text-sm text-[var(--ui-text)]"
                   onClick={() => {
-                    onOpenRecent(item.sgf);
+                    onOpenRecent(item);
                     onClose();
                   }}
                 >

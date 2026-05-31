@@ -244,7 +244,6 @@ interface LibraryPanelProps {
   onLoadSgf: (sgf: string) => boolean | Promise<boolean>;
   onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
   onOpenPhotoBoard?: (file: File) => void;
-  onOpenRecent?: (sgf: string) => void;
   onLibraryUpdated?: () => void;
   onCurrentSaved?: () => void;
   loadedFileId?: string | null;

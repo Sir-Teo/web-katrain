@@ -1301,8 +1301,11 @@ export const Layout: React.FC = () => {
     }
   };
 
-  const handleOpenRecent = async (sgfText: string) => {
-    await handleOpenSgfFromText(sgfText);
+  const handleOpenRecent = async (item: LibraryFile) => {
+    const loaded = await handleLoadFromLibrary(item.sgf);
+    if (!loaded) return;
+    setLoadedLibraryFile(item.id, item.name);
+    toast(`Loaded "${item.name}".`, 'success');
   };
 
   useEffect(() => {
@@ -1789,9 +1792,9 @@ export const Layout: React.FC = () => {
             closeMobileHome();
             setIsSettingsOpen(true);
           }}
-          onOpenRecent={(sgfText) => {
+          onOpenRecent={(item) => {
             closeMobileHome();
-            void handleOpenRecent(sgfText);
+            void handleOpenRecent(item);
           }}
         />
       )}
@@ -1807,7 +1810,6 @@ export const Layout: React.FC = () => {
           onToast={toast}
           onOpenPhotoBoard={openPhotoBoard}
           isMobile={isMobile}
-          onOpenRecent={handleOpenRecent}
           onLibraryUpdated={handleLibraryUpdated}
           onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
           loadedFileId={loadedLibraryFileId}
