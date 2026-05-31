@@ -653,10 +653,22 @@ export const duplicateLibraryItems = (
   ids: Iterable<string>,
   timestamp = Date.now()
 ): DuplicateLibraryItemResult => {
+  const selectedIds = Array.from(ids);
+  const selectedIdSet = new Set(selectedIds);
+  const parentById = new Map(items.map((item) => [item.id, item.parentId ?? null]));
+  const rootSelectedIds = selectedIds.filter((id) => {
+    let parentId = parentById.get(id) ?? null;
+    while (parentId) {
+      if (selectedIdSet.has(parentId)) return false;
+      parentId = parentById.get(parentId) ?? null;
+    }
+    return true;
+  });
+
   let nextItems = items;
   const duplicatedIds: string[] = [];
   let firstDuplicated: LibraryItem | null = null;
-  for (const id of ids) {
+  for (const id of rootSelectedIds) {
     const result = duplicateLibraryItem(nextItems, id, timestamp);
     nextItems = result.items;
     if (!firstDuplicated) firstDuplicated = result.duplicated;

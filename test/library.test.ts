@@ -185,6 +185,28 @@ describe('library storage helpers', () => {
     expect(result.items.map((item) => item.name)).toEqual(['Second (copy)', 'First (copy)', 'First', 'Second']);
   });
 
+  it('does not duplicate selected descendants separately when their folder is selected', () => {
+    const folder = createLibraryFolder('Folder', null);
+    const nestedFolder = createLibraryFolder('Nested', folder.id);
+    const directFile = createLibraryItem('Direct', sgf, folder.id);
+    const nestedFile = createLibraryItem('Nested Game', sgf, nestedFolder.id);
+    const rootFile = createLibraryItem('Root', sgf, null);
+
+    const result = duplicateLibraryItems(
+      [folder, nestedFolder, directFile, nestedFile, rootFile],
+      [directFile.id, folder.id, nestedFile.id],
+      500
+    );
+
+    expect(result.duplicated?.name).toBe('Folder (copy)');
+    expect(result.duplicatedIds).toHaveLength(4);
+    expect(result.items.filter((item) => item.name === 'Folder (copy)')).toHaveLength(1);
+    expect(result.items.filter((item) => item.name === 'Direct (copy)')).toHaveLength(0);
+    expect(result.items.filter((item) => item.name === 'Nested Game (copy)')).toHaveLength(0);
+    expect(result.items.filter((item) => item.name === 'Direct')).toHaveLength(2);
+    expect(result.items.filter((item) => item.name === 'Nested Game')).toHaveLength(2);
+  });
+
   it('summarizes total library files, folders, and stored size', () => {
     const folder = createLibraryFolder('Folder', null);
     const first = createLibraryItem('First', sgf, folder.id);
