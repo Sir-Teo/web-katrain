@@ -1,5 +1,6 @@
 import type { KataGoWorkerRequest, KataGoWorkerResponse } from './types';
 import type { BoardState, GameRules, KataGoBackendPreference, Move, Player, RegionOfInterest } from '../../types';
+import { getWorkerConstructor } from '../../utils/browserWorker';
 
 type Analysis = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:analyze_result' }>['analysis']>;
 type EvalResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:eval_result' }>['eval']>;
@@ -37,7 +38,16 @@ class KataGoEngineClient {
   private lastLoggedEngineLabel: string | null = null;
 
   constructor() {
-    this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+    if (!getWorkerConstructor()) {
+      throw new Error('Browser Worker API is unavailable; KataGo analysis cannot run in this browser context.');
+    }
+
+    try {
+      this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+    } catch (err) {
+      throw formatWorkerError(err, 'KataGo worker failed to start');
+    }
+
     this.worker.onmessage = (ev: MessageEvent<KataGoWorkerResponse>) => {
       const msg = ev.data;
       if (msg.type === 'katago:init_result') {
@@ -93,6 +103,18 @@ class KataGoEngineClient {
     };
   }
 
+  dispose(): void {
+    this.worker.terminate();
+  }
+
+  private postToWorker(message: KataGoWorkerRequest): void {
+    try {
+      this.worker.postMessage(message);
+    } catch (err) {
+      throw formatWorkerError(err, 'KataGo worker message failed');
+    }
+  }
+
   private syncEngineInfo(msg: { backend?: string; modelName?: string }): void {
     let changed = false;
     if (typeof msg.backend === 'string' && msg.backend !== this.backend) {
@@ -123,7 +145,12 @@ class KataGoEngineClient {
     return new Promise<void>((resolve, reject) => {
       this.pendingInit = { resolve, reject };
       const initMsg: KataGoWorkerRequest = { type: 'katago:init', modelUrl, backend };
-      this.worker.postMessage(initMsg);
+      try {
+        this.postToWorker(initMsg);
+      } catch (err) {
+        this.pendingInit = null;
+        reject(err);
+      }
     });
   }
 
@@ -196,7 +223,12 @@ class KataGoEngineClient {
     const promise = new Promise<Analysis>((resolve, reject) => {
       this.pending.set(id, { resolve, reject, onProgress: args.onProgress });
     });
-    this.worker.postMessage(req);
+    try {
+      this.postToWorker(req);
+    } catch (err) {
+      this.pending.delete(id);
+      throw err;
+    }
     return promise;
   }
 
@@ -230,7 +262,12 @@ class KataGoEngineClient {
     const promise = new Promise<EvalResult>((resolve, reject) => {
       this.pendingEval.set(id, { resolve, reject });
     });
-    this.worker.postMessage(req);
+    try {
+      this.postToWorker(req);
+    } catch (err) {
+      this.pendingEval.delete(id);
+      throw err;
+    }
     return promise;
   }
 
@@ -268,14 +305,29 @@ class KataGoEngineClient {
     const promise = new Promise<EvalBatchResult>((resolve, reject) => {
       this.pendingEvalBatch.set(id, { resolve, reject });
     });
-    this.worker.postMessage(req);
+    try {
+      this.postToWorker(req);
+    } catch (err) {
+      this.pendingEvalBatch.delete(id);
+      throw err;
+    }
     return promise;
   }
 }
 
 let singleton: KataGoEngineClient | null = null;
 
+function formatWorkerError(err: unknown, prefix: string): Error {
+  const message = err instanceof Error ? err.message : String(err);
+  return new Error(message ? `${prefix}: ${message}` : prefix);
+}
+
 export function getKataGoEngineClient(): KataGoEngineClient {
   if (!singleton) singleton = new KataGoEngineClient();
   return singleton;
+}
+
+export function resetKataGoEngineClientForTests(): void {
+  singleton?.dispose();
+  singleton = null;
 }
