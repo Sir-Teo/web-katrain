@@ -33,3 +33,10 @@ export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
 
   return Boolean(element.closest?.(INTERACTIVE_SELECTOR));
 }
+
+export function shouldIgnoreKeyboardShortcutTarget(
+  eventTarget: EventTarget | null,
+  activeElement: EventTarget | null
+): boolean {
+  return isEditableKeyboardTarget(eventTarget) || isEditableKeyboardTarget(activeElement);
+}

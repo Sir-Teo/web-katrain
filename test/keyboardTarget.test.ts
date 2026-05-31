@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isEditableKeyboardTarget } from '../src/utils/keyboardTarget';
+import {
+  isEditableKeyboardTarget,
+  shouldIgnoreKeyboardShortcutTarget,
+} from '../src/utils/keyboardTarget';
 
 describe('isEditableKeyboardTarget', () => {
   it('detects form and contenteditable keyboard targets', () => {
@@ -21,5 +24,13 @@ describe('isEditableKeyboardTarget', () => {
   it('ignores ordinary targets and missing targets', () => {
     expect(isEditableKeyboardTarget({} as EventTarget)).toBe(false);
     expect(isEditableKeyboardTarget(null)).toBe(false);
+  });
+});
+
+describe('shouldIgnoreKeyboardShortcutTarget', () => {
+  it('blocks shortcuts from either the event target or active element', () => {
+    expect(shouldIgnoreKeyboardShortcutTarget({ tagName: 'BUTTON' } as unknown as EventTarget, null)).toBe(true);
+    expect(shouldIgnoreKeyboardShortcutTarget({} as EventTarget, { tagName: 'INPUT' } as unknown as EventTarget)).toBe(true);
+    expect(shouldIgnoreKeyboardShortcutTarget({} as EventTarget, {} as EventTarget)).toBe(false);
   });
 });

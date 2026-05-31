@@ -5,7 +5,7 @@ import { generateSgfFromTree, type KaTrainSgfExportOptions } from '../utils/sgf'
 import type { UiMode } from '../components/layout/types';
 import { eventMatchesShortcut, loadShortcutOverrides } from '../utils/shortcuts';
 import { toggleAppFullscreen } from '../utils/fullscreen';
-import { isEditableKeyboardTarget } from '../utils/keyboardTarget';
+import { shouldIgnoreKeyboardShortcutTarget } from '../utils/keyboardTarget';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 
 interface UseKeyboardShortcutsOptions {
@@ -106,7 +106,7 @@ export function useKeyboardShortcuts({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(document.activeElement)) return;
+      if (shouldIgnoreKeyboardShortcutTarget(e.target, document.activeElement)) return;
 
       const shift = e.shiftKey;
       const overrides = loadShortcutOverrides();
