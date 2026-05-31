@@ -31,6 +31,7 @@ import {
     validateModelUploadFile,
 } from '../utils/modelUpload';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
+import { writeClipboardText } from '../utils/clipboard';
 
 const OFFICIAL_MODELS: Array<{
     label: string;
@@ -209,7 +210,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         event.target.value = '';
     };
 
-    const handleCopyUrl = (url: string) => {
+    const handleCopyUrl = async (url: string) => {
         const onCopied = () => {
             setCopiedUrl(url);
             window.setTimeout(() => {
@@ -217,8 +218,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             }, 2000);
         };
 
-        if (navigator?.clipboard?.writeText) {
-            navigator.clipboard.writeText(url).then(onCopied).catch(() => {});
+        if (await writeClipboardText(url)) {
+            onCopied();
             return;
         }
 

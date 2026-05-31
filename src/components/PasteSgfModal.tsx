@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaClipboard, FaTimes } from 'react-icons/fa';
+import { readClipboardText } from '../utils/clipboard';
 
 interface PasteSgfModalProps {
   onClose: () => void;
@@ -18,13 +19,13 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit 
 
   const readClipboard = async () => {
     setStatus(null);
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      setText(clipboardText);
-      if (!clipboardText.trim()) setStatus('Clipboard is empty.');
-    } catch {
+    const clipboardText = await readClipboardText();
+    if (clipboardText === null) {
       setStatus('Clipboard unavailable.');
+      return;
     }
+    setText(clipboardText);
+    if (!clipboardText.trim()) setStatus('Clipboard is empty.');
   };
 
   const submit = async () => {
