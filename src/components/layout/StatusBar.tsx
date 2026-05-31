@@ -1,7 +1,9 @@
 import React from 'react';
-import { FaCheckCircle, FaExclamationTriangle, FaGamepad, FaSyncAlt } from 'react-icons/fa';
+import { FaBug, FaCheckCircle, FaExclamationTriangle, FaGamepad, FaSyncAlt } from 'react-icons/fa';
 import { APP_BUILD_LABEL } from '../../utils/appInfo';
 import { formatGamepadLabel } from '../../utils/gamepadLabel';
+
+const ISSUE_REPORT_URL = 'https://github.com/Sir-Teo/web-katrain/issues/new/choose';
 
 export type AutoSaveStatus = {
   state: 'pending' | 'saved' | 'failed';
@@ -227,11 +229,25 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         </div>
       )}
       </div>
-      <div
-        className="ml-auto hidden xl:flex items-center px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-faint)] border border-[var(--ui-border)] shadow-sm"
-        title={APP_BUILD_LABEL}
-      >
-        {APP_BUILD_LABEL}
+      <div className="ml-auto hidden xl:flex items-center gap-2">
+        <a
+          href={ISSUE_REPORT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border border-[var(--ui-border)] shadow-sm hover:text-[var(--ui-text)] hover:border-[var(--ui-accent)] transition-colors"
+          title="Report an issue on GitHub"
+          aria-label="Report an issue on GitHub"
+          data-status-report-issue="true"
+        >
+          <FaBug aria-hidden="true" />
+          <span>Report</span>
+        </a>
+        <div
+          className="flex items-center px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-faint)] border border-[var(--ui-border)] shadow-sm"
+          title={APP_BUILD_LABEL}
+        >
+          {APP_BUILD_LABEL}
+        </div>
       </div>
     </div>
   );
