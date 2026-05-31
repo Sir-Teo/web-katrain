@@ -118,7 +118,7 @@ function NotePreview({ note }: { note: string }) {
                 ].join(' ')}
                 aria-hidden="true"
               >
-                x
+                {block.checked ? 'x' : ''}
               </span>
               <span className={['min-w-0', block.checked ? 'opacity-80 line-through' : ''].join(' ')}>
                 <NoteInlinePreview segments={parseNoteInlinePreview(block.text)} />
