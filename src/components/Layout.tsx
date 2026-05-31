@@ -2165,25 +2165,27 @@ export const Layout: React.FC = () => {
           </div>
         )}
       </div>
-      <StatusBar
-        moveName={moveName}
-        blackName={blackName}
-        whiteName={whiteName}
-        komi={komi}
-        boardSize={boardSize}
-        handicap={handicap}
-        moveCount={moveHistory.length}
-        capturedBlack={capturedBlack}
-        capturedWhite={capturedWhite}
-        endResult={endResult}
-        gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
-        onGamepadNavigationDisable={handleDisableGamepadNavigation}
-        loadedFileKind={loadedLibraryFileName ? 'library' : loadedExternalFile?.kind}
-        loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
-        onLoadedFileRename={loadedLibraryFileName ? renameLoadedLibraryFile : undefined}
-        unsavedChanges={currentGameDirty}
-        autoSaveStatus={autoSaveStatus}
-      />
+      {!isMobile && (
+        <StatusBar
+          moveName={moveName}
+          blackName={blackName}
+          whiteName={whiteName}
+          komi={komi}
+          boardSize={boardSize}
+          handicap={handicap}
+          moveCount={moveHistory.length}
+          capturedBlack={capturedBlack}
+          capturedWhite={capturedWhite}
+          endResult={endResult}
+          gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
+          onGamepadNavigationDisable={handleDisableGamepadNavigation}
+          loadedFileKind={loadedLibraryFileName ? 'library' : loadedExternalFile?.kind}
+          loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
+          onLoadedFileRename={loadedLibraryFileName ? renameLoadedLibraryFile : undefined}
+          unsavedChanges={currentGameDirty}
+          autoSaveStatus={autoSaveStatus}
+        />
+      )}
     </div>
   );
 };
