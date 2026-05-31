@@ -2364,6 +2364,8 @@ export const Layout: React.FC = () => {
           moveInsight={currentMoveInsight}
           blackName={blackName}
           whiteName={whiteName}
+          blackRank={getRootProp('BR')}
+          whiteRank={getRootProp('WR')}
           komi={komi}
           boardSize={boardSize}
           handicap={handicap}

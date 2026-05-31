@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaBug, FaCheckCircle, FaExclamationTriangle, FaGamepad, FaSyncAlt } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
+import { formatGameInfoPlayer } from '../../utils/gameInfoDisplay';
 import { formatGamepadLabel } from '../../utils/gamepadLabel';
 import type { MoveInsight } from '../../utils/moveInsight';
 
@@ -16,6 +17,8 @@ interface StatusBarProps {
   moveInsight?: MoveInsight | null;
   blackName: string;
   whiteName: string;
+  blackRank?: string;
+  whiteRank?: string;
   komi: number;
   boardSize: number;
   handicap: number;
@@ -43,6 +46,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   moveInsight = null,
   blackName,
   whiteName,
+  blackRank = '',
+  whiteRank = '',
   komi,
   boardSize,
   handicap,
@@ -99,6 +104,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         ? `Loaded from Library: ${loadedFileName}. Click to rename.`
         : `Loaded from Library: ${loadedFileName}`
       : `Loaded from ${loadedFileSource[loadedFileKind]}: ${loadedFileName}`;
+  const blackPlayerLabel = formatGameInfoPlayer(blackName, blackRank, 'Black');
+  const whitePlayerLabel = formatGameInfoPlayer(whiteName, whiteRank, 'White');
 
   return (
     <div className="status-bar flex flex-wrap gap-2 px-3 py-2 items-center text-xs">
@@ -118,12 +125,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           </div>
         )}
 
-        <div className="px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border border-[var(--ui-border)] shadow-sm flex items-center gap-1.5 truncate max-w-[250px]" title={`${blackName} vs ${whiteName}`}>
+        <div className="px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border border-[var(--ui-border)] shadow-sm flex items-center gap-1.5 truncate max-w-[280px]" title={`${blackPlayerLabel} vs ${whitePlayerLabel}`}>
           <span className="status-player status-player-black" aria-hidden="true" />
-          <span className="truncate">{blackName}</span>
+          <span className="truncate">{blackPlayerLabel}</span>
           <span className="text-[var(--ui-text-faint)]">vs</span>
           <span className="status-player status-player-white" aria-hidden="true" />
-          <span className="truncate">{whiteName}</span>
+          <span className="truncate">{whitePlayerLabel}</span>
         </div>
 
       <div className="px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border border-[var(--ui-border)] shadow-sm">
