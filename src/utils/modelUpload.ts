@@ -1,4 +1,5 @@
 import { getIndexedDB, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
+import { createObjectUrlOrThrow, revokeObjectUrl } from './objectUrl';
 
 export const MAX_BROWSER_MODEL_UPLOAD_BYTES = 128 * 1024 * 1024;
 export const MAX_BROWSER_MODEL_UPLOAD_LABEL = '128 MB';
@@ -63,11 +64,7 @@ export const validateModelUploadFile = (file: ModelFileLike): string | null => {
 };
 
 export const revokeUploadedModelUrl = (): void => {
-  if (!uploadedModelUrl || typeof URL === 'undefined' || typeof URL.revokeObjectURL !== 'function') {
-    uploadedModelUrl = null;
-    return;
-  }
-  URL.revokeObjectURL(uploadedModelUrl);
+  revokeObjectUrl(uploadedModelUrl);
   uploadedModelUrl = null;
 };
 
@@ -86,7 +83,7 @@ export const createUploadedModelUrl = (blob: Blob, currentModelUrl: string): str
     lastManualModelUrl = currentModelUrl;
   }
   revokeUploadedModelUrl();
-  const objectUrl = URL.createObjectURL(blob);
+  const objectUrl = createObjectUrlOrThrow(blob);
   uploadedModelUrl = objectUrl;
   return objectUrl;
 };
@@ -193,7 +190,12 @@ export const restorePersistedUploadedModelUrl = async (currentModelUrl: string):
     lastManualModelUrl = currentModelUrl;
   }
   revokeUploadedModelUrl();
-  const url = URL.createObjectURL(model.blob);
+  let url: string;
+  try {
+    url = createObjectUrlOrThrow(model.blob);
+  } catch {
+    return null;
+  }
   uploadedModelUrl = url;
   return {
     url,

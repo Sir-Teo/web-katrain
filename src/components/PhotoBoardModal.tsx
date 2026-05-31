@@ -11,6 +11,7 @@ import {
   type PhotoBoardMoveDelta,
   type PhotoBoardStone,
 } from '../utils/photoBoard';
+import { createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
 
 interface PhotoBoardModalProps {
   onClose: () => void;
@@ -65,6 +66,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [stones, setStones] = React.useState<PhotoBoardStone[]>(() => makeEmptyStones(defaultBoardSize));
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
   const [photoName, setPhotoName] = React.useState<string>('');
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
   const [photoUnderlay, setPhotoUnderlay] = React.useState(true);
   const [photoOpacity, setPhotoOpacity] = React.useState(0.45);
   const [photoFit, setPhotoFit] = React.useState<PhotoFit>('cover');
@@ -123,7 +125,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   React.useEffect(() => {
     return () => {
-      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+      revokeObjectUrl(photoUrlRef.current);
     };
   }, []);
 
@@ -156,8 +158,16 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   const choosePhoto = React.useCallback((file: File | undefined) => {
     if (!file) return;
-    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
-    const objectUrl = URL.createObjectURL(file);
+    revokeObjectUrl(photoUrlRef.current);
+    const objectUrl = createObjectUrl(file);
+    photoUrlRef.current = null;
+    setPhotoError(null);
+    if (!objectUrl) {
+      setPhotoName('');
+      setPhotoUrl(null);
+      setPhotoError('Photo preview is unavailable in this browser.');
+      return;
+    }
     photoUrlRef.current = objectUrl;
     setPhotoName(file.name || 'Camera photo');
     setPhotoUrl(objectUrl);
@@ -331,6 +341,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 </div>
               )}
             </div>
+            {photoError && (
+              <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300">
+                {photoError}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <label className="space-y-1 text-sm">

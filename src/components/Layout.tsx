@@ -739,9 +739,13 @@ export const Layout: React.FC = () => {
   const handleSaveCurrentSgf = useCallback(async () => {
     const sgf = generateCurrentSgf();
     if (await saveLoadedLibraryFile(sgf)) return;
-    const saved = downloadSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
-    markCurrentGameCleanAndClearAutoSave(saved);
-    toast('Downloaded SGF.', 'success');
+    try {
+      const saved = downloadSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
+      markCurrentGameCleanAndClearAutoSave(saved);
+      toast('Downloaded SGF.', 'success');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Failed to download SGF.', 'error');
+    }
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveLoadedLibraryFile, sgfExportOptions, toast]);
 
   const openSaveToLibraryDialog = useCallback(async () => {
@@ -1281,7 +1285,12 @@ export const Layout: React.FC = () => {
       toast(error, 'error');
       return false;
     }
-    updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+    try {
+      updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+    } catch (uploadError) {
+      toast(uploadError instanceof Error ? uploadError.message : 'Could not load this model file.', 'error');
+      return false;
+    }
     const persisted = await savePersistedUploadedModel(file);
     toast(
       persisted

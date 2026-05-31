@@ -47,6 +47,7 @@ import { SectionHeader } from './layout/ui';
 import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils';
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { isMobileLayoutViewport } from '../utils/responsiveLayout';
+import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
@@ -777,24 +778,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleDownload = (item: LibraryFile) => {
     const blob = new Blob([item.sgf], { type: 'application/x-go-sgf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = librarySgfDownloadFilename(item.name);
-    link.click();
-    URL.revokeObjectURL(url);
+    if (!downloadBlobFile(blob, librarySgfDownloadFilename(item.name))) {
+      onToast('Failed to start SGF download.', 'error');
+      return;
+    }
     onToast(`Exported "${item.name}".`, 'success');
   };
 
   const handleBackupLibrary = () => {
     try {
       const blob = new Blob([createLibraryBackup(items)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `webkatrain-library-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
+      if (!downloadBlobFile(blob, `webkatrain-library-${new Date().toISOString().slice(0, 10)}.json`)) {
+        onToast('Failed to start library backup download.', 'error');
+        return;
+      }
       onToast('Library backup downloaded.', 'success');
     } catch {
       onToast('Failed to create library backup.', 'error');
@@ -802,12 +799,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
+    if (!downloadBlobFile(blob, filename)) {
+      throw new Error('Download unavailable');
+    }
   };
 
   const handleExportLibraryZip = async () => {

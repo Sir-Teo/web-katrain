@@ -11,6 +11,7 @@ import {
 } from '../src/utils/modelUpload';
 
 const originalIndexedDB = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
+const originalUrlDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'URL');
 
 function restoreIndexedDB() {
   if (originalIndexedDB) {
@@ -20,11 +21,20 @@ function restoreIndexedDB() {
   }
 }
 
+function restoreUrl() {
+  if (originalUrlDescriptor) {
+    Object.defineProperty(globalThis, 'URL', originalUrlDescriptor);
+  } else {
+    Reflect.deleteProperty(globalThis, 'URL');
+  }
+}
+
 describe('model upload helpers', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     resetModelUploadStateForTests();
     restoreIndexedDB();
+    restoreUrl();
   });
 
   it('recognizes KataGo weight file names', () => {
@@ -75,5 +85,18 @@ describe('model upload helpers', () => {
 
     expect(await savePersistedUploadedModel(new Blob(['weights'], { type: 'application/gzip' }))).toBe(false);
     await expect(restorePersistedUploadedModelUrl('/models/katago-small.bin.gz')).resolves.toBeNull();
+  });
+
+  it('throws a clear upload error when object URLs are unavailable', () => {
+    Object.defineProperty(globalThis, 'URL', {
+      configurable: true,
+      get() {
+        throw new Error('object urls blocked');
+      },
+    });
+
+    expect(() => createUploadedModelUrl(new Blob(['weights']), '/models/katago-small.bin.gz')).toThrow(
+      'Browser object URLs are unavailable'
+    );
   });
 });

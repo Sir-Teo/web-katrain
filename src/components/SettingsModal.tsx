@@ -202,10 +202,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             event.target.value = '';
             return;
         }
-        updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
-        const persisted = await savePersistedUploadedModel(file);
-        if (!persisted) {
-            setModelUploadError('Loaded for this session, but browser storage could not save the upload for reload.');
+        try {
+            updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+            const persisted = await savePersistedUploadedModel(file);
+            if (!persisted) {
+                setModelUploadError('Loaded for this session, but browser storage could not save the upload for reload.');
+            }
+        } catch (uploadError) {
+            setModelUploadError(uploadError instanceof Error ? uploadError.message : 'Could not load this model file.');
         }
         event.target.value = '';
     };

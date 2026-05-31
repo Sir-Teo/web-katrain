@@ -3,6 +3,7 @@ import { DEFAULT_BOARD_SIZE } from "../types";
 import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './katrainSgfAnalysis';
 import { encodeKayaKaFromAnalysis } from './kayaSgfAnalysis';
 import { createEmptyBoard, normalizeBoardSize } from './boardSize';
+import { downloadBlob } from './objectUrl';
 
 // KaTrain convention: auto-generated SGF comments are marked so user notes remain editable.
 export const KATRAIN_SGF_INTERNAL_COMMENTS_MARKER = "\u3164\u200b";
@@ -300,14 +301,9 @@ export const generateSgf = (gameState: GameState): string => {
 export const downloadSgf = (gameState: GameState) => {
     const sgfContent = generateSgf(gameState);
     const blob = new Blob([sgfContent], { type: 'application/x-go-sgf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `game_${new Date().getTime()}.sgf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (!downloadBlob(blob, `game_${new Date().getTime()}.sgf`)) {
+        throw new Error('Could not start SGF download in this browser.');
+    }
 };
 
 function escapeSgfValue(value: string): string {
@@ -561,14 +557,9 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
 export const downloadSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportOptions): string => {
     const sgfContent = generateSgfFromTree(rootNode, opts);
     const blob = new Blob([sgfContent], { type: 'application/x-go-sgf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = getSgfDownloadFilename(rootNode);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (!downloadBlob(blob, getSgfDownloadFilename(rootNode))) {
+        throw new Error('Could not start SGF download in this browser.');
+    }
     return sgfContent;
 };
 
