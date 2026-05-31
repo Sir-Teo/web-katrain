@@ -4278,6 +4278,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // board doesn't change
           analysisData: null,
           activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, newNode),
+          treeVersion: state.treeVersion + 1,
       });
 
       const after = get();

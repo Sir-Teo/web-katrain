@@ -11,12 +11,14 @@ describe('GameStore passTurn AI behavior', () => {
     const store = useGameStore.getState();
     store.resetGame();
 
+    const initialTreeVersion = useGameStore.getState().treeVersion;
     store.passTurn();
 
     const passNode = useGameStore.getState().currentNode;
     expect(passNode.move).toEqual({ x: -1, y: -1, player: 'black' });
     expect(passNode.parent?.children).toHaveLength(1);
     expect(useGameStore.getState().currentPlayer).toBe('white');
+    expect(useGameStore.getState().treeVersion).toBe(initialTreeVersion + 1);
 
     useGameStore.getState().navigateBack();
     useGameStore.getState().passTurn();
