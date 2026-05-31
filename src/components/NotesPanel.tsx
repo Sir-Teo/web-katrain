@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
+import { FaEdit, FaSave, FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { CandidateMove, FloatArray, Move, Player } from '../types';
 import { formatRootInfoText } from '../utils/gameInfoText';
+import { isNoteBulletLine, parseNoteInlinePreview, type NoteInlineSegment } from '../utils/notePreview';
 
 function moveToLabel(move: Move | null, boardSize: number): string {
   if (!move) return 'Root';
@@ -41,6 +43,65 @@ type NotesPanelProps = {
   detailed: boolean;
   showNotes: boolean;
 };
+
+function NoteInlinePreview({ segments }: { segments: NoteInlineSegment[] }) {
+  return (
+    <>
+      {segments.map((segment, index) => {
+        const key = `${segment.type}-${index}`;
+        if (segment.type === 'strong') return <strong key={key} className="font-semibold text-[var(--ui-text)]">{segment.text}</strong>;
+        if (segment.type === 'code') {
+          return (
+            <code key={key} className="rounded bg-[var(--ui-surface-2)] px-1 py-0.5 font-mono text-[0.92em] text-[var(--ui-text)]">
+              {segment.text}
+            </code>
+          );
+        }
+        if (segment.type === 'link') {
+          return (
+            <a
+              key={key}
+              href={segment.href}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--ui-accent)] underline decoration-[var(--ui-accent)]/50 underline-offset-2 hover:decoration-[var(--ui-accent)]"
+            >
+              {segment.text}
+            </a>
+          );
+        }
+        return <React.Fragment key={key}>{segment.text}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
+function NotePreview({ note }: { note: string }) {
+  const lines = note.replace(/\r\n?/g, '\n').split('\n');
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, index) => {
+        if (!line.trim()) return <div key={`blank-${index}`} className="h-2" aria-hidden="true" />;
+        const bullet = isNoteBulletLine(line);
+        if (bullet) {
+          return (
+            <div key={`line-${index}`} className="flex gap-2">
+              <span className="mt-[0.45em] h-1.5 w-1.5 flex-none rounded-full bg-[var(--ui-text-muted)]" aria-hidden="true" />
+              <span className="min-w-0">
+                <NoteInlinePreview segments={parseNoteInlinePreview(bullet.text)} />
+              </span>
+            </div>
+          );
+        }
+        return (
+          <p key={`line-${index}`} className="min-w-0">
+            <NoteInlinePreview segments={parseNoteInlinePreview(line)} />
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes }) => {
   const { rootNode, currentNode, setCurrentNodeNote, treeVersion, gameRules, isAnalysisMode, engineStatus, engineError } = useGameStore(
@@ -93,6 +154,50 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
 
   const showInfoBlock = showInfo || detailed;
   const showNotesBlock = showNotes;
+  const currentNote = currentNode.note ?? '';
+  const noteHasContent = currentNote.trim().length > 0;
+  const [isEditingNote, setIsEditingNote] = React.useState(() => !noteHasContent);
+  const [noteDraft, setNoteDraft] = React.useState(currentNote);
+  const noteTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const shouldFocusNoteRef = React.useRef(false);
+
+  React.useEffect(() => {
+    setNoteDraft(currentNote);
+    setIsEditingNote(!currentNote.trim());
+  }, [currentNode.id, currentNote]);
+
+  React.useEffect(() => {
+    if (!isEditingNote || !shouldFocusNoteRef.current) return;
+    shouldFocusNoteRef.current = false;
+    noteTextareaRef.current?.focus();
+  }, [isEditingNote]);
+
+  const startNoteEdit = () => {
+    setNoteDraft(currentNote);
+    shouldFocusNoteRef.current = true;
+    setIsEditingNote(true);
+  };
+
+  const saveNote = () => {
+    setCurrentNodeNote(noteDraft);
+    setIsEditingNote(false);
+  };
+
+  const cancelNoteEdit = () => {
+    setNoteDraft(currentNote);
+    setIsEditingNote(false);
+  };
+
+  const handleNoteKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    event.stopPropagation();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelNoteEdit();
+    } else if ((event.metaKey || event.ctrlKey) && (event.key === 'Enter' || event.key.toLowerCase() === 's')) {
+      event.preventDefault();
+      saveNote();
+    }
+  };
 
   const analysisStatusText = useMemo(() => {
     if (!isAnalysisMode) return 'Analysis off (Tab to enable)';
@@ -153,17 +258,69 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             'p-2 flex flex-col gap-2 min-h-0',
           ].join(' ')}
         >
-          <label className="text-xs font-semibold ui-text-faint">User Note (SGF C)</label>
-          <textarea
-            value={currentNode.note ?? ''}
-            onChange={(e) => setCurrentNodeNote(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
-            aria-label="User note"
-            data-note-editor="true"
-            placeholder="Write a note for this position…"
-            className="w-full min-h-[72px] max-h-44 ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-y"
-          />
-          <div className="text-[11px] ui-text-faint">Saved to SGF `C` and KaTrain-style comment markers are preserved on export.</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold ui-text-faint">Note</div>
+              <div className="text-[10px] font-mono ui-text-faint">SGF C</div>
+            </div>
+            {isEditingNote ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="panel-action-button"
+                  onClick={saveNote}
+                  title="Save note"
+                >
+                  <FaSave size={11} aria-hidden="true" />
+                  <span>Save</span>
+                </button>
+                <button
+                  type="button"
+                  className="panel-action-button"
+                  onClick={cancelNoteEdit}
+                  title="Cancel note edit"
+                >
+                  <FaTimes size={11} aria-hidden="true" />
+                  <span>Cancel</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="panel-action-button"
+                onClick={startNoteEdit}
+                title={noteHasContent ? 'Edit note' : 'Add note'}
+              >
+                <FaEdit size={11} aria-hidden="true" />
+                <span>{noteHasContent ? 'Edit' : 'Add'}</span>
+              </button>
+            )}
+          </div>
+          {isEditingNote ? (
+            <textarea
+              ref={noteTextareaRef}
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onKeyDown={handleNoteKeyDown}
+              aria-label="User note"
+              data-note-editor="true"
+              placeholder="Write a note for this position..."
+              className="w-full min-h-[88px] max-h-44 ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-y"
+            />
+          ) : (
+            <div
+              className="min-h-[88px] max-h-44 overflow-y-auto rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] p-2 text-sm leading-6 text-[var(--ui-text-muted)]"
+              data-note-preview="true"
+            >
+              {noteHasContent ? (
+                <NotePreview note={currentNote} />
+              ) : (
+                <div className="flex h-full min-h-[4.5rem] items-center justify-center text-xs ui-text-faint">
+                  No note yet
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
