@@ -4,7 +4,9 @@ import type { BoardSize, BoardState, Player } from '../types';
 import { BOARD_SIZES } from '../utils/boardSize';
 import {
   buildPhotoBoardSetupSgf,
+  computePhotoBoardDelta,
   findPhotoBoardMoveDelta,
+  type PhotoBoardDeltaStone,
   photoBoardStonesFromBoard,
   type PhotoBoardMoveDelta,
   type PhotoBoardStone,
@@ -92,6 +94,32 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     if (!onPlayMove || !currentBoard || !currentPlayer) return null;
     return findPhotoBoardMoveDelta({ currentBoard, boardSize, stones, currentPlayer });
   }, [boardSize, currentBoard, currentPlayer, onPlayMove, stones]);
+
+  const traceDelta = React.useMemo<PhotoBoardDeltaStone[]>(() => {
+    if (!currentBoard) return [];
+    return computePhotoBoardDelta({ currentBoard, boardSize, stones });
+  }, [boardSize, currentBoard, stones]);
+
+  const deltaCounts = React.useMemo(() => {
+    const countsByType = {
+      addedBlack: 0,
+      addedWhite: 0,
+      removedBlack: 0,
+      removedWhite: 0,
+    };
+    for (const item of traceDelta) {
+      if (item.type === 'added' && item.player === 'black') countsByType.addedBlack += 1;
+      else if (item.type === 'added' && item.player === 'white') countsByType.addedWhite += 1;
+      else if (item.type === 'removed' && item.player === 'black') countsByType.removedBlack += 1;
+      else if (item.type === 'removed' && item.player === 'white') countsByType.removedWhite += 1;
+    }
+
+    return {
+      ...countsByType,
+      total: traceDelta.length,
+    };
+  }, [traceDelta]);
+  const canCompareCurrentBoard = !!currentBoard && currentBoardSize === boardSize;
 
   React.useEffect(() => {
     return () => {
@@ -196,6 +224,16 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     mobileTab === tab
       ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
       : 'border-transparent text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+  ].join(' ');
+  const deltaChipClass = (tone: 'added' | 'removed' | 'matched' | 'move') => [
+    'rounded-full border px-2 py-1 text-[11px] font-semibold',
+    tone === 'added'
+      ? 'border-[var(--ui-success)] bg-[var(--ui-success-soft)] text-[var(--ui-success)]'
+      : tone === 'removed'
+        ? 'border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] text-[var(--ui-danger)]'
+        : tone === 'move'
+          ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
+          : 'border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)]',
   ].join(' ');
 
   return (
@@ -388,6 +426,50 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 </span>
               )}
             </div>
+
+            {currentBoard && (
+              <div
+                className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2"
+                data-photo-board-delta-summary="true"
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
+                    Current diff
+                  </div>
+                  <div className="text-xs ui-text-faint">
+                    {canCompareCurrentBoard ? `${deltaCounts.total} change${deltaCounts.total === 1 ? '' : 's'}` : 'Size mismatch'}
+                  </div>
+                </div>
+                {canCompareCurrentBoard ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {deltaCounts.total === 0 && (
+                      <span className={deltaChipClass('matched')}>Matched</span>
+                    )}
+                    {deltaCounts.addedBlack > 0 && (
+                      <span className={deltaChipClass('added')}>+B {deltaCounts.addedBlack}</span>
+                    )}
+                    {deltaCounts.addedWhite > 0 && (
+                      <span className={deltaChipClass('added')}>+W {deltaCounts.addedWhite}</span>
+                    )}
+                    {deltaCounts.removedBlack > 0 && (
+                      <span className={deltaChipClass('removed')}>-B {deltaCounts.removedBlack}</span>
+                    )}
+                    {deltaCounts.removedWhite > 0 && (
+                      <span className={deltaChipClass('removed')}>-W {deltaCounts.removedWhite}</span>
+                    )}
+                    {playMoveDelta && (
+                      <span className={deltaChipClass('move')}>
+                        Move {playMoveDelta.player === 'black' ? 'B' : 'W'} {gtpPoint(playMoveDelta.y * boardSize + playMoveDelta.x, boardSize)}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-[var(--ui-text-muted)]">
+                    Current board is {currentBoardSize ?? '?'}x{currentBoardSize ?? '?'}.
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3">
               <div className="flex flex-wrap items-center gap-3">

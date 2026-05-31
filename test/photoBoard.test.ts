@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPhotoBoardSetupSgf,
+  computePhotoBoardDelta,
   findPhotoBoardMoveDelta,
   isPhotoBoardImageFile,
   photoBoardStonesFromBoard,
@@ -86,6 +87,24 @@ describe('photo board SGF import', () => {
       y: 0,
       player: 'white',
     });
+  });
+
+  it('summarizes traced differences against the current board', () => {
+    const board = createEmptyBoard(9);
+    board[0]![0] = 'black';
+    board[0]![1] = 'white';
+    const stones = photoBoardStonesFromBoard(board, 9);
+
+    stones[0] = null;
+    stones[1] = 'black';
+    stones[2] = 'white';
+
+    expect(computePhotoBoardDelta({ currentBoard: board, boardSize: 9, stones })).toEqual([
+      { x: 0, y: 0, player: 'black', type: 'removed' },
+      { x: 1, y: 0, player: 'white', type: 'removed' },
+      { x: 1, y: 0, player: 'black', type: 'added' },
+      { x: 2, y: 0, player: 'white', type: 'added' },
+    ]);
   });
 
   it('rejects traced move deltas that are not exactly one current-player addition', () => {
