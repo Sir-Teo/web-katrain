@@ -268,7 +268,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             <div className="w-full max-w-[960px] h-[92dvh] sm:h-auto sm:max-h-[92dvh] ui-panel rounded-2xl shadow-2xl border overflow-hidden flex flex-col">
                 <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b ui-bar backdrop-blur">
                     <h2 className="text-lg sm:text-xl font-semibold text-[var(--ui-text)]">Settings</h2>
-                    <button onClick={onClose} className="ui-text-muted hover:text-white transition-colors">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="ui-text-muted hover:text-white transition-colors"
+                        aria-label="Close settings"
+                    >
                         <FaTimes />
                     </button>
                 </div>
@@ -315,9 +320,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     <div className="flex-1 overflow-y-auto space-y-6">  
                         {activeTab === 'general' && (  
                             <div
-                                id="panel-rules"
+                                id="panel-general"
                                 role="tabpanel"
-                                aria-labelledby="tab-rules"
+                                aria-labelledby="tab-general"
                                 tabIndex={0}
                             >  
                                 {/* Timer Section */}  
@@ -697,10 +702,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 
                         {activeTab === 'analysis' && (  
                             <div
-                                id="panel-rules"
+                                id="panel-analysis"
                                 role="tabpanel"
-                                aria-labelledby="tab-rules"
-                                tabIndex={1}
+                                aria-labelledby="tab-analysis"
+                                tabIndex={0}
                             >  
                                 {/* Analysis Overlays Section */}  
                                 <div className={sectionClass}>  
@@ -1008,10 +1013,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 
                         {activeTab === 'ai' && (  
                             <div
-                                id="panel-rules"
+                                id="panel-ai"
                                 role="tabpanel"
-                                aria-labelledby="tab-rules"
-                                tabIndex={2}
+                                aria-labelledby="tab-ai"
+                                tabIndex={0}
                             > 
                                 {/* AI Section */}  
                                 <div className={sectionClass}>  
@@ -1829,7 +1834,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 id="panel-shortcuts"
                                 role="tabpanel"
                                 aria-labelledby="tab-shortcuts"
-                                tabIndex={3}
+                                tabIndex={0}
                             >
                                 <ShortcutSettingsPanel />
                             </div>
