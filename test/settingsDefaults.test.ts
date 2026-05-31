@@ -10,4 +10,8 @@ describe('settings defaults', () => {
   it('enables gamepad review navigation by default', () => {
     expect(useGameStore.getState().settings.gamepadNavigation).toBe(true);
   });
+
+  it('enables fuzzy stone placement by default', () => {
+    expect(useGameStore.getState().settings.fuzzyStonePlacement).toBe(true);
+  });
 });

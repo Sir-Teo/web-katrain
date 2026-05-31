@@ -818,6 +818,7 @@ const defaultSettings: GameSettings = {
   showCoordinates: true,
   showMoveNumbers: false,
   showBoardControls: true,
+  fuzzyStonePlacement: true,
   showNextMovePreview: true,
   boardTheme: 'hikaru',
   uiTheme: 'noir',

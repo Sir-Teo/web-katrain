@@ -453,6 +453,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             />
                                         </div>
 
+                                        <div className={rowClass}>
+                                            <div>
+                                                <label className={labelClass}>Fuzzy Stone Placement</label>
+                                                <p className={subtextClass}>Stable Kaya-style stone offsets for a more natural board.</p>
+                                            </div>
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.fuzzyStonePlacement}
+                                                onChange={(e) => updateSettings({ fuzzyStonePlacement: e.target.checked })}
+                                                className="toggle"
+                                            />
+                                        </div>
+
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between gap-3">
                                                 <label className="ui-text-muted block">Board Theme</label>

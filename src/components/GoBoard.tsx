@@ -14,6 +14,7 @@ import {
   WHEEL_NAVIGATION_THROTTLE_MS,
 } from '../utils/wheelNavigation';
 import { getActiveChild } from '../utils/branchNavigation';
+import { fuzzyStoneOffset } from '../utils/fuzzyPlacement';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -567,8 +568,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         const radius = diameter / 2;
         const offsetX = parseEm(stoneConfig.imageOffsetX, stoneDiameter);
         const offsetY = parseEm(stoneConfig.imageOffsetY, stoneDiameter);
-        const left = cx - radius + offsetX;
-        const top = cy - radius + offsetY;
+        const fuzzy = fuzzyStoneOffset(boardSize, x, y, settings.fuzzyStonePlacement);
+        const stoneCx = cx + fuzzy.dxFactor * stoneDiameter;
+        const stoneCy = cy + fuzzy.dyFactor * stoneDiameter;
+        const left = stoneCx - radius + offsetX;
+        const top = stoneCy - radius + offsetY;
 
         const deadStoneKey = `${x},${y}`;
         const isDeadScoringStone = scoringMode && !!deadStones?.has(deadStoneKey);
@@ -625,7 +629,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         } else {
           ctx.beginPath();
           ctx.fillStyle = stoneConfig.backgroundColor ?? rgba(cell === 'black' ? STONE_COLORS.black : STONE_COLORS.white);
-          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.arc(stoneCx, stoneCy, radius, 0, Math.PI * 2);
           ctx.fill();
           const borderWidth = parseEm(stoneConfig.borderWidth, stoneDiameter);
           if (borderWidth > 0 && stoneConfig.borderColor) {
@@ -640,8 +644,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         if (showMark && markSize > 0) {
           ctx.fillStyle = rgba(markColor);
           ctx.strokeStyle = rgba(outlineColor);
-          const markLeft = cx - markSize / 2;
-          const markTop = cy - markSize / 2;
+          const markLeft = stoneCx - markSize / 2;
+          const markTop = stoneCy - markSize / 2;
           ctx.fillRect(markLeft, markTop, markSize, markSize);
           ctx.strokeRect(markLeft, markTop, markSize, markSize);
         }
@@ -653,25 +657,25 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           ctx.lineWidth = Math.max(2, stoneDiameter * 0.075);
           ctx.strokeStyle = 'rgba(12, 18, 28, 0.62)';
           ctx.beginPath();
-          ctx.moveTo(cx - cross, cy - cross);
-          ctx.lineTo(cx + cross, cy + cross);
-          ctx.moveTo(cx + cross, cy - cross);
-          ctx.lineTo(cx - cross, cy + cross);
+          ctx.moveTo(stoneCx - cross, stoneCy - cross);
+          ctx.lineTo(stoneCx + cross, stoneCy + cross);
+          ctx.moveTo(stoneCx + cross, stoneCy - cross);
+          ctx.lineTo(stoneCx - cross, stoneCy + cross);
           ctx.stroke();
           ctx.lineWidth = Math.max(2, stoneDiameter * 0.052);
           ctx.strokeStyle = 'rgba(251, 113, 133, 0.96)';
           ctx.beginPath();
-          ctx.moveTo(cx - cross, cy - cross);
-          ctx.lineTo(cx + cross, cy + cross);
-          ctx.moveTo(cx + cross, cy - cross);
-          ctx.lineTo(cx - cross, cy + cross);
+          ctx.moveTo(stoneCx - cross, stoneCy - cross);
+          ctx.lineTo(stoneCx + cross, stoneCy + cross);
+          ctx.moveTo(stoneCx + cross, stoneCy - cross);
+          ctx.lineTo(stoneCx - cross, stoneCy + cross);
           ctx.stroke();
           ctx.restore();
         }
 
         if (settings.showMoveNumbers && moveNumber != null) {
           ctx.fillStyle = 'rgba(217,173,102,0.8)';
-          ctx.fillText(String(moveNumber), cx, cy);
+          ctx.fillText(String(moveNumber), stoneCx, stoneCy);
         }
       }
     }
@@ -687,6 +691,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     originY,
     scoringMode,
     settings.analysisShowOwnership,
+    settings.fuzzyStonePlacement,
     settings.showMoveNumbers,
     setupOverlayCanvas,
     stoneTextureVersion,
