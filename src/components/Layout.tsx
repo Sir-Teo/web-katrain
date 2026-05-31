@@ -3,6 +3,7 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { AnalysisPanel } from './AnalysisPanel';
+import { AnalysisCommandBar } from './AnalysisCommandBar';
 import { EditToolbar } from './EditToolbar';
 import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
@@ -1078,6 +1079,12 @@ export const Layout: React.FC = () => {
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
   const scoreLead = analysisData?.rootScoreLead ?? currentNode.analysis?.rootScoreLead;
+  const showAnalysisCommandBar =
+    mode === 'analyze' ||
+    isAnalysisMode ||
+    isGameAnalysisRunning ||
+    typeof winRate === 'number' ||
+    typeof scoreLead === 'number';
   const totalMovesInCurrentLine = useMemo(() => {
     void treeVersion;
     return getCurrentLineMoveCount(currentNode, activeBranchChildIds);
@@ -2045,10 +2052,11 @@ export const Layout: React.FC = () => {
             {notification && (
               <NotificationToast notification={notification} onClose={clearNotification} />
             )}
-            <EditToolbar isMobile={isMobile} />
+            <EditToolbar isMobile={isMobile} analysisCommandBarVisible={showAnalysisCommandBar} />
             <ManualScorePanel
               active={scoringMode}
               disabled={isEditMode || isInsertMode || isSelectingRegionOfInterest}
+              commandBarOffset={isMobile && showAnalysisCommandBar}
               score={manualScoreEstimate}
               blackName={blackName}
               whiteName={whiteName}
@@ -2060,7 +2068,33 @@ export const Layout: React.FC = () => {
               onClear={clearManualDeadStones}
               onDone={() => setScoringMode(false)}
             />
-            <div className="flex-1 flex items-center justify-center min-h-0 min-w-0">
+            <AnalysisCommandBar
+              mode={mode}
+              isAnalysisMode={isAnalysisMode}
+              statusText={statusText}
+              engineDot={engineDot}
+              engineStatus={engineStatus}
+              engineError={engineError}
+              winRate={winRate ?? null}
+              scoreLead={scoreLead ?? null}
+              pointsLost={pointsLost}
+              analysisControls={modeControls}
+              updateControls={updateControls}
+              toggleAnalysisMode={toggleAnalysisMode}
+              isGameAnalysisRunning={isGameAnalysisRunning}
+              gameAnalysisType={gameAnalysisType}
+              gameAnalysisDone={gameAnalysisDone}
+              gameAnalysisTotal={gameAnalysisTotal}
+              startFastGameAnalysis={startFastGameAnalysis}
+              stopGameAnalysis={stopGameAnalysis}
+              onOpenGameReport={() => setIsGameReportOpen(true)}
+            />
+            <div
+              className={[
+                'flex-1 flex justify-center min-h-0 min-w-0',
+                isMobile && showAnalysisCommandBar ? 'items-start pt-2' : 'items-center',
+              ].join(' ')}
+            >
               <GoBoard
                 hoveredMove={activeHoverMove}
                 onHoverMove={setHoveredMove}

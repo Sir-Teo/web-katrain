@@ -5,6 +5,7 @@ import type { ManualScoreEstimate } from '../utils/scoring';
 interface ManualScorePanelProps {
   active: boolean;
   disabled?: boolean;
+  commandBarOffset?: boolean;
   score: ManualScoreEstimate;
   blackName: string;
   whiteName: string;
@@ -22,6 +23,7 @@ const formatScoreValue = (value: number): string => Number.isInteger(value) ? St
 export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   active,
   disabled = false,
+  commandBarOffset = false,
   score,
   blackName,
   whiteName,
@@ -37,7 +39,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
     return (
       <button
         type="button"
-        className="manual-score-launch"
+        className={['manual-score-launch', commandBarOffset ? 'manual-score-offset' : ''].join(' ')}
         onClick={onToggle}
         disabled={disabled}
         title={disabled ? 'Finish editing before scoring.' : 'Score position'}
@@ -52,7 +54,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   const leaderClass = score.scoreLead >= 0 ? 'black' : 'white';
 
   return (
-    <section className="manual-score-panel" aria-label="Manual score">
+    <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : ''].join(' ')} aria-label="Manual score">
       <div className="manual-score-header">
         <div className="manual-score-title">
           <FaCalculator size={13} />

@@ -655,6 +655,261 @@
     border-color: var(--ui-danger);
   }
 
+  .edit-toolbar--analysis-offset {
+    top: 8.25rem;
+  }
+
+  .analysis-command-bar {
+    position: relative;
+    z-index: 12;
+    display: grid;
+    grid-template-columns: minmax(8rem, auto) minmax(17rem, 1fr);
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    width: min(100%, 50rem);
+    min-height: 3.25rem;
+    margin: 0 auto 0.75rem;
+    padding: 0.5rem 0.625rem;
+    overflow: hidden;
+    color: var(--ui-text);
+    background: color-mix(in srgb, var(--ui-panel) 94%, transparent);
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  }
+
+  .analysis-command-bar__status {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.25rem;
+    color: var(--ui-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .analysis-command-bar__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+  }
+
+  .analysis-command-bar__status-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .analysis-command-bar__metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(5.5rem, 1fr));
+    min-width: 0;
+    gap: 0.375rem;
+  }
+
+  .analysis-command-bar__metric {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.125rem;
+    padding: 0.25rem 0.5rem;
+    border-left: 1px solid var(--ui-border);
+  }
+
+  .analysis-command-bar__value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--ui-font-mono);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .analysis-command-bar__value--win,
+  .analysis-command-bar__value--success {
+    color: var(--ui-success);
+  }
+
+  .analysis-command-bar__value--score,
+  .analysis-command-bar__value--warning {
+    color: var(--ui-warning);
+  }
+
+  .analysis-command-bar__value--danger {
+    color: var(--ui-danger);
+  }
+
+  .analysis-command-bar__value--muted {
+    color: var(--ui-text-muted);
+  }
+
+  .analysis-command-bar__label {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ui-text-faint);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .analysis-command-bar__actions {
+    display: flex;
+    align-items: center;
+    grid-column: 1 / -1;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    min-width: 0;
+  }
+
+  .analysis-command-bar__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 2.25rem;
+    max-width: none;
+    padding: 0.375rem 0.625rem;
+    overflow: hidden;
+    color: var(--ui-text-muted);
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .analysis-command-bar__button svg {
+    flex: 0 0 auto;
+  }
+
+  .analysis-command-bar__button span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .analysis-command-bar__button:hover:not(:disabled) {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+    border-color: var(--ui-border-strong);
+  }
+
+  .analysis-command-bar__button:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .analysis-command-bar__button.active {
+    color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+    border-color: var(--ui-accent);
+  }
+
+  .analysis-command-bar__button.danger {
+    color: var(--ui-danger);
+    background: var(--ui-danger-soft);
+    border-color: var(--ui-danger);
+  }
+
+  .analysis-command-bar__progress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: var(--ui-surface-2);
+  }
+
+  .analysis-command-bar__progress-fill {
+    display: block;
+    height: 100%;
+    background: var(--ui-accent);
+    transition: width 0.2s ease-out;
+  }
+
+  .analysis-command-bar__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 900px) {
+    .analysis-command-bar {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+      gap: 0.5rem;
+      min-height: 0;
+      margin-bottom: 0.5rem;
+    }
+
+    .analysis-command-bar__metrics {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .analysis-command-bar__actions {
+      justify-content: flex-start;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .analysis-command-bar__actions::-webkit-scrollbar {
+      display: none;
+    }
+
+    .analysis-command-bar__button {
+      flex: 0 0 auto;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .analysis-command-bar {
+      width: 100%;
+      padding: 0.375rem;
+      border-radius: 6px;
+    }
+
+    .analysis-command-bar__metric {
+      padding: 0.25rem 0.375rem;
+    }
+
+    .analysis-command-bar__value {
+      font-size: 0.875rem;
+    }
+
+    .analysis-command-bar__label {
+      font-size: 0.5625rem;
+    }
+
+    .analysis-command-bar__button {
+      min-height: 2.5rem;
+      padding-inline: 0.5rem;
+      font-size: 0.6875rem;
+    }
+  }
+
   .library-tree {
     display: flex;
     flex-direction: column;
@@ -929,6 +1184,10 @@
     font-weight: 700;
   }
 
+  .manual-score-offset {
+    top: 9rem;
+  }
+
   .manual-score-launch:hover:not(:disabled) {
     background: var(--ui-surface-2);
   }
@@ -1125,6 +1384,10 @@
     .manual-score-panel {
       left: 8px;
       top: 8px;
+    }
+
+    .manual-score-offset {
+      top: 9rem;
     }
 
     .manual-score-panel {
