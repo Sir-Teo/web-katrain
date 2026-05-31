@@ -23,7 +23,9 @@ const keyboardEvent = (key: string, init: Partial<KeyboardEventInit> = {}) =>
 describe('shortcut utilities', () => {
   it('formats shortcut bindings for help and settings', () => {
     expect(bindingToDisplay({ key: 's', ctrl: true })).toBe('Ctrl+S');
-    expect(shortcutDisplay([{ key: 'ArrowLeft' }, { key: 'z' }])).toBe('ArrowLeft / Z');
+    expect(bindingToDisplay({ key: 'ArrowLeft', shift: true })).toBe('Shift+←');
+    expect(bindingToDisplay({ key: 'Escape' })).toBe('Esc');
+    expect(shortcutDisplay([{ key: 'ArrowLeft' }, { key: 'z' }])).toBe('← / Z');
     expect(shortcutDisplay(null)).toBe('Disabled');
   });
 

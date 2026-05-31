@@ -30,8 +30,14 @@ export const ShortcutSettingsPanel: React.FC = () => {
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [recordingId, setRecordingId] = React.useState<string | null>(null);
   const [collision, setCollision] = React.useState<ShortcutCollisionState | null>(null);
+  const [confirmResetAll, setConfirmResetAll] = React.useState(false);
 
   const refresh = React.useCallback(() => setOverrides(loadShortcutOverrides()), []);
+  const hasCustomizations = Object.keys(overrides).length > 0;
+
+  React.useEffect(() => {
+    if (!hasCustomizations) setConfirmResetAll(false);
+  }, [hasCustomizations]);
 
   const handleRecordEvent = React.useCallback((event: KeyboardEvent | React.KeyboardEvent) => {
     const id = recordingId;
@@ -41,6 +47,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
     if (isShortcutRecordingCancelKey(event)) {
       setRecordingId(null);
       setCollision(null);
+      setConfirmResetAll(false);
       return;
     }
     const binding = eventToShortcutBinding(event);
@@ -60,6 +67,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
     setShortcutOverride(id, [binding]);
     setRecordingId(null);
     setCollision(null);
+    setConfirmResetAll(false);
     refresh();
   }, [overrides, recordingId, refresh]);
 
@@ -73,19 +81,29 @@ export const ShortcutSettingsPanel: React.FC = () => {
   const handleDisable = (id: string) => {
     setShortcutOverride(id, null);
     setCollision(null);
+    setConfirmResetAll(false);
     refresh();
   };
 
   const handleReset = (id: string) => {
     resetShortcutOverride(id);
     setCollision(null);
+    setConfirmResetAll(false);
     refresh();
+  };
+
+  const requestResetAll = () => {
+    if (!hasCustomizations) return;
+    setRecordingId(null);
+    setCollision(null);
+    setConfirmResetAll(true);
   };
 
   const handleResetAll = () => {
     resetAllShortcutOverrides();
     setCollision(null);
     setRecordingId(null);
+    setConfirmResetAll(false);
     refresh();
   };
 
@@ -94,6 +112,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
     replaceShortcutCollisionOverride(collision.targetId, collision.conflictId, collision.binding);
     setRecordingId(null);
     setCollision(null);
+    setConfirmResetAll(false);
     refresh();
   };
 
@@ -117,12 +136,40 @@ export const ShortcutSettingsPanel: React.FC = () => {
           </div>
           <button
             type="button"
-            className="px-3 py-2 rounded-lg ui-surface-2 border text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
-            onClick={handleResetAll}
+            className="px-3 py-2 rounded-lg ui-surface-2 border text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={requestResetAll}
+            disabled={!hasCustomizations}
+            data-shortcut-reset-all="true"
+            title={hasCustomizations ? 'Reset custom shortcuts' : 'No custom shortcuts'}
           >
             Reset all
           </button>
         </div>
+        {confirmResetAll && (
+          <div
+            className="mt-3 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] px-3 py-2 text-sm text-[var(--ui-warning)]"
+            data-shortcut-reset-confirm="true"
+          >
+            <div className="font-semibold">Reset custom shortcuts?</div>
+            <div className="mt-1 text-xs">Custom bindings and disabled commands will return to their defaults.</div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="px-3 py-2 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning)] text-xs font-semibold text-black"
+                onClick={handleResetAll}
+              >
+                Reset defaults
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
+                onClick={() => setConfirmResetAll(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {collision && (
           <div
             className="mt-3 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] px-3 py-2 text-sm text-[var(--ui-warning)]"
@@ -194,6 +241,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
                       onClick={() => {
                         setRecordingId(shortcut.id);
                         setCollision(null);
+                        setConfirmResetAll(false);
                       }}
                     >
                       {isRecording ? 'Press keys' : 'Record'}

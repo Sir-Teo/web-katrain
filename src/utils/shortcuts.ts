@@ -91,6 +91,31 @@ const normalizeBinding = (binding: ShortcutBinding): ShortcutBinding => ({
   alt: !!binding.alt,
 });
 
+const displayKey = (key: string): string => {
+  switch (key) {
+    case 'ArrowLeft':
+      return '←';
+    case 'ArrowRight':
+      return '→';
+    case 'ArrowUp':
+      return '↑';
+    case 'ArrowDown':
+      return '↓';
+    case 'Escape':
+      return 'Esc';
+    case 'PageUp':
+      return 'PgUp';
+    case 'PageDown':
+      return 'PgDn';
+    case 'Delete':
+      return 'Del';
+    case 'Space':
+      return 'Space';
+    default:
+      return key.length === 1 ? key.toUpperCase() : key;
+  }
+};
+
 const bindingKey = (binding: ShortcutBinding): string => {
   const b = normalizeBinding(binding);
   return `${b.ctrl ? 'C' : '-'}${b.shift ? 'S' : '-'}${b.alt ? 'A' : '-'}:${b.key}`;
@@ -102,8 +127,7 @@ export const bindingToDisplay = (binding: ShortcutBinding): string => {
   if (b.ctrl) parts.push('Ctrl');
   if (b.shift) parts.push('Shift');
   if (b.alt) parts.push('Alt');
-  const key = b.key === 'Space' ? 'Space' : b.key.length === 1 ? b.key.toUpperCase() : b.key;
-  parts.push(key);
+  parts.push(displayKey(b.key));
   return parts.join('+');
 };
 
