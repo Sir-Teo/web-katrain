@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
@@ -592,7 +592,7 @@ export const Layout: React.FC = () => {
     }
   }, [loadedLibraryFileId, loadedLibraryFileName, setLoadedLibraryFile, toast]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (cleanGameSgfRef.current === null) markCurrentGameClean();
   }, [markCurrentGameClean]);
 
