@@ -24,6 +24,7 @@ import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import type { AnalysisControlsState, UiMode, UiState } from './types';
 import type { MobileTab } from './MobileTabBar';
+import type { MoveInsight } from '../../utils/moveInsight';
 import { SectionHeader } from './ui';
 import { formatMoveLabel, panelCardBase, panelCardClosed, panelCardOpen, playerToShort } from './ui-utils';
 import { getBranchInfo, getCurrentLineNodes } from '../../utils/branchNavigation';
@@ -107,6 +108,7 @@ interface RightPanelProps {
   // Notes
   currentNode: GameNode;
   moveHistory: Move[];
+  currentMoveInsight?: MoveInsight | null;
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -165,6 +167,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   lockAiDetails,
   currentNode,
   moveHistory,
+  currentMoveInsight = null,
 }) => {
   const showTree = !isMobile || activeMobileTab === 'tree';
   const showAnalysis = !isMobile || activeMobileTab === 'info';
@@ -704,6 +707,16 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                           : 'Root'}
                       </span>
                     </div>
+                    {currentMoveInsight && (
+                      <div
+                        className="hidden sm:flex min-w-0 max-w-[14rem] items-center gap-1.5 rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2 py-1 text-[10px] text-[var(--ui-accent)]"
+                        title={currentMoveInsight.detail}
+                        data-panel-move-insight={currentMoveInsight.tone}
+                      >
+                        <span className="text-[var(--ui-text-faint)]">Shape</span>
+                        <span className="truncate font-semibold">{currentMoveInsight.label}</span>
+                      </div>
+                    )}
                     <div className="ml-auto flex items-center gap-1">
                       <button
                         type="button"

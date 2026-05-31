@@ -2,6 +2,7 @@ import React from 'react';
 import { FaBug, FaCheckCircle, FaExclamationTriangle, FaGamepad, FaSyncAlt } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { formatGamepadLabel } from '../../utils/gamepadLabel';
+import type { MoveInsight } from '../../utils/moveInsight';
 
 const ISSUE_REPORT_URL = 'https://github.com/Sir-Teo/web-katrain/issues/new/choose';
 
@@ -12,6 +13,7 @@ export type AutoSaveStatus = {
 
 interface StatusBarProps {
   moveName: string;
+  moveInsight?: MoveInsight | null;
   blackName: string;
   whiteName: string;
   komi: number;
@@ -38,6 +40,7 @@ function formatAutoSaveTime(savedAt: number): string {
 
 export const StatusBar: React.FC<StatusBarProps> = ({
   moveName,
+  moveInsight = null,
   blackName,
   whiteName,
   komi,
@@ -103,6 +106,17 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <div className="px-2 py-1 rounded bg-[var(--ui-surface-2)] text-[var(--ui-text)] font-semibold border border-[var(--ui-border)] shadow-sm">
           {moveName}
         </div>
+
+        {moveInsight && (
+          <div
+            className="px-2 py-1 rounded bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border border-[var(--ui-accent)] shadow-sm hidden lg:flex items-center gap-1.5 max-w-[240px]"
+            title={moveInsight.detail}
+            data-status-move-insight={moveInsight.tone}
+          >
+            <span className="text-[var(--ui-text-faint)]">Shape:</span>
+            <span className="truncate font-semibold">{moveInsight.label}</span>
+          </div>
+        )}
 
         <div className="px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border border-[var(--ui-border)] shadow-sm flex items-center gap-1.5 truncate max-w-[250px]" title={`${blackName} vs ${whiteName}`}>
           <span className="status-player status-player-black" aria-hidden="true" />

@@ -31,6 +31,7 @@ import { getEngineModelLabel } from '../utils/engineLabel';
 import { normalizeBoardSize } from '../utils/boardSize';
 import { PHOTO_BOARD_IMAGE_EXTENSIONS, isPhotoBoardImageFile } from '../utils/photoBoard';
 import { isEditableKeyboardTarget } from '../utils/keyboardTarget';
+import { getMoveInsight } from '../utils/moveInsight';
 import {
   createUploadedModelUrl,
   isKataGoModelWeightsFile,
@@ -1617,6 +1618,7 @@ export const Layout: React.FC = () => {
   const moveName = currentNode.move
     ? `Move ${moveHistory.length}: ${playerToShort(currentNode.move.player)} ${formatMoveLabel(currentNode.move.x, currentNode.move.y, boardSize)}`
     : 'Root';
+  const currentMoveInsight = getMoveInsight(currentNode.move, boardSize);
 
   const handleUndo = () => {
     const st = useGameStore.getState();
@@ -2217,6 +2219,7 @@ export const Layout: React.FC = () => {
           lockAiDetails={lockAiDetails}
           currentNode={currentNode}
           moveHistory={moveHistory}
+          currentMoveInsight={currentMoveInsight}
           isMobile={isMobile}
           activeMobileTab={mobileTab}
           showAnalysisSection={!isDesktop}
@@ -2319,6 +2322,7 @@ export const Layout: React.FC = () => {
       {!isMobile && (
         <StatusBar
           moveName={moveName}
+          moveInsight={currentMoveInsight}
           blackName={blackName}
           whiteName={whiteName}
           komi={komi}
