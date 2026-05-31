@@ -29,6 +29,7 @@ import { captureReportBoardSnapshot } from '../utils/reportBoardSnapshot';
 import { formatGameInfoPlayer, readRootInfoValue } from '../utils/gameInfoDisplay';
 import { setTimedNotification } from '../utils/timedNotification';
 import { afterAnimationFrames } from '../utils/animationFrame';
+import { printWindow } from '../utils/print';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -592,7 +593,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       }));
       setPdfSnapshots(snapshots);
       await afterAnimationFrames(2);
-      window.print();
+      if (!printWindow()) {
+        setTimedNotification('Print dialog unavailable in this browser.', 'error', 2500);
+      }
     } finally {
       setIsPreparingPdf(false);
     }
