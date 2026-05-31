@@ -27,6 +27,7 @@ import { captureBoardSnapshot } from '../utils/boardSnapshot';
 import { normalizeBoardSize } from '../utils/boardSize';
 import { captureReportBoardSnapshot } from '../utils/reportBoardSnapshot';
 import { formatGameInfoPlayer, readRootInfoValue } from '../utils/gameInfoDisplay';
+import { setTimedNotification } from '../utils/timedNotification';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -622,8 +623,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   const startPractice = (entry: MoveReportEntry) => {
     if (isInsertMode) {
-      useGameStore.setState({ notification: { message: 'Finish insert mode before starting mistake practice.', type: 'error' } });
-      window.setTimeout(() => useGameStore.setState({ notification: null }), 2500);
+      setTimedNotification('Finish insert mode before starting mistake practice.', 'error', 2500);
       return;
     }
 
@@ -634,13 +634,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       if (!latest.isInsertMode && latest.currentNode.children.length > 0) {
         latest.toggleInsertMode();
       }
-      useGameStore.setState({
-        notification: {
-          message: `Practice move ${entry.moveNumber}: try a correction for ${playerNames[entry.player]}.`,
-          type: 'info',
-        },
-      });
-      window.setTimeout(() => useGameStore.setState({ notification: null }), 2500);
+      setTimedNotification(`Practice move ${entry.moveNumber}: try a correction for ${playerNames[entry.player]}.`, 'info', 2500);
     }, 0);
     setReportHoverMove(null);
     onClose();

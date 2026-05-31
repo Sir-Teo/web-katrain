@@ -27,6 +27,7 @@ import {
 import { formatAnalysisScoreLead, summarizePointsLost } from '../utils/analysisSummary';
 import { getBestMoveSummary } from '../utils/bestMoveSummary';
 import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
+import { setTimedNotification } from '../utils/timedNotification';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -175,10 +176,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     if (nextVisits === liveVisits) return;
 
     updateSettings({ katagoVisits: nextVisits });
-    useGameStore.setState({
-      notification: { message: `Live analysis depth: ${nextVisits} visits`, type: 'info' },
-    });
-    window.setTimeout(() => useGameStore.setState({ notification: null }), 1800);
+    setTimedNotification(`Live analysis depth: ${nextVisits} visits`, 'info', 1800);
     if (isAnalysisMode) {
       window.setTimeout(() => {
         void useGameStore.getState().runAnalysis({ force: true, visits: nextVisits });

@@ -16,6 +16,7 @@ import {
 import { getActiveChild } from '../utils/branchNavigation';
 import { fuzzyStoneOffset } from '../utils/fuzzyPlacement';
 import { formatBoardMoveLabel } from '../utils/playedMoveQuality';
+import { setTimedNotification, type TimedNotificationType } from '../utils/timedNotification';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -288,9 +289,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     };
   }, [aiColor, isAiPlaying, settings.trainerEvalShowAi]);
 
-  const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info') => {
-    useGameStore.setState({ notification: { message, type } });
-    if (typeof window !== 'undefined') window.setTimeout(() => useGameStore.setState({ notification: null }), 2500);
+  const toast = useCallback((message: string, type: TimedNotificationType = 'info') => {
+    setTimedNotification(message, type, 2500);
   }, []);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
+import { setTimedNotification } from '../src/utils/timedNotification';
 
 describe('notification auto-dismiss timers', () => {
   beforeEach(() => {
@@ -36,5 +37,15 @@ describe('notification auto-dismiss timers', () => {
     vi.advanceTimersByTime(1200);
 
     expect(useGameStore.getState().notification).toBeNull();
+  });
+
+  it('guards component notification timers with the same identity check', () => {
+    setTimedNotification('Older component message', 'info', 2500);
+    const newerNotification = { message: 'Newer component message', type: 'success' as const };
+    useGameStore.setState({ notification: newerNotification });
+
+    vi.advanceTimersByTime(2500);
+
+    expect(useGameStore.getState().notification).toBe(newerNotification);
   });
 });
