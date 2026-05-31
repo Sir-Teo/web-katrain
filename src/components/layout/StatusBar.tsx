@@ -1,6 +1,7 @@
 import React from 'react';
-import { FaCheckCircle, FaExclamationTriangle, FaSyncAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaExclamationTriangle, FaGamepad, FaSyncAlt } from 'react-icons/fa';
 import { APP_BUILD_LABEL } from '../../utils/appInfo';
+import { formatGamepadLabel } from '../../utils/gamepadLabel';
 
 export type AutoSaveStatus = {
   state: 'pending' | 'saved' | 'failed';
@@ -212,8 +213,17 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       )}
 
       {gamepadName && (
-        <div className="px-2 py-1 rounded bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border border-[var(--ui-accent)] shadow-sm hidden lg:flex max-w-[220px] truncate" title={`Gamepad navigation: ${gamepadName}`}>
-          Gamepad
+        <div
+          className="px-2 py-1 rounded bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border border-[var(--ui-accent)] shadow-sm hidden lg:flex max-w-[280px] items-center gap-1.5 truncate"
+          title={`Gamepad navigation: ${gamepadName}`}
+          aria-label={`Gamepad navigation connected: ${gamepadName}`}
+          data-gamepad-status="connected"
+        >
+          <FaGamepad aria-hidden="true" />
+          <span className="font-semibold">Gamepad</span>
+          <span className="min-w-0 truncate font-mono text-[var(--ui-text-muted)]">
+            {formatGamepadLabel(gamepadName)}
+          </span>
         </div>
       )}
       </div>
