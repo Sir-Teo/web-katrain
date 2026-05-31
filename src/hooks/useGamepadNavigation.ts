@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getConnectedGamepad } from '../utils/gamepadAccess';
 import { getGamepadNavigationInput, type GamepadNavigationCommand } from '../utils/gamepadNavigation';
 
 export type GamepadNavigationStatus = {
@@ -27,7 +28,7 @@ export function useGamepadNavigation({
   }, [handlers]);
 
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined' || !navigator.getGamepads) {
+    if (!enabled || typeof window === 'undefined' || typeof navigator === 'undefined') {
       return;
     }
 
@@ -43,8 +44,7 @@ export function useGamepadNavigation({
     };
 
     const tick = () => {
-      const gamepads = Array.from(navigator.getGamepads?.() ?? []);
-      const gamepad = gamepads.find((pad): pad is Gamepad => !!pad && pad.connected);
+      const gamepad = getConnectedGamepad(navigator);
       updateStatus(gamepad?.id ?? null);
 
       if (gamepad) {
@@ -63,7 +63,7 @@ export function useGamepadNavigation({
     };
 
     const handleConnectChange = () => {
-      const gamepad = Array.from(navigator.getGamepads?.() ?? []).find((pad): pad is Gamepad => !!pad && pad.connected);
+      const gamepad = getConnectedGamepad(navigator);
       updateStatus(gamepad?.id ?? null);
     };
 
