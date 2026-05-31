@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FaDownload, FaRedo, FaWifi } from 'react-icons/fa';
-import { PWA_OFFLINE_READY_EVENT, PWA_UPDATE_READY_EVENT } from '../utils/pwa';
+import {
+  getPwaInstallDismissed,
+  isStandalonePwa,
+  PWA_OFFLINE_READY_EVENT,
+  PWA_UPDATE_READY_EVENT,
+  setPwaInstallDismissed,
+} from '../utils/pwa';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -20,16 +26,23 @@ export const PwaInstallBanner: React.FC = () => {
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
+      if (isStandalonePwa() || getPwaInstallDismissed()) return;
       setBanner({ type: 'install', prompt: event as BeforeInstallPromptEvent });
+    };
+    const onAppInstalled = () => {
+      setPwaInstallDismissed(false);
+      setBanner(null);
     };
     const onOfflineReady = () => setBanner((current) => current ?? { type: 'offline-ready' });
     const onUpdateReady = () => setBanner({ type: 'update-ready' });
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onAppInstalled);
     window.addEventListener(PWA_OFFLINE_READY_EVENT, onOfflineReady);
     window.addEventListener(PWA_UPDATE_READY_EVENT, onUpdateReady);
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onAppInstalled);
       window.removeEventListener(PWA_OFFLINE_READY_EVENT, onOfflineReady);
       window.removeEventListener(PWA_UPDATE_READY_EVENT, onUpdateReady);
     };
@@ -84,13 +97,18 @@ export const PwaInstallBanner: React.FC = () => {
     if (banner.type === 'install') {
       await banner.prompt.prompt();
       const choice = await banner.prompt.userChoice;
-      if (choice.outcome !== 'accepted') setBanner(null);
+      setPwaInstallDismissed(choice.outcome !== 'accepted');
+      setBanner(null);
       return;
     }
     if (banner.type === 'update-ready') {
       window.location.reload();
       return;
     }
+    setBanner(null);
+  };
+  const dismissBanner = () => {
+    if (banner.type === 'install') setPwaInstallDismissed(true);
     setBanner(null);
   };
 
@@ -102,7 +120,7 @@ export const PwaInstallBanner: React.FC = () => {
         <div className="pwa-install-detail">{detail}</div>
       </div>
       <div className="pwa-install-actions">
-        <button type="button" className="pwa-install-secondary" onClick={() => setBanner(null)}>
+        <button type="button" className="pwa-install-secondary" onClick={dismissBanner}>
           Dismiss
         </button>
         <button type="button" className="pwa-install-primary" onClick={() => void primaryAction()}>
