@@ -350,7 +350,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             >
               <span className="block font-mono text-xs">{preset}</span>
               <span className="block text-[10px] font-semibold uppercase tracking-wide">
-                {visitPresetLabel(preset, katagoVisits)}
+                {visitPresetLabel(preset)}
               </span>
             </button>
           );

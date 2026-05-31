@@ -25,6 +25,7 @@ describe('visit preset utilities', () => {
     expect(visitPresetLabel(16, 5000)).toBe('Fast');
     expect(visitPresetLabel(250, 5000)).toBe('Balanced');
     expect(visitPresetLabel(1000, 5000)).toBe('Deep');
+    expect(visitPresetLabel(5000)).toBe('Thorough');
   });
 
   it('cycles to the next merged live preset', () => {
