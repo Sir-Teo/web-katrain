@@ -1064,6 +1064,19 @@
     transition: width 0.2s ease-out;
   }
 
+  .analysis-command-bar__progress-caption {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: center;
+    margin-top: -0.125rem;
+    color: var(--ui-text-faint);
+    font-family: var(--ui-font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+  }
+
   .analysis-command-bar__sr {
     position: absolute;
     width: 1px;

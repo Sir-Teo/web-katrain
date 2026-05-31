@@ -15,6 +15,7 @@ import { formatAnalysisScoreLead, formatAnalysisWinRate, summarizePointsLost } f
 import { useGameStore } from '../store/gameStore';
 import { getTopMoveMetricLabel, nextTopMoveMetric } from '../utils/topMoveMetric';
 import { getBestMoveSummary } from '../utils/bestMoveSummary';
+import { summarizeGameAnalysisProgress } from '../utils/gameAnalysisProgress';
 import {
   ANALYSIS_MIN_VISITS,
   ANALYSIS_VISIT_PRESETS,
@@ -82,6 +83,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const depthPopoverRef = React.useRef<HTMLDivElement>(null);
   const [depthPopoverOpen, setDepthPopoverOpen] = React.useState(false);
   const [depthDraft, setDepthDraft] = React.useState('');
+  const [reviewStartedAt, setReviewStartedAt] = React.useState<number | null>(null);
+  const [reviewNow, setReviewNow] = React.useState(0);
   const shouldShow =
     mode === 'analyze' ||
     isAnalysisMode ||
@@ -90,13 +93,17 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     typeof scoreLead === 'number';
 
   const pointsSummary = summarizePointsLost(pointsLost);
-  const gameProgress =
-    isGameAnalysisRunning && gameAnalysisTotal > 0
-      ? `${gameAnalysisDone}/${gameAnalysisTotal}`
-      : null;
+  const gameProgress = isGameAnalysisRunning && gameAnalysisTotal > 0
+    ? summarizeGameAnalysisProgress({
+        done: gameAnalysisDone,
+        total: gameAnalysisTotal,
+        startedAtMs: reviewStartedAt,
+        nowMs: reviewNow,
+      })
+    : null;
   const liveButtonLabel = isAnalysisMode ? 'Live on' : 'Analyze';
   const gameButtonLabel = isGameAnalysisRunning
-    ? `Stop ${gameProgress ?? ''}`.trim()
+    ? `Stop ${gameProgress?.buttonLabel ?? ''}`.trim()
     : 'Fast review';
   const engineLabel = engineError
     ? 'Engine error'
@@ -165,6 +172,17 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   React.useEffect(() => {
     if (isGameAnalysisRunning) setDepthPopoverOpen(false);
   }, [isGameAnalysisRunning]);
+
+  React.useEffect(() => {
+    if (!isGameAnalysisRunning) {
+      setReviewStartedAt(null);
+      setReviewNow(0);
+      return;
+    }
+    const now = Date.now();
+    setReviewStartedAt((startedAt) => startedAt ?? now);
+    setReviewNow(now);
+  }, [isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal]);
 
   React.useEffect(() => {
     if (!depthPopoverOpen) return;
@@ -328,7 +346,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
             if (isGameAnalysisRunning) stopGameAnalysis();
             else startFastGameAnalysis();
           }}
-          title={isGameAnalysisRunning ? 'Stop game analysis' : 'Run a fast MCTS review of the game'}
+          title={isGameAnalysisRunning ? (gameProgress?.title ?? 'Stop game analysis') : 'Run a fast MCTS review of the game'}
         >
           {isGameAnalysisRunning ? <FaSquare size={12} aria-hidden="true" /> : <FaRobot size={12} aria-hidden="true" />}
           <span>{gameButtonLabel}</span>
@@ -396,6 +414,12 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
 
       {depthPopover}
 
+      {isGameAnalysisRunning && gameProgress && (
+        <div className="analysis-command-bar__progress-caption" title={gameProgress.title} aria-live="polite">
+          {gameProgress.captionLabel}
+        </div>
+      )}
+
       {isGameAnalysisRunning && gameAnalysisTotal > 0 && (
         <div className="analysis-command-bar__progress" aria-hidden="true">
           <span
@@ -407,7 +431,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
 
       {gameAnalysisType === 'fast' && (
         <div className="analysis-command-bar__sr" aria-live="polite">
-          Fast review in progress {gameProgress}
+          Fast review in progress {gameProgress?.captionLabel}
         </div>
       )}
     </div>
