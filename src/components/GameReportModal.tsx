@@ -740,11 +740,18 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
-      <div className="ui-panel rounded-2xl shadow-2xl w-[92vw] max-w-[56rem] max-h-[90dvh] overflow-hidden flex flex-col report-print border">
+      <div
+        className="ui-panel rounded-2xl shadow-2xl w-[92vw] max-w-[56rem] max-h-[90dvh] overflow-hidden flex flex-col report-print border"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-report-title"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--ui-border)] ui-bar">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">KaTrain Report</div>
-            <h2 className="text-lg font-semibold text-[var(--ui-text)]">Game Analysis Summary</h2>
+            <h2 id="game-report-title" className="text-lg font-semibold text-[var(--ui-text)]">
+              Game Analysis Summary
+            </h2>
           </div>
           <div className="flex items-center gap-2 print-hide">
             <button
