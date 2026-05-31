@@ -1521,7 +1521,7 @@
   }
 
   .mobile-safe-bottom {
-    padding-bottom: calc(var(--mobile-tabbar-height) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom));
   }
 
   .mobile-safe-area-bottom {
@@ -1821,7 +1821,7 @@
 
   @media (max-width: 1023px) {
     .pwa-install-banner {
-      bottom: calc(var(--mobile-tabbar-height) + var(--ui-bar-height) + max(12px, env(safe-area-inset-bottom)));
+      bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + max(12px, env(safe-area-inset-bottom)));
     }
   }
 

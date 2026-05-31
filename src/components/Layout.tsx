@@ -1667,14 +1667,18 @@ export const Layout: React.FC = () => {
   const saveControlLabel = loadedLibraryFileId ? 'Save to Library' : 'Save SGF';
   const desktopBottomControlsHeight =
     !isMobile && settings.showBoardControls && bottomBarOpen ? 'var(--ui-bar-height)' : '0px';
+  const mobileBottomControlsHeight =
+    isMobile && settings.showBoardControls && bottomBarOpen && mobileTab === 'board' ? 'var(--ui-bar-height)' : '0px';
 
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--desktop-bottom-controls-height', desktopBottomControlsHeight);
+    root.style.setProperty('--mobile-bottom-controls-height', mobileBottomControlsHeight);
     return () => {
       root.style.removeProperty('--desktop-bottom-controls-height');
+      root.style.removeProperty('--mobile-bottom-controls-height');
     };
-  }, [desktopBottomControlsHeight]);
+  }, [desktopBottomControlsHeight, mobileBottomControlsHeight]);
 
   return (
     <div
@@ -1984,7 +1988,7 @@ export const Layout: React.FC = () => {
         {/* Main board column */}
         <div
           className={['flex flex-col flex-1 min-w-0 min-h-0 w-full max-w-full relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
-          style={isMobile ? { paddingBottom: `calc(var(--mobile-tabbar-height) + ${settings.showBoardControls && bottomBarOpen && mobileTab === 'board' ? 'var(--ui-bar-height) + ' : ''}var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))` } : undefined}
+          style={isMobile ? { paddingBottom: 'calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))' } : undefined}
         >
           {topBarOpen && (
             <TopControlBar
