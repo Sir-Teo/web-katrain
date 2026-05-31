@@ -16,6 +16,7 @@ import {
   type MoveTreeViewport,
 } from '../utils/moveTreeLayout';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
+import { getWorkerConstructor } from '../utils/browserWorker';
 
 type LayoutWorkerResponse =
   | { requestId: number; ok: true; layout: MoveTreeLayout }
@@ -76,7 +77,8 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     return indexNodes(rootNode);
   }, [rootNode, treeVersion]);
 
-  const shouldUseWorker = typeof Worker !== 'undefined' && flatTree.length >= MOVE_TREE_LAYOUT_WORKER_THRESHOLD;
+  const workerConstructor = getWorkerConstructor();
+  const shouldUseWorker = workerConstructor !== null && flatTree.length >= MOVE_TREE_LAYOUT_WORKER_THRESHOLD;
   const layoutKey = `${rootNode.id}:${treeVersion}:${flatTree.length}:${layoutDirection}`;
   const syncLayout = useMemo(
     () => (shouldUseWorker ? null : computeMoveTreeLayout(flatTree, layoutDirection)),
@@ -110,7 +112,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   }, [layoutDirection]);
 
   useEffect(() => {
-    if (!shouldUseWorker) return;
+    if (!shouldUseWorker || !workerConstructor) return;
 
     const requestId = ++requestIdRef.current;
     const key = layoutKey;
@@ -120,7 +122,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     };
     try {
       if (!workerRef.current) {
-        workerRef.current = new Worker(new URL('../workers/moveTreeLayoutWorker.ts', import.meta.url), {
+        workerRef.current = new workerConstructor(new URL('../workers/moveTreeLayoutWorker.ts', import.meta.url), {
           type: 'module',
         });
       }
@@ -141,7 +143,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     } catch {
       queueMicrotask(applyFallback);
     }
-  }, [flatTree, layoutDirection, layoutKey, shouldUseWorker]);
+  }, [flatTree, layoutDirection, layoutKey, shouldUseWorker, workerConstructor]);
 
   useEffect(() => {
     return () => {
