@@ -26,6 +26,7 @@ import {
 } from '../utils/visitPresets';
 import { formatAnalysisScoreLead, summarizePointsLost } from '../utils/analysisSummary';
 import { getBestMoveSummary } from '../utils/bestMoveSummary';
+import { getPlayedMoveQuality } from '../utils/playedMoveQuality';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -155,10 +156,14 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   );
   const scoreLeadLabel = formatAnalysisScoreLead(scoreLead);
   const pointsSummary = summarizePointsLost(pointsLost);
-  const pointsSummaryToneClass = pointsSummaryClass(pointsSummary.tone);
+  const bestMoveAnalysis = currentNode.analysis ?? currentNode.parent?.analysis ?? null;
   const bestMoveSummary = React.useMemo(
-    () => getBestMoveSummary(currentNode.analysis, currentNode.gameState.board.length),
-    [currentNode.analysis, currentNode.gameState.board.length]
+    () => getBestMoveSummary(bestMoveAnalysis, currentNode.gameState.board.length),
+    [bestMoveAnalysis, currentNode.gameState.board.length]
+  );
+  const playedMoveQuality = React.useMemo(
+    () => getPlayedMoveQuality(currentNode, pointsLost),
+    [currentNode, pointsLost]
   );
   const applyLiveVisits = React.useCallback((visits: number) => {
     const nextVisits = clampAnalysisVisits(visits);
@@ -315,6 +320,35 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
       </div>
     ) : null;
+  const renderPlayedMoveReadout = (className: string, labelClassName = 'ui-text-faint') => {
+    const toneClass = pointsSummaryClass(playedMoveQuality?.tone ?? pointsSummary.tone);
+    if (playedMoveQuality) {
+      return (
+        <div
+          className={className}
+          title={playedMoveQuality.title}
+          data-analysis-played-move="true"
+        >
+          <div className={labelClassName}>Played</div>
+          <div className={['truncate font-mono text-sm', toneClass].join(' ')}>
+            {playedMoveQuality.playerLabel} {playedMoveQuality.moveLabel}
+          </div>
+          <div className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+            {[playedMoveQuality.rankLabel, playedMoveQuality.valueLabel].filter((part) => part !== '-').join(' · ')}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={className} title="Move quality">
+        <div className={labelClassName}>Quality</div>
+        <div className={['font-mono text-sm', toneClass].join(' ')}>
+          {pointsSummary.label}
+        </div>
+      </div>
+    );
+  };
   const graphReadout = (
     <div
       className="grid gap-1.5 text-[11px]"
@@ -326,6 +360,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         <div className="font-mono text-sm text-[var(--ui-text)]">{currentMoveNumber}</div>
       </div>
       {renderBestMoveReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
+      {renderPlayedMoveReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
       <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
         <div className="ui-text-faint">Winrate</div>
         <div className="font-mono text-sm text-[var(--ui-success)]">
@@ -336,12 +371,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         <div className="ui-text-faint">Score</div>
         <div className="font-mono text-sm text-[var(--ui-warning)]">
           {scoreLeadLabel}
-        </div>
-      </div>
-      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
-        <div className="ui-text-faint">Quality</div>
-        <div className={['font-mono text-sm', pointsSummaryToneClass].join(' ')}>
-          {pointsSummary.label}
         </div>
       </div>
     </div>
@@ -551,6 +580,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             </div>
             <div className="grid gap-2" style={readoutGridStyle}>
               {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
+              {renderPlayedMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
               <div className="px-2 py-1.5">
                 <div className="text-[11px] ui-text-faint">Winrate</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
@@ -561,12 +591,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                 <div className="text-[11px] ui-text-faint">Score</div>
                 <div className="font-mono text-sm text-[var(--ui-warning)]">
                   {scoreLeadLabel}
-                </div>
-              </div>
-              <div className="px-2 py-1.5">
-                <div className="text-[11px] ui-text-faint">Quality</div>
-                <div className={['font-mono text-sm', pointsSummaryToneClass].join(' ')}>
-                  {pointsSummary.label}
                 </div>
               </div>
             </div>
@@ -581,6 +605,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         ) : (
           <div className="grid gap-2" style={readoutGridStyle}>
             {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
+            {renderPlayedMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
             <div className="px-2 py-1.5">
               <div className="text-[11px] ui-text-faint">Winrate</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">
@@ -591,12 +616,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               <div className="text-[11px] ui-text-faint">Score</div>
               <div className="font-mono text-sm text-[var(--ui-warning)]">
                 {scoreLeadLabel}
-              </div>
-            </div>
-            <div className="px-2 py-1.5">
-              <div className="text-[11px] ui-text-faint">Quality</div>
-              <div className={['font-mono text-sm', pointsSummaryToneClass].join(' ')}>
-                {pointsSummary.label}
               </div>
             </div>
           </div>
