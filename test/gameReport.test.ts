@@ -7,6 +7,9 @@ import {
   getMovePhase,
   getPhaseThresholds,
   getPointLossBucket,
+  sortMoveReportEntries,
+  type MoveReportEntry,
+  type MovePolicyCategory,
 } from '../src/utils/gameReport';
 import type { AnalysisResult, CandidateMove } from '../src/types';
 
@@ -60,6 +63,32 @@ function buildAnalyzedPassGame(boardSize: 9 | 13 | 19, moves: number): void {
     });
     scoreLead = nextScoreLead;
   }
+}
+
+function reportEntry(args: {
+  moveNumber: number;
+  pointsLost: number;
+  category?: MovePolicyCategory;
+  relativePrior?: number;
+  rank?: number;
+}): MoveReportEntry {
+  return {
+    node: {} as MoveReportEntry['node'],
+    moveNumber: args.moveNumber,
+    player: 'black',
+    move: 'D4',
+    pointsLost: args.pointsLost,
+    phase: 'opening',
+    policy: args.category
+      ? {
+          rank: args.rank ?? 1,
+          playedPrior: args.relativePrior ?? 1,
+          topPrior: 1,
+          relativePrior: args.relativePrior ?? 1,
+          category: args.category,
+        }
+      : undefined,
+  };
 }
 
 describe('computeGameReport', () => {
@@ -340,6 +369,20 @@ describe('computeGameReport', () => {
       good: 1,
       total: 1,
     });
+  });
+
+  it('can sort report entries by loss or Kaya-style policy severity', () => {
+    const entries = [
+      reportEntry({ moveNumber: 1, pointsLost: 10, category: 'good', relativePrior: 0.55, rank: 3 }),
+      reportEntry({ moveNumber: 2, pointsLost: 2, category: 'blunder', relativePrior: 0, rank: 0 }),
+      reportEntry({ moveNumber: 3, pointsLost: 3, category: 'mistake', relativePrior: 0.03, rank: 21 }),
+      reportEntry({ moveNumber: 4, pointsLost: 20 }),
+      reportEntry({ moveNumber: 5, pointsLost: 1, category: 'mistake', relativePrior: 0.01, rank: 18 }),
+    ];
+
+    expect(sortMoveReportEntries(entries, 'loss').map((entry) => entry.moveNumber)).toEqual([4, 1, 3, 2, 5]);
+    expect(sortMoveReportEntries(entries, 'policy').map((entry) => entry.moveNumber)).toEqual([2, 5, 3, 1, 4]);
+    expect(entries.map((entry) => entry.moveNumber)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('filters report totals and top mistakes by phase', () => {

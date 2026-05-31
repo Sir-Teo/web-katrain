@@ -9,6 +9,8 @@ import {
   getPhaseLabel,
   getPhaseMoveRange,
   getPointLossBucket,
+  sortMoveReportEntries,
+  type GameReportMistakeSort,
   type GameReportPhaseFilter,
   type MoveReportEntry,
   type MovePolicyCategory,
@@ -123,6 +125,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [playerFilter, setPlayerFilter] = useState<'all' | Player>('all');
   const [bucketFilter, setBucketFilter] = useState<number | null>(null);
   const [policyFilter, setPolicyFilter] = useState<MovePolicyCategory | null>(null);
+  const [mistakeSort, setMistakeSort] = useState<GameReportMistakeSort>('loss');
   const [reviewQueue, setReviewQueue] = useState<MoveReportEntry[]>([]);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
@@ -355,9 +358,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       if (policyFilter && entry.policy?.category !== policyFilter) return false;
       return true;
     });
-    entries.sort((a, b) => b.pointsLost - a.pointsLost);
-    return entries;
-  }, [bucketFilter, playerFilter, policyFilter, report.moveEntries, report.thresholds]);
+    return sortMoveReportEntries(entries, mistakeSort);
+  }, [bucketFilter, mistakeSort, playerFilter, policyFilter, report.moveEntries, report.thresholds]);
   const topMistakes = useMemo(() => allMistakes.slice(0, 10), [allMistakes]);
   const pdfMistakes = topMistakes;
   const maxHist = Math.max(
@@ -598,7 +600,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   useEffect(() => {
     setPdfSnapshots([]);
-  }, [bucketFilter, playerFilter, phaseFilter, policyFilter, treeVersion]);
+  }, [bucketFilter, mistakeSort, playerFilter, phaseFilter, policyFilter, treeVersion]);
 
   useEffect(() => {
     setBucketFilter(null);
@@ -615,7 +617,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     setReviewQueue([]);
     setReviewIndex(0);
     setReportHoverMove(null);
-  }, [bucketFilter, phaseFilter, playerFilter, policyFilter, setReportHoverMove, treeVersion]);
+  }, [bucketFilter, mistakeSort, phaseFilter, playerFilter, policyFilter, setReportHoverMove, treeVersion]);
 
   useEffect(() => () => setReportHoverMove(null), [setReportHoverMove]);
 
@@ -951,8 +953,38 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           </div>
 
           <div className={sectionClass}>
-            <div className="flex items-center justify-between gap-2">
-              <div className={sectionTitleClass}>Biggest Mistakes</div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className={sectionTitleClass}>Biggest Mistakes</div>
+                <div
+                  className="inline-flex rounded-full border border-slate-700/60 bg-slate-950/40 p-0.5 print-hide"
+                  aria-label="Mistake sort order"
+                >
+                  {[
+                    { key: 'loss', label: 'Loss', title: 'Sort by point loss' },
+                    { key: 'policy', label: 'Quality', title: 'Sort by policy severity' },
+                  ].map((option) => {
+                    const active = mistakeSort === option.key;
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => setMistakeSort(option.key as GameReportMistakeSort)}
+                        aria-pressed={active}
+                        title={option.title}
+                        className={[
+                          'px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors',
+                          active
+                            ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
+                            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60',
+                        ].join(' ')}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => startReviewQueue(topMistakes)}

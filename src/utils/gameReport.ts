@@ -32,6 +32,7 @@ const POLICY_CLASSIFICATION_THRESHOLDS = {
 
 export type GameReportPhase = 'opening' | 'middleGame' | 'endgame';
 export type GameReportPhaseFilter = 'all' | GameReportPhase;
+export type GameReportMistakeSort = 'loss' | 'policy';
 
 export const GAME_REPORT_PHASES: Array<{ key: GameReportPhaseFilter; label: string }> = [
   { key: 'all', label: 'Entire Game' },
@@ -230,6 +231,52 @@ export type GameReport = {
   moveEntries: MoveReportEntry[];
   movesInFilter: number;
 };
+
+const POLICY_CATEGORY_SEVERITY: Record<MovePolicyCategory, number> = {
+  aiMove: 0,
+  good: 1,
+  inaccuracy: 2,
+  mistake: 3,
+  blunder: 4,
+};
+
+function policySeverity(entry: MoveReportEntry): number {
+  return entry.policy ? POLICY_CATEGORY_SEVERITY[entry.policy.category] : -1;
+}
+
+export function sortMoveReportEntries(
+  entries: MoveReportEntry[],
+  sort: GameReportMistakeSort = 'loss'
+): MoveReportEntry[] {
+  const sorted = [...entries];
+  if (sort === 'policy') {
+    sorted.sort((a, b) => {
+      const severityDiff = policySeverity(b) - policySeverity(a);
+      if (severityDiff !== 0) return severityDiff;
+
+      const aPrior = a.policy?.relativePrior ?? Number.POSITIVE_INFINITY;
+      const bPrior = b.policy?.relativePrior ?? Number.POSITIVE_INFINITY;
+      const priorDiff = aPrior - bPrior;
+      if (priorDiff !== 0) return priorDiff;
+
+      const rankDiff = (b.policy?.rank ?? -1) - (a.policy?.rank ?? -1);
+      if (rankDiff !== 0) return rankDiff;
+
+      const lossDiff = b.pointsLost - a.pointsLost;
+      if (lossDiff !== 0) return lossDiff;
+
+      return a.moveNumber - b.moveNumber;
+    });
+    return sorted;
+  }
+
+  sorted.sort((a, b) => {
+    const lossDiff = b.pointsLost - a.pointsLost;
+    if (lossDiff !== 0) return lossDiff;
+    return a.moveNumber - b.moveNumber;
+  });
+  return sorted;
+}
 
 export function computeGameReport(args: {
   currentNode: GameNode;
