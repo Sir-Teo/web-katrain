@@ -196,6 +196,8 @@ export type PlayerReportStats = {
   meanPtLoss?: number;
   weightedPtLoss?: number;
   totalPtLoss?: number;
+  meanPtSwing?: number;
+  totalPtSwing?: number;
   maxPtLoss?: number;
   aiTopMove?: number;
   aiTop5Move?: number;
@@ -344,6 +346,7 @@ export function computeGameReport(args: {
   const aiTop5MoveCount: Record<Player, number> = { black: 0, white: 0 };
   const aiApprovedMoveCount: Record<Player, number> = { black: 0, white: 0 };
   const playerPtLoss: Record<Player, number[]> = { black: [], white: [] };
+  const playerPtSwing: Record<Player, number[]> = { black: [], white: [] };
   const weights: Record<Player, Array<{ weight: number; adj: number }>> = { black: [], white: [] };
   const policyScores: Record<Player, number[]> = { black: [], white: [] };
   const policyDistributions: Record<Player, MovePolicyDistribution> = {
@@ -385,6 +388,7 @@ export function computeGameReport(args: {
     if (!parent || !cands || cands.length === 0) continue;
 
     playerPtLoss[player].push(pointsLost);
+    playerPtSwing[player].push(pointsGained - pointsLost);
     histogram[bucket]![player] += 1;
 
     const top = bestCandidateMove(cands);
@@ -452,6 +456,9 @@ export function computeGameReport(args: {
     const complexity = ws.reduce((a, w) => a + w.weight, 0) / pts.length;
     const totalPtLoss = pts.reduce((a, pt) => a + pt, 0);
     const meanPtLoss = totalPtLoss / pts.length;
+    const swings = playerPtSwing[player];
+    const totalPtSwing = swings.reduce((a, pt) => a + pt, 0);
+    const meanPtSwing = totalPtSwing / pts.length;
     const accuracy = 100 * Math.pow(0.75, weightedPtLoss);
     const policy = policyScores[player];
     acc[player] = {
@@ -461,6 +468,8 @@ export function computeGameReport(args: {
       meanPtLoss,
       weightedPtLoss,
       totalPtLoss,
+      meanPtSwing,
+      totalPtSwing,
       maxPtLoss: Math.max(...pts),
       aiTopMove: aiTopMoveCount[player] / pts.length,
       aiTop5Move: aiTop5MoveCount[player] / pts.length,

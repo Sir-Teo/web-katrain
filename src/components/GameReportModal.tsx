@@ -497,6 +497,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       value: (p) => fmtNum(report.stats[p].meanPtLoss, 2),
     },
     {
+      label: 'Avg point swing',
+      description: 'Average points gained minus points lost per analyzed move; positive values mean the player recovered more than they gave up.',
+      value: (p) => fmtSigned(report.stats[p].meanPtSwing, 2),
+    },
+    {
       label: 'Weighted point loss',
       description: 'Point loss weighted by position difficulty, matching KaTrain report semantics.',
       value: (p) => fmtNum(report.stats[p].weightedPtLoss, 2),
@@ -505,6 +510,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       label: 'Total point loss',
       description: 'Sum of point loss across analyzed moves in the active filters.',
       value: (p) => fmtNum(report.stats[p].totalPtLoss, 2),
+    },
+    {
+      label: 'Net point swing',
+      description: 'Total points gained minus points lost across analyzed moves in the active filters.',
+      value: (p) => fmtSigned(report.stats[p].totalPtSwing, 2),
     },
     {
       label: 'Max point loss',

@@ -159,6 +159,10 @@ describe('computeGameReport', () => {
     expect(report.stats.white.policyAccuracy).toBe(100);
     expect(report.stats.black.policyDistribution).toMatchObject({ aiMove: 1, total: 1 });
     expect(report.stats.white.policyDistribution).toMatchObject({ aiMove: 1, total: 1 });
+    expect(report.stats.black.totalPtSwing).toBe(-5);
+    expect(report.stats.black.meanPtSwing).toBe(-5);
+    expect(report.stats.white.totalPtSwing).toBe(1);
+    expect(report.stats.white.meanPtSwing).toBe(1);
 
     // Black points lost: 0 - (-5) = 5 -> bucket for ≥ 3 and < 6.
     // White points lost: -(( -5 ) - ( -6 )) = -1 -> clamped to 0 -> bucket < 0.5.
