@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  getServiceWorkerContainer,
   getPwaInstallDismissed,
   getServiceWorkerUrl,
+  hasServiceWorkerController,
   isStandalonePwa,
   PWA_INSTALL_DISMISSED_KEY,
+  runPwaInstallPrompt,
   setPwaInstallDismissed,
 } from '../src/utils/pwa';
 
@@ -66,5 +69,71 @@ describe('PWA helpers', () => {
     });
 
     expect(isStandalonePwa()).toBe(false);
+  });
+
+  it('treats missing or blocked service workers as unavailable', () => {
+    const blocked = {} as Navigator;
+    Object.defineProperty(blocked, 'serviceWorker', {
+      configurable: true,
+      get() {
+        throw new Error('service worker blocked');
+      },
+    });
+
+    const registering = {
+      register: vi.fn(),
+      controller: null,
+    } as unknown as ServiceWorkerContainer;
+
+    expect(getServiceWorkerContainer(null)).toBeNull();
+    expect(getServiceWorkerContainer({} as Navigator)).toBeNull();
+    expect(getServiceWorkerContainer(blocked)).toBeNull();
+    expect(getServiceWorkerContainer({ serviceWorker: registering } as Navigator)).toBe(registering);
+  });
+
+  it('checks service worker controllers without trusting property access', () => {
+    const controlled = { controller: {} as ServiceWorker } as Pick<ServiceWorkerContainer, 'controller'>;
+    const blocked = {} as Pick<ServiceWorkerContainer, 'controller'>;
+    Object.defineProperty(blocked, 'controller', {
+      configurable: true,
+      get() {
+        throw new Error('controller blocked');
+      },
+    });
+
+    expect(hasServiceWorkerController(null)).toBe(false);
+    expect(hasServiceWorkerController({ controller: null })).toBe(false);
+    expect(hasServiceWorkerController(blocked)).toBe(false);
+    expect(hasServiceWorkerController(controlled)).toBe(true);
+  });
+
+  it('resolves PWA install prompts without leaking rejected browser prompts', async () => {
+    await expect(
+      runPwaInstallPrompt({
+        prompt: vi.fn().mockResolvedValue(undefined),
+        userChoice: Promise.resolve({ outcome: 'accepted' as const }),
+      })
+    ).resolves.toBe('accepted');
+
+    await expect(
+      runPwaInstallPrompt({
+        prompt: vi.fn().mockResolvedValue(undefined),
+        userChoice: Promise.resolve({ outcome: 'dismissed' as const }),
+      })
+    ).resolves.toBe('dismissed');
+
+    await expect(
+      runPwaInstallPrompt({
+        prompt: vi.fn().mockRejectedValue(new Error('prompt blocked')),
+        userChoice: Promise.resolve({ outcome: 'accepted' as const }),
+      })
+    ).resolves.toBe('failed');
+
+    await expect(
+      runPwaInstallPrompt({
+        prompt: vi.fn().mockResolvedValue(undefined),
+        userChoice: Promise.reject(new Error('choice blocked')),
+      })
+    ).resolves.toBe('failed');
   });
 });

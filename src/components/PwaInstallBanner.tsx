@@ -5,6 +5,7 @@ import {
   isStandalonePwa,
   PWA_OFFLINE_READY_EVENT,
   PWA_UPDATE_READY_EVENT,
+  runPwaInstallPrompt,
   setPwaInstallDismissed,
 } from '../utils/pwa';
 
@@ -21,20 +22,30 @@ type BannerState =
 
 export const PwaInstallBanner: React.FC = () => {
   const [banner, setBanner] = useState<BannerState>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [isWorking, setIsWorking] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       if (isStandalonePwa() || getPwaInstallDismissed()) return;
+      setActionMessage(null);
       setBanner({ type: 'install', prompt: event as BeforeInstallPromptEvent });
     };
     const onAppInstalled = () => {
       setPwaInstallDismissed(false);
+      setActionMessage(null);
       setBanner(null);
     };
-    const onOfflineReady = () => setBanner((current) => current ?? { type: 'offline-ready' });
-    const onUpdateReady = () => setBanner({ type: 'update-ready' });
+    const onOfflineReady = () => {
+      setActionMessage(null);
+      setBanner((current) => current ?? { type: 'offline-ready' });
+    };
+    const onUpdateReady = () => {
+      setActionMessage(null);
+      setBanner({ type: 'update-ready' });
+    };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onAppInstalled);
@@ -92,12 +103,19 @@ export const PwaInstallBanner: React.FC = () => {
     : isUpdate
       ? 'Reload to use the newest study tools.'
       : 'App shell, board assets, TFJS WASM, and the bundled small model are cached.';
+  const displayedDetail = actionMessage ?? detail;
 
   const primaryAction = async () => {
     if (banner.type === 'install') {
-      await banner.prompt.prompt();
-      const choice = await banner.prompt.userChoice;
-      setPwaInstallDismissed(choice.outcome !== 'accepted');
+      setActionMessage(null);
+      setIsWorking(true);
+      const outcome = await runPwaInstallPrompt(banner.prompt);
+      setIsWorking(false);
+      if (outcome === 'failed') {
+        setActionMessage('Install prompt was blocked. Use your browser install menu when available.');
+        return;
+      }
+      setPwaInstallDismissed(outcome !== 'accepted');
       setBanner(null);
       return;
     }
@@ -109,6 +127,7 @@ export const PwaInstallBanner: React.FC = () => {
   };
   const dismissBanner = () => {
     if (banner.type === 'install') setPwaInstallDismissed(true);
+    setActionMessage(null);
     setBanner(null);
   };
 
@@ -117,14 +136,14 @@ export const PwaInstallBanner: React.FC = () => {
       <div className="pwa-install-icon">{icon}</div>
       <div className="min-w-0">
         <div className="pwa-install-title">{title}</div>
-        <div className="pwa-install-detail">{detail}</div>
+        <div className="pwa-install-detail">{displayedDetail}</div>
       </div>
       <div className="pwa-install-actions">
-        <button type="button" className="pwa-install-secondary" onClick={dismissBanner}>
+        <button type="button" className="pwa-install-secondary" onClick={dismissBanner} disabled={isWorking}>
           Dismiss
         </button>
-        <button type="button" className="pwa-install-primary" onClick={() => void primaryAction()}>
-          {isInstall ? 'Install' : isUpdate ? 'Reload' : 'OK'}
+        <button type="button" className="pwa-install-primary" onClick={() => void primaryAction()} disabled={isWorking}>
+          {isWorking ? 'Working...' : isInstall ? 'Install' : isUpdate ? 'Reload' : 'OK'}
         </button>
       </div>
     </div>

@@ -6,6 +6,20 @@ export const PWA_UPDATE_READY_EVENT = 'web-katrain:pwa-update-ready';
 export const PWA_INSTALL_DISMISSED_KEY = 'web-katrain:pwa-install-dismissed:v1';
 
 type PwaStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+type InstallPromptChoice = { outcome: 'accepted' | 'dismissed'; platform?: string };
+type InstallPromptLike = {
+  prompt: () => Promise<void> | void;
+  userChoice?: Promise<InstallPromptChoice>;
+};
+
+function getNavigator(target?: Navigator | null): Navigator | null {
+  if (target !== undefined) return target;
+  try {
+    return typeof globalThis.navigator === 'undefined' ? null : globalThis.navigator;
+  } catch {
+    return null;
+  }
+}
 
 function getStorage(storage?: PwaStorage | null): PwaStorage | null {
   if (storage !== undefined) return storage;
@@ -19,11 +33,41 @@ export function getServiceWorkerUrl(baseUrl: string): string {
 
 export function isStandalonePwa(): boolean {
   if (typeof window === 'undefined') return false;
+  const source = getNavigator();
   return (
     mediaQueryMatches('(display-mode: standalone)') ||
-    (typeof navigator !== 'undefined' &&
-      (navigator as Navigator & { standalone?: boolean }).standalone === true)
+    (source !== null && (source as Navigator & { standalone?: boolean }).standalone === true)
   );
+}
+
+export function getServiceWorkerContainer(target?: Navigator | null): ServiceWorkerContainer | null {
+  const source = getNavigator(target);
+  if (!source) return null;
+  try {
+    const serviceWorker = (source as Navigator & { serviceWorker?: ServiceWorkerContainer }).serviceWorker;
+    if (!serviceWorker || typeof serviceWorker.register !== 'function') return null;
+    return serviceWorker;
+  } catch {
+    return null;
+  }
+}
+
+export function hasServiceWorkerController(serviceWorker: Pick<ServiceWorkerContainer, 'controller'> | null): boolean {
+  try {
+    return !!serviceWorker?.controller;
+  } catch {
+    return false;
+  }
+}
+
+export async function runPwaInstallPrompt(prompt: InstallPromptLike): Promise<'accepted' | 'dismissed' | 'failed'> {
+  try {
+    await prompt.prompt();
+    const choice = prompt.userChoice ? await prompt.userChoice : null;
+    return choice?.outcome === 'accepted' ? 'accepted' : 'dismissed';
+  } catch {
+    return 'failed';
+  }
 }
 
 export function getPwaInstallDismissed(storage?: PwaStorage | null): boolean {
@@ -48,11 +92,12 @@ export function setPwaInstallDismissed(dismissed: boolean, storage?: PwaStorage 
 export function registerServiceWorker(): void {
   if (import.meta.env.DEV) return;
   if (typeof window === 'undefined') return;
-  if (!('serviceWorker' in navigator)) return;
+  const serviceWorker = getServiceWorkerContainer();
+  if (!serviceWorker) return;
 
   const swUrl = getServiceWorkerUrl(import.meta.env.BASE_URL || '/');
   window.addEventListener('load', () => {
-    navigator.serviceWorker
+    serviceWorker
       .register(swUrl, { scope: import.meta.env.BASE_URL || '/' })
       .then((registration) => {
         registration.addEventListener('updatefound', () => {
@@ -60,7 +105,7 @@ export function registerServiceWorker(): void {
           if (!worker) return;
           worker.addEventListener('statechange', () => {
             if (worker.state !== 'installed') return;
-            const eventName = navigator.serviceWorker.controller
+            const eventName = hasServiceWorkerController(serviceWorker)
               ? PWA_UPDATE_READY_EVENT
               : PWA_OFFLINE_READY_EVENT;
             window.dispatchEvent(new Event(eventName));

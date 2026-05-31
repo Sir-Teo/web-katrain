@@ -2225,6 +2225,13 @@
     filter: brightness(1.04);
   }
 
+  .pwa-install-primary:disabled,
+  .pwa-install-secondary:disabled {
+    cursor: wait;
+    opacity: 0.65;
+    filter: none;
+  }
+
   @media (max-width: 640px) {
     .pwa-install-banner {
       grid-template-columns: auto minmax(0, 1fr);
