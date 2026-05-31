@@ -1358,6 +1358,58 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 </div>
               </div>
               <div className="mt-6">
+                <div className="pdf-section-title">Policy Quality</div>
+                <div className={['mt-2 grid gap-3 text-xs', statsPlayers.length === 2 ? 'grid-cols-2' : 'grid-cols-1'].join(' ')}>
+                  {statsPlayers.map((player) => {
+                    const distribution = report.stats[player].policyDistribution;
+                    const total = distribution?.total ?? 0;
+                    return (
+                      <div key={`pdf-policy-${player}`} className="rounded border border-slate-300 p-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-semibold text-slate-900">{player === 'black' ? 'Black' : 'White'}</div>
+                          <div className="font-mono text-slate-700">Policy acc. {fmtNum(report.stats[player].policyAccuracy, 1)}</div>
+                        </div>
+                        <div className="mt-2 flex h-2 overflow-hidden rounded bg-slate-200">
+                          {total === 0 ? (
+                            <div className="h-full w-full bg-slate-300" />
+                          ) : (
+                            MOVE_POLICY_CATEGORIES
+                              .filter((category) => (distribution?.[category] ?? 0) > 0)
+                              .map((category) => {
+                                const count = distribution?.[category] ?? 0;
+                                return (
+                                  <div
+                                    key={`pdf-policy-${player}-${category}`}
+                                    className="h-full"
+                                    style={{
+                                      width: `${(count / total) * 100}%`,
+                                      backgroundColor: policyCategoryColor(category),
+                                    }}
+                                  />
+                                );
+                              })
+                          )}
+                        </div>
+                        <div className="mt-2 grid grid-cols-5 gap-1">
+                          {MOVE_POLICY_CATEGORIES.map((category) => {
+                            const count = distribution?.[category] ?? 0;
+                            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                            return (
+                              <div key={`pdf-policy-label-${player}-${category}`} className="min-w-0">
+                                <div className="truncate text-slate-600">{policyCategoryLabel(category)}</div>
+                                <div className="font-mono text-slate-900">
+                                  {count} ({pct}%)
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-6">
                 <div className="pdf-section-title">Critical Swings</div>
                 {turningPoints.length === 0 ? (
                   <div className="mt-2 text-sm text-slate-600">No major score swings match these filters.</div>
