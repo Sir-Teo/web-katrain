@@ -26,7 +26,7 @@ import {
 } from '../utils/visitPresets';
 import { formatAnalysisScoreLead, summarizePointsLost } from '../utils/analysisSummary';
 import { getBestMoveSummary } from '../utils/bestMoveSummary';
-import { getPlayedMoveQuality } from '../utils/playedMoveQuality';
+import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -118,6 +118,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
   const isAnalysisMode = useGameStore((state) => state.isAnalysisMode);
   const currentNode = useGameStore((state) => state.currentNode);
+  const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
   const [legendOpen, setLegendOpen] = React.useState(false);
   const graphMetrics = modePanels.graph;
@@ -164,6 +165,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const playedMoveQuality = React.useMemo(
     () => getPlayedMoveQuality(currentNode, pointsLost),
     [currentNode, pointsLost]
+  );
+  const nextMoveQuality = React.useMemo(
+    () => getNextMoveQuality(currentNode, activeBranchChildIds),
+    [activeBranchChildIds, currentNode]
   );
   const applyLiveVisits = React.useCallback((visits: number) => {
     const nextVisits = clampAnalysisVisits(visits);
@@ -320,21 +325,25 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
       </div>
     ) : null;
-  const renderPlayedMoveReadout = (className: string, labelClassName = 'ui-text-faint') => {
-    const toneClass = pointsSummaryClass(playedMoveQuality?.tone ?? pointsSummary.tone);
-    if (playedMoveQuality) {
+  const renderMoveQualityReadout = (className: string, labelClassName = 'ui-text-faint') => {
+    const displayedMoveQuality = playedMoveQuality ?? nextMoveQuality;
+    const qualityKind = playedMoveQuality ? 'played' : nextMoveQuality ? 'next' : 'quality';
+    const toneClass = pointsSummaryClass(displayedMoveQuality?.tone ?? pointsSummary.tone);
+    if (displayedMoveQuality) {
       return (
         <div
           className={className}
-          title={playedMoveQuality.title}
-          data-analysis-played-move="true"
+          title={qualityKind === 'next' ? `Next move: ${displayedMoveQuality.title}` : displayedMoveQuality.title}
+          data-analysis-move-quality={qualityKind}
+          data-analysis-played-move={qualityKind === 'played' ? 'true' : undefined}
+          data-analysis-next-move={qualityKind === 'next' ? 'true' : undefined}
         >
-          <div className={labelClassName}>Played</div>
+          <div className={labelClassName}>{qualityKind === 'next' ? 'Next' : 'Played'}</div>
           <div className={['truncate font-mono text-sm', toneClass].join(' ')}>
-            {playedMoveQuality.playerLabel} {playedMoveQuality.moveLabel}
+            {displayedMoveQuality.playerLabel} {displayedMoveQuality.moveLabel}
           </div>
           <div className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
-            {[playedMoveQuality.rankLabel, playedMoveQuality.valueLabel].filter((part) => part !== '-').join(' · ')}
+            {[displayedMoveQuality.rankLabel, displayedMoveQuality.valueLabel].filter((part) => part !== '-').join(' · ')}
           </div>
         </div>
       );
@@ -360,7 +369,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         <div className="font-mono text-sm text-[var(--ui-text)]">{currentMoveNumber}</div>
       </div>
       {renderBestMoveReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
-      {renderPlayedMoveReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
+      {renderMoveQualityReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
       <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
         <div className="ui-text-faint">Winrate</div>
         <div className="font-mono text-sm text-[var(--ui-success)]">
@@ -580,7 +589,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             </div>
             <div className="grid gap-2" style={readoutGridStyle}>
               {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
-              {renderPlayedMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
+              {renderMoveQualityReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
               <div className="px-2 py-1.5">
                 <div className="text-[11px] ui-text-faint">Winrate</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
@@ -605,7 +614,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         ) : (
           <div className="grid gap-2" style={readoutGridStyle}>
             {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
-            {renderPlayedMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
+            {renderMoveQualityReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
             <div className="px-2 py-1.5">
               <div className="text-[11px] ui-text-faint">Winrate</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">

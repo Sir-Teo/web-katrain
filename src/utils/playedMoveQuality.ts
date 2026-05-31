@@ -1,5 +1,6 @@
 import type { CandidateMove, GameNode, Move, Player } from '../types';
 import { summarizePointsLost, type PointsLostSummary } from './analysisSummary';
+import { getActiveChild, type ActiveBranchMap } from './branchNavigation';
 import { computeNodePointsLost } from './nodeAnalysis';
 
 export interface PlayedMoveQuality {
@@ -75,4 +76,12 @@ export function getPlayedMoveQuality(
     tone,
     title: titleParts.join(' - '),
   };
+}
+
+export function getNextMoveQuality(
+  node: GameNode,
+  activeBranches: ActiveBranchMap = {}
+): PlayedMoveQuality | null {
+  const nextNode = getActiveChild(node, activeBranches);
+  return nextNode ? getPlayedMoveQuality(nextNode) : null;
 }

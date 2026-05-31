@@ -30,7 +30,7 @@ import {
   visitSliderFillPercent,
 } from '../utils/visitPresets';
 import { ENGINE_MAX_VISITS } from '../engine/katago/limits';
-import { getPlayedMoveQuality } from '../utils/playedMoveQuality';
+import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
 
 interface AnalysisCommandBarProps {
   mode: UiMode;
@@ -78,6 +78,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const topMoveMetric = useGameStore((state) => state.settings.trainerTopMovesShow);
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
   const currentNode = useGameStore((state) => state.currentNode);
+  const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
   const depthButtonRef = React.useRef<HTMLButtonElement>(null);
   const depthPopoverRef = React.useRef<HTMLDivElement>(null);
@@ -129,14 +130,24 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     () => getPlayedMoveQuality(currentNode, pointsLost),
     [currentNode, pointsLost]
   );
+  const nextMoveQuality = React.useMemo(
+    () => getNextMoveQuality(currentNode, activeBranchChildIds),
+    [activeBranchChildIds, currentNode]
+  );
   const bestMoveSummary = React.useMemo(
     () => getBestMoveSummary(currentNode.analysis, currentNode.gameState.board.length),
     [currentNode.analysis, currentNode.gameState.board.length]
   );
-  const moveQualityTone = playedMoveQuality?.tone ?? pointsSummary.tone;
-  const moveQualityValue = playedMoveQuality?.valueLabel ?? pointsSummary.label;
-  const moveQualityLabel = playedMoveQuality?.detailLabel ?? 'Move quality';
-  const moveQualityTitle = playedMoveQuality?.title ?? 'Move quality';
+  const displayedMoveQuality = playedMoveQuality ?? nextMoveQuality;
+  const moveQualityKind = playedMoveQuality ? 'played' : nextMoveQuality ? 'next' : 'quality';
+  const moveQualityTone = displayedMoveQuality?.tone ?? pointsSummary.tone;
+  const moveQualityValue = displayedMoveQuality?.valueLabel ?? pointsSummary.label;
+  const moveQualityLabel = displayedMoveQuality
+    ? `${moveQualityKind === 'next' ? 'Next ' : ''}${displayedMoveQuality.detailLabel}`
+    : 'Move quality';
+  const moveQualityTitle = displayedMoveQuality
+    ? `${moveQualityKind === 'next' ? 'Next move: ' : ''}${displayedMoveQuality.title}`
+    : 'Move quality';
   const liveVisits = clampAnalysisVisits(katagoVisits);
   const liveVisitLabel = visitPresetLabel(liveVisits);
   const liveVisitCountLabel = formatVisitCount(liveVisits);
@@ -312,7 +323,11 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           </span>
           <span className="analysis-command-bar__label">Score lead</span>
         </div>
-        <div className="analysis-command-bar__metric" title={moveQualityTitle}>
+        <div
+          className="analysis-command-bar__metric"
+          title={moveQualityTitle}
+          data-analysis-move-quality={moveQualityKind}
+        >
           <span className={['analysis-command-bar__value', `analysis-command-bar__value--${moveQualityTone}`].join(' ')}>
             {moveQualityValue}
           </span>

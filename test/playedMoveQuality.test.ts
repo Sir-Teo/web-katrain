@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisResult, CandidateMove, GameNode, Move } from '../src/types';
-import { formatBoardMoveLabel, getPlayedMoveQuality } from '../src/utils/playedMoveQuality';
+import { formatBoardMoveLabel, getNextMoveQuality, getPlayedMoveQuality } from '../src/utils/playedMoveQuality';
 
 const board = (size = 19) => Array.from({ length: size }, () => Array.from({ length: size }, () => null));
 const territory = (size = 19) => Array.from({ length: size }, () => Array.from({ length: size }, () => 0));
@@ -109,6 +109,27 @@ describe('played move quality', () => {
       valueLabel: 'Gain 0.3',
       detailLabel: 'B L9',
       tone: 'success',
+    });
+  });
+
+  it('describes the active next move before stepping forward', () => {
+    const root = node({
+      move: null,
+      parent: null,
+      analysis: analysis([
+        candidate({ x: 3, y: 15, order: 0, pointsLost: 0 }),
+        candidate({ x: 15, y: 3, order: 1, pointsLost: 2.4 }),
+      ]),
+    });
+    const main = node({ move: { x: 3, y: 15, player: 'black' }, parent: root });
+    const variation = node({ move: { x: 15, y: 3, player: 'black' }, parent: root });
+    root.children.push(main, variation);
+
+    expect(getNextMoveQuality(root, { [root.id]: variation.id })).toMatchObject({
+      moveLabel: 'Q16',
+      playerLabel: 'B',
+      rank: 2,
+      valueLabel: 'Lost 2.4',
     });
   });
 });
