@@ -661,7 +661,7 @@
 
   .analysis-command-bar {
     position: relative;
-    z-index: 30;
+    z-index: 12;
     display: grid;
     grid-template-columns: minmax(8rem, auto) minmax(17rem, 1fr);
     align-items: center;
@@ -1094,6 +1094,7 @@
 
   @media (max-width: 640px) {
     .analysis-command-bar {
+      z-index: 30;
       width: 100%;
       padding: 0.375rem;
       border-radius: 6px;
