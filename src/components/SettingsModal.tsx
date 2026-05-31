@@ -91,10 +91,22 @@ const OFFICIAL_MODELS: Array<{
 
 const MIN_ANALYSIS_VISITS = 16;
 const FAST_REVIEW_VISIT_PRESETS = [16, 25, 50, 100] as const;
+const SETTINGS_TABS = [
+    { id: 'general', label: 'General' },
+    { id: 'analysis', label: 'Analysis' },
+    { id: 'ai', label: 'AI/Engine' },
+    { id: 'shortcuts', label: 'Shortcuts' },
+] as const;
+
+type SettingsTabId = typeof SETTINGS_TABS[number]['id'];
 
 function clampSettingsVisits(value: number): number {
     if (!Number.isFinite(value)) return MIN_ANALYSIS_VISITS;
     return Math.max(MIN_ANALYSIS_VISITS, Math.min(ENGINE_MAX_VISITS, Math.floor(value)));
+}
+
+function isSettingsTabId(value: string | null): value is SettingsTabId {
+    return SETTINGS_TABS.some((tab) => tab.id === value);
 }
 
 interface SettingsModalProps {
@@ -127,24 +139,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const [modelUploadError, setModelUploadError] = React.useState<string | null>(null);
     const shortcutLabels = useShortcutLabels(ANALYSIS_OVERLAY_SHORTCUT_IDS);
 
-    const [activeTab, setActiveTab] = React.useState(() => {
+    const [activeTab, setActiveTab] = React.useState<SettingsTabId>(() => {
         // Initialize from localStorage if available, otherwise default to "general"
         if (typeof window === 'undefined') {
             return 'general';
         }
         try {
             const stored = window.localStorage.getItem('settingsModalActiveTab');
-            return stored || 'general';
+            return isSettingsTabId(stored) ? stored : 'general';
         } catch {
             return 'general';
         }
     });
-    const tabs = [
-        { id: 'general', label: 'General' },
-        { id: 'analysis', label: 'Analysis' },
-        { id: 'ai', label: 'AI/Engine' },
-        { id: 'shortcuts', label: 'Shortcuts' },
-    ];
     React.useEffect(() => {
         if (typeof window === 'undefined') {
             return;
@@ -291,7 +297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         role="tablist"
                         aria-orientation="horizontal"
                     >
-                        {tabs.map((tab, index) => {
+                        {SETTINGS_TABS.map((tab, index) => {
                             const isActive = activeTab === tab.id;
                             return (
                                 <button
@@ -304,11 +310,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     onClick={() => setActiveTab(tab.id)}
                                     onKeyDown={(e) => {
                                         if (e.key === 'ArrowRight') {
-                                            const next = tabs[(index + 1) % tabs.length];
+                                            const next = SETTINGS_TABS[(index + 1) % SETTINGS_TABS.length];
                                             setActiveTab(next.id);
                                         }
                                         if (e.key === 'ArrowLeft') {
-                                            const prev = tabs[(index - 1 + tabs.length) % tabs.length];
+                                            const prev = SETTINGS_TABS[(index - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length];
                                             setActiveTab(prev.id);
                                         }
                                     }}
