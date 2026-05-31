@@ -1,7 +1,25 @@
+const OGS_HOSTS = new Set(['online-go.com', 'www.online-go.com']);
+
+const toOgsUrlCandidate = (text: string): URL | null => {
+  const trimmed = text.trim();
+  if (!trimmed || /\s/.test(trimmed)) return null;
+  try {
+    return new URL(trimmed);
+  } catch {
+    if (/^(?:www\.)?online-go\.com\//i.test(trimmed)) {
+      return new URL(`https://${trimmed}`);
+    }
+    return null;
+  }
+};
+
 export const extractOgsGameId = (url: string): string | null => {
   try {
-    const match = url.match(/online-go\.com\/game\/(\d+)/);
-    return match ? match[1] : null;
+    const candidate = toOgsUrlCandidate(url);
+    if (!candidate || !OGS_HOSTS.has(candidate.hostname.toLowerCase())) return null;
+    const [section, gameId] = candidate.pathname.split('/').filter(Boolean);
+    if (section !== 'game' || !gameId || !/^\d+$/.test(gameId)) return null;
+    return gameId;
   } catch {
     return null;
   }
