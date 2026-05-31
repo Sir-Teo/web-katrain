@@ -76,7 +76,7 @@ import { getResignResult } from '../utils/resign';
 import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutSize, isDesktopLayoutViewport, isMobileLayoutViewport } from '../utils/responsiveLayout';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery';
-import { readClipboardText, writeClipboardText } from '../utils/clipboard';
+import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -1385,25 +1385,12 @@ export const Layout: React.FC = () => {
 
   const handleCopySgf = async () => {
     const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
-    if (await writeClipboardText(sgf)) {
+    if (await copyTextToClipboard(sgf)) {
       toast('Copied SGF to clipboard.', 'success');
       return;
     }
 
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = sgf;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      toast('Copied SGF to clipboard.', 'success');
-    } catch {
-      toast('Copy failed (clipboard unavailable).', 'error');
-    }
+    toast('Copy failed (clipboard unavailable).', 'error');
   };
 
   const handlePasteSgf = () => {

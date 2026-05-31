@@ -31,7 +31,7 @@ import {
     validateModelUploadFile,
 } from '../utils/modelUpload';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
-import { writeClipboardText } from '../utils/clipboard';
+import { copyTextToClipboard } from '../utils/clipboard';
 
 const OFFICIAL_MODELS: Array<{
     label: string;
@@ -222,23 +222,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             }, 2000);
         };
 
-        if (await writeClipboardText(url)) {
+        if (await copyTextToClipboard(url)) {
             onCopied();
-            return;
-        }
-
-        try {
-            const input = document.createElement('input');
-            input.value = url;
-            input.style.position = 'fixed';
-            input.style.left = '-9999px';
-            document.body.appendChild(input);
-            input.select();
-            document.execCommand('copy');
-            document.body.removeChild(input);
-            onCopied();
-        } catch {
-            // Ignore copy failure.
         }
     };
 

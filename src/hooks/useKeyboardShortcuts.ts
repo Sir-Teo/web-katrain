@@ -7,7 +7,7 @@ import { eventMatchesShortcut, loadShortcutOverrides } from '../utils/shortcuts'
 import { toggleAppFullscreen } from '../utils/fullscreen';
 import { shouldIgnoreKeyboardShortcutTarget } from '../utils/keyboardTarget';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
-import { writeClipboardText } from '../utils/clipboard';
+import { copyTextToClipboard } from '../utils/clipboard';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
@@ -124,25 +124,12 @@ export function useKeyboardShortcuts({
 
       const copySgfToClipboard = async () => {
         const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
-        if (await writeClipboardText(sgf)) {
+        if (await copyTextToClipboard(sgf)) {
           toast('Copied SGF to clipboard.', 'success');
           return;
         }
 
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = sgf;
-          ta.style.position = 'fixed';
-          ta.style.left = '-9999px';
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          document.execCommand('copy');
-          document.body.removeChild(ta);
-          toast('Copied SGF to clipboard.', 'success');
-        } catch {
-          toast('Copy failed (clipboard unavailable).', 'error');
-        }
+        toast('Copy failed (clipboard unavailable).', 'error');
       };
 
       // File operations
