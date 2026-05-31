@@ -9,6 +9,7 @@ import {
   getPhaseLabel,
   getPhaseMoveRange,
   getPointLossBucket,
+  getReportTurningPoints,
   sortMoveReportEntries,
   type GameReportMistakeSort,
   type GameReportPhaseFilter,
@@ -30,6 +31,7 @@ interface GameReportModalProps {
 
 const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
 const HISTOGRAM_COLORS = ['#fb7185', '#f97316', '#f59e0b', '#84cc16', '#38bdf8', '#94a3b8'];
+const CRITICAL_SWING_THRESHOLD = 5;
 
 function fmtPct(x: number | undefined): string {
   if (typeof x !== 'number' || !Number.isFinite(x)) return '--';
@@ -39,6 +41,11 @@ function fmtPct(x: number | undefined): string {
 function fmtNum(x: number | undefined, digits = 2): string {
   if (typeof x !== 'number' || !Number.isFinite(x)) return '--';
   return x.toFixed(digits);
+}
+
+function fmtSigned(x: number | undefined, digits = 1): string {
+  if (typeof x !== 'number' || !Number.isFinite(x)) return '--';
+  return x > 0 ? `+${x.toFixed(digits)}` : x.toFixed(digits);
 }
 
 function fmtPolicyPct(value: number | undefined): string {
@@ -93,6 +100,11 @@ function policyCategoryColor(category: MovePolicyCategory): string {
     case 'blunder':
       return '#fb7185';
   }
+}
+
+function swingGainLabel(entry: MoveReportEntry): string {
+  const side = entry.scoreDelta >= 0 ? 'Black' : 'White';
+  return `${side} +${entry.scoreSwing.toFixed(1)}`;
 }
 
 export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setReportHoverMove }) => {
@@ -351,17 +363,24 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const coverage = totalMoves > 0 ? analyzedMoves / totalMoves : 0;
   const playerFilterLabel = playerFilter === 'all' ? 'All players' : playerFilter === 'black' ? 'Black' : 'White';
   const statsPlayers: Array<Player> = playerFilter === 'all' ? ['black', 'white'] : [playerFilter];
-  const allMistakes = useMemo(() => {
-    const entries = report.moveEntries.filter((entry) => {
+  const filteredReportEntries = useMemo(() => {
+    return report.moveEntries.filter((entry) => {
       if (playerFilter !== 'all' && entry.player !== playerFilter) return false;
       if (bucketFilter != null && getPointLossBucket(entry.pointsLost, report.thresholds) !== bucketFilter) return false;
       if (policyFilter && entry.policy?.category !== policyFilter) return false;
       return true;
     });
-    return sortMoveReportEntries(entries, mistakeSort);
-  }, [bucketFilter, mistakeSort, playerFilter, policyFilter, report.moveEntries, report.thresholds]);
+  }, [bucketFilter, playerFilter, policyFilter, report.moveEntries, report.thresholds]);
+  const allMistakes = useMemo(
+    () => sortMoveReportEntries(filteredReportEntries, mistakeSort),
+    [filteredReportEntries, mistakeSort]
+  );
   const topMistakes = useMemo(() => allMistakes.slice(0, 10), [allMistakes]);
   const pdfMistakes = topMistakes;
+  const turningPoints = useMemo(
+    () => getReportTurningPoints(filteredReportEntries, CRITICAL_SWING_THRESHOLD, 5),
+    [filteredReportEntries]
+  );
   const maxHist = Math.max(
     1,
     ...report.histogram.map((row) => Math.max(row.black, row.white))
@@ -950,6 +969,53 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="mt-2 text-xs text-slate-400">
               Score lead and winrate are from the current analysis data.
             </div>
+          </div>
+
+          <div className={sectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className={sectionTitleClass}>Critical Swings</div>
+              <span className="rounded-full border border-slate-700/60 bg-slate-950/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                {turningPoints.length} over {CRITICAL_SWING_THRESHOLD} pts
+              </span>
+            </div>
+            {turningPoints.length === 0 ? (
+              <div className="mt-2 text-sm text-slate-500">No major score swings match these filters.</div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {turningPoints.map((entry) => (
+                  <div
+                    key={`${entry.node.id}-swing-${entry.moveNumber}`}
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-950/30 px-3 py-2 text-xs"
+                  >
+                    <span className="font-mono font-semibold text-slate-100">#{entry.moveNumber}</span>
+                    <span className="rounded-full border border-slate-700/60 px-2 py-0.5 font-semibold text-slate-300">
+                      {entry.player === 'black' ? 'B' : 'W'} {entry.move}
+                    </span>
+                    <span className="font-mono text-slate-400">
+                      {fmtSigned(entry.scoreBefore)} {'->'} {fmtSigned(entry.scoreAfter)}
+                    </span>
+                    <span className={['font-mono font-semibold', entry.scoreDelta >= 0 ? 'text-slate-100' : 'text-slate-300'].join(' ')}>
+                      {swingGainLabel(entry)}
+                    </span>
+                    {entry.policy && (
+                      <span className={[
+                        'rounded-full border px-2 py-0.5 font-semibold',
+                        policyCategoryClass(entry.policy.category),
+                      ].join(' ')}>
+                        {policyCategoryLabel(entry.policy.category)} #{entry.policy.rank || '?'}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => jumpToNode(entry.node)}
+                      className="ml-auto rounded border border-slate-700/60 px-2 py-1 text-slate-200 hover:bg-slate-800/80 print-hide"
+                    >
+                      Jump
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className={sectionClass}>

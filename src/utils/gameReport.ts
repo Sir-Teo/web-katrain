@@ -209,6 +209,11 @@ export type MoveReportEntry = {
   player: Player;
   move: string;
   pointsLost: number;
+  pointsGained: number;
+  scoreBefore: number;
+  scoreAfter: number;
+  scoreDelta: number;
+  scoreSwing: number;
   phase: GameReportPhase;
   topMove?: string;
   topCandidate?: CandidateMove;
@@ -278,6 +283,21 @@ export function sortMoveReportEntries(
   return sorted;
 }
 
+export function getReportTurningPoints(
+  entries: MoveReportEntry[],
+  threshold = 5,
+  limit = 5
+): MoveReportEntry[] {
+  return [...entries]
+    .filter((entry) => entry.scoreSwing >= threshold)
+    .sort((a, b) => {
+      const swingDiff = b.scoreSwing - a.scoreSwing;
+      if (swingDiff !== 0) return swingDiff;
+      return a.moveNumber - b.moveNumber;
+    })
+    .slice(0, limit);
+}
+
 export function computeGameReport(args: {
   currentNode: GameNode;
   thresholds: number[];
@@ -324,11 +344,17 @@ export function computeGameReport(args: {
     movesInFilter += 1;
     const pointsLostRaw = computePointsLostStrict(n);
     if (pointsLostRaw == null) continue;
+    const parent = n.parent;
+    const parentScore = parent.analysis?.rootScoreLead;
+    const childScore = n.analysis?.rootScoreLead;
+    if (typeof parentScore !== 'number' || typeof childScore !== 'number') continue;
     const pointsLost = Math.max(0, pointsLostRaw);
+    const pointsGained = Math.max(0, -pointsLostRaw);
+    const scoreDelta = childScore - parentScore;
+    const scoreSwing = Math.abs(scoreDelta);
     const bucket = getPointLossBucket(pointsLost, thresholds);
     const player: Player = move.player;
 
-    const parent = n.parent;
     const cands = parent?.analysis?.moves;
     if (!parent || !cands || cands.length === 0) continue;
 
@@ -368,6 +394,11 @@ export function computeGameReport(args: {
       player,
       move: xyToGtp(move.x, move.y, boardSize),
       pointsLost,
+      pointsGained,
+      scoreBefore: parentScore,
+      scoreAfter: childScore,
+      scoreDelta,
+      scoreSwing,
       phase,
       topMove: top ? xyToGtp(top.x, top.y, boardSize) : undefined,
       topCandidate: top ?? undefined,

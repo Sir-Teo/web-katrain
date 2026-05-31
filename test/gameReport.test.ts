@@ -7,6 +7,7 @@ import {
   getMovePhase,
   getPhaseThresholds,
   getPointLossBucket,
+  getReportTurningPoints,
   sortMoveReportEntries,
   type MoveReportEntry,
   type MovePolicyCategory,
@@ -68,6 +69,7 @@ function buildAnalyzedPassGame(boardSize: 9 | 13 | 19, moves: number): void {
 function reportEntry(args: {
   moveNumber: number;
   pointsLost: number;
+  scoreSwing?: number;
   category?: MovePolicyCategory;
   relativePrior?: number;
   rank?: number;
@@ -78,6 +80,11 @@ function reportEntry(args: {
     player: 'black',
     move: 'D4',
     pointsLost: args.pointsLost,
+    pointsGained: 0,
+    scoreBefore: 0,
+    scoreAfter: args.scoreSwing ?? args.pointsLost,
+    scoreDelta: args.scoreSwing ?? args.pointsLost,
+    scoreSwing: Math.abs(args.scoreSwing ?? args.pointsLost),
     phase: 'opening',
     policy: args.category
       ? {
@@ -157,6 +164,13 @@ describe('computeGameReport', () => {
       playedPrior: 0.6,
       topPrior: 0.6,
       relativePrior: 1,
+    });
+    expect(report.moveEntries.find((entry) => entry.moveNumber === 1)).toMatchObject({
+      pointsGained: 0,
+      scoreBefore: 0,
+      scoreAfter: -5,
+      scoreDelta: -5,
+      scoreSwing: 5,
     });
     const blackTotal = report.histogram.reduce((acc, row) => acc + row.black, 0);
     const whiteTotal = report.histogram.reduce((acc, row) => acc + row.white, 0);
@@ -383,6 +397,17 @@ describe('computeGameReport', () => {
     expect(sortMoveReportEntries(entries, 'loss').map((entry) => entry.moveNumber)).toEqual([4, 1, 3, 2, 5]);
     expect(sortMoveReportEntries(entries, 'policy').map((entry) => entry.moveNumber)).toEqual([2, 5, 3, 1, 4]);
     expect(entries.map((entry) => entry.moveNumber)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('finds critical score swings by magnitude', () => {
+    const entries = [
+      reportEntry({ moveNumber: 1, pointsLost: 1, scoreSwing: 4.9 }),
+      reportEntry({ moveNumber: 2, pointsLost: 2, scoreSwing: 7 }),
+      reportEntry({ moveNumber: 3, pointsLost: 3, scoreSwing: -9 }),
+      reportEntry({ moveNumber: 4, pointsLost: 4, scoreSwing: 7 }),
+    ];
+
+    expect(getReportTurningPoints(entries, 5, 3).map((entry) => entry.moveNumber)).toEqual([3, 2, 4]);
   });
 
   it('filters report totals and top mistakes by phase', () => {
