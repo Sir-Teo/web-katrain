@@ -28,6 +28,7 @@ import {
   visitSliderFillPercent,
 } from '../utils/visitPresets';
 import { ENGINE_MAX_VISITS } from '../engine/katago/limits';
+import { getPlayedMoveQuality } from '../utils/playedMoveQuality';
 
 interface AnalysisCommandBarProps {
   mode: UiMode;
@@ -74,6 +75,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
 }) => {
   const topMoveMetric = useGameStore((state) => state.settings.trainerTopMovesShow);
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
+  const currentNode = useGameStore((state) => state.currentNode);
   const updateSettings = useGameStore((state) => state.updateSettings);
   const depthButtonRef = React.useRef<HTMLButtonElement>(null);
   const depthPopoverRef = React.useRef<HTMLDivElement>(null);
@@ -115,6 +117,14 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   };
   const topMoveMetricLabel = getTopMoveMetricLabel(topMoveMetric, 'short');
   const topMovesHiddenByPolicy = analysisControls.analysisShowPolicy;
+  const playedMoveQuality = React.useMemo(
+    () => getPlayedMoveQuality(currentNode, pointsLost),
+    [currentNode, pointsLost]
+  );
+  const moveQualityTone = playedMoveQuality?.tone ?? pointsSummary.tone;
+  const moveQualityValue = playedMoveQuality?.valueLabel ?? pointsSummary.label;
+  const moveQualityLabel = playedMoveQuality?.detailLabel ?? 'Move quality';
+  const moveQualityTitle = playedMoveQuality?.title ?? 'Move quality';
   const liveVisits = clampAnalysisVisits(katagoVisits);
   const liveVisitLabel = visitPresetLabel(liveVisits);
   const liveVisitCountLabel = formatVisitCount(liveVisits);
@@ -279,11 +289,11 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           </span>
           <span className="analysis-command-bar__label">Score lead</span>
         </div>
-        <div className="analysis-command-bar__metric">
-          <span className={['analysis-command-bar__value', `analysis-command-bar__value--${pointsSummary.tone}`].join(' ')}>
-            {pointsSummary.label}
+        <div className="analysis-command-bar__metric" title={moveQualityTitle}>
+          <span className={['analysis-command-bar__value', `analysis-command-bar__value--${moveQualityTone}`].join(' ')}>
+            {moveQualityValue}
           </span>
-          <span className="analysis-command-bar__label">Move quality</span>
+          <span className="analysis-command-bar__label">{moveQualityLabel}</span>
         </div>
       </div>
 
