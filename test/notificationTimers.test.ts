@@ -41,11 +41,28 @@ describe('notification auto-dismiss timers', () => {
 
   it('guards component notification timers with the same identity check', () => {
     setTimedNotification('Older component message', 'info', 2500);
+    vi.advanceTimersByTime(1000);
     const newerNotification = { message: 'Newer component message', type: 'success' as const };
     useGameStore.setState({ notification: newerNotification });
 
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(1500);
 
     expect(useGameStore.getState().notification).toBe(newerNotification);
+
+    vi.advanceTimersByTime(1000);
+
+    expect(useGameStore.getState().notification).toBeNull();
+  });
+
+  it('auto-dismisses store notifications that do not create their own timer', () => {
+    useGameStore.getState().toggleEditMode();
+
+    expect(useGameStore.getState().notification?.message).toBe('Edit mode: setup stones, labels, and markers are active.');
+
+    vi.advanceTimersByTime(2499);
+    expect(useGameStore.getState().notification?.message).toBe('Edit mode: setup stones, labels, and markers are active.');
+
+    vi.advanceTimersByTime(1);
+    expect(useGameStore.getState().notification).toBeNull();
   });
 });

@@ -157,6 +157,14 @@ interface GameStore extends GameState {
   startNewGame: (opts: { komi: number; rules: GameRules; boardSize: BoardSize; handicap: number }) => void;
 }
 
+type StoreNotification = NonNullable<GameStore['notification']>;
+
+const NOTIFICATION_AUTO_DISMISS_MS: Record<StoreNotification['type'], number> = {
+  info: 2500,
+  success: 2500,
+  error: 3500,
+};
+
 const createEmptyTerritory = (boardSize: number): number[][] =>
   Array.from({ length: boardSize }, () => Array.from({ length: boardSize }, () => 0));
 
@@ -4346,6 +4354,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
       boardRotation: (((state.boardRotation ?? 0) + 1) % 4) as 0 | 1 | 2 | 3,
     })),
 }));
+
+let notificationAutoDismissTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+useGameStore.subscribe((state, previousState) => {
+  if (state.notification === previousState.notification) return;
+  if (notificationAutoDismissTimer) {
+    globalThis.clearTimeout(notificationAutoDismissTimer);
+    notificationAutoDismissTimer = null;
+  }
+  const notification = state.notification;
+  if (!notification) return;
+  notificationAutoDismissTimer = globalThis.setTimeout(() => {
+    useGameStore.setState((latestState) => (
+      latestState.notification === notification ? { notification: null } : {}
+    ));
+  }, NOTIFICATION_AUTO_DISMISS_MS[notification.type]);
+});
 
 analysisQueue.subscribeCacheSize((queueCacheSize) => {
   useGameStore.setState((state) => ({
