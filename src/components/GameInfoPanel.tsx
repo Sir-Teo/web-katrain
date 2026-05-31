@@ -1,8 +1,17 @@
 import React from 'react';
 import { shallow } from 'zustand/shallow';
+import { FaCheck, FaEdit } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_BOARD_SIZE, type GameSettings } from '../types';
 import { getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
+import {
+  formatGameInfoPlayer,
+  formatKomiLabel,
+  formatRulesLabel,
+  getVisibleGameInfoDetails,
+  hasGameInfoMetadata,
+  readRootInfoValue,
+} from '../utils/gameInfoDisplay';
 
 type GameInfoField = {
   key: string;
@@ -24,6 +33,7 @@ const detailFields: GameInfoField[] = [
   { key: 'DT', label: 'Date', placeholder: 'YYYY-MM-DD' },
   { key: 'PC', label: 'Place', placeholder: 'Location' },
   { key: 'RE', label: 'Result', placeholder: 'B+R, W+2.5' },
+  { key: 'TM', label: 'Time', placeholder: 'Main time' },
 ];
 
 const inputClass =
@@ -55,6 +65,16 @@ export const GameInfoPanel: React.FC = () => {
   const [isEditingKomi, setIsEditingKomi] = React.useState(false);
   const [handicapInput, setHandicapInput] = React.useState(() => String(handicap));
   const [isEditingHandicap, setIsEditingHandicap] = React.useState(false);
+  const [isEditingInfo, setIsEditingInfo] = React.useState(false);
+  const title = readRootInfoValue(rootProps, 'GN') || 'Untitled game';
+  const blackName = readRootInfoValue(rootProps, 'PB');
+  const blackRank = readRootInfoValue(rootProps, 'BR');
+  const whiteName = readRootInfoValue(rootProps, 'PW');
+  const whiteRank = readRootInfoValue(rootProps, 'WR');
+  const visibleDetails = getVisibleGameInfoDetails(rootProps);
+  const hasMetadata = hasGameInfoMetadata(rootProps);
+  const blackDisplay = formatGameInfoPlayer(blackName, blackRank, 'Black');
+  const whiteDisplay = formatGameInfoPlayer(whiteName, whiteRank, 'White');
 
   React.useEffect(() => {
     if (!isEditingKomi) setKomiInput(String(komi));
@@ -129,8 +149,85 @@ export const GameInfoPanel: React.FC = () => {
     </label>
   );
 
-  return (
-    <div className="space-y-3">
+  const openInfoEditor = () => setIsEditingInfo(true);
+
+  const handleDisplayKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    handleKeyDown(e);
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openInfoEditor();
+    }
+  };
+
+  const renderDisplayMode = () => (
+    <div
+      role="button"
+      tabIndex={0}
+      className="w-full cursor-pointer text-left space-y-3 rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3 transition-colors hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-surface-2)]"
+      onClick={openInfoEditor}
+      onKeyDown={handleDisplayKeyDown}
+      aria-label="Edit game info"
+      data-game-info-display="true"
+    >
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{title}</div>
+        <div className="mt-1 text-[11px] ui-text-faint">
+          {hasMetadata ? 'Players, event, result' : 'No metadata yet'}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        <div className="flex min-w-0 items-center gap-2 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-neutral-900 ring-1 ring-white/20" aria-hidden="true" />
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Black</div>
+            <div className="truncate text-xs text-[var(--ui-text)]">{blackDisplay}</div>
+          </div>
+        </div>
+        <div className="flex min-w-0 items-center gap-2 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-white ring-1 ring-black/30" aria-hidden="true" />
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">White</div>
+            <div className="truncate text-xs text-[var(--ui-text)]">{whiteDisplay}</div>
+          </div>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-2">
+        <div className="min-w-0">
+          <dt className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Komi</dt>
+          <dd className="truncate text-xs text-[var(--ui-text)]">{formatKomiLabel(komi)}</dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Rules</dt>
+          <dd className="truncate text-xs text-[var(--ui-text)]">{formatRulesLabel(gameRules)}</dd>
+        </div>
+        {handicap > 0 ? (
+          <div className="min-w-0">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Handicap</dt>
+            <dd className="truncate text-xs text-[var(--ui-text)]">{handicap}</dd>
+          </div>
+        ) : null}
+      </dl>
+
+      {visibleDetails.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {visibleDetails.map((detail) => (
+            <span
+              key={detail.key}
+              className="min-w-0 max-w-full rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1 text-[11px] text-[var(--ui-text-muted)]"
+            >
+              <span className="font-semibold text-[var(--ui-text)]">{detail.label}:</span>{' '}
+              <span className="break-words">{detail.value}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const renderEditMode = () => (
+    <div className="space-y-3" data-game-info-edit-form="true">
       <div className="grid grid-cols-[minmax(0,1fr)_5rem] gap-2">
         {playerFields.map(renderField)}
       </div>
@@ -186,6 +283,32 @@ export const GameInfoPanel: React.FC = () => {
           </select>
         </label>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3" data-game-info-panel="true">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-xs font-semibold text-[var(--ui-text)]">
+            {isEditingInfo ? 'Editing game info' : 'Game summary'}
+          </div>
+          <div className="text-[10px] ui-text-faint">
+            {isEditingInfo ? 'SGF root metadata' : 'Players, rules, result'}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="panel-action-button inline-flex shrink-0 items-center gap-1"
+          onClick={() => setIsEditingInfo((current) => !current)}
+          aria-pressed={isEditingInfo}
+          data-game-info-edit-toggle="true"
+        >
+          {isEditingInfo ? <FaCheck size={11} aria-hidden="true" /> : <FaEdit size={11} aria-hidden="true" />}
+          {isEditingInfo ? 'Done' : 'Edit'}
+        </button>
+      </div>
+      {isEditingInfo ? renderEditMode() : renderDisplayMode()}
     </div>
   );
 };
