@@ -2072,7 +2072,7 @@
 
   .pwa-install-banner {
     position: fixed;
-    left: max(12px, env(safe-area-inset-left));
+    left: auto;
     right: max(12px, env(safe-area-inset-right));
     bottom: calc(var(--ui-bar-height) + var(--desktop-bottom-controls-height, 0px) + max(12px, env(safe-area-inset-bottom)));
     z-index: 45;
@@ -2080,9 +2080,10 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
-    max-width: 760px;
+    width: min(420px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
     box-sizing: border-box;
-    margin: 0 auto;
+    margin: 0;
     padding: 10px;
     border: 1px solid var(--ui-border-strong);
     border-radius: 8px;
@@ -2169,6 +2170,11 @@
 
   @media (max-width: 1023px) {
     .pwa-install-banner {
+      left: max(12px, env(safe-area-inset-left));
+      right: max(12px, env(safe-area-inset-right));
+      width: auto;
+      max-width: calc(100vw - 24px);
+      margin: 0 auto;
       bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + max(12px, env(safe-area-inset-bottom)));
     }
   }
