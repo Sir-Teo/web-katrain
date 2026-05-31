@@ -71,67 +71,71 @@ export function captureReportBoardSnapshot(args: {
   const boardSize = normalizeBoardSize(args.board.length, DEFAULT_BOARD_SIZE);
   if (boardSize <= 1) return null;
 
-  const canvas = document.createElement('canvas');
-  const scale = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-  canvas.width = BOARD_IMAGE_SIZE * scale;
-  canvas.height = BOARD_IMAGE_SIZE * scale;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.scale(scale, scale);
+  try {
+    const canvas = document.createElement('canvas');
+    const scale = typeof window === 'undefined' ? 1 : Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+    canvas.width = BOARD_IMAGE_SIZE * scale;
+    canvas.height = BOARD_IMAGE_SIZE * scale;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.scale(scale, scale);
 
-  const cell = (BOARD_IMAGE_SIZE - BOARD_PADDING * 2) / (boardSize - 1);
-  const lineStart = BOARD_PADDING;
-  const lineEnd = BOARD_IMAGE_SIZE - BOARD_PADDING;
+    const cell = (BOARD_IMAGE_SIZE - BOARD_PADDING * 2) / (boardSize - 1);
+    const lineStart = BOARD_PADDING;
+    const lineEnd = BOARD_IMAGE_SIZE - BOARD_PADDING;
 
-  ctx.fillStyle = '#d7a85f';
-  ctx.fillRect(0, 0, BOARD_IMAGE_SIZE, BOARD_IMAGE_SIZE);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fillRect(0, 0, BOARD_IMAGE_SIZE, BOARD_IMAGE_SIZE);
+    ctx.fillStyle = '#d7a85f';
+    ctx.fillRect(0, 0, BOARD_IMAGE_SIZE, BOARD_IMAGE_SIZE);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(0, 0, BOARD_IMAGE_SIZE, BOARD_IMAGE_SIZE);
 
-  ctx.strokeStyle = 'rgba(44, 24, 16, 0.78)';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < boardSize; i++) {
-    const p = BOARD_PADDING + i * cell;
-    ctx.beginPath();
-    ctx.moveTo(lineStart, p);
-    ctx.lineTo(lineEnd, p);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(p, lineStart);
-    ctx.lineTo(p, lineEnd);
-    ctx.stroke();
-  }
+    ctx.strokeStyle = 'rgba(44, 24, 16, 0.78)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < boardSize; i++) {
+      const p = BOARD_PADDING + i * cell;
+      ctx.beginPath();
+      ctx.moveTo(lineStart, p);
+      ctx.lineTo(lineEnd, p);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p, lineStart);
+      ctx.lineTo(p, lineEnd);
+      ctx.stroke();
+    }
 
-  ctx.fillStyle = 'rgba(44, 24, 16, 0.78)';
-  for (const [x, y] of starPoints(boardSize)) {
-    const { px, py } = boardPoint(x, y, cell);
-    ctx.beginPath();
-    ctx.arc(px, py, 4.2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const stoneRadius = Math.max(10, cell * 0.44);
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      const stone = args.board[y]?.[x];
-      if (!stone) continue;
+    ctx.fillStyle = 'rgba(44, 24, 16, 0.78)';
+    for (const [x, y] of starPoints(boardSize)) {
       const { px, py } = boardPoint(x, y, cell);
-      drawStone(ctx, px, py, stoneRadius, stone);
+      ctx.beginPath();
+      ctx.arc(px, py, 4.2, 0, Math.PI * 2);
+      ctx.fill();
     }
-  }
 
-  if (args.playedMove && args.playedMove.x >= 0 && args.playedMove.y >= 0) {
-    const { px, py } = boardPoint(args.playedMove.x, args.playedMove.y, cell);
-    drawRing(ctx, px, py, stoneRadius * 0.72, '#ef4444');
-  }
-
-  if (args.bestMove) {
-    const best = parseGtpMove(args.bestMove, boardSize);
-    if (best?.kind === 'move') {
-      const { px, py } = boardPoint(best.x, best.y, cell);
-      drawSquare(ctx, px, py, stoneRadius * 0.72, '#16a34a');
+    const stoneRadius = Math.max(10, cell * 0.44);
+    for (let y = 0; y < boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        const stone = args.board[y]?.[x];
+        if (!stone) continue;
+        const { px, py } = boardPoint(x, y, cell);
+        drawStone(ctx, px, py, stoneRadius, stone);
+      }
     }
-  }
 
-  return canvas.toDataURL('image/png');
+    if (args.playedMove && args.playedMove.x >= 0 && args.playedMove.y >= 0) {
+      const { px, py } = boardPoint(args.playedMove.x, args.playedMove.y, cell);
+      drawRing(ctx, px, py, stoneRadius * 0.72, '#ef4444');
+    }
+
+    if (args.bestMove) {
+      const best = parseGtpMove(args.bestMove, boardSize);
+      if (best?.kind === 'move') {
+        const { px, py } = boardPoint(best.x, best.y, cell);
+        drawSquare(ctx, px, py, stoneRadius * 0.72, '#16a34a');
+      }
+    }
+
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
 }
