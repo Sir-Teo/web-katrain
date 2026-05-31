@@ -6,7 +6,6 @@ import { AnalysisPanel } from './AnalysisPanel';
 import { EditToolbar } from './EditToolbar';
 import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
-import { FaTimes } from 'react-icons/fa';
 import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { LibraryFile } from '../utils/library';
@@ -37,6 +36,7 @@ import { BottomControlBar } from './layout/BottomControlBar';
 import { RightPanel } from './layout/RightPanel';
 import { StatusBar } from './layout/StatusBar';
 import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
+import { NotificationToast } from './layout/NotificationToast';
 import { LibraryPanel } from './LibraryPanel';
 import { MobileHome } from './MobileHome';
 import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
@@ -1895,12 +1895,7 @@ export const Layout: React.FC = () => {
           {/* Board */}
           <div className={['flex-1 flex flex-col justify-center ui-bg overflow-hidden relative', isMobile ? 'p-2 sm:p-3 pb-0' : 'p-4 xl:p-6'].join(' ')}>
             {notification && (
-              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg flex items-center space-x-4 ui-panel border">
-                <span>{notification.message}</span>
-                <button onClick={clearNotification} className="hover:text-white">
-                  <FaTimes />
-                </button>
-              </div>
+              <NotificationToast notification={notification} onClose={clearNotification} />
             )}
             <EditToolbar isMobile={isMobile} />
             <ManualScorePanel
