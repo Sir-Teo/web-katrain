@@ -80,6 +80,13 @@ describe('shortcut utilities', () => {
     expect(getShortcutBindings('toggle-bottom-bar', {})).toEqual([{ key: 'u', ctrl: true, shift: true, alt: false }]);
   });
 
+  it('keeps settings available on both conventional and legacy shortcuts', () => {
+    expect(getShortcutBindings('settings-modal', {})).toEqual([
+      { key: ',', ctrl: true, shift: false, alt: false },
+      { key: 'F8', ctrl: false, shift: false, alt: false },
+    ]);
+  });
+
   it('exposes pro edit history shortcuts', () => {
     expect(getShortcutBindings('edit-undo', {})).toEqual([{ key: 'z', ctrl: true, shift: false, alt: false }]);
     expect(getShortcutBindings('edit-redo', {})).toEqual([

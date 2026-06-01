@@ -82,7 +82,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { id: 'keyboard-help', category: 'Modals', label: 'Keyboard shortcuts', defaultBindings: [{ key: '?' }, { key: '/', shift: true }] },
   { id: 'game-analysis-modal', category: 'Modals', label: 'Game re-analysis', defaultBindings: [{ key: 'F2' }] },
   { id: 'game-report-modal', category: 'Modals', label: 'Game report', defaultBindings: [{ key: 'F3' }] },
-  { id: 'settings-modal', category: 'Modals', label: 'Settings', defaultBindings: [{ key: 'F8' }] },
+  { id: 'settings-modal', category: 'Modals', label: 'Settings', defaultBindings: [{ key: ',', ctrl: true }, { key: 'F8' }] },
   { id: 'escape', category: 'Modals', label: 'Close / cancel', defaultBindings: [{ key: 'Escape' }] },
   { id: 'toggle-top-bar', category: 'View', label: 'Toggle top bar', defaultBindings: [{ key: 'm', ctrl: true, shift: true }] },
   { id: 'toggle-bottom-bar', category: 'View', label: 'Toggle bottom controls', defaultBindings: [{ key: 'u', ctrl: true, shift: true }] },
