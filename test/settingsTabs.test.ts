@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  getNextSettingsTabId,
   isSettingsTabId,
   readSettingsActiveTab,
   saveSettingsActiveTab,
@@ -47,6 +48,15 @@ describe('settings tab storage', () => {
     expect(isSettingsTabId('shortcuts')).toBe(true);
     expect(isSettingsTabId('keyboard')).toBe(false);
     expect(isSettingsTabId(null)).toBe(false);
+  });
+
+  it('wraps keyboard navigation through settings tabs', () => {
+    expect(getNextSettingsTabId('general', 'ArrowRight')).toBe('analysis');
+    expect(getNextSettingsTabId('shortcuts', 'ArrowRight')).toBe('general');
+    expect(getNextSettingsTabId('general', 'ArrowLeft')).toBe('shortcuts');
+    expect(getNextSettingsTabId('analysis', 'Home')).toBe('general');
+    expect(getNextSettingsTabId('analysis', 'End')).toBe('shortcuts');
+    expect(getNextSettingsTabId('analysis', 'Tab')).toBeNull();
   });
 
   it('persists the requested settings tab through safe storage', () => {

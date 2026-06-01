@@ -33,6 +33,7 @@ import {
 } from '../utils/modelUpload';
 import { copyTextToClipboard } from '../utils/clipboard';
 import {
+    getNextSettingsTabId,
     readSettingsActiveTab,
     saveSettingsActiveTab,
     type SettingsTabId,
@@ -154,6 +155,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         }
         saveSettingsActiveTab(activeTab);
     }, [activeTab]);
+    const focusSettingsTab = (tabId: SettingsTabId) => {
+        window.requestAnimationFrame(() => {
+            document.getElementById(`tab-${tabId}`)?.focus();
+        });
+    };
     const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
@@ -290,7 +296,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         role="tablist"
                         aria-orientation="horizontal"
                     >
-                        {SETTINGS_TABS.map((tab, index) => {
+                        {SETTINGS_TABS.map((tab) => {
                             const isActive = activeTab === tab.id;
                             return (
                                 <button type="button"
@@ -302,14 +308,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     tabIndex={isActive ? 0 : -1}
                                     onClick={() => setActiveTab(tab.id)}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'ArrowRight') {
-                                            const next = SETTINGS_TABS[(index + 1) % SETTINGS_TABS.length];
-                                            setActiveTab(next.id);
-                                        }
-                                        if (e.key === 'ArrowLeft') {
-                                            const prev = SETTINGS_TABS[(index - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length];
-                                            setActiveTab(prev.id);
-                                        }
+                                        const nextTabId = getNextSettingsTabId(tab.id, e.key);
+                                        if (!nextTabId) return;
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setActiveTab(nextTabId);
+                                        focusSettingsTab(nextTabId);
                                     }}
                                     className={`settings-tab min-w-0 flex-1 whitespace-nowrap px-2 py-2 text-sm font-medium transition-colors sm:px-4 ${
                                         isActive
