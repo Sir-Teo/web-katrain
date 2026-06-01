@@ -5,6 +5,7 @@ import {
   createShortcutCollisionReplacement,
   eventToShortcutBinding,
   filterShortcutGroups,
+  filterShortcutGroupsByStatus,
   findShortcutCollision,
   getShortcutBindings,
   getShortcutGroups,
@@ -16,6 +17,7 @@ import {
   setShortcutOverride,
   shortcutDisplay,
   type ShortcutBinding,
+  type ShortcutStatusFilter,
 } from '../utils/shortcuts';
 
 const isBindingEmpty = (binding: ShortcutBinding | null): binding is null => !binding || !binding.key;
@@ -34,20 +36,38 @@ export const ShortcutSettingsPanel: React.FC = () => {
   const [collision, setCollision] = React.useState<ShortcutCollisionState | null>(null);
   const [confirmResetAll, setConfirmResetAll] = React.useState(false);
   const [query, setQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<ShortcutStatusFilter>('all');
 
   const refresh = React.useCallback(() => setOverrides(loadShortcutOverrides()), []);
   const hasCustomizations = Object.keys(overrides).length > 0;
   const shortcutGroups = React.useMemo(() => getShortcutGroups(overrides), [overrides]);
   const normalizedQuery = query.trim().toLowerCase();
-  const visibleShortcutGroups = React.useMemo(
+  const queryFilteredShortcutGroups = React.useMemo(
     () => filterShortcutGroups(shortcutGroups, normalizedQuery),
     [normalizedQuery, shortcutGroups]
   );
+  const visibleShortcutGroups = React.useMemo(
+    () => filterShortcutGroupsByStatus(queryFilteredShortcutGroups, statusFilter, overrides),
+    [overrides, queryFilteredShortcutGroups, statusFilter]
+  );
   const visibleShortcutCount = visibleShortcutGroups.reduce((count, group) => count + group.shortcuts.length, 0);
+  const totalShortcutCount = shortcutGroups.reduce((count, group) => count + group.shortcuts.length, 0);
+  const customShortcutCount = Object.keys(overrides).length;
+  const disabledShortcutCount = Object.values(overrides).filter((binding) => binding === null).length;
+  const filterOptions: Array<{ id: ShortcutStatusFilter; label: string; count: number }> = [
+    { id: 'all', label: 'All', count: totalShortcutCount },
+    { id: 'custom', label: 'Edited', count: customShortcutCount },
+    { id: 'disabled', label: 'Disabled', count: disabledShortcutCount },
+  ];
 
   React.useEffect(() => {
     if (!hasCustomizations) setConfirmResetAll(false);
   }, [hasCustomizations]);
+
+  React.useEffect(() => {
+    if (statusFilter === 'custom' && customShortcutCount === 0) setStatusFilter('all');
+    if (statusFilter === 'disabled' && disabledShortcutCount === 0) setStatusFilter('all');
+  }, [customShortcutCount, disabledShortcutCount, statusFilter]);
 
   const handleRecordEvent = React.useCallback((event: KeyboardEvent | React.KeyboardEvent) => {
     const id = recordingId;
@@ -243,6 +263,36 @@ export const ShortcutSettingsPanel: React.FC = () => {
             {visibleShortcutCount} command{visibleShortcutCount === 1 ? '' : 's'}
           </div>
         </div>
+        <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-2" aria-label="Shortcut filter">
+            {filterOptions.map((option) => {
+              const isActive = statusFilter === option.id;
+              const isUnavailable = option.id !== 'all' && option.count === 0;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={[
+                    'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45',
+                    isActive
+                      ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
+                      : 'ui-surface-2 text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]',
+                  ].join(' ')}
+                  aria-pressed={isActive}
+                  data-shortcut-filter={option.id}
+                  disabled={isUnavailable}
+                  onClick={() => setStatusFilter(option.id)}
+                >
+                  {option.label}
+                  <span className="ml-2 font-mono ui-text-faint">{option.count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-xs ui-text-muted" aria-live="polite" data-shortcut-custom-summary="true">
+            {customShortcutCount} edited / {disabledShortcutCount} disabled
+          </div>
+        </div>
       </div>
 
       {visibleShortcutGroups.map((group) => (
@@ -255,6 +305,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
               const activeBindings = getShortcutBindings(shortcut.id, overrides);
               const isCustom = Object.prototype.hasOwnProperty.call(overrides, shortcut.id);
               const isRecording = recordingId === shortcut.id;
+              const isDisabled = activeBindings === null;
               return (
                 <div key={shortcut.id} className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 p-3 items-center">
                   <div className="min-w-0">
@@ -284,20 +335,26 @@ export const ShortcutSettingsPanel: React.FC = () => {
                         setCollision(null);
                         setConfirmResetAll(false);
                       }}
+                      aria-pressed={isRecording}
+                      aria-label={isRecording ? `Press keys for ${shortcut.label}` : `Record shortcut for ${shortcut.label}`}
                     >
                       {isRecording ? 'Press keys' : 'Record'}
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
+                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={() => handleDisable(shortcut.id)}
+                      disabled={isDisabled}
+                      title={isDisabled ? 'Shortcut is already disabled' : `Disable ${shortcut.label}`}
                     >
                       Disable
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
+                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={() => handleReset(shortcut.id)}
+                      disabled={!isCustom}
+                      title={isCustom ? `Reset ${shortcut.label}` : 'Shortcut is already using the default'}
                     >
                       Reset
                     </button>
@@ -308,9 +365,11 @@ export const ShortcutSettingsPanel: React.FC = () => {
           </div>
         </div>
       ))}
-      {normalizedQuery && visibleShortcutGroups.length === 0 && (
+      {(normalizedQuery || statusFilter !== 'all') && visibleShortcutGroups.length === 0 && (
         <div className="rounded-xl border ui-surface p-4 text-sm ui-text-muted" data-shortcut-search-empty="true">
-          No shortcuts match "{query.trim()}".
+          {normalizedQuery
+            ? `No shortcuts match "${query.trim()}"${statusFilter === 'all' ? '' : ` in ${statusFilter === 'custom' ? 'edited' : 'disabled'} shortcuts`}.`
+            : `No ${statusFilter === 'custom' ? 'edited' : 'disabled'} shortcuts yet.`}
         </div>
       )}
     </div>

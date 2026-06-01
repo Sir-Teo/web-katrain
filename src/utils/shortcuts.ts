@@ -28,6 +28,7 @@ export type ShortcutDefinition = {
 export type ShortcutOverrides = Record<string, ShortcutBinding[] | null>;
 export type ShortcutWithBindings = ShortcutDefinition & { bindings: ShortcutBinding[] | null };
 export type ShortcutGroup = { title: ShortcutCategory; shortcuts: ShortcutWithBindings[] };
+export type ShortcutStatusFilter = 'all' | 'custom' | 'disabled';
 
 const STORAGE_KEY = 'web-katrain:shortcuts:v1';
 export const SHORTCUTS_UPDATED_EVENT = 'web-katrain:shortcuts-updated';
@@ -281,6 +282,23 @@ export const filterShortcutGroups = (groups: ShortcutGroup[], query: string): Sh
           ? bindingDisplay.split('/').some((binding) => binding.trim() === normalizedQuery)
           : bindingDisplay.includes(normalizedQuery);
         return textHaystack.includes(normalizedQuery) || bindingMatches;
+      }),
+    }))
+    .filter((group) => group.shortcuts.length > 0);
+};
+
+export const filterShortcutGroupsByStatus = (
+  groups: ShortcutGroup[],
+  filter: ShortcutStatusFilter,
+  overrides: ShortcutOverrides
+): ShortcutGroup[] => {
+  if (filter === 'all') return groups;
+  return groups
+    .map((group) => ({
+      ...group,
+      shortcuts: group.shortcuts.filter((shortcut) => {
+        if (filter === 'disabled') return shortcut.bindings === null;
+        return Object.prototype.hasOwnProperty.call(overrides, shortcut.id);
       }),
     }))
     .filter((group) => group.shortcuts.length > 0);

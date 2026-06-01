@@ -5,6 +5,7 @@ import {
   eventMatchesBinding,
   eventToShortcutBinding,
   filterShortcutGroups,
+  filterShortcutGroupsByStatus,
   findShortcutCollision,
   getShortcutBindings,
   getShortcutGroups,
@@ -201,5 +202,19 @@ describe('shortcut utilities', () => {
 
   it('returns no shortcut groups when a shortcut search has no matches', () => {
     expect(filterShortcutGroups(getShortcutGroups({}), 'zzzz-no-match')).toEqual([]);
+  });
+
+  it('filters shortcut groups by edited or disabled status', () => {
+    const overrides = {
+      'save-sgf': [{ key: 'F9' }],
+      'open-sgf': null,
+    };
+    const groups = getShortcutGroups(overrides);
+    const edited = filterShortcutGroupsByStatus(groups, 'custom', overrides).flatMap((group) => group.shortcuts);
+    const disabled = filterShortcutGroupsByStatus(groups, 'disabled', overrides).flatMap((group) => group.shortcuts);
+
+    expect(filterShortcutGroupsByStatus(groups, 'all', overrides)).toBe(groups);
+    expect(edited.map((shortcut) => shortcut.id)).toEqual(['save-sgf', 'open-sgf']);
+    expect(disabled.map((shortcut) => shortcut.id)).toEqual(['open-sgf']);
   });
 });
