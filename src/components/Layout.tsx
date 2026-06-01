@@ -2168,6 +2168,7 @@ export const Layout: React.FC = () => {
           onLibraryUpdated={handleLibraryUpdated}
           onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
           loadedFileId={loadedLibraryFileId}
+          loadedFileDirty={currentGameDirty}
           onLoadedFileChange={setLoadedLibraryFile}
           externalFileUpdate={externalLibraryFileUpdate}
           externalItemRename={externalLibraryItemRename}

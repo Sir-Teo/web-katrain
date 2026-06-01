@@ -251,6 +251,7 @@ interface LibraryPanelProps {
   onLibraryUpdated?: () => void;
   onCurrentSaved?: () => void;
   loadedFileId?: string | null;
+  loadedFileDirty?: boolean;
   onLoadedFileChange?: (id: string | null, name?: string | null) => void;
   externalFileUpdate?: { id: string; sgf: string; updatedAt: number } | null;
   externalItemRename?: { id: string; name: string; updatedAt: number } | null;
@@ -273,6 +274,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   onLibraryUpdated,
   onCurrentSaved,
   loadedFileId = null,
+  loadedFileDirty = false,
   onLoadedFileChange,
   externalFileUpdate = null,
   externalItemRename = null,
@@ -1144,6 +1146,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const renderFileRow = (item: LibraryFile, depth: number) => {
     const isSelected = visibleSelectedIds.has(item.id);
     const isLoaded = loadedFileId === item.id;
+    const isLoadedDirty = isLoaded && loadedFileDirty;
     return (
       <div
         key={item.id}
@@ -1151,15 +1154,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           'library-tree-node',
           isSelected ? 'selected' : '',
           isLoaded ? 'loaded' : '',
+          isLoadedDirty ? 'dirty' : '',
         ].join(' ')}
         style={{ paddingLeft: 12 + depth * 16 }}
         role="treeitem"
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
-        aria-label={`${item.name}, game file, ${item.moveCount} moves`}
+        aria-label={`${item.name}, game file, ${item.moveCount} moves${isLoadedDirty ? ', unsaved changes' : ''}`}
         data-library-row="file"
         data-library-row-name={item.name}
+        data-library-loaded-dirty={isLoadedDirty ? 'true' : undefined}
         onClick={() => void handleLoad(item)}
         onKeyDown={handleFileRowKeyDown(item)}
         onContextMenu={(event) => openContextMenu(event, item)}
@@ -1192,6 +1197,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           {item.metadata.date ? `${item.metadata.date} · ` : ''}
           {item.moveCount} · {(item.size / 1024).toFixed(1)} KB
         </div>
+        {isLoadedDirty && (
+          <span
+            className="library-dirty-indicator"
+            title="Unsaved changes"
+            aria-label="Unsaved changes"
+            data-library-dirty-indicator="true"
+          >
+            Unsaved
+          </span>
+        )}
         <div className="library-tree-node-actions">
           <button
             type="button"
@@ -1248,6 +1263,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const children = childrenMap.get(item.id) ?? [];
     const isSelected = visibleSelectedIds.has(item.id);
     const hasLoaded = activeAncestorIds.has(item.id);
+    const hasDirtyLoaded = hasLoaded && loadedFileDirty;
     return (
       <div key={item.id}>
         <div
@@ -1256,6 +1272,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             isSelected ? 'selected' : '',
             activeFolderId === item.id ? 'selected' : '',
             hasLoaded ? 'has-loaded' : '',
+            hasDirtyLoaded ? 'has-loaded-dirty' : '',
             dragOverId === item.id ? 'drop-target' : '',
           ].join(' ')}
           style={{ paddingLeft: 12 + depth * 16 }}
@@ -1263,9 +1280,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           tabIndex={0}
           aria-selected={isSelected || activeFolderId === item.id}
           aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
-          aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}`}
+          aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
           data-library-row="folder"
           data-library-row-name={item.name}
+          data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
           onClick={() => activateFolderRow(item)}
           onKeyDown={handleFolderRowKeyDown(item, isExpanded, children.length > 0, allowChildren)}
           onContextMenu={(event) => openContextMenu(event, item)}
