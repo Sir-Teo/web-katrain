@@ -42,4 +42,28 @@ describe('MenuDrawer', () => {
     expect(html).toContain('Teaching Game');
     expect(html).toContain('42 moves · 1.5 KB');
   });
+
+  it('shows the save-copy shortcut beside the library save action', () => {
+    const html = renderToStaticMarkup(
+      <MenuDrawer
+        open
+        onClose={() => undefined}
+        onQuickNewGame={() => undefined}
+        onNewGame={() => undefined}
+        onSave={() => undefined}
+        onSaveToLibrary={() => undefined}
+        onLoad={() => undefined}
+        onScanBoard={() => undefined}
+        onCopy={() => undefined}
+        onPaste={() => undefined}
+        onSettings={() => undefined}
+        onCommandPalette={() => undefined}
+        onKeyboardHelp={() => undefined}
+        onAbout={() => undefined}
+      />
+    );
+
+    expect(html).toContain('Save Copy to Library');
+    expect(html).toContain('Ctrl+Shift+S');
+  });
 });

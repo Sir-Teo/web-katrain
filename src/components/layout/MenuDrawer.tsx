@@ -8,6 +8,7 @@ import { formatLibrarySize, type LibraryFile } from '../../utils/library';
 const MENU_DRAWER_SHORTCUT_IDS = [
   'new-game',
   'save-sgf',
+  'save-library',
   'open-sgf',
   'copy-sgf',
   'paste-sgf',
@@ -157,11 +158,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 onSaveToLibrary();
                 onClose();
               }}
-              aria-label="Save a copy to Library"
+              aria-label={`Save a copy to Library, keyboard shortcut ${shortcutLabels['save-library']}`}
             >
               <span className="flex items-center gap-2">
                 <FaBook aria-hidden="true" /> Save Copy to Library
               </span>
+              <kbd className="text-xs ui-text-faint">{shortcutLabels['save-library']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
