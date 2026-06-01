@@ -138,6 +138,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit 
               type="button"
               onClick={submit}
               disabled={!text.trim() || isSubmitting}
+              aria-label="Open pasted SGF or OGS URL"
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Opening...' : 'Open'}

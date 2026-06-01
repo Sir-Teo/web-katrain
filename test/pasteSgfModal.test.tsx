@@ -12,6 +12,7 @@ describe('PasteSgfModal', () => {
     expect(html).toContain('SGF text or OGS game URL');
     expect(html).toContain('data-paste-sgf-input-kind="empty"');
     expect(html).toContain('Paste raw SGF text or an Online-Go game URL');
+    expect(html).toContain('aria-label="Open pasted SGF or OGS URL"');
     expect(html).toContain('https://online-go.com/game/12345');
   });
 
