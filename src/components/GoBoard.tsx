@@ -21,6 +21,11 @@ import { setTimedNotification, type TimedNotificationType } from '../utils/timed
 import { getTapConfirmAction, TAP_CONFIRM_TIMEOUT_MS, type TapConfirmPoint } from '../utils/tapConfirm';
 import { playNavigationHaptic, playStoneHaptic } from '../utils/haptics';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
+import {
+  getInitialBoardKeyboardCursor,
+  moveBoardKeyboardCursor,
+  type BoardKeyboardPoint,
+} from '../utils/boardKeyboardNavigation';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -284,6 +289,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const [stoneTextureVersion, setStoneTextureVersion] = useState(0);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [pendingTap, setPendingTap] = useState<TapConfirmPoint | null>(null);
+  const [isKeyboardCursorActive, setIsKeyboardCursorActive] = useState(false);
 
   const evalThresholds: readonly number[] = settings.trainerEvalThresholds?.length ? settings.trainerEvalThresholds : KATRAN_EVAL_THRESHOLDS;
   const boardTheme = useMemo(() => getBoardTheme(settings.boardTheme), [settings.boardTheme]);
@@ -523,7 +529,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const [roiDrag, setRoiDrag] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(
     null
   );
-  const [cursorPt, setCursorPt] = useState<{ x: number; y: number } | null>(null);
+  const [cursorPt, setCursorPt] = useState<BoardKeyboardPoint | null>(null);
 
   useEffect(() => {
     if (!canHoverAnalysisMove && hoveredMove) onHoverMove(null);
@@ -1198,6 +1204,70 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       uiMode,
     ]
   );
+
+  const activateKeyboardCursor = useCallback(() => {
+    setIsKeyboardCursorActive(true);
+    setCursorPt((prev) => {
+      const next = getInitialBoardKeyboardCursor(prev, boardSize);
+      return samePoint(prev, next) ? prev : next;
+    });
+  }, [boardSize]);
+
+  const handleBoardFocus = () => {
+    activateKeyboardCursor();
+  };
+
+  const handleBoardBlur = () => {
+    setIsKeyboardCursorActive(false);
+  };
+
+  const handleBoardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const movement: Record<string, [number, number] | undefined> = {
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+    };
+    const delta = movement[event.key];
+    if (delta) {
+      event.preventDefault();
+      event.stopPropagation();
+      clearPendingTap();
+      setIsKeyboardCursorActive(true);
+      setCursorPt((prev) => moveBoardKeyboardCursor(prev, boardSize, delta[0], delta[1]));
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      if (!isKeyboardCursorActive && !cursorPt) return;
+      event.preventDefault();
+      event.stopPropagation();
+      clearPendingTap();
+      setIsKeyboardCursorActive(false);
+      setCursorPt(null);
+      return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    event.stopPropagation();
+    clearPendingTap();
+    const pt = getInitialBoardKeyboardCursor(cursorPt, boardSize);
+    setIsKeyboardCursorActive(true);
+    setCursorPt(pt);
+
+    if (scoringMode) {
+      if (board[pt.y]?.[pt.x]) onToggleDeadStone?.(pt.x, pt.y);
+      return;
+    }
+    if (isEditMode) {
+      applyEditTool(pt.x, pt.y);
+      return;
+    }
+    tryPlayPoint(pt);
+  };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (scoringMode || isEditMode || isSelectingRegionOfInterest || e.touches.length !== 1) {
@@ -1918,11 +1988,22 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     };
   }, [board, cellSize, currentPlayer, originX, originY, pendingTap, toDisplay]);
 
+  const keyboardCursorMarker = useMemo(() => {
+    if (!isKeyboardCursorActive || !cursorPt) return null;
+    const d = toDisplay(cursorPt.x, cursorPt.y);
+    const size = Math.max(16, cellSize * 0.7);
+    return {
+      left: originX + d.x * cellSize - size / 2,
+      top: originY + d.y * cellSize - size / 2,
+      size,
+    };
+  }, [cellSize, cursorPt, isKeyboardCursorActive, originX, originY, toDisplay]);
+
   return (
     <div ref={containerRef} className="w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center">
       <div
         className={[
-          'relative shadow-lg rounded-sm select-none touch-none',
+          'relative shadow-lg rounded-sm select-none touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]',
           isEditMode || scoringMode ? 'cursor-crosshair' : 'cursor-pointer',
         ].join(' ')}
         data-board-snapshot="true"
@@ -1941,10 +2022,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
+        onFocus={handleBoardFocus}
+        onBlur={handleBoardBlur}
+        onKeyDown={handleBoardKeyDown}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
         onWheel={handleWheel}
+        tabIndex={0}
+        aria-label="Go board"
       >
         {/* Region of interest (KaTrain-style) */}
         {roiRect && (
@@ -2061,6 +2147,21 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           >
             <FaCheck size={Math.max(10, pendingTapMarker.size * 0.48)} aria-hidden="true" />
           </div>
+        )}
+
+        {keyboardCursorMarker && (
+          <div
+            className="absolute pointer-events-none rounded-full border-2 border-[var(--ui-accent)] shadow-[0_0_0_2px_rgba(0,0,0,0.35),0_0_18px_rgba(34,197,94,0.45)]"
+            data-board-keyboard-cursor="true"
+            aria-hidden="true"
+            style={{
+              left: keyboardCursorMarker.left,
+              top: keyboardCursorMarker.top,
+              width: keyboardCursorMarker.size,
+              height: keyboardCursorMarker.size,
+              zIndex: 23,
+            }}
+          />
         )}
 
         {/* Policy Overlay (KaTrain-style) */}
