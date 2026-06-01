@@ -6,6 +6,8 @@ import {
   FaFastBackward,
   FaChevronLeft,
   FaChevronRight,
+  FaChevronUp,
+  FaChevronDown,
   FaFastForward,
   FaStepForward,
   FaSyncAlt,
@@ -21,6 +23,7 @@ import { publicUrl } from '../../utils/publicUrl';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { formatGameInfoPlayer } from '../../utils/gameInfoDisplay';
 import { getResizeObserverConstructor } from '../../utils/resizeObserver';
+import type { BranchInfo } from '../../utils/branchNavigation';
 import type { AutoSaveStatus } from './StatusBar';
 
 const BOTTOM_CONTROL_SHORTCUT_IDS = [
@@ -31,6 +34,8 @@ const BOTTOM_CONTROL_SHORTCUT_IDS = [
   'nav-end',
   'nav-back-10',
   'nav-forward-10',
+  'branch-prev',
+  'branch-next',
   'prev-mistake',
   'next-mistake',
   'rotate-board',
@@ -45,6 +50,9 @@ interface BottomControlBarProps {
   navigateToMove: (moveNumber: number) => void;
   navigateStart: () => void;
   navigateEnd: () => void;
+  branchInfo?: BranchInfo | null;
+  switchBranch?: (direction: 1 | -1) => void;
+  switchToBranchIndex?: (index: number) => void;
   findMistake: (dir: 'undo' | 'redo') => void;
   rotateBoard: () => void;
   currentPlayer: Player;
@@ -82,6 +90,9 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   navigateToMove,
   navigateStart,
   navigateEnd,
+  branchInfo = null,
+  switchBranch,
+  switchToBranchIndex,
   findMistake,
   rotateBoard,
   currentPlayer,
@@ -113,8 +124,18 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const [isMoveNumberEditing, setIsMoveNumberEditing] = useState(false);
   const [moveNumberDraft, setMoveNumberDraft] = useState('');
   const skipMoveNumberBlurCommit = useRef(false);
+  const [isBranchIndexEditing, setIsBranchIndexEditing] = useState(false);
+  const [branchIndexDraft, setBranchIndexDraft] = useState('');
+  const skipBranchIndexBlurCommit = useRef(false);
   const shortcutLabels = useShortcutLabels(BOTTOM_CONTROL_SHORTCUT_IDS);
   const withShortcut = (label: string, id: BottomControlShortcutId) => `${label} (${shortcutLabels[id]})`;
+  const showBranchControl = !!branchInfo?.hasBranches && !!switchBranch && !!switchToBranchIndex;
+  const branchDepthLabel = showBranchControl && branchInfo && !branchInfo.isAtFork ? `+${branchInfo.depthFromBranchRoot}` : null;
+  const branchTitle = showBranchControl && branchInfo
+    ? branchInfo.isAtFork
+      ? `Branch ${branchInfo.currentIndex} of ${branchInfo.totalBranches}`
+      : `Branch ${branchInfo.currentIndex} of ${branchInfo.totalBranches}, ${branchInfo.depthFromBranchRoot} move${branchInfo.depthFromBranchRoot === 1 ? '' : 's'} into variation`
+    : '';
   const blackPlayerLabel = formatGameInfoPlayer(blackName, blackRank, 'Black');
   const whitePlayerLabel = formatGameInfoPlayer(whiteName, whiteRank, 'White');
   const blackCaptures = capturedWhite;
@@ -222,6 +243,94 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
       return;
     }
     commitMoveNumberEdit();
+  };
+
+  const openBranchIndexEditor = () => {
+    if (!showBranchControl || !branchInfo || isInsertMode) return;
+    setBranchIndexDraft(String(branchInfo.currentIndex));
+    setIsBranchIndexEditing(true);
+  };
+
+  const commitBranchIndexEdit = () => {
+    if (showBranchControl && branchInfo && switchToBranchIndex) {
+      const parsed = Number.parseInt(branchIndexDraft.trim(), 10);
+      if (Number.isFinite(parsed)) {
+        switchToBranchIndex(parsed);
+      } else {
+        setBranchIndexDraft(String(branchInfo.currentIndex));
+      }
+    }
+    setIsBranchIndexEditing(false);
+  };
+
+  const cancelBranchIndexEdit = () => {
+    skipBranchIndexBlurCommit.current = true;
+    if (branchInfo?.hasBranches) setBranchIndexDraft(String(branchInfo.currentIndex));
+    setIsBranchIndexEditing(false);
+  };
+
+  const handleBranchIndexKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    event.stopPropagation();
+    if (event.key === 'Enter') {
+      event.currentTarget.blur();
+    } else if (event.key === 'Escape') {
+      cancelBranchIndexEdit();
+      event.currentTarget.blur();
+    }
+  };
+
+  const handleBranchIndexBlur = () => {
+    if (skipBranchIndexBlurCommit.current) {
+      skipBranchIndexBlurCommit.current = false;
+      return;
+    }
+    commitBranchIndexEdit();
+  };
+
+  const renderBranchIndexButton = (compact = false) => {
+    if (!showBranchControl || !branchInfo) return null;
+    if (isBranchIndexEditing) {
+      return (
+        <span className={compact ? 'inline-flex items-center gap-0.5' : 'inline-flex items-center gap-1'}>
+          <span className="ui-text-faint">{compact ? 'Br' : 'Branch'}</span>
+          <input
+            value={branchIndexDraft}
+            onChange={(event) => setBranchIndexDraft(event.target.value)}
+            onKeyDown={handleBranchIndexKeyDown}
+            onBlur={handleBranchIndexBlur}
+            onFocus={(event) => event.currentTarget.select()}
+            aria-label="Branch number"
+            inputMode="numeric"
+            min={1}
+            max={branchInfo.totalBranches}
+            className={compact ? 'w-5 bg-transparent p-0 text-right text-[var(--ui-text)] outline-none' : 'w-6 bg-transparent p-0 text-right font-mono text-[var(--ui-text)] outline-none'}
+            autoFocus
+          />
+          <span className="font-mono ui-text-faint">/{branchInfo.totalBranches}</span>
+          {branchDepthLabel && <span className="font-mono text-[var(--ui-accent)]">{branchDepthLabel}</span>}
+        </span>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        className={[
+          compact
+            ? 'inline-flex min-w-0 items-center gap-0.5 rounded px-1 font-mono hover:bg-[var(--ui-surface-2)] disabled:opacity-50'
+            : 'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-left hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50',
+        ].join(' ')}
+        title={branchTitle}
+        aria-label={branchTitle}
+        onClick={compact ? () => setMoreOpen(true) : openBranchIndexEditor}
+        disabled={isInsertMode}
+        data-bottom-branch-chip={compact ? 'true' : undefined}
+      >
+        <span className="ui-text-faint">{compact ? 'Br' : 'Branch'}</span>
+        <span className="font-mono text-[var(--ui-text)]">{branchInfo.currentIndex}/{branchInfo.totalBranches}</span>
+        {branchDepthLabel && <span className="font-mono text-[var(--ui-accent)]">{branchDepthLabel}</span>}
+      </button>
+    );
   };
 
   if (isMobile) {
@@ -334,6 +443,12 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 #{moveHistory.length}/{totalMovesInCurrentLine}
               </button>
             )}
+            {showBranchControl && (
+              <>
+                <span className={metaDividerClass}>·</span>
+                {renderBranchIndexButton(true)}
+              </>
+            )}
             {mobileSaveStatus && (
               <>
                 <span className={metaDividerClass}>·</span>
@@ -442,6 +557,56 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   </button>
 
                   <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+
+                  {showBranchControl && branchInfo && switchBranch && (
+                    <>
+                      <div className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
+                        Variation
+                      </div>
+                      <button type="button"
+                        className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                        onClick={() => {
+                          switchBranch(-1);
+                          setMoreOpen(false);
+                        }}
+                        disabled={isInsertMode}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                          <FaChevronUp size={14} />
+                        </div>
+                        <div className="flex-1 font-medium">Previous branch</div>
+                        <div className="text-xs ui-text-faint">{shortcutLabels['branch-prev']}</div>
+                      </button>
+
+                      <button type="button"
+                        className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                        onClick={() => {
+                          switchBranch(1);
+                          setMoreOpen(false);
+                        }}
+                        disabled={isInsertMode}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                          <FaChevronDown size={14} />
+                        </div>
+                        <div className="flex-1 font-medium">Next branch</div>
+                        <div className="text-xs ui-text-faint">{shortcutLabels['branch-next']}</div>
+                      </button>
+
+                      <div
+                        className="mx-2 px-4 py-3 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] flex items-center justify-between gap-3"
+                        data-bottom-branch-control="true"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold ui-text-faint uppercase tracking-wide">Current branch</div>
+                          <div className="text-sm text-[var(--ui-text)]">{branchTitle}</div>
+                        </div>
+                        <div className="shrink-0 text-sm">{renderBranchIndexButton(false)}</div>
+                      </div>
+
+                      <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+                    </>
+                  )}
 
                   {onUndo && (
                     <button type="button"
@@ -662,6 +827,35 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             </button>
           )}
         </div>
+
+        {showBranchControl && branchInfo && switchBranch && (
+          <div
+            className="flex items-center gap-0.5 rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] px-1 py-0.5 text-xs text-[var(--ui-text-muted)]"
+            data-bottom-branch-control="true"
+          >
+            <button
+              type="button"
+              className="ui-control flex items-center justify-center rounded hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+              title={withShortcut('Previous branch', 'branch-prev')}
+              aria-label={withShortcut('Previous branch', 'branch-prev')}
+              onClick={() => switchBranch(-1)}
+              disabled={isInsertMode}
+            >
+              <FaChevronUp size={10} />
+            </button>
+            {renderBranchIndexButton(false)}
+            <button
+              type="button"
+              className="ui-control flex items-center justify-center rounded hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+              title={withShortcut('Next branch', 'branch-next')}
+              aria-label={withShortcut('Next branch', 'branch-next')}
+              onClick={() => switchBranch(1)}
+              disabled={isInsertMode}
+            >
+              <FaChevronDown size={10} />
+            </button>
+          </div>
+        )}
 
         <IconButton title={withShortcut('Forward', 'nav-forward')} onClick={navigateForward} disabled={isInsertMode}>
           <FaChevronRight />

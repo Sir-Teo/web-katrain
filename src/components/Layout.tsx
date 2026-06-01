@@ -72,7 +72,7 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
-import { getCurrentLineMoveCount } from '../utils/branchNavigation';
+import { getBranchInfo, getCurrentLineMoveCount } from '../utils/branchNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
 import { getResignResult } from '../utils/resign';
 import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutSize, isDesktopLayoutViewport, isMobileLayoutViewport } from '../utils/responsiveLayout';
@@ -1156,6 +1156,10 @@ export const Layout: React.FC = () => {
     void treeVersion;
     return getCurrentLineMoveCount(currentNode, activeBranchChildIds);
   }, [activeBranchChildIds, currentNode, treeVersion]);
+  const branchInfo = useMemo(() => {
+    void treeVersion;
+    return getBranchInfo(currentNode);
+  }, [currentNode, treeVersion]);
   const passPolicyColor = useMemo(() => {
     if (!settings.analysisShowPolicy) return null;
     const policy = (analysisData ?? currentNode.analysis)?.policy;
@@ -2854,6 +2858,9 @@ export const Layout: React.FC = () => {
               navigateToMove={navigateToMove}
               navigateStart={navigateStart}
               navigateEnd={navigateEnd}
+              branchInfo={branchInfo}
+              switchBranch={switchBranch}
+              switchToBranchIndex={switchToBranchIndex}
               findMistake={findMistake}
               rotateBoard={rotateBoard}
               currentPlayer={currentPlayer}
@@ -3030,6 +3037,9 @@ export const Layout: React.FC = () => {
                     navigateToMove={navigateToMove}
                     navigateStart={navigateStart}
                     navigateEnd={navigateEnd}
+                    branchInfo={branchInfo}
+                    switchBranch={switchBranch}
+                    switchToBranchIndex={switchToBranchIndex}
                     findMistake={findMistake}
                     rotateBoard={rotateBoard}
                     currentPlayer={currentPlayer}
