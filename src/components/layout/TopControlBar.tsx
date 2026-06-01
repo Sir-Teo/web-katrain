@@ -236,84 +236,84 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     <div className="grid grid-cols-1 sm:grid-cols-2">
       {/* Settings column */}
       <div className="flex flex-col border-r border-[var(--ui-border)]">
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { toggleFullscreen(); closeViewMenuIfMobile(); }}
         >
           <span>Fullscreen</span><span className="text-xs ui-text-faint">{isFullscreen ? 'on' : 'off'} · {shortcutLabels.fullscreen}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { closeViewMenu(); onCommandPalette(); }}
         >
           <span className="flex items-center gap-2"><FaSearch /> Command palette</span><span className="text-xs ui-text-faint">{shortcutLabels['command-palette']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { closeViewMenu(); onSettings(); }}
         >
           <span className="flex items-center gap-2"><FaCog /> Settings</span><span className="text-xs ui-text-faint">{shortcutLabels['settings-modal']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { closeViewMenu(); onKeyboardHelp(); }}
         >
           <span className="flex items-center gap-2"><FaKeyboard /> Keyboard shortcuts</span><span className="text-xs ui-text-faint">{shortcutLabels['keyboard-help']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { closeViewMenu(); onAbout(); }}
         >
           <span className="flex items-center gap-2"><FaInfoCircle /> About</span><span className="text-xs ui-text-faint">Build</span>
         </button>
         <div className="h-px bg-[var(--ui-border)] w-full" />
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { onCopySgf(); closeViewMenuIfMobile(); }}
         >
           <span className="flex items-center gap-2"><FaCopy /> Copy SGF</span><span className="text-xs ui-text-faint">{shortcutLabels['copy-sgf']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { closeViewMenu(); onPasteSgf(); }}
         >
           <span className="flex items-center gap-2"><FaPaste /> Paste SGF/OGS</span><span className="text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { onScanBoard(); closeViewMenu(); }}
         >
           <span className="flex items-center gap-2"><FaCamera /> Photo Board</span><span className="text-xs ui-text-faint">—</span>
         </button>
         <div className="h-px bg-[var(--ui-border)] w-full" />
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showCoordinates: !settings.showCoordinates }); closeViewMenuIfMobile(); }}
           aria-label={`Coordinates ${settings.showCoordinates ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-coordinates']}`}
         >
           <span>Coordinates</span><span className="text-xs ui-text-faint">{settings.showCoordinates ? 'on' : 'off'} · {shortcutLabels['toggle-coordinates']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showNextMovePreview: !settings.showNextMovePreview }); closeViewMenuIfMobile(); }}
           aria-label={`Next move preview ${settings.showNextMovePreview ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-next-move-preview']}`}
         >
           <span>Next move preview</span><span className="text-xs ui-text-faint">{settings.showNextMovePreview ? 'on' : 'off'} · {shortcutLabels['toggle-next-move-preview']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showMoveNumbers: !settings.showMoveNumbers }); closeViewMenuIfMobile(); }}
           aria-label={`Move numbers ${settings.showMoveNumbers ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-move-numbers']}`}
         >
           <span>Move numbers</span><span className="text-xs ui-text-faint">{settings.showMoveNumbers ? 'on' : 'off'} · {shortcutLabels['toggle-move-numbers']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showBoardControls: !settings.showBoardControls }); closeViewMenuIfMobile(); }}
         >
           <span>Board controls</span><span className="text-xs ui-text-faint">{settings.showBoardControls ? 'on' : 'off'}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ soundEnabled: !settings.soundEnabled }); closeViewMenuIfMobile(); }}
         >
@@ -325,32 +325,32 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       {/* Overlays and Themes column */}
       <div className="flex flex-col">
         <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-surface-2)]">Analysis Overlays</div>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowChildren: !settings.analysisShowChildren }); closeViewMenuIfMobile(); }}
         >
           <span>Children</span><span className="text-xs ui-text-faint">{settings.analysisShowChildren ? 'on' : 'off'} · {shortcutLabels['toggle-children']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowEval: !settings.analysisShowEval }); closeViewMenuIfMobile(); }}
         >
           <span>Dots</span><span className="text-xs ui-text-faint">{settings.analysisShowEval ? 'on' : 'off'} · {shortcutLabels['toggle-eval']}</span>
         </button>
-        <button
+        <button type="button"
           className={['w-full px-3 py-2 text-left flex items-center justify-between', settings.analysisShowPolicy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)]'].join(' ')}
           disabled={settings.analysisShowPolicy}
           onClick={() => { updateControls({ analysisShowHints: !settings.analysisShowHints }); closeViewMenuIfMobile(); }}
         >
           <span>Top moves</span><span className="text-xs ui-text-faint">{settings.analysisShowHints ? 'on' : 'off'} · {shortcutLabels['toggle-hints']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowPolicy: !settings.analysisShowPolicy }); closeViewMenuIfMobile(); }}
         >
           <span>Policy</span><span className="text-xs ui-text-faint">{settings.analysisShowPolicy ? 'on' : 'off'} · {shortcutLabels['toggle-policy']}</span>
         </button>
-        <button
+        <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }); closeViewMenuIfMobile(); }}
         >
@@ -391,33 +391,33 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
         <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
         <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
-          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Extra analysis</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-extra']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('equalize'); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('equalize'); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Equalize</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-equalize']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('sweep'); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('sweep'); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Sweep</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-sweep']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { analyzeExtra('alternative'); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('alternative'); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Alternative</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-alternative']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { startSelectRegionOfInterest(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { startSelectRegionOfInterest(); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Select region</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['select-region']}</span>
           </button>
           {regionOfInterest && (
-            <button className={`${mobileToolsGridBtn} text-[var(--ui-danger)]`} onClick={() => { setRegionOfInterest(null); closeViewMenu(); }}>
+            <button type="button" className={`${mobileToolsGridBtn} text-[var(--ui-danger)]`} onClick={() => { setRegionOfInterest(null); closeViewMenu(); }}>
               <FaTimes size={18} />
               <span className="text-sm font-medium">Clear region</span>
             </button>
@@ -428,36 +428,36 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
         <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Control</div>
         <div className="grid grid-cols-2 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
-          <button className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeViewMenu(); }}>
             <FaRobot size={18} className={isAnalysisMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Cont. analysis</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { makeAiMove(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { makeAiMove(); closeViewMenu(); }}>
             <FaPlay size={18} className="text-[var(--ui-success)]" />
             <span className="text-sm font-medium">AI move</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['ai-move']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeViewMenu(); }}>
             <FaPlay size={18} className={isInsertMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Insert mode</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['toggle-insert']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { selfplayToEnd(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { selfplayToEnd(); closeViewMenu(); }}>
             <FaPlay size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Selfplay to end</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels.selfplay}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeViewMenu(); }}>
             <FaSyncAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Rotate board</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['rotate-board']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { onScanBoard(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { onScanBoard(); closeViewMenu(); }}>
             <FaCamera size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Photo Board</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeViewMenu(); }}>
             <FaRobot size={18} className={isTeachMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Teach mode</span>
           </button>
@@ -467,20 +467,20 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
         <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
         <div className="grid grid-cols-2 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
-          <button className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis(); else startQuickGameAnalysis(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis(); else startQuickGameAnalysis(); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop' : 'Quick graph'}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis(); else startFastGameAnalysis(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis(); else startFastGameAnalysis(); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop' : 'Fast MCTS'}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { setIsGameAnalysisOpen(true); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { setIsGameAnalysisOpen(true); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Re-analyze</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['game-analysis-modal']}</span>
           </button>
-          <button className={mobileToolsGridBtn} onClick={() => { setIsGameReportOpen(true); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { setIsGameReportOpen(true); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Game report</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['game-report-modal']}</span>
@@ -692,7 +692,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           {viewMenuOpen && (
             isMobile ? (
               <div className="fixed inset-0 z-50">
-                <button
+                <button type="button"
                   className="absolute inset-0 bg-black/70"
                   onClick={() => setViewMenuOpen(false)}
                   aria-label="Close tools"
@@ -755,28 +755,28 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
                     <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
                   </div>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { analyzeExtra('extra'); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaRobot /> Extra analysis</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['analysis-extra']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { analyzeExtra('equalize'); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaRobot /> Equalize</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['analysis-equalize']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { analyzeExtra('sweep'); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaRobot /> Sweep</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['analysis-sweep']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { analyzeExtra('alternative'); setAnalysisMenuOpen(false); }}
                   >
@@ -788,7 +788,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
                     <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Region Control</div>
                   </div>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { startSelectRegionOfInterest(); setAnalysisMenuOpen(false); }}
                   >
@@ -796,7 +796,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                     <span className="text-xs ui-text-faint">{shortcutLabels['select-region']}</span>
                   </button>
                   {regionOfInterest && (
-                    <button
+                    <button type="button"
                       className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                       onClick={() => { setRegionOfInterest(null); setAnalysisMenuOpen(false); }}
                     >
@@ -809,35 +809,35 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
                     <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Engine Control</div>
                   </div>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { toggleContinuousAnalysis(); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaRobot /> Continuous analysis</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { makeAiMove(); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaPlay /> AI move</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['ai-move']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { analyzeExtra('stop'); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaStop /> Stop analysis</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels.escape}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { rotateBoard(); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaSyncAlt /> Rotate board</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['rotate-board']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { toggleTeachMode(); setAnalysisMenuOpen(false); }}
                   >
@@ -851,14 +851,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
                     <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Analysis</div>
                   </div>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { resetCurrentAnalysis(); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaStop /> Reset analysis</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['reset-analysis']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => { clearAnalysisCache(); setAnalysisMenuOpen(false); }}
                     disabled={analysisCacheSize === 0 || isGameAnalysisRunning}
@@ -871,14 +871,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                     <span className="flex items-center gap-2"><FaTrash /> Clear analysis cache</span>
                     <span className="text-xs ui-text-faint">{analysisCacheSize > 0 ? analysisCacheSize : '—'}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { toggleInsertMode(); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaPlay /> Insert mode</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['toggle-insert']} · {isInsertMode ? 'on' : 'off'}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { selfplayToEnd(); setAnalysisMenuOpen(false); }}
                   >
@@ -890,7 +890,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
                     <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
                   </div>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => {
                       if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
@@ -901,7 +901,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                     <span className="flex items-center gap-2"><FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop quick analysis' : 'Analyze game (quick graph)'}</span>
                     <span className="text-xs ui-text-faint">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => {
                       if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
@@ -912,14 +912,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                     <span className="flex items-center gap-2"><FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast MCTS)'}</span>
                     <span className="text-xs ui-text-faint">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { setIsGameAnalysisOpen(true); setAnalysisMenuOpen(false); }}
                   >
                     <span className="flex items-center gap-2"><FaRobot /> Re-analyze game…</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['game-analysis-modal']}</span>
                   </button>
-                  <button
+                  <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { setIsGameReportOpen(true); setAnalysisMenuOpen(false); }}
                   >

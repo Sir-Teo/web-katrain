@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { TopControlBar } from '../src/components/layout/TopControlBar';
@@ -81,5 +82,11 @@ describe('TopControlBar', () => {
 
     expect(html).not.toContain('data-mobile-sound-toggle="true"');
     expect(html).not.toContain('data-mobile-board-theme-cycle="true"');
+  });
+
+  it('uses explicit button types in toolbar popovers and menus', () => {
+    const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+
+    expect(source.match(/<button\b(?![^>]*\btype=)[^>]*>/gs) ?? []).toEqual([]);
   });
 });
