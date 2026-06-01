@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { commandMatchesQuery, normalizeCommandQuery } from '../src/utils/commandPalette';
+import { commandMatchesQuery, normalizeCommandQuery, scoreCommandMatch } from '../src/utils/commandPalette';
 
 describe('command palette search', () => {
   const saveCopyParts = [
@@ -28,6 +28,45 @@ describe('command palette search', () => {
 
   it('requires every query token to match', () => {
     expect(commandMatchesQuery(saveCopyParts, 'save photo')).toBe(false);
+  });
+
+  it('scores label hits before incidental keyword matches', () => {
+    const shapeCoach = scoreCommandMatch({
+      id: 'toggle-shape-coach',
+      label: 'Show Shape Coach',
+      category: 'Analysis',
+      keywords: ['pattern', 'study'],
+    }, 'shape');
+    const fastDepth = scoreCommandMatch({
+      id: 'set-live-mcts-depth-16',
+      label: 'Set live MCTS depth: Fast',
+      category: 'Analysis',
+      keywords: ['Quick shape checks with minimal waiting.'],
+    }, 'shape');
+
+    expect(shapeCoach).not.toBeNull();
+    expect(fastDepth).not.toBeNull();
+    expect(shapeCoach!).toBeLessThan(fastDepth!);
+  });
+
+  it('keeps shortcut hits ranked as strong direct matches', () => {
+    const shortcutScore = scoreCommandMatch({
+      id: 'save-library',
+      label: 'Save copy to library',
+      category: 'File',
+      shortcut: 'Ctrl+Shift+S',
+      keywords: ['archive', 'collection'],
+    }, 'ctrl shift s');
+    const keywordScore = scoreCommandMatch({
+      id: 'toggle-shortcut-display',
+      label: 'Show shortcut labels',
+      category: 'View',
+      keywords: ['ctrl shift s'],
+    }, 'ctrl shift s');
+
+    expect(shortcutScore).not.toBeNull();
+    expect(keywordScore).not.toBeNull();
+    expect(shortcutScore!).toBeLessThan(keywordScore!);
   });
 
   it('exposes Shape Coach as a searchable learning command', () => {

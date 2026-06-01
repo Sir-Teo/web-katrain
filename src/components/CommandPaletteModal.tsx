@@ -6,7 +6,7 @@ import {
   SHORTCUTS_UPDATED_EVENT,
   shortcutDisplay,
 } from '../utils/shortcuts';
-import { commandMatchesQuery, normalizeCommandQuery } from '../utils/commandPalette';
+import { normalizeCommandQuery, scoreCommandMatch } from '../utils/commandPalette';
 
 export type CommandPaletteCommand = {
   id: string;
@@ -50,16 +50,19 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const filteredCommands = React.useMemo(() => {
     const normalizedQuery = normalizeCommandQuery(query);
     if (!normalizedQuery) return commands;
-    return commands.filter((command) => {
+    return commands.flatMap((command, index) => {
       const shortcut = command.shortcutId ? shortcutLabels.get(command.shortcutId) : '';
-      return commandMatchesQuery([
-        command.label,
-        command.category,
-        command.id,
+      const score = scoreCommandMatch({
+        label: command.label,
+        category: command.category,
+        id: command.id,
         shortcut,
-        ...(command.keywords ?? []),
-      ], normalizedQuery);
-    });
+        keywords: command.keywords,
+      }, normalizedQuery);
+      return score === null ? [] : [{ command, index, score }];
+    })
+      .sort((a, b) => a.score - b.score || a.index - b.index)
+      .map((entry) => entry.command);
   }, [commands, query, shortcutLabels]);
 
   React.useEffect(() => {
