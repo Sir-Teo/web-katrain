@@ -1658,6 +1658,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 Strong b18
                                             </button>
                                         </div>
+                                        <input
+                                            id="settings-katago-model-url"
+                                            type="text"
+                                            value={settings.katagoModelUrl}
+                                            onChange={(e) => updateSettings({ katagoModelUrl: e.target.value })}
+                                            className={`${inputClass} text-xs`}
+                                            placeholder={SMALL_MODEL_URL}
+                                        />
+                                        <p className={subtextClass}>
+                                            Use a local path under <span className="font-mono">{publicUrl('models/')}</span> or a full URL (must allow CORS).
+                                        </p>
                                         <div className="space-y-1">
                                             <div className="text-xs text-[var(--ui-text-faint)]">Upload weights (.bin.gz)</div>
                                             <div className="flex flex-wrap gap-2">
@@ -1767,17 +1778,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 Download only browser-sized weights, then use "Upload Weights" above. Saved browser uploads use IndexedDB; large b28/b40 weights are for native KataGo, not this browser engine.
                                             </p>
                                         </div>
-                                        <input
-                                            id="settings-katago-model-url"
-                                            type="text"
-                                            value={settings.katagoModelUrl}
-                                            onChange={(e) => updateSettings({ katagoModelUrl: e.target.value })}
-                                            className={`${inputClass} text-xs`}
-                                            placeholder={SMALL_MODEL_URL}
-                                        />
-                                        <p className={subtextClass}>
-                                            Use a local path under <span className="font-mono">{publicUrl('models/')}</span> or a full URL (must allow CORS).
-                                        </p>
                                         <div className="space-y-1">
                                             <label htmlFor="settings-katago-backend" className="text-[var(--ui-text-muted)] block text-sm">Backend</label>
                                             <select
