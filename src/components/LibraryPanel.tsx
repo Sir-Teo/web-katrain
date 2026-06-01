@@ -48,6 +48,7 @@ import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { isMobileLayoutViewport } from '../utils/responsiveLayout';
 import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
+import { getLibraryRowKeyAction } from '../utils/libraryKeyboard';
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
@@ -636,11 +637,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
   };
 
+  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null) => {
+    const position = clampContextMenuPosition(x, y);
+    setContextMenu({ ...position, itemId: item?.id ?? null });
+  };
+
   const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {
     event.preventDefault();
     event.stopPropagation();
-    const position = clampContextMenuPosition(event.clientX, event.clientY);
-    setContextMenu({ ...position, itemId: item?.id ?? null });
+    openContextMenuAt(event.clientX, event.clientY, item);
+  };
+
+  const openKeyboardContextMenu = (event: React.KeyboardEvent<HTMLElement>, item: LibraryItem | null) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    openContextMenuAt(
+      rect.left + Math.min(32, rect.width / 2),
+      rect.top + Math.min(32, rect.height / 2),
+      item
+    );
   };
 
   const closeContextMenu = () => setContextMenu(null);
@@ -648,6 +662,50 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const runContextAction = (action: () => void) => {
     closeContextMenu();
     action();
+  };
+
+  const activateFolderRow = (item: LibraryFolder) => {
+    setCurrentFolderId(item.id);
+    setExpandedFolderIds((prev) => new Set(prev).add(item.id));
+  };
+
+  const handleFileRowKeyDown = (item: LibraryFile) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const action = getLibraryRowKeyAction({ key: event.key, shiftKey: event.shiftKey, kind: 'file' });
+    if (action === 'none') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (action === 'activate') void handleLoad(item);
+    else if (action === 'context-menu') openKeyboardContextMenu(event, item);
+  };
+
+  const handleFolderRowKeyDown = (
+    item: LibraryFolder,
+    isExpanded: boolean,
+    hasChildren: boolean,
+    allowChildren: boolean
+  ) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const action = getLibraryRowKeyAction({
+      key: event.key,
+      shiftKey: event.shiftKey,
+      kind: 'folder',
+      isExpanded,
+      hasChildren,
+      allowChildren,
+    });
+    if (action === 'none') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (action === 'activate') activateFolderRow(item);
+    else if (action === 'expand') setExpandedFolderIds((prev) => new Set(prev).add(item.id));
+    else if (action === 'collapse') {
+      setExpandedFolderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    } else if (action === 'context-menu') {
+      openKeyboardContextMenu(event, item);
+    }
   };
 
   const handleSaveCurrent = () => {
@@ -1095,7 +1153,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
         ].join(' ')}
         style={{ paddingLeft: 12 + depth * 16 }}
+        role="treeitem"
+        tabIndex={0}
+        aria-selected={isSelected}
+        aria-current={isLoaded ? 'true' : undefined}
+        aria-label={`${item.name}, game file, ${item.moveCount} moves`}
+        data-library-row="file"
+        data-library-row-name={item.name}
         onClick={() => void handleLoad(item)}
+        onKeyDown={handleFileRowKeyDown(item)}
         onContextMenu={(event) => openContextMenu(event, item)}
         draggable
         onDragStart={handleItemDragStart(item.id)}
@@ -1193,10 +1259,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             dragOverId === item.id ? 'drop-target' : '',
           ].join(' ')}
           style={{ paddingLeft: 12 + depth * 16 }}
-          onClick={() => {
-            setCurrentFolderId(item.id);
-            setExpandedFolderIds((prev) => new Set(prev).add(item.id));
-          }}
+          role="treeitem"
+          tabIndex={0}
+          aria-selected={isSelected || activeFolderId === item.id}
+          aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
+          aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}`}
+          data-library-row="folder"
+          data-library-row-name={item.name}
+          onClick={() => activateFolderRow(item)}
+          onKeyDown={handleFolderRowKeyDown(item, isExpanded, children.length > 0, allowChildren)}
           onContextMenu={(event) => openContextMenu(event, item)}
           draggable
           onDragStart={handleItemDragStart(item.id)}
@@ -1744,6 +1815,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list',
                   dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
                 ].join(' ')}
+                role="tree"
+                aria-label="Library games"
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
