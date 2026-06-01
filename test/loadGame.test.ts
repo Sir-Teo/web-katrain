@@ -192,6 +192,28 @@ describe('GameStore loadGame', () => {
         expect(useGameStore.getState().editRedoCount).toBe(0);
     });
 
+    it('toggles edit markers while drag-painting keeps existing markers', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        useGameStore.getState().setEditTool('marker-square');
+        useGameStore.getState().applyEditTool(3, 3);
+        expect(useGameStore.getState().rootNode.properties?.SQ).toEqual(['dd']);
+
+        useGameStore.getState().applyEditTool(3, 3);
+        expect(useGameStore.getState().rootNode.properties?.SQ).toBeUndefined();
+
+        useGameStore.getState().applyEditTool(3, 3);
+        useGameStore.getState().applyEditTool(3, 3, { paintOnly: true });
+        expect(useGameStore.getState().rootNode.properties?.SQ).toEqual(['dd']);
+
+        useGameStore.getState().setEditTool('marker-circle');
+        useGameStore.getState().applyEditTool(3, 3, { paintOnly: true });
+        const state = useGameStore.getState();
+        expect(state.rootNode.properties?.SQ).toBeUndefined();
+        expect(state.rootNode.properties?.CR).toEqual(['dd']);
+    });
+
     it('switches to a numbered branch while preserving depth', () => {
         const store = useGameStore.getState();
         store.resetGame();

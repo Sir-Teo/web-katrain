@@ -133,6 +133,11 @@ interface GoBoardProps {
   onToggleDeadStone?: (x: number, y: number) => void;
 }
 
+type EditDragState = {
+  pointerId: number;
+  painted: Set<string>;
+};
+
 export const GoBoard: React.FC<GoBoardProps> = ({
   hoveredMove,
   onHoverMove,
@@ -199,6 +204,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const wheelDeltaRef = useRef(0);
   const wheelThrottleRef = useRef<number | null>(null);
   const tapConfirmTimerRef = useRef<number | null>(null);
+  const editDragRef = useRef<EditDragState | null>(null);
 
   useEffect(() => {
     return () => {
@@ -1164,6 +1170,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     a: { x: number; y: number } | null,
     b: { x: number; y: number } | null
   ): boolean => (a?.x === b?.x && a?.y === b?.y);
+  const editDragKey = (pt: { x: number; y: number }): string => `${pt.x},${pt.y}`;
 
   const tryPlayPoint = useCallback(
     (pt: { x: number; y: number }): boolean => {
@@ -1379,8 +1386,26 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isSelectingRegionOfInterest) return;
     if (e.button !== 0) return;
+
+    if (isEditMode && !scoringMode && !isSelectingRegionOfInterest) {
+      const pt = eventToInternal(e);
+      if (!pt) return;
+      e.preventDefault();
+      e.stopPropagation();
+      suppressNextClickRef.current = true;
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Ignore browsers that do not keep capture for this pointer.
+      }
+      setCursorPt(pt);
+      editDragRef.current = { pointerId: e.pointerId, painted: new Set([editDragKey(pt)]) };
+      applyEditTool(pt.x, pt.y);
+      return;
+    }
+
+    if (!isSelectingRegionOfInterest) return;
     const pt = eventToInternal(e);
     if (!pt) return;
     e.preventDefault();
@@ -1404,6 +1429,18 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
     setCursorPt((prev) => (samePoint(prev, pt) ? prev : pt));
     if (scoringMode) {
+      if (hoveredMove) onHoverMove(null);
+      return;
+    }
+    const activeEditDrag = editDragRef.current;
+    if (activeEditDrag?.pointerId === e.pointerId && isEditMode && !isSelectingRegionOfInterest) {
+      if (pt) {
+        const key = editDragKey(pt);
+        if (!activeEditDrag.painted.has(key)) {
+          activeEditDrag.painted.add(key);
+          applyEditTool(pt.x, pt.y, { paintOnly: true });
+        }
+      }
       if (hoveredMove) onHoverMove(null);
       return;
     }
@@ -1448,6 +1485,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (editDragRef.current?.pointerId === e.pointerId) {
+      editDragRef.current = null;
+      suppressNextClickRef.current = true;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignore.
+      }
+      return;
+    }
+
     if (!isSelectingRegionOfInterest) return;
     if (!roiDrag) return;
     const pt = eventToInternal(e) ?? roiDrag.end;
@@ -1463,6 +1511,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const yMin = Math.min(roiDrag.start.y, pt.y);
     const yMax = Math.max(roiDrag.start.y, pt.y);
     setRegionOfInterest({ xMin, xMax, yMin, yMax });
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (editDragRef.current?.pointerId === e.pointerId) {
+      editDragRef.current = null;
+    }
+    if (roiDrag) setRoiDrag(null);
   };
 
   const handlePointerLeave = () => {
@@ -2021,6 +2076,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         onPointerLeave={handlePointerLeave}
         onFocus={handleBoardFocus}
         onBlur={handleBoardBlur}

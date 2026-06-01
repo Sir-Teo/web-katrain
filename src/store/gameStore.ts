@@ -41,6 +41,10 @@ type BranchClipboardNode = {
   children: BranchClipboardNode[];
 };
 
+type ApplyEditToolOptions = {
+  paintOnly?: boolean;
+};
+
 interface GameStore extends GameState {
   // Tree State
   rootNode: GameNode;
@@ -144,7 +148,7 @@ interface GameStore extends GameState {
   toggleInsertMode: () => void;
   toggleEditMode: () => void;
   setEditTool: (tool: EditTool) => void;
-  applyEditTool: (x: number, y: number) => void;
+  applyEditTool: (x: number, y: number, options?: ApplyEditToolOptions) => void;
   clearCurrentNodeSetupStones: () => void;
   applySetupStones: (stones: Array<{ x: number; y: number; player: Player | null }>) => number;
   clearCurrentNodeAnnotations: () => void;
@@ -1508,7 +1512,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }),
 
-  applyEditTool: (x, y) =>
+  applyEditTool: (x, y, options = {}) =>
     set((state) => {
       const boardSize = state.board.length;
       if (x < 0 || y < 0 || x >= boardSize || y >= boardSize) return {};
@@ -1520,6 +1524,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const markerProp = editToolToMarkerProperty(tool);
 
       if (markerProp) {
+        const hasSameMarker = props[markerProp]?.includes(coord) ?? false;
+        if (hasSameMarker) {
+          if (options.paintOnly) return {};
+          const history = pushEditHistory(state);
+          removeValue(props, markerProp, (value) => value === coord);
+          return {
+            ...history,
+            treeVersion: state.treeVersion + 1,
+            notification: { message: `Removed ${markerProp} marker.`, type: 'info' },
+          };
+        }
+
         const history = pushEditHistory(state);
         removeMarkupCoord(props, coord);
         addUniqueValue(props, markerProp, coord);
