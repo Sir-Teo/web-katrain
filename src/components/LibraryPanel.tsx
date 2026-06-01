@@ -1762,7 +1762,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   ))}
                 {isDragging && (
                   <span className="ml-auto ui-accent-soft border rounded px-2 py-0.5">
-                    Drop SGF files to import
+                    Drop SGF, ZIP, or board images to import
                   </span>
                 )}
               </div>
@@ -1869,7 +1869,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 ) : items.length === 0 ? (
                   <div className="p-6 text-sm ui-text-faint">
                     <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Library is empty</div>
-                    <div>Save the current game or drag SGF files here to build your library.</div>
+                    <div>Save the current game or drag SGF, ZIP, or board image files here to build your library.</div>
                   </div>
                 ) : (
                   <div>
