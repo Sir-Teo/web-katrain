@@ -324,6 +324,8 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
           ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
           : 'border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)]',
   ].join(' ');
+  const deltaCountLabel = (type: PhotoBoardDeltaStone['type'], player: Player, count: number) =>
+    `${type === 'added' ? '+' : '-'}${player === 'black' ? 'B' : 'W'}: ${count}`;
   const deltaOverlayToggleClass = (active: boolean) => [
     'min-h-8 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
     active
@@ -592,16 +594,16 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                         <span className={deltaChipClass('matched')}>Matched</span>
                       )}
                       {deltaCounts.addedBlack > 0 && (
-                        <span className={deltaChipClass('added')}>+B {deltaCounts.addedBlack}</span>
+                        <span className={deltaChipClass('added')}>{deltaCountLabel('added', 'black', deltaCounts.addedBlack)}</span>
                       )}
                       {deltaCounts.addedWhite > 0 && (
-                        <span className={deltaChipClass('added')}>+W {deltaCounts.addedWhite}</span>
+                        <span className={deltaChipClass('added')}>{deltaCountLabel('added', 'white', deltaCounts.addedWhite)}</span>
                       )}
                       {deltaCounts.removedBlack > 0 && (
-                        <span className={deltaChipClass('removed')}>-B {deltaCounts.removedBlack}</span>
+                        <span className={deltaChipClass('removed')}>{deltaCountLabel('removed', 'black', deltaCounts.removedBlack)}</span>
                       )}
                       {deltaCounts.removedWhite > 0 && (
-                        <span className={deltaChipClass('removed')}>-W {deltaCounts.removedWhite}</span>
+                        <span className={deltaChipClass('removed')}>{deltaCountLabel('removed', 'white', deltaCounts.removedWhite)}</span>
                       )}
                       {playMoveDelta && (
                         <span className={deltaChipClass('move')}>

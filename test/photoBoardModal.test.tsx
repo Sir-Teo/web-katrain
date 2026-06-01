@@ -31,6 +31,7 @@ describe('PhotoBoardModal', () => {
     expect(html).toContain('data-photo-board-delta-player="black"');
     expect(html).toContain('data-photo-board-delta-list="true"');
     expect(html).toContain('data-photo-board-delta-list-item="removed"');
+    expect(html).toContain('-B: 1');
     expect(html).toContain('-B A9');
   });
 
