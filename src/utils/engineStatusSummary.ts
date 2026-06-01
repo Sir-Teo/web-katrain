@@ -64,11 +64,14 @@ export function getEngineModelSource(modelUrl: string | null | undefined): strin
 }
 
 export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineStatusSummary {
+  const hasLoadedBackend = !!args.activeBackend?.trim();
+  const hasConfiguredModel = !!args.modelLabel?.trim();
+  const reportsReadyWhileIdle = args.status === 'idle' && (hasLoadedBackend || hasConfiguredModel);
   const stateLabel = args.error
     ? 'Error'
     : args.status === 'loading'
       ? 'Loading'
-      : args.status === 'ready'
+      : args.status === 'ready' || reportsReadyWhileIdle
         ? 'Ready'
         : 'Idle';
   const activeBackend = args.activeBackend ?? args.requestedBackend;
@@ -79,8 +82,10 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
   const parts = [stateDisplay, activeBackendLabel];
   if (args.modelLabel) parts.push(args.modelLabel);
   const modelSource = getEngineModelSource(args.modelUrl);
+  const isReady = stateLabel === 'Ready';
   const titleLines = [
     `State: ${stateLabel}`,
+    reportsReadyWhileIdle ? 'Activity: Idle' : '',
     `Backend: ${activeBackendLabel}`,
     isFallback ? `Requested: ${requestedBackendLabel}` : '',
     args.modelLabel ? `Model: ${args.modelLabel}` : '',
@@ -100,7 +105,7 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
       ? 'bg-red-500'
       : args.status === 'loading'
         ? 'bg-yellow-400'
-        : args.status === 'ready'
+        : isReady
           ? 'bg-green-400'
           : 'bg-slate-500',
     tone: args.error ? 'error' : 'default',

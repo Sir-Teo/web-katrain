@@ -37,6 +37,47 @@ describe('engine status summary', () => {
     expect(summary.tone).toBe('default');
   });
 
+  it('shows a loaded but idle backend as ready', () => {
+    const summary = getEngineStatusSummary({
+      status: 'idle',
+      requestedBackend: 'webgpu',
+      activeBackend: 'webgpu',
+      modelLabel: 'kata1-b18',
+      modelUrl: '/models/kata1-b18.bin.gz',
+    });
+
+    expect(summary.compactLabel).toBe('Ready · WebGPU · kata1-b18');
+    expect(summary.title).toContain('State: Ready');
+    expect(summary.title).toContain('Activity: Idle');
+    expect(summary.dotClass).toBe('bg-green-400');
+  });
+
+  it('shows a configured model as ready before the active backend is reported', () => {
+    const summary = getEngineStatusSummary({
+      status: 'idle',
+      requestedBackend: 'webgpu',
+      modelLabel: 'kata1-b18',
+      modelUrl: '/models/kata1-b18.bin.gz',
+    });
+
+    expect(summary.compactLabel).toBe('Ready · WebGPU · kata1-b18');
+    expect(summary.title).toContain('State: Ready');
+    expect(summary.title).toContain('Activity: Idle');
+    expect(summary.dotClass).toBe('bg-green-400');
+  });
+
+  it('keeps an idle engine without a loaded backend or model distinct from ready', () => {
+    const summary = getEngineStatusSummary({
+      status: 'idle',
+      requestedBackend: 'webgpu',
+    });
+
+    expect(summary.compactLabel).toBe('Idle · WebGPU');
+    expect(summary.title).toContain('State: Idle');
+    expect(summary.title).not.toContain('Activity: Idle');
+    expect(summary.dotClass).toBe('bg-slate-500');
+  });
+
   it('keeps fallback and error states visible at the same time', () => {
     const summary = getEngineStatusSummary({
       status: 'error',
