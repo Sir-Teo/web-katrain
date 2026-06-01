@@ -54,6 +54,10 @@ export function isIosPwaInstallCandidate(target?: IosInstallNavigator | Navigato
   }
 }
 
+export function shouldUseBrowserPwaInstallPrompt(target?: IosInstallNavigator | Navigator | null): boolean {
+  return !isIosPwaInstallCandidate(target);
+}
+
 export function getServiceWorkerContainer(target?: Navigator | null): ServiceWorkerContainer | null {
   const source = getNavigator(target);
   if (!source) return null;

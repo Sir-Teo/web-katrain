@@ -8,6 +8,7 @@ import {
   PWA_UPDATE_READY_EVENT,
   runPwaInstallPrompt,
   setPwaInstallDismissed,
+  shouldUseBrowserPwaInstallPrompt,
 } from '../utils/pwa';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 
@@ -36,7 +37,7 @@ export const PwaInstallBanner: React.FC = () => {
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      if (isStandalonePwa() || getPwaInstallDismissed()) return;
+      if (!shouldUseBrowserPwaInstallPrompt() || isStandalonePwa() || getPwaInstallDismissed()) return;
       setActionMessage(null);
       setBanner({ type: 'install', prompt: event as BeforeInstallPromptEvent });
     };

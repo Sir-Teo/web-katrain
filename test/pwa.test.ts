@@ -9,6 +9,7 @@ import {
   PWA_INSTALL_DISMISSED_KEY,
   runPwaInstallPrompt,
   setPwaInstallDismissed,
+  shouldUseBrowserPwaInstallPrompt,
 } from '../src/utils/pwa';
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -102,6 +103,20 @@ describe('PWA helpers', () => {
     });
 
     expect(isIosPwaInstallCandidate(blocked)).toBe(false);
+  });
+
+  it('keeps browser install prompts behind iOS manual install guidance', () => {
+    expect(shouldUseBrowserPwaInstallPrompt({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+      platform: 'iPhone',
+      maxTouchPoints: 5,
+    } as Navigator)).toBe(false);
+
+    expect(shouldUseBrowserPwaInstallPrompt({
+      userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9)',
+      platform: 'Linux armv8l',
+      maxTouchPoints: 5,
+    } as Navigator)).toBe(true);
   });
 
   it('treats missing or blocked service workers as unavailable', () => {
