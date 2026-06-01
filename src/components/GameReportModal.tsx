@@ -1034,7 +1034,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 </React.Fragment>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-3">
+            <p className={`mt-3 text-xs ${faintClass}`}>
               Requires analysis on consecutive moves (both parent and child) to compute point loss.
             </p>
           </div>
@@ -1052,7 +1052,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         <span
                           className={[
                             'h-2.5 w-2.5 rounded-full border',
-                            player === 'black' ? 'bg-slate-950 border-slate-400' : 'bg-slate-100 border-slate-300',
+                            player === 'black' ? 'game-report-player-swatch--black' : 'game-report-player-swatch--white',
                           ].join(' ')}
                           aria-hidden="true"
                         />
@@ -1428,8 +1428,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="flex items-center justify-between">
               <div className={sectionTitleClass}>Point Loss Histogram</div>
               <div className={`flex items-center gap-2 text-[10px] ${mutedClass}`}>
-                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-200/80" />Black</span>
-                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-400/80" />White</span>
+                <span className="inline-flex items-center gap-1"><span className="game-report-histogram-swatch game-report-histogram-bar--black" />Black</span>
+                <span className="inline-flex items-center gap-1"><span className="game-report-histogram-swatch game-report-histogram-bar--white" />White</span>
               </div>
             </div>
             <div className="mt-3 space-y-2">
@@ -1506,12 +1506,17 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         >
                           {playerFilter === 'all' ? (
                             <>
-                              <div className="h-full bg-slate-200/80" style={{ width: blackWidth }} />
-                              <div className="h-full bg-slate-400/80" style={{ width: whiteWidth }} />
+                              <div className="h-full game-report-histogram-bar--black" style={{ width: blackWidth }} />
+                              <div className="h-full game-report-histogram-bar--white" style={{ width: whiteWidth }} />
                             </>
                           ) : (
                             <div
-                              className={playerFilter === 'black' ? 'h-full bg-slate-200/80' : 'h-full bg-slate-400/80'}
+                              className={[
+                                'h-full',
+                                playerFilter === 'black'
+                                  ? 'game-report-histogram-bar--black'
+                                  : 'game-report-histogram-bar--white',
+                              ].join(' ')}
                               style={{ width: singleWidth }}
                             />
                           )}

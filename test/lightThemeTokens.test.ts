@@ -95,6 +95,13 @@ describe('light theme shell tokens', () => {
       'text-slate-500',
       'hover:bg-slate-800/80',
       'hover:bg-slate-900/60',
+      'bg-slate-950',
+      'bg-slate-100',
+      'bg-slate-200/80',
+      'bg-slate-400/80',
+      'border-slate-400',
+      'border-slate-300',
+      'text-gray-500',
       'bg-[var(--ui-surface-2)] hover:brightness-110 text-white',
       'bg-[var(--ui-surface-2)] text-white',
     ];
@@ -102,6 +109,9 @@ describe('light theme shell tokens', () => {
     for (const token of hardDarkTokens) {
       expect(interactiveReport, token).not.toContain(token);
     }
+
+    expect(interactiveReport).toContain('game-report-player-swatch--black');
+    expect(interactiveReport).toContain('game-report-histogram-bar--black');
   });
 
   it('keeps the interactive game report PV tree on theme tokens', () => {

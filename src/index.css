@@ -1454,6 +1454,31 @@
     stroke-width: 1.5;
   }
 
+  .game-report-player-swatch--black {
+    background: #05070a;
+    border-color: color-mix(in srgb, var(--ui-text-muted) 72%, var(--ui-border));
+  }
+
+  .game-report-player-swatch--white {
+    background: #f8fafc;
+    border-color: color-mix(in srgb, var(--ui-border-strong) 76%, #020617);
+  }
+
+  .game-report-histogram-swatch {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+  }
+
+  .game-report-histogram-bar--black {
+    background: color-mix(in srgb, #05070a 88%, var(--ui-surface));
+  }
+
+  .game-report-histogram-bar--white {
+    background: color-mix(in srgb, #f8fafc 70%, var(--ui-text-muted));
+  }
+
   .library-tree-node {
     display: flex;
     align-items: center;
