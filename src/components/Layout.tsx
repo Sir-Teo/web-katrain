@@ -2328,6 +2328,10 @@ export const Layout: React.FC = () => {
               engineDot={engineDot}
               engineStatus={engineStatus}
               engineError={engineError}
+              engineBackend={engineBackend}
+              engineModelLabel={engineModelLabel}
+              requestedBackend={settings.katagoBackend}
+              modelUrl={settings.katagoModelUrl}
               winRate={winRate ?? null}
               scoreLead={scoreLead ?? null}
               pointsLost={pointsLost}

@@ -759,6 +759,38 @@
     text-overflow: ellipsis;
   }
 
+  .analysis-command-bar__status-copy {
+    display: inline-flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    color: var(--ui-danger);
+    background: var(--ui-danger-soft);
+    border: 1px solid var(--ui-danger);
+    border-radius: 6px;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .analysis-command-bar__status-copy:hover {
+    color: #fff;
+    background: var(--ui-danger);
+  }
+
+  .analysis-command-bar__status-copy:active {
+    transform: translateY(1px);
+  }
+
+  .analysis-command-bar__status-copy.copied {
+    color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+    border-color: var(--ui-accent);
+  }
+
   .analysis-command-bar__metrics {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(5.25rem, 1fr));

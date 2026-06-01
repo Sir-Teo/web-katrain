@@ -10,6 +10,7 @@ import {
   FaSquare,
   FaThLarge,
   FaTimes,
+  FaCopy,
 } from 'react-icons/fa';
 import type { AnalysisControlsState, UiMode } from './layout/types';
 import { formatAnalysisScoreLead, formatAnalysisWinRate, summarizePointsLost } from '../utils/analysisSummary';
@@ -38,6 +39,9 @@ import {
 } from '../utils/visitPresets';
 import { ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
+import { copyTextToClipboard } from '../utils/clipboard';
+import { formatEngineErrorReport } from '../utils/engineDiagnostics';
+import { setTimedNotification } from '../utils/timedNotification';
 
 interface AnalysisCommandBarProps {
   mode: UiMode;
@@ -46,6 +50,10 @@ interface AnalysisCommandBarProps {
   engineDot: string;
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
   engineError: string | null;
+  engineBackend: string | null;
+  engineModelLabel: string | null;
+  requestedBackend: string;
+  modelUrl: string;
   winRate: number | null;
   scoreLead: number | null;
   pointsLost: number | null;
@@ -68,6 +76,10 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   engineDot,
   engineStatus,
   engineError,
+  engineBackend,
+  engineModelLabel,
+  requestedBackend,
+  modelUrl,
   winRate,
   scoreLead,
   pointsLost,
@@ -95,6 +107,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const [depthHintVisits, setDepthHintVisits] = React.useState<number | null>(null);
   const [reviewStartedAt, setReviewStartedAt] = React.useState<number | null>(null);
   const [reviewNow, setReviewNow] = React.useState(0);
+  const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const shouldShow =
     mode === 'analyze' ||
     isAnalysisMode ||
@@ -122,6 +135,22 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       : engineStatus === 'ready'
         ? 'Engine ready'
         : 'Engine idle';
+  React.useEffect(() => {
+    setEngineErrorCopied(false);
+  }, [engineError]);
+  const copyEngineError = React.useCallback(async () => {
+    if (!engineError) return;
+    const ok = await copyTextToClipboard(formatEngineErrorReport({
+      status: engineStatus,
+      requestedBackend,
+      activeBackend: engineBackend ?? requestedBackend,
+      modelLabel: engineModelLabel,
+      modelUrl,
+      error: engineError,
+    }));
+    setEngineErrorCopied(ok);
+    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error', 1800);
+  }, [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
 
   const toggleOverlay = (key: keyof AnalysisControlsState) => {
     updateControls({ [key]: !analysisControls[key] });
@@ -343,6 +372,20 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       <div className="analysis-command-bar__status" title={statusText}>
         <span className={['analysis-command-bar__dot', engineDot].join(' ')} aria-hidden="true" />
         <span className="analysis-command-bar__status-text">{engineLabel}</span>
+        {engineError && (
+          <button
+            type="button"
+            className={[
+              'analysis-command-bar__status-copy',
+              engineErrorCopied ? 'copied' : '',
+            ].join(' ')}
+            onClick={() => void copyEngineError()}
+            title={engineErrorCopied ? 'Copied engine error details' : 'Copy engine error details'}
+            aria-label={engineErrorCopied ? 'Engine error details copied' : 'Copy engine error details'}
+          >
+            <FaCopy aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       <div className="analysis-command-bar__metrics" aria-label="Analysis summary">
