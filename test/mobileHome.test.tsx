@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MobileHome } from '../src/components/MobileHome';
+import type { LibraryFile } from '../src/utils/library';
+
+const recentFile: LibraryFile = {
+  id: 'recent-1',
+  type: 'file',
+  name: 'Teaching Game',
+  parentId: null,
+  createdAt: Date.UTC(2026, 0, 1),
+  updatedAt: Date.UTC(2026, 0, 2, 12, 30),
+  sgf: '(;GM[1]SZ[19])',
+  moveCount: 42,
+  size: 1536,
+  metadata: {},
+};
 
 const baseProps = {
   open: true,
@@ -52,5 +66,12 @@ describe('MobileHome', () => {
     const html = renderToStaticMarkup(<MobileHome {...baseProps} />);
 
     expect(html).toContain('Save Copy to Library');
+  });
+
+  it('shows move count and size for recent games', () => {
+    const html = renderToStaticMarkup(<MobileHome {...baseProps} recentItems={[recentFile]} />);
+
+    expect(html).toContain('Teaching Game');
+    expect(html).toContain('42 moves · 1.5 KB');
   });
 });

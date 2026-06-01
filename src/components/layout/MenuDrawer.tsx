@@ -3,7 +3,7 @@ import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboa
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
-import type { LibraryFile } from '../../utils/library';
+import { formatLibrarySize, type LibraryFile } from '../../utils/library';
 
 const MENU_DRAWER_SHORTCUT_IDS = [
   'new-game',
@@ -290,7 +290,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 >
                   <div className="truncate">{item.name}</div>
                   <div className="text-[11px] ui-text-faint">
-                    {new Date(item.updatedAt).toLocaleString()}
+                    {item.moveCount} moves · {formatLibrarySize(item.size)} · {new Date(item.updatedAt).toLocaleString()}
                   </div>
                 </button>
               ))}

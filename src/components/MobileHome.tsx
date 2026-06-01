@@ -13,7 +13,7 @@ import {
   FaTimes,
   FaThLarge,
 } from 'react-icons/fa';
-import type { LibraryFile } from '../utils/library';
+import { formatLibrarySize, type LibraryFile } from '../utils/library';
 import { formatGamepadLabel } from '../utils/gamepadLabel';
 
 interface MobileHomeProps {
@@ -197,7 +197,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                   >
                     <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{item.name}</div>
                     <div className="mt-1 truncate text-xs ui-text-faint">
-                      {new Date(item.updatedAt).toLocaleString()}
+                      {item.moveCount} moves · {formatLibrarySize(item.size)} · {new Date(item.updatedAt).toLocaleString()}
                     </div>
                   </button>
                 ))}
