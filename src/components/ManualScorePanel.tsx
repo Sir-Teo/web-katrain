@@ -147,6 +147,13 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
             <b>{score.whiteTerritory}</b>
           </div>
           <div>
+            <span>Neutral</span>
+            <b className="manual-score-muted" aria-label={`${score.neutralPoints} neutral points`}>
+              {score.neutralPoints}
+            </b>
+            <b className="manual-score-muted">-</b>
+          </div>
+          <div>
             <span>Prisoners</span>
             <b>{capturedWhite}</b>
             <b>{capturedBlack}</b>
