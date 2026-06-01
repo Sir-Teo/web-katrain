@@ -1,12 +1,22 @@
 let audioCtx: AudioContext | null = null;
 
-const getAudioContext = () => {
+const getAudioContextConstructor = (): typeof AudioContext | null => {
     if (typeof window === 'undefined') return null; // Handle SSR/Test environment
+    try {
+        const audioWindow = window as unknown as {
+            AudioContext?: typeof AudioContext;
+            webkitAudioContext?: typeof AudioContext;
+        };
+        return audioWindow.AudioContext || audioWindow.webkitAudioContext || null;
+    } catch {
+        return null;
+    }
+};
+
+const getAudioContext = () => {
     if (audioCtx) return audioCtx;
 
-    const AudioContextCtor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextCtor = getAudioContextConstructor();
     if (!AudioContextCtor) return null;
 
     try {
@@ -21,7 +31,13 @@ const getAudioContext = () => {
 // Ensure context is running (needed for some browsers that suspend it)
 const resumeContext = () => {
     const ctx = getAudioContext();
-    if (ctx && ctx.state === 'suspended') {
+    let state: AudioContextState | null = null;
+    try {
+        state = ctx?.state ?? null;
+    } catch {
+        return null;
+    }
+    if (ctx && state === 'suspended') {
         try {
             void ctx.resume().catch(() => {});
         } catch {

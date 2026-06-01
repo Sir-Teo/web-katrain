@@ -40,6 +40,56 @@ describe('sound helpers', () => {
     expect(() => playStoneSound()).not.toThrow();
   });
 
+  it('swallows blocked AudioContext accessor reads', () => {
+    const blockedWindow = {};
+    Object.defineProperty(blockedWindow, 'AudioContext', {
+      configurable: true,
+      get() {
+        throw new Error('audio accessor blocked');
+      },
+    });
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: blockedWindow,
+    });
+
+    expect(() => playStoneSound()).not.toThrow();
+  });
+
+  it('swallows blocked AudioContext state reads', () => {
+    class BlockedStateAudioContext {
+      currentTime = 0;
+      destination = {};
+      get state() {
+        throw new Error('audio state blocked');
+      }
+      resume = () => Promise.resolve();
+      createOscillator = () => ({
+        connect: () => {},
+        type: 'sine',
+        frequency: {
+          setValueAtTime: () => {},
+          exponentialRampToValueAtTime: () => {},
+        },
+        start: () => {},
+        stop: () => {},
+      });
+      createGain = () => ({
+        connect: () => {},
+        gain: {
+          setValueAtTime: () => {},
+          exponentialRampToValueAtTime: () => {},
+        },
+      });
+    }
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { AudioContext: BlockedStateAudioContext },
+    });
+
+    expect(() => playStoneSound()).not.toThrow();
+  });
+
   it('swallows oscillator setup failures after context creation', () => {
     class BrokenAudioContext {
       currentTime = 0;
