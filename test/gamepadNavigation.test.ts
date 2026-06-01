@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { getGamepadNavigationInput, type GamepadLike } from '../src/utils/gamepadNavigation';
 
-const pad = (args: { axes?: number[]; pressed?: number[]; values?: Record<number, number> }): GamepadLike => {
+const pad = (args: { id?: string; axes?: number[]; pressed?: number[]; values?: Record<number, number> }): GamepadLike => {
   const buttons = Array.from({ length: 16 }, (_, index) => ({
     pressed: args.pressed?.includes(index) ?? false,
     value: args.values?.[index] ?? 0,
   }));
-  return { axes: args.axes ?? [0, 0], buttons };
+  return { id: args.id, axes: args.axes ?? [0, 0], buttons };
 };
 
 describe('gamepad navigation mapping', () => {
@@ -46,5 +46,34 @@ describe('gamepad navigation mapping', () => {
     expect(getGamepadNavigationInput(pad({ axes: axes(-1) }))).toEqual({ command: 'branchPrev', key: 'axis:9:hat-up' });
     expect(getGamepadNavigationInput(pad({ axes: axes(0.14286) }))).toEqual({ command: 'branchNext', key: 'axis:9:hat-down' });
     expect(getGamepadNavigationInput(pad({ axes: axes(1) }))).toBeNull();
+  });
+
+  it('maps the right stick to move and branch navigation', () => {
+    expect(getGamepadNavigationInput(pad({ axes: [0, 0, -0.7, 0] }))).toEqual({
+      command: 'back',
+      key: 'axis:2:negative',
+    });
+    expect(getGamepadNavigationInput(pad({ axes: [0, 0, 0.7, 0] }))).toEqual({
+      command: 'forward',
+      key: 'axis:2:positive',
+    });
+    expect(getGamepadNavigationInput(pad({ axes: [0, 0, 0, -0.7] }))).toEqual({
+      command: 'branchPrev',
+      key: 'axis:3:negative',
+    });
+    expect(getGamepadNavigationInput(pad({ axes: [0, 0, 0, 0.7] }))).toEqual({
+      command: 'branchNext',
+      key: 'axis:3:positive',
+    });
+  });
+
+  it('uses the Lite 2 right-stick Y axis quirk from Kaya controller mappings', () => {
+    const axes = Array.from({ length: 6 }, () => 0);
+    axes[5] = 0.7;
+
+    expect(getGamepadNavigationInput(pad({ id: '8BitDo Lite 2 Vendor: 2dc8 Product: 5112', axes }))).toEqual({
+      command: 'branchNext',
+      key: 'axis:5:positive',
+    });
   });
 });

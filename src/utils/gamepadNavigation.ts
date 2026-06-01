@@ -14,6 +14,7 @@ export type GamepadNavigationInput = {
 };
 
 export type GamepadLike = {
+  id?: string;
   axes?: ArrayLike<number>;
   buttons?: ArrayLike<{ pressed?: boolean; value?: number }>;
 };
@@ -21,6 +22,9 @@ export type GamepadLike = {
 const AXIS_THRESHOLD = 0.65;
 const HAT_AXIS_INDEX = 9;
 const HAT_AXIS_TOLERANCE = 0.08;
+const DEFAULT_RIGHT_STICK_AXES = { x: 2, y: 3 };
+const LITE_2_GAMEPAD_ID = 'Vendor: 2dc8 Product: 5112';
+const LITE_2_RIGHT_STICK_AXES = { x: 2, y: 5 };
 
 const HAT_AXIS_COMMANDS: Array<{ value: number; key: string; command: GamepadNavigationCommand }> = [
   { value: -1, key: 'up', command: 'branchPrev' },
@@ -58,6 +62,22 @@ function hatAxisInput(gamepad: GamepadLike): GamepadNavigationInput | null {
   return match ? { command: match.command, key: `axis:${HAT_AXIS_INDEX}:hat-${match.key}` } : null;
 }
 
+function rightStickAxes(gamepad: GamepadLike): { x: number; y: number } {
+  return typeof gamepad.id === 'string' && gamepad.id.includes(LITE_2_GAMEPAD_ID)
+    ? LITE_2_RIGHT_STICK_AXES
+    : DEFAULT_RIGHT_STICK_AXES;
+}
+
+function rightStickInput(gamepad: GamepadLike): GamepadNavigationInput | null {
+  const axes = rightStickAxes(gamepad);
+  return (
+    axisInput(gamepad, axes.x, -1, 'back') ??
+    axisInput(gamepad, axes.x, 1, 'forward') ??
+    axisInput(gamepad, axes.y, -1, 'branchPrev') ??
+    axisInput(gamepad, axes.y, 1, 'branchNext')
+  );
+}
+
 export function getGamepadNavigationInput(gamepad: GamepadLike): GamepadNavigationInput | null {
   return (
     buttonInput(gamepad, 4, 'backFast') ??
@@ -71,6 +91,7 @@ export function getGamepadNavigationInput(gamepad: GamepadLike): GamepadNavigati
     buttonInput(gamepad, 1, 'back') ??
     buttonInput(gamepad, 0, 'forward') ??
     hatAxisInput(gamepad) ??
+    rightStickInput(gamepad) ??
     axisInput(gamepad, 0, -1, 'back') ??
     axisInput(gamepad, 0, 1, 'forward') ??
     axisInput(gamepad, 1, -1, 'branchPrev') ??
