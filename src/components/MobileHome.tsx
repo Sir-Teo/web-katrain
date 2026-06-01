@@ -9,6 +9,7 @@ import {
   FaGamepad,
   FaPlay,
   FaBolt,
+  FaSave,
   FaTimes,
   FaThLarge,
 } from 'react-icons/fa';
@@ -31,6 +32,7 @@ interface MobileHomeProps {
   onNewGame: () => void;
   onOpenSgf: () => void;
   onScanBoard: () => void;
+  onSaveToLibrary: () => void;
   onPasteSgf: () => void;
   onOpenLibrary: () => void;
   onOpenReport: () => void;
@@ -86,6 +88,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   onNewGame,
   onOpenSgf,
   onScanBoard,
+  onSaveToLibrary,
   onPasteSgf,
   onOpenLibrary,
   onOpenReport,
@@ -172,6 +175,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             <HomeAction label="Continue Board" icon={<FaThLarge />} onClick={onClose} primary />
             <HomeAction label="Quick New Game" icon={<FaBolt />} onClick={onQuickNewGame} />
             <HomeAction label="New Game" icon={<FaPlay />} onClick={onNewGame} />
+            <HomeAction label="Save Copy to Library" icon={<FaSave />} onClick={onSaveToLibrary} />
             <HomeAction label="Open SGF / Photo / Model" icon={<FaFolderOpen />} onClick={onOpenSgf} />
             <HomeAction label="Photo Board" icon={<FaCamera />} onClick={onScanBoard} />
             <HomeAction label="Paste SGF / OGS" icon={<FaClipboard />} onClick={onPasteSgf} />

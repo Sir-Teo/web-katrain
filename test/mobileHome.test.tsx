@@ -15,6 +15,7 @@ const baseProps = {
   onNewGame: () => undefined,
   onOpenSgf: () => undefined,
   onScanBoard: () => undefined,
+  onSaveToLibrary: () => undefined,
   onPasteSgf: () => undefined,
   onOpenLibrary: () => undefined,
   onOpenReport: () => undefined,
@@ -45,5 +46,11 @@ describe('MobileHome', () => {
 
     expect(html).not.toContain('data-mobile-gamepad-status="connected"');
     expect(html).toContain('aria-label="Open board"');
+  });
+
+  it('keeps saving reachable from the mobile home launcher', () => {
+    const html = renderToStaticMarkup(<MobileHome {...baseProps} />);
+
+    expect(html).toContain('Save Copy to Library');
   });
 });

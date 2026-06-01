@@ -2620,6 +2620,10 @@ export const Layout: React.FC = () => {
             closeMobileHome();
             openPhotoBoard();
           }}
+          onSaveToLibrary={() => {
+            closeMobileHome();
+            handleOpenSaveToLibraryDialog();
+          }}
           onPasteSgf={() => {
             closeMobileHome();
             void handlePasteSgf();
