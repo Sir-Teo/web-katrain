@@ -28,13 +28,15 @@ describe('MobileHome', () => {
       <MobileHome
         {...baseProps}
         gamepadName="Xbox Wireless Controller"
+        gamepadCount={2}
         onGamepadNavigationDisable={() => undefined}
       />,
     );
 
     expect(html).toContain('data-mobile-gamepad-status="connected"');
     expect(html).toContain('data-mobile-gamepad-label="Xbox Wireless C..."');
-    expect(html).toContain('Gamepad navigation connected: Xbox Wireless Controller. Tap to disable.');
+    expect(html).toContain('data-mobile-gamepad-count="2"');
+    expect(html).toContain('2 controllers connected; using the most recently active');
     expect(html).toContain('border-[var(--ui-accent)] bg-[var(--ui-accent-soft)]');
   });
 

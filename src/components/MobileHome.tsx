@@ -23,6 +23,7 @@ interface MobileHomeProps {
   moveCount: number;
   engineMeta: string;
   gamepadName?: string | null;
+  gamepadCount?: number;
   recentItems: LibraryFile[];
   onClose: () => void;
   onGamepadNavigationDisable?: () => void;
@@ -77,6 +78,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   moveCount,
   engineMeta,
   gamepadName,
+  gamepadCount = 0,
   recentItems,
   onClose,
   onGamepadNavigationDisable,
@@ -93,6 +95,10 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   if (!open) return null;
 
   const compactGamepadName = gamepadName ? formatGamepadLabel(gamepadName, 18) : null;
+  const hasMultipleGamepads = gamepadCount > 1;
+  const gamepadStatusText = hasMultipleGamepads
+    ? `Gamepad navigation connected: ${gamepadName}. ${gamepadCount} controllers connected; using the most recently active. Tap to disable.`
+    : `Gamepad navigation connected: ${gamepadName}. Tap to disable.`;
 
   return (
     <div className="fixed inset-0 z-[45] lg:hidden ui-bg mobile-safe-inset mobile-safe-area-bottom">
@@ -109,15 +115,21 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               {compactGamepadName && (
                 <button
                   type="button"
-                  className="ui-control grid place-items-center rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] shadow-sm hover:bg-[var(--ui-accent)] hover:text-[var(--ui-accent-contrast)] disabled:pointer-events-none disabled:opacity-70"
+                  className="ui-control relative grid place-items-center rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] shadow-sm hover:bg-[var(--ui-accent)] hover:text-[var(--ui-accent-contrast)] disabled:pointer-events-none disabled:opacity-70"
                   onClick={onGamepadNavigationDisable}
-                  title={`Gamepad navigation: ${gamepadName}. Tap to disable.`}
-                  aria-label={`Gamepad navigation connected: ${gamepadName}. Tap to disable.`}
+                  title={gamepadStatusText}
+                  aria-label={gamepadStatusText}
                   data-mobile-gamepad-status="connected"
                   data-mobile-gamepad-label={compactGamepadName}
+                  data-mobile-gamepad-count={gamepadCount || 1}
                   disabled={!onGamepadNavigationDisable}
                 >
                   <FaGamepad aria-hidden="true" />
+                  {hasMultipleGamepads && (
+                    <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full border border-[var(--ui-panel)] bg-[var(--ui-accent)] px-1 text-[9px] font-bold leading-none text-[var(--ui-accent-contrast)]">
+                      {gamepadCount}
+                    </span>
+                  )}
                 </button>
               )}
               <button

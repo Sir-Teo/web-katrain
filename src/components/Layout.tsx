@@ -2117,6 +2117,7 @@ export const Layout: React.FC = () => {
           moveCount={moveHistory.length}
           engineMeta={engineMeta}
           gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
+          gamepadCount={gamepadStatus.count}
           recentItems={recentLibraryItems}
           onClose={closeMobileHome}
           onGamepadNavigationDisable={handleDisableGamepadNavigation}
@@ -2608,6 +2609,7 @@ export const Layout: React.FC = () => {
           capturedWhite={capturedWhite}
           endResult={endResult}
           gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
+          gamepadCount={gamepadStatus.count}
           onGamepadNavigationDisable={handleDisableGamepadNavigation}
           loadedFileKind={loadedLibraryFileName ? 'library' : loadedExternalFile?.kind}
           loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}

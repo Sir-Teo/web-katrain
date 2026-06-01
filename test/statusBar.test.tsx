@@ -60,12 +60,15 @@ describe('StatusBar', () => {
       <StatusBar
         {...baseProps}
         gamepadName="Xbox Wireless Controller"
+        gamepadCount={2}
         onGamepadNavigationDisable={() => undefined}
       />,
     );
 
     expect(html).toContain('data-gamepad-status="connected"');
-    expect(html).toContain('Gamepad navigation connected: Xbox Wireless Controller. Click to disable.');
+    expect(html).toContain('data-gamepad-count="2"');
+    expect(html).toContain('2 controllers connected; using the most recently active');
+    expect(html).toContain('x2');
     expect(html).toContain('max-w-[2.25rem] sm:max-w-[10rem] lg:max-w-[280px]');
     expect(html).toContain('hidden sm:inline font-semibold');
     expect(html).toContain('hidden md:inline min-w-0 truncate');

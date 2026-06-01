@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { cancelAnimationFrameSafe, getAnimationNow, requestAnimationFrameSafe, type AnimationFrameHandle } from '../utils/animationFrame';
-import { getConnectedGamepad } from '../utils/gamepadAccess';
+import { getGamepadConnectionSnapshot } from '../utils/gamepadAccess';
 import { getGamepadNavigationInput, type GamepadNavigationCommand } from '../utils/gamepadNavigation';
 
 export type GamepadNavigationStatus = {
   connected: boolean;
   name: string | null;
+  count: number;
 };
 
 export type GamepadNavigationHandlers = Record<GamepadNavigationCommand, () => void>;
@@ -22,7 +23,7 @@ export function useGamepadNavigation({
   repeatMs = 180,
 }: UseGamepadNavigationOptions): GamepadNavigationStatus {
   const handlersRef = useRef(handlers);
-  const [status, setStatus] = useState<GamepadNavigationStatus>({ connected: false, name: null });
+  const [status, setStatus] = useState<GamepadNavigationStatus>({ connected: false, name: null, count: 0 });
 
   useEffect(() => {
     handlersRef.current = handlers;
@@ -37,16 +38,18 @@ export function useGamepadNavigation({
     let lastKey: string | null = null;
     let lastAt = 0;
     let lastName: string | null = null;
+    let lastCount = 0;
 
-    const updateStatus = (name: string | null) => {
-      if (name === lastName) return;
+    const updateStatus = (name: string | null, count: number) => {
+      if (name === lastName && count === lastCount) return;
       lastName = name;
-      setStatus({ connected: !!name, name });
+      lastCount = count;
+      setStatus({ connected: !!name, name, count });
     };
 
     const tick = () => {
-      const gamepad = getConnectedGamepad(navigator);
-      updateStatus(gamepad?.id ?? null);
+      const { active: gamepad, count } = getGamepadConnectionSnapshot(navigator);
+      updateStatus(gamepad?.id ?? null, count);
 
       if (gamepad) {
         const input = getGamepadNavigationInput(gamepad);
@@ -64,8 +67,8 @@ export function useGamepadNavigation({
     };
 
     const handleConnectChange = () => {
-      const gamepad = getConnectedGamepad(navigator);
-      updateStatus(gamepad?.id ?? null);
+      const { active: gamepad, count } = getGamepadConnectionSnapshot(navigator);
+      updateStatus(gamepad?.id ?? null, count);
     };
 
     window.addEventListener('gamepadconnected', handleConnectChange);
@@ -79,5 +82,5 @@ export function useGamepadNavigation({
     };
   }, [enabled, repeatMs]);
 
-  return enabled ? status : { connected: false, name: null };
+  return enabled ? status : { connected: false, name: null, count: 0 };
 }

@@ -30,6 +30,7 @@ interface StatusBarProps {
   capturedWhite: number;
   endResult: string | null;
   gamepadName?: string | null;
+  gamepadCount?: number;
   loadedFileKind?: LoadedFileKind;
   onGamepadNavigationDisable?: () => void;
   loadedFileName?: string | null;
@@ -61,6 +62,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   capturedWhite,
   endResult,
   gamepadName,
+  gamepadCount = 0,
   loadedFileKind = 'library',
   onGamepadNavigationDisable,
   loadedFileName = null,
@@ -138,6 +140,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       : `Loaded from ${loadedFileSource[loadedFileKind]}: ${loadedFileName}`;
   const blackPlayerLabel = formatGameInfoPlayer(blackName, blackRank, 'Black');
   const whitePlayerLabel = formatGameInfoPlayer(whiteName, whiteRank, 'White');
+  const hasMultipleGamepads = gamepadCount > 1;
+  const gamepadStatusText = hasMultipleGamepads
+    ? `Gamepad navigation: ${gamepadName}. ${gamepadCount} controllers connected; using the most recently active. Click to disable.`
+    : `Gamepad navigation: ${gamepadName}. Click to disable.`;
 
   return (
     <div className="status-bar flex flex-wrap gap-2 px-3 py-2 items-center text-xs">
@@ -375,14 +381,20 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <button
           type="button"
           className="px-2 py-1 rounded bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border border-[var(--ui-accent)] shadow-sm flex max-w-[2.25rem] sm:max-w-[10rem] lg:max-w-[280px] items-center justify-center sm:justify-start gap-1.5 truncate hover:bg-[var(--ui-accent)] hover:text-[var(--ui-accent-contrast)] focus:outline-none focus:ring-2 focus:ring-[var(--ui-accent)] focus:ring-offset-1 focus:ring-offset-[var(--ui-bg)] disabled:pointer-events-none"
-          title={`Gamepad navigation: ${gamepadName}. Click to disable.`}
-          aria-label={`Gamepad navigation connected: ${gamepadName}. Click to disable.`}
+          title={gamepadStatusText}
+          aria-label={hasMultipleGamepads ? gamepadStatusText.replace('Gamepad navigation:', 'Gamepad navigation connected:') : `Gamepad navigation connected: ${gamepadName}. Click to disable.`}
           data-gamepad-status="connected"
+          data-gamepad-count={gamepadCount || 1}
           onClick={onGamepadNavigationDisable}
           disabled={!onGamepadNavigationDisable}
         >
           <FaGamepad aria-hidden="true" />
           <span className="hidden sm:inline font-semibold">Gamepad</span>
+          {hasMultipleGamepads && (
+            <span className="hidden sm:inline rounded border border-current px-1 text-[10px] font-bold leading-4">
+              x{gamepadCount}
+            </span>
+          )}
           <span className="hidden md:inline min-w-0 truncate font-mono text-[var(--ui-text-muted)]">
             {formatGamepadLabel(gamepadName)}
           </span>
