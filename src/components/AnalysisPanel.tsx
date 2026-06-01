@@ -72,6 +72,7 @@ interface AnalysisPanelProps {
 type GraphMetric = keyof UiState['panels'][UiMode]['graph'];
 type AnalysisOverlayControl = keyof AnalysisControlsState;
 type EvalColor = readonly [number, number, number, number];
+type QualityLegendItem = { label: string; range: string; color: string };
 
 function evalColorToCss(color: EvalColor): string {
   return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${color[3]})`;
@@ -83,6 +84,64 @@ function pointsSummaryClass(tone: ReturnType<typeof summarizePointsLost>['tone']
   if (tone === 'danger') return 'text-[var(--ui-danger)]';
   return 'text-[var(--ui-text-muted)]';
 }
+
+export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = ({ items }) => (
+  <div
+    id="analysis-quality-legend"
+    className="border-b border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-2 text-[11px]"
+    data-analysis-quality-legend="true"
+  >
+    <div className="mb-1.5 flex items-center justify-between gap-2">
+      <div className="font-semibold text-[var(--ui-text)]">Move quality</div>
+      <div className="ui-text-faint">Points lost</div>
+    </div>
+    <div className="grid grid-cols-2 gap-1.5">
+      {items.map((item) => (
+        <div key={item.label} className="flex min-w-0 items-center gap-1.5">
+          <span
+            className="h-2.5 w-2.5 flex-none rounded-full border border-black/30"
+            style={{ background: item.color }}
+            aria-hidden="true"
+          />
+          <span className="truncate text-[var(--ui-text-muted)]">{item.label}</span>
+          <span className="ml-auto font-mono text-[var(--ui-text)]">{item.range}</span>
+        </div>
+      ))}
+    </div>
+    <div className="mt-2 border-t border-[var(--ui-border)] pt-2" data-analysis-overlay-legend="true">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div className="font-semibold text-[var(--ui-text)]">Overlays</div>
+        <div className="ui-text-faint">Board colors</div>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        <div className="min-w-0" data-analysis-overlay-legend-item="top-moves">
+          <span className="mb-1 flex h-5 w-full items-center justify-center rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] font-mono text-[10px] text-[var(--ui-accent)]">
+            1
+          </span>
+          <span className="block truncate text-[var(--ui-text-muted)]">Top moves</span>
+          <span className="block truncate font-mono text-[var(--ui-text)]">Best lines</span>
+        </div>
+        <div className="min-w-0" data-analysis-overlay-legend-item="policy">
+          <span
+            className="mb-1 block h-5 w-full rounded border border-[var(--ui-border)]"
+            style={{ background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.85))' }}
+            aria-hidden="true"
+          />
+          <span className="block truncate text-[var(--ui-text-muted)]">Policy</span>
+          <span className="block truncate font-mono text-[var(--ui-text)]">High prior</span>
+        </div>
+        <div className="min-w-0" data-analysis-overlay-legend-item="territory">
+          <span className="mb-1 grid h-5 w-full grid-cols-2 overflow-hidden rounded border border-[var(--ui-border)]" aria-hidden="true">
+            <span className="bg-black/60" />
+            <span className="bg-white/70" />
+          </span>
+          <span className="block truncate text-[var(--ui-text-muted)]">Territory</span>
+          <span className="block truncate font-mono text-[var(--ui-text)]">Owner</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   mode,
@@ -294,39 +353,15 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       type="button"
       className={['panel-icon-button', legendOpen ? 'active' : ''].join(' ')}
       onClick={() => setLegendOpen((prev) => !prev)}
-      title="Move quality legend"
-      aria-label="Move quality legend"
+      title="Analysis legend"
+      aria-label="Analysis legend"
       aria-expanded={legendOpen}
       aria-controls="analysis-quality-legend"
     >
       <FaInfoCircle size={12} aria-hidden="true" />
     </button>
   );
-  const qualityLegend = legendOpen ? (
-    <div
-      id="analysis-quality-legend"
-      className="border-b border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-2 text-[11px]"
-      data-analysis-quality-legend="true"
-    >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="font-semibold text-[var(--ui-text)]">Move quality</div>
-        <div className="ui-text-faint">Points lost</div>
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {qualityLegendItems.map((item) => (
-          <div key={item.label} className="flex min-w-0 items-center gap-1.5">
-            <span
-              className="h-2.5 w-2.5 flex-none rounded-full border border-black/30"
-              style={{ background: item.color }}
-              aria-hidden="true"
-            />
-            <span className="truncate text-[var(--ui-text-muted)]">{item.label}</span>
-            <span className="ml-auto font-mono text-[var(--ui-text)]">{item.range}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  ) : null;
+  const qualityLegend = legendOpen ? <AnalysisQualityLegend items={qualityLegendItems} /> : null;
   const readoutGridStyle: React.CSSProperties = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(4.75rem, 1fr))',
   };
