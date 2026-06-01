@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { commandMatchesQuery, normalizeCommandQuery } from '../src/utils/commandPalette';
 
@@ -27,5 +28,15 @@ describe('command palette search', () => {
 
   it('requires every query token to match', () => {
     expect(commandMatchesQuery(saveCopyParts, 'save photo')).toBe(false);
+  });
+
+  it('exposes Shape Coach as a searchable learning command', () => {
+    const source = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(source).toContain("id: 'toggle-shape-coach'");
+    expect(source).toContain("label: shapeCoachEnabled ? 'Hide Shape Coach' : 'Show Shape Coach'");
+    expect(source).toContain("'move names'");
+    expect(source).toContain("'joseki'");
+    expect(source).toContain("'sensei'");
   });
 });

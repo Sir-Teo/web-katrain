@@ -2126,6 +2126,16 @@ export const Layout: React.FC = () => {
         run: () => updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }),
         keywords: ['ownership', 'area'],
       },
+      {
+        id: 'toggle-shape-coach',
+        label: shapeCoachEnabled ? 'Hide Shape Coach' : 'Show Shape Coach',
+        category: 'Analysis',
+        run: () => {
+          toggleShapeCoach();
+          toast(shapeCoachEnabled ? 'Shape Coach hidden.' : 'Shape Coach shown.', 'info');
+        },
+        keywords: ['pattern', 'move names', 'joseki', 'study', 'sensei', 'kaya'],
+      },
       ...ANALYSIS_VISIT_PRESETS.map((visits) => {
         const label = visitPresetLabel(visits);
         return {
