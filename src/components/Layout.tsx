@@ -57,6 +57,7 @@ import { MobileHome } from './MobileHome';
 import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
 import { AboutDialog } from './AboutDialog';
 import type { CommandPaletteCommand } from './CommandPaletteModal';
+import type { PasteSgfSubmitResult } from '../utils/pasteSgfInput';
 import {
   type UiMode,
   type UiState,
@@ -1428,12 +1429,12 @@ export const Layout: React.FC = () => {
     setPhotoBoardInitialFile(null);
   }, []);
 
-  const handleOpenSgfFromText = async (text: string): Promise<boolean> => {
+  const handleOpenSgfFromText = async (text: string): Promise<PasteSgfSubmitResult> => {
     try {
       const result = await loadSgfOrOgs(text);
-      if (!result.sgf.trim()) return false;
+      if (!result.sgf.trim()) return 'failed';
       const parsed = parseSgf(result.sgf);
-      if (!(await prepareForGameReplacement())) return false;
+      if (!(await prepareForGameReplacement())) return 'cancelled';
       loadGame(parsed);
       setLoadedLibraryFile(null);
       setLoadedExternalFile(
@@ -1443,10 +1444,10 @@ export const Layout: React.FC = () => {
       );
       markCurrentGameCleanAndClearAutoSave();
       toast(result.source === 'ogs' ? `Downloaded OGS game ${result.gameId ?? ''}.` : 'Loaded SGF.', 'success');
-      return true;
+      return 'loaded';
     } catch {
       toast('Failed to load SGF or OGS URL.', 'error');
-      return false;
+      return 'failed';
     }
   };
 
