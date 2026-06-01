@@ -29,6 +29,7 @@ interface UseKeyboardShortcutsOptions {
   closeLibrary: () => void;
   toggleSidebar: () => void;
   toggleScoringMode: () => void;
+  editCurrentNote: () => void;
   toggleTopBar: () => void;
   toggleBottomBar: () => void;
   toast: (msg: string, type: 'info' | 'error' | 'success') => void;
@@ -54,6 +55,7 @@ export function useKeyboardShortcuts({
   closeLibrary,
   toggleSidebar,
   toggleScoringMode,
+  editCurrentNote,
   toggleTopBar,
   toggleBottomBar,
   toast,
@@ -203,6 +205,11 @@ export function useKeyboardShortcuts({
         e.preventDefault();
         if (editUndoCount > 0) undoEdit();
         else toast('No edit to undo.', 'info');
+        return;
+      }
+      if (matches('edit-note')) {
+        e.preventDefault();
+        editCurrentNote();
         return;
       }
 
@@ -579,6 +586,7 @@ export function useKeyboardShortcuts({
     closeLibrary,
     toggleSidebar,
     toggleScoringMode,
+    editCurrentNote,
     toggleTopBar,
     toggleBottomBar,
     toast,

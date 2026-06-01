@@ -45,6 +45,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { id: 'undo-main-branch', category: 'Navigation', label: 'Undo to main branch', defaultBindings: [{ key: 'b', shift: true }] },
   { id: 'edit-undo', category: 'Edit', label: 'Undo edit', defaultBindings: [{ key: 'z', ctrl: true }] },
   { id: 'edit-redo', category: 'Edit', label: 'Redo edit', defaultBindings: [{ key: 'z', ctrl: true, shift: true }, { key: 'y', ctrl: true }] },
+  { id: 'edit-note', category: 'Edit', label: 'Edit current note', defaultBindings: [{ key: 'c' }] },
   { id: 'pass', category: 'Game Control', label: 'Pass', defaultBindings: [{ key: 'p' }] },
   { id: 'ai-move', category: 'Game Control', label: 'AI move', defaultBindings: [{ key: 'Enter' }] },
   { id: 'selfplay', category: 'Game Control', label: 'Selfplay to end', defaultBindings: [{ key: 'l' }] },

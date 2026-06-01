@@ -79,6 +79,10 @@ describe('shortcut utilities', () => {
     expect(getShortcutBindings('toggle-edit-mode', {})).toEqual([{ key: 'e', ctrl: false, shift: true, alt: false }]);
   });
 
+  it('exposes a quick comment shortcut for the current note', () => {
+    expect(getShortcutBindings('edit-note', {})).toEqual([{ key: 'c', ctrl: false, shift: false, alt: false }]);
+  });
+
   it('exposes a non-conflicting shortcut for sound toggling', () => {
     expect(getShortcutBindings('toggle-sound', {})).toEqual([{ key: 'm', ctrl: false, shift: true, alt: false }]);
   });

@@ -112,6 +112,7 @@ interface RightPanelProps {
   currentMoveInsight?: MoveInsight | null;
   shapeCoachEnabled?: boolean;
   onToggleShapeCoach?: () => void;
+  noteFocusRequest?: number;
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -173,6 +174,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   currentMoveInsight = null,
   shapeCoachEnabled = true,
   onToggleShapeCoach,
+  noteFocusRequest = 0,
 }) => {
   const showTree = !isMobile || activeMobileTab === 'tree';
   const showAnalysis = !isMobile || activeMobileTab === 'info';
@@ -826,6 +828,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       detailed={modePanels.notes.infoDetails && !lockAiDetails}
                       showNotes={modePanels.notes.notes}
                       showShapeCoach={shapeCoachEnabled}
+                      focusRequest={noteFocusRequest}
                     />
                   </div>
                 </div>

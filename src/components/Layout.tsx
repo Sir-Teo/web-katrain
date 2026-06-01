@@ -302,6 +302,7 @@ export const Layout: React.FC = () => {
   const [isGameReportOpen, setIsGameReportOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
+  const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
   const [photoBoardInitialFile, setPhotoBoardInitialFile] = useState<File | null>(null);
@@ -1282,6 +1283,20 @@ export const Layout: React.FC = () => {
     setRightPanelOpen(true);
   };
 
+  const openCurrentNoteEditor = () => {
+    setAnalysisMenuOpen(false);
+    setViewMenuOpen(false);
+    setMenuOpen(false);
+    if (isMobile) {
+      openRightPanelForTab('info');
+    } else {
+      setShowSidebar(true);
+      setRightPanelOpen(true);
+    }
+    updatePanels((current) => ({ notesOpen: true, notes: { ...current.notes, notes: true } }));
+    setNoteFocusRequest((request) => request + 1);
+  };
+
   const handleCloseRightPanel = () => {
     if (isMobile) {
       setRightPanelOpen(false);
@@ -1695,6 +1710,7 @@ export const Layout: React.FC = () => {
     closeLibrary: handleCloseLibrary,
     toggleSidebar: handleToggleSidebar,
     toggleScoringMode,
+    editCurrentNote: openCurrentNoteEditor,
     toggleTopBar: handleToggleTopBar,
     toggleBottomBar: handleToggleBottomBar,
     toast,
@@ -1942,6 +1958,14 @@ export const Layout: React.FC = () => {
         shortcutId: 'toggle-edit-mode',
         run: toggleEditMode,
         keywords: ['sgf', 'setup stones', 'markers', 'labels'],
+      },
+      {
+        id: 'edit-note',
+        label: 'Edit current note',
+        category: 'Edit',
+        shortcutId: 'edit-note',
+        run: openCurrentNoteEditor,
+        keywords: ['comment', 'annotation', 'sgf c'],
       },
       {
         id: 'settings',
@@ -2642,6 +2666,7 @@ export const Layout: React.FC = () => {
           currentMoveInsight={currentMoveInsight}
           shapeCoachEnabled={shapeCoachEnabled}
           onToggleShapeCoach={toggleShapeCoach}
+          noteFocusRequest={noteFocusRequest}
           isMobile={isMobile}
           activeMobileTab={mobileTab}
           showAnalysisSection={!isDesktop}

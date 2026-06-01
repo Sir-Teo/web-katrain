@@ -8,6 +8,9 @@ import { parseNoteBlocks, parseNoteInlinePreview, type NoteInlineSegment, type N
 import { getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
+import { useShortcutLabels } from '../hooks/useShortcutLabels';
+
+const NOTE_SHORTCUT_IDS = ['edit-note'] as const;
 
 function moveToLabel(move: Move | null, boardSize: number): string {
   if (!move) return 'Root';
@@ -46,6 +49,7 @@ type NotesPanelProps = {
   detailed: boolean;
   showNotes: boolean;
   showShapeCoach?: boolean;
+  focusRequest?: number;
 };
 
 function NoteInlinePreview({ segments }: { segments: NoteInlineSegment[] }) {
@@ -222,7 +226,7 @@ function NotePreview({ note }: { note: string }) {
   );
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes, showShapeCoach = true }) => {
+export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes, showShapeCoach = true, focusRequest = 0 }) => {
   const { rootNode, currentNode, setCurrentNodeNote, treeVersion, gameRules, isAnalysisMode, engineStatus, engineError } = useGameStore(
     (state) => ({
       rootNode: state.rootNode,
@@ -276,13 +280,18 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const showInfoBlock = showInfo || detailed;
   const showNotesBlock = showNotes;
   const hasShapeCoach = Boolean(showShapeCoach && moveInsight && moveInsightCoach);
+  const shortcutLabels = useShortcutLabels(NOTE_SHORTCUT_IDS);
   const currentNote = currentNode.note ?? '';
   const noteHasContent = currentNote.trim().length > 0;
+  const noteActionLabel = noteHasContent ? 'Edit note' : 'Add note';
+  const noteShortcutLabel = shortcutLabels['edit-note'];
+  const noteActionTitle = noteShortcutLabel === 'Disabled' ? noteActionLabel : `${noteActionLabel} (${noteShortcutLabel})`;
   const [isEditingNote, setIsEditingNote] = React.useState(() => !noteHasContent);
   const [noteDraft, setNoteDraft] = React.useState(currentNote);
   const noteTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const shouldFocusNoteRef = React.useRef(false);
   const previousNoteNodeIdRef = React.useRef(currentNode.id);
+  const lastFocusRequestRef = React.useRef(0);
 
   const scrollNoteEditorIntoView = React.useCallback(() => {
     const editor = noteTextareaRef.current;
@@ -296,6 +305,24 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     }, 0);
   }, []);
 
+  const focusNoteEditor = React.useCallback(() => {
+    const editor = noteTextareaRef.current;
+    if (!editor) return false;
+    editor.focus();
+    const cursor = editor.value.length;
+    editor.setSelectionRange(cursor, cursor);
+    scrollNoteEditorIntoView();
+    return true;
+  }, [scrollNoteEditorIntoView]);
+
+  const requestNoteEditorFocus = React.useCallback(() => {
+    shouldFocusNoteRef.current = true;
+    window.setTimeout(() => {
+      if (!shouldFocusNoteRef.current) return;
+      if (focusNoteEditor()) shouldFocusNoteRef.current = false;
+    }, 0);
+  }, [focusNoteEditor]);
+
   React.useEffect(() => {
     const nodeChanged = previousNoteNodeIdRef.current !== currentNode.id;
     previousNoteNodeIdRef.current = currentNode.id;
@@ -305,15 +332,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
 
   React.useEffect(() => {
     if (!isEditingNote || !shouldFocusNoteRef.current) return;
-    shouldFocusNoteRef.current = false;
-    const editor = noteTextareaRef.current;
-    editor?.focus();
-    if (editor) {
-      const cursor = editor.value.length;
-      editor.setSelectionRange(cursor, cursor);
-    }
-    scrollNoteEditorIntoView();
-  }, [isEditingNote, scrollNoteEditorIntoView]);
+    if (focusNoteEditor()) shouldFocusNoteRef.current = false;
+  }, [focusNoteEditor, isEditingNote]);
 
   React.useEffect(() => {
     if (!isEditingNote) return;
@@ -328,11 +348,17 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     };
   }, [isEditingNote, scrollNoteEditorIntoView]);
 
-  const startNoteEdit = () => {
+  const startNoteEdit = React.useCallback(() => {
     setNoteDraft(currentNote);
-    shouldFocusNoteRef.current = true;
+    requestNoteEditorFocus();
     setIsEditingNote(true);
-  };
+  }, [currentNote, requestNoteEditorFocus]);
+
+  React.useEffect(() => {
+    if (!showNotesBlock || focusRequest <= 0 || focusRequest === lastFocusRequestRef.current) return;
+    lastFocusRequestRef.current = focusRequest;
+    startNoteEdit();
+  }, [focusRequest, showNotesBlock, startNoteEdit]);
 
   const saveNote = () => {
     setCurrentNodeNote(noteDraft);
@@ -495,10 +521,18 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                 type="button"
                 className="panel-action-button"
                 onClick={startNoteEdit}
-                title={noteHasContent ? 'Edit note' : 'Add note'}
+                title={noteActionTitle}
+                aria-label={
+                  noteShortcutLabel === 'Disabled'
+                    ? noteActionLabel
+                    : `${noteActionLabel}, keyboard shortcut ${noteShortcutLabel}`
+                }
               >
                 <FaEdit size={11} aria-hidden="true" />
                 <span>{noteHasContent ? 'Edit' : 'Add'}</span>
+                {noteShortcutLabel !== 'Disabled' && (
+                  <kbd className="font-mono text-[10px] ui-text-faint">{noteShortcutLabel}</kbd>
+                )}
               </button>
             )}
           </div>
