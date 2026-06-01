@@ -1764,6 +1764,11 @@ export const Layout: React.FC = () => {
         return;
       }
       updateSettings({ katagoVisits: visits });
+      if (isAnalysisMode) {
+        window.setTimeout(() => {
+          void useGameStore.getState().runAnalysis({ force: true, visits });
+        }, 0);
+      }
       toast(`Live MCTS depth: ${formatVisitCount(visits)} visits (${visitPresetLabel(visits)}).`, 'info');
     };
     const toggleTopMoveHints = () => {
