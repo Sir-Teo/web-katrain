@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaCog, FaSearch, FaTimes } from 'react-icons/fa';
+import { FaCog, FaGamepad, FaSearch, FaTimes } from 'react-icons/fa';
 import {
   filterShortcutGroups,
   getShortcutBindings,
@@ -13,6 +13,14 @@ interface KeyboardHelpModalProps {
   onClose: () => void;
   onOpenShortcutSettings?: () => void;
 }
+
+const GAMEPAD_HELP = [
+  { control: 'D-pad / left stick', action: 'Previous/next move, previous/next branch' },
+  { control: 'Right stick', action: 'Previous/next move, previous/next branch' },
+  { control: 'LB / RB', action: 'Back/forward 10 moves' },
+  { control: 'Select / Start', action: 'Go to start/end' },
+  { control: 'B / A', action: 'Previous/next move' },
+] as const;
 
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings }) => {
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
@@ -101,6 +109,22 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               </button>
             )}
           </label>
+          <section className="mb-4 ui-surface rounded-lg border p-3" data-keyboard-help-gamepad="true">
+            <div className="mb-2 flex items-center gap-2 border-b border-[var(--ui-border)] pb-2">
+              <FaGamepad aria-hidden="true" className="text-[var(--ui-accent)]" />
+              <h3 className="text-sm font-semibold text-[var(--ui-text)]">Gamepad</h3>
+            </div>
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+              {GAMEPAD_HELP.map((item) => (
+                <div key={item.control} className="flex items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
+                  <span className="ui-text-faint">{item.action}</span>
+                  <kbd className="shrink-0 rounded bg-[var(--ui-panel)] px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
+                    {item.control}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </section>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleGroups.map((category) => (
               <div key={category.title} className="ui-surface rounded-lg p-3 border">
