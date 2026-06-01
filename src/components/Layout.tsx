@@ -29,6 +29,7 @@ import { computeManualScoreEstimate, estimateDeadStonesFromOwnership, toggleDead
 import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
+import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize } from '../utils/boardSize';
 import { PHOTO_BOARD_IMAGE_EXTENSIONS, isPhotoBoardImageFile } from '../utils/photoBoard';
 import { isEditableKeyboardTarget } from '../utils/keyboardTarget';
@@ -1071,49 +1072,22 @@ export const Layout: React.FC = () => {
   }, []);
 
   // Computed values
-  const engineDot = useMemo(() => {
-    if (engineStatus === 'loading') return 'bg-yellow-400';
-    if (engineStatus === 'ready') return 'bg-green-400';
-    if (engineStatus === 'error') return 'bg-red-500';
-    return 'bg-slate-500';
-  }, [engineStatus]);
-
   const engineModelLabel = useMemo(
     () => getEngineModelLabel(engineModelName, settings.katagoModelUrl),
     [engineModelName, settings.katagoModelUrl]
   );
 
-  const engineMeta = useMemo(() => {
-    const stateLabel = engineError
-      ? 'Error'
-      : engineStatus === 'loading'
-        ? 'Loading'
-        : engineStatus === 'ready'
-          ? 'Ready'
-          : 'Idle';
-    const requestedBackend = settings.katagoBackend;
-    const fallback = !!engineBackend && engineBackend !== requestedBackend;
-    const parts: string[] = [];
-    parts.push(fallback ? 'Fallback' : stateLabel);
-    parts.push(engineBackend ?? requestedBackend);
-    if (engineModelLabel) parts.push(engineModelLabel);
-    return parts.join(' · ');
-  }, [engineBackend, engineError, engineModelLabel, engineStatus, settings.katagoBackend]);
-
-  const engineMetaTitle = useMemo(() => {
-    const requestedBackend = settings.katagoBackend;
-    const actualBackend = engineBackend ?? requestedBackend;
-    const lines = [
-      `State: ${engineError ? 'error' : engineStatus}`,
-      `Backend: ${actualBackend}`,
-    ];
-    if (engineModelLabel) lines.push(`Model: ${engineModelLabel}`);
-    if (engineBackend && engineBackend !== requestedBackend) {
-      lines.push(`Fallback: requested ${requestedBackend}, running ${engineBackend}.`);
-    }
-    if (engineError) lines.push(`Error: ${engineError}`);
-    return lines.filter(Boolean).join('\n');
-  }, [engineBackend, engineError, engineModelLabel, engineStatus, settings.katagoBackend]);
+  const engineSummary = useMemo(() => getEngineStatusSummary({
+    status: engineStatus,
+    error: engineError,
+    requestedBackend: settings.katagoBackend,
+    activeBackend: engineBackend,
+    modelLabel: engineModelLabel,
+    modelUrl: settings.katagoModelUrl,
+  }), [engineBackend, engineError, engineModelLabel, engineStatus, settings.katagoBackend, settings.katagoModelUrl]);
+  const engineDot = engineSummary.dotClass;
+  const engineMeta = engineSummary.compactLabel;
+  const engineMetaTitle = engineSummary.title;
 
   const statusText = engineError
     ? `Engine error: ${engineError}`

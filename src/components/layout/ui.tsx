@@ -156,8 +156,10 @@ export const EngineStatusBadge: React.FC<{
     <div
       className={['flex', baseClasses, className ?? ''].join(' ')}
       title={title}
+      aria-label={`Engine status: ${label}`}
+      data-engine-status-badge="true"
     >
-      <span className={['inline-block h-2 w-2 rounded-full', dotClass].join(' ')} />
+      <span className={['inline-block h-2 w-2 rounded-full', dotClass].join(' ')} aria-hidden="true" />
       <span className={['truncate', maxWidthClassName ?? ''].join(' ')}>
         {label}
       </span>

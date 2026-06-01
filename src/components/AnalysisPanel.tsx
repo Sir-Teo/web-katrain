@@ -31,6 +31,7 @@ import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQua
 import { setTimedNotification } from '../utils/timedNotification';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { formatEngineErrorReport } from '../utils/engineDiagnostics';
+import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 
 interface AnalysisPanelProps {
   mode: UiMode;
@@ -129,13 +130,15 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const graphMetrics = modePanels.graph;
   const activeTab: 'graph' | 'stats' =
     modePanels.statsOpen && !modePanels.graphOpen ? 'stats' : 'graph';
+  const engineSummary = React.useMemo(() => getEngineStatusSummary({
+    status: engineStatus,
+    error: engineError,
+    requestedBackend,
+    activeBackend: engineBackend,
+    modelLabel: engineModelLabel,
+    modelUrl,
+  }), [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
   const activeBackend = engineBackend ?? requestedBackend;
-  const isFallback = !!engineBackend && engineBackend !== requestedBackend;
-  const modelSource = modelUrl.startsWith('/models/') || modelUrl.startsWith('models/')
-    ? 'Bundled'
-    : modelUrl.startsWith('http')
-      ? 'Remote'
-      : 'Local';
   const qualityLegendItems = React.useMemo(() => {
     const colors = getKaTrainEvalColors(trainerTheme);
     const thresholds = trainerEvalThresholds.length > 0
@@ -449,7 +452,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           label={engineMeta}
           title={engineMetaTitle}
           dotClass={engineDot}
+          tone={engineSummary.tone}
           variant="inline"
+          showErrorTag={!!engineError}
           className="lg:hidden"
           maxWidthClassName="max-w-[180px]"
         />
@@ -473,13 +478,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           <div>
             <div className="ui-text-faint">State</div>
             <div className={engineStatus === 'error' ? 'text-[var(--ui-danger)] font-semibold' : 'text-[var(--ui-text)] font-semibold'}>
-              {engineStatus}
+              {engineSummary.stateLabel}
             </div>
           </div>
           <div>
             <div className="ui-text-faint">Backend</div>
             <div className="text-[var(--ui-text)] font-semibold">
-              {activeBackend}{isFallback ? ' fallback' : ''}
+              {engineSummary.activeBackendLabel}{engineSummary.isFallback ? ' fallback' : ''}
             </div>
           </div>
           <div>
@@ -490,12 +495,12 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           </div>
           <div>
             <div className="ui-text-faint">Source</div>
-            <div className="text-[var(--ui-text)]">{modelSource}</div>
+            <div className="text-[var(--ui-text)]">{engineSummary.modelSource}</div>
           </div>
         </div>
-        {isFallback && (
+        {engineSummary.isFallback && (
           <div className="mt-2 text-[11px] text-[var(--ui-warning)]">
-            Requested {requestedBackend}, running {engineBackend}.
+            Requested {engineSummary.requestedBackendLabel}, running {engineSummary.activeBackendLabel}.
           </div>
         )}
         {engineError && (
