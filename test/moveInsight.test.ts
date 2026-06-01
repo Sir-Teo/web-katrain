@@ -72,6 +72,29 @@ describe('move insights', () => {
       learnMoreUrl: 'https://senseis.xmp.net/?Atari',
     });
 
+    const selfAtariBoard = emptyBoard(9);
+    selfAtariBoard[0]![1] = 'white';
+    selfAtariBoard[1]![0] = 'white';
+    selfAtariBoard[1]![2] = 'white';
+
+    expect(getMoveInsight(blackMove(1, 1), 9, selfAtariBoard)).toMatchObject({
+      label: 'Self-atari',
+      tone: 'tactical',
+      detail: expect.stringContaining('only one liberty'),
+    });
+
+    const suicideBoard = emptyBoard(9);
+    suicideBoard[0]![1] = 'white';
+    suicideBoard[1]![0] = 'white';
+    suicideBoard[1]![2] = 'white';
+    suicideBoard[2]![1] = 'white';
+
+    expect(getMoveInsight(blackMove(1, 1), 9, suicideBoard)).toMatchObject({
+      label: 'Suicide',
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?Suicide',
+    });
+
     const connectBoard = emptyBoard(9);
     connectBoard[1]![0] = 'white';
     connectBoard[1]![2] = 'white';
@@ -126,6 +149,14 @@ describe('move insights', () => {
     expect(getMoveInsightCoach({ label: 'Capture', detail: '', tone: 'tactical' })).toMatchObject({
       pro: expect.stringContaining('snapback'),
       checks: expect.arrayContaining(['Ko']),
+    });
+    expect(getMoveInsightCoach({ label: 'Self-atari', detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('captured next'),
+      checks: expect.arrayContaining(['Ladder']),
+    });
+    expect(getMoveInsightCoach({ label: 'Suicide', detail: '', tone: 'tactical' })).toMatchObject({
+      pro: expect.stringContaining('ruleset'),
+      checks: expect.arrayContaining(['Legality']),
     });
     expect(getMoveInsightCoach({ label: 'Connect', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('harder to cut'),

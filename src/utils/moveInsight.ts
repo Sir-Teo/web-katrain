@@ -158,6 +158,27 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
     };
   }
 
+  const nextBoard = parentBoard.map((row) => [...row]);
+  const nextRow = nextBoard[move.y];
+  if (!nextRow) return null;
+  nextRow[move.x] = move.player;
+  const ownLiberties = getLiberties(nextBoard, move.x, move.y).liberties;
+  if (ownLiberties === 0) {
+    return {
+      label: 'Suicide',
+      detail: 'Places a stone with no liberties and no capture; most rulesets reject this move.',
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?Suicide',
+    };
+  }
+  if (ownLiberties === 1) {
+    return {
+      label: 'Self-atari',
+      detail: 'Leaves the played stone or connected group with only one liberty.',
+      tone: 'tactical',
+    };
+  }
+
   if (neighbors.length > 0 && friendlyNeighborCount === neighbors.length) {
     return {
       label: 'Fill',
@@ -280,6 +301,22 @@ export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
       beginner: 'Atari gives an opponent group one liberty, so they usually need to answer.',
       pro: 'Confirm the atari is profitable; loose ataris can strengthen the opponent or lose sente.',
       checks: ['Escape route', 'Net', 'Sente'],
+    };
+  }
+
+  if (insight.label === 'Self-atari') {
+    return {
+      beginner: 'Self-atari means your own stones have only one liberty, so they may be captured next.',
+      pro: 'Read whether it works as a forcing sacrifice, ladder, snapback, or ko threat before trusting it.',
+      checks: ['Liberties', 'Ladder', 'Snapback'],
+    };
+  }
+
+  if (insight.label === 'Suicide') {
+    return {
+      beginner: 'Most games do not allow suicide moves because the played stone would have no liberties.',
+      pro: 'If this came from an imported record, check the ruleset and whether the move should be rejected.',
+      checks: ['Ruleset', 'Import', 'Legality'],
     };
   }
 
