@@ -84,6 +84,12 @@ describe('TopControlBar', () => {
     expect(html).not.toContain('data-mobile-board-theme-cycle="true"');
   });
 
+  it('warns that quick new game replaces the current game immediately', () => {
+    const html = renderToStaticMarkup(<TopControlBar {...baseProps} isMobile={false} />);
+
+    expect(html).toContain('Quick new game (19x19): starts immediately and replaces the current game without saving.');
+  });
+
   it('labels theme selectors in the view menu', () => {
     const html = renderToStaticMarkup(<TopControlBar {...baseProps} viewMenuOpen={true} isMobile={false} />);
 

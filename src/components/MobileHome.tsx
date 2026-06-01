@@ -15,6 +15,8 @@ import {
 } from 'react-icons/fa';
 import { formatLibrarySize, type LibraryFile } from '../utils/library';
 import { formatGamepadLabel } from '../utils/gamepadLabel';
+import { getQuickNewGameWarning } from '../utils/quickNewGame';
+import type { BoardSize } from '../types';
 
 interface MobileHomeProps {
   open: boolean;
@@ -28,6 +30,7 @@ interface MobileHomeProps {
   recentItems: LibraryFile[];
   onClose: () => void;
   onGamepadNavigationDisable?: () => void;
+  quickNewGameBoardSize?: BoardSize;
   onQuickNewGame: () => void;
   onNewGame: () => void;
   onOpenSgf: () => void;
@@ -45,12 +48,17 @@ interface HomeActionProps {
   icon: React.ReactNode;
   onClick: () => void;
   primary?: boolean;
+  hint?: string;
+  title?: string;
+  ariaLabel?: string;
 }
 
-const HomeAction: React.FC<HomeActionProps> = ({ label, icon, onClick, primary }) => (
+const HomeAction: React.FC<HomeActionProps> = ({ label, icon, onClick, primary, hint, title, ariaLabel }) => (
   <button
     type="button"
     onClick={onClick}
+    title={title}
+    aria-label={ariaLabel}
     className={[
       'min-h-12 rounded-lg border px-3 py-3 text-left transition-colors touch-manipulation',
       'flex items-center gap-3',
@@ -68,7 +76,10 @@ const HomeAction: React.FC<HomeActionProps> = ({ label, icon, onClick, primary }
     >
       {icon}
     </span>
-    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-sm font-semibold">{label}</span>
+      {hint ? <span className="mt-0.5 block truncate text-[11px] opacity-75">{hint}</span> : null}
+    </span>
   </button>
 );
 
@@ -84,6 +95,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   recentItems,
   onClose,
   onGamepadNavigationDisable,
+  quickNewGameBoardSize = 19,
   onQuickNewGame,
   onNewGame,
   onOpenSgf,
@@ -102,6 +114,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   const gamepadStatusText = hasMultipleGamepads
     ? `Gamepad navigation connected: ${gamepadName}. ${gamepadCount} controllers connected; using the most recently active. Tap to disable.`
     : `Gamepad navigation connected: ${gamepadName}. Tap to disable.`;
+  const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize);
 
   return (
     <div className="fixed inset-0 z-[45] lg:hidden ui-bg mobile-safe-inset mobile-safe-area-bottom">
@@ -173,7 +186,14 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
           <section className="mt-3 grid grid-cols-1 gap-2">
             <HomeAction label="Continue Board" icon={<FaThLarge />} onClick={onClose} primary />
-            <HomeAction label="Quick New Game" icon={<FaBolt />} onClick={onQuickNewGame} />
+            <HomeAction
+              label="Quick New Game"
+              icon={<FaBolt />}
+              onClick={onQuickNewGame}
+              hint={`${quickNewGameBoardSize}x${quickNewGameBoardSize} immediate`}
+              title={quickNewGameWarning}
+              ariaLabel={quickNewGameWarning}
+            />
             <HomeAction label="New Game" icon={<FaPlay />} onClick={onNewGame} />
             <HomeAction label="Save Copy to Library" icon={<FaSave />} onClick={onSaveToLibrary} />
             <HomeAction label="Open SGF / Photo / Model" icon={<FaFolderOpen />} onClick={onOpenSgf} />

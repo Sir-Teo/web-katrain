@@ -68,6 +68,13 @@ describe('MobileHome', () => {
     expect(html).toContain('Save Copy to Library');
   });
 
+  it('explains the quick new game replacement risk on mobile home', () => {
+    const html = renderToStaticMarkup(<MobileHome {...baseProps} quickNewGameBoardSize={13} />);
+
+    expect(html).toContain('Quick new game (13x13): starts immediately and replaces the current game without saving.');
+    expect(html).toContain('13x13 immediate');
+  });
+
   it('shows move count and size for recent games', () => {
     const html = renderToStaticMarkup(<MobileHome {...baseProps} recentItems={[recentFile]} />);
 

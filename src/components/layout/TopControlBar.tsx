@@ -34,6 +34,7 @@ import { BOARD_THEME_OPTIONS, getBoardTheme } from '../../utils/boardThemes';
 import { UI_THEME_OPTIONS } from '../../utils/uiThemes';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { isFullscreenActive, subscribeFullscreenChange, toggleAppFullscreen } from '../../utils/fullscreen';
+import { getQuickNewGameWarning } from '../../utils/quickNewGame';
 
 const TOP_CONTROL_SHORTCUT_IDS = [
   'settings-modal',
@@ -204,6 +205,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const shortcutLabels = useShortcutLabels(TOP_CONTROL_SHORTCUT_IDS);
   const withShortcut = (label: string, id: TopControlShortcutId) => `${label} (${shortcutLabels[id]})`;
   const saveControlTitle = withShortcut(stripShortcutSuffix(saveTitle), 'save-sgf');
+  const quickNewGameTitle = getQuickNewGameWarning(settings.defaultBoardSize);
   const boardThemeIndex = BOARD_THEME_OPTIONS.findIndex((theme) => theme.value === settings.boardTheme);
   const activeBoardThemeIndex = boardThemeIndex >= 0 ? boardThemeIndex : 0;
   const activeBoardThemeOption = BOARD_THEME_OPTIONS[activeBoardThemeIndex] ?? BOARD_THEME_OPTIONS[0]!;
@@ -515,7 +517,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
       {/* Desktop file actions */}
       <div className="hidden lg:flex items-center gap-1 shrink-0">
-        <IconButton title="Quick new game" onClick={onQuickNewGame} className={topIconClass}>
+        <IconButton title={quickNewGameTitle} onClick={onQuickNewGame} className={topIconClass}>
           <FaBolt />
         </IconButton>
         <IconButton title={withShortcut('New game', 'new-game')} onClick={onNewGame} className={topIconClass}>

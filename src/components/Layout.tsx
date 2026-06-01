@@ -2593,6 +2593,7 @@ export const Layout: React.FC = () => {
         onCommandPalette={() => setIsCommandPaletteOpen(true)}
         onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
         onAbout={() => setIsAboutOpen(true)}
+        quickNewGameBoardSize={settings.defaultBoardSize}
         recentItems={recentLibraryItems}
         onOpenRecent={handleOpenRecent}
       />
@@ -2610,6 +2611,7 @@ export const Layout: React.FC = () => {
           recentItems={recentLibraryItems}
           onClose={closeMobileHome}
           onGamepadNavigationDisable={handleDisableGamepadNavigation}
+          quickNewGameBoardSize={settings.defaultBoardSize}
           onQuickNewGame={() => void startQuickNewGame()}
           onNewGame={() => {
             closeMobileHome();

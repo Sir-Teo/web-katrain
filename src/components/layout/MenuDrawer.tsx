@@ -4,6 +4,8 @@ import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { formatLibrarySize, type LibraryFile } from '../../utils/library';
+import { getQuickNewGameWarning } from '../../utils/quickNewGame';
+import type { BoardSize } from '../../types';
 
 const MENU_DRAWER_SHORTCUT_IDS = [
   'new-game',
@@ -34,6 +36,7 @@ interface MenuDrawerProps {
   onCommandPalette: () => void;
   onKeyboardHelp: () => void;
   onAbout: () => void;
+  quickNewGameBoardSize?: BoardSize;
   recentItems?: LibraryFile[];
   onOpenRecent?: (item: LibraryFile) => void;
 }
@@ -55,10 +58,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onCommandPalette,
   onKeyboardHelp,
   onAbout,
+  quickNewGameBoardSize = 19,
   recentItems = [],
   onOpenRecent,
 }) => {
   const shortcutLabels = useShortcutLabels(MENU_DRAWER_SHORTCUT_IDS);
+  const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize);
   useEscapeToClose(onClose, open);
 
   if (!open) return null;
@@ -120,11 +125,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 onQuickNewGame();
                 onClose();
               }}
-              aria-label="Start quick new game"
+              aria-label={quickNewGameWarning}
+              title={quickNewGameWarning}
             >
               <span className="flex items-center gap-2">
                 <FaBolt aria-hidden="true" /> Quick New Game
               </span>
+              <span className="text-xs ui-text-faint">Immediate</span>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
