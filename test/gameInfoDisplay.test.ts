@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatGameInfoPlayer,
   formatKomiLabel,
+  getFirstGameInfoLink,
   getVisibleGameInfoDetails,
   hasGameInfoMetadata,
   readRootInfoValue,
@@ -42,5 +43,27 @@ describe('game info display helpers', () => {
     expect(readRootInfoValue({}, 'GN')).toBe('');
     expect(formatKomiLabel(6.5001)).toBe('6.5');
     expect(formatKomiLabel(Number.NaN)).toBe('6.5');
+  });
+
+  it('extracts safe source links from visible SGF metadata', () => {
+    expect(getFirstGameInfoLink({
+      PC: ['OGS: https://online-go.com/game/81344851).'],
+    })).toEqual({
+      href: 'https://online-go.com/game/81344851',
+      sourceKey: 'PC',
+      sourceLabel: 'Place',
+    });
+
+    expect(getFirstGameInfoLink({
+      EV: ['https://example.com/event'],
+      PC: ['https://online-go.com/game/81344851'],
+    })).toEqual({
+      href: 'https://example.com/event',
+      sourceKey: 'EV',
+      sourceLabel: 'Event',
+    });
+
+    expect(getFirstGameInfoLink({ PC: ['ftp://example.com/game.sgf'] })).toBeNull();
+    expect(getFirstGameInfoLink({ PC: ['not a url'] })).toBeNull();
   });
 });

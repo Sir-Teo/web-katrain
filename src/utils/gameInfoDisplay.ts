@@ -8,6 +8,12 @@ export type GameInfoDetail = {
   value: string;
 };
 
+export type GameInfoLink = {
+  href: string;
+  sourceKey: GameInfoDetail['key'];
+  sourceLabel: string;
+};
+
 const detailFieldLabels: Array<{ key: GameInfoDetail['key']; label: string }> = [
   { key: 'EV', label: 'Event' },
   { key: 'DT', label: 'Date' },
@@ -15,6 +21,9 @@ const detailFieldLabels: Array<{ key: GameInfoDetail['key']; label: string }> = 
   { key: 'RE', label: 'Result' },
   { key: 'TM', label: 'Time' },
 ];
+
+const HTTP_URL_RE = /https?:\/\/[^\s<>"']+/i;
+const TRAILING_URL_PUNCTUATION_RE = /[\]),.;:!?]+$/;
 
 export const readRootInfoValue = (rootProps: SgfRootProperties, key: string): string =>
   rootProps[key]?.[0]?.trim() ?? '';
@@ -45,6 +54,28 @@ export const getVisibleGameInfoDetails = (rootProps: SgfRootProperties): GameInf
     const value = readRootInfoValue(rootProps, key);
     return value ? [{ key, label, value }] : [];
   });
+
+export const getFirstGameInfoLink = (rootProps: SgfRootProperties): GameInfoLink | null => {
+  for (const detail of getVisibleGameInfoDetails(rootProps)) {
+    const match = detail.value.match(HTTP_URL_RE);
+    const rawHref = match?.[0]?.replace(TRAILING_URL_PUNCTUATION_RE, '');
+    if (!rawHref) continue;
+
+    try {
+      const parsed = new URL(rawHref);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') continue;
+      return {
+        href: parsed.href,
+        sourceKey: detail.key,
+        sourceLabel: detail.label,
+      };
+    } catch {
+      // Ignore malformed metadata links and keep rendering the plain text value.
+    }
+  }
+
+  return null;
+};
 
 export const hasGameInfoMetadata = (rootProps: SgfRootProperties): boolean =>
   Boolean(

@@ -1,12 +1,13 @@
 import React from 'react';
 import { shallow } from 'zustand/shallow';
-import { FaCheck, FaEdit } from 'react-icons/fa';
+import { FaCheck, FaEdit, FaExternalLinkAlt } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_BOARD_SIZE, type GameSettings } from '../types';
 import { getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import {
   formatGameInfoPlayer,
   formatKomiLabel,
+  getFirstGameInfoLink,
   formatRulesLabel,
   getVisibleGameInfoDetails,
   hasGameInfoMetadata,
@@ -72,6 +73,7 @@ export const GameInfoPanel: React.FC = () => {
   const whiteName = readRootInfoValue(rootProps, 'PW');
   const whiteRank = readRootInfoValue(rootProps, 'WR');
   const visibleDetails = getVisibleGameInfoDetails(rootProps);
+  const sourceLink = getFirstGameInfoLink(rootProps);
   const hasMetadata = hasGameInfoMetadata(rootProps);
   const blackDisplay = formatGameInfoPlayer(blackName, blackRank, 'Black');
   const whiteDisplay = formatGameInfoPlayer(whiteName, whiteRank, 'White');
@@ -297,16 +299,32 @@ export const GameInfoPanel: React.FC = () => {
             {isEditingInfo ? 'SGF root metadata' : 'Players, rules, result'}
           </div>
         </div>
-        <button
-          type="button"
-          className="panel-action-button inline-flex shrink-0 items-center gap-1"
-          onClick={() => setIsEditingInfo((current) => !current)}
-          aria-pressed={isEditingInfo}
-          data-game-info-edit-toggle="true"
-        >
-          {isEditingInfo ? <FaCheck size={11} aria-hidden="true" /> : <FaEdit size={11} aria-hidden="true" />}
-          {isEditingInfo ? 'Done' : 'Edit'}
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {!isEditingInfo && sourceLink ? (
+            <a
+              className="panel-action-button inline-flex items-center gap-1"
+              href={sourceLink.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Open link from ${sourceLink.sourceLabel}`}
+              aria-label={`Open link from ${sourceLink.sourceLabel}`}
+              data-game-info-source-link="true"
+            >
+              <FaExternalLinkAlt size={11} aria-hidden="true" />
+              Source
+            </a>
+          ) : null}
+          <button
+            type="button"
+            className="panel-action-button inline-flex items-center gap-1"
+            onClick={() => setIsEditingInfo((current) => !current)}
+            aria-pressed={isEditingInfo}
+            data-game-info-edit-toggle="true"
+          >
+            {isEditingInfo ? <FaCheck size={11} aria-hidden="true" /> : <FaEdit size={11} aria-hidden="true" />}
+            {isEditingInfo ? 'Done' : 'Edit'}
+          </button>
+        </div>
       </div>
       {isEditingInfo ? renderEditMode() : renderDisplayMode()}
     </div>
