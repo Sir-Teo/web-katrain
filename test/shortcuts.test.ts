@@ -7,6 +7,7 @@ import {
   findShortcutCollision,
   getShortcutBindings,
   getShortcutGroups,
+  isNativePasteShortcutEvent,
   isShortcutRecordingCancelKey,
   SHORTCUT_DEFINITIONS,
   shortcutDisplay,
@@ -125,6 +126,13 @@ describe('shortcut utilities', () => {
     expect(isShortcutRecordingCancelKey(keyboardEvent('Escape'))).toBe(true);
     expect(isShortcutRecordingCancelKey(keyboardEvent('Esc'))).toBe(true);
     expect(isShortcutRecordingCancelKey(keyboardEvent('s', { ctrlKey: true }))).toBe(false);
+  });
+
+  it('recognizes native paste chords so clipboard images can reach paste events', () => {
+    expect(isNativePasteShortcutEvent(keyboardEvent('v', { ctrlKey: true }))).toBe(true);
+    expect(isNativePasteShortcutEvent(keyboardEvent('V', { metaKey: true }))).toBe(true);
+    expect(isNativePasteShortcutEvent(keyboardEvent('v', { ctrlKey: true, shiftKey: true }))).toBe(false);
+    expect(isNativePasteShortcutEvent(keyboardEvent('p', { ctrlKey: true }))).toBe(false);
   });
 
   it('builds replacement overrides when resolving a shortcut collision', () => {

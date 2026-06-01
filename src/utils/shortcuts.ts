@@ -262,6 +262,9 @@ export const eventToShortcutBinding = (event: KeyboardEvent | React.KeyboardEven
 export const isShortcutRecordingCancelKey = (event: KeyboardEvent | React.KeyboardEvent): boolean =>
   normalizeKey(event.key) === 'Escape';
 
+export const isNativePasteShortcutEvent = (event: KeyboardEvent | React.KeyboardEvent): boolean =>
+  normalizeKey(event.key) === 'v' && (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey;
+
 export const eventMatchesBinding = (event: KeyboardEvent, binding: ShortcutBinding): boolean => {
   const b = normalizeBinding(binding);
   const key = normalizeKey(event.key);

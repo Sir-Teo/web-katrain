@@ -3,7 +3,7 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { generateSgfFromTree, type KaTrainSgfExportOptions } from '../utils/sgf';
 import type { UiMode } from '../components/layout/types';
-import { EDIT_TOOL_SHORTCUT_DEFINITIONS, eventMatchesShortcut, loadShortcutOverrides } from '../utils/shortcuts';
+import { EDIT_TOOL_SHORTCUT_DEFINITIONS, eventMatchesShortcut, isNativePasteShortcutEvent, loadShortcutOverrides } from '../utils/shortcuts';
 import { toggleAppFullscreen } from '../utils/fullscreen';
 import { shouldIgnoreKeyboardShortcutTarget } from '../utils/keyboardTarget';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
@@ -191,6 +191,7 @@ export function useKeyboardShortcuts({
         return;
       }
       if (matches('paste-sgf')) {
+        if (isNativePasteShortcutEvent(e)) return;
         e.preventDefault();
         openPasteSgf();
         return;
