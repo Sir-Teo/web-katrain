@@ -616,6 +616,12 @@
     cursor: not-allowed;
   }
 
+  @media (max-width: 1179px) {
+    .library-header-secondary-action {
+      display: none;
+    }
+  }
+
   .panel-tab-strip {
     display: flex;
     align-items: stretch;

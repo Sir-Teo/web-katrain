@@ -77,6 +77,7 @@ import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutSize, isDesktopLayoutViewport, isM
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery';
 import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
+import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -303,9 +304,7 @@ export const Layout: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTab>('board');
   const [lastRightTab, setLastRightTab] = useState<MobileTab>('tree');
   const [uiState, setUiState] = useState<UiState>(() => loadUiState());
-  const [libraryOpen, setLibraryOpen] = useState(() => {
-    return readLocalStorage('web-katrain:library_open:v1') === 'true';
-  });
+  const [libraryOpen, setLibraryOpen] = useState(getInitialLibraryOpen);
   const [showSidebar, setShowSidebar] = useState(() => {
     return readLocalStorage('web-katrain:sidebar_open:v1') !== 'false';
   });
@@ -833,7 +832,7 @@ export const Layout: React.FC = () => {
   }, [uiState]);
 
   useEffect(() => {
-    writeLocalStorage('web-katrain:library_open:v1', String(libraryOpen));
+    writeLocalStorage(LIBRARY_OPEN_STORAGE_KEY, String(libraryOpen));
   }, [libraryOpen]);
 
   useEffect(() => {
@@ -875,6 +874,11 @@ export const Layout: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!isDesktop || viewportWidth >= FIRST_RUN_LIBRARY_MIN_WIDTH) return;
+    if (libraryOpen && showSidebar) setShowSidebar(false);
+  }, [isDesktop, libraryOpen, showSidebar, viewportWidth]);
 
   const getPanelLimits = useCallback(() => {
     const minLeft = 220;

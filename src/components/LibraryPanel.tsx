@@ -315,6 +315,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const headerActionClass = 'panel-icon-button';
   const headerDangerActionClass = 'panel-icon-button ui-danger-soft';
+  const headerSecondaryActionClass = `${headerActionClass} library-header-secondary-action`;
+  const headerSecondaryDangerActionClass = `${headerDangerActionClass} library-header-secondary-action`;
   const bulkActionClass = 'panel-icon-button';
   const bulkDangerActionClass = 'panel-icon-button ui-danger-soft';
   const analysisActionClass =
@@ -1539,7 +1541,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className={headerActionClass}
+              className={headerSecondaryActionClass}
               onClick={() => void handleExportLibraryZip()}
               title="Export library as ZIP"
               aria-label="Export library as ZIP"
@@ -1548,7 +1550,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className={headerActionClass}
+              className={headerSecondaryActionClass}
               onClick={handleBackupLibrary}
               title="Download full library backup"
               aria-label="Download full library backup"
@@ -1557,7 +1559,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className={headerActionClass}
+              className={headerSecondaryActionClass}
               onClick={() => backupInputRef.current?.click()}
               title="Restore library backup"
               aria-label="Restore library backup"
@@ -1566,14 +1568,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className={headerDangerActionClass}
+              className={headerSecondaryDangerActionClass}
               onClick={handleClearLibrary}
               title="Clear library"
               aria-label="Clear library"
             >
               <FaTrash />
             </button>
-            <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
+            <div className="library-header-secondary-action h-5 w-px bg-[var(--ui-border)] mx-1" />
             <input
               ref={fileInputRef}
               type="file"
