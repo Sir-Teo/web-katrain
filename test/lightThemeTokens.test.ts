@@ -37,4 +37,43 @@ describe('light theme shell tokens', () => {
     expect(timer).not.toContain('text-slate-100');
     expect(timer).not.toContain('text-slate-200');
   });
+
+  it('keeps the interactive game report chrome on theme tokens', () => {
+    const report = readFileSync('src/components/GameReportModal.tsx', 'utf8');
+    const between = (start: string, end: string) => {
+      const from = report.indexOf(start);
+      const to = report.indexOf(end, from);
+      expect(from, start).toBeGreaterThanOrEqual(0);
+      expect(to, end).toBeGreaterThan(from);
+      return report.slice(from, to);
+    };
+    const interactiveReport = [
+      between('const renderMistakeRows', 'const renderPvTree'),
+      between('<div className="print-hide space-y-4"', '<div className="hidden print-only'),
+      between('<div className="px-5 py-4 ui-bar', '{showReportGuide &&'),
+    ].join('\n');
+    const hardDarkTokens = [
+      'bg-slate-900/70',
+      'bg-slate-950/40',
+      'bg-slate-950/30',
+      'bg-slate-900/60',
+      'bg-slate-800/70',
+      'border-slate-700/50',
+      'border-slate-700/60',
+      'border-slate-700/40',
+      'text-slate-100',
+      'text-slate-200',
+      'text-slate-300',
+      'text-slate-400',
+      'text-slate-500',
+      'hover:bg-slate-800/80',
+      'hover:bg-slate-900/60',
+      'bg-[var(--ui-surface-2)] hover:brightness-110 text-white',
+      'bg-[var(--ui-surface-2)] text-white',
+    ];
+
+    for (const token of hardDarkTokens) {
+      expect(interactiveReport, token).not.toContain(token);
+    }
+  });
 });

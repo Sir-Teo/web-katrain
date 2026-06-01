@@ -99,17 +99,17 @@ function policyCategoryLabel(category: MovePolicyCategory | undefined): string {
 function policyCategoryClass(category: MovePolicyCategory | undefined): string {
   switch (category) {
     case 'aiMove':
-      return 'text-sky-300 border-sky-400/40 bg-sky-400/10';
+      return 'text-sky-500 border-sky-500/40 bg-sky-500/10';
     case 'good':
-      return 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10';
+      return 'text-emerald-500 border-emerald-500/40 bg-emerald-500/10';
     case 'inaccuracy':
-      return 'text-amber-300 border-amber-400/40 bg-amber-400/10';
+      return 'text-amber-600 border-amber-500/40 bg-amber-500/10';
     case 'mistake':
-      return 'text-orange-300 border-orange-400/40 bg-orange-400/10';
+      return 'text-orange-600 border-orange-500/40 bg-orange-500/10';
     case 'blunder':
-      return 'text-rose-300 border-rose-400/40 bg-rose-400/10';
+      return 'text-rose-500 border-rose-500/40 bg-rose-500/10';
     default:
-      return 'text-slate-400 border-slate-700/60 bg-slate-900/50';
+      return 'text-[var(--ui-text-muted)] border-[var(--ui-border)] bg-[var(--ui-surface)]';
   }
 }
 
@@ -185,6 +185,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     'rounded-xl border ui-surface p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] print-surface';
   const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] ui-text-faint';
   const labelClass = 'text-[var(--ui-text-muted)]';
+  const valueClass = 'text-[var(--ui-text)]';
+  const mutedClass = 'text-[var(--ui-text-muted)]';
+  const faintClass = 'text-[var(--ui-text-faint)]';
+  const secondaryPillClass =
+    'rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]';
+  const secondaryButtonClass =
+    'rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]';
+  const insetSurfaceClass = 'rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)]';
   const generatedAt = useMemo(() => new Date(), []);
   const playerNames = useMemo(() => {
     void treeVersion;
@@ -665,12 +673,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           onMouseEnter={() => setReportHoverMove(previewMove)}
           onMouseLeave={() => setReportHoverMove(null)}
         >
-          <div className="col-span-2 text-slate-200 font-mono">#{entry.moveNumber}</div>
-          <div className="col-span-1 text-center font-semibold text-slate-200">
+          <div className={`col-span-2 font-mono ${valueClass}`}>#{entry.moveNumber}</div>
+          <div className={`col-span-1 text-center font-semibold ${valueClass}`}>
             {entry.player === 'black' ? 'B' : 'W'}
           </div>
-          <div className="col-span-2 text-slate-200 font-mono">{entry.move}</div>
-          <div className="col-span-2 text-slate-300 font-mono">
+          <div className={`col-span-2 font-mono ${valueClass}`}>{entry.move}</div>
+          <div className={`col-span-2 font-mono ${mutedClass}`}>
             {entry.topMove ?? '-'}
           </div>
           <div className="col-span-2 text-right font-mono text-rose-300">
@@ -681,7 +689,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <div className="flex flex-wrap justify-end gap-1 print-hide">
                 <button
                   type="button"
-                  className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700/50 text-slate-200 hover:bg-slate-700/70"
+                  className={`px-2 py-1 ${secondaryButtonClass}`}
                   onClick={() => jumpToNode(entry.node)}
                 >
                   Jump
@@ -695,10 +703,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 </button>
               </div>
             ) : (
-              <span className="text-slate-400">-</span>
+              <span className={mutedClass}>-</span>
             )}
           </div>
-          <div className="col-span-12 text-[10px] text-slate-500 font-mono print-muted">
+          <div className={`col-span-12 text-[10px] font-mono print-muted ${faintClass}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span title={policyTitle}>
                 Policy: <span className={[
@@ -908,8 +916,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 className={[
                   'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
                   playerFilter === opt.key
-                    ? 'bg-slate-200 text-slate-900 border-slate-200'
-                    : 'bg-slate-900/70 border-slate-700/50 text-slate-200 hover:bg-slate-800/80',
+                    ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border-[var(--ui-accent)]'
+                    : 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
                 ].join(' ')}
               >
                 {opt.label}
@@ -955,7 +963,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   isGameAnalysisRunning
                     ? 'bg-rose-600/80 text-white hover:bg-rose-500'
                     : hasFullCoverage
-                      ? 'bg-[var(--ui-surface-2)] text-white hover:brightness-110'
+                      ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110'
                       : 'ui-accent-bg hover:brightness-110',
                 ].join(' ')}
               >
@@ -980,12 +988,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className={sectionClass}>
               <div className={sectionTitleClass}>Phase</div>
-              <div className="mt-2 text-lg font-semibold text-slate-100">{phaseLabel}</div>
-              <div className="mt-1 text-xs text-slate-400">Filter applies to report metrics.</div>
+              <div className={`mt-2 text-lg font-semibold ${valueClass}`}>{phaseLabel}</div>
+              <div className={`mt-1 text-xs ${mutedClass}`}>Filter applies to report metrics.</div>
             </div>
             <div className={sectionClass}>
               <div className={sectionTitleClass}>Analyzed Moves</div>
-              <div className="mt-2 text-lg font-semibold text-slate-100">
+              <div className={`mt-2 text-lg font-semibold ${valueClass}`}>
                 {analyzedMoves}/{totalMoves || 0}
               </div>
               <div className="mt-2 h-2 rounded-full bg-[var(--ui-surface-2)] overflow-hidden">
@@ -994,21 +1002,21 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   style={{ width: `${Math.round(coverage * 100)}%` }}
                 />
               </div>
-              <div className="mt-2 text-xs text-slate-400">Filters apply to analysis coverage.</div>
+              <div className={`mt-2 text-xs ${mutedClass}`}>Filters apply to analysis coverage.</div>
             </div>
             <div className={sectionClass}>
               <div className={sectionTitleClass}>Coverage</div>
-              <div className="mt-2 text-lg font-semibold text-slate-100">{fmtPct(coverage)}</div>
-              <div className="mt-1 text-xs text-slate-400">Based on moves with analysis data.</div>
+              <div className={`mt-2 text-lg font-semibold ${valueClass}`}>{fmtPct(coverage)}</div>
+              <div className={`mt-1 text-xs ${mutedClass}`}>Based on moves with analysis data.</div>
             </div>
           </div>
 
           <div className={sectionClass}>
             <div className={sectionTitleClass}>Key Stats</div>
             <div className={['mt-3 grid gap-2 text-sm', statsPlayers.length === 2 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>
-              <div className="text-slate-500 text-xs uppercase tracking-wide">Metric</div>
+              <div className={`text-xs uppercase tracking-wide ${faintClass}`}>Metric</div>
               {statsPlayers.map((player) => (
-                <div key={player} className="min-w-0 truncate text-center text-xs font-semibold text-slate-500" title={playerNames[player]}>
+                <div key={player} className={`min-w-0 truncate text-center text-xs font-semibold ${faintClass}`} title={playerNames[player]}>
                   {playerNames[player]}
                 </div>
               ))}
@@ -1019,7 +1027,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     {label}
                   </div>
                   {statsPlayers.map((player) => (
-                    <div key={`${label}-${player}`} className="text-center font-mono text-slate-200">
+                    <div key={`${label}-${player}`} className={`text-center font-mono ${valueClass}`}>
                       {value(player)}
                     </div>
                   ))}
@@ -1038,9 +1046,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 const distribution = report.stats[player].policyDistribution;
                 const total = distribution?.total ?? 0;
                 return (
-                  <div key={player} className="rounded-lg border border-slate-700/50 bg-slate-950/25 p-3">
+                  <div key={player} className={`${insetSurfaceClass} p-3`}>
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                      <div className={`flex items-center gap-2 text-sm font-semibold ${valueClass}`}>
                         <span
                           className={[
                             'h-2.5 w-2.5 rounded-full border',
@@ -1051,13 +1059,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         <span className="min-w-0 truncate" title={playerNames[player]}>{playerNames[player]}</span>
                       </div>
                       <div className="text-right">
-                        <div className="text-[10px] uppercase tracking-wide text-slate-500">Policy accuracy</div>
-                        <div className="font-mono text-sm text-slate-100">{fmtNum(report.stats[player].policyAccuracy, 1)}</div>
+                        <div className={`text-[10px] uppercase tracking-wide ${faintClass}`}>Policy accuracy</div>
+                        <div className={`font-mono text-sm ${valueClass}`}>{fmtNum(report.stats[player].policyAccuracy, 1)}</div>
                       </div>
                     </div>
-                    <div className="mt-3 h-4 rounded-full bg-slate-900/80 overflow-hidden flex border border-slate-700/50">
+                    <div className="mt-3 h-4 rounded-full bg-[var(--ui-surface-2)] overflow-hidden flex border border-[var(--ui-border)]">
                       {total === 0 ? (
-                        <div className="h-full w-full bg-slate-800/70" />
+                        <div className="h-full w-full bg-[var(--ui-border)]" />
                       ) : (
                         MOVE_POLICY_CATEGORIES
                           .filter((category) => (distribution?.[category] ?? 0) > 0)
@@ -1109,8 +1117,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                               'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors',
                               active
                                 ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] ring-1 ring-[var(--ui-accent)]'
-                                : 'border-slate-700/60 bg-slate-900/60 text-slate-300 hover:bg-slate-800/80',
-                              count === 0 ? 'opacity-45 cursor-not-allowed hover:bg-slate-900/60' : '',
+                                : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+                              count === 0 ? 'opacity-45 cursor-not-allowed hover:bg-[var(--ui-surface)]' : '',
                             ].join(' ')}
                           >
                             <span
@@ -1119,8 +1127,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                               aria-hidden="true"
                             />
                             <span>{categoryLabel}</span>
-                            <span className="font-mono text-slate-400">{count}</span>
-                            <span className="font-mono text-slate-500">{pct}%</span>
+                            <span className="font-mono text-[var(--ui-text-muted)]">{count}</span>
+                            <span className="font-mono text-[var(--ui-text-faint)]">{pct}%</span>
                           </button>
                         );
                       })}
@@ -1137,25 +1145,25 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <button
                 type="button"
                 onClick={refreshSnapshot}
-                className="px-3 py-1 rounded-full text-xs font-semibold border border-slate-700/60 text-slate-200 hover:bg-slate-800/80 print-hide"
+                className={`px-3 py-1 text-xs font-semibold print-hide ${secondaryPillClass}`}
               >
                 Refresh
               </button>
             </div>
-            <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-950/40 p-3 flex items-center justify-center">
+            <div className={`mt-3 p-3 flex items-center justify-center ${insetSurfaceClass}`}>
               {snapshotUrl ? (
                 <img
                   src={snapshotUrl}
                   alt="Board snapshot"
-                  className="max-h-[260px] w-auto rounded-md border border-slate-700/60"
+                  className="max-h-[260px] w-auto rounded-md border border-[var(--ui-border)]"
                 />
               ) : (
-                <div className="text-sm text-slate-400">
+                <div className={`text-sm ${mutedClass}`}>
                   {snapshotError ?? 'Capturing board snapshot...'}
                 </div>
               )}
             </div>
-            <div className="mt-2 text-xs text-slate-400 print-muted">
+            <div className={`mt-2 text-xs print-muted ${mutedClass}`}>
               Snapshot reflects the current board position and auto-updates on move.
             </div>
           </div>
@@ -1183,7 +1191,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 />
               </div>
             </div>
-            <div className="mt-3 bg-slate-950/40 border border-slate-700/50 rounded-lg p-2">
+            <div className={`mt-3 p-2 ${insetSurfaceClass}`}>
               {reportGraph.score || reportGraph.winrate ? (
                 <div style={{ height: 160 }}>
                   <ScoreWinrateGraph
@@ -1194,10 +1202,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   />
                 </div>
               ) : (
-                <div className="h-20 flex items-center justify-center text-slate-500 text-sm">Graph hidden</div>
+                <div className={`h-20 flex items-center justify-center text-sm ${faintClass}`}>Graph hidden</div>
               )}
             </div>
-            <div className="mt-2 text-xs text-slate-400">
+            <div className={`mt-2 text-xs ${mutedClass}`}>
               Score lead and winrate are from the current analysis data.
             </div>
           </div>
@@ -1205,30 +1213,30 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className={sectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className={sectionTitleClass}>Critical Swings</div>
-              <span className="rounded-full border border-slate-700/60 bg-slate-950/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <span className={`rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${mutedClass}`}>
                 {turningPoints.length} over {CRITICAL_SWING_THRESHOLD} pts
               </span>
             </div>
             {turningPoints.length === 0 ? (
-              <div className="mt-2 text-sm text-slate-500">No major score swings match these filters.</div>
+              <div className={`mt-2 text-sm ${faintClass}`}>No major score swings match these filters.</div>
             ) : (
               <div className="mt-3 space-y-2">
                 {turningPoints.map((entry) => (
                   <div
                     key={`${entry.node.id}-swing-${entry.moveNumber}`}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-950/30 px-3 py-2 text-xs"
+                    className={`flex flex-wrap items-center gap-2 px-3 py-2 text-xs ${insetSurfaceClass}`}
                   >
-                    <span className="font-mono font-semibold text-slate-100">#{entry.moveNumber}</span>
-                    <span className="rounded-full border border-slate-700/60 px-2 py-0.5 font-semibold text-slate-300">
+                    <span className={`font-mono font-semibold ${valueClass}`}>#{entry.moveNumber}</span>
+                    <span className={`rounded-full border border-[var(--ui-border)] px-2 py-0.5 font-semibold ${mutedClass}`}>
                       {entry.player === 'black' ? 'B' : 'W'} {entry.move}
                     </span>
-                    <span className="font-mono text-slate-400">
+                    <span className={`font-mono ${mutedClass}`}>
                       {fmtSigned(entry.scoreBefore)} {'->'} {fmtSigned(entry.scoreAfter)}
                     </span>
                     <span className={['font-mono font-semibold', entry.winRateSwing >= 0 ? 'text-emerald-300' : 'text-rose-300'].join(' ')}>
                       Win {fmtWinSwing(entry.winRateSwing)}
                     </span>
-                    <span className={['font-mono font-semibold', entry.scoreDelta >= 0 ? 'text-slate-100' : 'text-slate-300'].join(' ')}>
+                    <span className={['font-mono font-semibold', entry.scoreDelta >= 0 ? valueClass : mutedClass].join(' ')}>
                       {describeReportSwing(entry)}
                     </span>
                     {entry.policy && (
@@ -1242,7 +1250,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     <button
                       type="button"
                       onClick={() => jumpToNode(entry.node)}
-                      className="ml-auto rounded border border-slate-700/60 px-2 py-1 text-slate-200 hover:bg-slate-800/80 print-hide"
+                      className={`ml-auto px-2 py-1 print-hide ${secondaryButtonClass}`}
                     >
                       Jump
                     </button>
@@ -1255,24 +1263,24 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className={sectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className={sectionTitleClass}>Best Recoveries</div>
-              <span className="rounded-full border border-slate-700/60 bg-slate-950/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <span className={`rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${mutedClass}`}>
                 {recoveries.length} over {RECOVERY_THRESHOLD} pts
               </span>
             </div>
             {recoveries.length === 0 ? (
-              <div className="mt-2 text-sm text-slate-500">No point-gaining recovery moves match these filters.</div>
+              <div className={`mt-2 text-sm ${faintClass}`}>No point-gaining recovery moves match these filters.</div>
             ) : (
               <div className="mt-3 space-y-2">
                 {recoveries.map((entry) => (
                   <div
                     key={`${entry.node.id}-recovery-${entry.moveNumber}`}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-950/30 px-3 py-2 text-xs"
+                    className={`flex flex-wrap items-center gap-2 px-3 py-2 text-xs ${insetSurfaceClass}`}
                   >
-                    <span className="font-mono font-semibold text-slate-100">#{entry.moveNumber}</span>
-                    <span className="rounded-full border border-slate-700/60 px-2 py-0.5 font-semibold text-slate-300">
+                    <span className={`font-mono font-semibold ${valueClass}`}>#{entry.moveNumber}</span>
+                    <span className={`rounded-full border border-[var(--ui-border)] px-2 py-0.5 font-semibold ${mutedClass}`}>
                       {entry.player === 'black' ? 'B' : 'W'} {entry.move}
                     </span>
-                    <span className="font-mono text-slate-400">
+                    <span className={`font-mono ${mutedClass}`}>
                       {fmtSigned(entry.scoreBefore)} {'->'} {fmtSigned(entry.scoreAfter)}
                     </span>
                     <span className={['font-mono font-semibold', entry.winRateSwing >= 0 ? 'text-emerald-300' : 'text-rose-300'].join(' ')}>
@@ -1292,7 +1300,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     <button
                       type="button"
                       onClick={() => jumpToNode(entry.node)}
-                      className="ml-auto rounded border border-slate-700/60 px-2 py-1 text-slate-200 hover:bg-slate-800/80 print-hide"
+                      className={`ml-auto px-2 py-1 print-hide ${secondaryButtonClass}`}
                     >
                       Jump
                     </button>
@@ -1307,7 +1315,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <div className="flex flex-wrap items-center gap-2">
                 <div className={sectionTitleClass}>Biggest Mistakes</div>
                 <div
-                  className="inline-flex rounded-full border border-slate-700/60 bg-slate-950/40 p-0.5 print-hide"
+                  className="inline-flex rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] p-0.5 print-hide"
                   aria-label="Mistake sort order"
                 >
                   {[
@@ -1326,7 +1334,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                           'px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors',
                           active
                             ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
-                            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60',
+                            : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
                         ].join(' ')}
                       >
                         {option.label}
@@ -1339,19 +1347,19 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 type="button"
                 onClick={() => startReviewQueue(topMistakes)}
                 disabled={topMistakes.length === 0}
-                className="px-3 py-1 rounded-full text-xs font-semibold border border-slate-700/60 text-slate-200 hover:bg-slate-800/80 disabled:opacity-40 print-hide"
+                className={`px-3 py-1 text-xs font-semibold disabled:opacity-40 print-hide ${secondaryPillClass}`}
               >
                 Review {topMistakes.length}
               </button>
             </div>
             {activeReview && (
-              <div className="mt-3 rounded-lg border border-[var(--ui-border)] bg-slate-950/40 p-3 print-hide">
+              <div className={`mt-3 p-3 print-hide ${insetSurfaceClass}`}>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className={sectionTitleClass}>Review Queue</span>
-                  <span className="font-mono text-slate-300">
+                  <span className={`font-mono ${mutedClass}`}>
                     {reviewIndex + 1}/{reviewQueue.length}
                   </span>
-                  <span className="text-slate-300">
+                  <span className={mutedClass}>
                     Move {activeReview.moveNumber} · {playerNames[activeReview.player]} · {activeReview.move}
                   </span>
                   <span className="font-mono text-rose-300">-{fmtNum(activeReview.pointsLost, 2)}</span>
@@ -1375,7 +1383,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       type="button"
                       onClick={() => reviewStep(-1)}
                       disabled={reviewIndex === 0}
-                      className="px-2 py-1 rounded border border-slate-700/60 hover:bg-slate-800/80 disabled:opacity-40"
+                      className={`px-2 py-1 disabled:opacity-40 ${secondaryButtonClass}`}
                     >
                       Prev
                     </button>
@@ -1383,28 +1391,28 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       type="button"
                       onClick={() => reviewStep(1)}
                       disabled={reviewIndex >= reviewQueue.length - 1}
-                      className="px-2 py-1 rounded border border-slate-700/60 hover:bg-slate-800/80 disabled:opacity-40"
+                      className={`px-2 py-1 disabled:opacity-40 ${secondaryButtonClass}`}
                     >
                       Next
                     </button>
                     <button
                       type="button"
                       onClick={() => setReviewQueue([])}
-                      className="px-2 py-1 rounded border border-slate-700/60 hover:bg-slate-800/80"
+                      className={`px-2 py-1 ${secondaryButtonClass}`}
                     >
                       Close
                     </button>
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-slate-400">
+                <div className={`mt-2 text-xs ${mutedClass}`}>
                   Played {activeReview.move}; engine preferred {activeReview.topMove ?? '-'}.
                 </div>
               </div>
             )}
             {topMistakes.length === 0 ? (
-              <div className="mt-2 text-sm text-slate-500">No moves match these filters.</div>
+              <div className={`mt-2 text-sm ${faintClass}`}>No moves match these filters.</div>
             ) : (
-              <div className="mt-3 grid grid-cols-12 gap-2 text-xs text-slate-400">
+              <div className={`mt-3 grid grid-cols-12 gap-2 text-xs ${mutedClass}`}>
                 <div className="col-span-2 uppercase tracking-wide text-[10px]">Move</div>
                 <div className="col-span-1 text-center uppercase tracking-wide text-[10px]">P</div>
                 <div className="col-span-2 uppercase tracking-wide text-[10px]">Played</div>
@@ -1419,7 +1427,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className={sectionClass}>
             <div className="flex items-center justify-between">
               <div className={sectionTitleClass}>Point Loss Histogram</div>
-              <div className="flex items-center gap-2 text-[10px] text-slate-400">
+              <div className={`flex items-center gap-2 text-[10px] ${mutedClass}`}>
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-200/80" />Black</span>
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-400/80" />White</span>
               </div>
@@ -1427,13 +1435,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="mt-3 space-y-2">
               {playerDistributions.map(({ player, total, segments }) => (
                 <div key={player}>
-                  <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-500">
+                  <div className={`mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide ${faintClass}`}>
                     <span>{player === 'black' ? 'Black distribution' : 'White distribution'}</span>
                     <span>{total} moves</span>
                   </div>
-                  <div className="h-3 rounded-full bg-slate-800/70 overflow-hidden flex border border-slate-700/40">
+                  <div className="h-3 rounded-full bg-[var(--ui-surface-2)] overflow-hidden flex border border-[var(--ui-border)]">
                     {total === 0 ? (
-                      <div className="h-full w-full bg-slate-800/70" />
+                      <div className="h-full w-full bg-[var(--ui-border)]" />
                     ) : (
                       segments
                         .filter((segment) => segment.count > 0)
@@ -1460,15 +1468,15 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               ))}
             </div>
             <div className="mt-4 grid grid-cols-12 gap-2 text-xs">
-              <div className="col-span-3 uppercase tracking-wide text-[10px] text-slate-500">Threshold</div>
-              <div className="col-span-5 uppercase tracking-wide text-[10px] text-slate-500">Distribution</div>
+              <div className={`col-span-3 uppercase tracking-wide text-[10px] ${faintClass}`}>Threshold</div>
+              <div className={`col-span-5 uppercase tracking-wide text-[10px] ${faintClass}`}>Distribution</div>
               {playerFilter === 'all' ? (
                 <>
-                  <div className="col-span-2 text-center uppercase tracking-wide text-[10px] text-slate-500">B</div>
-                  <div className="col-span-2 text-center uppercase tracking-wide text-[10px] text-slate-500">W</div>
+                  <div className={`col-span-2 text-center uppercase tracking-wide text-[10px] ${faintClass}`}>B</div>
+                  <div className={`col-span-2 text-center uppercase tracking-wide text-[10px] ${faintClass}`}>W</div>
                 </>
               ) : (
-                <div className="col-span-4 text-center uppercase tracking-wide text-[10px] text-slate-500">
+                <div className={`col-span-4 text-center uppercase tracking-wide text-[10px] ${faintClass}`}>
                   {playerNames[playerFilter]}
                 </div>
               )}
@@ -1485,12 +1493,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       : `${Math.round((row.white / maxHistByPlayer.white) * 100)}%`;
                   return (
                     <React.Fragment key={label}>
-                      <div className="col-span-3 text-slate-300">{label}</div>
+                      <div className={`col-span-3 ${mutedClass}`}>{label}</div>
                       <div className="col-span-5">
                         <button
                           type="button"
                           className={[
-                            'h-2 w-full rounded-full bg-slate-800/70 overflow-hidden flex hover:brightness-125',
+                            'h-2 w-full rounded-full bg-[var(--ui-surface-2)] overflow-hidden flex hover:brightness-125',
                             bucketFilter === idx ? 'ring-2 ring-[var(--ui-accent)]' : '',
                           ].join(' ')}
                           onClick={() => setBucketFilter(bucketFilter === idx ? null : idx)}
@@ -1511,11 +1519,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       </div>
                       {playerFilter === 'all' ? (
                         <>
-                          <div className="col-span-2 text-center font-mono text-slate-200">{row.black}</div>
-                          <div className="col-span-2 text-center font-mono text-slate-200">{row.white}</div>
+                          <div className={`col-span-2 text-center font-mono ${valueClass}`}>{row.black}</div>
+                          <div className={`col-span-2 text-center font-mono ${valueClass}`}>{row.white}</div>
                         </>
                       ) : (
-                        <div className="col-span-4 text-center font-mono text-slate-200">
+                        <div className={`col-span-4 text-center font-mono ${valueClass}`}>
                           {playerFilter === 'black' ? row.black : row.white}
                         </div>
                       )}
@@ -1747,7 +1755,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 isGameAnalysisRunning
                   ? 'bg-rose-600/80 hover:bg-rose-500 text-white'
                   : hasFullCoverage
-                    ? 'bg-[var(--ui-surface-2)] hover:brightness-110 text-white'
+                    ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110'
                     : 'ui-accent-bg hover:brightness-110',
               ].join(' ')}
               disabled={isPreparingPdf || (!isGameAnalysisRunning && !hasReviewTargets)}
@@ -1757,7 +1765,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <button
               type="button"
               onClick={handlePrintReport}
-              className="px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-white rounded-lg font-semibold disabled:opacity-60"
+              className="px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
               disabled={isPreparingPdf}
             >
               {isPreparingPdf
