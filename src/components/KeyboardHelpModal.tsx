@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaSearch, FaTimes } from 'react-icons/fa';
+import { FaCog, FaSearch, FaTimes } from 'react-icons/fa';
 import {
   filterShortcutGroups,
   getShortcutBindings,
@@ -11,9 +11,10 @@ import {
 
 interface KeyboardHelpModalProps {
   onClose: () => void;
+  onOpenShortcutSettings?: () => void;
 }
 
-export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose }) => {
+export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings }) => {
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [query, setQuery] = React.useState('');
 
@@ -56,9 +57,22 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose })
               {visibleShortcutCount} command{visibleShortcutCount === 1 ? '' : 's'}
             </div>
           </div>
-          <button onClick={onClose} className="ui-text-faint hover:text-white" aria-label="Close keyboard shortcuts">
-            <FaTimes aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenShortcutSettings && (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 text-xs font-semibold text-[var(--ui-text-muted)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-text)]"
+                onClick={onOpenShortcutSettings}
+                data-keyboard-help-customize="true"
+              >
+                <FaCog aria-hidden="true" size={12} />
+                <span>Customize</span>
+              </button>
+            )}
+            <button onClick={onClose} className="ui-text-faint hover:text-white" aria-label="Close keyboard shortcuts">
+              <FaTimes aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <div className="p-4 overflow-y-auto overscroll-contain">
           <label className="relative mb-4 block">

@@ -78,6 +78,7 @@ import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery';
 import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
 import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
+import { saveSettingsActiveTab } from '../utils/settingsTabs';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -1282,6 +1283,15 @@ export const Layout: React.FC = () => {
     }
   };
 
+  const openShortcutSettings = useCallback(() => {
+    setAnalysisMenuOpen(false);
+    setViewMenuOpen(false);
+    setMenuOpen(false);
+    setIsKeyboardHelpOpen(false);
+    saveSettingsActiveTab('shortcuts');
+    setIsSettingsOpen(true);
+  }, []);
+
   const handleLoadClick = () => fileInputRef.current?.click();
 
   useEffect(() => {
@@ -1815,6 +1825,13 @@ export const Layout: React.FC = () => {
         keywords: ['hotkeys', 'keys'],
       },
       {
+        id: 'shortcut-settings',
+        label: 'Customize keyboard shortcuts',
+        category: 'Help & Settings',
+        run: openShortcutSettings,
+        keywords: ['hotkeys', 'keys', 'bindings', 'rebind'],
+      },
+      {
         id: 'about',
         label: 'About web-KaTrain',
         category: 'Help & Settings',
@@ -1952,7 +1969,12 @@ export const Layout: React.FC = () => {
             onClose={() => setIsCommandPaletteOpen(false)}
           />
         )}
-        {isKeyboardHelpOpen && <KeyboardHelpModal onClose={() => setIsKeyboardHelpOpen(false)} />}
+        {isKeyboardHelpOpen && (
+          <KeyboardHelpModal
+            onClose={() => setIsKeyboardHelpOpen(false)}
+            onOpenShortcutSettings={openShortcutSettings}
+          />
+        )}
         {isPhotoBoardOpen && (
           <PhotoBoardModal
             onClose={closePhotoBoard}

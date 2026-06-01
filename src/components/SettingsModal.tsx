@@ -30,8 +30,12 @@ import {
     syncUploadedModelUrl,
     validateModelUploadFile,
 } from '../utils/modelUpload';
-import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { copyTextToClipboard } from '../utils/clipboard';
+import {
+    readSettingsActiveTab,
+    saveSettingsActiveTab,
+    type SettingsTabId,
+} from '../utils/settingsTabs';
 
 const OFFICIAL_MODELS: Array<{
     label: string;
@@ -98,17 +102,11 @@ const SETTINGS_TABS = [
     { id: 'analysis', label: 'Analysis' },
     { id: 'ai', label: 'AI/Engine' },
     { id: 'shortcuts', label: 'Shortcuts' },
-] as const;
-
-type SettingsTabId = typeof SETTINGS_TABS[number]['id'];
+] as const satisfies ReadonlyArray<{ id: SettingsTabId; label: string }>;
 
 function clampSettingsVisits(value: number): number {
     if (!Number.isFinite(value)) return MIN_ANALYSIS_VISITS;
     return Math.max(MIN_ANALYSIS_VISITS, Math.min(ENGINE_MAX_VISITS, Math.floor(value)));
-}
-
-function isSettingsTabId(value: string | null): value is SettingsTabId {
-    return SETTINGS_TABS.some((tab) => tab.id === value);
 }
 
 interface SettingsModalProps {
@@ -146,14 +144,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         if (typeof window === 'undefined') {
             return 'general';
         }
-        const stored = readLocalStorage('settingsModalActiveTab');
-        return isSettingsTabId(stored) ? stored : 'general';
+        return readSettingsActiveTab('general');
     });
     React.useEffect(() => {
         if (typeof window === 'undefined') {
             return;
         }
-        writeLocalStorage('settingsModalActiveTab', activeTab);
+        saveSettingsActiveTab(activeTab);
     }, [activeTab]);
     const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
