@@ -11,6 +11,7 @@ const INTERACTIVE_SELECTOR = [
   '[role="slider"]',
   '[role="switch"]',
   '[role="tab"]',
+  '[role="treeitem"]',
 ].join(', ');
 
 export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
@@ -28,7 +29,7 @@ export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (tagName === 'BUTTON' || tagName === 'A' || tagName === 'SUMMARY') return true;
 
   const role = element.getAttribute?.('role')?.toLowerCase();
-  if (role && ['button', 'checkbox', 'menuitem', 'option', 'radio', 'slider', 'switch', 'tab'].includes(role)) {
+  if (role && ['button', 'checkbox', 'menuitem', 'option', 'radio', 'slider', 'switch', 'tab', 'treeitem'].includes(role)) {
     return true;
   }
 

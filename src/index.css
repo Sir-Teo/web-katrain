@@ -1331,6 +1331,14 @@
     fill: var(--ui-danger);
   }
 
+  .move-tree-keyboard-focus {
+    fill: none;
+    stroke: var(--ui-accent);
+    stroke-width: 1.75;
+    stroke-dasharray: 2 2;
+    pointer-events: none;
+  }
+
   .move-tree-minimap {
     position: sticky;
     right: 0.5rem;

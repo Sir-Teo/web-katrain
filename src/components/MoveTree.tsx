@@ -23,6 +23,10 @@ import {
   getMoveTreeNodeMarkers,
   MOVE_TREE_NODE_MARKER_LABELS,
 } from '../utils/moveTreeNodeMarkers';
+import {
+  getMoveTreeKeyboardTarget,
+  isMoveTreeKeyboardNavigationKey,
+} from '../utils/moveTreeKeyboard';
 
 type LayoutWorkerResponse =
   | { requestId: number; ok: true; layout: MoveTreeLayout }
@@ -59,6 +63,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     shallow
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const nodeElementRefs = useRef(new Map<string, SVGGElement>());
   const workerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef(0);
   const [workerResult, setWorkerResult] = useState<{
@@ -73,6 +78,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   const [layoutDirection, setLayoutDirection] = useState<MoveTreeLayoutDirection>(() => {
     return readLocalStorage(LAYOUT_DIRECTION_STORAGE_KEY) === 'vertical' ? 'vertical' : 'horizontal';
   });
+  const [keyboardFocusedNodeId, setKeyboardFocusedNodeId] = useState<string | null>(null);
 
   const flatTree = useMemo(() => {
     void treeVersion;
@@ -109,6 +115,38 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     const targetTop = Math.max(0, pos.y - container.clientHeight * 0.5);
     container.scrollTo({ left: targetLeft, top: targetTop, behavior });
   }, [currentNode.id, layoutKey, shouldUseWorker, syncLayout, workerResult]);
+
+  const setNodeElementRef = useCallback((id: string, element: SVGGElement | null) => {
+    if (element) nodeElementRefs.current.set(id, element);
+    else nodeElementRefs.current.delete(id);
+  }, []);
+
+  const focusTreeNode = useCallback((id: string) => {
+    const tryFocus = (attempt = 0) => {
+      requestAnimationFrameSafe(() => {
+        const element = nodeElementRefs.current.get(id);
+        if (element) {
+          element.focus({ preventScroll: true });
+        } else if (attempt < 4) {
+          tryFocus(attempt + 1);
+        }
+      });
+    };
+    tryFocus();
+  }, []);
+
+  const selectTreeNode = useCallback(
+    (node: GameNode, focusAfterSelect = false) => {
+      if (isInsertMode) return;
+      jumpToNode(node);
+      onSelectNode?.(node);
+      if (focusAfterSelect) {
+        setKeyboardFocusedNodeId(node.id);
+        focusTreeNode(node.id);
+      }
+    },
+    [focusTreeNode, isInsertMode, jumpToNode, onSelectNode]
+  );
 
   useEffect(() => {
     writeLocalStorage(MINIMAP_STORAGE_KEY, String(showMinimap));
@@ -265,7 +303,14 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           </button>
         )}
       </div>
-      <svg width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`}>
+      <svg
+        width={layout.width}
+        height={layout.height}
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        role="tree"
+        aria-label="Game tree"
+        data-move-tree="true"
+      >
         {visible.edges.map((l) => (
           <polyline
             key={l.id}
@@ -281,6 +326,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
         {visible.nodes.map((layoutNode) => {
           const node = nodeById.get(layoutNode.id);
           const isCurrent = layoutNode.id === currentNode.id;
+          const isKeyboardFocused = keyboardFocusedNodeId === layoutNode.id;
           const isAutoUndone = layoutNode.autoUndo === true;
           const isRoot = layoutNode.isRoot;
           const isBlack = layoutNode.player === 'black';
@@ -293,10 +339,63 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           const markerStartX = layoutNode.x - ((markers.length - 1) * markerGap) / 2;
           const markerTitle = markers.map((marker) => MOVE_TREE_NODE_MARKER_LABELS[marker]).join(', ');
 
+          const selectableNode = !isInsertMode && node ? node : null;
+          const keyboardLabel = [
+            isRoot ? 'Root' : `Move ${layoutNode.label}`,
+            markerTitle,
+            isCurrent ? 'current move' : '',
+          ].filter(Boolean).join(', ');
+
+          const handleKeyDown = (event: React.KeyboardEvent<SVGGElement>) => {
+            if (!selectableNode) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              selectTreeNode(selectableNode, true);
+              return;
+            }
+            if (!isMoveTreeKeyboardNavigationKey(event.key)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const target = getMoveTreeKeyboardTarget({
+              node: selectableNode,
+              root: rootNode,
+              direction: layoutDirection,
+              key: event.key,
+            });
+            if (target) selectTreeNode(target, true);
+          };
+
           return (
-            <g key={layoutNode.id} style={{ cursor: isRoot || isInsertMode ? 'default' : 'pointer' }}>
+            <g
+              key={layoutNode.id}
+              ref={(element) => setNodeElementRef(layoutNode.id, element)}
+              role="treeitem"
+              aria-label={keyboardLabel}
+              aria-current={isCurrent ? 'true' : undefined}
+              aria-level={layoutNode.gridX + 1}
+              tabIndex={selectableNode && isCurrent ? 0 : -1}
+              data-move-tree-node="true"
+              data-move-tree-node-current={isCurrent ? 'true' : undefined}
+              data-move-tree-node-label={layoutNode.label}
+              style={{ cursor: selectableNode ? 'pointer' : 'default', outline: 'none' }}
+              onClick={() => {
+                if (selectableNode) selectTreeNode(selectableNode);
+              }}
+              onFocus={() => setKeyboardFocusedNodeId(layoutNode.id)}
+              onBlur={() => setKeyboardFocusedNodeId((id) => (id === layoutNode.id ? null : id))}
+              onKeyDown={handleKeyDown}
+            >
               {isAutoUndone && (
                 <circle cx={layoutNode.x} cy={layoutNode.y} r={layout.radius + 4} fill="none" stroke="#EF4444" strokeWidth="2" />
+              )}
+              {isKeyboardFocused && (
+                <circle
+                  cx={layoutNode.x}
+                  cy={layoutNode.y}
+                  r={layout.radius + 10}
+                  className="move-tree-keyboard-focus"
+                />
               )}
               {isCurrent && (
                 <circle cx={layoutNode.x} cy={layoutNode.y} r={layout.radius + 7} fill="none" stroke="#FACC15" strokeWidth="2" />
@@ -308,13 +407,6 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
                 fill={fill}
                 stroke={stroke}
                 strokeWidth="1"
-                onClick={() => {
-                  if (isInsertMode) return;
-                  if (!isRoot && node) {
-                    jumpToNode(node);
-                    onSelectNode?.(node);
-                  }
-                }}
               >
                 <title>{markerTitle ? `${layoutNode.label} - ${markerTitle}` : layoutNode.label}</title>
               </circle>
