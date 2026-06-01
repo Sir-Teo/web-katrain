@@ -76,6 +76,7 @@ import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
 import { getBranchInfo, getCurrentLineMoveCount } from '../utils/branchNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
+import { AnalysisCacheClearConfirmModal } from './AnalysisCacheClearConfirmModal';
 import { getResignResult } from '../utils/resign';
 import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutSize, isDesktopLayoutViewport, isMobileLayoutViewport } from '../utils/responsiveLayout';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
@@ -320,6 +321,7 @@ export const Layout: React.FC = () => {
   const [saveToLibraryDialog, setSaveToLibraryDialog] = useState<SaveToLibraryDialogState | null>(null);
   const [isUnsavedChangesOpen, setIsUnsavedChangesOpen] = useState(false);
   const [pendingResignPlayer, setPendingResignPlayer] = useState<Player | null>(null);
+  const [isClearAnalysisCacheConfirmOpen, setIsClearAnalysisCacheConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
@@ -2360,6 +2362,31 @@ export const Layout: React.FC = () => {
     setPendingResignPlayer(null);
   }, []);
 
+  const requestClearAnalysisCache = useCallback(() => {
+    setAnalysisMenuOpen(false);
+    if (isGameAnalysisRunning) return;
+    if (analysisCacheSize <= 0) {
+      clearAnalysisCache();
+      return;
+    }
+    setIsClearAnalysisCacheConfirmOpen(true);
+  }, [analysisCacheSize, clearAnalysisCache, isGameAnalysisRunning]);
+
+  const confirmClearAnalysisCache = useCallback(() => {
+    setIsClearAnalysisCacheConfirmOpen(false);
+    clearAnalysisCache();
+  }, [clearAnalysisCache]);
+
+  const cancelClearAnalysisCache = useCallback(() => {
+    setIsClearAnalysisCacheConfirmOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (analysisCacheSize <= 0 || isGameAnalysisRunning) {
+      setIsClearAnalysisCacheConfirmOpen(false);
+    }
+  }, [analysisCacheSize, isGameAnalysisRunning]);
+
   const handleDisableGamepadNavigation = useCallback(() => {
     updateSettings({ gamepadNavigation: false });
     toast('Gamepad navigation disabled.', 'info');
@@ -2722,7 +2749,7 @@ export const Layout: React.FC = () => {
                 startQuickGameAnalysis={startQuickGameAnalysis}
                 startFastGameAnalysis={startFastGameAnalysis}
                 stopGameAnalysis={stopGameAnalysis}
-                clearAnalysisCache={clearAnalysisCache}
+                clearAnalysisCache={requestClearAnalysisCache}
                 analysisCacheSize={analysisCacheSize}
                 onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
                 onOpenGameReport={() => setIsGameReportOpen(true)}
@@ -2767,7 +2794,7 @@ export const Layout: React.FC = () => {
               analyzeExtra={analyzeExtra}
               startSelectRegionOfInterest={startSelectRegionOfInterest}
               resetCurrentAnalysis={resetCurrentAnalysis}
-              clearAnalysisCache={clearAnalysisCache}
+              clearAnalysisCache={requestClearAnalysisCache}
               analysisCacheSize={analysisCacheSize}
               toggleInsertMode={toggleInsertMode}
               selfplayToEnd={selfplayToEnd}
@@ -2967,7 +2994,7 @@ export const Layout: React.FC = () => {
           startQuickGameAnalysis={startQuickGameAnalysis}
           startFastGameAnalysis={startFastGameAnalysis}
           stopGameAnalysis={stopGameAnalysis}
-          clearAnalysisCache={clearAnalysisCache}
+          clearAnalysisCache={requestClearAnalysisCache}
           analysisCacheSize={analysisCacheSize}
           onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
           onOpenGameReport={() => setIsGameReportOpen(true)}
@@ -3119,6 +3146,13 @@ export const Layout: React.FC = () => {
           player={pendingResignPlayer}
           onCancel={cancelResign}
           onConfirm={confirmResign}
+        />
+      )}
+      {isClearAnalysisCacheConfirmOpen && (
+        <AnalysisCacheClearConfirmModal
+          count={analysisCacheSize}
+          onCancel={cancelClearAnalysisCache}
+          onConfirm={confirmClearAnalysisCache}
         />
       )}
       {!isMobile && (

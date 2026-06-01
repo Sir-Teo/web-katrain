@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 
 const modalSources = [
   { path: 'src/components/AboutDialog.tsx', titleId: 'about-title', escape: 'useEscapeToClose(onClose)' },
+  {
+    path: 'src/components/AnalysisCacheClearConfirmModal.tsx',
+    titleId: 'analysis-cache-clear-title',
+    escape: "window.addEventListener('keydown', handleKeyDown, true)",
+  },
   { path: 'src/components/AutoSaveRecoveryModal.tsx', titleId: 'auto-save-recovery-title', escape: 'useEscapeToClose(onDismiss)' },
   { path: 'src/components/PasteSgfModal.tsx', titleId: 'paste-sgf-title', escape: 'useEscapeToClose(onClose)' },
   { path: 'src/components/GameAnalysisModal.tsx', titleId: 'game-analysis-title', escape: 'useEscapeToClose(onClose)' },
