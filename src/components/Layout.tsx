@@ -84,6 +84,7 @@ import { saveSettingsActiveTab } from '../utils/settingsTabs';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 import { EDIT_TOOL_SHORTCUT_DEFINITIONS } from '../utils/shortcuts';
 import { dispatchMoveTreeCommand, type MoveTreeCommand } from '../utils/moveTreeCommands';
+import { ANALYSIS_VISIT_PRESETS, formatVisitCount, visitPresetDescription, visitPresetLabel } from '../utils/visitPresets';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -1757,6 +1758,14 @@ export const Layout: React.FC = () => {
       saveSettingsActiveTab(tab);
       openSimpleModal(() => setIsSettingsOpen(true));
     };
+    const setLiveAnalysisDepth = (visits: number) => {
+      if (isGameAnalysisRunning) {
+        toast('Stop game review before changing live MCTS depth.', 'error');
+        return;
+      }
+      updateSettings({ katagoVisits: visits });
+      toast(`Live MCTS depth: ${formatVisitCount(visits)} visits (${visitPresetLabel(visits)}).`, 'info');
+    };
     const toggleTopMoveHints = () => {
       if (settings.analysisShowPolicy) {
         toast('Policy overlay is showing; top move hints are hidden.', 'info');
@@ -2094,6 +2103,24 @@ export const Layout: React.FC = () => {
         run: () => updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }),
         keywords: ['ownership', 'area'],
       },
+      ...ANALYSIS_VISIT_PRESETS.map((visits) => {
+        const label = visitPresetLabel(visits);
+        return {
+          id: `set-live-mcts-depth-${visits}`,
+          label: `Set live MCTS depth: ${label}`,
+          category: 'Analysis',
+          run: () => setLiveAnalysisDepth(visits),
+          keywords: [
+            'visits',
+            'mcts',
+            'depth',
+            'live analysis',
+            `${visits}`,
+            formatVisitCount(visits),
+            visitPresetDescription(visits),
+          ],
+        };
+      }),
       {
         id: 'game-review',
         label: isGameAnalysisRunning ? 'Stop game review' : 'Fast game review',
