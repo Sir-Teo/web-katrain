@@ -180,6 +180,17 @@ describe('photo board SGF import', () => {
     })).toBeNull();
   });
 
+  it('names pasted clipboard images when the browser provides no filename', () => {
+    const unnamedImage = new File(['image-bytes'], '', { type: 'image/png' });
+    const pastedFile = getPhotoBoardClipboardImageFile({
+      items: [{ kind: 'file', type: 'image/png', getAsFile: () => unnamedImage }],
+    });
+
+    expect(pastedFile).not.toBeNull();
+    expect(pastedFile?.name).toBe('pasted-board.png');
+    expect(pastedFile?.type).toBe('image/png');
+  });
+
   it('chooses a stable paint value for trace dragging', () => {
     expect(getPhotoBoardTracePaintValue(null, 'black')).toBe('black');
     expect(getPhotoBoardTracePaintValue('white', 'black')).toBe('black');

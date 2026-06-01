@@ -6,6 +6,14 @@ export type PhotoBoardTraceTool = Player | 'erase';
 
 export const PHOTO_BOARD_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.bmp'] as const;
 
+const PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME: Record<string, string> = {
+  'image/bmp': 'bmp',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
 export interface PhotoBoardClipboardItemLike {
   kind?: string;
   type?: string;
@@ -25,6 +33,15 @@ export function isPhotoBoardImageFile(file: { name?: string; type?: string }): b
   return PHOTO_BOARD_IMAGE_EXTENSIONS.some((extension) => name.endsWith(extension));
 }
 
+function normalizeClipboardImageName(file: File): File {
+  if (file.name.trim()) return file;
+  const extension = PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME[file.type.toLowerCase()] ?? 'png';
+  return new File([file], `pasted-board.${extension}`, {
+    type: file.type,
+    lastModified: file.lastModified,
+  });
+}
+
 export function getPhotoBoardClipboardImageFile(data: PhotoBoardClipboardDataLike | null | undefined): File | null {
   if (!data) return null;
 
@@ -32,11 +49,11 @@ export function getPhotoBoardClipboardImageFile(data: PhotoBoardClipboardDataLik
     if (item.kind && item.kind !== 'file') continue;
     if (!item.type?.toLowerCase().startsWith('image/')) continue;
     const file = item.getAsFile?.() ?? null;
-    if (file && isPhotoBoardImageFile(file)) return file;
+    if (file && isPhotoBoardImageFile(file)) return normalizeClipboardImageName(file);
   }
 
   for (const file of Array.from(data.files ?? [])) {
-    if (isPhotoBoardImageFile(file)) return file;
+    if (isPhotoBoardImageFile(file)) return normalizeClipboardImageName(file);
   }
 
   return null;
