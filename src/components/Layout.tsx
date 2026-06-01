@@ -1797,8 +1797,8 @@ export const Layout: React.FC = () => {
         label: 'Paste SGF or OGS URL',
         category: 'File',
         shortcutId: 'paste-sgf',
-        run: handlePasteSgf,
-        keywords: ['clipboard', 'load'],
+        run: () => { void handlePasteSgfShortcut(); },
+        keywords: ['clipboard', 'load', 'read clipboard'],
       },
       {
         id: 'copy-sgf',
