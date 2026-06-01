@@ -7,6 +7,7 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { publicUrl } from '../utils/publicUrl';
 import { isGraphKeyboardNavigationKey, nextGraphKeyboardIndex } from '../utils/graphKeyboard';
+import { hasVisibleGraphData } from '../utils/graphDataAvailability';
 
 const SCORE_GRANULARITY = 5;
 const WINRATE_GRANULARITY = 10;
@@ -134,6 +135,13 @@ export const ScoreWinrateGraph: React.FC<{
 
   const smoothedScoreValues = useMemo(() => smoothAnalysisGraphValues(scoreValues), [scoreValues]);
   const smoothedWinrateValues = useMemo(() => smoothAnalysisGraphValues(winrateValues), [winrateValues]);
+  const hasGraphData = hasVisibleGraphData({
+    showScore,
+    showWinrate,
+    scoreValues: smoothedScoreValues,
+    winrateValues: smoothedWinrateValues,
+  });
+  const emptyStateId = React.useId();
 
   const scoreScale = useMemo(() => computeSymmetricScale(smoothedScoreValues, SCORE_GRANULARITY), [smoothedScoreValues]);
   const winrateScale = useMemo(() => computeSymmetricScale(smoothedWinrateValues, WINRATE_GRANULARITY), [smoothedWinrateValues]);
@@ -271,12 +279,19 @@ export const ScoreWinrateGraph: React.FC<{
       className="w-full h-full relative border border-[var(--ui-border)] rounded overflow-hidden cursor-crosshair focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]"
       role="slider"
       tabIndex={0}
-      aria-label="Analysis graph move preview. Use arrow keys to preview moves, Enter to jump to the selected move."
+      aria-label={
+        hasGraphData
+          ? 'Analysis graph move preview. Use arrow keys to preview moves, Enter to jump to the selected move.'
+          : 'Analysis graph. No analyzed moves yet.'
+      }
       aria-valuemin={range?.start ?? 0}
       aria-valuemax={(range?.start ?? 0) + Math.max(0, count - 1)}
       aria-valuenow={activeMoveIndex}
-      aria-valuetext={hoverTooltip || `Move ${activeMoveIndex}`}
+      aria-valuetext={hasGraphData ? (hoverTooltip || `Move ${activeMoveIndex}`) : 'No analyzed moves yet'}
+      aria-disabled={!hasGraphData}
+      aria-describedby={hasGraphData ? undefined : emptyStateId}
       data-analysis-score-winrate-graph="true"
+      data-analysis-graph-has-data={hasGraphData ? 'true' : 'false'}
       style={{
         backgroundColor: KATRAN_BOX_BG,
         backgroundImage: `url('${KATRAN_GRAPH_BG_URL}')`,
@@ -353,6 +368,18 @@ export const ScoreWinrateGraph: React.FC<{
           </g>
         )}
       </svg>
+
+      {!hasGraphData && (
+        <div
+          id={emptyStateId}
+          className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-black/20 px-3 text-center"
+          data-analysis-graph-empty-state="true"
+        >
+          <div className="rounded border border-white/15 bg-black/55 px-3 py-2 text-[11px] font-semibold text-white/85 shadow-sm">
+            No analyzed moves yet
+          </div>
+        </div>
+      )}
 
       {/* Score ticks (KaTrain-like) */}
       {showScore && (
