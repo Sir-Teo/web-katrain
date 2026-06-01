@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaBug, FaCheckCircle, FaExclamationTriangle, FaGamepad, FaInfoCircle, FaStar, FaSyncAlt } from 'react-icons/fa';
+import { FaBug, FaCheckCircle, FaExclamationTriangle, FaGamepad, FaInfoCircle, FaStar, FaSyncAlt, FaTimes } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { formatGameInfoPlayer } from '../../utils/gameInfoDisplay';
 import { formatGamepadLabel } from '../../utils/gamepadLabel';
@@ -68,7 +68,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   const [moveInsightOpen, setMoveInsightOpen] = React.useState(false);
   const finishingEditRef = React.useRef(false);
   const moveInsightRef = React.useRef<HTMLDivElement>(null);
+  const moveInsightButtonRef = React.useRef<HTMLButtonElement>(null);
+  const moveInsightCloseRef = React.useRef<HTMLButtonElement>(null);
   const moveInsightPopoverId = React.useId();
+  const moveInsightTitleId = React.useId();
   const moveInsightCoach = moveInsight ? getMoveInsightCoach(moveInsight) : null;
 
   React.useEffect(() => {
@@ -81,13 +84,25 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   React.useEffect(() => {
     if (!moveInsightOpen) return undefined;
+    moveInsightCloseRef.current?.focus({ preventScroll: true });
+
+    const closeMoveInsight = (restoreFocus = false) => {
+      setMoveInsightOpen(false);
+      if (restoreFocus && typeof window !== 'undefined') {
+        window.setTimeout(() => moveInsightButtonRef.current?.focus({ preventScroll: true }), 0);
+      }
+    };
 
     const handlePointerDown = (event: PointerEvent) => {
       if (moveInsightRef.current?.contains(event.target as Node)) return;
-      setMoveInsightOpen(false);
+      closeMoveInsight();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMoveInsightOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeMoveInsight(true);
+      }
     };
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -183,9 +198,11 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           >
             <button
               type="button"
+              ref={moveInsightButtonRef}
               className="flex w-full min-w-0 items-center gap-1.5 rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2 py-1 text-[var(--ui-accent)] shadow-sm transition-colors hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] focus:outline-none focus:ring-2 focus:ring-[var(--ui-accent)] focus:ring-offset-1 focus:ring-offset-[var(--ui-bg)]"
               title={`${moveInsight.detail} Click for beginner and pro study cues.`}
-              aria-label={`Open Shape Coach details for ${moveInsight.label}`}
+              aria-label={`${moveInsightOpen ? 'Close' : 'Open'} Shape Coach details for ${moveInsight.label}`}
+              aria-haspopup="dialog"
               aria-expanded={moveInsightOpen}
               aria-controls={moveInsightPopoverId}
               onClick={() => setMoveInsightOpen((open) => !open)}
@@ -201,18 +218,34 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               <div
                 id={moveInsightPopoverId}
                 role="dialog"
-                aria-label="Shape Coach details"
+                aria-modal="false"
+                aria-labelledby={moveInsightTitleId}
                 className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] p-3 text-[11px] text-[var(--ui-text-muted)] shadow-2xl"
                 data-status-move-insight-popover="true"
               >
                 <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-[10px] font-semibold uppercase ui-text-faint">Shape Coach</div>
-                    <div className="truncate text-xs font-semibold text-[var(--ui-text)]">{moveInsight.label}</div>
+                    <div id={moveInsightTitleId} className="truncate text-xs font-semibold text-[var(--ui-text)]">{moveInsight.label}</div>
                   </div>
-                  <span className="shrink-0 rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold capitalize text-[var(--ui-accent)]">
-                    {moveInsight.tone}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span className="rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold capitalize text-[var(--ui-accent)]">
+                      {moveInsight.tone}
+                    </span>
+                    <button
+                      type="button"
+                      ref={moveInsightCloseRef}
+                      className="rounded p-1 text-[var(--ui-text-faint)] transition-colors hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] focus:outline-none focus:ring-2 focus:ring-[var(--ui-accent)]"
+                      onClick={() => {
+                        setMoveInsightOpen(false);
+                        window.setTimeout(() => moveInsightButtonRef.current?.focus({ preventScroll: true }), 0);
+                      }}
+                      aria-label="Close Shape Coach details"
+                      title="Close Shape Coach details"
+                    >
+                      <FaTimes size={10} aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <p>

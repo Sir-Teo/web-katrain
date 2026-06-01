@@ -35,7 +35,9 @@ describe('StatusBar', () => {
 
     expect(html).toContain('data-status-move-insight="corner"');
     expect(html).toContain('data-status-move-insight-toggle="true"');
+    expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
+    expect(html).toMatch(/aria-controls="[^"]+"/);
     expect(html).toContain('Open Shape Coach details for 4-4 star point');
     expect(html).toContain('Click for beginner and pro study cues');
     expect(html).toContain('min-w-[9.5rem]');
@@ -47,6 +49,9 @@ describe('StatusBar', () => {
 
     expect(source).toContain('moveInsight.learnMoreUrl');
     expect(source).toContain('Learn more about ${moveInsight.label}');
+    expect(source).toContain('aria-labelledby={moveInsightTitleId}');
+    expect(source).toContain('aria-modal="false"');
+    expect(source).toContain('Close Shape Coach details');
   });
 
   it('hides Shape Coach insight when the coach is disabled', () => {
