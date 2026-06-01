@@ -1765,7 +1765,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         <div className="text-[10px] text-[var(--ui-text-faint)]">
                                                             Uploaded {model.uploaded}
                                                         </div>
-                                                        <div className="mt-2 flex items-center gap-2">
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
                                                             <a
                                                                 href={model.url}
                                                                 target="_blank"
@@ -1776,7 +1776,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                 Download
                                                             </a>
                                                             {model.downloadAndLoad ? (
-                                                                <div className="flex min-w-0 items-center gap-2">
+                                                                <div className="flex min-w-0 flex-wrap items-center gap-2">
                                                                     {(() => {
                                                                         const isDownloadingModel = downloadingUrl === model.url;
                                                                         const downloadLabel = isDownloadingModel
@@ -1796,7 +1796,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                                 </button>
                                                                                 {isDownloadingModel ? (
                                                                                     <span
-                                                                                        className="min-w-[5.5rem] overflow-hidden rounded-full border border-[var(--ui-accent)] bg-[var(--ui-surface)] text-[10px] text-[var(--ui-accent)]"
+                                                                                        className="shrink-0 min-w-[5.5rem] overflow-hidden rounded-full border border-[var(--ui-accent)] bg-[var(--ui-surface)] text-[10px] text-[var(--ui-accent)]"
                                                                                         role="progressbar"
                                                                                         aria-label={`Downloading ${model.name}`}
                                                                                         aria-valuemin={downloadProgress === null ? undefined : 0}
