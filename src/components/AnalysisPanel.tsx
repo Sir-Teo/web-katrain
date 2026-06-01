@@ -679,6 +679,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
               else startQuickGameAnalysis();
             }}
+            title={
+              isGameAnalysisRunning && gameAnalysisType === 'quick'
+                ? 'Stop quick graph analysis'
+                : 'Run a quick policy graph pass'
+            }
+            aria-label={
+              isGameAnalysisRunning && gameAnalysisType === 'quick'
+                ? 'Stop quick graph analysis'
+                : 'Run quick graph analysis'
+            }
           >
             {isGameAnalysisRunning && gameAnalysisType === 'quick'
               ? `Stop quick (${gameAnalysisDone}/${gameAnalysisTotal})`
@@ -705,6 +715,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             className="panel-action-button danger"
             onClick={stopGameAnalysis}
             disabled={!isGameAnalysisRunning}
+            title="Stop game analysis"
+            aria-label="Stop game analysis"
           >
             Stop
           </button>
@@ -717,6 +729,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               className="panel-icon-button"
               onClick={onOpenGameAnalysis}
               title="Re-analyze…"
+              aria-label="Open analysis options"
             >
               <FaRedoAlt size={12} />
             </button>
@@ -724,6 +737,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               className="panel-icon-button"
               onClick={onOpenGameReport}
               title="Game report…"
+              aria-label="Open game report"
             >
               <FaFileAlt size={12} />
             </button>
