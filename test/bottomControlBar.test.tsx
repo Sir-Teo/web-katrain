@@ -56,4 +56,20 @@ describe('BottomControlBar', () => {
     expect(html).toContain('2/3');
     expect(html).toContain('+1');
   });
+
+  it('uses compact recovery save status on mobile', () => {
+    const html = renderToStaticMarkup(
+      <BottomControlBar
+        {...baseProps}
+        isMobile={true}
+        unsavedChanges={true}
+        autoSaveStatus={{ state: 'saved', savedAt: Date.UTC(2026, 0, 1, 12, 30) }}
+      />,
+    );
+
+    expect(html).toContain('data-mobile-save-status="true"');
+    expect(html).toContain('data-mobile-save-state="saved"');
+    expect(html).toContain('Recovery copy saved at');
+    expect(html).toContain('still unsaved until you save to Library or download SGF');
+  });
 });

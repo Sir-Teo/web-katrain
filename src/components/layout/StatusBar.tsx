@@ -1,17 +1,14 @@
 import React from 'react';
 import { FaBug, FaCheckCircle, FaExclamationTriangle, FaGamepad, FaInfoCircle, FaStar, FaSyncAlt } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
-import { AUTO_SAVE_MAX_LABEL } from '../../utils/autoSave';
 import { formatGameInfoPlayer } from '../../utils/gameInfoDisplay';
 import { formatGamepadLabel } from '../../utils/gamepadLabel';
 import { getMoveInsightCoach, type MoveInsight } from '../../utils/moveInsight';
+import { getSaveStatusDisplay, type AutoSaveStatus } from '../../utils/saveStatusDisplay';
 
 const ISSUE_REPORT_URL = 'https://github.com/Sir-Teo/web-katrain/issues/new/choose';
 
-export type AutoSaveStatus = {
-  state: 'pending' | 'saved' | 'failed' | 'too-large';
-  savedAt?: number;
-};
+export type { AutoSaveStatus } from '../../utils/saveStatusDisplay';
 
 interface StatusBarProps {
   moveName: string;
@@ -40,10 +37,6 @@ interface StatusBarProps {
 }
 
 type LoadedFileKind = 'library' | 'file' | 'ogs' | 'pasted';
-
-function formatAutoSaveTime(savedAt: number): string {
-  return new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
 
 export const StatusBar: React.FC<StatusBarProps> = ({
   moveName,
@@ -144,6 +137,16 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   const gamepadStatusText = hasMultipleGamepads
     ? `Gamepad navigation: ${gamepadName}. ${gamepadCount} controllers connected; using the most recently active. Click to disable.`
     : `Gamepad navigation: ${gamepadName}. Click to disable.`;
+  const saveStatusDisplay = getSaveStatusDisplay(unsavedChanges, autoSaveStatus);
+  const saveStatusClass = saveStatusDisplay
+    ? saveStatusDisplay.tone === 'danger'
+      ? 'bg-[var(--ui-danger-soft)] text-[var(--ui-danger)] border-[var(--ui-danger)]'
+      : saveStatusDisplay.tone === 'success'
+        ? 'bg-[var(--ui-success-soft)] text-[var(--ui-success)] border-[var(--ui-success)]'
+        : saveStatusDisplay.tone === 'accent'
+          ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border-[var(--ui-accent)]'
+          : 'bg-[var(--ui-warning-soft)] text-[var(--ui-warning)] border-[var(--ui-warning)]'
+    : '';
 
   return (
     <div className="status-bar flex flex-wrap gap-2 px-3 py-2 items-center text-xs">
@@ -335,57 +338,26 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           </div>
         )}
 
-      {unsavedChanges && (
-        <div className="px-2 py-1 rounded bg-[var(--ui-warning-soft)] text-[var(--ui-warning)] font-semibold border border-[var(--ui-warning)] shadow-sm" title="Unsaved changes">
-          Unsaved
-        </div>
-      )}
-
-      {unsavedChanges && autoSaveStatus && (
+      {saveStatusDisplay && (
         <div
-          className={[
-            'px-2 py-1 rounded font-semibold border shadow-sm hidden sm:flex items-center gap-1.5',
-            autoSaveStatus.state === 'failed'
-              ? 'bg-[var(--ui-danger-soft)] text-[var(--ui-danger)] border-[var(--ui-danger)]'
-              : autoSaveStatus.state === 'too-large'
-                ? 'bg-[var(--ui-warning-soft)] text-[var(--ui-warning)] border-[var(--ui-warning)]'
-                : autoSaveStatus.state === 'pending'
-                  ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border-[var(--ui-accent)]'
-                  : 'bg-[var(--ui-success-soft)] text-[var(--ui-success)] border-[var(--ui-success)]',
-          ].join(' ')}
-          data-autosave-status={autoSaveStatus.state}
-          role={autoSaveStatus.state === 'failed' ? 'alert' : 'status'}
-          aria-live={autoSaveStatus.state === 'failed' ? 'assertive' : 'polite'}
-          title={
-            autoSaveStatus.state === 'failed'
-              ? 'Recovery auto-save failed.'
-              : autoSaveStatus.state === 'too-large'
-                ? `Game is too large for recovery auto-save (${AUTO_SAVE_MAX_LABEL}). Save to Library or download SGF to keep changes.`
-              : autoSaveStatus.state === 'pending'
-                ? 'Recovery auto-save is updating.'
-                : autoSaveStatus.savedAt
-                  ? `Recovery auto-saved at ${formatAutoSaveTime(autoSaveStatus.savedAt)}.`
-                  : 'Recovery auto-saved.'
-          }
+          className={['px-2 py-1 rounded font-semibold border shadow-sm flex items-center gap-1.5', saveStatusClass].join(' ')}
+          data-save-status="true"
+          data-save-state={saveStatusDisplay.state}
+          role={saveStatusDisplay.role}
+          aria-live={saveStatusDisplay.ariaLive}
+          title={saveStatusDisplay.title}
+          aria-label={saveStatusDisplay.title}
         >
-          {autoSaveStatus.state === 'failed' || autoSaveStatus.state === 'too-large' ? (
+          {saveStatusDisplay.state === 'failed' || saveStatusDisplay.state === 'too-large' || saveStatusDisplay.state === 'dirty' ? (
             <FaExclamationTriangle aria-hidden="true" />
-          ) : autoSaveStatus.state === 'pending' ? (
+          ) : saveStatusDisplay.state === 'pending' ? (
             <FaSyncAlt className="animate-spin" aria-hidden="true" />
           ) : (
             <FaCheckCircle aria-hidden="true" />
           )}
-          <span>
-            {autoSaveStatus.state === 'failed'
-              ? 'Autosave failed'
-              : autoSaveStatus.state === 'too-large'
-                ? 'Autosave skipped'
-              : autoSaveStatus.state === 'pending'
-                ? 'Autosaving'
-                : 'Auto-saved'}
-          </span>
-          {autoSaveStatus.state === 'saved' && autoSaveStatus.savedAt && (
-            <span className="font-mono text-[var(--ui-text-muted)]">{formatAutoSaveTime(autoSaveStatus.savedAt)}</span>
+          <span>{saveStatusDisplay.label}</span>
+          {saveStatusDisplay.detail && (
+            <span className="font-mono text-[var(--ui-text-muted)]">{saveStatusDisplay.detail}</span>
           )}
         </div>
       )}

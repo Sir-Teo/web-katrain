@@ -24,7 +24,7 @@ import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { formatGameInfoPlayer } from '../../utils/gameInfoDisplay';
 import { getResizeObserverConstructor } from '../../utils/resizeObserver';
 import type { BranchInfo } from '../../utils/branchNavigation';
-import type { AutoSaveStatus } from './StatusBar';
+import { getSaveStatusDisplay, type AutoSaveStatus } from '../../utils/saveStatusDisplay';
 
 const BOTTOM_CONTROL_SHORTCUT_IDS = [
   'pass',
@@ -77,10 +77,6 @@ interface BottomControlBarProps {
   onResign?: () => void;
   unsavedChanges?: boolean;
   autoSaveStatus?: AutoSaveStatus | null;
-}
-
-function formatMobileAutoSaveTime(savedAt: number): string {
-  return new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export const BottomControlBar: React.FC<BottomControlBarProps> = ({
@@ -147,39 +143,23 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const metaDividerClass = 'mobile-bottom-meta-divider text-[var(--ui-text-faint)]';
   const activePlayerClass = 'text-[var(--ui-accent)] font-semibold';
   const inactivePlayerClass = 'text-[var(--ui-text-faint)]';
-  const mobileSaveStatus = !unsavedChanges
-    ? null
-    : autoSaveStatus?.state === 'saved'
-      ? {
-          label: autoSaveStatus.savedAt ? formatMobileAutoSaveTime(autoSaveStatus.savedAt) : 'Saved',
-          title: autoSaveStatus.savedAt
-            ? `Recovery auto-saved at ${formatMobileAutoSaveTime(autoSaveStatus.savedAt)}.`
-            : 'Recovery auto-saved.',
-          className: 'border-[var(--ui-success)] bg-[var(--ui-success-soft)] text-[var(--ui-success)]',
-          icon: <FaCheckCircle size={9} aria-hidden="true" />,
-        }
-      : autoSaveStatus?.state === 'pending'
-        ? {
-            label: 'Saving',
-            title: 'Recovery auto-save is updating.',
-            className: 'border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)]',
-            icon: <FaSyncAlt size={9} aria-hidden="true" className="animate-spin" />,
-          }
-        : autoSaveStatus?.state === 'failed' || autoSaveStatus?.state === 'too-large'
-          ? {
-              label: autoSaveStatus.state === 'too-large' ? 'Too large' : 'Save failed',
-              title: autoSaveStatus.state === 'too-large'
-                ? 'Game is too large for recovery auto-save. Save to Library or download SGF to keep changes.'
-                : 'Recovery auto-save failed.',
-              className: 'border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] text-[var(--ui-danger)]',
-              icon: <FaExclamationTriangle size={9} aria-hidden="true" />,
-            }
-          : {
-              label: 'Unsaved',
-              title: 'Unsaved changes',
-              className: 'border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] text-[var(--ui-warning)]',
-              icon: <FaExclamationTriangle size={9} aria-hidden="true" />,
-            };
+  const mobileSaveStatus = getSaveStatusDisplay(unsavedChanges, autoSaveStatus);
+  const mobileSaveStatusClass = mobileSaveStatus
+    ? mobileSaveStatus.tone === 'danger'
+      ? 'border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] text-[var(--ui-danger)]'
+      : mobileSaveStatus.tone === 'success'
+        ? 'border-[var(--ui-success)] bg-[var(--ui-success-soft)] text-[var(--ui-success)]'
+        : mobileSaveStatus.tone === 'accent'
+          ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
+          : 'border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] text-[var(--ui-warning)]'
+    : '';
+  const mobileSaveStatusIcon = mobileSaveStatus
+    ? mobileSaveStatus.state === 'saved'
+      ? <FaCheckCircle size={9} aria-hidden="true" />
+      : mobileSaveStatus.state === 'pending'
+        ? <FaSyncAlt size={9} aria-hidden="true" className="animate-spin" />
+        : <FaExclamationTriangle size={9} aria-hidden="true" />
+    : null;
 
   useEffect(() => {
     const el = passBtnRef.current;
@@ -455,15 +435,15 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 <span
                   className={[
                     'inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
-                    mobileSaveStatus.className,
+                    mobileSaveStatusClass,
                   ].join(' ')}
                   title={mobileSaveStatus.title}
                   aria-label={mobileSaveStatus.title}
                   data-mobile-save-status="true"
-                  data-mobile-save-state={autoSaveStatus?.state ?? 'dirty'}
+                  data-mobile-save-state={mobileSaveStatus.state}
                 >
-                  {mobileSaveStatus.icon}
-                  <span>{mobileSaveStatus.label}</span>
+                  {mobileSaveStatusIcon}
+                  <span>{mobileSaveStatus.compactLabel}</span>
                 </span>
               </>
             )}

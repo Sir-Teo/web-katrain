@@ -84,4 +84,22 @@ describe('StatusBar', () => {
     expect(html).toContain('hidden md:inline min-w-0 truncate');
     expect(html).not.toContain('hidden lg:flex max-w-[280px]');
   });
+
+  it('uses one recovery save badge instead of conflicting unsaved and autosaved chips', () => {
+    const html = renderToStaticMarkup(
+      <StatusBar
+        {...baseProps}
+        unsavedChanges={true}
+        autoSaveStatus={{ state: 'saved', savedAt: Date.UTC(2026, 0, 1, 12, 30) }}
+      />,
+    );
+
+    expect(html).toContain('data-save-status="true"');
+    expect(html).toContain('data-save-state="saved"');
+    expect(html).toContain('Recovery saved');
+    expect(html).toContain('still unsaved until you save to Library or download SGF');
+    expect(html).not.toContain('data-autosave-status');
+    expect(html).not.toContain('>Auto-saved<');
+    expect(html).not.toContain('title="Unsaved changes">Unsaved');
+  });
 });
