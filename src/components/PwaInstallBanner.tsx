@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FaDownload, FaRedo, FaWifi } from 'react-icons/fa';
+import { FaDownload, FaRedo, FaShareSquare, FaWifi } from 'react-icons/fa';
 import {
   getPwaInstallDismissed,
+  isIosPwaInstallCandidate,
   isStandalonePwa,
   PWA_OFFLINE_READY_EVENT,
   PWA_UPDATE_READY_EVENT,
@@ -17,12 +18,17 @@ type BeforeInstallPromptEvent = Event & {
 
 type BannerState =
   | { type: 'install'; prompt: BeforeInstallPromptEvent }
+  | { type: 'ios-install' }
   | { type: 'offline-ready' }
   | { type: 'update-ready' }
   | null;
 
 export const PwaInstallBanner: React.FC = () => {
-  const [banner, setBanner] = useState<BannerState>(null);
+  const [banner, setBanner] = useState<BannerState>(() =>
+    isIosPwaInstallCandidate() && !isStandalonePwa() && !getPwaInstallDismissed()
+      ? { type: 'ios-install' }
+      : null
+  );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
@@ -97,17 +103,38 @@ export const PwaInstallBanner: React.FC = () => {
   if (!banner) return null;
 
   const isInstall = banner.type === 'install';
+  const isIosInstall = banner.type === 'ios-install';
   const isUpdate = banner.type === 'update-ready';
-  const icon = isInstall ? <FaDownload size={13} /> : isUpdate ? <FaRedo size={13} /> : <FaWifi size={13} />;
-  const title = isInstall ? 'Install Web KaTrain' : isUpdate ? 'Update ready' : 'Offline ready';
-  const detail = isInstall
-    ? 'Keep the board, library, model, and study tools available from your dock.'
+  const icon = isInstall
+    ? <FaDownload size={13} />
+    : isIosInstall
+      ? <FaShareSquare size={13} />
+      : isUpdate
+        ? <FaRedo size={13} />
+        : <FaWifi size={13} />;
+  const title = isInstall
+    ? 'Install Web KaTrain'
+    : isIosInstall
+      ? 'Install on iPhone or iPad'
+      : isUpdate
+        ? 'Update ready'
+        : 'Offline ready';
+  const detail = isInstall || isIosInstall
+    ? isIosInstall
+      ? 'Tap Share, then Add to Home Screen for a dock icon and offline study.'
+      : 'Keep the board, library, model, and study tools available from your dock.'
     : isUpdate
       ? 'Reload to use the newest study tools.'
       : 'App shell, board assets, TFJS WASM, and the bundled small model are cached.';
   const displayedDetail = actionMessage ?? detail;
 
   const primaryAction = async () => {
+    if (banner.type === 'ios-install') {
+      setPwaInstallDismissed(true);
+      setActionMessage(null);
+      setBanner(null);
+      return;
+    }
     if (banner.type === 'install') {
       setActionMessage(null);
       setIsWorking(true);
@@ -128,7 +155,7 @@ export const PwaInstallBanner: React.FC = () => {
     setBanner(null);
   };
   const dismissBanner = () => {
-    if (banner.type === 'install') setPwaInstallDismissed(true);
+    if (banner.type === 'install' || banner.type === 'ios-install') setPwaInstallDismissed(true);
     setActionMessage(null);
     setBanner(null);
   };
@@ -145,7 +172,7 @@ export const PwaInstallBanner: React.FC = () => {
           Dismiss
         </button>
         <button type="button" className="pwa-install-primary" onClick={() => void primaryAction()} disabled={isWorking}>
-          {isWorking ? 'Working...' : isInstall ? 'Install' : isUpdate ? 'Reload' : 'OK'}
+          {isWorking ? 'Working...' : isInstall ? 'Install' : isIosInstall ? 'Got it' : isUpdate ? 'Reload' : 'OK'}
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@ import {
   getPwaInstallDismissed,
   getServiceWorkerUrl,
   hasServiceWorkerController,
+  isIosPwaInstallCandidate,
   isStandalonePwa,
   PWA_INSTALL_DISMISSED_KEY,
   runPwaInstallPrompt,
@@ -69,6 +70,38 @@ describe('PWA helpers', () => {
     });
 
     expect(isStandalonePwa()).toBe(false);
+  });
+
+  it('detects iOS browsers that need manual install guidance', () => {
+    expect(isIosPwaInstallCandidate({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+      platform: 'iPhone',
+      maxTouchPoints: 5,
+    } as Navigator)).toBe(true);
+
+    expect(isIosPwaInstallCandidate({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+      platform: 'MacIntel',
+      maxTouchPoints: 5,
+    } as Navigator)).toBe(true);
+
+    expect(isIosPwaInstallCandidate({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+      platform: 'MacIntel',
+      maxTouchPoints: 0,
+    } as Navigator)).toBe(false);
+  });
+
+  it('treats blocked iOS detection properties as unavailable', () => {
+    const blocked = {} as Navigator;
+    Object.defineProperty(blocked, 'userAgent', {
+      configurable: true,
+      get() {
+        throw new Error('userAgent blocked');
+      },
+    });
+
+    expect(isIosPwaInstallCandidate(blocked)).toBe(false);
   });
 
   it('treats missing or blocked service workers as unavailable', () => {

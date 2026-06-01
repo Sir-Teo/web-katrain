@@ -11,6 +11,7 @@ type InstallPromptLike = {
   prompt: () => Promise<void> | void;
   userChoice?: Promise<InstallPromptChoice>;
 };
+type IosInstallNavigator = Pick<Navigator, 'userAgent' | 'platform' | 'maxTouchPoints'>;
 
 function getNavigator(target?: Navigator | null): Navigator | null {
   if (target !== undefined) return target;
@@ -38,6 +39,19 @@ export function isStandalonePwa(): boolean {
     mediaQueryMatches('(display-mode: standalone)') ||
     (source !== null && (source as Navigator & { standalone?: boolean }).standalone === true)
   );
+}
+
+export function isIosPwaInstallCandidate(target?: IosInstallNavigator | Navigator | null): boolean {
+  const source = getNavigator(target as Navigator | null | undefined) as IosInstallNavigator | null;
+  if (!source) return false;
+  try {
+    const userAgent = source.userAgent || '';
+    const platform = source.platform || '';
+    const maxTouchPoints = Number(source.maxTouchPoints || 0);
+    return /iPad|iPhone|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+  } catch {
+    return false;
+  }
 }
 
 export function getServiceWorkerContainer(target?: Navigator | null): ServiceWorkerContainer | null {

@@ -108,7 +108,13 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-3 py-3">
+        <main
+          className="mobile-home-main flex-1 overflow-y-auto px-3 py-3"
+          style={{
+            paddingBottom: 'calc(0.75rem + var(--pwa-banner-height, 0px))',
+            scrollPaddingBottom: 'calc(0.75rem + var(--pwa-banner-height, 0px))',
+          }}
+        >
           <section className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)] p-3">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-md bg-[var(--ui-surface)] px-2 py-2">
