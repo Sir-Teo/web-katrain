@@ -270,7 +270,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const boardSnapshotRef = useRef<HTMLDivElement>(null);
-  const swipeStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const swipeStartRef = useRef<{ id: number; x: number; y: number; time: number } | null>(null);
   const suppressNextClickRef = useRef(false);
   const gridCanvasRef = useRef<HTMLCanvasElement>(null);
   const ownershipCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -1283,7 +1283,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
     const touch = e.touches.item(0);
     if (!touch) return;
-    swipeStartRef.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY };
+    swipeStartRef.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: Date.now() };
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -1313,6 +1313,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       startY: start.y,
       endX,
       endY,
+      startTimeMs: start.time,
+      endTimeMs: Date.now(),
       isEditMode,
       isSelectingRegionOfInterest,
     });
