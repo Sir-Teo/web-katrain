@@ -29,6 +29,7 @@ import {
 } from '../utils/branchNavigation';
 import { getResignResult } from '../utils/resign';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
+import { getAnimationNow } from '../utils/animationFrame';
 
 type BranchClipboardNode = {
   move: Move | null;
@@ -1813,7 +1814,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     void (async () => {
       let done = 0;
-      let lastUiUpdate = performance.now();
+      let lastUiUpdate = getAnimationNow();
       let metaSynced = false;
 
       const evalBatchSize = Math.max(1, Math.min(get().settings.katagoBatchSize, 8));
@@ -1895,7 +1896,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         done += chunk.length;
 
-        const now = performance.now();
+        const now = getAnimationNow();
         if (now - lastUiUpdate > 120 || done === total) {
           set((s) => ({
             gameAnalysisDone: done,
@@ -1953,7 +1954,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const analysisPvLen = Math.max(0, Math.min(get().settings.katagoAnalysisPvLen, 15));
 
       let done = 0;
-      let lastUiUpdate = performance.now();
+      let lastUiUpdate = getAnimationNow();
       let metaSynced = false;
 
       for (const node of nodes) {
@@ -2051,7 +2052,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         done++;
 
-        const now = performance.now();
+        const now = getAnimationNow();
         if (now - lastUiUpdate > 120 || done === total) {
           set((s) => ({
             gameAnalysisDone: done,
@@ -2108,7 +2109,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     void (async () => {
       let done = 0;
-      let lastUiUpdate = performance.now();
+      let lastUiUpdate = getAnimationNow();
       let metaSynced = false;
 
       for (const node of nodes) {
@@ -2216,7 +2217,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         done++;
 
-        const now = performance.now();
+        const now = getAnimationNow();
         if (now - lastUiUpdate > 120 || done === total) {
           set((s) => ({
             gameAnalysisDone: done,
@@ -2342,7 +2343,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             return analysisWithTerritory;
           };
 
-          const applyAnalysis = (analysis: KataGoAnalysisPayload, isFinal: boolean, now = performance.now()) => {
+          const applyAnalysis = (analysis: KataGoAnalysisPayload, isFinal: boolean, now = getAnimationNow()) => {
             const showOwnership = get().settings.analysisShowOwnership;
             const shouldUpdateTerritory =
               isFinal || (showOwnership && progressApplyMinMs > 0 && now - lastTerritoryUpdateAt >= progressApplyMinMs);
@@ -2357,7 +2358,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
             const latest = get();
             const isCurrent = latest.currentNode.id === node.id;
-            const updateNow = performance.now();
+            const updateNow = getAnimationNow();
             const shouldBumpTree =
               isFinal || (isCurrent && treeUpdateEveryMs > 0 && updateNow - lastTreeUpdateAt >= treeUpdateEveryMs);
             if (shouldBumpTree) lastTreeUpdateAt = updateNow;
@@ -2384,7 +2385,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ? (analysis: KataGoAnalysisPayload) => {
                 const visits = typeof analysis.rootVisits === 'number' ? analysis.rootVisits : 0;
                 if (visits <= lastProgressVisits) return;
-                const now = performance.now();
+                const now = getAnimationNow();
                 if (progressApplyMinMs > 0 && now - lastProgressApplyAt < progressApplyMinMs) return;
                 lastProgressVisits = visits;
                 lastProgressApplyAt = now;

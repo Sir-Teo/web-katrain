@@ -9,6 +9,7 @@ import pako from 'pako';
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
 import type { BoardState, GameRules, KataGoBackendPreference, Move, Player, RegionOfInterest } from '../../types';
 import { publicUrl } from '../../utils/publicUrl';
+import { getAnimationNow } from '../../utils/animationFrame';
 import { parseKataGoModelV8 } from './loadModelV8';
 import { KataGoModelV8Tf } from './modelV8';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
@@ -766,7 +767,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       return;
     }
 
-    const deadline = performance.now() + maxTimeMs;
+    const deadline = getAnimationNow() + maxTimeMs;
     let lastReportVisits = -1;
     while (true) {
       if (shouldAbort()) {
@@ -777,7 +778,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         }
         return;
       }
-      const now = performance.now();
+      const now = getAnimationNow();
       const remaining = deadline - now;
       if (remaining <= 0) break;
       const sliceMs = Math.min(reportEveryMs, remaining);
@@ -791,7 +792,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         return;
       }
       const analysis = buildAnalysis();
-      const done = analysis.rootVisits >= maxVisits || performance.now() >= deadline;
+      const done = analysis.rootVisits >= maxVisits || getAnimationNow() >= deadline;
       if (done) {
         postAnalysis(analysis, 'katago:analyze_result');
         if (msg.reuseTree !== true) {

@@ -1,5 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 import type { BoardState, FloatArray, GameRules, Move, Player, RegionOfInterest } from '../../types';
+import { getAnimationNow } from '../../utils/animationFrame';
 import { postprocessKataGoV8 } from './evalV8';
 import type { KataGoModelV8Tf } from './modelV8';
 import { expectedWhiteScoreValue, getSqrtBoardArea } from './scoreValue';
@@ -1882,12 +1883,12 @@ export class MctsSearch {
     libertyMapStack[0] = this.rootLibertyMap;
     const libertySeedsScratch = this.libertySeedsScratch;
 
-    const deadline = performance.now() + maxTimeMs;
+    const deadline = getAnimationNow() + maxTimeMs;
     let timeCheckCounter = 0;
     const timeCheckMask = 0x1f;
     const timeExceeded = (): boolean => {
       if ((timeCheckCounter++ & timeCheckMask) !== 0) return false;
-      return performance.now() >= deadline;
+      return getAnimationNow() >= deadline;
     };
 
     while (this.rootNode.visits < maxVisits && !timeExceeded()) {
@@ -2316,7 +2317,7 @@ export class MctsSearch {
       const visits = this.rootNode.visits;
       let cached = this.treeOwnershipCache;
       const refreshIntervalMs = args.ownershipRefreshIntervalMs ?? 0;
-      const now = performance.now();
+      const now = getAnimationNow();
       if (!cached) {
         cached = { visits, timestamp: now, ...averageTreeOwnership(this.rootNode) };
         this.treeOwnershipCache = cached;
@@ -2498,12 +2499,12 @@ export async function analyzeMcts(args: {
   const undoSnapshots: UndoSnapshot[] = [];
   const pathMoves: RecentMove[] = [];
 
-  const deadline = performance.now() + maxTimeMs;
+  const deadline = getAnimationNow() + maxTimeMs;
   let timeCheckCounter = 0;
   const timeCheckMask = 0x1f;
   const timeExceeded = (): boolean => {
     if ((timeCheckCounter++ & timeCheckMask) !== 0) return false;
-    return performance.now() >= deadline;
+    return getAnimationNow() >= deadline;
   };
 
   while (rootNode.visits < maxVisits && !timeExceeded()) {
