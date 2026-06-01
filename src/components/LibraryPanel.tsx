@@ -20,6 +20,7 @@ import {
   FaPlay,
 } from 'react-icons/fa';
 import {
+  LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
   createLibraryBackup,
   createLibraryFolder,
   createLibraryItem,
@@ -297,7 +298,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(() => {
-    const raw = readLocalStorage('web-katrain:library_current_folder:v1');
+    const raw = readLocalStorage(LIBRARY_CURRENT_FOLDER_STORAGE_KEY);
     return raw || null;
   });
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => {
@@ -453,7 +454,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [expandedFolderIds, items]);
 
   useEffect(() => {
-    writeLocalStorage('web-katrain:library_current_folder:v1', activeFolderId ?? '');
+    writeLocalStorage(LIBRARY_CURRENT_FOLDER_STORAGE_KEY, activeFolderId ?? '');
   }, [activeFolderId]);
 
   useEffect(() => {

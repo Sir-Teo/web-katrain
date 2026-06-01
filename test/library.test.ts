@@ -9,6 +9,7 @@ import {
   extractLibraryMetadata,
   formatLibrarySize,
   getLibraryFolderOptions,
+  getLibrarySaveTargetFolderId,
   getLibraryStats,
   librarySgfDownloadFilename,
   loadLibrary,
@@ -251,6 +252,42 @@ describe('library storage helpers', () => {
       { id: 'year', name: '2026', depth: 1 },
       { id: 'orphan', name: 'Orphan', depth: 0 },
     ]);
+  });
+
+  it('chooses the library save target from loaded file context before active folder context', () => {
+    const games = { ...createLibraryFolder('Games', null), id: 'games' };
+    const review = { ...createLibraryFolder('Review', null), id: 'review' };
+    const file = { ...createLibraryItem('Game', sgf, games.id), id: 'file' };
+    const items = [games, review, file];
+
+    expect(
+      getLibrarySaveTargetFolderId({
+        items,
+        loadedLibraryFileId: file.id,
+        preferredFolderId: review.id,
+      })
+    ).toBe(games.id);
+    expect(
+      getLibrarySaveTargetFolderId({
+        items,
+        loadedLibraryFileId: null,
+        preferredFolderId: review.id,
+      })
+    ).toBe(review.id);
+    expect(
+      getLibrarySaveTargetFolderId({
+        items,
+        loadedLibraryFileId: null,
+        preferredFolderId: file.id,
+      })
+    ).toBeNull();
+    expect(
+      getLibrarySaveTargetFolderId({
+        items,
+        loadedLibraryFileId: null,
+        preferredFolderId: 'missing',
+      })
+    ).toBeNull();
   });
 
   it('falls back to local storage when IndexedDB access throws', async () => {

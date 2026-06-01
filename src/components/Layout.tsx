@@ -10,8 +10,10 @@ import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGam
 import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, getSgfDownloadFilenameFromProperties, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import {
+  LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
   createLibraryItem,
   getLibraryFolderOptions,
+  getLibrarySaveTargetFolderId,
   loadLibrary,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
@@ -798,15 +800,17 @@ export const Layout: React.FC = () => {
     const sgf = generateCurrentSgf();
     try {
       const items = await loadLibrary();
-      const currentLibraryItem = loadedLibraryFileId
-        ? items.find((item) => item.id === loadedLibraryFileId)
-        : null;
+      const initialFolderId = getLibrarySaveTargetFolderId({
+        items,
+        loadedLibraryFileId,
+        preferredFolderId: readLocalStorage(LIBRARY_CURRENT_FOLDER_STORAGE_KEY),
+      });
       const fileCount = items.filter((item): item is LibraryFile => item.type === 'file').length;
       const fallbackName = loadedLibraryFileName ?? loadedExternalFile?.name ?? `Game ${fileCount + 1}`;
       setSaveToLibraryDialog({
         sgf,
         initialName: suggestLibraryItemNameFromSgf(sgf, fallbackName),
-        initialFolderId: currentLibraryItem?.type === 'file' ? currentLibraryItem.parentId ?? null : null,
+        initialFolderId,
         folderOptions: getLibraryFolderOptions(items),
       });
     } catch {

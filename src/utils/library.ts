@@ -65,6 +65,7 @@ export type LibraryFolderOption = {
 const LEGACY_STORAGE_KEY = 'web-katrain:library:v1';
 const MIGRATION_FLAG_KEY = 'web-katrain:library_migrated_to_idb:v1';
 const PRELOADED_VERSION_KEY = 'web-katrain:library_preloaded_version:v1';
+export const LIBRARY_CURRENT_FOLDER_STORAGE_KEY = 'web-katrain:library_current_folder:v1';
 const PRELOADED_VERSION = 3;
 const PRELOADED_FOLDER_NAME = 'Famous Games';
 const DB_NAME = 'web-katrain-library';
@@ -227,6 +228,21 @@ export const getLibraryFolderOptions = (items: LibraryItem[]): LibraryFolderOpti
     walk(folder.id, 1);
   }
   return options;
+};
+
+export const getLibrarySaveTargetFolderId = ({
+  items,
+  loadedLibraryFileId,
+  preferredFolderId,
+}: {
+  items: LibraryItem[];
+  loadedLibraryFileId?: string | null;
+  preferredFolderId?: string | null;
+}): string | null => {
+  const loadedLibraryItem = loadedLibraryFileId ? items.find((item) => item.id === loadedLibraryFileId) : null;
+  if (loadedLibraryItem?.type === 'file') return loadedLibraryItem.parentId ?? null;
+  if (!preferredFolderId) return null;
+  return items.some((item) => item.type === 'folder' && item.id === preferredFolderId) ? preferredFolderId : null;
 };
 
 export const formatLibrarySize = (bytes: number): string => {
