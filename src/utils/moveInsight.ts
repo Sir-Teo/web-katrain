@@ -198,6 +198,49 @@ function getBambooJointInsight(move: Move, board: BoardState, boardSize: number)
   return null;
 }
 
+function getTigersMouthInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
+  const directions = [
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+  ];
+
+  for (const direction of directions) {
+    const perpendicular = { x: -direction.y, y: direction.x };
+    const stoneOffsets = [
+      perpendicular,
+      { x: -perpendicular.x, y: -perpendicular.y },
+      direction,
+    ];
+    for (const moveOffset of stoneOffsets) {
+      const center = { x: move.x - moveOffset.x, y: move.y - moveOffset.y };
+      const sideA = { x: center.x + perpendicular.x, y: center.y + perpendicular.y };
+      const sideB = { x: center.x - perpendicular.x, y: center.y - perpendicular.y };
+      const back = { x: center.x + direction.x, y: center.y + direction.y };
+      const front = { x: center.x - direction.x, y: center.y - direction.y };
+      const points = [center, sideA, sideB, back, front];
+      if (points.some((point) => point.x < 0 || point.y < 0 || point.x >= boardSize || point.y >= boardSize)) continue;
+      if (
+        board[sideA.y]?.[sideA.x] === move.player &&
+        board[sideB.y]?.[sideB.x] === move.player &&
+        board[back.y]?.[back.x] === move.player &&
+        board[center.y]?.[center.x] === null &&
+        board[front.y]?.[front.x] === null
+      ) {
+        return {
+          label: "Tiger's mouth",
+          detail: 'Forms a light connection around a shared cutting point.',
+          tone: 'tactical',
+          learnMoreUrl: 'https://senseis.xmp.net/?TigersMouth',
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: BoardState | null): MoveInsight | null {
   if (!parentBoard || parentBoard.length !== boardSize) return null;
   if (move.x < 0 || move.y < 0 || move.x >= boardSize || move.y >= boardSize) return null;
@@ -276,6 +319,9 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
 
   const bambooJointInsight = getBambooJointInsight(move, nextBoard, boardSize);
   if (bambooJointInsight) return bambooJointInsight;
+
+  const tigersMouthInsight = getTigersMouthInsight(move, nextBoard, boardSize);
+  if (tigersMouthInsight) return tigersMouthInsight;
 
   if (friendlyGroups.size >= 2) {
     return {
@@ -423,6 +469,14 @@ export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
       beginner: 'A bamboo joint connects lightly: if one cutting point is attacked, the other point usually reconnects.',
       pro: 'Check whether the joint is still short of liberties, vulnerable to forcing moves, or better played as a sente exchange.',
       checks: ['Cut resistance', 'Liberties', 'Aji'],
+    };
+  }
+
+  if (insight.label === "Tiger's mouth") {
+    return {
+      beginner: "A tiger's mouth protects a cutting point while keeping the stones flexible.",
+      pro: 'Check peeps, shortage of liberties, and whether the mouth points at the important side of the fight.',
+      checks: ['Peep', 'Liberties', 'Direction'],
     };
   }
 

@@ -116,6 +116,16 @@ describe('move insights', () => {
       learnMoreUrl: 'https://senseis.xmp.net/?BambooJoint',
     });
 
+    const tigersMouthBoard = emptyBoard(9);
+    tigersMouthBoard[1]![0] = 'black';
+    tigersMouthBoard[2]![1] = 'black';
+
+    expect(getMoveInsight(blackMove(2, 1), 9, tigersMouthBoard)).toMatchObject({
+      label: "Tiger's mouth",
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?TigersMouth',
+    });
+
     const connectBoard = emptyBoard(9);
     connectBoard[1]![0] = 'white';
     connectBoard[1]![2] = 'white';
@@ -186,6 +196,10 @@ describe('move insights', () => {
     expect(getMoveInsightCoach({ label: 'Bamboo joint', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('connects lightly'),
       checks: expect.arrayContaining(['Cut resistance']),
+    });
+    expect(getMoveInsightCoach({ label: "Tiger's mouth", detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('cutting point'),
+      checks: expect.arrayContaining(['Peep']),
     });
     expect(getMoveInsightCoach({ label: 'Connect', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('harder to cut'),
