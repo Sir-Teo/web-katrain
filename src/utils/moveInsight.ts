@@ -1,6 +1,7 @@
-import type { Move } from '../types';
+import type { BoardState, Move } from '../types';
+import { getLiberties, getOpponent } from './gameLogic';
 
-export type MoveInsightTone = 'corner' | 'side' | 'center' | 'pass' | 'neutral';
+export type MoveInsightTone = 'corner' | 'side' | 'center' | 'pass' | 'tactical' | 'neutral';
 
 export interface MoveInsight {
   label: string;
@@ -16,6 +17,7 @@ export interface MoveInsightCoach {
 }
 
 type EdgeName = 'left' | 'right' | 'top' | 'bottom' | 'center';
+type Point = { x: number; y: number };
 
 const CORNER_PATTERNS: Record<string, { label: string; detail: string; learnMoreUrl?: string }> = {
   '3-3': {
@@ -96,7 +98,75 @@ function lineRole(line: number): string {
   return 'center-oriented play';
 }
 
-export function getMoveInsight(move: Move | null, boardSize: number): MoveInsight | null {
+function neighborsOf(x: number, y: number, boardSize: number): Point[] {
+  return [
+    { x: x + 1, y },
+    { x: x - 1, y },
+    { x, y: y + 1 },
+    { x, y: y - 1 },
+  ].filter((point) => point.x >= 0 && point.x < boardSize && point.y >= 0 && point.y < boardSize);
+}
+
+function groupKey(group: Point[]): string {
+  return group
+    .map((point) => `${point.x},${point.y}`)
+    .sort()
+    .join('|');
+}
+
+function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: BoardState | null): MoveInsight | null {
+  if (!parentBoard || parentBoard.length !== boardSize) return null;
+  if (move.x < 0 || move.y < 0 || move.x >= boardSize || move.y >= boardSize) return null;
+  if (parentBoard[move.y]?.[move.x] !== null) return null;
+
+  const opponent = getOpponent(move.player);
+  const capturedGroups = new Map<string, number>();
+  const atariGroups = new Set<string>();
+  const friendlyGroups = new Set<string>();
+
+  for (const point of neighborsOf(move.x, move.y, boardSize)) {
+    const stone = parentBoard[point.y]?.[point.x];
+    if (!stone) continue;
+    const { liberties, group } = getLiberties(parentBoard, point.x, point.y);
+    const key = groupKey(group);
+    if (stone === opponent) {
+      if (liberties === 1) capturedGroups.set(key, group.length);
+      else if (liberties === 2) atariGroups.add(key);
+    } else if (stone === move.player) {
+      friendlyGroups.add(key);
+    }
+  }
+
+  if (capturedGroups.size > 0) {
+    const capturedStones = [...capturedGroups.values()].reduce((sum, count) => sum + count, 0);
+    return {
+      label: 'Capture',
+      detail: `Captures ${capturedStones} ${opponent} stone${capturedStones === 1 ? '' : 's'} by taking the last liberty.`,
+      tone: 'tactical',
+    };
+  }
+
+  if (atariGroups.size > 0) {
+    return {
+      label: 'Atari',
+      detail: `Puts ${atariGroups.size === 1 ? 'an opponent group' : `${atariGroups.size} opponent groups`} down to one liberty.`,
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?Atari',
+    };
+  }
+
+  if (friendlyGroups.size >= 2) {
+    return {
+      label: 'Connect',
+      detail: `Joins ${friendlyGroups.size} friendly groups into a stronger shape.`,
+      tone: 'tactical',
+    };
+  }
+
+  return null;
+}
+
+export function getMoveInsight(move: Move | null, boardSize: number, parentBoard?: BoardState | null): MoveInsight | null {
   if (!move) return null;
   if (move.x < 0 || move.y < 0) {
     return {
@@ -107,6 +177,9 @@ export function getMoveInsight(move: Move | null, boardSize: number): MoveInsigh
     };
   }
   if (boardSize <= 0 || move.x >= boardSize || move.y >= boardSize) return null;
+
+  const tacticalInsight = getTacticalMoveInsight(move, boardSize, parentBoard);
+  if (tacticalInsight) return tacticalInsight;
 
   const lineFromLeft = move.x + 1;
   const lineFromRight = boardSize - move.x;
@@ -180,6 +253,30 @@ export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
       beginner: 'Passing is usually right when both players have no valuable moves left.',
       pro: 'Check ko threats, dame, sente endgame, and whether passing changes life-and-death status.',
       checks: ['Endgame left?', 'Ko threats?', 'Life and death?'],
+    };
+  }
+
+  if (insight.label === 'Capture') {
+    return {
+      beginner: 'Captures remove opponent stones and often settle an urgent local fight.',
+      pro: 'Check whether the capture is sente, creates shortage of liberties, or leaves a snapback or ko.',
+      checks: ['Sente', 'Snapback', 'Ko'],
+    };
+  }
+
+  if (insight.label === 'Atari') {
+    return {
+      beginner: 'Atari gives an opponent group one liberty, so they usually need to answer.',
+      pro: 'Confirm the atari is profitable; loose ataris can strengthen the opponent or lose sente.',
+      checks: ['Escape route', 'Net', 'Sente'],
+    };
+  }
+
+  if (insight.label === 'Connect') {
+    return {
+      beginner: 'Connecting stones makes them harder to cut and easier to keep alive.',
+      pro: 'Compare the solid connection with forcing moves, tiger mouths, and counter-cuts.',
+      checks: ['Cuts', 'Shape', 'Aji'],
     };
   }
 

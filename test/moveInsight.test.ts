@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { getMoveInsight, getMoveInsightCoach } from '../src/utils/moveInsight';
-import type { Move } from '../src/types';
+import type { BoardState, Move } from '../src/types';
 
 const blackMove = (x: number, y: number): Move => ({ x, y, player: 'black' });
+const whiteMove = (x: number, y: number): Move => ({ x, y, player: 'white' });
+const emptyBoard = (size: number): BoardState => Array.from({ length: size }, () => Array.from({ length: size }, () => null));
 
 describe('move insights', () => {
   it('names standard corner points on a 19x19 board', () => {
@@ -48,6 +50,38 @@ describe('move insights', () => {
     });
   });
 
+  it('prefers tactical capture, atari, and connect labels when parent board context is available', () => {
+    const captureBoard = emptyBoard(9);
+    captureBoard[0]![1] = 'white';
+    captureBoard[0]![2] = 'black';
+    captureBoard[1]![1] = 'black';
+
+    expect(getMoveInsight(blackMove(0, 0), 9, captureBoard)).toMatchObject({
+      label: 'Capture',
+      tone: 'tactical',
+      detail: expect.stringContaining('Captures 1 white stone'),
+    });
+
+    const atariBoard = emptyBoard(9);
+    atariBoard[0]![1] = 'white';
+    atariBoard[1]![1] = 'black';
+
+    expect(getMoveInsight(blackMove(0, 0), 9, atariBoard)).toMatchObject({
+      label: 'Atari',
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?Atari',
+    });
+
+    const connectBoard = emptyBoard(9);
+    connectBoard[1]![0] = 'white';
+    connectBoard[1]![2] = 'white';
+
+    expect(getMoveInsight(whiteMove(1, 1), 9, connectBoard)).toMatchObject({
+      label: 'Connect',
+      tone: 'tactical',
+    });
+  });
+
   it('returns null for root or out-of-board moves', () => {
     expect(getMoveInsight(null, 19)).toBeNull();
     expect(getMoveInsight(blackMove(19, 3), 19)).toBeNull();
@@ -69,6 +103,21 @@ describe('move insights', () => {
     expect(pass && getMoveInsightCoach(pass)).toMatchObject({
       pro: expect.stringContaining('ko threats'),
       checks: expect.arrayContaining(['Life and death?']),
+    });
+  });
+
+  it('adds beginner and pro coach cues for tactical labels', () => {
+    expect(getMoveInsightCoach({ label: 'Atari', detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('one liberty'),
+      checks: expect.arrayContaining(['Escape route']),
+    });
+    expect(getMoveInsightCoach({ label: 'Capture', detail: '', tone: 'tactical' })).toMatchObject({
+      pro: expect.stringContaining('snapback'),
+      checks: expect.arrayContaining(['Ko']),
+    });
+    expect(getMoveInsightCoach({ label: 'Connect', detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('harder to cut'),
+      checks: expect.arrayContaining(['Shape']),
     });
   });
 });

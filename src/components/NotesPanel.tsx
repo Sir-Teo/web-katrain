@@ -244,7 +244,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
 
   const move = currentNode.move;
   const boardSize = currentNode.gameState.board.length;
-  const moveInsight = useMemo(() => getMoveInsight(move, boardSize), [boardSize, move]);
+  const parentBoard = currentNode.parent?.gameState.board ?? null;
+  const moveInsight = useMemo(() => getMoveInsight(move, boardSize, parentBoard), [boardSize, move, parentBoard]);
   const moveInsightCoach = useMemo(() => (moveInsight ? getMoveInsightCoach(moveInsight) : null), [moveInsight]);
   const parent = currentNode.parent;
   const parentPolicy = parent?.analysis?.policy;

@@ -2315,7 +2315,7 @@ export const Layout: React.FC = () => {
   const moveName = currentNode.move
     ? `Move ${moveHistory.length}: ${playerToShort(currentNode.move.player)} ${formatMoveLabel(currentNode.move.x, currentNode.move.y, boardSize)}`
     : 'Root';
-  const currentMoveInsight = getMoveInsight(currentNode.move, boardSize);
+  const currentMoveInsight = getMoveInsight(currentNode.move, boardSize, currentNode.parent?.gameState.board ?? null);
 
   const handleUndo = () => {
     const st = useGameStore.getState();
