@@ -1760,6 +1760,13 @@ export const Layout: React.FC = () => {
       }
       updateControls({ analysisShowHints: !settings.analysisShowHints });
     };
+    const guardNavigation = (action: () => void) => {
+      if (isInsertMode) {
+        toast('Finish inserting before navigating.', 'error');
+        return;
+      }
+      action();
+    };
 
     return [
       {
@@ -1823,6 +1830,110 @@ export const Layout: React.FC = () => {
         shortcutId: 'copy-sgf',
         run: () => { void handleCopySgf(); },
         keywords: ['clipboard'],
+      },
+      {
+        id: 'nav-back',
+        label: 'Previous move',
+        category: 'Navigation',
+        shortcutId: 'nav-back',
+        run: () => { if (mode === 'play') handleUndo(); else navigateBack(); },
+        keywords: ['back', 'undo move'],
+      },
+      {
+        id: 'nav-forward',
+        label: 'Next move',
+        category: 'Navigation',
+        shortcutId: 'nav-forward',
+        run: () => guardNavigation(navigateForward),
+        keywords: ['forward', 'redo move'],
+      },
+      {
+        id: 'nav-back-10',
+        label: 'Back 10 moves',
+        category: 'Navigation',
+        shortcutId: 'nav-back-10',
+        run: () => { for (let i = 0; i < 10; i++) navigateBack(); },
+        keywords: ['rewind'],
+      },
+      {
+        id: 'nav-forward-10',
+        label: 'Forward 10 moves',
+        category: 'Navigation',
+        shortcutId: 'nav-forward-10',
+        run: () => guardNavigation(() => { for (let i = 0; i < 10; i++) navigateForward(); }),
+        keywords: ['advance'],
+      },
+      {
+        id: 'nav-start',
+        label: 'Go to start',
+        category: 'Navigation',
+        shortcutId: 'nav-start',
+        run: () => guardNavigation(navigateStart),
+        keywords: ['root', 'beginning'],
+      },
+      {
+        id: 'nav-end',
+        label: 'Go to end',
+        category: 'Navigation',
+        shortcutId: 'nav-end',
+        run: () => guardNavigation(navigateEnd),
+        keywords: ['last move'],
+      },
+      {
+        id: 'branch-prev',
+        label: 'Previous branch',
+        category: 'Navigation',
+        shortcutId: 'branch-prev',
+        run: () => guardNavigation(() => switchBranch(-1)),
+        keywords: ['variation'],
+      },
+      {
+        id: 'branch-next',
+        label: 'Next branch',
+        category: 'Navigation',
+        shortcutId: 'branch-next',
+        run: () => guardNavigation(() => switchBranch(1)),
+        keywords: ['variation'],
+      },
+      {
+        id: 'undo-branch-point',
+        label: 'Undo to branch point',
+        category: 'Navigation',
+        shortcutId: 'undo-branch-point',
+        run: () => guardNavigation(undoToBranchPoint),
+        keywords: ['variation', 'fork'],
+      },
+      {
+        id: 'undo-main-branch',
+        label: 'Undo to main branch',
+        category: 'Navigation',
+        shortcutId: 'undo-main-branch',
+        run: () => guardNavigation(undoToMainBranch),
+        keywords: ['variation', 'main line'],
+      },
+      {
+        id: 'make-main-branch',
+        label: 'Make current branch main',
+        category: 'Navigation',
+        shortcutId: 'make-main-branch',
+        run: () => guardNavigation(makeCurrentNodeMainBranch),
+        keywords: ['variation', 'main line'],
+      },
+      {
+        id: 'prev-mistake',
+        label: 'Previous mistake',
+        category: 'Navigation',
+        shortcutId: 'prev-mistake',
+        run: () => guardNavigation(() => findMistake('undo')),
+        keywords: ['review', 'blunder'],
+      },
+      {
+        id: 'next-mistake',
+        label: 'Next mistake',
+        category: 'Navigation',
+        shortcutId: 'next-mistake',
+        run: () => guardNavigation(() => findMistake('redo')),
+        keywords: ['review', 'blunder'],
       },
       {
         id: 'toggle-library',
