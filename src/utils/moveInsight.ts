@@ -114,6 +114,37 @@ function groupKey(group: Point[]): string {
     .join('|');
 }
 
+function getEmptyTriangleInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
+  const directions = [
+    { x: 1, y: 1 },
+    { x: 1, y: -1 },
+    { x: -1, y: 1 },
+    { x: -1, y: -1 },
+  ];
+
+  for (const direction of directions) {
+    const horizontal = { x: move.x + direction.x, y: move.y };
+    const vertical = { x: move.x, y: move.y + direction.y };
+    const diagonal = { x: move.x + direction.x, y: move.y + direction.y };
+    const points = [horizontal, vertical, diagonal];
+    if (points.some((point) => point.x < 0 || point.y < 0 || point.x >= boardSize || point.y >= boardSize)) continue;
+    if (
+      board[horizontal.y]?.[horizontal.x] === move.player &&
+      board[vertical.y]?.[vertical.x] === move.player &&
+      board[diagonal.y]?.[diagonal.x] === null
+    ) {
+      return {
+        label: 'Empty triangle',
+        detail: 'Creates three stones in a bent 2x2 shape, usually an inefficient connection.',
+        tone: 'tactical',
+        learnMoreUrl: 'https://senseis.xmp.net/?EmptyTriangle',
+      };
+    }
+  }
+
+  return null;
+}
+
 function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: BoardState | null): MoveInsight | null {
   if (!parentBoard || parentBoard.length !== boardSize) return null;
   if (move.x < 0 || move.y < 0 || move.x >= boardSize || move.y >= boardSize) return null;
@@ -186,6 +217,9 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
       tone: 'tactical',
     };
   }
+
+  const emptyTriangleInsight = getEmptyTriangleInsight(move, nextBoard, boardSize);
+  if (emptyTriangleInsight) return emptyTriangleInsight;
 
   if (friendlyGroups.size >= 2) {
     return {
@@ -317,6 +351,14 @@ export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
       beginner: 'Most games do not allow suicide moves because the played stone would have no liberties.',
       pro: 'If this came from an imported record, check the ruleset and whether the move should be rejected.',
       checks: ['Ruleset', 'Import', 'Legality'],
+    };
+  }
+
+  if (insight.label === 'Empty triangle') {
+    return {
+      beginner: 'An empty triangle connects stones, but it is often slow and heavy.',
+      pro: 'Check whether a bamboo joint, tiger mouth, diagonal move, or forcing exchange keeps the same connection more efficiently.',
+      checks: ['Efficiency', 'Cut point', 'Alternative'],
     };
   }
 

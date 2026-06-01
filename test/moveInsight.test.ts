@@ -95,6 +95,16 @@ describe('move insights', () => {
       learnMoreUrl: 'https://senseis.xmp.net/?Suicide',
     });
 
+    const emptyTriangleBoard = emptyBoard(9);
+    emptyTriangleBoard[0]![1] = 'black';
+    emptyTriangleBoard[1]![0] = 'black';
+
+    expect(getMoveInsight(blackMove(1, 1), 9, emptyTriangleBoard)).toMatchObject({
+      label: 'Empty triangle',
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?EmptyTriangle',
+    });
+
     const connectBoard = emptyBoard(9);
     connectBoard[1]![0] = 'white';
     connectBoard[1]![2] = 'white';
@@ -157,6 +167,10 @@ describe('move insights', () => {
     expect(getMoveInsightCoach({ label: 'Suicide', detail: '', tone: 'tactical' })).toMatchObject({
       pro: expect.stringContaining('ruleset'),
       checks: expect.arrayContaining(['Legality']),
+    });
+    expect(getMoveInsightCoach({ label: 'Empty triangle', detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('slow and heavy'),
+      checks: expect.arrayContaining(['Efficiency']),
     });
     expect(getMoveInsightCoach({ label: 'Connect', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('harder to cut'),
