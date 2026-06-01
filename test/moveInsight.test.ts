@@ -50,6 +50,44 @@ describe('move insights', () => {
     });
   });
 
+  it('recognizes clean corner approaches and enclosures from Kaya patterns', () => {
+    const lowApproachBoard = emptyBoard(19);
+    lowApproachBoard[3]![16] = 'white';
+
+    expect(getMoveInsight(blackMove(14, 2), 19, lowApproachBoard)).toMatchObject({
+      label: 'Low approach',
+      tone: 'corner',
+      learnMoreUrl: 'https://senseis.xmp.net/?34PointLowApproach',
+    });
+
+    const highApproachBoard = emptyBoard(19);
+    highApproachBoard[3]![15] = 'white';
+
+    expect(getMoveInsight(blackMove(13, 3), 19, highApproachBoard)).toMatchObject({
+      label: 'High approach',
+      tone: 'corner',
+      learnMoreUrl: 'https://senseis.xmp.net/?44PointHighApproach',
+    });
+
+    const lowEnclosureBoard = emptyBoard(19);
+    lowEnclosureBoard[3]![16] = 'black';
+
+    expect(getMoveInsight(blackMove(14, 2), 19, lowEnclosureBoard)).toMatchObject({
+      label: 'Low enclosure',
+      tone: 'corner',
+      learnMoreUrl: 'https://senseis.xmp.net/?3453Enclosure',
+    });
+
+    const highEnclosureBoard = emptyBoard(19);
+    highEnclosureBoard[3]![15] = 'black';
+
+    expect(getMoveInsight(blackMove(13, 3), 19, highEnclosureBoard)).toMatchObject({
+      label: 'High enclosure',
+      tone: 'corner',
+      learnMoreUrl: 'https://senseis.xmp.net/?4464Enclosure',
+    });
+  });
+
   it('prefers tactical capture, atari, and connect labels when parent board context is available', () => {
     const captureBoard = emptyBoard(9);
     captureBoard[0]![1] = 'white';
@@ -347,6 +385,22 @@ describe('move insights', () => {
     expect(getMoveInsightCoach({ label: 'Diagonal jump', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('links stones'),
       checks: expect.arrayContaining(['Forcing points']),
+    });
+    expect(getMoveInsightCoach({ label: 'Low approach', detail: '', tone: 'corner' })).toMatchObject({
+      beginner: expect.stringContaining('stable base'),
+      checks: expect.arrayContaining(['Pincer']),
+    });
+    expect(getMoveInsightCoach({ label: 'High approach', detail: '', tone: 'corner' })).toMatchObject({
+      beginner: expect.stringContaining('outside influence'),
+      checks: expect.arrayContaining(['Target']),
+    });
+    expect(getMoveInsightCoach({ label: 'Low enclosure', detail: '', tone: 'corner' })).toMatchObject({
+      beginner: expect.stringContaining('secures the corner'),
+      checks: expect.arrayContaining(['Corner secure']),
+    });
+    expect(getMoveInsightCoach({ label: 'High enclosure', detail: '', tone: 'corner' })).toMatchObject({
+      beginner: expect.stringContaining('wider corner'),
+      checks: expect.arrayContaining(['Invasion aji']),
     });
     expect(getMoveInsightCoach({ label: 'Connect', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('harder to cut'),

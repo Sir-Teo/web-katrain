@@ -19,6 +19,16 @@ export interface MoveInsightCoach {
 type EdgeName = 'left' | 'right' | 'top' | 'bottom' | 'center';
 type Point = { x: number; y: number };
 type RelativeShape = { stones: Point[]; empties: Point[] };
+type CornerTransform = { xEdge: 'left' | 'right'; yEdge: 'top' | 'bottom' };
+type CornerRelationPattern = {
+  label: 'Low approach' | 'High approach' | 'Low enclosure' | 'High enclosure';
+  detail: string;
+  learnMoreUrl: string;
+  anchor: Point;
+  move: Point;
+  anchorColor: 'friendly' | 'opponent';
+  localMax: Point;
+};
 
 const CORNER_PATTERNS: Record<string, { label: string; detail: string; learnMoreUrl?: string }> = {
   '3-3': {
@@ -113,6 +123,165 @@ function groupKey(group: Point[]): string {
     .map((point) => `${point.x},${point.y}`)
     .sort()
     .join('|');
+}
+
+const CORNER_TRANSFORMS: CornerTransform[] = [
+  { xEdge: 'left', yEdge: 'top' },
+  { xEdge: 'right', yEdge: 'top' },
+  { xEdge: 'left', yEdge: 'bottom' },
+  { xEdge: 'right', yEdge: 'bottom' },
+];
+
+const CORNER_RELATION_PATTERNS: CornerRelationPattern[] = [
+  {
+    label: 'Low approach',
+    detail: 'Approaches an opposing 3-4 corner stone from the low side, asking how the corner should answer.',
+    learnMoreUrl: 'https://senseis.xmp.net/?34PointLowApproach',
+    anchor: { x: 2, y: 3 },
+    move: { x: 4, y: 2 },
+    anchorColor: 'opponent',
+    localMax: { x: 5, y: 4 },
+  },
+  {
+    label: 'High approach',
+    detail: 'Approaches an opposing 3-4 corner stone on the 4th line, leaning toward influence and outside pressure.',
+    learnMoreUrl: 'https://senseis.xmp.net/?34PointHighApproach',
+    anchor: { x: 2, y: 3 },
+    move: { x: 4, y: 3 },
+    anchorColor: 'opponent',
+    localMax: { x: 5, y: 4 },
+  },
+  {
+    label: 'Low approach',
+    detail: 'Approaches an opposing 4-4 stone from the low side, aiming to reduce the corner while staying settled.',
+    learnMoreUrl: 'https://senseis.xmp.net/?44PointLowApproach',
+    anchor: { x: 3, y: 3 },
+    move: { x: 5, y: 2 },
+    anchorColor: 'opponent',
+    localMax: { x: 6, y: 4 },
+  },
+  {
+    label: 'High approach',
+    detail: 'Approaches an opposing 4-4 stone from the high side, emphasizing outside influence and attack direction.',
+    learnMoreUrl: 'https://senseis.xmp.net/?44PointHighApproach',
+    anchor: { x: 3, y: 3 },
+    move: { x: 5, y: 3 },
+    anchorColor: 'opponent',
+    localMax: { x: 6, y: 4 },
+  },
+  {
+    label: 'Low enclosure',
+    detail: 'Makes a low shimari with a friendly 3-4 stone, securing corner territory and a stable base.',
+    learnMoreUrl: 'https://senseis.xmp.net/?3453Enclosure',
+    anchor: { x: 2, y: 3 },
+    move: { x: 4, y: 2 },
+    anchorColor: 'friendly',
+    localMax: { x: 5, y: 4 },
+  },
+  {
+    label: 'High enclosure',
+    detail: 'Makes a high shimari with a friendly 3-4 stone, trading some territory for outside influence.',
+    learnMoreUrl: 'https://senseis.xmp.net/?3454Enclosure',
+    anchor: { x: 2, y: 3 },
+    move: { x: 4, y: 3 },
+    anchorColor: 'friendly',
+    localMax: { x: 5, y: 4 },
+  },
+  {
+    label: 'Low enclosure',
+    detail: 'Makes a low enclosure with a friendly 4-4 stone, stabilizing the corner while keeping extension options.',
+    learnMoreUrl: 'https://senseis.xmp.net/?4463Enclosure',
+    anchor: { x: 3, y: 3 },
+    move: { x: 5, y: 2 },
+    anchorColor: 'friendly',
+    localMax: { x: 6, y: 4 },
+  },
+  {
+    label: 'High enclosure',
+    detail: 'Makes a high enclosure with a friendly 4-4 stone, building a wider outside-facing corner shape.',
+    learnMoreUrl: 'https://senseis.xmp.net/?4464Enclosure',
+    anchor: { x: 3, y: 3 },
+    move: { x: 5, y: 3 },
+    anchorColor: 'friendly',
+    localMax: { x: 6, y: 4 },
+  },
+];
+
+function swapPoint(point: Point): Point {
+  return { x: point.y, y: point.x };
+}
+
+function cornerPointToBoard(point: Point, transform: CornerTransform, boardSize: number): Point {
+  return {
+    x: transform.xEdge === 'left' ? point.x : boardSize - 1 - point.x,
+    y: transform.yEdge === 'top' ? point.y : boardSize - 1 - point.y,
+  };
+}
+
+function boardPointToCorner(point: Point, transform: CornerTransform, boardSize: number): Point {
+  return {
+    x: transform.xEdge === 'left' ? point.x : boardSize - 1 - point.x,
+    y: transform.yEdge === 'top' ? point.y : boardSize - 1 - point.y,
+  };
+}
+
+function cornerLocalAreaIsEmpty(
+  board: BoardState,
+  boardSize: number,
+  transform: CornerTransform,
+  localMax: Point,
+  exceptions: readonly string[]
+): boolean {
+  const exceptionSet = new Set(exceptions);
+  for (let y = 0; y <= localMax.y; y += 1) {
+    for (let x = 0; x <= localMax.x; x += 1) {
+      const local = { x, y };
+      const actual = cornerPointToBoard(local, transform, boardSize);
+      if (actual.x < 0 || actual.y < 0 || actual.x >= boardSize || actual.y >= boardSize) return false;
+      if (exceptionSet.has(`${local.x},${local.y}`)) continue;
+      if (board[actual.y]?.[actual.x] !== null) return false;
+    }
+  }
+  return true;
+}
+
+function getCornerRelationInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
+  if (boardSize < 13) return null;
+  const opponent = getOpponent(move.player);
+
+  for (const transform of CORNER_TRANSFORMS) {
+    const localMove = boardPointToCorner(move, transform, boardSize);
+    for (const pattern of CORNER_RELATION_PATTERNS) {
+      const variants = [
+        { anchor: pattern.anchor, move: pattern.move, localMax: pattern.localMax },
+        { anchor: swapPoint(pattern.anchor), move: swapPoint(pattern.move), localMax: swapPoint(pattern.localMax) },
+      ];
+      for (const variant of variants) {
+        if (localMove.x !== variant.move.x || localMove.y !== variant.move.y) continue;
+        const anchor = cornerPointToBoard(variant.anchor, transform, boardSize);
+        if (anchor.x < 0 || anchor.y < 0 || anchor.x >= boardSize || anchor.y >= boardSize) continue;
+        const expectedAnchor = pattern.anchorColor === 'friendly' ? move.player : opponent;
+        if (board[anchor.y]?.[anchor.x] !== expectedAnchor) continue;
+        if (
+          !cornerLocalAreaIsEmpty(board, boardSize, transform, variant.localMax, [
+            `${variant.anchor.x},${variant.anchor.y}`,
+            `${variant.move.x},${variant.move.y}`,
+          ])
+        ) {
+          continue;
+        }
+
+        return {
+          label: pattern.label,
+          detail: pattern.detail,
+          tone: 'corner',
+          learnMoreUrl: pattern.learnMoreUrl,
+        };
+      }
+    }
+  }
+
+  return null;
 }
 
 function getEmptyTriangleInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
@@ -665,6 +834,9 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
   const cutOrDiagonalInsight = getCutOrDiagonalInsight(move, nextBoard, boardSize);
   if (cutOrDiagonalInsight) return cutOrDiagonalInsight;
 
+  const cornerRelationInsight = getCornerRelationInsight(move, parentBoard, boardSize);
+  if (cornerRelationInsight) return cornerRelationInsight;
+
   const jumpShapeInsight = getJumpShapeInsight(move, nextBoard, boardSize);
   if (jumpShapeInsight) return jumpShapeInsight;
 
@@ -945,6 +1117,38 @@ export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
         : 'High side moves are about influence, pressure, and building a framework.',
       pro: 'Check extension distance, nearby thickness, cut points, and whether the side move is sente.',
       checks: ['Extension', 'Cuts', 'Sente'],
+    };
+  }
+
+  if (insight.label === 'Low approach') {
+    return {
+      beginner: 'A low approach asks for corner territory or a stable base while reducing the opponent.',
+      pro: 'Choose the approach direction by checking pincers, extensions, ladders, and nearby strength.',
+      checks: ['Pincer', 'Base', 'Direction'],
+    };
+  }
+
+  if (insight.label === 'High approach') {
+    return {
+      beginner: 'A high approach puts more weight on outside influence and pressure than on immediate territory.',
+      pro: 'Check whether the high side attacks a weak group, builds a moyo, or gives the opponent an easy base.',
+      checks: ['Influence', 'Target', 'Pincer'],
+    };
+  }
+
+  if (insight.label === 'Low enclosure') {
+    return {
+      beginner: 'A low enclosure secures the corner and makes the stones harder to invade.',
+      pro: 'Check whether enclosing is bigger than approaching another corner, extending, or taking sente.',
+      checks: ['Corner secure', 'Extension', 'Sente'],
+    };
+  }
+
+  if (insight.label === 'High enclosure') {
+    return {
+      beginner: 'A high enclosure builds a wider corner shape and points more toward outside influence.',
+      pro: 'Check approach timing, outside direction, and whether the wider shape leaves useful invasion aji.',
+      checks: ['Direction', 'Invasion aji', 'Follow-up'],
     };
   }
 
