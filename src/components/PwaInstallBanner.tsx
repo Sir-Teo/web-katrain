@@ -6,8 +6,10 @@ import {
   isStandalonePwa,
   PWA_OFFLINE_READY_EVENT,
   PWA_UPDATE_READY_EVENT,
+  requestPwaUpdateActivation,
   runPwaInstallPrompt,
   setPwaInstallDismissed,
+  shouldReplacePwaBanner,
   shouldUseBrowserPwaInstallPrompt,
 } from '../utils/pwa';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
@@ -39,7 +41,11 @@ export const PwaInstallBanner: React.FC = () => {
       event.preventDefault();
       if (!shouldUseBrowserPwaInstallPrompt() || isStandalonePwa() || getPwaInstallDismissed()) return;
       setActionMessage(null);
-      setBanner({ type: 'install', prompt: event as BeforeInstallPromptEvent });
+      setBanner((current) =>
+        shouldReplacePwaBanner(current?.type ?? null, 'install')
+          ? { type: 'install', prompt: event as BeforeInstallPromptEvent }
+          : current
+      );
     };
     const onAppInstalled = () => {
       setPwaInstallDismissed(false);
@@ -150,7 +156,7 @@ export const PwaInstallBanner: React.FC = () => {
       return;
     }
     if (banner.type === 'update-ready') {
-      window.location.reload();
+      requestPwaUpdateActivation();
       return;
     }
     setBanner(null);

@@ -4,14 +4,21 @@ import { mediaQueryMatches } from './mediaQuery';
 export const PWA_OFFLINE_READY_EVENT = 'web-katrain:pwa-offline-ready';
 export const PWA_UPDATE_READY_EVENT = 'web-katrain:pwa-update-ready';
 export const PWA_INSTALL_DISMISSED_KEY = 'web-katrain:pwa-install-dismissed:v1';
+export const PWA_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 type PwaStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+type PwaTimerTarget = Pick<Window, 'setInterval' | 'clearInterval'>;
+type PwaReloadTarget = { location?: Pick<Location, 'reload'> };
+type PwaUpdateRegistration = Pick<ServiceWorkerRegistration, 'update' | 'waiting'>;
+export type PwaBannerType = 'install' | 'ios-install' | 'offline-ready' | 'update-ready';
 type InstallPromptChoice = { outcome: 'accepted' | 'dismissed'; platform?: string };
 type InstallPromptLike = {
   prompt: () => Promise<void> | void;
   userChoice?: Promise<InstallPromptChoice>;
 };
 type IosInstallNavigator = Pick<Navigator, 'userAgent' | 'platform' | 'maxTouchPoints'>;
+
+let activePwaRegistration: ServiceWorkerRegistration | null = null;
 
 function getNavigator(target?: Navigator | null): Navigator | null {
   if (target !== undefined) return target;
@@ -58,6 +65,10 @@ export function shouldUseBrowserPwaInstallPrompt(target?: IosInstallNavigator | 
   return !isIosPwaInstallCandidate(target);
 }
 
+export function shouldReplacePwaBanner(currentType: PwaBannerType | null, nextType: PwaBannerType): boolean {
+  return currentType !== 'update-ready' || nextType === 'update-ready';
+}
+
 export function getServiceWorkerContainer(target?: Navigator | null): ServiceWorkerContainer | null {
   const source = getNavigator(target);
   if (!source) return null;
@@ -67,6 +78,43 @@ export function getServiceWorkerContainer(target?: Navigator | null): ServiceWor
     return serviceWorker;
   } catch {
     return null;
+  }
+}
+
+export function schedulePwaUpdateChecks(
+  registration: Pick<ServiceWorkerRegistration, 'update'> | null,
+  intervalMs = PWA_UPDATE_CHECK_INTERVAL_MS,
+  target?: PwaTimerTarget | null
+): (() => void) | null {
+  if (!registration || intervalMs <= 0) return null;
+  const timerTarget = target ?? (typeof window === 'undefined' ? null : window);
+  if (!timerTarget) return null;
+  const id = timerTarget.setInterval(() => {
+    try {
+      void registration.update().catch((err: unknown) => {
+        console.warn('[pwa] service worker update check failed', err);
+      });
+    } catch (err) {
+      console.warn('[pwa] service worker update check failed', err);
+    }
+  }, intervalMs);
+  return () => timerTarget.clearInterval(id);
+}
+
+export function requestPwaUpdateActivation(
+  registration: Pick<PwaUpdateRegistration, 'waiting'> | null = activePwaRegistration,
+  target?: PwaReloadTarget | null
+): void {
+  try {
+    registration?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+  } catch {
+    // Ignore blocked service worker messaging.
+  }
+  try {
+    const reloadTarget = target ?? (typeof window === 'undefined' ? null : window);
+    reloadTarget?.location?.reload();
+  } catch {
+    // Ignore reload failures.
   }
 }
 
@@ -118,6 +166,8 @@ export function registerServiceWorker(): void {
     serviceWorker
       .register(swUrl, { scope: import.meta.env.BASE_URL || '/' })
       .then((registration) => {
+        activePwaRegistration = registration;
+        schedulePwaUpdateChecks(registration);
         registration.addEventListener('updatefound', () => {
           const worker = registration.installing;
           if (!worker) return;

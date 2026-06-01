@@ -7,7 +7,10 @@ import {
   isIosPwaInstallCandidate,
   isStandalonePwa,
   PWA_INSTALL_DISMISSED_KEY,
+  PWA_UPDATE_CHECK_INTERVAL_MS,
+  requestPwaUpdateActivation,
   runPwaInstallPrompt,
+  schedulePwaUpdateChecks,
   setPwaInstallDismissed,
   shouldUseBrowserPwaInstallPrompt,
 } from '../src/utils/pwa';
@@ -153,6 +156,43 @@ describe('PWA helpers', () => {
     expect(hasServiceWorkerController({ controller: null })).toBe(false);
     expect(hasServiceWorkerController(blocked)).toBe(false);
     expect(hasServiceWorkerController(controlled)).toBe(true);
+  });
+
+  it('schedules periodic service worker update checks', () => {
+    const callbacks: Array<() => void> = [];
+    const clearInterval = vi.fn();
+    const timerTarget = {
+      setInterval: vi.fn((callback: () => void, interval: number) => {
+        callbacks.push(callback);
+        expect(interval).toBe(PWA_UPDATE_CHECK_INTERVAL_MS);
+        return 42;
+      }),
+      clearInterval,
+    } as unknown as Pick<Window, 'setInterval' | 'clearInterval'>;
+    const update = vi.fn().mockResolvedValue(undefined);
+
+    const cleanup = schedulePwaUpdateChecks({ update }, PWA_UPDATE_CHECK_INTERVAL_MS, timerTarget);
+
+    expect(cleanup).toEqual(expect.any(Function));
+    expect(timerTarget.setInterval).toHaveBeenCalledTimes(1);
+    callbacks[0]?.();
+    expect(update).toHaveBeenCalledTimes(1);
+
+    cleanup?.();
+    expect(clearInterval).toHaveBeenCalledWith(42);
+  });
+
+  it('requests waiting service workers before reloading for updates', () => {
+    const postMessage = vi.fn();
+    const reload = vi.fn();
+
+    requestPwaUpdateActivation(
+      { waiting: { postMessage } as unknown as ServiceWorker },
+      { location: { reload } }
+    );
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it('resolves PWA install prompts without leaking rejected browser prompts', async () => {
