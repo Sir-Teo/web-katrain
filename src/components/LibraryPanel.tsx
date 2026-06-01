@@ -48,6 +48,8 @@ import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { isMobileLayoutViewport } from '../utils/responsiveLayout';
 import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
+import { getDroppedSgfOrOgsText, hasPotentialGameImportDrag } from '../utils/dragImport';
+import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import {
   getLibraryMenuNavigationIndex,
   getLibraryRowKeyAction,
@@ -1113,6 +1115,31 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleImportFiles = async (files: FileList | null) =>
     handleImportFilesToFolder(files, activeFolderId);
 
+  const handleImportDroppedTextToFolder = async (
+    dataTransfer: DataTransfer,
+    folderId: string | null
+  ): Promise<boolean> => {
+    const droppedText = getDroppedSgfOrOgsText(dataTransfer);
+    if (!droppedText) return false;
+    try {
+      const result = await createLibraryItemFromSgfOrOgsText(
+        droppedText,
+        folderId,
+        `Game ${items.length + 1}`
+      );
+      setItems((prev) => [result.item, ...prev]);
+      onToast(
+        result.source === 'ogs' && result.gameId
+          ? `Imported OGS game ${result.gameId} to Library.`
+          : `Imported "${result.item.name}" to Library.`,
+        'success'
+      );
+    } catch {
+      onToast('Failed to import dropped SGF or OGS URL.', 'error');
+    }
+    return true;
+  };
+
   const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragging(false);
@@ -1120,6 +1147,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       await handleImportFiles(event.dataTransfer.files);
       return;
     }
+    if (await handleImportDroppedTextToFolder(event.dataTransfer, activeFolderId)) return;
     if (draggingId) {
       setItems((prev) =>
         prev.map((item) => (item.id === draggingId ? { ...item, parentId: null, updatedAt: Date.now() } : item))
@@ -1131,7 +1159,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (event.dataTransfer.types.includes('Files')) {
+    if (!draggingId && (event.dataTransfer.types.includes('Files') || hasPotentialGameImportDrag(event.dataTransfer))) {
       setIsDragging(true);
     } else {
       setIsDragging(false);
@@ -1159,6 +1187,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       setDragOverId(null);
       return;
     }
+    if (await handleImportDroppedTextToFolder(event.dataTransfer, folderId)) {
+      setDragOverId(null);
+      return;
+    }
     const id = draggingId || event.dataTransfer.getData('text/plain');
     if (!id || id === folderId) return;
     if (isDescendantOf(folderId, id)) return;
@@ -1177,9 +1209,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleRootDragLeave = () => setDragOverRoot(false);
 
-  const handleRootDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleRootDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     if (event.dataTransfer.types.includes('Files')) return;
     event.preventDefault();
+    if (await handleImportDroppedTextToFolder(event.dataTransfer, null)) {
+      setDragOverRoot(false);
+      return;
+    }
     if (!draggingId) return;
     setItems((prev) =>
       prev.map((item) => (item.id === draggingId ? { ...item, parentId: null, updatedAt: Date.now() } : item))
@@ -1810,7 +1846,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   ))}
                 {isDragging && (
                   <span className="ml-auto ui-accent-soft border rounded px-2 py-0.5">
-                    Drop SGF, ZIP, or board images to import
+                    Drop SGF, OGS URL, ZIP, or board images to import
                   </span>
                 )}
               </div>
