@@ -146,6 +146,47 @@ function getEmptyTriangleInsight(move: Move, board: BoardState, boardSize: numbe
   return null;
 }
 
+function getCutOrDiagonalInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
+  const opponent = getOpponent(move.player);
+  const directions = [
+    { x: 1, y: 1 },
+    { x: 1, y: -1 },
+    { x: -1, y: 1 },
+    { x: -1, y: -1 },
+  ];
+
+  for (const direction of directions) {
+    const diagonal = { x: move.x + direction.x, y: move.y + direction.y };
+    const sideA = { x: move.x + direction.x, y: move.y };
+    const sideB = { x: move.x, y: move.y + direction.y };
+    const points = [diagonal, sideA, sideB];
+    if (points.some((point) => point.x < 0 || point.y < 0 || point.x >= boardSize || point.y >= boardSize)) continue;
+    if (board[diagonal.y]?.[diagonal.x] !== move.player) continue;
+
+    const sideAStone = board[sideA.y]?.[sideA.x];
+    const sideBStone = board[sideB.y]?.[sideB.x];
+    if (sideAStone === opponent && sideBStone === opponent) {
+      return {
+        label: 'Cut',
+        detail: 'Separates opposing stones by occupying the cutting shape between them.',
+        tone: 'tactical',
+        learnMoreUrl: 'https://senseis.xmp.net/?Cut',
+      };
+    }
+
+    if (sideAStone === null && sideBStone === null) {
+      return {
+        label: 'Diagonal (kosumi)',
+        detail: 'Makes a light diagonal connection with flexible follow-ups.',
+        tone: 'tactical',
+        learnMoreUrl: 'https://senseis.xmp.net/?Kosumi',
+      };
+    }
+  }
+
+  return null;
+}
+
 function getBambooJointInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
   const shapes: RelativeShape[] = [
     {
@@ -323,6 +364,9 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
   const tigersMouthInsight = getTigersMouthInsight(move, nextBoard, boardSize);
   if (tigersMouthInsight) return tigersMouthInsight;
 
+  const cutOrDiagonalInsight = getCutOrDiagonalInsight(move, nextBoard, boardSize);
+  if (cutOrDiagonalInsight) return cutOrDiagonalInsight;
+
   if (friendlyGroups.size >= 2) {
     return {
       label: 'Connect',
@@ -477,6 +521,22 @@ export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
       beginner: "A tiger's mouth protects a cutting point while keeping the stones flexible.",
       pro: 'Check peeps, shortage of liberties, and whether the mouth points at the important side of the fight.',
       checks: ['Peep', 'Liberties', 'Direction'],
+    };
+  }
+
+  if (insight.label === 'Cut') {
+    return {
+      beginner: 'A cut tries to split opposing stones so they must live or connect separately.',
+      pro: 'Read ladders, nets, counter-cuts, and whether the cutting stones have enough liberties.',
+      checks: ['Ladder', 'Net', 'Liberties'],
+    };
+  }
+
+  if (insight.label === 'Diagonal (kosumi)') {
+    return {
+      beginner: 'A diagonal move connects lightly while leaving room to shape around pressure.',
+      pro: 'Check whether the diagonal is strong enough, or whether a solid connection, tiger mouth, or jump is more efficient.',
+      checks: ['Cut point', 'Shape', 'Efficiency'],
     };
   }
 

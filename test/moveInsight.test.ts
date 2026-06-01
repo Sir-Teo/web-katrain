@@ -126,6 +126,26 @@ describe('move insights', () => {
       learnMoreUrl: 'https://senseis.xmp.net/?TigersMouth',
     });
 
+    const cutBoard = emptyBoard(9);
+    cutBoard[3]![4] = 'white';
+    cutBoard[4]![3] = 'white';
+    cutBoard[4]![4] = 'black';
+
+    expect(getMoveInsight(blackMove(3, 3), 9, cutBoard)).toMatchObject({
+      label: 'Cut',
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?Cut',
+    });
+
+    const diagonalBoard = emptyBoard(9);
+    diagonalBoard[4]![4] = 'black';
+
+    expect(getMoveInsight(blackMove(3, 3), 9, diagonalBoard)).toMatchObject({
+      label: 'Diagonal (kosumi)',
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?Kosumi',
+    });
+
     const connectBoard = emptyBoard(9);
     connectBoard[1]![0] = 'white';
     connectBoard[1]![2] = 'white';
@@ -200,6 +220,14 @@ describe('move insights', () => {
     expect(getMoveInsightCoach({ label: "Tiger's mouth", detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('cutting point'),
       checks: expect.arrayContaining(['Peep']),
+    });
+    expect(getMoveInsightCoach({ label: 'Cut', detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('split'),
+      checks: expect.arrayContaining(['Ladder']),
+    });
+    expect(getMoveInsightCoach({ label: 'Diagonal (kosumi)', detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('connects lightly'),
+      checks: expect.arrayContaining(['Efficiency']),
     });
     expect(getMoveInsightCoach({ label: 'Connect', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('harder to cut'),
