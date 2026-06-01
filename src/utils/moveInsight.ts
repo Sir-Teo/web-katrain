@@ -245,6 +245,45 @@ function getWedgeInsight(move: Move, board: BoardState, boardSize: number): Move
   return null;
 }
 
+function getShoulderHitInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
+  const opponent = getOpponent(move.player);
+  const directions = [
+    { x: 1, y: 1 },
+    { x: 1, y: -1 },
+    { x: -1, y: 1 },
+    { x: -1, y: -1 },
+  ];
+
+  for (const direction of directions) {
+    const shoulderStone = { x: move.x + direction.x, y: move.y + direction.y };
+    const surroundingPoints: Point[] = [];
+
+    for (let xOffset = -1; xOffset <= 1; xOffset += 1) {
+      for (let yOffset = -1; yOffset <= 1; yOffset += 1) {
+        if (xOffset === 0 && yOffset === 0) continue;
+        if (xOffset === direction.x && yOffset === direction.y) continue;
+        surroundingPoints.push({ x: move.x + xOffset, y: move.y + yOffset });
+      }
+    }
+
+    const points = [shoulderStone, ...surroundingPoints];
+    if (points.some((point) => point.x < 0 || point.y < 0 || point.x >= boardSize || point.y >= boardSize)) continue;
+    if (
+      board[shoulderStone.y]?.[shoulderStone.x] === opponent &&
+      surroundingPoints.every((point) => board[point.y]?.[point.x] === null)
+    ) {
+      return {
+        label: 'Shoulder hit',
+        detail: 'Leans diagonally against an opposing stone to reduce its area while staying light.',
+        tone: 'tactical',
+        learnMoreUrl: 'https://senseis.xmp.net/?ShoulderHit',
+      };
+    }
+  }
+
+  return null;
+}
+
 function getBambooJointInsight(move: Move, board: BoardState, boardSize: number): MoveInsight | null {
   const shapes: RelativeShape[] = [
     {
@@ -415,6 +454,9 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
 
   const wedgeInsight = getWedgeInsight(move, nextBoard, boardSize);
   if (wedgeInsight) return wedgeInsight;
+
+  const shoulderHitInsight = getShoulderHitInsight(move, nextBoard, boardSize);
+  if (shoulderHitInsight) return shoulderHitInsight;
 
   const emptyTriangleInsight = getEmptyTriangleInsight(move, nextBoard, boardSize);
   if (emptyTriangleInsight) return emptyTriangleInsight;
@@ -606,6 +648,14 @@ export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
       beginner: 'A wedge pushes between opposing stones, often aiming to split them.',
       pro: 'Check whether both sides can be handled, or whether the wedge becomes a weak cutting stone.',
       checks: ['Both sides', 'Counter-cut', 'Liberties'],
+    };
+  }
+
+  if (insight.label === 'Shoulder hit') {
+    return {
+      beginner: 'A shoulder hit leans on an opposing stone to reduce its area while building outside influence.',
+      pro: 'Check direction, follow-up cuts, and whether the opponent can profit by pushing through.',
+      checks: ['Direction', 'Follow-up', 'Cuts'],
     };
   }
 

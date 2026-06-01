@@ -157,6 +157,15 @@ describe('move insights', () => {
       learnMoreUrl: 'https://senseis.xmp.net/?Wedge',
     });
 
+    const shoulderHitBoard = emptyBoard(9);
+    shoulderHitBoard[4]![4] = 'white';
+
+    expect(getMoveInsight(blackMove(3, 3), 9, shoulderHitBoard)).toMatchObject({
+      label: 'Shoulder hit',
+      tone: 'tactical',
+      learnMoreUrl: 'https://senseis.xmp.net/?ShoulderHit',
+    });
+
     const diagonalBoard = emptyBoard(9);
     diagonalBoard[4]![4] = 'black';
 
@@ -252,6 +261,10 @@ describe('move insights', () => {
     expect(getMoveInsightCoach({ label: 'Wedge', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('pushes between'),
       checks: expect.arrayContaining(['Counter-cut']),
+    });
+    expect(getMoveInsightCoach({ label: 'Shoulder hit', detail: '', tone: 'tactical' })).toMatchObject({
+      beginner: expect.stringContaining('leans on'),
+      checks: expect.arrayContaining(['Direction']),
     });
     expect(getMoveInsightCoach({ label: 'Diagonal (kosumi)', detail: '', tone: 'tactical' })).toMatchObject({
       beginner: expect.stringContaining('connects lightly'),
