@@ -260,7 +260,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
             <div
-                className="w-full max-w-[960px] h-[92dvh] sm:h-auto sm:max-h-[92dvh] ui-panel rounded-2xl shadow-2xl border overflow-hidden flex flex-col"
+                className="settings-modal w-full max-w-[960px] h-[92dvh] sm:h-auto sm:max-h-[92dvh] ui-panel rounded-2xl shadow-2xl border overflow-hidden flex flex-col"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="settings-title"
@@ -278,7 +278,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 </div>
                 <div className="px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">  
                     {/* Tab Navigation */}  
-                    <div className="flex w-full min-w-0 border-b border-slate-700 mb-5"
+                    <div className="settings-tabs flex w-full min-w-0 border-b mb-5"
                         role="tablist"
                         aria-orientation="horizontal"
                     >
@@ -303,10 +303,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             setActiveTab(prev.id);
                                         }
                                     }}
-                                    className={`min-w-0 flex-1 whitespace-nowrap px-2 py-2 text-sm font-medium transition-colors sm:px-4 ${
+                                    className={`settings-tab min-w-0 flex-1 whitespace-nowrap px-2 py-2 text-sm font-medium transition-colors sm:px-4 ${
                                         isActive
-                                            ? 'text-white border-b-2 border-blue-500'
-                                            : 'text-slate-400 hover:text-white'
+                                            ? 'settings-tab-active border-b-2'
+                                            : ''
                                     }`}
                                 >
                                     {tab.label}

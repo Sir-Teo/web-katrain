@@ -282,6 +282,11 @@
   .font-mono {
     font-family: var(--ui-font-mono);
   }
+
+  .settings-modal label.text-slate-300,
+  .settings-modal label.text-slate-400 {
+    color: var(--ui-text-muted);
+  }
 }
 
 @layer components {
@@ -313,6 +318,24 @@
   .ui-panel {
     background: var(--ui-panel);
     border-color: var(--ui-border);
+  }
+
+  .settings-modal .settings-tabs {
+    border-color: var(--ui-border);
+  }
+
+  .settings-modal .settings-tab {
+    color: var(--ui-text-muted);
+    border-color: transparent;
+  }
+
+  .settings-modal .settings-tab:hover {
+    color: var(--ui-text);
+  }
+
+  .settings-modal .settings-tab-active {
+    color: var(--ui-text);
+    border-color: var(--ui-accent);
   }
 
   .ui-panel-pad {
