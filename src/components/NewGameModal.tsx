@@ -149,8 +149,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Your name ({humanColor === 'black' ? 'Black' : 'White'})</label>
+                    <label htmlFor="new-game-human-name" className="text-[var(--ui-text-muted)] text-sm">Your name ({humanColor === 'black' ? 'Black' : 'White'})</label>
                     <input
+                      id="new-game-human-name"
                       value={humanColor === 'black' ? gameInfo.blackName : gameInfo.whiteName}
                       onChange={(e) =>
                         setGameInfo((prev) => ({
@@ -163,8 +164,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">AI name ({aiColor === 'black' ? 'Black' : 'White'})</label>
+                    <label htmlFor="new-game-ai-name" className="text-[var(--ui-text-muted)] text-sm">AI name ({aiColor === 'black' ? 'Black' : 'White'})</label>
                     <input
+                      id="new-game-ai-name"
                       value={aiColor === 'black' ? gameInfo.blackName : gameInfo.whiteName}
                       onChange={(e) =>
                         setGameInfo((prev) => ({
@@ -177,8 +179,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     />
                   </div>
                   <div className="space-y-1 col-span-2">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Your rank (optional)</label>
+                    <label htmlFor="new-game-human-rank" className="text-[var(--ui-text-muted)] text-sm">Your rank (optional)</label>
                     <input
+                      id="new-game-human-rank"
                       value={humanColor === 'black' ? gameInfo.blackRank : gameInfo.whiteRank}
                       onChange={(e) =>
                         setGameInfo((prev) => ({
@@ -195,8 +198,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">Black</label>
+                  <label htmlFor="new-game-black-name" className="text-[var(--ui-text-muted)] text-sm">Black</label>
                   <input
+                    id="new-game-black-name"
                     value={gameInfo.blackName}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, blackName: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -204,8 +208,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">White</label>
+                  <label htmlFor="new-game-white-name" className="text-[var(--ui-text-muted)] text-sm">White</label>
                   <input
+                    id="new-game-white-name"
                     value={gameInfo.whiteName}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, whiteName: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -213,8 +218,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">Black Rank</label>
+                  <label htmlFor="new-game-black-rank" className="text-[var(--ui-text-muted)] text-sm">Black Rank</label>
                   <input
+                    id="new-game-black-rank"
                     value={gameInfo.blackRank}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, blackRank: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -222,8 +228,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">White Rank</label>
+                  <label htmlFor="new-game-white-rank" className="text-[var(--ui-text-muted)] text-sm">White Rank</label>
                   <input
+                    id="new-game-white-rank"
                     value={gameInfo.whiteRank}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, whiteRank: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -238,8 +245,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               </summary>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">Event</label>
+                  <label htmlFor="new-game-event" className="text-[var(--ui-text-muted)] text-sm">Event</label>
                   <input
+                    id="new-game-event"
                     value={gameInfo.event}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, event: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -247,8 +255,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">Date</label>
+                  <label htmlFor="new-game-date" className="text-[var(--ui-text-muted)] text-sm">Date</label>
                   <input
+                    id="new-game-date"
                     value={gameInfo.date}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, date: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -256,8 +265,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">Place</label>
+                  <label htmlFor="new-game-place" className="text-[var(--ui-text-muted)] text-sm">Place</label>
                   <input
+                    id="new-game-place"
                     value={gameInfo.place}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, place: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -265,8 +275,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">Game Name</label>
+                  <label htmlFor="new-game-name" className="text-[var(--ui-text-muted)] text-sm">Game Name</label>
                   <input
+                    id="new-game-name"
                     value={gameInfo.gameName}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, gameName: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -278,8 +289,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[var(--ui-text-muted)] text-sm">Board Size</label>
+              <label htmlFor="new-game-board-size" className="text-[var(--ui-text-muted)] text-sm">Board Size</label>
               <select
+                id="new-game-board-size"
                 value={boardSize}
                 onChange={(e) => setBoardSize(Number(e.target.value) as BoardSize)}
                 className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -290,8 +302,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[var(--ui-text-muted)] text-sm">Rules</label>
+              <label htmlFor="new-game-rules" className="text-[var(--ui-text-muted)] text-sm">Rules</label>
               <select
+                id="new-game-rules"
                 value={rules}
                 onChange={(e) => setRules(e.target.value as GameRules)}
                 className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -304,8 +317,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[var(--ui-text-muted)] text-sm">Komi</label>
+              <label htmlFor="new-game-komi" className="text-[var(--ui-text-muted)] text-sm">Komi</label>
               <input
+                id="new-game-komi"
                 type="number"
                 step="0.5"
                 value={komi}
@@ -314,8 +328,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[var(--ui-text-muted)] text-sm">Handicap Stones</label>
+              <label htmlFor="new-game-handicap" className="text-[var(--ui-text-muted)] text-sm">Handicap Stones</label>
               <input
+                id="new-game-handicap"
                 type="number"
                 min={0}
                 max={maxHandicap}
@@ -333,8 +348,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
           <div className="space-y-3">
             <div className="text-xs uppercase tracking-wide ui-text-faint">Clock</div>
             <div className="space-y-1">
-              <label className="text-[var(--ui-text-muted)] text-sm">Time system</label>
+              <label htmlFor="new-game-time-system" className="text-[var(--ui-text-muted)] text-sm">Time system</label>
               <select
+                id="new-game-time-system"
                 value={timerConfig.mode}
                 onChange={(e) => {
                   const mode = e.target.value as TimerConfigValues['mode'];
@@ -359,8 +375,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Main time (min)</label>
+                    <label htmlFor="new-game-main-time" className="text-[var(--ui-text-muted)] text-sm">Main time (min)</label>
                     <input
+                      id="new-game-main-time"
                       type="number"
                       min={0}
                       step={1}
@@ -374,8 +391,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Byo-yomi (sec)</label>
+                    <label htmlFor="new-game-byo-yomi" className="text-[var(--ui-text-muted)] text-sm">Byo-yomi (sec)</label>
                     <input
+                      id="new-game-byo-yomi"
                       type="number"
                       min={1}
                       step={1}
@@ -389,8 +407,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Periods</label>
+                    <label htmlFor="new-game-byo-periods" className="text-[var(--ui-text-muted)] text-sm">Periods</label>
                     <input
+                      id="new-game-byo-periods"
                       type="number"
                       min={1}
                       step={1}
@@ -414,8 +433,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
             <div className="text-xs uppercase tracking-wide ui-text-faint">Opponent</div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1 col-span-2">
-                <label className="text-[var(--ui-text-muted)] text-sm">Play against</label>
+                <label htmlFor="new-game-opponent" className="text-[var(--ui-text-muted)] text-sm">Play against</label>
                 <select
+                  id="new-game-opponent"
                   value={aiConfig.opponent}
                   onChange={(e) => updateAiConfig({ opponent: e.target.value as AiOpponent })}
                   className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -432,8 +452,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   You play as {humanColor === 'black' ? 'Black' : 'White'}.
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[var(--ui-text-muted)] text-sm">Strategy</label>
+                  <label htmlFor="new-game-ai-strategy" className="text-[var(--ui-text-muted)] text-sm">Strategy</label>
                   <select
+                    id="new-game-ai-strategy"
                     value={aiConfig.aiStrategy}
                     onChange={(e) => updateAiConfig({ aiStrategy: e.target.value as GameSettings['aiStrategy'] })}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
@@ -455,8 +476,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 </div>
                 {aiConfig.aiStrategy === 'rank' && (
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Strength (rank target)</label>
+                    <label htmlFor="new-game-ai-rank-target" className="text-[var(--ui-text-muted)] text-sm">Strength (rank target)</label>
                     <input
+                      id="new-game-ai-rank-target"
                       type="number"
                       step={0.5}
                       value={aiConfig.aiRankKyu}
@@ -468,8 +490,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 )}
                 {aiConfig.aiStrategy === 'scoreloss' && (
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Strength (c)</label>
+                    <label htmlFor="new-game-ai-scoreloss-strength" className="text-[var(--ui-text-muted)] text-sm">Strength (c)</label>
                     <input
+                      id="new-game-ai-scoreloss-strength"
                       type="number"
                       min={0}
                       step={0.05}
@@ -482,8 +505,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 )}
                 {aiConfig.aiStrategy === 'jigo' && (
                   <div className="space-y-1">
-                    <label className="text-[var(--ui-text-muted)] text-sm">Target Score</label>
+                    <label htmlFor="new-game-ai-target-score" className="text-[var(--ui-text-muted)] text-sm">Target Score</label>
                     <input
+                      id="new-game-ai-target-score"
                       type="number"
                       step={0.1}
                       value={aiConfig.aiJigoTargetScore}
