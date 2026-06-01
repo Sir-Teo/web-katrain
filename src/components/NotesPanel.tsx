@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FaEdit, FaSave, FaTimes } from 'react-icons/fa';
+import { FaEdit, FaSave, FaStickyNote, FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { CandidateMove, FloatArray, Move, Player } from '../types';
@@ -9,6 +9,7 @@ import { getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
+import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 
 const NOTE_SHORTCUT_IDS = ['edit-note'] as const;
 
@@ -247,6 +248,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const parentBoard = currentNode.parent?.gameState.board ?? null;
   const moveInsight = useMemo(() => getMoveInsight(move, boardSize, parentBoard), [boardSize, move, parentBoard]);
   const moveInsightCoach = useMemo(() => (moveInsight ? getMoveInsightCoach(moveInsight) : null), [moveInsight]);
+  const shapeCoachNoteBlock = useMemo(
+    () => (moveInsight && moveInsightCoach ? formatShapeCoachNoteBlock(moveInsight, moveInsightCoach) : ''),
+    [moveInsight, moveInsightCoach]
+  );
   const parent = currentNode.parent;
   const parentPolicy = parent?.analysis?.policy;
   const depth = currentNode.gameState.moveHistory.length;
@@ -366,6 +371,21 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     setIsEditingNote(false);
   };
 
+  const shapeCoachNoteSource = isEditingNote ? noteDraft : currentNote;
+  const hasShapeCoachNoteBlock = Boolean(shapeCoachNoteBlock && shapeCoachNoteSource.includes(shapeCoachNoteBlock));
+
+  const addShapeCoachToNote = () => {
+    if (!shapeCoachNoteBlock || hasShapeCoachNoteBlock) return;
+    if (isEditingNote) {
+      setNoteDraft((draft) => appendShapeCoachNoteBlock(draft, shapeCoachNoteBlock));
+      requestNoteEditorFocus();
+      return;
+    }
+
+    setCurrentNodeNote(appendShapeCoachNoteBlock(currentNote, shapeCoachNoteBlock));
+    setIsEditingNote(false);
+  };
+
   const cancelNoteEdit = () => {
     setNoteDraft(currentNote);
     setIsEditingNote(false);
@@ -479,17 +499,30 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               </span>
             ))}
           </div>
-          {detailed && moveInsight.learnMoreUrl ? (
-            <a
-              href={moveInsight.learnMoreUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--ui-accent)] hover:bg-[var(--ui-surface-2)]"
-              aria-label={`Learn more about ${moveInsight.label}`}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              className="panel-action-button"
+              onClick={addShapeCoachToNote}
+              disabled={hasShapeCoachNoteBlock}
+              title={hasShapeCoachNoteBlock ? 'Shape Coach is already in this note' : 'Add Shape Coach to note'}
+              aria-label={hasShapeCoachNoteBlock ? `${moveInsight.label} Shape Coach is already in this note` : `Add ${moveInsight.label} Shape Coach to note`}
             >
-              Learn more
-            </a>
-          ) : null}
+              <FaStickyNote size={11} aria-hidden="true" />
+              <span>{hasShapeCoachNoteBlock ? 'In note' : 'Add to note'}</span>
+            </button>
+            {detailed && moveInsight.learnMoreUrl ? (
+              <a
+                href={moveInsight.learnMoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--ui-accent)] hover:bg-[var(--ui-surface-2)]"
+                aria-label={`Learn more about ${moveInsight.label}`}
+              >
+                Learn more
+              </a>
+            ) : null}
+          </div>
         </div>
       )}
 
