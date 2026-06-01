@@ -103,4 +103,18 @@ describe('light theme shell tokens', () => {
       expect(interactiveReport, token).not.toContain(token);
     }
   });
+
+  it('keeps the interactive game report PV tree on theme tokens', () => {
+    const report = readFileSync('src/components/GameReportModal.tsx', 'utf8');
+    const start = report.indexOf('const renderPvTree');
+    const end = report.indexOf('const refreshSnapshot', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const pvTree = report.slice(start, end);
+
+    expect(pvTree).not.toContain('text-slate-500');
+    expect(pvTree).not.toContain('text-slate-700');
+    expect(pvTree).toContain('${mutedClass} pdf-tree-node');
+    expect(pvTree).toContain('${faintClass}');
+  });
 });

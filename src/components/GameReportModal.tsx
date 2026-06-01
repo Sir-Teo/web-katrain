@@ -735,18 +735,18 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         ? [entry.topMove, ...pv]
         : pv;
     if (line.length === 0) {
-      return <div className="text-xs text-slate-500">PV unavailable.</div>;
+      return <div className={`text-xs ${faintClass}`}>PV unavailable.</div>;
     }
     const max = 24;
     const nodes = line.slice(0, max);
     return (
       <div className="space-y-1 pdf-tree-line">
         {nodes.map((move, idx) => (
-          <div key={`${move}-${idx}`} className="text-xs font-mono text-slate-700 pdf-tree-node">
+          <div key={`${move}-${idx}`} className={`text-xs font-mono ${mutedClass} pdf-tree-node`}>
             {idx + 1}. {move}
           </div>
         ))}
-        {line.length > max && <div className="text-[10px] text-slate-500">... {line.length - max} more</div>}
+        {line.length > max && <div className={`text-[10px] ${faintClass}`}>... {line.length - max} more</div>}
       </div>
     );
   };
