@@ -7,6 +7,7 @@ import {
   shortcutDisplay,
 } from '../utils/shortcuts';
 import { normalizeCommandQuery, scoreCommandMatch } from '../utils/commandPalette';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 export type CommandPaletteCommand = {
   id: string;
@@ -23,6 +24,7 @@ interface CommandPaletteModalProps {
 }
 
 export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ commands, onClose }) => {
+  useEscapeToClose(onClose);
   const [query, setQuery] = React.useState('');
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
@@ -90,11 +92,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         aria-modal="true"
         aria-labelledby="command-palette-title"
         onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            onClose();
-            return;
-          }
           if (event.key === 'ArrowDown') {
             event.preventDefault();
             setActiveIndex((index) => Math.min(Math.max(0, filteredCommands.length - 1), index + 1));

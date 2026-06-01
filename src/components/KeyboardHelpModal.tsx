@@ -8,6 +8,7 @@ import {
   SHORTCUTS_UPDATED_EVENT,
   shortcutDisplay,
 } from '../utils/shortcuts';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 interface KeyboardHelpModalProps {
   onClose: () => void;
@@ -28,6 +29,7 @@ const POINTER_HELP = [
 ] as const;
 
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings }) => {
+  useEscapeToClose(onClose);
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [query, setQuery] = React.useState('');
 
@@ -54,12 +56,6 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
         role="dialog"
         aria-modal="true"
         aria-labelledby="keyboard-help-title"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.stopPropagation();
-            onClose();
-          }
-        }}
       >
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
           <div className="min-w-0">
