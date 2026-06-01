@@ -19,6 +19,10 @@ import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getWorkerConstructor } from '../utils/browserWorker';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { cancelAnimationFrameSafe, requestAnimationFrameSafe, type AnimationFrameHandle } from '../utils/animationFrame';
+import {
+  getMoveTreeNodeMarkers,
+  MOVE_TREE_NODE_MARKER_LABELS,
+} from '../utils/moveTreeNodeMarkers';
 
 type LayoutWorkerResponse =
   | { requestId: number; ok: true; layout: MoveTreeLayout }
@@ -43,13 +47,14 @@ function indexNodes(root: GameNode): Map<string, GameNode> {
 }
 
 export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = ({ onSelectNode }) => {
-  const { rootNode, currentNode, jumpToNode, treeVersion, isInsertMode } = useGameStore(
+  const { rootNode, currentNode, jumpToNode, treeVersion, isInsertMode, mistakeThreshold } = useGameStore(
     (state) => ({
       rootNode: state.rootNode,
       currentNode: state.currentNode,
       jumpToNode: state.jumpToNode,
       treeVersion: state.treeVersion,
       isInsertMode: state.isInsertMode,
+      mistakeThreshold: state.settings.mistakeThreshold,
     }),
     shallow
   );
@@ -281,6 +286,12 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           const isBlack = layoutNode.player === 'black';
           const fill = isRoot ? 'none' : isBlack ? '#0B0B0B' : '#F9FAFB';
           const stroke = isRoot ? '#9CA3AF' : isBlack ? '#F9FAFB' : '#0B0B0B';
+          const markers = getMoveTreeNodeMarkers(node, mistakeThreshold);
+          const markerRadius = Math.max(2, Math.min(3.25, layout.radius * 0.22));
+          const markerGap = markerRadius * 2.35;
+          const markerY = layoutNode.y + layout.radius * 0.62;
+          const markerStartX = layoutNode.x - ((markers.length - 1) * markerGap) / 2;
+          const markerTitle = markers.map((marker) => MOVE_TREE_NODE_MARKER_LABELS[marker]).join(', ');
 
           return (
             <g key={layoutNode.id} style={{ cursor: isRoot || isInsertMode ? 'default' : 'pointer' }}>
@@ -305,8 +316,19 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
                   }
                 }}
               >
-                <title>{layoutNode.label}</title>
+                <title>{markerTitle ? `${layoutNode.label} - ${markerTitle}` : layoutNode.label}</title>
               </circle>
+              {markers.map((marker, index) => (
+                <circle
+                  key={marker}
+                  cx={markerStartX + index * markerGap}
+                  cy={markerY}
+                  r={markerRadius}
+                  className={['move-tree-node-marker', marker].join(' ')}
+                >
+                  <title>{MOVE_TREE_NODE_MARKER_LABELS[marker]}</title>
+                </circle>
+              ))}
             </g>
           );
         })}

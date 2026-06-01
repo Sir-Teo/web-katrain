@@ -1313,6 +1313,24 @@
     border-color: var(--ui-accent);
   }
 
+  .move-tree-node-marker {
+    pointer-events: none;
+    stroke: var(--ui-panel);
+    stroke-width: 1.25;
+  }
+
+  .move-tree-node-marker.note {
+    fill: var(--ui-warning);
+  }
+
+  .move-tree-node-marker.analysis {
+    fill: var(--ui-accent);
+  }
+
+  .move-tree-node-marker.mistake {
+    fill: var(--ui-danger);
+  }
+
   .move-tree-minimap {
     position: sticky;
     right: 0.5rem;
