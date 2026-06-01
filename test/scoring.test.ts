@@ -3,6 +3,7 @@ import type { BoardState } from '../src/types';
 import {
   calculateTerritoryScore,
   computeManualScoreEstimate,
+  estimateDeadStonesByPlayout,
   estimateDeadStonesFromOwnership,
   getConnectedStoneChain,
   scoringPointKey,
@@ -140,5 +141,50 @@ describe('ownership dead-stone estimation', () => {
     ];
 
     expect(estimateDeadStonesFromOwnership(board, ownership)).toEqual(new Set());
+  });
+});
+
+describe('playout dead-stone estimation', () => {
+  it('captures original stones that repeatedly die in local playouts', () => {
+    const board = boardFromRows([
+      '.....',
+      '.BBBB',
+      '.BWW.',
+      '.BBBB',
+      '.....',
+    ]);
+
+    const estimated = estimateDeadStonesByPlayout(board, {
+      currentPlayer: 'black',
+      iterations: 8,
+      seed: 123,
+      threshold: 0.5,
+    });
+
+    expect(estimated).toEqual(new Set(['2,2', '3,2']));
+  });
+
+  it('does not count transient captures as dead if the point returns to the original color', () => {
+    const board = boardFromRows([
+      '.....',
+      '.BBBB',
+      '.BWW.',
+      '.BBBB',
+      '.....',
+    ]);
+
+    const estimated = estimateDeadStonesByPlayout(board, {
+      currentPlayer: 'black',
+      iterations: 8,
+      maxMoves: 4,
+      seed: 123,
+      threshold: 0.5,
+    });
+
+    expect(estimated).toEqual(new Set(['2,2', '3,2']));
+  });
+
+  it('does not invent dead stones on an empty board', () => {
+    expect(estimateDeadStonesByPlayout(boardFromRows(['...', '...', '...']))).toEqual(new Set());
   });
 });

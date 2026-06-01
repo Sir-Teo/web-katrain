@@ -1,4 +1,5 @@
 import type { BoardState, Player } from '../types';
+import { applyCapturesInPlace, getLegalMoves, isEye } from './gameLogic';
 import { formatResultScoreLead } from './manualScore';
 
 export type ScoringOwner = -1 | 0 | 1;
@@ -20,6 +21,14 @@ export interface ManualScoreEstimate extends TerritoryScore {
 }
 
 type Point = { x: number; y: number };
+
+export interface PlayoutDeadStoneEstimateOptions {
+  currentPlayer?: Player;
+  iterations?: number;
+  maxMoves?: number;
+  seed?: number;
+  threshold?: number;
+}
 
 export function scoringPointKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -124,6 +133,126 @@ export function estimateDeadStonesFromOwnership(
     }
   }
 
+  return deadStones;
+}
+
+function cloneBoard(board: BoardState): BoardState {
+  return board.map((row) => [...row]);
+}
+
+function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function boardShapeSeed(board: BoardState): number {
+  let seed = 0x9e3779b9 ^ board.length;
+  for (let y = 0; y < board.length; y++) {
+    for (let x = 0; x < (board[y]?.length ?? 0); x++) {
+      const stone = board[y]?.[x] ?? null;
+      if (!stone) continue;
+      const value = stone === 'black' ? 0x45d9f3b : 0x119de1f3;
+      seed = Math.imul(seed ^ value ^ ((x + 1) * 73856093) ^ ((y + 1) * 19349663), 2654435761);
+    }
+  }
+  return seed >>> 0;
+}
+
+function collectOriginalStoneKeys(board: BoardState): Map<string, Player> {
+  const stones = new Map<string, Player>();
+  for (let y = 0; y < board.length; y++) {
+    for (let x = 0; x < (board[y]?.length ?? 0); x++) {
+      const stone = board[y]?.[x] ?? null;
+      if (stone) stones.set(scoringPointKey(x, y), stone);
+    }
+  }
+  return stones;
+}
+
+function choosePlayoutMove(
+  board: BoardState,
+  player: Player,
+  previousBoard: BoardState | undefined,
+  random: () => number
+): Point | null {
+  const moves = getLegalMoves(board, player, previousBoard)
+    .filter((move) => !isEye(board, move.x, move.y, player));
+  if (moves.length === 0) return null;
+
+  const captures: Point[] = [];
+  for (const move of moves) {
+    const tentative = cloneBoard(board);
+    tentative[move.y]![move.x] = player;
+    if (applyCapturesInPlace(tentative, move.x, move.y, player).length > 0) {
+      captures.push(move);
+    }
+  }
+
+  const pool = captures.length > 0 ? captures : moves;
+  return pool[Math.floor(random() * pool.length)] ?? null;
+}
+
+export function estimateDeadStonesByPlayout(
+  board: BoardState,
+  options: PlayoutDeadStoneEstimateOptions = {}
+): Set<string> {
+  const originalStones = collectOriginalStoneKeys(board);
+  if (originalStones.size === 0) return new Set();
+
+  const boardArea = board.reduce((sum, row) => sum + row.length, 0);
+  const iterations = Math.max(1, Math.min(96, Math.floor(options.iterations ?? (board.length <= 9 ? 48 : board.length <= 13 ? 32 : 20))));
+  const defaultMaxMoves = board.length <= 9 ? 4 : board.length <= 13 ? 6 : 8;
+  const maxMoves = Math.max(1, Math.min(boardArea, Math.floor(options.maxMoves ?? defaultMaxMoves)));
+  const threshold = Math.max(0.05, Math.min(0.95, options.threshold ?? 0.55));
+  const random = createSeededRandom(options.seed ?? boardShapeSeed(board));
+  const capturedCounts = new Map<string, number>();
+
+  for (let i = 0; i < iterations; i++) {
+    const playoutBoard = cloneBoard(board);
+    const capturedOriginals = new Set<string>();
+    let player = options.currentPlayer ?? (i % 2 === 0 ? 'black' : 'white');
+    let previousBoard: BoardState | undefined;
+    let consecutivePasses = 0;
+
+    for (let moveIndex = 0; moveIndex < maxMoves && consecutivePasses < 2; moveIndex++) {
+      const move = choosePlayoutMove(playoutBoard, player, previousBoard, random);
+      if (!move) {
+        consecutivePasses++;
+        player = opponent(player);
+        previousBoard = undefined;
+        continue;
+      }
+
+      const beforeMove = cloneBoard(playoutBoard);
+      playoutBoard[move.y]![move.x] = player;
+      const captured = applyCapturesInPlace(playoutBoard, move.x, move.y, player);
+      for (const point of captured) {
+        const key = scoringPointKey(point.x, point.y);
+        if (originalStones.has(key)) capturedOriginals.add(key);
+      }
+
+      consecutivePasses = 0;
+      previousBoard = beforeMove;
+      player = opponent(player);
+    }
+
+    for (const key of capturedOriginals) {
+      const [xRaw, yRaw] = key.split(',');
+      const x = Number.parseInt(xRaw ?? '', 10);
+      const y = Number.parseInt(yRaw ?? '', 10);
+      const originalStone = originalStones.get(key);
+      if (!originalStone || playoutBoard[y]?.[x] === originalStone) continue;
+      capturedCounts.set(key, (capturedCounts.get(key) ?? 0) + 1);
+    }
+  }
+
+  const deadStones = new Set<string>();
+  for (const [key] of originalStones) {
+    if ((capturedCounts.get(key) ?? 0) / iterations >= threshold) deadStones.add(key);
+  }
   return deadStones;
 }
 

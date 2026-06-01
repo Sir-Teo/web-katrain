@@ -19,6 +19,7 @@ interface ManualScorePanelProps {
   onAutoEstimate?: () => void;
   onUseManualScore?: () => void;
   canAutoEstimate?: boolean;
+  estimateSource?: 'ownership' | 'playout' | null;
   onClear: () => void;
   onDone: () => void;
 }
@@ -42,6 +43,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   onAutoEstimate,
   onUseManualScore,
   canAutoEstimate = false,
+  estimateSource = null,
   onClear,
   onDone,
 }) => {
@@ -69,6 +71,12 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   }
 
   const leaderClass = score.scoreLead > 0 ? 'black' : score.scoreLead < 0 ? 'white' : 'jigo';
+  const estimateTitle =
+    estimateSource === 'ownership'
+      ? 'Estimate dead stones from territory ownership'
+      : estimateSource === 'playout'
+        ? 'Estimate dead stones with local playouts'
+        : 'Run territory analysis or score a position with stones before estimating';
   return (
     <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : ''].join(' ')} aria-label="Manual score">
       <div className="manual-score-header">
@@ -90,7 +98,8 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
           className={scoreMode === 'estimate' ? 'active' : ''}
           onClick={onAutoEstimate}
           disabled={!onAutoEstimate || !canAutoEstimate}
-          title={canAutoEstimate ? 'Estimate dead stones from ownership' : 'Run territory analysis before estimating'}
+          title={estimateTitle}
+          data-score-estimate-source={estimateSource ?? 'none'}
         >
           <FaMagic size={11} />
           <span>Estimate</span>
@@ -176,7 +185,8 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
           type="button"
           onClick={onAutoEstimate}
           disabled={!onAutoEstimate || !canAutoEstimate}
-          title={canAutoEstimate ? 'Estimate dead stones from ownership' : 'Run territory analysis before auto-estimating'}
+          title={estimateTitle}
+          data-score-estimate-source={estimateSource ?? 'none'}
           className={scoreMode === 'estimate' ? 'active' : ''}
         >
           <FaMagic size={12} />

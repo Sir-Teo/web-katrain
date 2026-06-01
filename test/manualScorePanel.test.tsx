@@ -51,10 +51,26 @@ describe('ManualScorePanel', () => {
         scoreMode="estimate"
         onAutoEstimate={() => undefined}
         canAutoEstimate
+        estimateSource="ownership"
       />,
     );
 
     expect(html).toContain('manual-score-estimate-mark');
     expect(html).toContain('≈');
+    expect(html).toContain('data-score-estimate-source="ownership"');
+  });
+
+  it('exposes local playout estimates when ownership is unavailable', () => {
+    const html = renderToStaticMarkup(
+      <ManualScorePanel
+        {...baseProps}
+        onAutoEstimate={() => undefined}
+        canAutoEstimate
+        estimateSource="playout"
+      />,
+    );
+
+    expect(html).toContain('Estimate dead stones with local playouts');
+    expect(html).toContain('data-score-estimate-source="playout"');
   });
 });
