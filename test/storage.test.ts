@@ -3,12 +3,17 @@ import { defaultUiState, loadUiState, saveUiState, UI_STATE_KEY } from '../src/c
 import {
   getIndexedDB,
   getLocalStorage,
+  getSessionStorage,
   readLocalStorage,
+  readSessionStorage,
   removeLocalStorage,
+  removeSessionStorage,
   writeLocalStorage,
+  writeSessionStorage,
 } from '../src/utils/storage';
 
 const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+const originalSessionStorage = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
 const originalIndexedDB = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
 
 function restoreLocalStorage() {
@@ -27,9 +32,17 @@ function restoreIndexedDB() {
   }
 }
 
-function installMemoryStorage() {
+function restoreSessionStorage() {
+  if (originalSessionStorage) {
+    Object.defineProperty(globalThis, 'sessionStorage', originalSessionStorage);
+  } else {
+    Reflect.deleteProperty(globalThis, 'sessionStorage');
+  }
+}
+
+function createMemoryStorage() {
   const values = new Map<string, string>();
-  const storage: Storage = {
+  return {
     get length() {
       return values.size;
     },
@@ -42,8 +55,21 @@ function installMemoryStorage() {
     setItem: (key: string, value: string) => {
       values.set(key, value);
     },
-  };
+  } satisfies Storage;
+}
+
+function installMemoryStorage() {
+  const storage = createMemoryStorage();
   Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: storage,
+  });
+  return storage;
+}
+
+function installMemorySessionStorage() {
+  const storage = createMemoryStorage();
+  Object.defineProperty(globalThis, 'sessionStorage', {
     configurable: true,
     value: storage,
   });
@@ -52,6 +78,7 @@ function installMemoryStorage() {
 
 afterEach(() => {
   restoreLocalStorage();
+  restoreSessionStorage();
   restoreIndexedDB();
 });
 
@@ -63,6 +90,12 @@ describe('safe localStorage helpers', () => {
     expect(readLocalStorage('key')).toBe('value');
     expect(removeLocalStorage('key')).toBe(true);
     expect(readLocalStorage('key')).toBeNull();
+
+    installMemorySessionStorage();
+    expect(writeSessionStorage('session-key', 'session-value')).toBe(true);
+    expect(readSessionStorage('session-key')).toBe('session-value');
+    expect(removeSessionStorage('session-key')).toBe(true);
+    expect(readSessionStorage('session-key')).toBeNull();
   });
 
   it('swallows storage access exceptions', () => {
@@ -77,6 +110,18 @@ describe('safe localStorage helpers', () => {
     expect(readLocalStorage('key')).toBeNull();
     expect(writeLocalStorage('key', 'value')).toBe(false);
     expect(removeLocalStorage('key')).toBe(false);
+
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      configurable: true,
+      get: () => {
+        throw new Error('session storage blocked');
+      },
+    });
+
+    expect(getSessionStorage()).toBeNull();
+    expect(readSessionStorage('key')).toBeNull();
+    expect(writeSessionStorage('key', 'value')).toBe(false);
+    expect(removeSessionStorage('key')).toBe(false);
   });
 
   it('swallows IndexedDB access exceptions', () => {
