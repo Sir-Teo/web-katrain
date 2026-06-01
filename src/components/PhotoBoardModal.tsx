@@ -10,6 +10,7 @@ import {
   photoBoardPointLabel,
   type PhotoBoardDeltaStone,
   photoBoardStonesFromBoard,
+  resizePhotoBoardStones,
   summarizePhotoBoardDelta,
   type PhotoBoardMoveDelta,
   type PhotoBoardStone,
@@ -238,8 +239,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   }, [choosePhoto, initialPhotoFile]);
 
   const updateBoardSize = (next: BoardSize) => {
+    if (next === boardSize) return;
     setBoardSize(next);
-    setStones(makeEmptyStones(next));
+    setStones((prev) => resizePhotoBoardStones(prev, boardSize, next));
   };
 
   const setStoneAt = React.useCallback((index: number, value: PhotoBoardStone) => {

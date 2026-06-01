@@ -8,6 +8,7 @@ import {
   isPhotoBoardImageFile,
   photoBoardPointLabel,
   photoBoardStonesFromBoard,
+  resizePhotoBoardStones,
   summarizePhotoBoardDelta,
   type PhotoBoardStone,
 } from '../src/utils/photoBoard';
@@ -78,6 +79,26 @@ describe('photo board SGF import', () => {
 
   it('rejects current boards with the wrong size', () => {
     expect(() => photoBoardStonesFromBoard(createEmptyBoard(9), 13)).toThrow('Expected a 13x13 board.');
+  });
+
+  it('preserves shared intersections when resizing a traced photo board', () => {
+    const stones = emptyStones(19);
+    stones[0] = 'black';
+    stones[12] = 'white';
+    stones[13] = 'black';
+    stones[18 * 19 + 18] = 'white';
+
+    const smaller = resizePhotoBoardStones(stones, 19, 13);
+    expect(smaller).toHaveLength(169);
+    expect(smaller[0]).toBe('black');
+    expect(smaller[12]).toBe('white');
+    expect(smaller[13]).toBeNull();
+    expect(smaller[12 * 13 + 12]).toBeNull();
+
+    const expanded = resizePhotoBoardStones(emptyStones(9).map((stone, index) => (index === 80 ? 'black' : stone)), 9, 13);
+    expect(expanded).toHaveLength(169);
+    expect(expanded[8 * 13 + 8]).toBe('black');
+    expect(expanded[12 * 13 + 12]).toBeNull();
   });
 
   it('detects a single traced stone as the next current-player move', () => {

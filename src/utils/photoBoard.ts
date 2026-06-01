@@ -64,6 +64,23 @@ export function getPhotoBoardTracePaintValue(current: PhotoBoardStone, tool: Pho
   return current === tool ? null : tool;
 }
 
+export function resizePhotoBoardStones(
+  stones: PhotoBoardStone[],
+  fromBoardSize: BoardSize,
+  toBoardSize: BoardSize,
+): PhotoBoardStone[] {
+  const resized: PhotoBoardStone[] = Array.from({ length: toBoardSize * toBoardSize }, () => null);
+  if (stones.length !== fromBoardSize * fromBoardSize) return resized;
+
+  const sharedSize = Math.min(fromBoardSize, toBoardSize);
+  for (let y = 0; y < sharedSize; y++) {
+    for (let x = 0; x < sharedSize; x++) {
+      resized[y * toBoardSize + x] = stones[y * fromBoardSize + x] ?? null;
+    }
+  }
+  return resized;
+}
+
 export interface PhotoBoardSetup {
   boardSize: BoardSize;
   stones: PhotoBoardStone[];
