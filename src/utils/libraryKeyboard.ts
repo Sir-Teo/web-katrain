@@ -28,3 +28,32 @@ export function getLibraryRowKeyAction(args: LibraryRowKeyArgs): LibraryRowKeyAc
 
   return 'none';
 }
+
+export interface LibraryMenuNavigationArgs {
+  key: string;
+  currentIndex: number;
+  itemCount: number;
+}
+
+export function getLibraryMenuNavigationIndex(args: LibraryMenuNavigationArgs): number | null {
+  if (args.itemCount <= 0) return null;
+
+  switch (args.key) {
+    case 'ArrowDown':
+      return args.currentIndex < 0 ? 0 : (args.currentIndex + 1) % args.itemCount;
+    case 'ArrowUp':
+      return args.currentIndex < 0
+        ? args.itemCount - 1
+        : (args.currentIndex - 1 + args.itemCount) % args.itemCount;
+    case 'Home':
+      return 0;
+    case 'End':
+      return args.itemCount - 1;
+    default:
+      return null;
+  }
+}
+
+export function isLibraryMenuCloseKey(key: string): boolean {
+  return key === 'Escape';
+}

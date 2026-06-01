@@ -48,7 +48,11 @@ import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { isMobileLayoutViewport } from '../utils/responsiveLayout';
 import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
-import { getLibraryRowKeyAction } from '../utils/libraryKeyboard';
+import {
+  getLibraryMenuNavigationIndex,
+  getLibraryRowKeyAction,
+  isLibraryMenuCloseKey,
+} from '../utils/libraryKeyboard';
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
@@ -308,6 +312,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [textDialog, setTextDialog] = useState<LibraryTextDialogState | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<LibraryConfirmDialogState | null>(null);
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
@@ -488,6 +493,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      contextMenuRef.current
+        ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
+        ?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [contextMenu]);
+
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -660,6 +677,30 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const closeContextMenu = () => setContextMenu(null);
+
+  const handleContextMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isLibraryMenuCloseKey(event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeContextMenu();
+      return;
+    }
+
+    const menuItems = Array.from(
+      contextMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []
+    );
+    const currentIndex = menuItems.findIndex((item) => item === document.activeElement);
+    const nextIndex = getLibraryMenuNavigationIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: menuItems.length,
+    });
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    menuItems[nextIndex]?.focus();
+  };
 
   const runContextAction = (action: () => void) => {
     closeContextMenu();
@@ -1400,9 +1441,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
     return (
       <div
+        ref={contextMenuRef}
         className="library-context-menu"
         style={{ left: contextMenu.x, top: contextMenu.y }}
         role="menu"
+        aria-label="Library actions"
+        onKeyDown={handleContextMenuKeyDown}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >

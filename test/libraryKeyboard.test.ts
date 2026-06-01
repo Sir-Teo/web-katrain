@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getLibraryRowKeyAction } from '../src/utils/libraryKeyboard';
+import {
+  getLibraryMenuNavigationIndex,
+  getLibraryRowKeyAction,
+  isLibraryMenuCloseKey,
+} from '../src/utils/libraryKeyboard';
 
 describe('library row keyboard actions', () => {
   it('activates file and folder rows with enter or space', () => {
@@ -42,5 +46,29 @@ describe('library row keyboard actions', () => {
       hasChildren: true,
       isExpanded: false,
     })).toBe('activate');
+  });
+});
+
+describe('library context menu keyboard actions', () => {
+  it('moves through menu items with wrapping arrow navigation', () => {
+    expect(getLibraryMenuNavigationIndex({ key: 'ArrowDown', currentIndex: -1, itemCount: 4 })).toBe(0);
+    expect(getLibraryMenuNavigationIndex({ key: 'ArrowDown', currentIndex: 3, itemCount: 4 })).toBe(0);
+    expect(getLibraryMenuNavigationIndex({ key: 'ArrowUp', currentIndex: -1, itemCount: 4 })).toBe(3);
+    expect(getLibraryMenuNavigationIndex({ key: 'ArrowUp', currentIndex: 0, itemCount: 4 })).toBe(3);
+  });
+
+  it('jumps to the first or last menu item with home and end', () => {
+    expect(getLibraryMenuNavigationIndex({ key: 'Home', currentIndex: 2, itemCount: 5 })).toBe(0);
+    expect(getLibraryMenuNavigationIndex({ key: 'End', currentIndex: 2, itemCount: 5 })).toBe(4);
+  });
+
+  it('ignores non-navigation keys and empty menus', () => {
+    expect(getLibraryMenuNavigationIndex({ key: 'Tab', currentIndex: 0, itemCount: 4 })).toBeNull();
+    expect(getLibraryMenuNavigationIndex({ key: 'ArrowDown', currentIndex: 0, itemCount: 0 })).toBeNull();
+  });
+
+  it('closes context menus with escape only', () => {
+    expect(isLibraryMenuCloseKey('Escape')).toBe(true);
+    expect(isLibraryMenuCloseKey('ArrowDown')).toBe(false);
   });
 });
