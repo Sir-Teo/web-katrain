@@ -9,14 +9,17 @@ describe('move insights', () => {
     expect(getMoveInsight(blackMove(3, 15), 19)).toMatchObject({
       label: '4-4 star point',
       tone: 'corner',
+      learnMoreUrl: 'https://senseis.xmp.net/?44Point',
     });
     expect(getMoveInsight(blackMove(2, 16), 19)).toMatchObject({
       label: '3-3 corner point',
       tone: 'corner',
+      learnMoreUrl: 'https://senseis.xmp.net/?33Point',
     });
     expect(getMoveInsight(blackMove(3, 16), 19)).toMatchObject({
       label: '3-4 corner point',
       tone: 'corner',
+      learnMoreUrl: 'https://senseis.xmp.net/?34Point',
     });
   });
 
@@ -24,10 +27,12 @@ describe('move insights', () => {
     expect(getMoveInsight(blackMove(9, 9), 19)).toMatchObject({
       label: 'Tengen',
       tone: 'center',
+      learnMoreUrl: 'https://senseis.xmp.net/?Tengen',
     });
     expect(getMoveInsight(blackMove(3, 9), 19)).toMatchObject({
       label: 'Side star point',
       tone: 'side',
+      learnMoreUrl: 'https://senseis.xmp.net/?StarPoint',
     });
   });
 
@@ -39,6 +44,7 @@ describe('move insights', () => {
     expect(getMoveInsight(blackMove(-1, -1), 19)).toMatchObject({
       label: 'Pass',
       tone: 'pass',
+      learnMoreUrl: 'https://senseis.xmp.net/?Pass',
     });
   });
 

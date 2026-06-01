@@ -6,6 +6,7 @@ export interface MoveInsight {
   label: string;
   detail: string;
   tone: MoveInsightTone;
+  learnMoreUrl?: string;
 }
 
 export interface MoveInsightCoach {
@@ -16,14 +17,16 @@ export interface MoveInsightCoach {
 
 type EdgeName = 'left' | 'right' | 'top' | 'bottom' | 'center';
 
-const CORNER_PATTERNS: Record<string, { label: string; detail: string }> = {
+const CORNER_PATTERNS: Record<string, { label: string; detail: string; learnMoreUrl?: string }> = {
   '3-3': {
     label: '3-3 corner point',
     detail: 'Low corner point that secures territory; often appears as an invasion or solid enclosure point.',
+    learnMoreUrl: 'https://senseis.xmp.net/?33Point',
   },
   '3-4': {
     label: '3-4 corner point',
     detail: 'Territory-leaning corner point with clear directional follow-ups.',
+    learnMoreUrl: 'https://senseis.xmp.net/?34Point',
   },
   '3-5': {
     label: '3-5 corner point',
@@ -32,6 +35,7 @@ const CORNER_PATTERNS: Record<string, { label: string; detail: string }> = {
   '4-4': {
     label: '4-4 star point',
     detail: 'Balanced corner star point for fast development, influence, and flexible continuations.',
+    learnMoreUrl: 'https://senseis.xmp.net/?44Point',
   },
   '4-5': {
     label: '4-5 high corner point',
@@ -99,6 +103,7 @@ export function getMoveInsight(move: Move | null, boardSize: number): MoveInsigh
       label: 'Pass',
       detail: 'Passing hands the turn over without placing a stone.',
       tone: 'pass',
+      learnMoreUrl: 'https://senseis.xmp.net/?Pass',
     };
   }
   if (boardSize <= 0 || move.x >= boardSize || move.y >= boardSize) return null;
@@ -118,6 +123,7 @@ export function getMoveInsight(move: Move | null, boardSize: number): MoveInsigh
       label: boardSize >= 15 ? 'Tengen' : 'Center point',
       detail: 'Center point; globally influential but slow to claim secure territory.',
       tone: 'center',
+      learnMoreUrl: boardSize >= 15 ? 'https://senseis.xmp.net/?Tengen' : undefined,
     };
   }
 
@@ -133,6 +139,7 @@ export function getMoveInsight(move: Move | null, boardSize: number): MoveInsigh
       label: pattern.label,
       detail: `${region} corner. ${pattern.detail}`,
       tone: 'corner',
+      learnMoreUrl: pattern.learnMoreUrl,
     };
   }
 
@@ -143,6 +150,7 @@ export function getMoveInsight(move: Move | null, boardSize: number): MoveInsigh
       label: 'Side star point',
       detail: `${region} star point; often useful for frameworks, extensions, and influence.`,
       tone: 'side',
+      learnMoreUrl: 'https://senseis.xmp.net/?StarPoint',
     };
   }
 

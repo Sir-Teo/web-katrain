@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StatusBar } from '../src/components/layout/StatusBar';
@@ -37,6 +38,13 @@ describe('StatusBar', () => {
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('Open Shape Coach details for 4-4 star point');
     expect(html).toContain('Click for beginner and pro study cues');
+  });
+
+  it('offers reference links inside Shape Coach details', () => {
+    const source = readFileSync('src/components/layout/StatusBar.tsx', 'utf8');
+
+    expect(source).toContain('moveInsight.learnMoreUrl');
+    expect(source).toContain('Learn more about ${moveInsight.label}');
   });
 
   it('hides Shape Coach insight when the coach is disabled', () => {

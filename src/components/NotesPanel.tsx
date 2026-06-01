@@ -480,6 +480,17 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               ))}
             </div>
           )}
+          {detailed && moveInsight.learnMoreUrl ? (
+            <a
+              href={moveInsight.learnMoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--ui-accent)] hover:bg-[var(--ui-surface-2)]"
+              aria-label={`Learn more about ${moveInsight.label}`}
+            >
+              Learn more
+            </a>
+          ) : null}
         </div>
       )}
 
