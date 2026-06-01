@@ -37,6 +37,12 @@ function formatScoreSourceLabel(
   return 'Estimate';
 }
 
+function formatScoreResultDetail(scoreLead: number, blackName: string, whiteName: string): string {
+  if (scoreLead > 0) return `${blackName} by ${formatScoreValue(Math.abs(scoreLead))}`;
+  if (scoreLead < 0) return `${whiteName} by ${formatScoreValue(Math.abs(scoreLead))}`;
+  return 'Even game';
+}
+
 export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   active,
   disabled = false,
@@ -98,6 +104,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         : 'Run territory analysis or score a position with stones before estimating';
   const scoreSourceLabel = formatScoreSourceLabel(scoreMode, estimateSource);
   const markedDeadLabel = `${deadStoneCount} marked dead stone${deadStoneCount === 1 ? '' : 's'}`;
+  const resultDetailLabel = formatScoreResultDetail(score.scoreLead, blackName, whiteName);
   return (
     <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : ''].join(' ')} aria-label="Manual score">
       <div className="manual-score-header">
@@ -137,8 +144,11 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
       </div>
 
       <div className={['manual-score-result', leaderClass].join(' ')} role="status" aria-live="polite" aria-atomic="true">
-        {scoreMode === 'estimate' && <span className="manual-score-estimate-mark">≈</span>}
-        {score.result}
+        <span>
+          {scoreMode === 'estimate' && <span className="manual-score-estimate-mark">≈</span>}
+          {score.result}
+        </span>
+        <small data-manual-score-result-detail="true">{resultDetailLabel}</small>
       </div>
 
       <div className="manual-score-status" data-manual-score-status="true" aria-label="Scoring status">

@@ -42,6 +42,8 @@ describe('ManualScorePanel', () => {
     expect(html).toContain('Neutral');
     expect(html).toContain('aria-label="5 neutral points"');
     expect(html).toContain('W+5.5');
+    expect(html).toContain('data-manual-score-result-detail="true"');
+    expect(html).toContain('White by 5.5');
     expect(html).toContain('data-manual-score-status="true"');
     expect(html).toContain('data-manual-score-status-item="mode"');
     expect(html).toContain('Manual');
@@ -96,5 +98,32 @@ describe('ManualScorePanel', () => {
     );
 
     expect(html).toContain('<button type="button" class="" disabled=""');
+  });
+
+  it('explains black leads and even scores in beginner-friendly language', () => {
+    const blackLeadHtml = renderToStaticMarkup(
+      <ManualScorePanel
+        {...baseProps}
+        score={{
+          ...score,
+          scoreLead: 3,
+          result: 'B+3.0',
+        }}
+      />,
+    );
+
+    const jigoHtml = renderToStaticMarkup(
+      <ManualScorePanel
+        {...baseProps}
+        score={{
+          ...score,
+          scoreLead: 0,
+          result: 'Jigo',
+        }}
+      />,
+    );
+
+    expect(blackLeadHtml).toContain('Black by 3');
+    expect(jigoHtml).toContain('Even game');
   });
 });
