@@ -40,10 +40,43 @@ export interface PhotoBoardDeltaStone {
   type: 'added' | 'removed';
 }
 
+export interface PhotoBoardDeltaSummaryItem extends PhotoBoardDeltaStone {
+  pointLabel: string;
+  label: string;
+}
+
 const escapeSgfValue = (value: string): string =>
   value.replace(/\\/g, '\\\\').replace(/]/g, '\\]');
 
 const playerToSgf = (player: Player): 'B' | 'W' => (player === 'black' ? 'B' : 'W');
+
+export function photoBoardPointLabel(x: number, y: number, boardSize: BoardSize): string {
+  const col = String.fromCharCode(65 + (x >= 8 ? x + 1 : x));
+  return `${col}${boardSize - y}`;
+}
+
+export function summarizePhotoBoardDelta(
+  delta: PhotoBoardDeltaStone[],
+  boardSize: BoardSize,
+  limit = 8
+): { items: PhotoBoardDeltaSummaryItem[]; hiddenCount: number } {
+  const visibleLimit = Math.max(0, Math.floor(limit));
+  const items = delta.slice(0, visibleLimit).map((item) => {
+    const pointLabel = photoBoardPointLabel(item.x, item.y, boardSize);
+    const sign = item.type === 'added' ? '+' : '-';
+    const playerLabel = item.player === 'black' ? 'B' : 'W';
+    return {
+      ...item,
+      pointLabel,
+      label: `${sign}${playerLabel} ${pointLabel}`,
+    };
+  });
+
+  return {
+    items,
+    hiddenCount: Math.max(0, delta.length - items.length),
+  };
+}
 
 export function photoBoardStonesFromBoard(board: BoardState, boardSize: BoardSize): PhotoBoardStone[] {
   if (board.length !== boardSize || board.some((row) => row.length !== boardSize)) {

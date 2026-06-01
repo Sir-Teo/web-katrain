@@ -7,8 +7,10 @@ import {
   computePhotoBoardDelta,
   findPhotoBoardMoveDelta,
   getPhotoBoardTracePaintValue,
+  photoBoardPointLabel,
   type PhotoBoardDeltaStone,
   photoBoardStonesFromBoard,
+  summarizePhotoBoardDelta,
   type PhotoBoardMoveDelta,
   type PhotoBoardStone,
   type PhotoBoardTraceTool,
@@ -41,12 +43,8 @@ const stoneLabel = (stone: PhotoBoardStone): string => {
   return 'empty';
 };
 
-const gtpPoint = (index: number, boardSize: BoardSize): string => {
-  const x = index % boardSize;
-  const y = Math.floor(index / boardSize);
-  const col = String.fromCharCode(65 + (x >= 8 ? x + 1 : x));
-  return `${col}${boardSize - y}`;
-};
+const gtpPoint = (index: number, boardSize: BoardSize): string =>
+  photoBoardPointLabel(index % boardSize, Math.floor(index / boardSize), boardSize);
 
 export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   onClose,
@@ -142,6 +140,10 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       total: traceDelta.length,
     };
   }, [traceDelta]);
+  const deltaSummary = React.useMemo(
+    () => summarizePhotoBoardDelta(traceDelta, boardSize, 8),
+    [boardSize, traceDelta]
+  );
   const canCompareCurrentBoard = !!currentBoard && currentBoardSize === boardSize;
 
   React.useEffect(() => {
@@ -584,26 +586,52 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                   </div>
                 </div>
                 {canCompareCurrentBoard ? (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {deltaCounts.total === 0 && (
-                      <span className={deltaChipClass('matched')}>Matched</span>
-                    )}
-                    {deltaCounts.addedBlack > 0 && (
-                      <span className={deltaChipClass('added')}>+B {deltaCounts.addedBlack}</span>
-                    )}
-                    {deltaCounts.addedWhite > 0 && (
-                      <span className={deltaChipClass('added')}>+W {deltaCounts.addedWhite}</span>
-                    )}
-                    {deltaCounts.removedBlack > 0 && (
-                      <span className={deltaChipClass('removed')}>-B {deltaCounts.removedBlack}</span>
-                    )}
-                    {deltaCounts.removedWhite > 0 && (
-                      <span className={deltaChipClass('removed')}>-W {deltaCounts.removedWhite}</span>
-                    )}
-                    {playMoveDelta && (
-                      <span className={deltaChipClass('move')}>
-                        Move {playMoveDelta.player === 'black' ? 'B' : 'W'} {gtpPoint(playMoveDelta.y * boardSize + playMoveDelta.x, boardSize)}
-                      </span>
+                  <div className="grid gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {deltaCounts.total === 0 && (
+                        <span className={deltaChipClass('matched')}>Matched</span>
+                      )}
+                      {deltaCounts.addedBlack > 0 && (
+                        <span className={deltaChipClass('added')}>+B {deltaCounts.addedBlack}</span>
+                      )}
+                      {deltaCounts.addedWhite > 0 && (
+                        <span className={deltaChipClass('added')}>+W {deltaCounts.addedWhite}</span>
+                      )}
+                      {deltaCounts.removedBlack > 0 && (
+                        <span className={deltaChipClass('removed')}>-B {deltaCounts.removedBlack}</span>
+                      )}
+                      {deltaCounts.removedWhite > 0 && (
+                        <span className={deltaChipClass('removed')}>-W {deltaCounts.removedWhite}</span>
+                      )}
+                      {playMoveDelta && (
+                        <span className={deltaChipClass('move')}>
+                          Move {playMoveDelta.player === 'black' ? 'B' : 'W'} {gtpPoint(playMoveDelta.y * boardSize + playMoveDelta.x, boardSize)}
+                        </span>
+                      )}
+                    </div>
+                    {deltaSummary.items.length > 0 && (
+                      <div
+                        className="flex flex-wrap gap-1"
+                        aria-label="Changed intersections"
+                        data-photo-board-delta-list="true"
+                      >
+                        {deltaSummary.items.map((item, index) => (
+                          <span
+                            key={`${item.type}-${item.player}-${item.x}-${item.y}-${index}`}
+                            className={deltaChipClass(item.type)}
+                            title={`${item.type === 'added' ? 'Added' : 'Removed'} ${item.player} at ${item.pointLabel}`}
+                            data-photo-board-delta-list-item={item.type}
+                            data-photo-board-delta-list-player={item.player}
+                          >
+                            {item.label}
+                          </span>
+                        ))}
+                        {deltaSummary.hiddenCount > 0 && (
+                          <span className={deltaChipClass('matched')} data-photo-board-delta-list-more="true">
+                            +{deltaSummary.hiddenCount} more
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (

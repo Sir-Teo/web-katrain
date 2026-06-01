@@ -29,6 +29,9 @@ describe('PhotoBoardModal', () => {
     expect(html).toContain('data-photo-board-delta-overlay="removed"');
     expect(html).toContain('data-photo-board-delta-marker="removed"');
     expect(html).toContain('data-photo-board-delta-player="black"');
+    expect(html).toContain('data-photo-board-delta-list="true"');
+    expect(html).toContain('data-photo-board-delta-list-item="removed"');
+    expect(html).toContain('-B A9');
   });
 
   it('names source controls and surfaces the selected photo source', () => {

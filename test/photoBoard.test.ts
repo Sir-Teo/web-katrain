@@ -5,7 +5,9 @@ import {
   findPhotoBoardMoveDelta,
   getPhotoBoardTracePaintValue,
   isPhotoBoardImageFile,
+  photoBoardPointLabel,
   photoBoardStonesFromBoard,
+  summarizePhotoBoardDelta,
   type PhotoBoardStone,
 } from '../src/utils/photoBoard';
 import { createEmptyBoard } from '../src/utils/boardSize';
@@ -106,6 +108,25 @@ describe('photo board SGF import', () => {
       { x: 1, y: 0, player: 'black', type: 'added' },
       { x: 2, y: 0, player: 'white', type: 'added' },
     ]);
+  });
+
+  it('formats photo board delta points for review', () => {
+    expect(photoBoardPointLabel(0, 0, 19)).toBe('A19');
+    expect(photoBoardPointLabel(8, 8, 19)).toBe('J11');
+
+    const delta = [
+      { x: 0, y: 0, player: 'black', type: 'removed' },
+      { x: 8, y: 8, player: 'white', type: 'added' },
+      { x: 18, y: 18, player: 'black', type: 'added' },
+    ] as const;
+
+    expect(summarizePhotoBoardDelta([...delta], 19, 2)).toEqual({
+      items: [
+        { x: 0, y: 0, player: 'black', type: 'removed', pointLabel: 'A19', label: '-B A19' },
+        { x: 8, y: 8, player: 'white', type: 'added', pointLabel: 'J11', label: '+W J11' },
+      ],
+      hiddenCount: 1,
+    });
   });
 
   it('rejects traced move deltas that are not exactly one current-player addition', () => {
