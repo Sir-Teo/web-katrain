@@ -97,6 +97,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         ? 'Estimate dead stones with local playouts'
         : 'Run territory analysis or score a position with stones before estimating';
   const scoreSourceLabel = formatScoreSourceLabel(scoreMode, estimateSource);
+  const markedDeadLabel = `${deadStoneCount} marked dead stone${deadStoneCount === 1 ? '' : 's'}`;
   return (
     <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : ''].join(' ')} aria-label="Manual score">
       <div className="manual-score-header">
@@ -235,6 +236,10 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
           <FaTimes size={12} />
           <span>Done</span>
         </button>
+      </div>
+
+      <div className="manual-score-help" data-manual-score-help="true">
+        Click board stones to toggle dead chains - {markedDeadLabel}
       </div>
     </section>
   );

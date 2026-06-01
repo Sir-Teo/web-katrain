@@ -47,6 +47,8 @@ describe('ManualScorePanel', () => {
     expect(html).toContain('Manual');
     expect(html).toContain('data-manual-score-status-item="dead"');
     expect(html).toContain('data-manual-score-status-item="neutral"');
+    expect(html).toContain('data-manual-score-help="true"');
+    expect(html).toContain('Click board stones to toggle dead chains - 1 marked dead stone');
   });
 
   it('marks ownership estimates as approximate', () => {

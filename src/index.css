@@ -2155,6 +2155,16 @@
     background: var(--ui-accent-soft);
   }
 
+  .manual-score-help {
+    border-top: 1px solid var(--ui-border);
+    padding: 0 10px 10px;
+    color: var(--ui-text-faint);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
+  }
+
   @media (max-width: 640px) {
     .manual-score-launch,
     .manual-score-panel {
