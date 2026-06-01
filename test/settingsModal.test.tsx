@@ -31,4 +31,36 @@ describe('SettingsModal', () => {
     expect(html).toContain('Kaya-style previews');
     expect(html).toContain('Traditional clamshell and slate stones');
   });
+
+  it('binds General settings labels to their controls', () => {
+    const html = renderToStaticMarkup(<SettingsModal onClose={() => undefined} />);
+
+    [
+      ['settings-sound-enabled', 'Sound Effects'],
+      ['settings-timer-sound', 'Timer Sound'],
+      ['settings-main-time', 'Main Time (min)'],
+      ['settings-byo-length', 'Byo Length (sec)'],
+      ['settings-byo-periods', 'Byo Periods'],
+      ['settings-minimal-use', 'Minimal Use (sec)'],
+      ['settings-show-coordinates', 'Show Coordinates'],
+      ['settings-next-move-preview', 'Next Move Preview'],
+      ['settings-show-move-numbers', 'Show Move Numbers'],
+      ['settings-show-board-controls', 'Show Board Controls'],
+      ['settings-fuzzy-stone-placement', 'Fuzzy Stone Placement'],
+      ['settings-default-board-size', 'Default Board Size'],
+      ['settings-default-handicap', 'Default Handicap'],
+      ['settings-ui-theme', 'UI Theme'],
+      ['settings-ui-density', 'UI Density'],
+      ['settings-gamepad-navigation', 'Gamepad Navigation'],
+      ['settings-touch-haptics', 'Touch Haptics'],
+      ['settings-load-sgf-rewind', 'Load SGF Rewind'],
+      ['settings-load-sgf-fast-analysis', 'Load SGF Fast Analysis'],
+      ['settings-pv-animation-time', 'PV Animation Time (sec)'],
+      ['settings-game-rules', 'Rules'],
+    ].forEach(([id, label]) => {
+      expect(html).toContain(`for="${id}"`);
+      expect(html).toContain(`id="${id}"`);
+      expect(html).toContain(`>${label}</label>`);
+    });
+  });
 });

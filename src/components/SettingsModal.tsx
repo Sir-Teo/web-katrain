@@ -342,8 +342,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     </div>  
                                     <div className="mt-4 space-y-4">
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Sound Effects</label>
+                                            <label htmlFor="settings-sound-enabled" className={labelClass}>Sound Effects</label>
                                             <input
+                                                id="settings-sound-enabled"
                                                 type="checkbox"
                                                 checked={settings.soundEnabled}
                                                 onChange={(e) => updateSettings({ soundEnabled: e.target.checked })}
@@ -352,8 +353,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
 
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Timer Sound</label>
+                                            <label htmlFor="settings-timer-sound" className={labelClass}>Timer Sound</label>
                                             <input
+                                                id="settings-timer-sound"
                                                 type="checkbox"
                                                 checked={settings.timerSound}
                                                 onChange={(e) => updateSettings({ timerSound: e.target.checked })}
@@ -363,8 +365,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-1">
-                                                <label className="text-[var(--ui-text-muted)] block text-sm">Main Time (min)</label>
+                                                <label htmlFor="settings-main-time" className="text-[var(--ui-text-muted)] block text-sm">Main Time (min)</label>
                                                 <input
+                                                    id="settings-main-time"
                                                     type="number"
                                                     min={0}
                                                     step={1}
@@ -375,8 +378,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </div>
 
                                             <div className="space-y-1">
-                                                <label className="text-[var(--ui-text-muted)] block text-sm">Byo Length (sec)</label>
+                                                <label htmlFor="settings-byo-length" className="text-[var(--ui-text-muted)] block text-sm">Byo Length (sec)</label>
                                                 <input
+                                                    id="settings-byo-length"
                                                     type="number"
                                                     min={1}
                                                     step={1}
@@ -387,8 +391,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </div>
 
                                             <div className="space-y-1">
-                                                <label className="text-[var(--ui-text-muted)] block text-sm">Byo Periods</label>
+                                                <label htmlFor="settings-byo-periods" className="text-[var(--ui-text-muted)] block text-sm">Byo Periods</label>
                                                 <input
+                                                    id="settings-byo-periods"
                                                     type="number"
                                                     min={1}
                                                     step={1}
@@ -399,8 +404,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </div>
 
                                             <div className="space-y-1">
-                                                <label className="text-[var(--ui-text-muted)] block text-sm">Minimal Use (sec)</label>
+                                                <label htmlFor="settings-minimal-use" className="text-[var(--ui-text-muted)] block text-sm">Minimal Use (sec)</label>
                                                 <input
+                                                    id="settings-minimal-use"
                                                     type="number"
                                                     min={0}
                                                     step={1}
@@ -422,8 +428,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     <h3 className={sectionTitleClass}>Board Theme</h3>  
                                     <div className="mt-4 space-y-4">
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Show Coordinates</label>
+                                            <label htmlFor="settings-show-coordinates" className={labelClass}>Show Coordinates</label>
                                             <input
+                                                id="settings-show-coordinates"
                                                 type="checkbox"
                                                 checked={settings.showCoordinates}
                                                 onChange={(e) => updateSettings({ showCoordinates: e.target.checked })}
@@ -432,8 +439,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
 
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Next Move Preview</label>
+                                            <label htmlFor="settings-next-move-preview" className={labelClass}>Next Move Preview</label>
                                             <input
+                                                id="settings-next-move-preview"
                                                 type="checkbox"
                                                 checked={settings.showNextMovePreview}
                                                 onChange={(e) => updateSettings({ showNextMovePreview: e.target.checked })}
@@ -442,8 +450,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
 
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Show Move Numbers</label>
+                                            <label htmlFor="settings-show-move-numbers" className={labelClass}>Show Move Numbers</label>
                                             <input
+                                                id="settings-show-move-numbers"
                                                 type="checkbox"
                                                 checked={settings.showMoveNumbers}
                                                 onChange={(e) => updateSettings({ showMoveNumbers: e.target.checked })}
@@ -452,8 +461,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
 
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Show Board Controls</label>
+                                            <label htmlFor="settings-show-board-controls" className={labelClass}>Show Board Controls</label>
                                             <input
+                                                id="settings-show-board-controls"
                                                 type="checkbox"
                                                 checked={settings.showBoardControls}
                                                 onChange={(e) => updateSettings({ showBoardControls: e.target.checked })}
@@ -463,10 +473,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                                         <div className={rowClass}>
                                             <div>
-                                                <label className={labelClass}>Fuzzy Stone Placement</label>
+                                                <label htmlFor="settings-fuzzy-stone-placement" className={labelClass}>Fuzzy Stone Placement</label>
                                                 <p className={subtextClass}>Stable Kaya-style stone offsets for a more natural board.</p>
                                             </div>
                                             <input
+                                                id="settings-fuzzy-stone-placement"
                                                 type="checkbox"
                                                 checked={settings.fuzzyStonePlacement}
                                                 onChange={(e) => updateSettings({ fuzzyStonePlacement: e.target.checked })}
@@ -560,8 +571,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-2">
-                                                <label className="ui-text-muted block">Default Board Size</label>
+                                                <label htmlFor="settings-default-board-size" className="ui-text-muted block">Default Board Size</label>
                                                 <select
+                                                    id="settings-default-board-size"
                                                     value={settings.defaultBoardSize}
                                                     onChange={(e) => {
                                                         const nextSize = Number(e.target.value) as GameSettings['defaultBoardSize'];
@@ -579,8 +591,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 </select>
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="ui-text-muted block">Default Handicap</label>
+                                                <label htmlFor="settings-default-handicap" className="ui-text-muted block">Default Handicap</label>
                                                 <input
+                                                    id="settings-default-handicap"
                                                     type="number"
                                                     min={0}
                                                     max={maxHandicap}
@@ -599,8 +612,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         <p className={subtextClass}>Defaults for the New Game dialog.</p>
 
                                         <div className="space-y-2">
-                                            <label className="ui-text-muted block">UI Theme</label>
+                                            <label htmlFor="settings-ui-theme" className="ui-text-muted block">UI Theme</label>
                                             <select
+                                                id="settings-ui-theme"
                                                 value={settings.uiTheme}
                                                 onChange={(e) => updateSettings({ uiTheme: e.target.value as GameSettings['uiTheme'] })}
                                                 className={selectClass}
@@ -615,8 +629,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="ui-text-muted block">UI Density</label>
+                                            <label htmlFor="settings-ui-density" className="ui-text-muted block">UI Density</label>
                                             <select
+                                                id="settings-ui-density"
                                                 value={settings.uiDensity}
                                                 onChange={(e) => updateSettings({ uiDensity: e.target.value as GameSettings['uiDensity'] })}
                                                 className={selectClass}
@@ -637,12 +652,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     <div className="mt-4 space-y-4">
                                         <div className={rowClass}>
                                             <div>
-                                                <label className={labelClass}>Gamepad Navigation</label>
+                                                <label htmlFor="settings-gamepad-navigation" className={labelClass}>Gamepad Navigation</label>
                                                 <p className={subtextClass}>
                                                     Controller input for review navigation.
                                                 </p>
                                             </div>
                                             <input
+                                                id="settings-gamepad-navigation"
                                                 type="checkbox"
                                                 checked={settings.gamepadNavigation}
                                                 onChange={(e) => updateSettings({ gamepadNavigation: e.target.checked })}
@@ -651,12 +667,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
                                         <div className={rowClass}>
                                             <div>
-                                                <label className={labelClass}>Touch Haptics</label>
+                                                <label htmlFor="settings-touch-haptics" className={labelClass}>Touch Haptics</label>
                                                 <p className={subtextClass}>
                                                     Short vibration on confirmed touch moves and swipe navigation.
                                                 </p>
                                             </div>
                                             <input
+                                                id="settings-touch-haptics"
                                                 type="checkbox"
                                                 checked={settings.hapticFeedback}
                                                 onChange={(e) => updateSettings({ hapticFeedback: e.target.checked })}
@@ -671,8 +688,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     <h3 className={sectionTitleClass}>Rules</h3>  
                                     <div className="mt-4 space-y-4">
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Load SGF Rewind</label>
+                                            <label htmlFor="settings-load-sgf-rewind" className={labelClass}>Load SGF Rewind</label>
                                             <input
+                                                id="settings-load-sgf-rewind"
                                                 type="checkbox"
                                                 checked={settings.loadSgfRewind}
                                                 onChange={(e) => updateSettings({ loadSgfRewind: e.target.checked })}
@@ -681,8 +699,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
 
                                         <div className={rowClass}>
-                                            <label className={labelClass}>Load SGF Fast Analysis</label>
+                                            <label htmlFor="settings-load-sgf-fast-analysis" className={labelClass}>Load SGF Fast Analysis</label>
                                             <input
+                                                id="settings-load-sgf-fast-analysis"
                                                 type="checkbox"
                                                 checked={settings.loadSgfFastAnalysis}
                                                 onChange={(e) => updateSettings({ loadSgfFastAnalysis: e.target.checked })}
@@ -695,8 +714,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-1">
-                                                <label className="text-[var(--ui-text-muted)] block text-sm">PV Animation Time (sec)</label>
+                                                <label htmlFor="settings-pv-animation-time" className="text-[var(--ui-text-muted)] block text-sm">PV Animation Time (sec)</label>
                                                 <input
+                                                    id="settings-pv-animation-time"
                                                     type="number"
                                                     min={0}
                                                     step={0.05}
@@ -712,8 +732,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </div>
 
                                             <div className="space-y-1">
-                                                <label className="text-[var(--ui-text-muted)] block text-sm">Rules</label>
+                                                <label htmlFor="settings-game-rules" className="text-[var(--ui-text-muted)] block text-sm">Rules</label>
                                                 <select
+                                                    id="settings-game-rules"
                                                     value={settings.gameRules}
                                                     onChange={(e) => updateSettings({ gameRules: e.target.value as GameSettings['gameRules'] })}
                                                     className={selectClass}
