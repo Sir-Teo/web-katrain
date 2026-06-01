@@ -55,6 +55,16 @@ describe('light theme shell tokens', () => {
     }
   });
 
+  it('keeps board analysis overlays and modal actions on theme tokens', () => {
+    const board = readFileSync('src/components/GoBoard.tsx', 'utf8');
+    const analysisModal = readFileSync('src/components/GameAnalysisModal.tsx', 'utf8');
+
+    expect(board).not.toContain('bg-slate-900 text-white');
+    expect(board).not.toContain('border-slate-700/50');
+    expect(analysisModal).not.toContain('bg-[var(--ui-surface-2)] hover:brightness-110 text-white');
+    expect(analysisModal).toContain('text-[var(--ui-text)] border border-[var(--ui-border)]');
+  });
+
   it('keeps the interactive game report chrome on theme tokens', () => {
     const report = readFileSync('src/components/GameReportModal.tsx', 'utf8');
     const between = (start: string, end: string) => {

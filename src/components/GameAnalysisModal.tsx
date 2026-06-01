@@ -229,7 +229,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-white rounded font-medium"
+            className="px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded font-medium"
           >
             Cancel
           </button>
