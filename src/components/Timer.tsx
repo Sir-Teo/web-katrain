@@ -86,7 +86,11 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
     () => (isTimerDisabled ? 'Off' : formatKaTrainClockSeconds(effectiveDisplay.timeSeconds)),
     [effectiveDisplay.timeSeconds, isTimerDisabled]
   );
-  const timeoutClass = isTimerDisabled ? 'text-slate-400' : effectiveDisplay.timeout ? 'text-red-300' : 'text-slate-100';
+  const timeoutClass = isTimerDisabled
+    ? 'text-[var(--ui-text-muted)]'
+    : effectiveDisplay.timeout
+      ? 'text-[var(--ui-danger)]'
+      : 'text-[var(--ui-text)]';
   const compactTimeoutClass = isTimerDisabled
     ? 'text-[var(--ui-text-muted)]'
     : effectiveDisplay.timeout
@@ -118,7 +122,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-700/50 rounded px-4 py-3 flex items-center gap-3">
+    <div className="ui-surface border border-[var(--ui-border)] rounded px-4 py-3 flex items-center gap-3">
       <div className="flex items-baseline gap-2 font-mono">
         <div className={['text-2xl leading-none', timeoutClass].join(' ')} title={effectiveDisplay.isAiTurn ? 'AI to play' : undefined}>
           {timeText}
@@ -136,7 +140,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
             type="button"
             className={[
               'h-10 w-10 flex items-center justify-center rounded border',
-              'bg-slate-800 border-slate-700/50 text-slate-200 hover:bg-slate-700',
+              'bg-[var(--ui-surface-2)] border-[var(--ui-border)] text-[var(--ui-text)] hover:bg-[var(--ui-surface)]',
             ].join(' ')}
             onClick={() => toggleTimerPaused()}
             title={timerPaused ? 'Resume timer' : 'Pause timer'}
