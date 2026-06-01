@@ -38,9 +38,21 @@ describe('PhotoBoardModal', () => {
   it('names source controls and surfaces the selected photo source', () => {
     const source = readFileSync('src/components/PhotoBoardModal.tsx', 'utf8');
 
-    expect(source).toContain('aria-label="Take board photo with camera"');
+    expect(source).toContain("'Take board photo with camera'");
+    expect(source).toContain("'No camera detected for board photo'");
     expect(source).toContain('aria-label="Choose board photo file"');
     expect(source).toContain('data-photo-board-source-name="true"');
+  });
+
+  it('marks the camera source unavailable when no camera is detected', () => {
+    const source = readFileSync('src/components/PhotoBoardModal.tsx', 'utf8');
+
+    expect(source).toContain("type CameraAvailability = 'unknown' | 'available' | 'unavailable'");
+    expect(source).toContain('navigator.mediaDevices.enumerateDevices()');
+    expect(source).toContain('data-photo-board-camera-state={cameraAvailability}');
+    expect(source).toContain('disabled={cameraUnavailable}');
+    expect(source).toContain('data-photo-board-camera-unavailable="true"');
+    expect(source).toContain('No camera detected.');
   });
 
   it('resets hidden photo inputs so the same image can be selected again', () => {

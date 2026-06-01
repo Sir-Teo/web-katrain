@@ -34,6 +34,7 @@ interface PhotoBoardModalProps {
 type TraceTool = PhotoBoardTraceTool;
 type PhotoFit = 'cover' | 'contain';
 type MobilePhotoBoardTab = 'photo' | 'trace';
+type CameraAvailability = 'unknown' | 'available' | 'unavailable';
 
 const makeEmptyStones = (boardSize: BoardSize): PhotoBoardStone[] =>
   Array.from({ length: boardSize * boardSize }, () => null);
@@ -88,6 +89,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [photoFit, setPhotoFit] = React.useState<PhotoFit>('cover');
   const [mobileTab, setMobileTab] = React.useState<MobilePhotoBoardTab>('photo');
   const [showDeltaOverlay, setShowDeltaOverlay] = React.useState(true);
+  const [cameraAvailability, setCameraAvailability] = React.useState<CameraAvailability>('unknown');
 
   const currentBoardSize = React.useMemo<BoardSize | null>(() => {
     const size = currentBoard?.length;
@@ -161,6 +163,24 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     };
   }, []);
 
+  React.useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return undefined;
+    let cancelled = false;
+
+    void navigator.mediaDevices.enumerateDevices()
+      .then((devices) => {
+        if (cancelled) return;
+        setCameraAvailability(devices.some((device) => device.kind === 'videoinput') ? 'available' : 'unavailable');
+      })
+      .catch(() => {
+        if (!cancelled) setCameraAvailability('unknown');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const counts = React.useMemo(() => {
     let black = 0;
     let white = 0;
@@ -182,6 +202,8 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   const canAddToCurrent = !!onAddSetupStones && counts.total > 0 && currentBoardSize === boardSize;
   const canClearBoard = counts.total > 0;
+  const cameraUnavailable = cameraAvailability === 'unavailable';
+  const cameraButtonTitle = cameraUnavailable ? 'No camera detected' : 'Take board photo with camera';
   const clearBoardTitle = canClearBoard ? 'Clear all traced stones' : 'No traced stones to clear';
   const importBoardTitle = counts.total > 0
     ? 'Import traced stones as a new board position'
@@ -443,12 +465,16 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--ui-surface)]"
                 onClick={() => cameraInputRef.current?.click()}
-                aria-label="Take board photo with camera"
-                title="Take board photo with camera"
+                disabled={cameraUnavailable}
+                aria-label={cameraUnavailable ? 'No camera detected for board photo' : 'Take board photo with camera'}
+                title={cameraButtonTitle}
+                data-photo-board-camera-state={cameraAvailability}
               >
-                <span className="flex items-center justify-center gap-2"><FaCamera /> Camera</span>
+                <span className="flex items-center justify-center gap-2">
+                  <FaCamera /> {cameraUnavailable ? 'No camera' : 'Camera'}
+                </span>
               </button>
               <button
                 type="button"
@@ -475,6 +501,14 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 onChange={handlePhotoInputChange}
               />
             </div>
+            {cameraUnavailable && (
+              <div
+                className="rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] px-3 py-2 text-xs font-medium text-[var(--ui-warning)]"
+                data-photo-board-camera-unavailable="true"
+              >
+                No camera detected.
+              </div>
+            )}
 
             <div className="overflow-hidden rounded-lg border border-[var(--ui-border)] bg-black/20">
               {photoUrl ? (
