@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaBullseye, FaInfoCircle, FaTimes } from 'react-icons/fa';
+import { FaBookOpen, FaBullseye, FaInfoCircle, FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import {
@@ -10,6 +10,7 @@ import {
   getPhaseAnalysisMoveRange,
   getPhaseLabel,
   getPhaseMoveRange,
+  getReportStudyFocus,
   getPointLossBucket,
   getReportRecoveries,
   getReportTurningPoints,
@@ -466,6 +467,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     [filteredReportEntries, mistakeSort]
   );
   const topMistakes = useMemo(() => allMistakes.slice(0, 10), [allMistakes]);
+  const studyFocus = useMemo(
+    () => getReportStudyFocus({ reportsByPhase, phaseFilter, playerFilter }),
+    [phaseFilter, playerFilter, reportsByPhase]
+  );
   const pdfMistakes = topMistakes;
   const turningPoints = useMemo(
     () => getReportTurningPoints(filteredReportEntries, CRITICAL_SWING_THRESHOLD, 5),
@@ -986,6 +991,96 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               />
             </div>
           </div>
+
+          {studyFocus && (
+            <div className={sectionClass} data-game-report-study-focus="true" aria-label="Study focus">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <FaBookOpen className="text-[var(--ui-accent)]" aria-hidden="true" />
+                    <div className={sectionTitleClass}>Study Focus</div>
+                  </div>
+                  <div className={`mt-2 text-lg font-semibold ${valueClass}`}>{studyFocus.issueLabel}</div>
+                  <div className={`mt-1 text-xs ${mutedClass}`}>
+                    Suggested from the weakest phase/player slice in the current filters.
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--ui-accent)]">
+                  {getPhaseLabel(studyFocus.phase)} · {playerNames[studyFocus.player]}
+                </span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                <div>
+                  <div className={faintClass}>Analyzed</div>
+                  <div className={`mt-1 font-mono text-sm ${valueClass}`}>{studyFocus.analyzedMoves}</div>
+                </div>
+                <div>
+                  <div className={faintClass}>Weighted loss</div>
+                  <div className={`mt-1 font-mono text-sm ${valueClass}`}>{fmtNum(studyFocus.weightedPtLoss, 2)}</div>
+                </div>
+                <div>
+                  <div className={faintClass}>Mean loss</div>
+                  <div className={`mt-1 font-mono text-sm ${valueClass}`}>{fmtNum(studyFocus.meanPtLoss, 2)}</div>
+                </div>
+                <div>
+                  <div className={faintClass}>Policy</div>
+                  <div className={`mt-1 font-mono text-sm ${valueClass}`}>{fmtNum(studyFocus.policyAccuracy, 1)}</div>
+                </div>
+              </div>
+
+              {studyFocus.policyProblem && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                  <span className={mutedClass}>Policy pattern:</span>
+                  <span className={[
+                    'rounded-full border px-2 py-0.5 font-semibold',
+                    policyCategoryClass(studyFocus.policyProblem.category),
+                  ].join(' ')}>
+                    {policyCategoryLabel(studyFocus.policyProblem.category)}
+                  </span>
+                  <span className={`font-mono ${faintClass}`}>
+                    {studyFocus.policyProblem.count} moves · {fmtPct(studyFocus.policyProblem.ratio)}
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Beginner next step</div>
+                  <div className={`mt-1 ${mutedClass}`}>{studyFocus.beginnerTip}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Pro review</div>
+                  <div className={`mt-1 ${mutedClass}`}>{studyFocus.proTip}</div>
+                </div>
+              </div>
+
+              {studyFocus.topEntry && (
+                <div className={`mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--ui-border)] pt-3 text-xs ${mutedClass}`}>
+                  <span className={`font-mono font-semibold ${valueClass}`}>#{studyFocus.topEntry.moveNumber}</span>
+                  <span>{studyFocus.topEntry.player === 'black' ? 'B' : 'W'} {studyFocus.topEntry.move}</span>
+                  <span className="font-mono text-[var(--ui-danger)]">-{fmtNum(studyFocus.topEntry.pointsLost, 2)}</span>
+                  <span>Engine preferred {studyFocus.topEntry.topMove ?? '-'}</span>
+                  <div className="ml-auto flex flex-wrap gap-2 print-hide">
+                    <button
+                      type="button"
+                      onClick={() => jumpToNode(studyFocus.topEntry!.node)}
+                      className={`px-2 py-1 ${secondaryButtonClass}`}
+                    >
+                      Jump
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startPractice(studyFocus.topEntry!)}
+                      className="rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2 py-1 font-semibold text-[var(--ui-accent)] hover:brightness-110"
+                    >
+                      <span className="inline-flex items-center gap-1"><FaBullseye aria-hidden="true" /> Practice</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className={sectionClass}>

@@ -10,8 +10,10 @@ import {
   getPhaseThresholds,
   getPointLossBucket,
   getReportRecoveries,
+  getReportStudyFocus,
   getReportTurningPoints,
   sortMoveReportEntries,
+  type GameReport,
   type MoveReportEntry,
   type MovePolicyCategory,
 } from '../src/utils/gameReport';
@@ -104,6 +106,56 @@ function reportEntry(args: {
           category: args.category,
         }
       : undefined,
+  };
+}
+
+function reportForFocus(args: {
+  blackWeighted?: number;
+  whiteWeighted?: number;
+  blackPolicyAccuracy?: number;
+  whitePolicyAccuracy?: number;
+  blackEntries?: MoveReportEntry[];
+  whiteEntries?: MoveReportEntry[];
+  blackPolicy?: Partial<NonNullable<GameReport['stats']['black']['policyDistribution']>>;
+  whitePolicy?: Partial<NonNullable<GameReport['stats']['white']['policyDistribution']>>;
+}): GameReport {
+  const distribution = (
+    partial?: Partial<NonNullable<GameReport['stats']['black']['policyDistribution']>>
+  ): NonNullable<GameReport['stats']['black']['policyDistribution']> => ({
+    aiMove: 0,
+    good: 0,
+    inaccuracy: 0,
+    mistake: 0,
+    blunder: 0,
+    total: 0,
+    ...partial,
+  });
+  const blackEntries = args.blackEntries ?? [];
+  const whiteEntries = args.whiteEntries ?? [];
+  return {
+    thresholds: [12, 6, 3, 1.5, 0.5, 0],
+    labels: ['>= 12', '>= 6', '>= 3', '>= 1.5', '>= 0.5', '< 0.5'],
+    histogram: Array.from({ length: 6 }, () => ({ black: 0, white: 0 })),
+    moveEntries: [...blackEntries, ...whiteEntries],
+    movesInFilter: blackEntries.length + whiteEntries.length,
+    stats: {
+      black: {
+        numMoves: blackEntries.length,
+        weightedPtLoss: args.blackWeighted,
+        meanPtLoss: args.blackWeighted,
+        maxPtLoss: Math.max(0, ...blackEntries.map((entry) => entry.pointsLost)),
+        policyAccuracy: args.blackPolicyAccuracy,
+        policyDistribution: distribution(args.blackPolicy),
+      },
+      white: {
+        numMoves: whiteEntries.length,
+        weightedPtLoss: args.whiteWeighted,
+        meanPtLoss: args.whiteWeighted,
+        maxPtLoss: Math.max(0, ...whiteEntries.map((entry) => entry.pointsLost)),
+        policyAccuracy: args.whitePolicyAccuracy,
+        policyDistribution: distribution(args.whitePolicy),
+      },
+    },
   };
 }
 
@@ -457,6 +509,72 @@ describe('computeGameReport', () => {
     ];
 
     expect(getReportRecoveries(entries, 1.5, 3).map((entry) => entry.moveNumber)).toEqual([2, 4, 3]);
+  });
+
+  it('selects an actionable report study focus from the weakest phase and player', () => {
+    const opening = reportForFocus({
+      blackWeighted: 1,
+      blackEntries: [reportEntry({ moveNumber: 12, pointsLost: 1 })],
+    });
+    const middleEntry = {
+      ...reportEntry({ moveNumber: 72, pointsLost: 6, category: 'blunder', relativePrior: 0, rank: 0 }),
+      topMove: 'D4',
+    };
+    const middle = reportForFocus({
+      blackWeighted: 4,
+      blackPolicyAccuracy: 20,
+      blackEntries: [middleEntry],
+      blackPolicy: { blunder: 1, total: 1 },
+      whiteWeighted: 1,
+      whiteEntries: [reportEntry({ moveNumber: 73, pointsLost: 1 })],
+    });
+
+    const focus = getReportStudyFocus({
+      reportsByPhase: { opening, middleGame: middle },
+      phaseFilter: 'all',
+      playerFilter: 'all',
+    });
+
+    expect(focus).toMatchObject({
+      phase: 'middleGame',
+      player: 'black',
+      issueLabel: 'Review move 72: 6.0 points lost',
+      topEntry: { moveNumber: 72, topMove: 'D4' },
+      policyProblem: { category: 'blunder', count: 1, ratio: 1 },
+    });
+    expect(focus?.beginnerTip).toContain('Replay move 72');
+    expect(focus?.beginnerTip).toContain('D4');
+    expect(focus?.proTip).toContain('middle game');
+  });
+
+  it('respects phase and player filters when choosing report study focus', () => {
+    const opening = reportForFocus({
+      blackWeighted: 8,
+      blackEntries: [reportEntry({ moveNumber: 2, pointsLost: 8 })],
+      whiteWeighted: 2,
+      whiteEntries: [reportEntry({ moveNumber: 3, pointsLost: 2 })],
+    });
+    const middle = reportForFocus({
+      whiteWeighted: 4,
+      whiteEntries: [reportEntry({ moveNumber: 80, pointsLost: 4 })],
+    });
+
+    const focus = getReportStudyFocus({
+      reportsByPhase: { opening, middleGame: middle },
+      phaseFilter: 'opening',
+      playerFilter: 'white',
+    });
+
+    expect(focus).toMatchObject({
+      phase: 'opening',
+      player: 'white',
+      issueLabel: 'Tighten consistency: 2.0 weighted loss',
+    });
+  });
+
+  it('returns no study focus until report-grade moves exist', () => {
+    expect(getReportStudyFocus({ reportsByPhase: {} })).toBeNull();
+    expect(getReportStudyFocus({ reportsByPhase: { all: reportForFocus({}) } })).toBeNull();
   });
 
   it('describes swings from the player perspective', () => {

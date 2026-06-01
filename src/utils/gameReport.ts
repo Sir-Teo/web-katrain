@@ -252,6 +252,25 @@ export type GameReport = {
   movesInFilter: number;
 };
 
+export type GameReportStudyFocus = {
+  phase: GameReportPhaseFilter;
+  player: Player;
+  score: number;
+  analyzedMoves: number;
+  weightedPtLoss: number;
+  meanPtLoss: number;
+  policyAccuracy?: number;
+  topEntry?: MoveReportEntry;
+  policyProblem?: {
+    category: MovePolicyCategory;
+    count: number;
+    ratio: number;
+  };
+  issueLabel: string;
+  beginnerTip: string;
+  proTip: string;
+};
+
 function playerLabel(player: Player): string {
   return player === 'black' ? 'Black' : 'White';
 }
@@ -348,6 +367,121 @@ export function getReportRecoveries(
       return a.moveNumber - b.moveNumber;
     })
     .slice(0, limit);
+}
+
+function getMostSeverePolicyProblem(distribution: MovePolicyDistribution | undefined): GameReportStudyFocus['policyProblem'] {
+  if (!distribution || distribution.total <= 0) return undefined;
+  const problemCategories: MovePolicyCategory[] = ['blunder', 'mistake', 'inaccuracy'];
+  let best: { category: MovePolicyCategory; count: number } | null = null;
+  for (const category of problemCategories) {
+    const count = distribution[category] ?? 0;
+    if (count <= 0) continue;
+    if (!best || count > best.count) best = { category, count };
+  }
+  if (!best) return undefined;
+  return {
+    category: best.category,
+    count: best.count,
+    ratio: best.count / distribution.total,
+  };
+}
+
+function studyFocusIssueLabel(args: {
+  topEntry: MoveReportEntry | undefined;
+  policyProblem: GameReportStudyFocus['policyProblem'];
+  weightedPtLoss: number;
+}): string {
+  const { topEntry, policyProblem, weightedPtLoss } = args;
+  if (topEntry && topEntry.pointsLost >= 3) {
+    return `Review move ${topEntry.moveNumber}: ${topEntry.pointsLost.toFixed(1)} points lost`;
+  }
+  if (policyProblem && policyProblem.category !== 'inaccuracy') {
+    const label = policyProblem.category === 'blunder' ? 'blunders' : 'mistakes';
+    return `Fix candidate generation: ${policyProblem.count} ${label}`;
+  }
+  return `Tighten consistency: ${weightedPtLoss.toFixed(1)} weighted loss`;
+}
+
+function studyFocusBeginnerTip(topEntry: MoveReportEntry | undefined): string {
+  if (!topEntry) return 'Review this phase slowly and explain each move before checking the engine.';
+  const topMove = topEntry.topMove ? `, then compare with ${topEntry.topMove}` : '';
+  return `Replay move ${topEntry.moveNumber} from the previous position, name two candidate moves${topMove}.`;
+}
+
+function studyFocusProTip(args: {
+  phase: GameReportPhaseFilter;
+  player: Player;
+  policyProblem: GameReportStudyFocus['policyProblem'];
+}): string {
+  const phaseLabel = getPhaseLabel(args.phase).toLowerCase();
+  const playerLabel = args.player === 'black' ? 'Black' : 'White';
+  if (args.policyProblem) {
+    return `Filter ${playerLabel} in ${phaseLabel} by ${args.policyProblem.category} quality and check why the played prior fell behind.`;
+  }
+  return `Filter ${playerLabel} in ${phaseLabel} by Loss and compare score lead before and after each swing.`;
+}
+
+export function getReportStudyFocus(args: {
+  reportsByPhase: Partial<Record<GameReportPhaseFilter, GameReport>>;
+  phaseFilter?: GameReportPhaseFilter;
+  playerFilter?: 'all' | Player;
+}): GameReportStudyFocus | null {
+  const requestedPhase = args.phaseFilter ?? 'all';
+  const phaseGroups: GameReportPhaseFilter[][] =
+    requestedPhase === 'all' ? [['opening', 'middleGame', 'endgame'], ['all']] : [[requestedPhase]];
+  const players: Player[] = args.playerFilter && args.playerFilter !== 'all' ? [args.playerFilter] : ['black', 'white'];
+
+  for (const phases of phaseGroups) {
+    let best: GameReportStudyFocus | null = null;
+    for (const phase of phases) {
+      const report = args.reportsByPhase[phase];
+      if (!report) continue;
+      for (const player of players) {
+        const stats = report.stats[player];
+        if (!stats || stats.numMoves <= 0) continue;
+
+        const entries = sortMoveReportEntries(
+          report.moveEntries.filter((entry) => entry.player === player),
+          'loss'
+        );
+        const topEntry = entries[0];
+        const policyProblem = getMostSeverePolicyProblem(stats.policyDistribution);
+        const weightedPtLoss = stats.weightedPtLoss ?? stats.meanPtLoss ?? 0;
+        const meanPtLoss = stats.meanPtLoss ?? 0;
+        const maxPtLoss = stats.maxPtLoss ?? topEntry?.pointsLost ?? 0;
+        const policyPenalty = typeof stats.policyAccuracy === 'number' ? Math.max(0, (100 - stats.policyAccuracy) / 25) : 0;
+        const severePolicyRatio =
+          ((stats.policyDistribution?.blunder ?? 0) + (stats.policyDistribution?.mistake ?? 0)) /
+          Math.max(1, stats.policyDistribution?.total ?? 0);
+        const score = weightedPtLoss + maxPtLoss * 0.25 + policyPenalty + severePolicyRatio * 4;
+        const focus: GameReportStudyFocus = {
+          phase,
+          player,
+          score,
+          analyzedMoves: stats.numMoves,
+          weightedPtLoss,
+          meanPtLoss,
+          policyAccuracy: stats.policyAccuracy,
+          topEntry,
+          policyProblem,
+          issueLabel: studyFocusIssueLabel({ topEntry, policyProblem, weightedPtLoss }),
+          beginnerTip: studyFocusBeginnerTip(topEntry),
+          proTip: studyFocusProTip({ phase, player, policyProblem }),
+        };
+
+        if (
+          !best ||
+          focus.score > best.score ||
+          (focus.score === best.score && (focus.topEntry?.moveNumber ?? Number.MAX_SAFE_INTEGER) < (best.topEntry?.moveNumber ?? Number.MAX_SAFE_INTEGER))
+        ) {
+          best = focus;
+        }
+      }
+    }
+    if (best) return best;
+  }
+
+  return null;
 }
 
 export function computeGameReport(args: {
