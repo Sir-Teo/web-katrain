@@ -760,13 +760,36 @@
   .analysis-command-bar__status {
     display: inline-flex;
     min-width: 0;
+    max-width: 100%;
     align-items: center;
     gap: 0.5rem;
-    padding: 0 0.25rem;
+    padding: 0.25rem 0.5rem;
     color: var(--ui-text-muted);
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
+  }
+
+  .analysis-command-bar__status--loading,
+  .analysis-command-bar__status--fallback {
+    color: var(--ui-warning);
+    background: var(--ui-warning-soft);
+    border-color: var(--ui-warning);
+  }
+
+  .analysis-command-bar__status--ready {
+    color: var(--ui-success);
+    background: var(--ui-success-soft);
+    border-color: color-mix(in srgb, var(--ui-success) 75%, var(--ui-border));
+  }
+
+  .analysis-command-bar__status--error {
+    color: var(--ui-danger);
+    background: var(--ui-danger-soft);
+    border-color: var(--ui-danger);
   }
 
   .analysis-command-bar__dot {

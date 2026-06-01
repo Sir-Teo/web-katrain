@@ -23,6 +23,7 @@ import {
 } from '../utils/topMoveMetric';
 import { getBestMoveSummary } from '../utils/bestMoveSummary';
 import { summarizeGameAnalysisProgress } from '../utils/gameAnalysisProgress';
+import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import {
   ANALYSIS_MIN_VISITS,
   ANALYSIS_VISIT_PRESETS,
@@ -128,13 +129,20 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const gameButtonLabel = isGameAnalysisRunning
     ? `Stop ${gameProgress?.buttonLabel ?? ''}`.trim()
     : 'Fast review';
-  const engineLabel = engineError
-    ? 'Engine error'
-    : engineStatus === 'loading'
-      ? 'Loading engine'
-      : engineStatus === 'ready'
-        ? 'Engine ready'
-        : 'Engine idle';
+  const engineSummary = React.useMemo(() => getEngineStatusSummary({
+    status: engineStatus,
+    error: engineError,
+    requestedBackend,
+    activeBackend: engineBackend,
+    modelLabel: engineModelLabel,
+    modelUrl,
+  }), [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
+  const engineStatusTitle = [statusText, engineSummary.title].filter(Boolean).join('\n\n');
+  const engineStatusClass = [
+    'analysis-command-bar__status',
+    `analysis-command-bar__status--${engineStatus}`,
+    engineSummary.isFallback ? 'analysis-command-bar__status--fallback' : '',
+  ].join(' ');
   React.useEffect(() => {
     setEngineErrorCopied(false);
   }, [engineError]);
@@ -369,9 +377,15 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
 
   return (
     <div className="analysis-command-bar" data-analysis-command-bar="true">
-      <div className="analysis-command-bar__status" title={statusText}>
+      <div
+        className={engineStatusClass}
+        title={engineStatusTitle}
+        role="status"
+        aria-label={`Engine status: ${engineSummary.compactLabel}`}
+        data-analysis-engine-status={engineStatus}
+      >
         <span className={['analysis-command-bar__dot', engineDot].join(' ')} aria-hidden="true" />
-        <span className="analysis-command-bar__status-text">{engineLabel}</span>
+        <span className="analysis-command-bar__status-text">{engineSummary.compactLabel}</span>
         {engineError && (
           <button
             type="button"
