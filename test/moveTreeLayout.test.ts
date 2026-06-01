@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeMoveTreeLayout,
+  getMoveTreeMinimapKeyboardScroll,
   getMoveTreeMinimapViewportRect,
   getMoveTreeMinimapTransform,
   getVisibleMoveTreeItems,
@@ -104,5 +105,19 @@ describe('move tree layout', () => {
     expect(shouldShowMoveTreeMinimap({ width: 60, height: 44 }, { left: 0, top: 0, width: 280, height: 44 }, minimap)).toBe(false);
     expect(shouldShowMoveTreeMinimap({ width: 1000, height: 500 }, { left: 0, top: 0, width: 280, height: 44 }, minimap)).toBe(false);
     expect(shouldShowMoveTreeMinimap({ width: 1000, height: 500 }, { left: 0, top: 0, width: 280, height: 180 }, minimap)).toBe(true);
+  });
+
+  it('maps minimap keyboard panning to clamped scroll positions', () => {
+    const layout = { width: 1000, height: 500 };
+    const viewport = { left: 250, top: 100, width: 200, height: 100 };
+
+    expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'ArrowRight')).toEqual({ left: 394, top: 100 });
+    expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'ArrowLeft')).toEqual({ left: 106, top: 100 });
+    expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'ArrowDown')).toEqual({ left: 250, top: 172 });
+    expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'ArrowUp')).toEqual({ left: 250, top: 28 });
+    expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'Home')).toEqual({ left: 0, top: 0 });
+    expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'End')).toEqual({ left: 800, top: 400 });
+    expect(getMoveTreeMinimapKeyboardScroll(layout, { left: 760, top: 390, width: 200, height: 100 }, 'ArrowRight')).toEqual({ left: 800, top: 390 });
+    expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'Enter')).toBeNull();
   });
 });

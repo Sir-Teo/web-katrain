@@ -9,6 +9,7 @@ import {
   flattenMoveTree,
   getMoveTreeMinimapViewportRect,
   getMoveTreeMinimapTransform,
+  getMoveTreeMinimapKeyboardScroll,
   getVisibleMoveTreeItems,
   shouldShowMoveTreeMinimap,
   type MoveTreeLayout,
@@ -254,6 +255,23 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       behavior: 'smooth',
     });
   };
+  const handleMinimapKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
+    const container = containerRef.current;
+    if (!container || !layout) return;
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      centerCurrentNode('smooth');
+      return;
+    }
+
+    const nextScroll = getMoveTreeMinimapKeyboardScroll(layout, viewport, event.key);
+    if (!nextScroll) return;
+    event.preventDefault();
+    event.stopPropagation();
+    container.scrollTo({ ...nextScroll, behavior: 'smooth' });
+  };
   const nextLayoutDirection = layoutDirection === 'horizontal' ? 'vertical' : 'horizontal';
   const layoutDirectionLabel =
     layoutDirection === 'horizontal' ? 'Switch tree to vertical layout' : 'Switch tree to horizontal layout';
@@ -437,8 +455,11 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
             height={MINIMAP_SIZE.height}
             viewBox={`0 0 ${MINIMAP_SIZE.width} ${MINIMAP_SIZE.height}`}
             onClick={handleMinimapClick}
-            role="button"
-            aria-label="Pan move tree minimap"
+            onKeyDown={handleMinimapKeyDown}
+            tabIndex={0}
+            role="group"
+            aria-roledescription="interactive minimap"
+            aria-label="Move tree minimap. Arrow keys pan, Enter centers current move."
           >
             <rect x="0" y="0" width={MINIMAP_SIZE.width} height={MINIMAP_SIZE.height} rx="6" className="move-tree-minimap-bg" />
             <g transform={`translate(${minimapTransform.offsetX} ${minimapTransform.offsetY}) scale(${minimapTransform.scale})`}>

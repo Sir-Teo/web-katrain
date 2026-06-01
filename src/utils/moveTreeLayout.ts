@@ -230,6 +230,29 @@ export function getMoveTreeMinimapTransform(
   return { scale, renderedWidth, renderedHeight, offsetX, offsetY };
 }
 
+export function getMoveTreeMinimapKeyboardScroll(
+  layout: Pick<MoveTreeLayout, 'width' | 'height'>,
+  viewport: MoveTreeViewport,
+  key: string,
+  panRatio = 0.72
+): { left: number; top: number } | null {
+  const maxLeft = Math.max(0, layout.width - viewport.width);
+  const maxTop = Math.max(0, layout.height - viewport.height);
+  const xStep = Math.max(48, viewport.width * panRatio);
+  const yStep = Math.max(48, viewport.height * panRatio);
+  const clampLeft = (left: number) => Math.max(0, Math.min(maxLeft, left));
+  const clampTop = (top: number) => Math.max(0, Math.min(maxTop, top));
+
+  if (key === 'ArrowLeft') return { left: clampLeft(viewport.left - xStep), top: clampTop(viewport.top) };
+  if (key === 'ArrowRight') return { left: clampLeft(viewport.left + xStep), top: clampTop(viewport.top) };
+  if (key === 'ArrowUp') return { left: clampLeft(viewport.left), top: clampTop(viewport.top - yStep) };
+  if (key === 'ArrowDown') return { left: clampLeft(viewport.left), top: clampTop(viewport.top + yStep) };
+  if (key === 'Home') return { left: 0, top: 0 };
+  if (key === 'End') return { left: maxLeft, top: maxTop };
+
+  return null;
+}
+
 export function shouldShowMoveTreeMinimap(
   layout: Pick<MoveTreeLayout, 'width' | 'height'>,
   viewport: MoveTreeViewport,
