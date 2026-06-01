@@ -395,6 +395,8 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 type="button"
                 className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
                 onClick={() => cameraInputRef.current?.click()}
+                aria-label="Take board photo with camera"
+                title="Take board photo with camera"
               >
                 <span className="flex items-center justify-center gap-2"><FaCamera /> Camera</span>
               </button>
@@ -402,6 +404,8 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 type="button"
                 className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
                 onClick={() => galleryInputRef.current?.click()}
+                aria-label="Choose board photo file"
+                title="Choose board photo file"
               >
                 <span className="flex items-center justify-center gap-2"><FaFolderOpen /> Photo</span>
               </button>
@@ -440,6 +444,17 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 {photoError}
               </div>
             )}
+            {photoUrl && photoName ? (
+              <div
+                className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-xs"
+                data-photo-board-source-name="true"
+              >
+                <span className="shrink-0 font-semibold text-[var(--ui-text-muted)]">Source</span>
+                <span className="min-w-0 truncate font-mono text-[var(--ui-text)]" title={photoName}>
+                  {photoName}
+                </span>
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-3">
               <label className="space-y-1 text-sm">

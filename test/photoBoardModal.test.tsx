@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { PhotoBoardModal } from '../src/components/PhotoBoardModal';
@@ -28,5 +29,13 @@ describe('PhotoBoardModal', () => {
     expect(html).toContain('data-photo-board-delta-overlay="removed"');
     expect(html).toContain('data-photo-board-delta-marker="removed"');
     expect(html).toContain('data-photo-board-delta-player="black"');
+  });
+
+  it('names source controls and surfaces the selected photo source', () => {
+    const source = readFileSync('src/components/PhotoBoardModal.tsx', 'utf8');
+
+    expect(source).toContain('aria-label="Take board photo with camera"');
+    expect(source).toContain('aria-label="Choose board photo file"');
+    expect(source).toContain('data-photo-board-source-name="true"');
   });
 });
