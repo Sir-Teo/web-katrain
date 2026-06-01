@@ -14,6 +14,7 @@ import {
   type PhotoBoardTraceTool,
 } from '../utils/photoBoard';
 import { createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 interface PhotoBoardModalProps {
   onClose: () => void;
@@ -58,6 +59,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   currentPlayer,
   initialPhotoFile = null,
 }) => {
+  useEscapeToClose(onClose);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const photoUrlRef = React.useRef<string | null>(null);
@@ -311,9 +313,14 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-0 mobile-safe-inset mobile-safe-area-bottom md:p-2 lg:p-4">
-      <div className="ui-panel flex h-full max-h-none w-full max-w-5xl flex-col overflow-hidden rounded-none border shadow-xl md:max-h-[94vh] md:rounded-lg">
+      <div
+        className="ui-panel flex h-full max-h-none w-full max-w-5xl flex-col overflow-hidden rounded-none border shadow-xl md:max-h-[94vh] md:rounded-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="photo-board-title"
+      >
         <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-3 py-2 sm:px-4 sm:py-3">
-          <h2 className="text-lg font-semibold text-[var(--ui-text)]">Photo Board</h2>
+          <h2 id="photo-board-title" className="text-lg font-semibold text-[var(--ui-text)]">Photo Board</h2>
           <button
             type="button"
             onClick={onClose}

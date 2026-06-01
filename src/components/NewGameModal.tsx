@@ -1,6 +1,7 @@
 import React from 'react';
 import type { BoardSize, GameRules, GameSettings, Player } from '../types';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 export type GameInfoValues = {
   blackName: string;
@@ -98,6 +99,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   defaultAiConfig,
   defaultTimerConfig,
 }) => {
+  useEscapeToClose(onClose);
   const [komi, setKomi] = React.useState(() => defaultKomi);
   const [rules, setRules] = React.useState<GameRules>(() => defaultRules);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(() => defaultBoardSize);
@@ -130,10 +132,15 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="ui-panel rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border flex flex-col">
+      <div
+        className="ui-panel rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-game-title"
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)] ui-bar">
-          <h2 className="text-lg font-semibold text-[var(--ui-text)]">New Game</h2>
-          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]">✕</button>
+          <h2 id="new-game-title" className="text-lg font-semibold text-[var(--ui-text)]">New Game</h2>
+          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]" aria-label="Close new game">✕</button>
         </div>
         <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="space-y-3">

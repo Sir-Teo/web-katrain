@@ -2,6 +2,7 @@ import React from 'react';
 import { FaClipboard, FaTimes } from 'react-icons/fa';
 import { readClipboardText } from '../utils/clipboard';
 import { getPasteSgfInputInfo, type PasteSgfSubmitResult } from '../utils/pasteSgfInput';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 type PasteSgfStatusTone = 'info' | 'error';
 
@@ -21,6 +22,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit 
   const [status, setStatus] = React.useState<PasteSgfStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const inputInfo = React.useMemo(() => getPasteSgfInputInfo(text), [text]);
+  useEscapeToClose(onClose);
 
   React.useEffect(() => {
     window.setTimeout(() => textareaRef.current?.focus(), 0);
@@ -67,9 +69,14 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom">
-      <div className="ui-panel flex w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl">
+      <div
+        className="ui-panel flex w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="paste-sgf-title"
+      >
         <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
-          <h2 className="text-lg font-semibold text-[var(--ui-text)]">Paste SGF / OGS</h2>
+          <h2 id="paste-sgf-title" className="text-lg font-semibold text-[var(--ui-text)]">Paste SGF / OGS</h2>
           <button
             type="button"
             onClick={onClose}

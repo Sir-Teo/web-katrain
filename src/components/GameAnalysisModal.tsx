@@ -16,12 +16,14 @@ import {
   visitPresetLabel,
   visitSliderFillPercent,
 } from '../utils/visitPresets';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 interface GameAnalysisModalProps {
   onClose: () => void;
 }
 
 export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose }) => {
+  useEscapeToClose(onClose);
   const {
     currentNode,
     isGameAnalysisRunning,
@@ -75,10 +77,15 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
-      <div className="ui-panel rounded-lg shadow-xl w-[92vw] max-w-[28rem] max-h-[90dvh] overflow-hidden flex flex-col border">
+      <div
+        className="ui-panel rounded-lg shadow-xl w-[92vw] max-w-[28rem] max-h-[90dvh] overflow-hidden flex flex-col border"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-analysis-title"
+      >
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
-          <h2 className="text-lg font-semibold text-[var(--ui-text)]">Re-analyze Game (KaTrain)</h2>
-          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]" title="Close">
+          <h2 id="game-analysis-title" className="text-lg font-semibold text-[var(--ui-text)]">Re-analyze Game (KaTrain)</h2>
+          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]" title="Close" aria-label="Close game analysis">
             <FaTimes />
           </button>
         </div>
