@@ -6,6 +6,7 @@ import { smoothAnalysisGraphValues } from '../utils/analysisSmoothing';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { publicUrl } from '../utils/publicUrl';
+import { isGraphKeyboardNavigationKey, nextGraphKeyboardIndex } from '../utils/graphKeyboard';
 
 const SCORE_GRANULARITY = 5;
 const WINRATE_GRANULARITY = 10;
@@ -204,6 +205,38 @@ export const ScoreWinrateGraph: React.FC<{
 
   const clampedHighlighted = Math.min(Math.max(0, highlighted), Math.max(0, count - 1));
   const currentX = clampedHighlighted * xScale;
+  const activeGraphIndex = hoverIndex ?? clampedHighlighted;
+  const activeMoveIndex = activeGraphIndex + (range?.start ?? 0);
+
+  const handleFocus = () => {
+    if (count > 0) setHoverIndex((index) => index ?? clampedHighlighted);
+  };
+
+  const handleBlur = () => setHoverIndex(null);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      if (hoverIndex !== null && displayNodes[hoverIndex]) {
+        event.preventDefault();
+        event.stopPropagation();
+        jumpToNode(displayNodes[hoverIndex]);
+      }
+      return;
+    }
+
+    if (!isGraphKeyboardNavigationKey(event.key)) return;
+    const navigationKey = event.key;
+    event.preventDefault();
+    event.stopPropagation();
+    setHoverIndex((index) =>
+      nextGraphKeyboardIndex({
+        key: navigationKey,
+        currentIndex: index,
+        highlightedIndex: clampedHighlighted,
+        count,
+      })
+    );
+  };
 
   const currentScore = Number.isFinite(smoothedScoreValues[clampedHighlighted]!)
     ? smoothedScoreValues[clampedHighlighted]!
@@ -235,7 +268,15 @@ export const ScoreWinrateGraph: React.FC<{
 
   return (
     <div
-      className="w-full h-full relative border border-[var(--ui-border)] rounded overflow-hidden cursor-crosshair"
+      className="w-full h-full relative border border-[var(--ui-border)] rounded overflow-hidden cursor-crosshair focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]"
+      role="slider"
+      tabIndex={0}
+      aria-label="Analysis graph move preview. Use arrow keys to preview moves, Enter to jump to the selected move."
+      aria-valuemin={range?.start ?? 0}
+      aria-valuemax={(range?.start ?? 0) + Math.max(0, count - 1)}
+      aria-valuenow={activeMoveIndex}
+      aria-valuetext={hoverTooltip || `Move ${activeMoveIndex}`}
+      data-analysis-score-winrate-graph="true"
       style={{
         backgroundColor: KATRAN_BOX_BG,
         backgroundImage: `url('${KATRAN_GRAPH_BG_URL}')`,
@@ -245,6 +286,9 @@ export const ScoreWinrateGraph: React.FC<{
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
     >
       <svg ref={svgRef} width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
         {/* Lines */}
@@ -348,6 +392,8 @@ export const ScoreWinrateGraph: React.FC<{
       {hoverIndex !== null && (
         <div
           className="absolute bg-black bg-opacity-80 text-white text-[10px] px-2 py-1 rounded pointer-events-none"
+          aria-live="polite"
+          data-analysis-graph-tooltip="true"
           style={{
             left: `${Math.min(Math.max(0, hoverIndex * (100 / (count - 1 || 1))), 88)}%`,
             top: '50%',

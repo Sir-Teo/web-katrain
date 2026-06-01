@@ -19,6 +19,10 @@ describe('isEditableKeyboardTarget', () => {
       tagName: 'DIV',
       getAttribute: (name: string) => (name === 'role' ? 'tab' : null),
     } as unknown as EventTarget)).toBe(true);
+    expect(isEditableKeyboardTarget({
+      tagName: 'DIV',
+      getAttribute: (name: string) => (name === 'role' ? 'slider' : null),
+    } as unknown as EventTarget)).toBe(true);
   });
 
   it('ignores ordinary targets and missing targets', () => {
