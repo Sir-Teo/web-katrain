@@ -384,8 +384,8 @@
     align-items: center;
     gap: 0.5rem;
     width: fit-content;
-    min-width: min(11rem, calc(100vw - 10.75rem));
-    max-width: min(18rem, calc(100vw - 10.75rem));
+    min-width: min(100%, 16rem);
+    max-width: min(24rem, calc(100vw - 1.5rem));
     padding: 0.625rem 0.75rem;
     color: var(--ui-text);
     background: color-mix(in srgb, var(--ui-panel) 94%, transparent);
@@ -422,8 +422,8 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
+    width: 2.75rem;
+    height: 2.75rem;
     color: var(--ui-text-muted);
     border: 1px solid transparent;
     border-radius: 6px;
@@ -500,6 +500,12 @@
       min-width: min(100%, 16rem);
       max-width: min(calc(100vw - 1.5rem), 26rem);
       padding: 0.75rem 0.875rem;
+    }
+
+    .notification-toast-action,
+    .notification-toast-close {
+      width: 2rem;
+      height: 2rem;
     }
 
     .notification-toast-region--below-command-bar {
