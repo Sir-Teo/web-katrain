@@ -309,26 +309,33 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
   },
 };
 
-const resolveThemeAsset = (themeId: BoardThemeId, assetPath: string | undefined): string | undefined => {
-  if (!assetPath) return undefined;
-  if (/^(data:|blob:|https?:)/i.test(assetPath)) return assetPath;
-  if (assetPath.startsWith('/')) return publicUrl(assetPath.slice(1));
-  if (assetPath.startsWith('katrain/')) return publicUrl(assetPath);
-  if (assetPath.startsWith('themes/')) return publicUrl(assetPath);
-  return publicUrl(`themes/${themeId}/${assetPath}`);
+export const resolveBoardThemeAsset = (themeId: BoardThemeId, assetPath: string | undefined): string | undefined => {
+  const trimmed = assetPath?.trim();
+  if (!trimmed) return undefined;
+  if (/^(data:|blob:|https?:|\/\/)/i.test(trimmed)) return undefined;
+  if (trimmed.includes('\\')) return undefined;
+  const pathParts = trimmed.split('/');
+  if (pathParts.some((part) => part === '..')) return undefined;
+
+  if (trimmed.startsWith('/')) return publicUrl(trimmed.slice(1));
+  if (trimmed.startsWith('katrain/')) return publicUrl(trimmed);
+  if (trimmed.startsWith('themes/')) return publicUrl(trimmed);
+
+  const relativePath = trimmed.replace(/^(\.\/)+/, '');
+  return publicUrl(`themes/${themeId}/${relativePath}`);
 };
 
 const resolveStoneConfig = (themeId: BoardThemeId, stone: ThemeStoneConfig): ThemeStoneConfig => ({
   ...stone,
-  image: resolveThemeAsset(themeId, stone.image),
-  imageVariations: stone.imageVariations?.map((v) => resolveThemeAsset(themeId, v)!).filter(Boolean),
+  image: resolveBoardThemeAsset(themeId, stone.image),
+  imageVariations: stone.imageVariations?.map((v) => resolveBoardThemeAsset(themeId, v)!).filter(Boolean),
 });
 
 const resolveTheme = (theme: BoardThemeConfig): BoardThemeConfig => ({
   ...theme,
   board: {
     ...theme.board,
-    texture: resolveThemeAsset(theme.id, theme.board.texture),
+    texture: resolveBoardThemeAsset(theme.id, theme.board.texture),
   },
   stones: {
     black: resolveStoneConfig(theme.id, theme.stones.black),
