@@ -1305,6 +1305,39 @@
     }
   }
 
+  @media (max-width: 1023px) {
+    .analysis-command-bar__button,
+    .analysis-command-bar__depth-close,
+    .analysis-command-bar__depth-input {
+      min-height: 44px;
+    }
+
+    .analysis-command-bar__depth-close {
+      width: 44px;
+      height: 44px;
+    }
+
+    .analysis-command-bar__depth-option {
+      min-height: 44px;
+    }
+
+    .analysis-command-bar__depth-slider {
+      height: 44px;
+    }
+
+    .analysis-command-bar__depth-popover {
+      position: fixed;
+      top: max(4.75rem, calc(env(safe-area-inset-top) + 0.75rem));
+      right: max(0.75rem, env(safe-area-inset-right));
+      bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + max(0.75rem, env(safe-area-inset-bottom)));
+      left: max(0.75rem, env(safe-area-inset-left));
+      width: auto;
+      max-height: none;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+  }
+
   @media (max-width: 640px) {
     .analysis-command-bar {
       z-index: 30;
@@ -1326,17 +1359,11 @@
     }
 
     .analysis-command-bar__button {
-      min-height: 2.5rem;
       padding-inline: 0.5rem;
       font-size: 0.6875rem;
     }
 
     .analysis-command-bar__depth-popover {
-      right: 0.375rem;
-      left: 0.375rem;
-      top: calc(100% + 0.625rem);
-      bottom: auto;
-      width: auto;
       padding: 0.625rem;
     }
 
@@ -2317,6 +2344,14 @@
     .mobile-tabbar button {
       padding-top: 8px;
       padding-bottom: 8px;
+    }
+
+    .manual-score-offset {
+      top: 0.5rem;
+    }
+
+    .manual-score-panel {
+      max-height: calc(100vh - 5rem);
     }
   }
 

@@ -266,6 +266,17 @@ function assertViewport(result) {
       .join(', ');
     failures.push(`${result.scorePanelSmallTouchTargets.length} score panel touch target(s) below 44px: ${summary}`);
   }
+  if (!result.analysisDepthReachable) failures.push('analysis depth selector not reachable');
+  if (result.analysisDepthFailures.length > 0) {
+    failures.push(`analysis depth failures: ${result.analysisDepthFailures.join(', ')}`);
+  }
+  if (result.analysisDepthSmallTouchTargets.length > 0) {
+    const summary = result.analysisDepthSmallTouchTargets
+      .slice(0, 8)
+      .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+      .join(', ');
+    failures.push(`${result.analysisDepthSmallTouchTargets.length} analysis depth touch target(s) below 44px: ${summary}`);
+  }
   if (failures.length > 0) {
     throw new Error(`${result.viewport}: ${failures.join('; ')}`);
   }
@@ -358,6 +369,11 @@ async function main() {
           if (text) return text.slice(0, 48);
           return el.tagName.toLowerCase();
         };
+        const targetSearchText = (el) => [
+          el.getAttribute('aria-label') || '',
+          el.getAttribute('title') || '',
+          el.textContent || '',
+        ].join(' ').replace(/\\s+/g, ' ').trim();
         const isVisibleTarget = (el) => {
           const style = getComputedStyle(el);
           if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
@@ -419,7 +435,7 @@ async function main() {
         };
         const findButtonByLabel = (label, scope = document) => Array.from(scope.querySelectorAll('button')).find((candidate) => {
           const candidateLabel = targetLabel(candidate);
-          return candidateLabel === label || candidateLabel.includes(label);
+          return candidateLabel === label || candidateLabel.includes(label) || targetSearchText(candidate).includes(label);
         }) || null;
         const closeDialog = async (dialog, closeLabel) => {
           const button = findButtonByLabel(closeLabel, dialog);
@@ -450,6 +466,9 @@ async function main() {
         const scorePanelFailures = [];
         const scorePanelSmallTouchTargets = [];
         let scorePanelReachable = true;
+        const analysisDepthFailures = [];
+        const analysisDepthSmallTouchTargets = [];
+        let analysisDepthReachable = true;
         const editButton = allButtons.find((button) => {
           const label = [
             button.getAttribute('aria-label') || '',
@@ -582,6 +601,60 @@ async function main() {
             }
           },
         });
+        const analyzeButton = Array.from(document.querySelectorAll('button')).find((button) => targetSearchText(button).includes('Toggle analysis mode')) || findButtonByLabel('Analyze');
+        if (!analyzeButton) {
+          analysisDepthReachable = false;
+          analysisDepthFailures.push('analyze control missing');
+        } else {
+          analyzeButton.click();
+          await waitForFrames(4);
+          const commandBar = await waitForSelector('[data-analysis-command-bar="true"]');
+          const depthButton = commandBar?.querySelector('[data-analysis-live-depth="true"]');
+          if (!commandBar || !depthButton) {
+            analysisDepthReachable = false;
+            if (commandBar) {
+              analysisDepthFailures.push('depth control missing');
+            } else {
+              const visibleButtonLabels = Array.from(document.querySelectorAll('button'))
+                .filter(isVisibleTarget)
+                .map((button) => targetSearchText(button).slice(0, 64))
+                .slice(0, 10)
+                .join(' | ');
+              analysisDepthFailures.push(\`command bar did not open after \${targetSearchText(analyzeButton).slice(0, 64)}; buttons: \${visibleButtonLabels}\`);
+            }
+          } else {
+            depthButton.click();
+            await waitForFrames(2);
+            const depthPopover = await waitForSelector('[data-analysis-live-depth-popover="true"]');
+            if (!depthPopover) {
+              analysisDepthReachable = false;
+              analysisDepthFailures.push('depth popover did not open');
+            } else {
+              const depthPopoverRect = rect(depthPopover);
+              if (depthPopoverRect && (depthPopoverRect.left < -1 || depthPopoverRect.right > innerWidth + 1 || depthPopoverRect.top < -1 || depthPopoverRect.bottom > innerHeight + 1)) {
+                analysisDepthFailures.push(\`popover escapes viewport \${Math.round(depthPopoverRect.width)}x\${Math.round(depthPopoverRect.height)} at \${Math.round(depthPopoverRect.left)},\${Math.round(depthPopoverRect.top)}-\${Math.round(depthPopoverRect.right)},\${Math.round(depthPopoverRect.bottom)} in \${innerWidth}x\${innerHeight}\`);
+              }
+              if (depthPopover.querySelectorAll('[data-analysis-live-depth-option]').length < 4) {
+                analysisDepthFailures.push('preset options missing');
+              }
+              if (!depthPopover.querySelector('.analysis-command-bar__depth-help')) {
+                analysisDepthFailures.push('depth help missing');
+              }
+              if (!depthPopover.querySelector('.analysis-command-bar__depth-slider')) {
+                analysisDepthFailures.push('depth slider missing');
+              }
+              if (!depthPopover.querySelector('.analysis-command-bar__depth-input')) {
+                analysisDepthFailures.push('exact visits input missing');
+              }
+              if (${viewport.mobile}) {
+                analysisDepthSmallTouchTargets.push(...auditSmallTouchTargets(depthPopover));
+              }
+              if (!(await closeDialog(depthPopover, 'Close live depth selector'))) {
+                analysisDepthFailures.push('close control missing');
+              }
+            }
+          }
+        }
         const scoreButton = Array.from(document.querySelectorAll('button')).find((button) => {
           const label = targetLabel(button);
           return label.includes('Score position') || label === 'Score' || label.includes('ScoreShift');
@@ -647,6 +720,9 @@ async function main() {
           scorePanelReachable,
           scorePanelFailures,
           scorePanelSmallTouchTargets,
+          analysisDepthReachable,
+          analysisDepthFailures,
+          analysisDepthSmallTouchTargets,
           topToggleOverTopBar: intersects(rect(topToggle), topBarRect),
           topToggleOverEditToolbar: intersects(rect(topToggle), rect(editToolbar)),
         };
