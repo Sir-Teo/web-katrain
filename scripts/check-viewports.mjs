@@ -219,6 +219,13 @@ function assertViewport(result) {
     if (!result.actionsMenuReachable) failures.push('Actions menu not reachable');
     if (result.topToggleOverTopBar) failures.push('top toggle overlaps top bar');
     if (result.topToggleOverEditToolbar) failures.push('top toggle overlaps edit toolbar');
+    if (result.expectDualDesktopPanels) {
+      if (!result.libraryPanelVisible) failures.push('laptop library panel is not visible with side panel open');
+      if (!result.sidePanelVisible) failures.push('laptop side panel is not visible with library open');
+      if (result.libraryPanelOverlapsBoard) failures.push('laptop library panel overlaps board');
+      if (result.sidePanelOverlapsBoard) failures.push('laptop side panel overlaps board');
+      if (result.board && result.board.width < 300) failures.push(`laptop board too small with both panels open (${Math.round(result.board.width)}px)`);
+    }
   } else {
     if (!result.toolsReachable) failures.push('mobile tools menu not reachable');
     if (!result.editToolsReachable) failures.push('mobile edit tools not reachable');
@@ -332,14 +339,23 @@ async function main() {
 
     const results = [];
     for (const viewport of VIEWPORTS) {
+      const appUrl = `http://127.0.0.1:${appPort}/`;
       await cdp.send('Emulation.setDeviceMetricsOverride', {
         width: viewport.width,
         height: viewport.height,
         deviceScaleFactor: 1,
         mobile: viewport.mobile,
       });
-      await cdp.send('Page.navigate', { url: `http://127.0.0.1:${appPort}/` });
+      await cdp.send('Page.navigate', { url: appUrl });
       await waitForBoard(cdp);
+      if (viewport.width === 1024 && viewport.height === 768 && !viewport.mobile) {
+        await evaluate(cdp, `(() => {
+          localStorage.setItem('web-katrain:library_open:v1', 'true');
+          localStorage.setItem('web-katrain:sidebar_open:v1', 'true');
+        })()`);
+        await cdp.send('Page.navigate', { url: appUrl });
+        await waitForBoard(cdp);
+      }
       await evaluate(cdp, `(() => {
         const continueButton = Array.from(document.querySelectorAll('button')).find((button) => {
           const label = [
@@ -406,6 +422,13 @@ async function main() {
           const style = getComputedStyle(el);
           if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
           if (el.matches(':disabled,[aria-disabled="true"]')) return false;
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && r.bottom >= 0 && r.right >= 0 && r.top <= innerHeight && r.left <= innerWidth;
+        };
+        const isVisibleBox = (el) => {
+          if (!el) return false;
+          const style = getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden') return false;
           const r = el.getBoundingClientRect();
           return r.width > 0 && r.height > 0 && r.bottom >= 0 && r.right >= 0 && r.top <= innerHeight && r.left <= innerWidth;
         };
@@ -784,6 +807,7 @@ async function main() {
         return {
           viewport: '${viewport.width}x${viewport.height}',
           desktop: ${viewport.width >= 1024},
+          expectDualDesktopPanels: ${viewport.width === 1024 && viewport.height === 768 && !viewport.mobile},
           innerWidth,
           innerHeight,
           documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
@@ -792,6 +816,12 @@ async function main() {
           topToggle: rect(topToggle),
           editToolbar: rect(editToolbar),
           board: rect(board),
+          libraryPanel: rect(document.querySelector('[data-layout-panel="library"]')),
+          sidePanel: rect(document.querySelector('[data-layout-panel="side"]')),
+          libraryPanelVisible: isVisibleBox(document.querySelector('[data-layout-panel="library"]')),
+          sidePanelVisible: isVisibleBox(document.querySelector('[data-layout-panel="side"]')),
+          libraryPanelOverlapsBoard: intersects(rect(document.querySelector('[data-layout-panel="library"]')), rect(board)),
+          sidePanelOverlapsBoard: intersects(rect(document.querySelector('[data-layout-panel="side"]')), rect(board)),
           missingFileActions: requiredFileActions.filter((label) => !allButtons.some((button) => button.getAttribute('aria-label') === label)),
           viewMenuReachable: !!Array.from(document.querySelectorAll('button')).find((button) => (button.textContent || '').includes('View')),
           actionsMenuReachable: !!Array.from(document.querySelectorAll('button')).find((button) => (button.textContent || '').includes('Actions')),

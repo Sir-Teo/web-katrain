@@ -341,6 +341,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         />
       )}
       <div
+        data-layout-panel="side"
         className={[
           'ui-panel border-l flex flex-col overflow-hidden relative',
           'fixed inset-y-0 right-0 z-40 w-full max-w-none sm:max-w-md',

@@ -82,7 +82,7 @@ import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutSize, isDesktopLayoutViewport, isM
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery';
 import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
-import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
+import { getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
 import { saveSettingsActiveTab } from '../utils/settingsTabs';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 import { EDIT_TOOL_SHORTCUT_DEFINITIONS } from '../utils/shortcuts';
@@ -920,11 +920,6 @@ export const Layout: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  useEffect(() => {
-    if (!isDesktop || viewportWidth >= FIRST_RUN_LIBRARY_MIN_WIDTH) return;
-    if (libraryOpen && showSidebar) setShowSidebar(false);
-  }, [isDesktop, libraryOpen, showSidebar, viewportWidth]);
 
   const getPanelLimits = useCallback(() => {
     const minLeft = 220;
