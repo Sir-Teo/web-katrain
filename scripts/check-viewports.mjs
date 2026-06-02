@@ -340,6 +340,20 @@ async function main() {
         return true;
       })()`);
       await sleep(300);
+      const defaultLayout = await evaluate(cdp, `(() => {
+        const board = document.querySelector('[data-board-snapshot="true"]');
+        if (!board) return { board: null };
+        const r = board.getBoundingClientRect();
+        return {
+          board: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height },
+          documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+        };
+      })()`);
+      const defaultScreenshot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      fs.writeFileSync(
+        path.join(screenshotDir, `${viewport.width}x${viewport.height}.png`),
+        Buffer.from(defaultScreenshot.result.data, 'base64')
+      );
       const result = await evaluate(cdp, `(async () => {
         const rect = (el) => {
           if (!el) return null;
@@ -727,10 +741,12 @@ async function main() {
           topToggleOverEditToolbar: intersects(rect(topToggle), rect(editToolbar)),
         };
       })()`);
+      result.defaultBoard = defaultLayout.board;
+      result.defaultDocumentOverflow = defaultLayout.documentOverflow;
       assertViewport(result);
       const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
       fs.writeFileSync(
-        path.join(screenshotDir, `${viewport.width}x${viewport.height}.png`),
+        path.join(screenshotDir, `${viewport.width}x${viewport.height}-qa-state.png`),
         Buffer.from(screenshot.result.data, 'base64')
       );
       results.push(result);
@@ -738,7 +754,8 @@ async function main() {
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {
-      console.log(`${result.viewport}: board ${Math.round(result.board.width)}x${Math.round(result.board.height)}`);
+      const board = result.defaultBoard ?? result.board;
+      console.log(`${result.viewport}: board ${Math.round(board.width)}x${Math.round(board.height)}`);
     }
   } finally {
     chrome?.kill('SIGTERM');
