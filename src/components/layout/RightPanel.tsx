@@ -417,7 +417,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           </div>
         )}
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-3">
           <div className="flex flex-col min-h-0">
             {/* Game Info */}
             {renderSection({

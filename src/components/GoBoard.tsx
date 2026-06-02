@@ -328,6 +328,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }, TAP_CONFIRM_TIMEOUT_MS);
   }, []);
 
+  const cancelTouchGesture = useCallback(
+    (suppressClick = false) => {
+      swipeStartRef.current = null;
+      clearPendingTap();
+      if (suppressClick) suppressNextClickRef.current = true;
+    },
+    [clearPendingTap]
+  );
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -1277,7 +1286,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (scoringMode || isEditMode || isSelectingRegionOfInterest || e.touches.length !== 1) {
+    if (e.touches.length !== 1) {
+      cancelTouchGesture(true);
+      return;
+    }
+    if (scoringMode || isEditMode || isSelectingRegionOfInterest) {
       swipeStartRef.current = null;
       return;
     }
@@ -1286,7 +1299,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     swipeStartRef.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: Date.now() };
   };
 
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 1) cancelTouchGesture(true);
+  };
+
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      cancelTouchGesture(true);
+      return;
+    }
     const start = swipeStartRef.current;
     swipeStartRef.current = null;
     if (!start) return;
@@ -1361,8 +1382,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handleTouchCancel = () => {
-    swipeStartRef.current = null;
-    clearPendingTap();
+    cancelTouchGesture(true);
   };
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -2085,6 +2105,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         onBlur={handleBoardBlur}
         onKeyDown={handleBoardKeyDown}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
         onWheel={handleWheel}
