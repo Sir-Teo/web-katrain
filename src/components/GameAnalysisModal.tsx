@@ -93,8 +93,14 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
       >
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
           <h2 id="game-analysis-title" className="text-lg font-semibold text-[var(--ui-text)]">Re-analyze Game (KaTrain)</h2>
-          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]" title="Close" aria-label="Close game analysis">
-            <FaTimes />
+          <button
+            type="button"
+            onClick={onClose}
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+            title="Close"
+            aria-label="Close game analysis"
+          >
+            <FaTimes aria-hidden="true" />
           </button>
         </div>
 

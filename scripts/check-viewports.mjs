@@ -244,6 +244,16 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.editModeSmallTouchTargets.length} edit-mode touch target(s) below 44px: ${summary}`);
     }
+    if (result.modalSmallTouchTargets.length > 0) {
+      const summary = result.modalSmallTouchTargets
+        .slice(0, 8)
+        .map((target) => `${target.modal}: ${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+        .join(', ');
+      failures.push(`${result.modalSmallTouchTargets.length} modal touch target(s) below 44px: ${summary}`);
+    }
+  }
+  if (result.modalSmokeFailures.length > 0) {
+    failures.push(`modal smoke failures: ${result.modalSmokeFailures.join(', ')}`);
   }
   if (failures.length > 0) {
     throw new Error(`${result.viewport}: ${failures.join('; ')}`);
@@ -344,7 +354,7 @@ async function main() {
           const r = el.getBoundingClientRect();
           return r.width > 0 && r.height > 0 && r.bottom >= 0 && r.right >= 0 && r.top <= innerHeight && r.left <= innerWidth;
         };
-        const auditSmallTouchTargets = () => Array.from(document.querySelectorAll('button, input, select, textarea, a[href], [role="button"], [role="tab"]'))
+        const auditSmallTouchTargets = (scope = document) => Array.from(scope.querySelectorAll('button, input, select, textarea, a[href], [role="button"], [role="tab"]'))
           .filter((el) => !el.closest('[data-board-snapshot="true"]'))
           .filter(isVisibleTarget)
           .map((el) => ({ el, r: el.getBoundingClientRect() }))
@@ -355,6 +365,73 @@ async function main() {
             width: r.width,
             height: r.height,
           }));
+        const waitForFrames = async (frames = 2) => {
+          for (let i = 0; i < frames; i++) {
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+          }
+        };
+        const waitForSelector = async (selector) => {
+          for (let i = 0; i < 60; i++) {
+            const el = document.querySelector(selector);
+            if (el && isVisibleTarget(el)) return el;
+            await waitForFrames(1);
+          }
+          return null;
+        };
+        const modalSmokeFailures = [];
+        const modalSmallTouchTargets = [];
+        const dispatchShortcut = (key, options = {}) => {
+          window.dispatchEvent(new KeyboardEvent('keydown', {
+            key,
+            bubbles: true,
+            cancelable: true,
+            ctrlKey: !!options.ctrlKey,
+            metaKey: !!options.metaKey,
+            shiftKey: !!options.shiftKey,
+            altKey: !!options.altKey,
+          }));
+        };
+        const withShortcutOverride = async (id, binding, action) => {
+          const storageKey = 'web-katrain:shortcuts:v1';
+          const original = localStorage.getItem(storageKey);
+          try {
+            const overrides = original ? JSON.parse(original) : {};
+            overrides[id] = [binding];
+            localStorage.setItem(storageKey, JSON.stringify(overrides));
+            window.dispatchEvent(new CustomEvent('web-katrain:shortcuts-updated'));
+            await action();
+          } finally {
+            if (original === null) localStorage.removeItem(storageKey);
+            else localStorage.setItem(storageKey, original);
+            window.dispatchEvent(new CustomEvent('web-katrain:shortcuts-updated'));
+          }
+        };
+        const closeDialog = async (dialog, closeLabel) => {
+          const button = Array.from(dialog.querySelectorAll('button')).find((candidate) => targetLabel(candidate).includes(closeLabel));
+          if (!button) return false;
+          button.click();
+          await waitForFrames(2);
+          return true;
+        };
+        const smokeModal = async ({ name, selector, closeLabel, open, afterOpen }) => {
+          try {
+            await open();
+            const dialog = await waitForSelector(selector);
+            if (!dialog) {
+              modalSmokeFailures.push(\`\${name} did not open\`);
+              return;
+            }
+            if (${viewport.mobile}) {
+              modalSmallTouchTargets.push(...auditSmallTouchTargets(dialog).map((target) => ({ ...target, modal: name })));
+            }
+            if (afterOpen) await afterOpen(dialog);
+            if (!(await closeDialog(dialog, closeLabel))) {
+              modalSmokeFailures.push(\`\${name} close control missing\`);
+            }
+          } catch (error) {
+            modalSmokeFailures.push(\`\${name}: \${error instanceof Error ? error.message : String(error)}\`);
+          }
+        };
         const editButton = allButtons.find((button) => {
           const label = [
             button.getAttribute('aria-label') || '',
@@ -404,6 +481,54 @@ async function main() {
           closeEditButton?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }
+        await smokeModal({
+          name: 'keyboard shortcuts',
+          selector: '[aria-labelledby="keyboard-help-title"]',
+          closeLabel: 'Close keyboard shortcuts',
+          open: async () => {
+            dispatchShortcut('?');
+            await waitForFrames(2);
+          },
+        });
+        await smokeModal({
+          name: 'paste SGF',
+          selector: '[aria-labelledby="paste-sgf-title"]',
+          closeLabel: 'Close paste SGF',
+          open: async () => {
+            await withShortcutOverride('paste-sgf', { key: 'F9', ctrl: false, shift: false, alt: false }, async () => {
+              dispatchShortcut('F9');
+              await waitForFrames(2);
+            });
+          },
+        });
+        await smokeModal({
+          name: 'game report',
+          selector: '[aria-labelledby="game-report-title"]',
+          closeLabel: 'Close game report',
+          open: async () => {
+            dispatchShortcut('F3');
+            await waitForFrames(2);
+          },
+          afterOpen: async (dialog) => {
+            const guide = Array.from(dialog.querySelectorAll('button')).find((candidate) => targetLabel(candidate).includes('Open report guide'));
+            if (!guide) {
+              modalSmokeFailures.push('report guide control missing');
+              return;
+            }
+            guide.click();
+            const guideDialog = await waitForSelector('[aria-labelledby="report-guide-title"]');
+            if (!guideDialog) {
+              modalSmokeFailures.push('report guide did not open');
+              return;
+            }
+            if (${viewport.mobile}) {
+              modalSmallTouchTargets.push(...auditSmallTouchTargets(guideDialog).map((target) => ({ ...target, modal: 'report guide' })));
+            }
+            if (!(await closeDialog(guideDialog, 'Close report guide'))) {
+              modalSmokeFailures.push('report guide close control missing');
+            }
+          },
+        });
         return {
           viewport: '${viewport.width}x${viewport.height}',
           desktop: ${viewport.width >= 1024},
@@ -426,6 +551,8 @@ async function main() {
           smallTouchTargets,
           editModeBoardTouchAction,
           editModeSmallTouchTargets,
+          modalSmokeFailures,
+          modalSmallTouchTargets,
           topToggleOverTopBar: intersects(rect(topToggle), topBarRect),
           topToggleOverEditToolbar: intersects(rect(topToggle), rect(editToolbar)),
         };

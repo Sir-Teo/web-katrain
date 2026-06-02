@@ -140,7 +140,14 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)] ui-bar">
           <h2 id="new-game-title" className="text-lg font-semibold text-[var(--ui-text)]">New Game</h2>
-          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]" aria-label="Close new game">✕</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+            aria-label="Close new game"
+          >
+            ✕
+          </button>
         </div>
         <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="space-y-3">

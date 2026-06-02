@@ -118,7 +118,12 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               {filteredCommands.length} command{filteredCommands.length === 1 ? '' : 's'}
             </div>
           </div>
-          <button type="button" className="ui-text-faint hover:text-[var(--ui-text)]" onClick={onClose} aria-label="Close command palette">
+          <button
+            type="button"
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+            onClick={onClose}
+            aria-label="Close command palette"
+          >
             <FaTimes aria-hidden="true" />
           </button>
         </div>

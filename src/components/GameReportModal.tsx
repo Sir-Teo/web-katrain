@@ -192,9 +192,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const mutedClass = 'text-[var(--ui-text-muted)]';
   const faintClass = 'text-[var(--ui-text-faint)]';
   const secondaryPillClass =
-    'rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]';
+    'inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]';
   const secondaryButtonClass =
-    'rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]';
+    'inline-flex min-h-11 items-center justify-center rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]';
   const insetSurfaceClass = 'rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)]';
   const generatedAt = useMemo(() => new Date(), []);
   const playerNames = useMemo(() => {
@@ -848,7 +848,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <button
               type="button"
               onClick={() => setShowReportGuide(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
               title="Open report guide"
               aria-label="Open report guide"
             >
@@ -858,7 +858,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <button
               type="button"
               onClick={onClose}
-              className="ui-text-faint hover:text-[var(--ui-text)]"
+              className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
               title="Close"
               aria-label="Close game report"
             >
@@ -893,7 +893,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         : `${counts.analyzed}/${counts.total} analyzed ${moveWord} in ${b.label}`
                     }
                     className={[
-                      'min-w-0 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors',
+                      'min-h-11 min-w-0 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors',
                       active
                         ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]'
                         : disabled
@@ -921,7 +921,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 type="button"
                 onClick={() => setPlayerFilter(opt.key as 'all' | Player)}
                 className={[
-                  'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+                  'inline-flex min-h-11 items-center justify-center px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
                   playerFilter === opt.key
                     ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] border-[var(--ui-accent)]'
                     : 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -934,7 +934,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <button
                 type="button"
                 onClick={() => setBucketFilter(null)}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]"
+                className="inline-flex min-h-11 items-center justify-center px-3 py-1.5 rounded-full text-xs font-semibold border bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]"
                 title="Clear loss bucket filter"
               >
                 Loss {bucketFilterLabel} x
@@ -945,7 +945,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 type="button"
                 onClick={() => setPolicyFilter(null)}
                 className={[
-                  'px-3 py-1.5 rounded-full text-xs font-semibold border',
+                  'inline-flex min-h-11 items-center justify-center px-3 py-1.5 rounded-full text-xs font-semibold border',
                   policyCategoryClass(policyFilter),
                 ].join(' ')}
                 title="Clear policy quality filter"
@@ -966,7 +966,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 onClick={handleReviewClick}
                 disabled={isPreparingPdf || (!isGameAnalysisRunning && !hasReviewTargets)}
                 className={[
-                  'shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-60',
+                  'min-h-11 shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-60',
                   isGameAnalysisRunning
                     ? 'bg-rose-600/80 text-white hover:bg-rose-500'
                     : hasFullCoverage
@@ -1853,7 +1853,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               type="button"
               onClick={handleReviewClick}
               className={[
-                'px-4 py-2 rounded-lg font-semibold disabled:opacity-60',
+                'min-h-11 px-4 py-2 rounded-lg font-semibold disabled:opacity-60',
                 isGameAnalysisRunning
                   ? 'bg-rose-600/80 hover:bg-rose-500 text-white'
                   : hasFullCoverage
@@ -1867,7 +1867,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <button
               type="button"
               onClick={handlePrintReport}
-              className="px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
+              className="min-h-11 px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
               disabled={isPreparingPdf}
             >
               {isPreparingPdf
@@ -1878,7 +1878,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 ui-accent-bg hover:brightness-110 rounded-lg font-semibold"
+            className="min-h-11 px-4 py-2 ui-accent-bg hover:brightness-110 rounded-lg font-semibold"
           >
             Done
           </button>
@@ -1905,7 +1905,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <button
                 type="button"
                 onClick={() => setShowReportGuide(false)}
-                className="ui-text-faint hover:text-[var(--ui-text)]"
+                className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                 aria-label="Close report guide"
                 title="Close report guide"
               >

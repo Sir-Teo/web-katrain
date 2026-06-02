@@ -30,8 +30,13 @@ export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
           <h2 id="auto-save-recovery-title" className="text-base font-semibold text-[var(--ui-text)]">
             Restore Auto-Saved Game
           </h2>
-          <button type="button" onClick={onDismiss} className="ui-text-faint hover:text-[var(--ui-text)]" aria-label="Close">
-            <FaTimes />
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+            aria-label="Close"
+          >
+            <FaTimes aria-hidden="true" />
           </button>
         </div>
         <div className="p-4 space-y-4">

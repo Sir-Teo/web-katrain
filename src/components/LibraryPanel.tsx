@@ -139,8 +139,13 @@ const LibraryTextDialog: React.FC<{
           <h2 id="library-text-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
             {dialog.title}
           </h2>
-          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]" aria-label="Close">
-            <FaTimes />
+          <button
+            type="button"
+            onClick={onClose}
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+            aria-label="Close"
+          >
+            <FaTimes aria-hidden="true" />
           </button>
         </div>
         <div className="p-4 space-y-3">
@@ -222,8 +227,13 @@ const LibraryConfirmDialog: React.FC<{
           <h2 id="library-confirm-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
             {dialog.title}
           </h2>
-          <button type="button" onClick={onClose} className="ui-text-faint hover:text-[var(--ui-text)]" aria-label="Close">
-            <FaTimes />
+          <button
+            type="button"
+            onClick={onClose}
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+            aria-label="Close"
+          >
+            <FaTimes aria-hidden="true" />
           </button>
         </div>
         <div className="p-4 space-y-4">
