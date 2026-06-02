@@ -1157,11 +1157,12 @@ export const Layout: React.FC = () => {
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
   const scoreLead = analysisData?.rootScoreLead ?? currentNode.analysis?.rootScoreLead;
   const showAnalysisCommandBar =
-    mode === 'analyze' ||
-    isAnalysisMode ||
-    isGameAnalysisRunning ||
-    typeof winRate === 'number' ||
-    typeof scoreLead === 'number';
+    settings.showAnalysisBar &&
+    (mode === 'analyze' ||
+      isAnalysisMode ||
+      isGameAnalysisRunning ||
+      typeof winRate === 'number' ||
+      typeof scoreLead === 'number');
   const [boardToolOffsetY, setBoardToolOffsetY] = useState(12);
 
   useLayoutEffect(() => {

@@ -5,10 +5,9 @@ import { AnalysisStatsActions } from '../src/components/AnalysisPanel';
 const noop = () => undefined;
 
 describe('AnalysisStatsActions', () => {
-  it('surfaces report and analysis actions with cache status', () => {
+  it('surfaces report and analysis actions', () => {
     const html = renderToStaticMarkup(
       <AnalysisStatsActions
-        analysisCacheSize={1}
         onOpenGameAnalysis={noop}
         onOpenGameReport={noop}
       />
@@ -17,20 +16,16 @@ describe('AnalysisStatsActions', () => {
     expect(html).toContain('data-analysis-stats-actions="true"');
     expect(html).toContain('Open game report');
     expect(html).toContain('Open analysis options');
-    expect(html).toContain('1 cached analysis');
-    expect(html).toContain('1 cached');
   });
 
-  it('pluralizes cached analyses', () => {
+  it('does not duplicate the cache count (surfaced by the clear-cache control instead)', () => {
     const html = renderToStaticMarkup(
       <AnalysisStatsActions
-        analysisCacheSize={4}
         onOpenGameAnalysis={noop}
         onOpenGameReport={noop}
       />
     );
 
-    expect(html).toContain('4 cached analyses');
-    expect(html).toContain('4 cached');
+    expect(html).not.toContain('cached');
   });
 });

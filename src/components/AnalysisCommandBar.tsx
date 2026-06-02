@@ -101,6 +101,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const topMoveMetric = useGameStore((state) => state.settings.trainerTopMovesShow);
   const policyHeatmapMetric = useGameStore((state) => state.settings.analysisPolicyMetric);
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
+  const showAnalysisBar = useGameStore((state) => state.settings.showAnalysisBar);
   const currentNode = useGameStore((state) => state.currentNode);
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
@@ -116,11 +117,12 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const [reviewNow, setReviewNow] = React.useState(0);
   const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const shouldShow =
-    mode === 'analyze' ||
-    isAnalysisMode ||
-    isGameAnalysisRunning ||
-    typeof winRate === 'number' ||
-    typeof scoreLead === 'number';
+    showAnalysisBar &&
+    (mode === 'analyze' ||
+      isAnalysisMode ||
+      isGameAnalysisRunning ||
+      typeof winRate === 'number' ||
+      typeof scoreLead === 'number');
 
   const pointsSummary = summarizePointsLost(pointsLost);
   const gameProgress = isGameAnalysisRunning && gameAnalysisTotal > 0
@@ -592,6 +594,15 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         >
           <FaFileAlt size={12} aria-hidden="true" />
           <span>Report</span>
+        </button>
+        <button
+          type="button"
+          className="analysis-command-bar__button analysis-command-bar__button--dismiss"
+          onClick={() => updateSettings({ showAnalysisBar: false })}
+          title="Hide the analysis bar (re-enable it from the View menu)"
+          aria-label="Hide the analysis bar"
+        >
+          <FaTimes size={12} aria-hidden="true" />
         </button>
       </div>
 

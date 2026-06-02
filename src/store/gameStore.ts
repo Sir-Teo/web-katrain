@@ -921,6 +921,7 @@ const defaultSettings: GameSettings = {
   showCoordinates: true,
   showMoveNumbers: false,
   showBoardControls: true,
+  showAnalysisBar: true,
   fuzzyStonePlacement: true,
   showNextMovePreview: true,
   boardTheme: 'hikaru',

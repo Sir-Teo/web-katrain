@@ -105,6 +105,7 @@ export interface GameSettings {
   showCoordinates: boolean;
   showMoveNumbers: boolean;
   showBoardControls: boolean;
+  showAnalysisBar: boolean;
   fuzzyStonePlacement: boolean;
   showNextMovePreview: boolean;
   boardTheme: BoardThemeId;

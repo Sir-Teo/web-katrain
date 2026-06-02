@@ -80,7 +80,6 @@ type AnalysisOverlayControl = keyof AnalysisControlsState;
 type EvalColor = readonly [number, number, number, number];
 type QualityLegendItem = { label: string; range: string; color: string };
 type AnalysisStatsActionsProps = {
-  analysisCacheSize: number;
   onOpenGameAnalysis: () => void;
   onOpenGameReport: () => void;
 };
@@ -104,14 +103,14 @@ function pointsSummaryClass(tone: ReturnType<typeof summarizePointsLost>['tone']
 export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = ({ items }) => (
   <div
     id="analysis-quality-legend"
-    className="border-b border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-2 text-[11px]"
+    className="border-b border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[11px]"
     data-analysis-quality-legend="true"
   >
-    <div className="mb-1.5 flex items-center justify-between gap-2">
+    <div className="mb-1 flex items-center justify-between gap-2">
       <div className="font-semibold text-[var(--ui-text)]">Move quality</div>
       <div className="ui-text-faint">Points lost</div>
     </div>
-    <div className="grid grid-cols-2 gap-1.5">
+    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
       {items.map((item) => (
         <div key={item.label} className="flex min-w-0 items-center gap-1.5">
           <span
@@ -124,12 +123,12 @@ export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = (
         </div>
       ))}
     </div>
-    <div className="mt-2 border-t border-[var(--ui-border)] pt-2" data-analysis-overlay-legend="true">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
+    <div className="mt-1.5 border-t border-[var(--ui-border)] pt-1.5" data-analysis-overlay-legend="true">
+      <div className="mb-1 flex items-center justify-between gap-2">
         <div className="font-semibold text-[var(--ui-text)]">Overlays</div>
         <div className="ui-text-faint">Board colors</div>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-x-2 gap-y-1">
         <div className="min-w-0" data-analysis-overlay-legend-item="top-moves">
           <span className="mb-1 flex h-5 w-full items-center justify-center rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] font-mono text-[10px] text-[var(--ui-accent)]">
             1
@@ -159,17 +158,12 @@ export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = (
   </div>
 );
 
-function formatAnalysisCacheLabel(count: number): string {
-  if (count === 1) return '1 cached analysis';
-  return `${count} cached analyses`;
-}
-
 export const AnalysisStatsActions: React.FC<AnalysisStatsActionsProps> = ({
-  analysisCacheSize,
   onOpenGameAnalysis,
   onOpenGameReport,
 }) => {
-  const cacheLabel = formatAnalysisCacheLabel(analysisCacheSize);
+  // Cache size is surfaced by the clear-cache control elsewhere in the panel,
+  // so this row only carries the Report / Analyze actions.
   return (
     <div
       className="col-span-full flex flex-wrap items-center gap-1.5 border-t border-[var(--ui-border)] pt-2"
@@ -195,13 +189,6 @@ export const AnalysisStatsActions: React.FC<AnalysisStatsActionsProps> = ({
         <FaRedoAlt size={11} aria-hidden="true" />
         <span>Analyze</span>
       </button>
-      <span
-        className="ml-auto rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ui-text-faint"
-        title={cacheLabel}
-        aria-label={cacheLabel}
-      >
-        {analysisCacheSize} cached
-      </span>
     </div>
   );
 };
@@ -459,13 +446,15 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     </button>
   );
   const qualityLegend = legendOpen ? <AnalysisQualityLegend items={qualityLegendItems} /> : null;
-  const statsActions = (
+  // Report / Analyze / cache live in the toolbar on desktop; only the compact
+  // (toolbar-less) layout needs these inline actions, so skip them otherwise to
+  // avoid duplicating the same controls within a single view.
+  const statsActions = compact ? (
     <AnalysisStatsActions
-      analysisCacheSize={analysisCacheSize}
       onOpenGameAnalysis={onOpenGameAnalysis}
       onOpenGameReport={onOpenGameReport}
     />
-  );
+  ) : null;
   const readoutGridStyle: React.CSSProperties = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(4.75rem, 1fr))',
   };
@@ -520,27 +509,27 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   };
   const graphReadout = (
     <div
-      className="grid gap-1.5 text-[11px]"
+      className="grid gap-1 text-[11px]"
       data-analysis-graph-readout="true"
       style={readoutGridStyle}
     >
-      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
+      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1">
         <div className="ui-text-faint">Move</div>
         <div className="font-mono text-sm text-[var(--ui-text)]">{currentMoveNumber}</div>
       </div>
       <AnalysisCoverageReadout
         summary={analysisCoverage}
-        className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5"
+        className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1"
       />
-      {renderBestMoveReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
-      {renderMoveQualityReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5')}
-      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
+      {renderBestMoveReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1')}
+      {renderMoveQualityReadout('min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1')}
+      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1">
         <div className="ui-text-faint">Winrate</div>
         <div className="font-mono text-sm text-[var(--ui-success)]">
           {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
         </div>
       </div>
-      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5">
+      <div className="min-w-0 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1">
         <div className="ui-text-faint">Score</div>
         <div className="font-mono text-sm text-[var(--ui-warning)]">
           {scoreLeadLabel}
@@ -550,16 +539,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   );
   const liveVisitPresetControls = (
     <div
-      className="mt-3 border-t border-[var(--ui-border)] pt-3"
+      className="mt-2 border-t border-[var(--ui-border)] pt-2"
       data-analysis-live-visit-presets="true"
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
           MCTS depth
         </div>
         <div className="text-[11px] ui-text-faint">Kaya-style</div>
       </div>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-1">
         {liveVisitPresets.map((preset) => {
           const active = liveVisits === preset;
           return (
@@ -567,7 +556,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               key={preset}
               type="button"
               className={[
-                'rounded-md border px-2 py-1.5 text-left transition-colors disabled:opacity-45 disabled:cursor-not-allowed',
+                'rounded-md border px-2 py-1 text-left transition-colors disabled:opacity-45 disabled:cursor-not-allowed',
                 active
                   ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
                   : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -589,7 +578,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   );
 
   return (
-    <div className="flex flex-col min-h-0">
+    <div className="flex flex-col min-h-0 analysis-panel-compact">
       <div className="panel-section-header">
         <EngineStatusBadge
           label={engineMeta}
@@ -617,7 +606,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
       )}
       <div className="panel-section-content border-b border-[var(--ui-border)]">
-        <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
           <div>
             <div className="ui-text-faint">State</div>
             <div className={engineStatus === 'error' ? 'text-[var(--ui-danger)] font-semibold' : 'text-[var(--ui-text)] font-semibold'}>
@@ -771,7 +760,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       )}
       <div className="panel-section-content">
         {compact ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               {graphMetricToggles}
               <div className="flex items-center gap-1.5">
@@ -784,16 +773,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             <div className="panel-compact-graph">
               <ScoreWinrateGraph showScore={graphMetrics.score} showWinrate={graphMetrics.winrate} />
             </div>
-            <div className="grid gap-2" style={readoutGridStyle}>
-              {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
-              {renderMoveQualityReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
-              <div className="px-2 py-1.5">
+            <div className="grid gap-1" style={readoutGridStyle}>
+              {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
+              {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
+              <div className="px-2 py-1">
                 <div className="text-[11px] ui-text-faint">Winrate</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
                   {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
                 </div>
               </div>
-              <div className="px-2 py-1.5">
+              <div className="px-2 py-1">
                 <div className="text-[11px] ui-text-faint">Score</div>
                 <div className="font-mono text-sm text-[var(--ui-warning)]">
                   {scoreLeadLabel}
@@ -801,30 +790,30 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               </div>
               <AnalysisCoverageReadout
                 summary={analysisCoverage}
-                className="px-2 py-1.5"
+                className="px-2 py-1"
                 labelClassName="text-[11px] ui-text-faint"
               />
               {statsActions}
             </div>
           </div>
         ) : activeTab === 'graph' ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="panel-compact-graph">
               <ScoreWinrateGraph showScore={graphMetrics.score} showWinrate={graphMetrics.winrate} />
             </div>
             {graphReadout}
           </div>
         ) : (
-          <div className="grid gap-2" style={readoutGridStyle}>
-            {renderBestMoveReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
-            {renderMoveQualityReadout('min-w-0 px-2 py-1.5', 'text-[11px] ui-text-faint')}
-            <div className="px-2 py-1.5">
+          <div className="grid gap-1" style={readoutGridStyle}>
+            {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
+            {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
+            <div className="px-2 py-1">
               <div className="text-[11px] ui-text-faint">Winrate</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">
                 {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
               </div>
             </div>
-            <div className="px-2 py-1.5">
+            <div className="px-2 py-1">
               <div className="text-[11px] ui-text-faint">Score</div>
               <div className="font-mono text-sm text-[var(--ui-warning)]">
                 {scoreLeadLabel}
@@ -832,7 +821,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             </div>
             <AnalysisCoverageReadout
               summary={analysisCoverage}
-              className="px-2 py-1.5"
+              className="px-2 py-1"
               labelClassName="text-[11px] ui-text-faint"
             />
             {statsActions}
