@@ -437,7 +437,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             ) : (
               <button
                 type="button"
-                className="font-mono text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-50"
+                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded px-2 font-mono text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:opacity-50"
                 title="Set move number"
                 onClick={openMoveNumberEditor}
                 disabled={isInsertMode}
@@ -835,7 +835,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           ) : (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded px-1 text-left hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-1 rounded px-2 text-left hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
               title="Set move number"
               onClick={openMoveNumberEditor}
               disabled={isInsertMode}

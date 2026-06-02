@@ -1,11 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @layer base {
   :root,
   :root[data-ui-theme='noir'] {
-    --ui-font: 'Manrope', 'Segoe UI', sans-serif;
-    --ui-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --ui-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --ui-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --ui-font-size: 15px;
     --ui-bar-height: 56px;
     --ui-bar-pad-x: 12px;
@@ -2200,6 +2199,11 @@
       top: 8px;
     }
 
+    .manual-score-launch {
+      min-height: 44px;
+      padding: 9px 12px;
+    }
+
     .manual-score-offset {
       top: 11.75rem;
     }
@@ -2493,9 +2497,9 @@
 
   .pwa-install-primary,
   .pwa-install-secondary {
-    min-height: 30px;
+    min-height: 36px;
     border-radius: 6px;
-    padding: 0 10px;
+    padding: 0 12px;
     font-size: 11px;
     font-weight: 800;
   }
@@ -2533,6 +2537,11 @@
       grid-column: 1 / -1;
       flex-wrap: wrap;
       justify-content: flex-end;
+    }
+
+    .pwa-install-primary,
+    .pwa-install-secondary {
+      min-height: 40px;
     }
 
     .pwa-install-detail {

@@ -22,15 +22,15 @@ export const TOP_MOVE_METRIC_SELECT_OPTIONS: Array<{ value: TopMoveMetric; label
 ];
 
 export const POLICY_HEATMAP_METRIC_OPTIONS: Array<{ value: PolicyHeatmapMetric; label: string; shortLabel: string }> = [
-  { value: 'policy', label: 'Policy probability', shortLabel: 'Policy' },
-  { value: 'delta_score', label: 'Delta score', shortLabel: 'Delta' },
-  { value: 'delta_winrate', label: 'Delta winrate', shortLabel: 'Delta win' },
+  { value: 'policy', label: 'Move probability', shortLabel: 'Prob.' },
+  { value: 'delta_score', label: 'Score change', shortLabel: 'Score' },
+  { value: 'delta_winrate', label: 'Win-rate change', shortLabel: 'Win rate' },
 ];
 
 export const POLICY_HEATMAP_METRIC_SELECT_OPTIONS: Array<{ value: PolicyHeatmapMetric; label: string }> = [
-  { value: 'policy', label: 'Policy Probability' },
-  { value: 'delta_score', label: 'Delta Score' },
-  { value: 'delta_winrate', label: 'Delta Winrate' },
+  { value: 'policy', label: 'Move Probability' },
+  { value: 'delta_score', label: 'Score Change' },
+  { value: 'delta_winrate', label: 'Win-rate Change' },
 ];
 
 export function getTopMoveMetricLabel(metric: TopMoveMetric, variant: 'long' | 'short' = 'long'): string {

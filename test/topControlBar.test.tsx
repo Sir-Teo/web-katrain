@@ -103,6 +103,7 @@ describe('TopControlBar', () => {
       expect(html).toContain(`for="${id}"`);
       expect(html).toContain(`id="${id}"`);
     }
+    expect(html).toContain('>Heatmap</span>');
   });
 
   it('exposes desktop analysis actions as a labelled popover dialog', () => {

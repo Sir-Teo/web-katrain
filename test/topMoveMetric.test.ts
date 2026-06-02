@@ -42,8 +42,8 @@ describe('top move metric helpers', () => {
   });
 
   it('provides compact labels for the policy heatmap metric control', () => {
-    expect(getPolicyHeatmapMetricLabel('policy', 'short')).toBe('Policy');
-    expect(getPolicyHeatmapMetricLabel('delta_score', 'short')).toBe('Delta');
-    expect(getPolicyHeatmapMetricLabel('delta_winrate', 'short')).toBe('Delta win');
+    expect(getPolicyHeatmapMetricLabel('policy', 'short')).toBe('Prob.');
+    expect(getPolicyHeatmapMetricLabel('delta_score', 'short')).toBe('Score');
+    expect(getPolicyHeatmapMetricLabel('delta_winrate', 'short')).toBe('Win rate');
   });
 });

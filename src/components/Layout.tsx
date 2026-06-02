@@ -1803,7 +1803,7 @@ export const Layout: React.FC = () => {
     };
     const toggleTopMoveHints = () => {
       if (settings.analysisShowPolicy) {
-        toast('Policy overlay is showing; top move hints are hidden.', 'info');
+        toast('Move heatmap is showing; top move hints are hidden.', 'info');
         return;
       }
       updateControls({ analysisShowHints: !settings.analysisShowHints });
@@ -2113,22 +2113,22 @@ export const Layout: React.FC = () => {
       },
       {
         id: 'toggle-policy',
-        label: settings.analysisShowPolicy ? 'Hide policy heatmap' : 'Show policy heatmap',
+        label: settings.analysisShowPolicy ? 'Hide move heatmap' : 'Show move heatmap',
         category: 'Analysis',
         shortcutId: 'toggle-policy',
         run: () => updateControls({ analysisShowPolicy: !settings.analysisShowPolicy }),
-        keywords: ['heatmap', 'network'],
+        keywords: ['heatmap', 'probability', 'network'],
       },
       {
         id: 'cycle-policy-metric',
-        label: 'Cycle policy heatmap metric',
+        label: 'Cycle move heatmap metric',
         category: 'Analysis',
         shortcutId: 'cycle-policy-metric',
         run: () => {
           updateSettings({ analysisPolicyMetric: nextPolicyHeatmapMetric(settings.analysisPolicyMetric) });
           if (!settings.analysisShowPolicy) updateControls({ analysisShowPolicy: true });
         },
-        keywords: ['policy label', 'heatmap label'],
+        keywords: ['probability label', 'score change', 'win-rate change', 'heatmap label'],
       },
       {
         id: 'toggle-territory',

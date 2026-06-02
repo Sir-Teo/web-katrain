@@ -22,6 +22,15 @@ const themedShellFiles = [
 ] as const;
 
 describe('light theme shell tokens', () => {
+  it('keeps app fonts local and offline-safe', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).not.toContain('fonts.googleapis.com');
+    expect(css).not.toContain('fonts.gstatic.com');
+    expect(css).toContain('--ui-font: ui-sans-serif');
+    expect(css).toContain('--ui-font-mono: ui-monospace');
+  });
+
   it('keeps shared shell hover text on theme tokens instead of hard white', () => {
     for (const file of themedShellFiles) {
       expect(readFileSync(file, 'utf8'), file).not.toContain('hover:text-white');

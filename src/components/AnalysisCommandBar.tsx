@@ -536,7 +536,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onClick={() => toggleOverlay('analysisShowHints')}
           aria-pressed={analysisControls.analysisShowHints}
           disabled={topMovesHiddenByPolicy}
-          title={topMovesHiddenByPolicy ? 'Policy overlay is showing; top move hints are hidden' : 'Show or hide top move hints'}
+          title={topMovesHiddenByPolicy ? 'Move heatmap is showing; top move hints are hidden' : 'Show or hide top move hints'}
         >
           <FaLayerGroup size={12} aria-hidden="true" />
           <span>Top moves</span>
@@ -556,10 +556,10 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           className={['analysis-command-bar__button', analysisControls.analysisShowPolicy ? 'active' : ''].join(' ')}
           onClick={() => toggleOverlay('analysisShowPolicy')}
           aria-pressed={analysisControls.analysisShowPolicy}
-          title={analysisControls.analysisShowPolicy ? 'Hide policy heatmap' : 'Show policy heatmap'}
+          title={analysisControls.analysisShowPolicy ? 'Hide move heatmap' : 'Show move heatmap'}
         >
           <FaThLarge size={12} aria-hidden="true" />
-          <span>Policy</span>
+          <span>Heatmap</span>
         </button>
         <button
           type="button"
@@ -569,7 +569,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           ].join(' ')}
           onClick={cyclePolicyHeatmapMetric}
           data-analysis-policy-metric="true"
-          title="Cycle the policy heatmap label"
+          title="Cycle the move heatmap metric"
         >
           <FaChartBar size={12} aria-hidden="true" />
           <span>Map: {policyHeatmapMetricLabel}</span>

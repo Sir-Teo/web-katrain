@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { AnalysisPanel } from '../src/components/AnalysisPanel';
+import { AnalysisPanel, AnalysisQualityLegend } from '../src/components/AnalysisPanel';
 import { defaultUiState } from '../src/components/layout/types';
 
 const noop = () => undefined;
@@ -47,5 +47,13 @@ describe('AnalysisPanel', () => {
     expect(html).toContain('aria-label="Open analysis options"');
     expect(html).toContain('aria-label="Open game report"');
     expect(html).toContain('data-analysis-panel-fast-review-state="ready"');
+    expect(html).toContain('>Heatmap</span>');
+  });
+
+  it('uses beginner-friendly heatmap wording in the overlay legend', () => {
+    const html = renderToStaticMarkup(<AnalysisQualityLegend items={[]} />);
+
+    expect(html).toContain('>Move prob.</span>');
+    expect(html).toContain('>Likely moves</span>');
   });
 });

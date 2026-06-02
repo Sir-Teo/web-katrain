@@ -817,7 +817,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
 
                                         <div className={rowClass}>
-                                            <label htmlFor="settings-analysis-policy" className={labelClass}>Policy ({shortcutLabels['toggle-policy']})</label>
+                                            <label htmlFor="settings-analysis-policy" className={labelClass}>Move Heatmap ({shortcutLabels['toggle-policy']})</label>
                                             <input
                                                 id="settings-analysis-policy"
                                                 type="checkbox"
@@ -903,7 +903,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 </div>
 
                                                 <div className="space-y-1">
-                                                    <label htmlFor="settings-analysis-policy-heatmap" className="text-[var(--ui-text-muted)] block text-sm">Policy Heatmap ({shortcutLabels['cycle-policy-metric']})</label>
+                                                    <label htmlFor="settings-analysis-policy-heatmap" className="text-[var(--ui-text-muted)] block text-sm">Heatmap Metric ({shortcutLabels['cycle-policy-metric']})</label>
                                                     <select
                                                         id="settings-analysis-policy-heatmap"
                                                         value={settings.analysisPolicyMetric ?? 'policy'}

@@ -143,8 +143,8 @@ export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = (
             style={{ background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.85))' }}
             aria-hidden="true"
           />
-          <span className="block truncate text-[var(--ui-text-muted)]">Policy</span>
-          <span className="block truncate font-mono text-[var(--ui-text)]">High prior</span>
+          <span className="block truncate text-[var(--ui-text-muted)]">Move prob.</span>
+          <span className="block truncate font-mono text-[var(--ui-text)]">Likely moves</span>
         </div>
         <div className="min-w-0" data-analysis-overlay-legend-item="territory">
           <span className="mb-1 grid h-5 w-full grid-cols-2 overflow-hidden rounded border border-[var(--ui-border)]" aria-hidden="true">
@@ -423,7 +423,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         <FaLayerGroup size={11} aria-hidden="true" />,
         analysisControls.analysisShowPolicy
       )}
-      {overlayToggle('analysisShowPolicy', 'Policy', <FaThLarge size={11} aria-hidden="true" />)}
+      {overlayToggle('analysisShowPolicy', 'Heatmap', <FaThLarge size={11} aria-hidden="true" />)}
       {overlayToggle('analysisShowOwnership', 'Territory', <FaMap size={11} aria-hidden="true" />)}
     </div>
   );
