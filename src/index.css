@@ -690,6 +690,20 @@
     row-gap: 3px;
   }
 
+  .ui-bar input[type="number"][aria-label="Move number"]::-webkit-outer-spin-button,
+  .ui-bar input[type="number"][aria-label="Move number"]::-webkit-inner-spin-button,
+  .panel-toolbar input[type="number"][aria-label="Branch number"]::-webkit-outer-spin-button,
+  .panel-toolbar input[type="number"][aria-label="Branch number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .ui-bar input[type="number"][aria-label="Move number"],
+  .panel-toolbar input[type="number"][aria-label="Branch number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
   .panel-icon-button {
     width: 26px;
     height: 26px;
