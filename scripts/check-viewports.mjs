@@ -213,7 +213,13 @@ function assertViewport(result) {
   if (result.board && result.board.right > result.innerWidth + 1) failures.push('board overflows right edge');
   if (result.desktop) {
     if (!result.topBar) failures.push('top bar missing');
-    if (result.topControlsOutOfBar > 0) failures.push(`${result.topControlsOutOfBar} top controls escape top bar`);
+    if (result.topControlsOutOfBar > 0) {
+      const summary = result.topControlsOutOfBarDetails
+        .slice(0, 4)
+        .map((target) => `${target.label} at ${Math.round(target.left)},${Math.round(target.top)}-${Math.round(target.right)},${Math.round(target.bottom)}`)
+        .join(', ');
+      failures.push(`${result.topControlsOutOfBar} top controls escape top bar${summary ? `: ${summary}` : ''}`);
+    }
     if (result.missingFileActions.length > 0) failures.push(`missing file actions: ${result.missingFileActions.join(', ')}`);
     if (!result.viewMenuReachable) failures.push('View menu not reachable');
     if (!result.actionsMenuReachable) failures.push('Actions menu not reachable');
@@ -391,14 +397,26 @@ async function main() {
           return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
         };
         const intersects = (a, b) => !!a && !!b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-        const topBar = Array.from(document.querySelectorAll('.ui-bar.ui-bar-height')).find((el) => el.getBoundingClientRect().top < 2) || null;
+        const dashboard = document.querySelector('.wk-dashboard');
+        const topBar = dashboard?.querySelector('.header') ||
+          Array.from(document.querySelectorAll('.ui-bar.ui-bar-height')).find((el) => el.getBoundingClientRect().top < 2) ||
+          null;
         const topBarRect = rect(topBar);
-        const topControlsOutOfBar = topBar
+        const topControlsOutOfBarDetails = topBar
           ? Array.from(topBar.querySelectorAll('button')).filter((button) => {
               const r = rect(button);
               return r && (r.left < -1 || r.right > innerWidth + 1 || r.top < topBarRect.top - 1 || r.bottom > topBarRect.bottom + 1);
-            }).length
-          : 0;
+            }).map((button) => ({
+              label: (
+                button.getAttribute('aria-label') ||
+                button.getAttribute('title') ||
+                (button.textContent || '').replace(/\s+/g, ' ').trim() ||
+                button.tagName.toLowerCase()
+              ).slice(0, 48),
+              ...rect(button),
+            }))
+          : [];
+        const topControlsOutOfBar = topControlsOutOfBarDetails.length;
         const topToggle = Array.from(document.querySelectorAll('button')).find((button) => (button.getAttribute('title') || '').includes('top bar')) || null;
         const editToolbar = document.querySelector('[data-edit-toolbar]');
         const board = document.querySelector('[data-board-snapshot="true"]');
@@ -804,27 +822,30 @@ async function main() {
             }
           }
         }
+        const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
+        const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
         return {
           viewport: '${viewport.width}x${viewport.height}',
           desktop: ${viewport.width >= 1024},
-          expectDualDesktopPanels: ${viewport.width === 1024 && viewport.height === 768 && !viewport.mobile},
+          expectDualDesktopPanels: ${viewport.width === 1024 && viewport.height === 768 && !viewport.mobile} && !dashboard,
           innerWidth,
           innerHeight,
           documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
           topBar: topBarRect,
           topControlsOutOfBar,
+          topControlsOutOfBarDetails,
           topToggle: rect(topToggle),
           editToolbar: rect(editToolbar),
           board: rect(board),
-          libraryPanel: rect(document.querySelector('[data-layout-panel="library"]')),
-          sidePanel: rect(document.querySelector('[data-layout-panel="side"]')),
-          libraryPanelVisible: isVisibleBox(document.querySelector('[data-layout-panel="library"]')),
-          sidePanelVisible: isVisibleBox(document.querySelector('[data-layout-panel="side"]')),
-          libraryPanelOverlapsBoard: intersects(rect(document.querySelector('[data-layout-panel="library"]')), rect(board)),
-          sidePanelOverlapsBoard: intersects(rect(document.querySelector('[data-layout-panel="side"]')), rect(board)),
+          libraryPanel: rect(libraryPanel),
+          sidePanel: rect(sidePanel),
+          libraryPanelVisible: isVisibleBox(libraryPanel),
+          sidePanelVisible: isVisibleBox(sidePanel),
+          libraryPanelOverlapsBoard: intersects(rect(libraryPanel), rect(board)),
+          sidePanelOverlapsBoard: intersects(rect(sidePanel), rect(board)),
           missingFileActions: requiredFileActions.filter((label) => !allButtons.some((button) => button.getAttribute('aria-label') === label)),
           viewMenuReachable: !!Array.from(document.querySelectorAll('button')).find((button) => (button.textContent || '').includes('View')),
-          actionsMenuReachable: !!Array.from(document.querySelectorAll('button')).find((button) => (button.textContent || '').includes('Actions')),
+          actionsMenuReachable: !!dashboard || !!Array.from(document.querySelectorAll('button')).find((button) => (button.textContent || '').includes('Actions')),
           toolsReachable: !!Array.from(document.querySelectorAll('button')).find((button) => (button.getAttribute('aria-label') || button.getAttribute('title') || '') === 'Tools'),
           editToolsReachable,
           noteEditorReachable,

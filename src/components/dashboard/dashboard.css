@@ -372,10 +372,14 @@
   min-height: 0; min-width: 0;
   position: relative;
 }
+.wk-dashboard .manual-score-panel {
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
 
 /* Floating edit affordances on board (top-left): mode chips */
 .wk-dashboard .board-tools {
-  position: absolute; top: 12px; left: 12px;
+  position: absolute; bottom: 12px; left: 12px;
   display: flex; gap: 6px; z-index: 5;
 }
 .wk-dashboard .board-chip {
@@ -741,6 +745,12 @@
 .wk-dashboard .drawer .drawer-close { display: inline-flex; }
 
 /* header shedding on small screens */
+.wk-dashboard[data-layout="compact"] .header {
+  gap: 6px;
+  padding: 0 8px;
+}
+.wk-dashboard[data-layout="compact"] #wk-engine-pill-meta { display: none; }
+
 .wk-dashboard[data-layout="narrow"] #wk-util-actions,
 .wk-dashboard[data-layout="narrow"] .header-divider.shed,
 .wk-dashboard[data-layout="narrow"] #wk-file-actions .iconbtn.shed,

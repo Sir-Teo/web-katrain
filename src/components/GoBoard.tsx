@@ -21,6 +21,7 @@ import { setTimedNotification, type TimedNotificationType } from '../utils/timed
 import { getTapConfirmAction, TAP_CONFIRM_TIMEOUT_MS, type TapConfirmPoint } from '../utils/tapConfirm';
 import { playNavigationHaptic, playStoneHaptic } from '../utils/haptics';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
+import { getBoardTooltipPlacement } from '../utils/boardTooltipPlacement';
 import {
   getInitialBoardKeyboardCursor,
   moveBoardKeyboardCursor,
@@ -2380,14 +2381,24 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         {hasAnalysisOverlay && hoveredMove && hoveredMove.x >= 0 && hoveredMove.y >= 0 && (
           (() => {
             const d = toDisplay(hoveredMove.x, hoveredMove.y);
+            const anchorX = originX + d.x * cellSize;
+            const anchorY = originY + d.y * cellSize;
+            const tooltipPlacement = getBoardTooltipPlacement({
+              anchorX,
+              anchorY,
+              boardWidth,
+              boardHeight,
+              cellSize,
+            });
             return (
               <div
                 className="absolute z-20 bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs p-2 rounded-lg shadow-xl pointer-events-none border border-[var(--ui-border-strong)]"
                 style={{
-                  left: originX + d.x * cellSize + 20,
-                  top: originY + d.y * cellSize - 20,
-                  minWidth: '120px',
-                  maxWidth: '240px'
+                  left: tooltipPlacement.left,
+                  top: tooltipPlacement.top,
+                  transform: tooltipPlacement.transform,
+                  minWidth: tooltipPlacement.minWidth,
+                  maxWidth: tooltipPlacement.maxWidth,
                 }}
               >
                 <div className="font-bold mb-1">Move: {formatBoardMoveLabel(hoveredMove, boardSize)}</div>

@@ -303,23 +303,24 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         </div>
         <div className="header-divider" />
         <div className="iconcluster" id="wk-file-actions">
-          <button className="iconbtn" title="New game" onClick={onNewGame}><Icon name="plus" /></button>
-          <button className="iconbtn" title="Open SGF / photo / weights" onClick={onLoadSgf}><Icon name="folder" /></button>
-          <button className="iconbtn" title="Save SGF" onClick={onSaveSgf}><Icon name="save" /></button>
-          <button className="iconbtn shed" title="Save to library" onClick={onSaveToLibrary}><Icon name="book" /></button>
-          <button className="iconbtn shed" title="Paste SGF / OGS" onClick={onPasteSgf}><Icon name="clipboard" /></button>
+          <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" /></button>
+          <button type="button" className="iconbtn" title="Open SGF / photo / weights" aria-label="Load SGF, board photo, or model weights" onClick={onLoadSgf}><Icon name="folder" /></button>
+          <button type="button" className="iconbtn" title="Save SGF" aria-label="Save SGF" onClick={onSaveSgf}><Icon name="save" /></button>
+          <button type="button" className="iconbtn shed" title="Save to library" aria-label="Save to library" onClick={onSaveToLibrary}><Icon name="book" /></button>
+          <button type="button" className="iconbtn shed" title="Paste SGF / OGS" aria-label="Paste SGF / OGS" onClick={onPasteSgf}><Icon name="clipboard" /></button>
         </div>
         <div className="header-divider shed" />
         <div className="iconcluster" id="wk-util-actions">
-          <button className="iconbtn" title="Command palette" onClick={onCommandPalette}><Icon name="search" /></button>
-          <button className="iconbtn" title="Photo board" onClick={onScanBoard}><Icon name="camera" /></button>
-          <button className="iconbtn" title="Settings" onClick={onSettings}><Icon name="settings" /></button>
-          <button className="iconbtn" title="Keyboard shortcuts" onClick={onKeyboardHelp}><Icon name="keyboard" /></button>
+          <button type="button" className="iconbtn" title="Command palette" aria-label="Command palette" onClick={onCommandPalette}><Icon name="search" /></button>
+          <button type="button" className="iconbtn" title="Photo board" aria-label="Photo Board" onClick={onScanBoard}><Icon name="camera" /></button>
+          <button type="button" className="iconbtn" title="Settings" aria-label="Settings" onClick={onSettings}><Icon name="settings" /></button>
+          <button type="button" className="iconbtn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" onClick={onKeyboardHelp}><Icon name="keyboard" /></button>
         </div>
 
         <div className="header-spacer" />
 
         <button
+          type="button"
           className="engine-pill"
           id="wk-engine-pill"
           data-state={engineState}
@@ -332,14 +333,18 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <span className="meta" id="wk-engine-pill-meta">{engineMeta}</span>
         </button>
         <button
+          type="button"
           className="analyze-toggle"
           aria-pressed={isContinuousAnalysis}
-          onClick={toggleContinuousAnalysis}
+          onClick={() => {
+            if (!isContinuousAnalysis) setMode('analyze');
+            toggleContinuousAnalysis();
+          }}
         >
           <span className="dot" />
           Analyze
         </button>
-        <button className="tbtn" id="wk-view-menu-btn" onClick={(e) => openPop('view', e)}>
+        <button type="button" className="tbtn" id="wk-view-menu-btn" onClick={(e) => openPop('view', e)}>
           <Icon name="sliders" size={14} /> <span className="vlabel">View</span>
         </button>
       </header>
@@ -351,8 +356,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <div className="library-head">
             <span className="eyebrow">Library</span>
             <div style={{ display: 'flex', gap: 2 }}>
-              <button className="iconbtn" title="New game" onClick={onNewGame}><Icon name="plus" size={14} /></button>
-              <button className="iconbtn drawer-close" title="Close" onClick={() => setLibraryOpen(false)}><Icon name="x" size={14} /></button>
+              <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" size={14} /></button>
+              <button type="button" className="iconbtn drawer-close" title="Close" aria-label="Close library" onClick={() => setLibraryOpen(false)}><Icon name="x" size={14} /></button>
             </div>
           </div>
           <div className="library-search">
@@ -428,7 +433,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
 
           <div className="board-stage">
             {!libraryOpen && (
-              <button className="edge-toggle left" title="Show library" onClick={toggleLibrary}><Icon name="chevR" size={13} /></button>
+              <button type="button" className="edge-toggle left" title="Show library" onClick={toggleLibrary}><Icon name="chevR" size={13} /></button>
             )}
             <div className="board-tools">
               <button
@@ -450,7 +455,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <div className="goban-frame">{board}</div>
             </div>
             {!sidebarOpen && (
-              <button className="edge-toggle right" title="Show analysis" onClick={toggleSidebar}><Icon name="chevL" size={13} /></button>
+              <button type="button" className="edge-toggle right" title="Show analysis" onClick={toggleSidebar}><Icon name="chevL" size={13} /></button>
             )}
           </div>
 
@@ -503,15 +508,15 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
 
           {/* Nav bar */}
           <div className="navbar">
-            <button className="pass-btn" title="Pass (P)" onClick={passTurn}>Pass</button>
+            <button type="button" className="pass-btn" title="Pass (P)" onClick={passTurn}>Pass</button>
             <div className="navgroup">
-              <button className="navbtn danger" title="Previous mistake" onClick={() => findMistake(-1)}><Icon name="alert" size={15} /></button>
+              <button type="button" className="navbtn danger" title="Previous mistake" onClick={() => findMistake(-1)}><Icon name="alert" size={15} /></button>
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
-              <button className="navbtn" title="To start" onClick={navigateStart}><Icon name="skipBack" size={15} /></button>
-              <button className="navbtn" title="Back 10" onClick={jumpBack}><Icon name="fastBack" size={15} /></button>
-              <button className="navbtn" title="Back" onClick={navigateBack}><Icon name="chevL" size={15} /></button>
+              <button type="button" className="navbtn" title="To start" onClick={navigateStart}><Icon name="skipBack" size={15} /></button>
+              <button type="button" className="navbtn" title="Back 10" onClick={jumpBack}><Icon name="fastBack" size={15} /></button>
+              <button type="button" className="navbtn" title="Back" onClick={navigateBack}><Icon name="chevL" size={15} /></button>
             </div>
             <div className="move-counter">
               <span>Move</span>
@@ -531,27 +536,27 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <span>/ {totalMoves}</span>
             </div>
             <div className="navgroup">
-              <button className="navbtn" title="Forward" onClick={navigateForward}><Icon name="chevR" size={15} /></button>
-              <button className="navbtn" title="Forward 10" onClick={jumpForward}><Icon name="fastFwd" size={15} /></button>
-              <button className="navbtn" title="To end" onClick={navigateEnd}><Icon name="skipFwd" size={15} /></button>
+              <button type="button" className="navbtn" title="Forward" onClick={navigateForward}><Icon name="chevR" size={15} /></button>
+              <button type="button" className="navbtn" title="Forward 10" onClick={jumpForward}><Icon name="fastFwd" size={15} /></button>
+              <button type="button" className="navbtn" title="To end" onClick={navigateEnd}><Icon name="skipFwd" size={15} /></button>
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
-              <button className="navbtn danger" title="Next mistake" onClick={() => findMistake(1)}><Icon name="alert" size={15} /></button>
-              <button className="navbtn" title="Rotate board" onClick={rotateBoard}><Icon name="rotate" size={15} /></button>
+              <button type="button" className="navbtn danger" title="Next mistake" onClick={() => findMistake(1)}><Icon name="alert" size={15} /></button>
+              <button type="button" className="navbtn" title="Rotate board" onClick={rotateBoard}><Icon name="rotate" size={15} /></button>
             </div>
             <span className="navbar-spacer" />
             <div className="playactions">
               {mode === 'play' ? (
                 <>
-                  <button className="tbtn" onClick={onUndo}><Icon name="undo" size={14} />Undo</button>
-                  <button className="tbtn" onClick={onAiMove}><Icon name="bot" size={14} />AI move</button>
-                  <button className="tbtn" style={{ color: 'var(--red)', borderColor: '#f0c4c4' }} onClick={onResign}><Icon name="flag" size={14} />Resign</button>
+                  <button type="button" className="tbtn" onClick={onUndo}><Icon name="undo" size={14} />Undo</button>
+                  <button type="button" className="tbtn" onClick={onAiMove}><Icon name="bot" size={14} />AI move</button>
+                  <button type="button" className="tbtn" style={{ color: 'var(--red)', borderColor: '#f0c4c4' }} onClick={onResign}><Icon name="flag" size={14} />Resign</button>
                 </>
               ) : (
                 <>
-                  <button className="tbtn" onClick={onAiMove}><Icon name="bot" size={14} />AI move</button>
-                  <button className="tbtn primary" onClick={onPlayBest}><Icon name="play" size={14} />Play best</button>
+                  <button type="button" className="tbtn" onClick={onAiMove}><Icon name="bot" size={14} />AI move</button>
+                  <button type="button" className="tbtn primary" onClick={onPlayBest}><Icon name="play" size={14} />Play best</button>
                 </>
               )}
             </div>
@@ -561,9 +566,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         {/* Analysis sidebar */}
         <aside className={`sidebar${sideDrawer ? ' drawer' : ''}${sidebarOpen ? ' open' : ''}`}>
           <div className="mode-tabs">
-            <button className={`mode-tab${mode === 'play' ? ' active' : ''}`} onClick={() => setMode('play')}>Play</button>
-            <button className={`mode-tab${mode === 'analyze' ? ' active' : ''}`} onClick={() => setMode('analyze')}>Analysis</button>
-            <button className="iconbtn drawer-close" title="Close" style={{ margin: '6px 6px 6px 0' }} onClick={() => setSidebarOpen(false)}><Icon name="x" size={14} /></button>
+            <button type="button" className={`mode-tab${mode === 'play' ? ' active' : ''}`} onClick={() => setMode('play')}>Play</button>
+            <button type="button" className={`mode-tab${mode === 'analyze' ? ' active' : ''}`} onClick={() => setMode('analyze')}>Analysis</button>
+            <button type="button" className="iconbtn drawer-close" title="Close" style={{ margin: '6px 6px 6px 0' }} onClick={() => setSidebarOpen(false)}><Icon name="x" size={14} /></button>
           </div>
           <div className="sidebar-scroll">
             {/* Game info */}
@@ -588,16 +593,16 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               {sectionHead('tree', 'Game tree', 'sitemap')}
               <div className="section-body flush">
                 <div className="panel-toolbar">
-                  <button className="pbtn pico" title="Previous branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(-1)}><Icon name="chevD" size={12} /></button>
-                  <button className="pbtn pico" title="Next branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(1)}><Icon name="chevR" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Previous branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(-1)}><Icon name="chevD" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Next branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(1)}><Icon name="chevR" size={12} /></button>
                   {branchInfo.hasBranches && (
                     <span className="pbtn" style={{ pointerEvents: 'none' }}>
                       <span style={{ color: 'var(--faint)' }}>Branch</span>{' '}
                       <span className="mono" style={{ color: 'var(--ink)' }}>{branchInfo.currentIndex + 1}/{branchInfo.totalBranches}</span>
                     </span>
                   )}
-                  <button className="pbtn pico" title="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
-                  <button className="pbtn pico" title="Make main branch" disabled={!currentNode.parent} onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Make main branch" disabled={!currentNode.parent} onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
                 </div>
                 <div className="tree-region">
                   <MoveTree />
@@ -609,6 +614,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <div className={`section${sections.analysis ? ' open' : ''}`}>
               {sectionHead('analysis', 'Analysis', 'chart', (
                 <button
+                  type="button"
                   className={`pbtn pico${legendOpen ? ' on' : ''}`}
                   title="Move-quality legend"
                   onClick={(e) => { e.stopPropagation(); setLegendOpen((v) => !v); }}
@@ -627,10 +633,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <ScoreWinrateGraph showScore={legend.score} showWinrate={legend.winrate} />
                 </div>
                 <div className="graph-legend">
-                  <button className="lg" style={{ opacity: legend.winrate ? 1 : 0.4 }} onClick={() => setLegend((l) => ({ ...l, winrate: !l.winrate }))}>
+                  <button type="button" className="lg" style={{ opacity: legend.winrate ? 1 : 0.4 }} onClick={() => setLegend((l) => ({ ...l, winrate: !l.winrate }))}>
                     <span className="sw" style={{ background: 'var(--green)' }} />Win rate
                   </button>
-                  <button className="lg" style={{ opacity: legend.score ? 1 : 0.4 }} onClick={() => setLegend((l) => ({ ...l, score: !l.score }))}>
+                  <button type="button" className="lg" style={{ opacity: legend.score ? 1 : 0.4 }} onClick={() => setLegend((l) => ({ ...l, score: !l.score }))}>
                     <span className="sw" style={{ background: 'var(--amber)' }} />Score
                   </button>
                 </div>
@@ -663,14 +669,15 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   </div>
                 )}
                 <div className="overlay-row" style={{ paddingTop: 8 }}>
-                  <button className="pbtn" onClick={startQuickGameAnalysis}><Icon name="chart" size={12} />Quick graph</button>
+                  <button type="button" className="pbtn" onClick={startQuickGameAnalysis}><Icon name="chart" size={12} />Quick graph</button>
                   <button
+                    type="button"
                     className={`pbtn${isGameAnalysisRunning ? ' danger' : ''}`}
                     onClick={() => (isGameAnalysisRunning ? stopGameAnalysis() : startFastGameAnalysis())}
                   >
                     <Icon name="gauge" size={12} />{isGameAnalysisRunning ? 'Stop' : 'Fast MCTS'}
                   </button>
-                  <button className="pbtn" onClick={onOpenGameReport}><Icon name="file" size={12} />Report</button>
+                  <button type="button" className="pbtn" onClick={onOpenGameReport}><Icon name="file" size={12} />Report</button>
                 </div>
                 {!showAnalysis && (
                   <div className="coach-card">
@@ -762,7 +769,7 @@ const EnginePopover: React.FC<{
         </dl>
         <div className="ed-row">
           <span style={{ color: 'var(--faint)', fontSize: 12 }}>Cached positions</span>
-          <button className="pbtn" onClick={onClearCache}><Icon name="trash" size={12} /> {cacheSize}</button>
+          <button type="button" className="pbtn" onClick={onClearCache}><Icon name="trash" size={12} /> {cacheSize}</button>
         </div>
       </div>
     </div>
@@ -781,7 +788,7 @@ const ViewMenu: React.FC<{
   onAbout: () => void;
 }> = ({ rect, showCoords, onToggleCoords, libraryOpen, sidebarOpen, onToggleLibrary, onToggleSidebar, onSettings, onAbout }) => {
   const item = (label: string, on: boolean | null, kbd: string, onClick: () => void, iconName?: IconName) => (
-    <button className={`menu-item${on ? ' on' : ''}`} onClick={onClick}>
+    <button type="button" className={`menu-item${on ? ' on' : ''}`} onClick={onClick}>
       {iconName ? <Icon name={iconName} size={14} /> : null}
       <span className="mi-label">{label}</span>
       {typeof on === 'boolean' ? <span className="mi-state">{on ? 'on' : 'off'}</span> : null}

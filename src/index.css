@@ -1403,6 +1403,7 @@
     }
 
     .analysis-command-bar__actions {
+      flex-wrap: nowrap;
       justify-content: flex-start;
       overflow-x: auto;
       scrollbar-width: none;
@@ -1422,6 +1423,10 @@
     .analysis-command-bar__depth-close,
     .analysis-command-bar__depth-input {
       min-height: 44px;
+    }
+
+    .analysis-command-bar__button--dismiss {
+      min-width: 44px;
     }
 
     .analysis-command-bar__depth-close {

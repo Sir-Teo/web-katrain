@@ -2752,13 +2752,69 @@ export const Layout: React.FC = () => {
       {isDesktop && (
         <DesktopDashboard
           board={
-            <GoBoard
-              hoveredMove={activeHoverMove}
-              onHoverMove={setHoveredMove}
-              pvUpToMove={pvUpToMove}
-              uiMode={boardUiMode}
-              forcePvOverlay={!!reportHoverMove}
-            />
+            <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col">
+              <AnalysisCommandBar
+                mode={mode}
+                isAnalysisMode={isAnalysisMode}
+                statusText={statusText}
+                engineDot={engineDot}
+                engineStatus={engineStatus}
+                engineError={engineError}
+                engineBackend={engineBackend}
+                engineModelLabel={engineModelLabel}
+                requestedBackend={settings.katagoBackend}
+                modelUrl={settings.katagoModelUrl}
+                winRate={winRate ?? null}
+                scoreLead={scoreLead ?? null}
+                pointsLost={pointsLost}
+                analysisControls={modeControls}
+                updateControls={updateControls}
+                toggleAnalysisMode={toggleAnalysisMode}
+                isGameAnalysisRunning={isGameAnalysisRunning}
+                gameAnalysisType={gameAnalysisType}
+                gameAnalysisDone={gameAnalysisDone}
+                gameAnalysisTotal={gameAnalysisTotal}
+                startFastGameAnalysis={startFastGameAnalysis}
+                stopGameAnalysis={stopGameAnalysis}
+                onOpenGameReport={() => setIsGameReportOpen(true)}
+              />
+              <div className="relative flex min-h-0 flex-1 min-w-0">
+                <EditToolbar isMobile={false} analysisCommandBarVisible={false} />
+                <ManualScorePanel
+                  active={scoringMode}
+                  disabled={isEditMode || isInsertMode || isSelectingRegionOfInterest}
+                  isCompact={false}
+                  commandBarOffset={false}
+                  score={manualScoreEstimate}
+                  blackName={blackName}
+                  whiteName={whiteName}
+                  capturedBlack={capturedBlack}
+                  capturedWhite={capturedWhite}
+                  komi={komi}
+                  deadStoneCount={manualDeadStones.size}
+                  shortcutLabel={layoutShortcutLabels['toggle-scoring']}
+                  scoreMode={manualScoreMode}
+                  onToggle={toggleScoringMode}
+                  onAutoEstimate={autoEstimateDeadStones}
+                  onUseManualScore={() => setManualScoreMode('manual')}
+                  canAutoEstimate={scoreEstimateSource !== null}
+                  estimateSource={scoreEstimateSource}
+                  onClear={clearManualDeadStones}
+                  onDone={() => setScoringMode(false)}
+                />
+                <GoBoard
+                  hoveredMove={activeHoverMove}
+                  onHoverMove={setHoveredMove}
+                  pvUpToMove={pvUpToMove}
+                  uiMode={boardUiMode}
+                  forcePvOverlay={!!reportHoverMove}
+                  scoringMode={scoringMode}
+                  scoreTerritory={manualScoreEstimate.territory}
+                  deadStones={manualDeadStones}
+                  onToggleDeadStone={toggleManualDeadStone}
+                />
+              </div>
+            </div>
           }
           blackName={blackName}
           whiteName={whiteName}
