@@ -31,6 +31,13 @@ describe('drag import helpers', () => {
     ))).toBe('https://online-go.com/game/12345');
   });
 
+  it('skips unsupported URI-list entries until it finds an importable game', () => {
+    expect(getDroppedSgfOrOgsText(transfer(
+      ['text/uri-list'],
+      { 'text/uri-list': '# mixed links\nhttps://example.com/game/1\nhttps://online-go.com/game/24680\n' }
+    ))).toBe('https://online-go.com/game/24680');
+  });
+
   it('extracts raw SGF text without treating unsupported text as importable', () => {
     expect(getDroppedSgfOrOgsText(transfer(
       ['text/plain'],

@@ -19,20 +19,21 @@ export const hasPotentialGameImportDrag = (dataTransfer: DragTransferLike | null
   return hasDraggedFiles(dataTransfer) || TEXT_IMPORT_TYPES.some((type) => types.includes(type));
 };
 
-const firstUriListEntry = (text: string): string => {
+const uriListEntries = (text: string): string[] => {
+  const entries: string[] = [];
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) return trimmed;
+    if (trimmed && !trimmed.startsWith('#')) entries.push(trimmed);
   }
-  return '';
+  return entries;
 };
 
-const normalizeDroppedText = (format: string, text: string): string => {
+const normalizeDroppedText = (format: string, text: string): string[] => {
   const trimmed = text.trim();
-  if (!trimmed) return '';
-  if (format === 'text/uri-list') return firstUriListEntry(trimmed);
-  if (format === 'text/x-moz-url') return firstUriListEntry(trimmed);
-  return trimmed;
+  if (!trimmed) return [];
+  if (format === 'text/uri-list') return uriListEntries(trimmed);
+  if (format === 'text/x-moz-url') return uriListEntries(trimmed).slice(0, 1);
+  return [trimmed];
 };
 
 export const getDroppedSgfOrOgsText = (dataTransfer: DragTransferLike | null | undefined): string | null => {
@@ -44,9 +45,10 @@ export const getDroppedSgfOrOgsText = (dataTransfer: DragTransferLike | null | u
     } catch {
       continue;
     }
-    const candidate = normalizeDroppedText(type, raw);
-    const importText = getDirectGameImportText(candidate);
-    if (importText) return importText;
+    for (const candidate of normalizeDroppedText(type, raw)) {
+      const importText = getDirectGameImportText(candidate);
+      if (importText) return importText;
+    }
   }
   return null;
 };
