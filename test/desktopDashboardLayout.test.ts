@@ -93,4 +93,26 @@ describe('desktop dashboard layout', () => {
     expect(gameTreeBlock).toContain('{branchInfo.currentIndex}/{branchInfo.totalBranches}');
     expect(gameTreeBlock).not.toContain('branchInfo.currentIndex + 1');
   });
+
+  it('labels visible dashboard tree and analysis toolbar controls', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const gameTreeStart = dashboardSource.indexOf('{/* Game tree */}');
+    const analysisStart = dashboardSource.indexOf('{/* Analysis */}', gameTreeStart);
+    const notesStart = dashboardSource.indexOf('{/* Comment / notes */}', analysisStart);
+    const gameTreeBlock = dashboardSource.slice(gameTreeStart, analysisStart);
+    const analysisBlock = dashboardSource.slice(analysisStart, notesStart);
+
+    expect(gameTreeBlock).toContain('aria-label="Previous branch"');
+    expect(gameTreeBlock).toContain('aria-label="Next branch"');
+    expect(gameTreeBlock).toContain('aria-label="Back to branch point"');
+    expect(gameTreeBlock).toContain('aria-label="Make current move the main branch"');
+    expect(analysisBlock).toContain('aria-label={legend.winrate ? \'Hide win rate graph\' : \'Show win rate graph\'}');
+    expect(analysisBlock).toContain('aria-label={legend.score ? \'Hide score graph\' : \'Show score graph\'}');
+    expect(analysisBlock).toContain('aria-label={legendOpen ? \'Hide move-quality legend\' : \'Show move-quality legend\'}');
+    expect(analysisBlock).toContain('aria-controls="dashboard-analysis-quality-legend"');
+    expect(analysisBlock).toContain("overlayBtn('analysisShowHints', 'Top moves', 'layers', settings.analysisShowPolicy)");
+    expect(analysisBlock).toContain('aria-label="Run quick graph analysis"');
+    expect(analysisBlock).toContain('aria-label={dashboardFastMctsLabel}');
+    expect(analysisBlock).toContain('aria-label="Open game report"');
+  });
 });

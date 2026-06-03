@@ -138,6 +138,18 @@ function evalColorForPointsLost(pl: number): string {
 }
 
 type PopoverId = 'engine' | 'view' | null;
+type DashboardOverlayKey = keyof Pick<
+  GameSettings,
+  'analysisShowChildren' | 'analysisShowEval' | 'analysisShowHints' | 'analysisShowPolicy' | 'analysisShowOwnership'
+>;
+
+const DASHBOARD_OVERLAY_NAMES: Record<DashboardOverlayKey, string> = {
+  analysisShowChildren: 'child move markers',
+  analysisShowEval: 'move evaluation dots',
+  analysisShowHints: 'top move hints',
+  analysisShowPolicy: 'move heatmap',
+  analysisShowOwnership: 'territory ownership',
+};
 
 export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   const {
@@ -252,6 +264,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     return `${who} ${m.x < 0 || m.y < 0 ? 'pass' : formatMoveLabel(m.x, m.y, boardSize)}`;
   })();
   const bestMove = currentNode.analysis?.moves?.[0] ?? null;
+  const dashboardFastMctsTitle = isGameAnalysisRunning
+    ? `Stop ${gameAnalysisType ?? 'current'} analysis`
+    : 'Run a fast MCTS review of the current line';
+  const dashboardFastMctsLabel = isGameAnalysisRunning ? 'Stop game analysis' : 'Run fast MCTS review';
 
   const sectionHead = (
     key: keyof typeof sections,
@@ -283,17 +299,28 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
 
   // ---- overlay toggle helper ----
   const overlayBtn = (
-    keyName: keyof Pick<GameSettings, 'analysisShowChildren' | 'analysisShowEval' | 'analysisShowHints' | 'analysisShowPolicy' | 'analysisShowOwnership'>,
+    keyName: DashboardOverlayKey,
     label: string,
     iconName: IconName,
     disabled?: boolean
   ) => {
     const on = !!settings[keyName];
+    const overlayActionLabel = on ? `Hide ${DASHBOARD_OVERLAY_NAMES[keyName]}` : `Show ${DASHBOARD_OVERLAY_NAMES[keyName]}`;
+    const topMovesHiddenByPolicy = keyName === 'analysisShowHints' && disabled;
+    const overlayLabel = topMovesHiddenByPolicy
+      ? 'Top move hints hidden while heatmap is showing'
+      : overlayActionLabel;
+    const overlayTitle = topMovesHiddenByPolicy
+      ? 'Move heatmap is showing; top move hints are hidden'
+      : overlayActionLabel;
     return (
       <button
         type="button"
         className={`pbtn${on ? ' on' : ''}`}
         disabled={disabled}
+        aria-pressed={on}
+        aria-label={overlayLabel}
+        title={overlayTitle}
         onClick={() => updateControls({ [keyName]: !on } as Partial<AnalysisControlsState>)}
       >
         <Icon name={iconName} size={12} />{label}
@@ -635,16 +662,16 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               {sectionHead('tree', 'Game tree', 'sitemap')}
               <div className="section-body flush">
                 <div className="panel-toolbar">
-                  <button type="button" className="pbtn pico" title="Previous branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(-1)}><Icon name="chevD" size={12} /></button>
-                  <button type="button" className="pbtn pico" title="Next branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(1)}><Icon name="chevR" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Previous branch" aria-label="Previous branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(-1)}><Icon name="chevD" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Next branch" aria-label="Next branch" disabled={!branchInfo.hasBranches} onClick={() => switchBranch(1)}><Icon name="chevR" size={12} /></button>
                   {branchInfo.hasBranches && (
                     <span className="pbtn" style={{ pointerEvents: 'none' }}>
                       <span style={{ color: 'var(--faint)' }}>Branch</span>{' '}
                       <span className="mono" style={{ color: 'var(--ink)' }}>{branchInfo.currentIndex}/{branchInfo.totalBranches}</span>
                     </span>
                   )}
-                  <button type="button" className="pbtn pico" title="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
-                  <button type="button" className="pbtn pico" title="Make main branch" disabled={!currentNode.parent} onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
+                  <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" disabled={!currentNode.parent} onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
                 </div>
                 <div className="tree-region">
                   <MoveTree />
@@ -658,7 +685,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 <button
                   type="button"
                   className={`pbtn pico${legendOpen ? ' on' : ''}`}
-                  title="Move-quality legend"
+                  title={legendOpen ? 'Hide move-quality legend' : 'Show move-quality legend'}
+                  aria-label={legendOpen ? 'Hide move-quality legend' : 'Show move-quality legend'}
+                  aria-expanded={legendOpen}
+                  aria-controls="dashboard-analysis-quality-legend"
                   onClick={(e) => { e.stopPropagation(); setLegendOpen((v) => !v); }}
                 ><Icon name="info" size={12} /></button>
               ))}
@@ -675,22 +705,38 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <ScoreWinrateGraph showScore={legend.score} showWinrate={legend.winrate} />
                 </div>
                 <div className="graph-legend">
-                  <button type="button" className="lg" style={{ opacity: legend.winrate ? 1 : 0.4 }} onClick={() => setLegend((l) => ({ ...l, winrate: !l.winrate }))}>
+                  <button
+                    type="button"
+                    className="lg"
+                    style={{ opacity: legend.winrate ? 1 : 0.4 }}
+                    aria-pressed={legend.winrate}
+                    aria-label={legend.winrate ? 'Hide win rate graph' : 'Show win rate graph'}
+                    title={legend.winrate ? 'Hide win rate graph' : 'Show win rate graph'}
+                    onClick={() => setLegend((l) => ({ ...l, winrate: !l.winrate }))}
+                  >
                     <span className="sw" style={{ background: 'var(--green)' }} />Win rate
                   </button>
-                  <button type="button" className="lg" style={{ opacity: legend.score ? 1 : 0.4 }} onClick={() => setLegend((l) => ({ ...l, score: !l.score }))}>
+                  <button
+                    type="button"
+                    className="lg"
+                    style={{ opacity: legend.score ? 1 : 0.4 }}
+                    aria-pressed={legend.score}
+                    aria-label={legend.score ? 'Hide score graph' : 'Show score graph'}
+                    title={legend.score ? 'Hide score graph' : 'Show score graph'}
+                    onClick={() => setLegend((l) => ({ ...l, score: !l.score }))}
+                  >
                     <span className="sw" style={{ background: 'var(--amber)' }} />Score
                   </button>
                 </div>
                 <div className="overlay-row">
                   {overlayBtn('analysisShowChildren', 'Children', 'sitemap')}
                   {overlayBtn('analysisShowEval', 'Dots', 'circle')}
-                  {overlayBtn('analysisShowHints', 'Top moves', 'layers')}
+                  {overlayBtn('analysisShowHints', 'Top moves', 'layers', settings.analysisShowPolicy)}
                   {overlayBtn('analysisShowPolicy', 'Heatmap', 'grid')}
                   {overlayBtn('analysisShowOwnership', 'Territory', 'map')}
                 </div>
                 {legendOpen && (
-                  <div className="qlegend">
+                  <div id="dashboard-analysis-quality-legend" className="qlegend">
                     <div className="eyebrow">Move quality · points lost</div>
                     <div className="qgrid">
                       {[
@@ -711,15 +757,33 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   </div>
                 )}
                 <div className="overlay-row" style={{ paddingTop: 8 }}>
-                  <button type="button" className="pbtn" onClick={startQuickGameAnalysis}><Icon name="chart" size={12} />Quick graph</button>
+                  <button
+                    type="button"
+                    className="pbtn"
+                    aria-label="Run quick graph analysis"
+                    title="Run quick graph analysis"
+                    onClick={startQuickGameAnalysis}
+                  >
+                    <Icon name="chart" size={12} />Quick graph
+                  </button>
                   <button
                     type="button"
                     className={`pbtn${isGameAnalysisRunning ? ' danger' : ''}`}
+                    aria-label={dashboardFastMctsLabel}
+                    title={dashboardFastMctsTitle}
                     onClick={() => (isGameAnalysisRunning ? stopGameAnalysis() : startFastGameAnalysis())}
                   >
                     <Icon name="gauge" size={12} />{isGameAnalysisRunning ? 'Stop' : 'Fast MCTS'}
                   </button>
-                  <button type="button" className="pbtn" onClick={onOpenGameReport}><Icon name="file" size={12} />Report</button>
+                  <button
+                    type="button"
+                    className="pbtn"
+                    aria-label="Open game report"
+                    title="Open game report"
+                    onClick={onOpenGameReport}
+                  >
+                    <Icon name="file" size={12} />Report
+                  </button>
                 </div>
                 {!showAnalysis && (
                   <div className="coach-card">
