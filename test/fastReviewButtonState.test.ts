@@ -29,6 +29,7 @@ describe('fast review button state', () => {
       label: 'Fast MCTS',
       title: 'Run a fast MCTS review of the current line',
       disabled: false,
+      ariaLabel: 'Run a fast MCTS review of the current line',
     });
   });
 
@@ -64,6 +65,7 @@ describe('fast review button state', () => {
       label: 'Stop fast (3/8)',
       title: 'Stop fast MCTS review',
       disabled: false,
+      ariaLabel: 'Stop fast MCTS review',
     });
   });
 
@@ -81,6 +83,7 @@ describe('fast review button state', () => {
       label: 'Fast MCTS',
       title: 'Stop quick analysis before starting Fast MCTS.',
       disabled: true,
+      ariaLabel: 'Fast MCTS unavailable while quick analysis is running',
     });
   });
 });

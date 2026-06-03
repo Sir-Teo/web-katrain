@@ -10,7 +10,7 @@ export interface FastReviewButtonState {
   label: string;
   title: string;
   disabled: boolean;
-  ariaLabel?: string;
+  ariaLabel: string;
 }
 
 export function getFastReviewButtonState({
@@ -27,11 +27,13 @@ export function getFastReviewButtonState({
   readyTitle?: string;
 }): FastReviewButtonState {
   if (isGameAnalysisRunning) {
+    const title = gameProgress?.title ?? 'Stop game analysis';
     return {
       state: 'running',
       label: `Stop ${gameProgress?.buttonLabel ?? ''}`.trim() || 'Stop',
-      title: gameProgress?.title ?? 'Stop game analysis',
+      title,
       disabled: false,
+      ariaLabel: title.toLowerCase().startsWith('stop ') ? title : 'Stop game analysis',
     };
   }
 
@@ -50,6 +52,7 @@ export function getFastReviewButtonState({
     label: readyLabel,
     title: readyTitle,
     disabled: false,
+    ariaLabel: readyTitle,
   };
 }
 
@@ -77,6 +80,7 @@ export function getFastMctsPanelButtonState({
       label: 'Fast MCTS',
       title: `Stop ${gameAnalysisType ?? 'current'} analysis before starting Fast MCTS.`,
       disabled: true,
+      ariaLabel: `Fast MCTS unavailable while ${gameAnalysisType ?? 'current'} analysis is running`,
     };
   }
 

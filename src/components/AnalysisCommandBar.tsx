@@ -190,6 +190,18 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const topMoveMetricLabel = getTopMoveMetricLabel(topMoveMetric, 'short');
   const policyHeatmapMetricLabel = getPolicyHeatmapMetricLabel(policyHeatmapMetric, 'short');
   const topMovesHiddenByPolicy = analysisControls.analysisShowPolicy;
+  const liveAnalysisLabel = isAnalysisMode ? 'Turn live analysis off' : 'Start live analysis';
+  const topMovesToggleTitle = topMovesHiddenByPolicy ? 'Move heatmap is showing; top move hints are hidden' : 'Show or hide top move hints';
+  const topMovesToggleLabel = topMovesHiddenByPolicy
+    ? 'Top move hints hidden while heatmap is showing'
+    : analysisControls.analysisShowHints
+      ? 'Hide top move hints'
+      : 'Show top move hints';
+  const topMoveMetricAriaLabel = `Cycle top move hint label. Current: ${topMoveMetricLabel}`;
+  const heatmapToggleLabel = analysisControls.analysisShowPolicy ? 'Hide move heatmap' : 'Show move heatmap';
+  const policyHeatmapMetricAriaLabel = `Cycle move heatmap metric. Current: ${policyHeatmapMetricLabel}`;
+  const territoryToggleLabel = analysisControls.analysisShowOwnership ? 'Hide territory ownership' : 'Show territory ownership';
+  const gameReportLabel = 'Open the full game report';
   const playedMoveQuality = React.useMemo(
     () => getPlayedMoveQuality(currentNode, pointsLost),
     [currentNode, pointsLost]
@@ -472,7 +484,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           className={['analysis-command-bar__button', isAnalysisMode ? 'active' : ''].join(' ')}
           onClick={toggleAnalysisMode}
           aria-pressed={isAnalysisMode}
-          title={isAnalysisMode ? 'Turn live analysis off' : 'Start live analysis'}
+          title={liveAnalysisLabel}
+          aria-label={liveAnalysisLabel}
         >
           <FaPlay size={12} aria-hidden="true" />
           <span>{liveButtonLabel}</span>
@@ -538,7 +551,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onClick={() => toggleOverlay('analysisShowHints')}
           aria-pressed={analysisControls.analysisShowHints}
           disabled={topMovesHiddenByPolicy}
-          title={topMovesHiddenByPolicy ? 'Move heatmap is showing; top move hints are hidden' : 'Show or hide top move hints'}
+          title={topMovesToggleTitle}
+          aria-label={topMovesToggleLabel}
         >
           <FaLayerGroup size={12} aria-hidden="true" />
           <span>Top moves</span>
@@ -549,6 +563,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onClick={cycleTopMoveMetric}
           data-analysis-hint-metric="true"
           title="Cycle the primary top move hint label"
+          aria-label={topMoveMetricAriaLabel}
         >
           <FaChartBar size={12} aria-hidden="true" />
           <span>Hint: {topMoveMetricLabel}</span>
@@ -558,7 +573,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           className={['analysis-command-bar__button', analysisControls.analysisShowPolicy ? 'active' : ''].join(' ')}
           onClick={() => toggleOverlay('analysisShowPolicy')}
           aria-pressed={analysisControls.analysisShowPolicy}
-          title={analysisControls.analysisShowPolicy ? 'Hide move heatmap' : 'Show move heatmap'}
+          title={heatmapToggleLabel}
+          aria-label={heatmapToggleLabel}
         >
           <FaThLarge size={12} aria-hidden="true" />
           <span>Heatmap</span>
@@ -572,6 +588,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onClick={cyclePolicyHeatmapMetric}
           data-analysis-policy-metric="true"
           title="Cycle the move heatmap metric"
+          aria-label={policyHeatmapMetricAriaLabel}
         >
           <FaChartBar size={12} aria-hidden="true" />
           <span>Map: {policyHeatmapMetricLabel}</span>
@@ -581,7 +598,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           className={['analysis-command-bar__button', analysisControls.analysisShowOwnership ? 'active' : ''].join(' ')}
           onClick={() => toggleOverlay('analysisShowOwnership')}
           aria-pressed={analysisControls.analysisShowOwnership}
-          title="Show or hide territory ownership"
+          title={territoryToggleLabel}
+          aria-label={territoryToggleLabel}
         >
           <FaMap size={12} aria-hidden="true" />
           <span>Territory</span>
@@ -590,7 +608,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           type="button"
           className="analysis-command-bar__button"
           onClick={onOpenGameReport}
-          title="Open the full game report"
+          title={gameReportLabel}
+          aria-label={gameReportLabel}
         >
           <FaFileAlt size={12} aria-hidden="true" />
           <span>Report</span>

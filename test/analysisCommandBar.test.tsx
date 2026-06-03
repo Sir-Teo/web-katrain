@@ -57,6 +57,14 @@ describe('AnalysisCommandBar', () => {
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).toMatch(/aria-controls="[^"]+"/);
+    expect(html).toContain('aria-label="Turn live analysis off"');
+    expect(html).toContain('aria-label="Run a fast MCTS review of the game"');
+    expect(html).toContain('aria-label="Hide top move hints"');
+    expect(html).toContain('aria-label="Cycle top move hint label. Current: Delta"');
+    expect(html).toContain('aria-label="Show move heatmap"');
+    expect(html).toContain('aria-label="Cycle move heatmap metric. Current: Prob."');
+    expect(html).toContain('aria-label="Hide territory ownership"');
+    expect(html).toContain('aria-label="Open the full game report"');
   });
 
   it('keeps fallback and error states visible in the status pill', () => {
@@ -107,6 +115,7 @@ describe('AnalysisCommandBar', () => {
       label: 'Stop 4/10',
       title: 'Analyzing 4 of 10 moves',
       disabled: false,
+      ariaLabel: 'Stop game analysis',
     });
   });
 });
