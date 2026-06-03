@@ -72,6 +72,8 @@ export interface DesktopDashboardProps {
   // ---- panel open state (owned by Layout for keyboard shortcuts) ----
   libraryOpen: boolean;
   setLibraryOpen: (open: boolean) => void;
+  libraryPanel?: React.ReactNode;
+  libraryWidth?: number;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 
@@ -147,7 +149,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     mode, setMode, isContinuousAnalysis, toggleContinuousAnalysis,
     settings, updateControls, updateSettings,
     isInsertMode, toggleInsertMode, isSelectingRegionOfInterest, startSelectRegionOfInterest,
-    libraryOpen, setLibraryOpen, sidebarOpen, setSidebarOpen,
+    libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen,
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
     navigateBack, navigateForward, navigateStart, navigateEnd, navigateToMove,
@@ -213,6 +215,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     const sideCol = (!sideDrawer && sidebarOpen) ? 'var(--sidebar-w)' : '0px';
     return `${libCol} minmax(0,1fr) ${sideCol}`;
   }, [libDrawer, libraryOpen, sideDrawer, sidebarOpen]);
+  const dashboardStyle = libraryWidth
+    ? ({ '--library-w': `${libraryWidth}px` } as React.CSSProperties)
+    : undefined;
 
   const toggleLibrary = () => {
     const next = !libraryOpen;
@@ -308,6 +313,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       data-layout={layoutMode}
       data-library={libraryOpen ? 'open' : 'closed'}
       data-sidebar={sidebarOpen ? 'open' : 'closed'}
+      style={dashboardStyle}
     >
       {/* ============ Header ============ */}
       <header className="header">
@@ -366,50 +372,54 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       {/* ============ Body ============ */}
       <div className="body" style={{ gridTemplateColumns }}>
         {/* Library */}
-        <aside className={`library${libDrawer ? ' drawer' : ''}${libraryOpen ? ' open' : ''}`}>
-          <div className="library-head">
-            <span className="eyebrow">Library</span>
-            <div style={{ display: 'flex', gap: 2 }}>
-              <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" size={14} /></button>
-              <button type="button" className="iconbtn drawer-close" title="Close" aria-label="Close library" onClick={() => setLibraryOpen(false)}><Icon name="x" size={14} /></button>
-            </div>
-          </div>
-          <div className="library-search">
-            <Icon name="search" />
-            <input
-              type="text"
-              placeholder="Search games…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="library-list">
-            <div className="library-group">
-              <span className="eyebrow">Recent</span>
-              {filteredItems.length === 0 && (
-                <div className="li-sub" style={{ padding: '6px 8px' }}>No saved games yet.</div>
-              )}
-              {filteredItems.map((it) => {
-                const active = it.id === loadedFileId;
-                const reviewed = !!it.metadata?.result;
-                const grade = reviewed ? 'green' : 'none';
-                return (
-                  <button
-                    key={it.id}
-                    type="button"
-                    className={`lib-item${active ? ' active' : ''}`}
-                    onClick={() => onOpenRecent(it)}
-                  >
-                    <div className="li-main">
-                      <div className="li-name">{it.name}</div>
-                      <div className="li-sub">{it.moveCount} moves{reviewed ? ' · reviewed' : ''}</div>
-                    </div>
-                    <span className={`grade-chip ${grade}`}>{grade === 'none' ? '—' : grade}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <aside className={`library${libraryPanel ? ' full-library' : ''}${libDrawer ? ' drawer' : ''}${libraryOpen ? ' open' : ''}`}>
+          {libraryPanel ?? (
+            <>
+              <div className="library-head">
+                <span className="eyebrow">Library</span>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" size={14} /></button>
+                  <button type="button" className="iconbtn drawer-close" title="Close" aria-label="Close library" onClick={() => setLibraryOpen(false)}><Icon name="x" size={14} /></button>
+                </div>
+              </div>
+              <div className="library-search">
+                <Icon name="search" />
+                <input
+                  type="text"
+                  placeholder="Search games…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="library-list">
+                <div className="library-group">
+                  <span className="eyebrow">Recent</span>
+                  {filteredItems.length === 0 && (
+                    <div className="li-sub" style={{ padding: '6px 8px' }}>No saved games yet.</div>
+                  )}
+                  {filteredItems.map((it) => {
+                    const active = it.id === loadedFileId;
+                    const reviewed = !!it.metadata?.result;
+                    const grade = reviewed ? 'green' : 'none';
+                    return (
+                      <button
+                        key={it.id}
+                        type="button"
+                        className={`lib-item${active ? ' active' : ''}`}
+                        onClick={() => onOpenRecent(it)}
+                      >
+                        <div className="li-main">
+                          <div className="li-name">{it.name}</div>
+                          <div className="li-sub">{it.moveCount} moves{reviewed ? ' · reviewed' : ''}</div>
+                        </div>
+                        <span className={`grade-chip ${grade}`}>{grade === 'none' ? '—' : grade}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </aside>
 
         {/* Board column */}

@@ -265,6 +265,7 @@ interface LibraryPanelProps {
   docked?: boolean;
   width?: number;
   onClose: () => void;
+  showCloseButtonOnDesktop?: boolean;
   isMobile?: boolean;
   analysisContent?: React.ReactNode;
   isAnalysisRunning?: boolean;
@@ -288,6 +289,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   docked = false,
   width,
   onClose,
+  showCloseButtonOnDesktop = false,
   isMobile = false,
   analysisContent,
   isAnalysisRunning = false,
@@ -1700,9 +1702,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         <div className="ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2">
           <button
             type="button"
-            className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
+            className={[
+              showCloseButtonOnDesktop ? '' : 'lg:hidden',
+              'h-9 w-9 shrink-0 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors',
+            ].join(' ')}
             onClick={onClose}
             title="Close library"
+            aria-label="Close library"
           >
             <FaTimes />
           </button>

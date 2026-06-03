@@ -31,4 +31,17 @@ describe('desktop dashboard layout', () => {
     expect(source).toContain('data-dashboard-build-link="true"');
     expect(source).toContain('Open build commit');
   });
+
+  it('mounts the full library manager inside the desktop dashboard library column', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
+    const librarySource = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    expect(dashboardSource).toContain('libraryPanel?: React.ReactNode');
+    expect(dashboardSource).toContain("libraryPanel ? ' full-library' : ''");
+    expect(dashboardSource).toContain('libraryPanel ?? (');
+    expect(layoutSource).toContain('libraryPanel={');
+    expect(layoutSource).toContain('showCloseButtonOnDesktop');
+    expect(librarySource).toContain('aria-label="Import SGF, ZIP, or board image files"');
+  });
 });

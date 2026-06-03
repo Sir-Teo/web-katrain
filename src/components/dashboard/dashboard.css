@@ -258,6 +258,15 @@
   min-width: 0; overflow: hidden;
   grid-column: 1 / 2;
 }
+.wk-dashboard .library.full-library {
+  background: var(--panel);
+}
+.wk-dashboard .library.full-library > [data-layout-panel="library"] {
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+  border-right: 0;
+}
 .wk-dashboard .library-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px 8px;

@@ -2910,6 +2910,30 @@ export const Layout: React.FC = () => {
           startSelectRegionOfInterest={startSelectRegionOfInterest}
           libraryOpen={libraryOpen}
           setLibraryOpen={setLibraryOpen}
+          libraryWidth={leftPanelWidth}
+          libraryPanel={
+            <LibraryPanel
+              open={libraryOpen}
+              onClose={handleCloseLibrary}
+              docked
+              width={leftPanelWidth}
+              getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+              onLoadSgf={handleLoadFromLibrary}
+              onToast={toast}
+              onOpenPhotoBoard={openPhotoBoard}
+              onLibraryUpdated={handleLibraryUpdated}
+              onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
+              loadedFileId={loadedLibraryFileId}
+              loadedFileDirty={currentGameDirty}
+              onLoadedFileChange={setLoadedLibraryFile}
+              externalFileUpdate={externalLibraryFileUpdate}
+              externalItemRename={externalLibraryItemRename}
+              externalItemCreate={externalLibraryItemCreate}
+              isAnalysisRunning={isGameAnalysisRunning}
+              onStopAnalysis={stopGameAnalysis}
+              showCloseButtonOnDesktop
+            />
+          }
           sidebarOpen={showSidebar}
           setSidebarOpen={setShowSidebar}
           isGameAnalysisRunning={isGameAnalysisRunning}
