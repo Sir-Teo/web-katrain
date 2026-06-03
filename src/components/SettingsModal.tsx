@@ -1769,7 +1769,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             <a
                                                                 href={model.url}
                                                                 target="_blank"
-                                                                rel="noreferrer"
+                                                                rel="noopener noreferrer"
                                                                 className={modelActionClass}
                                                                 title={`Download ${model.name}`}
                                                             >

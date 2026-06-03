@@ -72,7 +72,7 @@ function NoteInlinePreview({ segments }: { segments: NoteInlineSegment[] }) {
               key={key}
               href={segment.href}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               onClick={(event) => event.stopPropagation()}
               className="text-[var(--ui-accent)] underline decoration-[var(--ui-accent)]/50 underline-offset-2 hover:decoration-[var(--ui-accent)]"
             >
