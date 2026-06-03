@@ -8,6 +8,7 @@ import { parseNoteBlocks, parseNoteInlinePreview, type NoteInlineSegment, type N
 import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
+import { getNoteEditorSyncDecision } from '../utils/noteEditorState';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 
@@ -331,11 +332,17 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [focusNoteEditor]);
 
   React.useEffect(() => {
-    const nodeChanged = previousNoteNodeIdRef.current !== currentNode.id;
+    const sync = getNoteEditorSyncDecision({
+      previousNodeId: previousNoteNodeIdRef.current,
+      currentNodeId: currentNode.id,
+      currentNote,
+      isEditing: isEditingNote,
+    });
     previousNoteNodeIdRef.current = currentNode.id;
-    setNoteDraft(currentNote);
-    if (nodeChanged) setIsEditingNote(!currentNote.trim());
-  }, [currentNode.id, currentNote]);
+    if (!sync) return;
+    setNoteDraft(sync.draft);
+    setIsEditingNote(sync.editing);
+  }, [currentNode.id, currentNote, isEditingNote]);
 
   React.useEffect(() => {
     if (!isEditingNote || !shouldFocusNoteRef.current) return;
