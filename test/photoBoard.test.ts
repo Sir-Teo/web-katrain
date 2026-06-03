@@ -172,6 +172,8 @@ describe('photo board SGF import', () => {
   it('recognizes board photo file types for drop import', () => {
     expect(isPhotoBoardImageFile({ name: 'board.JPG', type: '' })).toBe(true);
     expect(isPhotoBoardImageFile({ name: 'camera-capture', type: 'image/png' })).toBe(true);
+    expect(isPhotoBoardImageFile({ name: 'diagram.svg', type: 'image/svg+xml' })).toBe(false);
+    expect(isPhotoBoardImageFile({ name: 'ios-photo', type: 'image/heic' })).toBe(false);
     expect(isPhotoBoardImageFile({ name: 'game.sgf', type: 'application/x-go-sgf' })).toBe(false);
     expect(isPhotoBoardImageFile({ name: 'archive.zip', type: 'application/zip' })).toBe(false);
   });
@@ -198,6 +200,16 @@ describe('photo board SGF import', () => {
     expect(getPhotoBoardClipboardImageFile({
       items: [{ kind: 'file', type: 'application/x-go-sgf', getAsFile: () => textFile }],
       files: [textFile],
+    })).toBeNull();
+  });
+
+  it('ignores unsupported clipboard image MIME types instead of sending them to photo board', () => {
+    const svgImage = new File(['<svg />'], 'diagram.svg', { type: 'image/svg+xml' });
+    const heicImage = new File(['heic'], '', { type: 'image/heic' });
+
+    expect(getPhotoBoardClipboardImageFile({
+      items: [{ kind: 'file', type: 'image/svg+xml', getAsFile: () => svgImage }],
+      files: [heicImage],
     })).toBeNull();
   });
 

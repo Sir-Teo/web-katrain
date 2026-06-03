@@ -13,6 +13,7 @@ const PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME: Record<string, string> = {
   'image/png': 'png',
   'image/webp': 'webp',
 };
+const PHOTO_BOARD_IMAGE_MIME_TYPES = new Set(Object.keys(PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME));
 
 export interface PhotoBoardClipboardItemLike {
   kind?: string;
@@ -27,7 +28,7 @@ export interface PhotoBoardClipboardDataLike {
 
 export function isPhotoBoardImageFile(file: { name?: string; type?: string }): boolean {
   const mime = file.type?.toLowerCase() ?? '';
-  if (mime.startsWith('image/')) return true;
+  if (PHOTO_BOARD_IMAGE_MIME_TYPES.has(mime)) return true;
 
   const name = file.name?.toLowerCase() ?? '';
   return PHOTO_BOARD_IMAGE_EXTENSIONS.some((extension) => name.endsWith(extension));
@@ -47,7 +48,7 @@ export function getPhotoBoardClipboardImageFile(data: PhotoBoardClipboardDataLik
 
   for (const item of Array.from(data.items ?? [])) {
     if (item.kind && item.kind !== 'file') continue;
-    if (!item.type?.toLowerCase().startsWith('image/')) continue;
+    if (!PHOTO_BOARD_IMAGE_MIME_TYPES.has(item.type?.toLowerCase() ?? '')) continue;
     const file = item.getAsFile?.() ?? null;
     if (file && isPhotoBoardImageFile(file)) return normalizeClipboardImageName(file);
   }
