@@ -31,6 +31,22 @@
       "purpose": "any maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "pwa/screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Web KaTrain desktop study workspace"
+    },
+    {
+      "src": "pwa/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Web KaTrain mobile board workspace"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Open Study Board",

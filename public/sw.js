@@ -10,6 +10,8 @@ const PRECACHE_URLS = [
   './pwa/icon-192.png',
   './pwa/icon-512.png',
   './pwa/apple-touch-icon.png',
+  './pwa/screenshot-wide.png',
+  './pwa/screenshot-mobile.png',
   './models/katago-small.bin.gz',
   './tfjs/tfjs-backend-wasm.wasm',
   './tfjs/tfjs-backend-wasm-simd.wasm',

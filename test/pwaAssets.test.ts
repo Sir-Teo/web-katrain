@@ -21,6 +21,7 @@ describe('PWA assets', () => {
     ) as {
       id?: string;
       icons?: Array<{ src?: string; sizes?: string; type?: string; purpose?: string }>;
+      screenshots?: Array<{ src?: string; sizes?: string; type?: string; form_factor?: string; label?: string }>;
       shortcuts?: Array<{ icons?: Array<{ src?: string; sizes?: string; type?: string }> }>;
     };
 
@@ -46,17 +47,39 @@ describe('PWA assets', () => {
         expect.objectContaining({ src: 'pwa/icon-192.png', sizes: '192x192', type: 'image/png' }),
       ])
     );
+    expect(manifest.screenshots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          src: 'pwa/screenshot-wide.png',
+          sizes: '1280x800',
+          type: 'image/png',
+          form_factor: 'wide',
+        }),
+        expect.objectContaining({
+          src: 'pwa/screenshot-mobile.png',
+          sizes: '390x844',
+          type: 'image/png',
+          form_factor: 'narrow',
+        }),
+      ])
+    );
 
     expect(readPngSize('pwa/icon-192.png')).toEqual({ width: 192, height: 192 });
     expect(readPngSize('pwa/icon-512.png')).toEqual({ width: 512, height: 512 });
     expect(readPngSize('pwa/apple-touch-icon.png')).toEqual({ width: 180, height: 180 });
+    expect(readPngSize('pwa/screenshot-wide.png')).toEqual({ width: 1280, height: 800 });
+    expect(readPngSize('pwa/screenshot-mobile.png')).toEqual({ width: 390, height: 844 });
 
     const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
     expect(indexHtml).toContain('pwa/apple-touch-icon.png');
+    expect(indexHtml).toContain('property="og:image" content="%BASE_URL%pwa/screenshot-wide.png"');
+    expect(indexHtml).toContain('name="twitter:card" content="summary_large_image"');
 
     const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
     expect(sw).toContain('./pwa/icon-192.png');
     expect(sw).toContain('./pwa/icon-512.png');
     expect(sw).toContain('./pwa/apple-touch-icon.png');
+    expect(sw).toContain('./pwa/screenshot-wide.png');
+    expect(sw).toContain('./pwa/screenshot-mobile.png');
   });
 });
