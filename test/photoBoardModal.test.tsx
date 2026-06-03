@@ -24,6 +24,10 @@ describe('PhotoBoardModal', () => {
     );
 
     expect(html).toContain('data-photo-board-delta-summary="true"');
+    expect(html).toContain('data-photo-board-delta-legend="true"');
+    expect(html).toContain('Photo board diff legend');
+    expect(html).toContain('Added in trace');
+    expect(html).toContain('Missing from trace');
     expect(html).toContain('data-photo-board-delta-toggle="true"');
     expect(html).toContain('Overlay on');
     expect(html).toContain('data-photo-board-delta-overlay="removed"');

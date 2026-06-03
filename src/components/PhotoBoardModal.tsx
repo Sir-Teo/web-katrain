@@ -402,6 +402,12 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       ? 'right-0.5 top-0.5 border-[var(--ui-success)] bg-[var(--ui-success)] text-white'
       : 'bottom-0.5 left-0.5 border-[var(--ui-danger)] bg-[var(--ui-danger)] text-white',
   ].join(' ');
+  const deltaLegendMarkerClass = (type: PhotoBoardDeltaStone['type']) => [
+    'grid h-4 w-4 place-items-center rounded-full border text-[9px] font-black leading-none shadow-sm',
+    type === 'added'
+      ? 'border-[var(--ui-success)] bg-[var(--ui-success)] text-white'
+      : 'border-[var(--ui-danger)] bg-[var(--ui-danger)] text-white',
+  ].join(' ');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-0 mobile-safe-inset mobile-safe-area-bottom md:p-2 lg:p-4">
@@ -671,6 +677,20 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 </div>
                 {canCompareCurrentBoard ? (
                   <div className="grid gap-2">
+                    <div
+                      className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-[var(--ui-text-muted)]"
+                      aria-label="Photo board diff legend"
+                      data-photo-board-delta-legend="true"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <span className={deltaLegendMarkerClass('added')} aria-hidden="true">+</span>
+                        Added in trace
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className={deltaLegendMarkerClass('removed')} aria-hidden="true">-</span>
+                        Missing from trace
+                      </span>
+                    </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {deltaCounts.total === 0 && (
                         <span className={deltaChipClass('matched')}>Matched</span>
