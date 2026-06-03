@@ -110,6 +110,7 @@ export interface DesktopDashboardProps {
   // ---- file / header actions ----
   onNewGame: () => void;
   onSaveSgf: () => void;
+  onCopySgf: () => void;
   onSaveToLibrary: () => void;
   onLoadSgf: () => void;
   onPasteSgf: () => void;
@@ -155,7 +156,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     navigateBack, navigateForward, navigateStart, navigateEnd, navigateToMove,
     jumpBack, jumpForward, findMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
     passTurn, onUndo, onAiMove, onResign, onPlayBest,
-    onNewGame, onSaveSgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
+    onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
     recentItems, loadedFileId, onOpenRecent,
     toast,
@@ -326,6 +327,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" /></button>
           <button type="button" className="iconbtn" title="Open SGF / photo / weights" aria-label="Load SGF, board photo, or model weights" onClick={onLoadSgf}><Icon name="folder" /></button>
           <button type="button" className="iconbtn" title="Save SGF" aria-label="Save SGF" onClick={onSaveSgf}><Icon name="save" /></button>
+          <button type="button" className="iconbtn shed" title="Copy SGF" aria-label="Copy SGF" onClick={onCopySgf}><Icon name="copy" /></button>
           <button type="button" className="iconbtn shed" title="Save to library" aria-label="Save to library" onClick={onSaveToLibrary}><Icon name="book" /></button>
           <button type="button" className="iconbtn shed" title="Paste SGF / OGS" aria-label="Paste SGF / OGS" onClick={onPasteSgf}><Icon name="clipboard" /></button>
         </div>

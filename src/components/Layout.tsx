@@ -2963,6 +2963,7 @@ export const Layout: React.FC = () => {
           onPlayBest={makeAiMove}
           onNewGame={() => void openNewGameWithGuard()}
           onSaveSgf={handleSaveCurrentSgf}
+          onCopySgf={handleCopySgf}
           onSaveToLibrary={handleOpenSaveToLibraryDialog}
           onLoadSgf={handleLoadClick}
           onPasteSgf={handlePasteSgf}

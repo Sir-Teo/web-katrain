@@ -55,4 +55,14 @@ describe('desktop dashboard layout', () => {
     expect(dashboardLibraryBlock).toContain('<LibraryPanel');
     expect(dashboardLibraryBlock).not.toContain('width={leftPanelWidth}');
   });
+
+  it('keeps direct Copy SGF access in the desktop dashboard header', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(dashboardSource).toContain('onCopySgf: () => void');
+    expect(dashboardSource).toContain('aria-label="Copy SGF"');
+    expect(dashboardSource).toContain('onClick={onCopySgf}');
+    expect(layoutSource).toContain('onCopySgf={handleCopySgf}');
+  });
 });
