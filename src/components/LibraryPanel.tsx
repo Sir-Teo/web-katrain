@@ -1269,6 +1269,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const isSelected = visibleSelectedIds.has(item.id);
     const isLoaded = loadedFileId === item.id;
     const isLoadedDirty = isLoaded && loadedFileDirty;
+    const selectFileLabel = `${isSelected ? 'Deselect' : 'Select'} ${item.name}`;
+    const duplicateFileLabel = `Duplicate ${item.name}`;
+    const downloadFileLabel = `Download ${item.name} as SGF`;
+    const renameFileLabel = `Rename ${item.name}`;
+    const deleteFileLabel = `Delete ${item.name}`;
     return (
       <div
         key={item.id}
@@ -1304,7 +1309,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             e.stopPropagation();
             handleToggleSelect(item.id);
           }}
-          title={isSelected ? 'Deselect' : 'Select'}
+          title={selectFileLabel}
+          aria-label={selectFileLabel}
         >
           {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
         </button>
@@ -1337,8 +1343,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               e.stopPropagation();
               handleDuplicate(item);
             }}
-            title="Duplicate"
-            aria-label="Duplicate"
+            title={duplicateFileLabel}
+            aria-label={duplicateFileLabel}
           >
             <FaCopy size={12} />
           </button>
@@ -1349,7 +1355,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               e.stopPropagation();
               handleDownload(item);
             }}
-            title="Download SGF"
+            title={downloadFileLabel}
+            aria-label={downloadFileLabel}
           >
             <FaDownload size={12} />
           </button>
@@ -1360,7 +1367,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               e.stopPropagation();
               handleRename(item);
             }}
-            title="Rename"
+            title={renameFileLabel}
+            aria-label={renameFileLabel}
           >
             <FaPen size={12} />
           </button>
@@ -1371,7 +1379,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               e.stopPropagation();
               handleDelete(item);
             }}
-            title="Delete"
+            title={deleteFileLabel}
+            aria-label={deleteFileLabel}
           >
             <FaTrash size={12} />
           </button>
@@ -1386,6 +1395,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const isSelected = visibleSelectedIds.has(item.id);
     const hasLoaded = activeAncestorIds.has(item.id);
     const hasDirtyLoaded = hasLoaded && loadedFileDirty;
+    const toggleFolderLabel = `${isExpanded ? 'Collapse' : 'Expand'} ${item.name}`;
+    const selectFolderLabel = `${isSelected ? 'Deselect' : 'Select'} ${item.name}`;
+    const duplicateFolderLabel = `Duplicate ${item.name}`;
+    const exportFolderLabel = `Export ${item.name} as ZIP`;
+    const renameFolderLabel = `Rename ${item.name}`;
+    const deleteFolderLabel = `Delete ${item.name}`;
     return (
       <div key={item.id}>
         <div
@@ -1432,7 +1447,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 return next;
               });
             }}
-            title={isExpanded ? 'Collapse folder' : 'Expand folder'}
+            title={toggleFolderLabel}
+            aria-label={toggleFolderLabel}
           >
             <FaChevronRight size={12} />
           </button>
@@ -1446,7 +1462,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               e.stopPropagation();
               handleToggleSelect(item.id);
             }}
-            title={isSelected ? 'Deselect' : 'Select'}
+            title={selectFolderLabel}
+            aria-label={selectFolderLabel}
           >
             {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
           </button>
@@ -1463,8 +1480,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 e.stopPropagation();
                 handleDuplicate(item);
               }}
-              title="Duplicate"
-              aria-label="Duplicate"
+              title={duplicateFolderLabel}
+              aria-label={duplicateFolderLabel}
             >
               <FaCopy size={12} />
             </button>
@@ -1475,8 +1492,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 e.stopPropagation();
                 void handleExportFolderZip(item);
               }}
-              title="Export folder as ZIP"
-              aria-label="Export folder as ZIP"
+              title={exportFolderLabel}
+              aria-label={exportFolderLabel}
             >
               <FaDownload size={12} />
             </button>
@@ -1487,7 +1504,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 e.stopPropagation();
                 handleRename(item);
               }}
-              title="Rename"
+              title={renameFolderLabel}
+              aria-label={renameFolderLabel}
             >
               <FaPen size={12} />
             </button>
@@ -1498,7 +1516,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 e.stopPropagation();
                 handleDelete(item);
               }}
-              title="Delete"
+              title={deleteFolderLabel}
+              aria-label={deleteFolderLabel}
             >
               <FaTrash size={12} />
             </button>
@@ -1850,7 +1869,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   className="panel-icon-button"
                   onClick={handleGoUp}
                   disabled={!activeFolderId}
-                  title="Up"
+                  title="Go to parent folder"
+                  aria-label="Go to parent folder"
                 >
                   <FaArrowUp size={12} />
                 </button>
@@ -1858,7 +1878,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   type="button"
                   className="panel-icon-button"
                   onClick={() => setCurrentFolderId(null)}
-                  title="Root"
+                  title="Go to library root"
+                  aria-label="Go to library root"
                 >
                   <FaFolderOpen size={12} />
                 </button>
@@ -1888,6 +1909,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                       type="button"
                       className="px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
                       onClick={() => setCurrentFolderId(crumb.id)}
+                      aria-label={`Open folder ${crumb.name}`}
                     >
                       {index === 0 ? crumb.name : `/${crumb.name}`}
                     </button>
@@ -1946,6 +1968,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     className="panel-action-button"
                     onClick={handleBulkMove}
                     disabled={!bulkMoveTarget}
+                    title="Move selected items"
+                    aria-label="Move selected items"
                   >
                     Move
                   </button>

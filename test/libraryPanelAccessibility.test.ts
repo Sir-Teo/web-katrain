@@ -10,6 +10,38 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain('aria-label="Move selected to folder"');
   });
 
+  it('names compact library row and folder navigation actions', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+    const rowActionLabels = [
+      'selectFileLabel',
+      'duplicateFileLabel',
+      'downloadFileLabel',
+      'renameFileLabel',
+      'deleteFileLabel',
+      'toggleFolderLabel',
+      'selectFolderLabel',
+      'duplicateFolderLabel',
+      'exportFolderLabel',
+      'renameFolderLabel',
+      'deleteFolderLabel',
+    ];
+
+    for (const label of rowActionLabels) {
+      expect(source).toContain(`aria-label={${label}}`);
+    }
+
+    expect(source).toContain('aria-label="Go to parent folder"');
+    expect(source).toContain('aria-label="Go to library root"');
+    expect(source).toContain('aria-label={`Open folder ${crumb.name}`}');
+    expect(source).toContain('aria-label="Move selected items"');
+
+    const rowButtonBlocks = source.match(/<button[\s\S]*?library-tree-node-(?:action|select|arrow)[\s\S]*?<\/button>/g) ?? [];
+    expect(rowButtonBlocks.length).toBeGreaterThan(0);
+    for (const block of rowButtonBlocks) {
+      expect(block).toContain('aria-label=');
+    }
+  });
+
   it('sanitizes folder download names with the shared filename guard', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
