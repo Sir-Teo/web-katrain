@@ -106,11 +106,15 @@ describe('library storage helpers', () => {
   });
 
   it('suggests library names from SGF metadata and keeps downloads single-extension', () => {
+    const spoofedNameSgf = `(;GM[1]SZ[19]GN[Review${String.fromCharCode(0x202e)}fgs${String.fromCharCode(0)}];B[pd])`;
+
     expect(suggestLibraryItemNameFromSgf(sgf)).toBe('Title Game');
     expect(suggestLibraryItemNameFromSgf('(;GM[1]SZ[19]PB[Black/One]PW[White:Two];B[pd])')).toBe('Black-One vs White-Two');
+    expect(suggestLibraryItemNameFromSgf(spoofedNameSgf)).toBe('Reviewfgs');
     expect(suggestLibraryItemNameFromSgf('(;GM[1]SZ[9];B[dd])', 'Game 3.sgf')).toBe('Game 3');
     expect(librarySgfDownloadFilename('Game 3.sgf')).toBe('Game 3.sgf');
     expect(librarySgfDownloadFilename('Bad/Name:Test')).toBe('Bad-Name-Test.sgf');
+    expect(librarySgfDownloadFilename('Review\u202efgs\u0000')).toBe('Reviewfgs.sgf');
   });
 
   it('normalizes legacy localStorage records into current library items', () => {

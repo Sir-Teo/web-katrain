@@ -42,6 +42,7 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
+import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
   PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
@@ -66,9 +67,7 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
 const safeDownloadName = (name: string, fallback: string): string =>
-  Array.from(name)
-    .filter((char) => char.charCodeAt(0) >= 32)
-    .join('')
+  stripUnsafeFilenameControls(name)
     .replace(/[<>:"/\\|?*]/g, '_')
     .replace(/\s+/g, ' ')
     .trim()

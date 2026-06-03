@@ -4,6 +4,7 @@ import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './
 import { encodeKayaKaFromAnalysis } from './kayaSgfAnalysis';
 import { createEmptyBoard, normalizeBoardSize } from './boardSize';
 import { downloadBlob } from './objectUrl';
+import { stripUnsafeFilenameControls } from './filename';
 
 // KaTrain convention: auto-generated SGF comments are marked so user notes remain editable.
 export const KATRAIN_SGF_INTERNAL_COMMENTS_MARKER = "\u3164\u200b";
@@ -311,13 +312,7 @@ function escapeSgfValue(value: string): string {
 }
 
 const sanitizeSgfFilenameStem = (value: string): string | null => {
-    const withoutControlCharacters = Array.from(value)
-        .filter((char) => {
-            const code = char.charCodeAt(0);
-            return code >= 32 && code !== 127;
-        })
-        .join('');
-    const cleaned = withoutControlCharacters
+    const cleaned = stripUnsafeFilenameControls(value)
         .trim()
         .replace(/[/\\?%*:|"<>]/g, '-')
         .replace(/\s+/g, ' ')

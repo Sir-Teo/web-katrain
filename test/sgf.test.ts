@@ -102,6 +102,7 @@ describe('SGF Parser', () => {
       const nodeWithProps = (properties: GameNode['properties']) => ({ properties }) as unknown as GameNode;
 
       expect(getSgfDownloadFilename(nodeWithProps({ GN: ['  Alpha/Beta: Final?  '] }), 123)).toBe('Alpha-Beta- Final.sgf');
+      expect(getSgfDownloadFilename(nodeWithProps({ GN: ['Review\u202efgs\u0000'] }), 123)).toBe('Reviewfgs.sgf');
       expect(getSgfDownloadFilenameFromProperties({ GN: ['League Round 1'] }, 123)).toBe('League Round 1.sgf');
       expect(getSgfDownloadFilename(nodeWithProps({ PB: ['Black/One'], PW: ['White:Two'] }), 123)).toBe('Black-One vs White-Two.sgf');
       expect(getSgfDownloadFilename(nodeWithProps({}), 123)).toBe('game_123.sgf');

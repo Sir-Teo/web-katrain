@@ -1,4 +1,5 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
+import { stripUnsafeFilenameControls } from './filename';
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from './storage';
 
 export type LibraryBase = {
@@ -145,10 +146,7 @@ export const extractLibraryMetadata = (sgf: string): LibraryFileMetadata => {
 };
 
 const sanitizeLibraryItemName = (value: string): string | null => {
-  const withoutControls = Array.from(value)
-    .filter((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
-    .join('');
-  const cleaned = withoutControls
+  const cleaned = stripUnsafeFilenameControls(value)
     .trim()
     .replace(/[/\\?%*:|"<>]/g, '-')
     .replace(/\s+/g, ' ')

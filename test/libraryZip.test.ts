@@ -8,10 +8,10 @@ const sgfB = '(;GM[1]SZ[9]PB[Black B]PW[White B];B[dd];W[ee])';
 
 describe('library ZIP helpers', () => {
   it('exports library items as a folder-preserving ZIP', async () => {
-    const folder = createLibraryFolder('Pro Games', null);
+    const folder = createLibraryFolder(`Pro${String.fromCharCode(0x202e)} Games`, null);
     const nested = createLibraryFolder('2026', folder.id);
     const rootGame = createLibraryItem('Root Game', sgfA, null);
-    const nestedGame = createLibraryItem('Nested Game', sgfB, nested.id);
+    const nestedGame = createLibraryItem(`Nested${String.fromCharCode(0x200b)} Game`, sgfB, nested.id);
     const items: LibraryItem[] = [folder, nested, rootGame, nestedGame];
 
     const { blob, fileCount } = await createLibraryZipBlob(items);
@@ -41,7 +41,7 @@ describe('library ZIP helpers', () => {
   it('imports SGFs from ZIP paths into library folders', async () => {
     const zip = new JSZip();
     zip.file('Study/Openings/Game A.sgf', sgfA);
-    zip.file('Study/Endgame/Game B.sgf', sgfB);
+    zip.file(`Study/End${String.fromCharCode(0x202e)}game/Game${String.fromCharCode(0x200b)} B.sgf`, sgfB);
     zip.file('../ignored.sgf', sgfA);
     zip.file('__MACOSX/metadata.sgf', sgfA);
     const blob = await zip.generateAsync({ type: 'blob' });

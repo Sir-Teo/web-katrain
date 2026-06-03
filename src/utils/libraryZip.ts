@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { stripUnsafeFilenameControls } from './filename';
 import {
   createLibraryFolder,
   createLibraryItem,
@@ -10,11 +11,8 @@ import {
 const ZIP_SGF_EXT_RE = /\.sgf$/i;
 
 function sanitizeZipPart(part: string): string {
-  const withoutControls = Array.from(part)
-    .filter((char) => char.charCodeAt(0) >= 32)
-    .join('');
   return (
-    withoutControls
+    stripUnsafeFilenameControls(part)
       .replace(/\\/g, '/')
       .replace(/[<>:"|?*]/g, '_')
       .replace(/\s+/g, ' ')
