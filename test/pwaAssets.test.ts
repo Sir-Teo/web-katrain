@@ -96,4 +96,8 @@ describe('PWA assets', () => {
     expect(sitemap).toContain('<lastmod>2026-06-03</lastmod>');
     expect(sitemap).toContain('<changefreq>weekly</changefreq>');
   });
+
+  it('does not ship starter-template public assets', () => {
+    expect(fs.existsSync(path.join(publicDir, 'vite.svg'))).toBe(false);
+  });
 });
