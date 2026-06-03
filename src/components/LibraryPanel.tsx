@@ -42,6 +42,7 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
+import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
@@ -1091,6 +1092,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const imported: LibraryItem[] = [];
     let openedPhotoBoard = false;
     let skippedUnsupportedPhotoImages = 0;
+    let skippedInvalidSgfFiles = 0;
     for (const file of Array.from(files)) {
       const name = file.name.toLowerCase();
       try {
@@ -1111,6 +1113,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         }
         if (!name.endsWith('.sgf')) continue;
         const text = await file.text();
+        try {
+          assertValidLibrarySgfImport(text);
+        } catch {
+          skippedInvalidSgfFiles += 1;
+          continue;
+        }
         imported.push(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
       } catch {
         // ignore per-file failures
@@ -1122,8 +1130,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           ? 'Opened photo board from image.'
           : skippedUnsupportedPhotoImages > 0
             ? PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE
-            : 'No SGF, ZIP, or board image files were imported.',
-        skippedUnsupportedPhotoImages > 0 && !openedPhotoBoard ? 'error' : 'info'
+            : skippedInvalidSgfFiles > 0
+              ? 'No valid SGF games were imported.'
+              : 'No SGF, ZIP, or board image files were imported.',
+        (skippedUnsupportedPhotoImages > 0 || skippedInvalidSgfFiles > 0) && !openedPhotoBoard ? 'error' : 'info'
       );
       return;
     }
@@ -1132,8 +1142,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const skippedUnsupportedSummary = skippedUnsupportedPhotoImages > 0
       ? ` Skipped ${skippedUnsupportedPhotoImages} unsupported board image${skippedUnsupportedPhotoImages === 1 ? '' : 's'}.`
       : '';
+    const skippedInvalidSgfSummary = skippedInvalidSgfFiles > 0
+      ? ` Skipped ${skippedInvalidSgfFiles} invalid SGF file${skippedInvalidSgfFiles === 1 ? '' : 's'}.`
+      : '';
     onToast(
-      `Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}${openedPhotoBoard ? ' and opened photo board image' : ''}.${skippedUnsupportedSummary}`,
+      `Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}${openedPhotoBoard ? ' and opened photo board image' : ''}.${skippedUnsupportedSummary}${skippedInvalidSgfSummary}`,
       'success'
     );
   };

@@ -3,6 +3,7 @@ import {
   suggestLibraryItemNameFromSgf,
   type LibraryFile,
 } from './library';
+import { assertValidLibrarySgfImport } from './libraryImportValidation';
 import { loadSgfOrOgs } from './ogs';
 
 export type LibraryTextImportResult = {
@@ -17,7 +18,7 @@ export async function createLibraryItemFromSgfOrOgsText(
   fallbackName = 'Dropped SGF'
 ): Promise<LibraryTextImportResult> {
   const result = await loadSgfOrOgs(text);
-  if (!result.sgf.trim()) throw new Error('Empty SGF import');
+  assertValidLibrarySgfImport(result.sgf);
   const fallback = result.source === 'ogs' && result.gameId ? `ogs-${result.gameId}` : fallbackName;
   return {
     item: createLibraryItem(suggestLibraryItemNameFromSgf(result.sgf, fallback), result.sgf, folderId),

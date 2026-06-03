@@ -42,6 +42,8 @@ describe('library ZIP helpers', () => {
     const zip = new JSZip();
     zip.file('Study/Openings/Game A.sgf', sgfA);
     zip.file(`Study/End${String.fromCharCode(0x202e)}game/Game${String.fromCharCode(0x200b)} B.sgf`, sgfB);
+    zip.file('Study/Bad/Invalid.sgf', 'not an SGF game');
+    zip.file('OnlyBad/Invalid.sgf', 'not an SGF game');
     zip.file('../ignored.sgf', sgfA);
     zip.file('__MACOSX/metadata.sgf', sgfA);
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -52,6 +54,8 @@ describe('library ZIP helpers', () => {
 
     expect(files).toHaveLength(2);
     expect(folders.map((folder) => folder.name).sort()).toEqual(['Endgame', 'Openings', 'Study'].sort());
+    expect(folders.map((folder) => folder.name)).not.toContain('Bad');
+    expect(folders.map((folder) => folder.name)).not.toContain('OnlyBad');
     expect(files.map((file) => file.name).sort()).toEqual(['Game A', 'Game B'].sort());
     expect(files.find((file) => file.name === 'Game A')?.parentId).toBe(
       folders.find((folder) => folder.name === 'Openings')?.id

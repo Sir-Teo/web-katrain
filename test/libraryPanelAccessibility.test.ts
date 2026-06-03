@@ -16,4 +16,13 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain("import { stripUnsafeFilenameControls } from '../utils/filename';");
     expect(source).toContain('stripUnsafeFilenameControls(name)');
   });
+
+  it('validates direct SGF file imports before storing them', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    expect(source).toContain("import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';");
+    expect(source).toContain('assertValidLibrarySgfImport(text);');
+    expect(source).toContain('No valid SGF games were imported.');
+    expect(source).toContain('invalid SGF file');
+  });
 });

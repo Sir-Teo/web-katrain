@@ -7,6 +7,7 @@ import {
   type LibraryFolder,
   type LibraryItem,
 } from './library';
+import { assertValidLibrarySgfImport } from './libraryImportValidation';
 
 const ZIP_SGF_EXT_RE = /\.sgf$/i;
 
@@ -151,8 +152,14 @@ export async function importLibraryItemsFromZip(
     const parts = splitZipPath(originalName);
     if (parts.length === 0) continue;
     const fileName = parts.pop()!;
+    let sgf = '';
+    try {
+      sgf = await entry.async('string');
+      assertValidLibrarySgfImport(sgf);
+    } catch {
+      continue;
+    }
     const folderId = ensureFolder(parts);
-    const sgf = await entry.async('string');
     const name = fileName.replace(ZIP_SGF_EXT_RE, '') || 'Game';
     imported.push(createLibraryItem(name, sgf, folderId));
   }

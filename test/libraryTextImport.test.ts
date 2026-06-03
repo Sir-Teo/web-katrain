@@ -21,6 +21,13 @@ describe('library text import', () => {
     });
   });
 
+  it('rejects non-SGF direct text before creating a library item', async () => {
+    await expect(createLibraryItemFromSgfOrOgsText('not an SGF game', null)).rejects.toThrow(
+      'Invalid SGF import'
+    );
+    await expect(createLibraryItemFromSgfOrOgsText('   ', null)).rejects.toThrow('Empty SGF import');
+  });
+
   it('downloads OGS URLs and names imported games from SGF metadata', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
