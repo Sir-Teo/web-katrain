@@ -40,7 +40,7 @@ import {
   isPhotoBoardImageFile,
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
-import { isEditableKeyboardTarget, isTextEntryTarget } from '../utils/keyboardTarget';
+import { isEditableKeyboardTarget, shouldIgnoreGlobalPasteTarget } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
   createUploadedModelUrl,
@@ -1622,7 +1622,7 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     const handlePasteEvent = (event: ClipboardEvent) => {
-      if (isTextEntryTarget(event.target)) return;
+      if (shouldIgnoreGlobalPasteTarget(event.target)) return;
 
       const importText = getDirectGameImportText(event.clipboardData?.getData('text/plain'));
       if (importText) {

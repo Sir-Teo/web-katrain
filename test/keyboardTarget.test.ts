@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DIALOG_TARGET_SELECTOR,
+  isDialogTarget,
   isEditableKeyboardTarget,
   isTextEntryTarget,
+  shouldIgnoreGlobalPasteTarget,
   shouldIgnoreKeyboardShortcutTarget,
   TEXT_ENTRY_TARGET_SELECTOR,
 } from '../src/utils/keyboardTarget';
@@ -60,6 +63,36 @@ describe('isEditableKeyboardTarget', () => {
   it('ignores ordinary targets and missing targets', () => {
     expect(isEditableKeyboardTarget({} as EventTarget)).toBe(false);
     expect(isEditableKeyboardTarget(null)).toBe(false);
+  });
+});
+
+describe('isDialogTarget', () => {
+  it('detects dialog roots and descendants', () => {
+    expect(isDialogTarget({ tagName: 'DIALOG' } as unknown as EventTarget)).toBe(true);
+    expect(isDialogTarget({
+      tagName: 'DIV',
+      getAttribute: (name: string) => (name === 'role' ? 'dialog' : null),
+    } as unknown as EventTarget)).toBe(true);
+    expect(isDialogTarget({
+      tagName: 'BUTTON',
+      closest: (selector: string) => (selector === DIALOG_TARGET_SELECTOR ? ({} as Element) : null),
+    } as unknown as EventTarget)).toBe(true);
+  });
+
+  it('ignores ordinary non-dialog targets', () => {
+    expect(isDialogTarget({ tagName: 'BUTTON' } as unknown as EventTarget)).toBe(false);
+    expect(isDialogTarget(null)).toBe(false);
+  });
+});
+
+describe('shouldIgnoreGlobalPasteTarget', () => {
+  it('blocks document paste imports from text fields and dialogs', () => {
+    expect(shouldIgnoreGlobalPasteTarget({ tagName: 'TEXTAREA' } as unknown as EventTarget)).toBe(true);
+    expect(shouldIgnoreGlobalPasteTarget({
+      tagName: 'BUTTON',
+      closest: (selector: string) => (selector === DIALOG_TARGET_SELECTOR ? ({} as Element) : null),
+    } as unknown as EventTarget)).toBe(true);
+    expect(shouldIgnoreGlobalPasteTarget({ tagName: 'BUTTON' } as unknown as EventTarget)).toBe(false);
   });
 });
 

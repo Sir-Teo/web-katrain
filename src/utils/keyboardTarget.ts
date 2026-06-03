@@ -23,6 +23,8 @@ const INTERACTIVE_SELECTOR = [
   '[role="treeitem"]',
 ].join(', ');
 
+export const DIALOG_TARGET_SELECTOR = 'dialog, [role="dialog"], [aria-modal="true"]';
+
 export function isTextEntryTarget(target: EventTarget | null): boolean {
   if (!target || typeof target !== 'object') return false;
   const element = target as {
@@ -43,6 +45,26 @@ export function isTextEntryTarget(target: EventTarget | null): boolean {
   if (role === 'textbox' || role === 'searchbox') return true;
 
   return Boolean(element.closest?.(TEXT_ENTRY_TARGET_SELECTOR));
+}
+
+export function isDialogTarget(target: EventTarget | null): boolean {
+  if (!target || typeof target !== 'object') return false;
+  const element = target as {
+    tagName?: string;
+    getAttribute?: (name: string) => string | null;
+    closest?: (selector: string) => unknown;
+  };
+  const tagName = element.tagName?.toUpperCase();
+  if (tagName === 'DIALOG') return true;
+
+  const role = element.getAttribute?.('role')?.toLowerCase();
+  if (role === 'dialog' || element.getAttribute?.('aria-modal') === 'true') return true;
+
+  return Boolean(element.closest?.(DIALOG_TARGET_SELECTOR));
+}
+
+export function shouldIgnoreGlobalPasteTarget(target: EventTarget | null): boolean {
+  return isTextEntryTarget(target) || isDialogTarget(target);
 }
 
 export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
