@@ -44,4 +44,15 @@ describe('desktop dashboard layout', () => {
     expect(layoutSource).toContain('showCloseButtonOnDesktop');
     expect(librarySource).toContain('aria-label="Import SGF, ZIP, or board image files"');
   });
+
+  it('lets the dashboard library container own embedded panel width', () => {
+    const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
+    const dashboardLibraryStart = layoutSource.indexOf('libraryPanel={');
+    const dashboardLibraryEnd = layoutSource.indexOf('sidebarOpen={showSidebar}', dashboardLibraryStart);
+    const dashboardLibraryBlock = layoutSource.slice(dashboardLibraryStart, dashboardLibraryEnd);
+
+    expect(layoutSource).toContain('libraryWidth={leftPanelWidth}');
+    expect(dashboardLibraryBlock).toContain('<LibraryPanel');
+    expect(dashboardLibraryBlock).not.toContain('width={leftPanelWidth}');
+  });
 });

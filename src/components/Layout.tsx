@@ -2916,7 +2916,6 @@ export const Layout: React.FC = () => {
               open={libraryOpen}
               onClose={handleCloseLibrary}
               docked
-              width={leftPanelWidth}
               getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
               onLoadSgf={handleLoadFromLibrary}
               onToast={toast}
