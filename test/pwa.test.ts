@@ -3,14 +3,19 @@ import {
   getServiceWorkerContainer,
   getPwaInstallDismissed,
   getServiceWorkerUrl,
+  getVersionMetadataUrl,
   hasServiceWorkerController,
   isIosPwaInstallCandidate,
   isStandalonePwa,
   PWA_INSTALL_DISMISSED_KEY,
   PWA_UPDATE_CHECK_INTERVAL_MS,
+  PWA_UPDATE_READY_EVENT,
+  PWA_VERSION_UPDATE_CHECK_INTERVAL_MS,
+  checkVersionMetadataUpdate,
   requestPwaUpdateActivation,
   runPwaInstallPrompt,
   schedulePwaUpdateChecks,
+  scheduleVersionMetadataUpdateChecks,
   setPwaInstallDismissed,
   shouldUseBrowserPwaInstallPrompt,
 } from '../src/utils/pwa';
@@ -47,6 +52,12 @@ describe('PWA helpers', () => {
     expect(getServiceWorkerUrl('/')).toBe('/sw.js');
     expect(getServiceWorkerUrl('/web-katrain/')).toBe('/web-katrain/sw.js');
     expect(getServiceWorkerUrl('/web-katrain')).toBe('/web-katrain/sw.js');
+  });
+
+  it('builds a cache-busted version metadata URL', () => {
+    expect(getVersionMetadataUrl('/', 123)).toBe('/version.json?t=123');
+    expect(getVersionMetadataUrl('/web-katrain/', 123)).toBe('/web-katrain/version.json?t=123');
+    expect(getVersionMetadataUrl('/web-katrain', 123)).toBe('/web-katrain/version.json?t=123');
   });
 
   it('persists whether the install prompt was dismissed', () => {
@@ -180,6 +191,119 @@ describe('PWA helpers', () => {
 
     cleanup?.();
     expect(clearInterval).toHaveBeenCalledWith(42);
+  });
+
+  it('dispatches an update-ready event when version metadata reports a newer commit', async () => {
+    const dispatchEvent = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ gitHash: '7654321' }),
+    });
+
+    await expect(
+      checkVersionMetadataUpdate({
+        currentGitHash: '1234567',
+        baseUrl: '/web-katrain/',
+        fetcher,
+        target: {
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent,
+        },
+        timestamp: 456,
+      })
+    ).resolves.toBe(true);
+
+    expect(fetcher).toHaveBeenCalledWith('/web-katrain/version.json?t=456', { cache: 'no-store' });
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+    expect(dispatchEvent.mock.calls[0]?.[0]).toMatchObject({ type: PWA_UPDATE_READY_EVENT });
+  });
+
+  it('ignores unchanged, malformed, or local version metadata checks', async () => {
+    const dispatchEvent = vi.fn();
+    const target = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent,
+    };
+
+    await expect(
+      checkVersionMetadataUpdate({
+        currentGitHash: '1234567',
+        baseUrl: '/',
+        fetcher: vi.fn().mockResolvedValue({
+          ok: true,
+          json: vi.fn().mockResolvedValue({ gitHash: '1234567' }),
+        }),
+        target,
+      })
+    ).resolves.toBe(false);
+    await expect(
+      checkVersionMetadataUpdate({
+        currentGitHash: '1234567',
+        baseUrl: '/',
+        fetcher: vi.fn().mockResolvedValue({
+          ok: true,
+          json: vi.fn().mockResolvedValue({ gitHash: 'dev' }),
+        }),
+        target,
+      })
+    ).resolves.toBe(false);
+    await expect(
+      checkVersionMetadataUpdate({
+        currentGitHash: 'dev',
+        baseUrl: '/',
+        fetcher: vi.fn(),
+        target,
+      })
+    ).resolves.toBe(false);
+
+    expect(dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  it('schedules version metadata checks on an interval and on focus', async () => {
+    const callbacks: Array<() => void> = [];
+    const listeners = new Map<string, () => void>();
+    const clearInterval = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ gitHash: '1234567' }),
+    });
+    const target = {
+      setInterval: vi.fn((callback: () => void, interval: number) => {
+        callbacks.push(callback);
+        expect(interval).toBe(PWA_VERSION_UPDATE_CHECK_INTERVAL_MS);
+        return 84;
+      }),
+      clearInterval,
+      addEventListener: vi.fn((event: string, callback: () => void) => {
+        listeners.set(event, callback);
+      }),
+      removeEventListener: vi.fn((event: string) => {
+        listeners.delete(event);
+      }),
+      dispatchEvent: vi.fn(),
+    };
+
+    const cleanup = scheduleVersionMetadataUpdateChecks({
+      currentGitHash: '1234567',
+      baseUrl: '/',
+      fetcher,
+      target,
+    });
+
+    expect(cleanup).toEqual(expect.any(Function));
+    expect(target.setInterval).toHaveBeenCalledTimes(1);
+    expect(target.addEventListener).toHaveBeenCalledWith('focus', expect.any(Function));
+
+    callbacks[0]?.();
+    listeners.get('focus')?.();
+    await Promise.resolve();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    cleanup?.();
+    expect(clearInterval).toHaveBeenCalledWith(84);
+    expect(target.removeEventListener).toHaveBeenCalledWith('focus', expect.any(Function));
   });
 
   it('requests waiting service workers before reloading for updates', () => {

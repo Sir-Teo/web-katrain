@@ -5,11 +5,15 @@ export const PWA_OFFLINE_READY_EVENT = 'web-katrain:pwa-offline-ready';
 export const PWA_UPDATE_READY_EVENT = 'web-katrain:pwa-update-ready';
 export const PWA_INSTALL_DISMISSED_KEY = 'web-katrain:pwa-install-dismissed:v1';
 export const PWA_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+export const PWA_VERSION_UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 type PwaStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type PwaTimerTarget = Pick<Window, 'setInterval' | 'clearInterval'>;
+type PwaEventTarget = Pick<Window, 'addEventListener' | 'removeEventListener' | 'dispatchEvent'>;
 type PwaReloadTarget = { location?: Pick<Location, 'reload'> };
 type PwaUpdateRegistration = Pick<ServiceWorkerRegistration, 'update' | 'waiting'>;
+type PwaVersionResponse = Pick<Response, 'ok' | 'json'>;
+type PwaVersionFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<PwaVersionResponse>;
 export type PwaBannerType = 'install' | 'ios-install' | 'offline-ready' | 'update-ready';
 type InstallPromptChoice = { outcome: 'accepted' | 'dismissed'; platform?: string };
 type InstallPromptLike = {
@@ -37,6 +41,11 @@ function getStorage(storage?: PwaStorage | null): PwaStorage | null {
 export function getServiceWorkerUrl(baseUrl: string): string {
   const normalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   return `${normalized}sw.js`;
+}
+
+export function getVersionMetadataUrl(baseUrl: string, timestamp = Date.now()): string {
+  const normalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return `${normalized}version.json?t=${encodeURIComponent(String(timestamp))}`;
 }
 
 export function isStandalonePwa(): boolean {
@@ -99,6 +108,91 @@ export function schedulePwaUpdateChecks(
     }
   }, intervalMs);
   return () => timerTarget.clearInterval(id);
+}
+
+function getPwaFetch(fetcher?: PwaVersionFetch | null): PwaVersionFetch | null {
+  if (fetcher !== undefined) return fetcher;
+  try {
+    return typeof globalThis.fetch === 'function' ? globalThis.fetch.bind(globalThis) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getPwaEventTarget(target?: PwaEventTarget | null): PwaEventTarget | null {
+  if (target !== undefined) return target;
+  try {
+    return typeof window === 'undefined' ? null : window;
+  } catch {
+    return null;
+  }
+}
+
+function isComparableBuildHash(value: string): boolean {
+  return /^[0-9a-f]{7,40}$/i.test(value);
+}
+
+export async function checkVersionMetadataUpdate({
+  currentGitHash,
+  baseUrl,
+  fetcher,
+  target,
+  timestamp = Date.now(),
+}: {
+  currentGitHash: string;
+  baseUrl: string;
+  fetcher?: PwaVersionFetch | null;
+  target?: PwaEventTarget | null;
+  timestamp?: number;
+}): Promise<boolean> {
+  if (!isComparableBuildHash(currentGitHash)) return false;
+  const pwaFetch = getPwaFetch(fetcher);
+  const eventTarget = getPwaEventTarget(target);
+  if (!pwaFetch || !eventTarget) return false;
+
+  try {
+    const response = await pwaFetch(getVersionMetadataUrl(baseUrl, timestamp), { cache: 'no-store' });
+    if (!response.ok) return false;
+    const metadata = (await response.json()) as { gitHash?: unknown };
+    const latestGitHash = typeof metadata.gitHash === 'string' ? metadata.gitHash : '';
+    if (!isComparableBuildHash(latestGitHash) || latestGitHash === currentGitHash) return false;
+
+    eventTarget.dispatchEvent(new Event(PWA_UPDATE_READY_EVENT));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function scheduleVersionMetadataUpdateChecks({
+  currentGitHash,
+  baseUrl,
+  intervalMs = PWA_VERSION_UPDATE_CHECK_INTERVAL_MS,
+  fetcher,
+  target,
+}: {
+  currentGitHash: string;
+  baseUrl: string;
+  intervalMs?: number;
+  fetcher?: PwaVersionFetch | null;
+  target?: (PwaTimerTarget & PwaEventTarget) | null;
+}): (() => void) | null {
+  if (intervalMs <= 0 || !isComparableBuildHash(currentGitHash)) return null;
+  const timerTarget = target ?? (typeof window === 'undefined' ? null : window);
+  if (!timerTarget) return null;
+  let updateSeen = false;
+  const check = () => {
+    if (updateSeen) return;
+    void checkVersionMetadataUpdate({ currentGitHash, baseUrl, fetcher, target: timerTarget }).then((found) => {
+      updateSeen ||= found;
+    });
+  };
+  const id = timerTarget.setInterval(check, intervalMs);
+  timerTarget.addEventListener('focus', check);
+  return () => {
+    timerTarget.clearInterval(id);
+    timerTarget.removeEventListener('focus', check);
+  };
 }
 
 export function requestPwaUpdateActivation(
