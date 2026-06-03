@@ -89,6 +89,19 @@ type AnalysisCoverageReadoutProps = {
   labelClassName?: string;
 };
 
+const GRAPH_METRIC_NAMES: Record<GraphMetric, string> = {
+  score: 'score',
+  winrate: 'win rate',
+};
+
+const ANALYSIS_OVERLAY_NAMES: Record<AnalysisOverlayControl, string> = {
+  analysisShowChildren: 'child move markers',
+  analysisShowEval: 'move evaluation dots',
+  analysisShowHints: 'top move hints',
+  analysisShowPolicy: 'move heatmap',
+  analysisShowOwnership: 'territory ownership',
+};
+
 function evalColorToCss(color: EvalColor): string {
   return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${color[3]})`;
 }
@@ -356,22 +369,25 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       return next.score || next.winrate ? { graph: next } : {};
     });
   };
-  const metricToggle = (metric: GraphMetric, label: string, colorClass: string) => (
-    <button
-      type="button"
-      className={[
-        'panel-action-button',
-        graphMetrics[metric] ? 'active' : '',
-      ].join(' ')}
-      onClick={() => toggleGraphMetric(metric)}
-      aria-pressed={graphMetrics[metric]}
-      aria-label={`Toggle ${label.toLowerCase()} graph`}
-      title={`Toggle ${label.toLowerCase()} graph`}
-    >
-      <span className={['h-2 w-2 rounded-full', colorClass].join(' ')} aria-hidden="true" />
-      {label}
-    </button>
-  );
+  const metricToggle = (metric: GraphMetric, label: string, colorClass: string) => {
+    const graphMetricLabel = `${graphMetrics[metric] ? 'Hide' : 'Show'} ${GRAPH_METRIC_NAMES[metric]} graph`;
+    return (
+      <button
+        type="button"
+        className={[
+          'panel-action-button',
+          graphMetrics[metric] ? 'active' : '',
+        ].join(' ')}
+        onClick={() => toggleGraphMetric(metric)}
+        aria-pressed={graphMetrics[metric]}
+        aria-label={graphMetricLabel}
+        title={graphMetricLabel}
+      >
+        <span className={['h-2 w-2 rounded-full', colorClass].join(' ')} aria-hidden="true" />
+        {label}
+      </button>
+    );
+  };
   const graphMetricToggles = (
     <div className="flex items-center gap-1.5">
       {metricToggle('winrate', 'Win', 'bg-[var(--ui-success)]')}
@@ -383,22 +399,35 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     label: string,
     icon: React.ReactNode,
     disabled = false
-  ) => (
-    <button
-      type="button"
-      className={[
-        'panel-action-button',
-        analysisControls[control] ? 'active' : '',
-      ].join(' ')}
-      onClick={() => updateControls({ [control]: !analysisControls[control] })}
-      aria-pressed={analysisControls[control]}
-      disabled={disabled}
-      title={`Toggle ${label.toLowerCase()} overlay`}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
+  ) => {
+    const overlayName = ANALYSIS_OVERLAY_NAMES[control];
+    const overlayActionLabel = analysisControls[control] ? `Hide ${overlayName}` : `Show ${overlayName}`;
+    const topMovesHiddenByPolicy = control === 'analysisShowHints' && disabled;
+    const overlayLabel = topMovesHiddenByPolicy
+      ? 'Top move hints hidden while heatmap is showing'
+      : overlayActionLabel;
+    const overlayTitle = topMovesHiddenByPolicy
+      ? 'Move heatmap is showing; top move hints are hidden'
+      : overlayActionLabel;
+
+    return (
+      <button
+        type="button"
+        className={[
+          'panel-action-button',
+          analysisControls[control] ? 'active' : '',
+        ].join(' ')}
+        onClick={() => updateControls({ [control]: !analysisControls[control] })}
+        aria-pressed={analysisControls[control]}
+        aria-label={overlayLabel}
+        disabled={disabled}
+        title={overlayTitle}
+      >
+        {icon}
+        <span>{label}</span>
+      </button>
+    );
+  };
   const overlayToggles = (
     <div className="flex flex-wrap items-center gap-1.5" data-analysis-overlay-controls="true">
       {overlayToggle('analysisShowChildren', 'Children', <FaSitemap size={11} aria-hidden="true" />)}
@@ -413,20 +442,25 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       {overlayToggle('analysisShowOwnership', 'Territory', <FaMap size={11} aria-hidden="true" />)}
     </div>
   );
+  const cachedAnalysisCountLabel = `${analysisCacheSize} cached ${analysisCacheSize === 1 ? 'analysis' : 'analyses'}`;
+  const analysisCacheTitle = analysisCacheSize > 0
+    ? isGameAnalysisRunning
+      ? 'Stop analysis before clearing cache'
+      : `Clear ${cachedAnalysisCountLabel}`
+    : 'No cached analysis to clear';
+  const analysisCacheLabel = analysisCacheSize > 0
+    ? isGameAnalysisRunning
+      ? 'Analysis cache unavailable while game analysis is running'
+      : `Clear ${cachedAnalysisCountLabel}`
+    : 'No cached analysis to clear';
   const analysisCacheControl = (
     <button
       type="button"
       className="panel-action-button"
       onClick={clearAnalysisCache}
       disabled={analysisCacheSize === 0 || isGameAnalysisRunning}
-      title={
-        analysisCacheSize > 0
-          ? isGameAnalysisRunning
-            ? 'Stop analysis before clearing cache'
-            : `Clear ${analysisCacheSize} cached ${analysisCacheSize === 1 ? 'analysis' : 'analyses'}`
-          : 'No cached analysis'
-      }
-      aria-label="Clear analysis cache"
+      title={analysisCacheTitle}
+      aria-label={analysisCacheLabel}
     >
       <FaTrash size={11} aria-hidden="true" />
       <span className="tabular-nums">{analysisCacheSize > 0 ? analysisCacheSize : '—'}</span>
@@ -437,8 +471,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       type="button"
       className={['panel-icon-button', legendOpen ? 'active' : ''].join(' ')}
       onClick={() => setLegendOpen((prev) => !prev)}
-      title="Analysis legend"
-      aria-label="Analysis legend"
+      title={legendOpen ? 'Hide analysis legend' : 'Show analysis legend'}
+      aria-label={legendOpen ? 'Hide analysis legend' : 'Show analysis legend'}
       aria-expanded={legendOpen}
       aria-controls="analysis-quality-legend"
     >

@@ -44,10 +44,35 @@ describe('AnalysisPanel', () => {
 
     expect(html).toContain('aria-label="Run quick graph analysis"');
     expect(html).toContain('aria-label="Stop game analysis"');
+    expect(html).toContain('aria-label="Hide win rate graph"');
+    expect(html).toContain('aria-label="Hide score graph"');
+    expect(html).toContain('aria-label="No cached analysis to clear"');
+    expect(html).toContain('aria-label="Hide child move markers"');
+    expect(html).toContain('aria-label="Hide move evaluation dots"');
+    expect(html).toContain('aria-label="Hide top move hints"');
+    expect(html).toContain('aria-label="Show move heatmap"');
+    expect(html).toContain('aria-label="Hide territory ownership"');
+    expect(html).toContain('aria-label="Show analysis legend"');
     expect(html).toContain('aria-label="Open analysis options"');
     expect(html).toContain('aria-label="Open game report"');
     expect(html).toContain('data-analysis-panel-fast-review-state="ready"');
     expect(html).toContain('>Heatmap</span>');
+  });
+
+  it('explains when top move hints are hidden by the heatmap overlay', () => {
+    const html = renderToStaticMarkup(
+      <AnalysisPanel
+        {...baseProps}
+        analysisControls={{
+          ...baseProps.analysisControls,
+          analysisShowPolicy: true,
+        }}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Top move hints hidden while heatmap is showing"');
+    expect(html).toContain('title="Move heatmap is showing; top move hints are hidden"');
+    expect(html).toContain('aria-label="Hide move heatmap"');
   });
 
   it('uses beginner-friendly heatmap wording in the overlay legend', () => {
