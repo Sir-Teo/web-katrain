@@ -42,7 +42,12 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
-import { PHOTO_BOARD_IMAGE_EXTENSIONS, isPhotoBoardImageFile } from '../utils/photoBoard';
+import {
+  PHOTO_BOARD_IMAGE_ACCEPT,
+  PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
+  isPhotoBoardImageFile,
+  isUnsupportedPhotoBoardImageFile,
+} from '../utils/photoBoard';
 import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { SectionHeader } from './layout/ui';
 import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils';
@@ -73,8 +78,7 @@ const libraryImportAccept = [
   '.zip',
   'application/zip',
   'application/x-zip-compressed',
-  ...PHOTO_BOARD_IMAGE_EXTENSIONS,
-  'image/*',
+  PHOTO_BOARD_IMAGE_ACCEPT,
 ].join(',');
 
 type LibraryTextDialogState = {
@@ -1087,6 +1091,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (!files || files.length === 0) return;
     const imported: LibraryItem[] = [];
     let openedPhotoBoard = false;
+    let skippedUnsupportedPhotoImages = 0;
     for (const file of Array.from(files)) {
       const name = file.name.toLowerCase();
       try {
@@ -1095,6 +1100,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             onOpenPhotoBoard(file);
             openedPhotoBoard = true;
           }
+          continue;
+        }
+        if (isUnsupportedPhotoBoardImageFile(file)) {
+          skippedUnsupportedPhotoImages += 1;
           continue;
         }
         if (name.endsWith('.zip')) {
@@ -1110,15 +1119,22 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     if (imported.length === 0) {
       onToast(
-        openedPhotoBoard ? 'Opened photo board from image.' : 'No SGF, ZIP, or board image files were imported.',
-        'info'
+        openedPhotoBoard
+          ? 'Opened photo board from image.'
+          : skippedUnsupportedPhotoImages > 0
+            ? PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE
+            : 'No SGF, ZIP, or board image files were imported.',
+        skippedUnsupportedPhotoImages > 0 && !openedPhotoBoard ? 'error' : 'info'
       );
       return;
     }
     setItems((prev) => [...imported, ...prev]);
     const importedFiles = imported.filter(isFile).length;
+    const skippedUnsupportedSummary = skippedUnsupportedPhotoImages > 0
+      ? ` Skipped ${skippedUnsupportedPhotoImages} unsupported board image${skippedUnsupportedPhotoImages === 1 ? '' : 's'}.`
+      : '';
     onToast(
-      `Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}${openedPhotoBoard ? ' and opened photo board image' : ''}.`,
+      `Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}${openedPhotoBoard ? ' and opened photo board image' : ''}.${skippedUnsupportedSummary}`,
       'success'
     );
   };

@@ -3,10 +3,13 @@ import { FaCamera, FaEraser, FaFolderOpen, FaLayerGroup, FaPlay, FaTimes, FaTras
 import type { BoardSize, BoardState, Player } from '../types';
 import { BOARD_SIZES } from '../utils/boardSize';
 import {
+  PHOTO_BOARD_IMAGE_ACCEPT,
+  PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
   buildPhotoBoardSetupSgf,
   computePhotoBoardDelta,
   findPhotoBoardMoveDelta,
   getPhotoBoardTracePaintValue,
+  isPhotoBoardImageFile,
   photoBoardPointLabel,
   type PhotoBoardDeltaStone,
   photoBoardStonesFromBoard,
@@ -213,8 +216,15 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const choosePhoto = React.useCallback((file: File | undefined) => {
     if (!file) return;
     revokeObjectUrl(photoUrlRef.current);
-    const objectUrl = createObjectUrl(file);
     photoUrlRef.current = null;
+    if (!isPhotoBoardImageFile(file)) {
+      setPhotoName('');
+      setPhotoUrl(null);
+      setPhotoError(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE);
+      return;
+    }
+
+    const objectUrl = createObjectUrl(file);
     setPhotoError(null);
     if (!objectUrl) {
       setPhotoName('');
@@ -498,7 +508,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               <input
                 ref={galleryInputRef}
                 type="file"
-                accept="image/*"
+                accept={PHOTO_BOARD_IMAGE_ACCEPT}
                 className="hidden"
                 onChange={handlePhotoInputChange}
               />

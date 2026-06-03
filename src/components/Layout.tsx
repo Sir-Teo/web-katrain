@@ -33,7 +33,13 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize } from '../utils/boardSize';
-import { PHOTO_BOARD_IMAGE_EXTENSIONS, getPhotoBoardClipboardImageFile, isPhotoBoardImageFile } from '../utils/photoBoard';
+import {
+  PHOTO_BOARD_IMAGE_ACCEPT,
+  PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
+  getPhotoBoardClipboardImageFile,
+  isPhotoBoardImageFile,
+  isUnsupportedPhotoBoardImageFile,
+} from '../utils/photoBoard';
 import { isEditableKeyboardTarget, isTextEntryTarget } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
@@ -106,7 +112,7 @@ const PasteSgfModal = lazy(() => import('./PasteSgfModal').then((module) => ({ d
 const SaveToLibraryDialog = lazy(() => import('./SaveToLibraryDialog').then((module) => ({ default: module.SaveToLibraryDialog })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
-const mainFileInputAccept = ['.sgf', ...PHOTO_BOARD_IMAGE_EXTENSIONS, 'image/*', MODEL_UPLOAD_ACCEPT].join(',');
+const mainFileInputAccept = ['.sgf', PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
 const LAYOUT_SHORTCUT_IDS = [
   'toggle-library',
   'toggle-sidebar',
@@ -1520,6 +1526,14 @@ export const Layout: React.FC = () => {
         toast('Opened photo board from image.', 'info');
         return;
       }
+      if (isUnsupportedPhotoBoardImageFile(file)) {
+        toast(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE, 'error');
+        return;
+      }
+      if (!file.name.toLowerCase().endsWith('.sgf')) {
+        toast('Choose an SGF file, board photo, or KataGo model weights.', 'error');
+        return;
+      }
       const text = await file.text();
       await loadLocalSgfText(text, file.name);
     } catch {
@@ -1767,6 +1781,10 @@ export const Layout: React.FC = () => {
     if (isPhotoBoardImageFile(file)) {
       openPhotoBoard(file);
       toast('Opened photo board from dropped image.', 'info');
+      return;
+    }
+    if (isUnsupportedPhotoBoardImageFile(file)) {
+      toast(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE, 'error');
       return;
     }
     if (!file.name.toLowerCase().endsWith('.sgf')) {

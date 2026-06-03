@@ -5,6 +5,7 @@ export type PhotoBoardStone = Player | null;
 export type PhotoBoardTraceTool = Player | 'erase';
 
 export const PHOTO_BOARD_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.bmp'] as const;
+export const PHOTO_BOARD_SUPPORTED_IMAGE_LABEL = 'JPG, PNG, WebP, or BMP';
 
 const PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME: Record<string, string> = {
   'image/bmp': 'bmp',
@@ -14,6 +15,14 @@ const PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME: Record<string, string> = {
   'image/webp': 'webp',
 };
 const PHOTO_BOARD_IMAGE_MIME_TYPES = new Set(Object.keys(PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME));
+const UNSUPPORTED_PHOTO_BOARD_IMAGE_EXTENSIONS = ['.avif', '.heic', '.heif', '.svg', '.tif', '.tiff'] as const;
+
+export const PHOTO_BOARD_IMAGE_ACCEPT = [
+  ...PHOTO_BOARD_IMAGE_EXTENSIONS,
+  ...Object.keys(PHOTO_BOARD_CLIPBOARD_EXTENSION_BY_MIME),
+].join(',');
+export const PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE =
+  `Board photos must be ${PHOTO_BOARD_SUPPORTED_IMAGE_LABEL}.`;
 
 export interface PhotoBoardClipboardItemLike {
   kind?: string;
@@ -32,6 +41,16 @@ export function isPhotoBoardImageFile(file: { name?: string; type?: string }): b
 
   const name = file.name?.toLowerCase() ?? '';
   return PHOTO_BOARD_IMAGE_EXTENSIONS.some((extension) => name.endsWith(extension));
+}
+
+export function isUnsupportedPhotoBoardImageFile(file: { name?: string; type?: string }): boolean {
+  if (isPhotoBoardImageFile(file)) return false;
+
+  const mime = file.type?.toLowerCase() ?? '';
+  if (mime.startsWith('image/')) return true;
+
+  const name = file.name?.toLowerCase() ?? '';
+  return UNSUPPORTED_PHOTO_BOARD_IMAGE_EXTENSIONS.some((extension) => name.endsWith(extension));
 }
 
 function normalizeClipboardImageName(file: File): File {

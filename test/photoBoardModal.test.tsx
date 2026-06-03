@@ -66,6 +66,17 @@ describe('PhotoBoardModal', () => {
     expect(source).toContain('onChange={handlePhotoInputChange}');
   });
 
+  it('rejects unsupported photo formats before creating a preview', () => {
+    const source = readFileSync('src/components/PhotoBoardModal.tsx', 'utf8');
+
+    expect(source).toContain('PHOTO_BOARD_IMAGE_ACCEPT');
+    expect(source).toContain('PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE');
+    expect(source).toContain('if (!isPhotoBoardImageFile(file))');
+    expect(source).toContain('setPhotoUrl(null);');
+    expect(source).toContain('setPhotoError(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE);');
+    expect(source).toContain('accept={PHOTO_BOARD_IMAGE_ACCEPT}');
+  });
+
   it('renders a clear empty state before a photo source is selected', () => {
     const html = renderToStaticMarkup(
       <PhotoBoardModal

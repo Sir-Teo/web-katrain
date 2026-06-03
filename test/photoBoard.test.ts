@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PHOTO_BOARD_IMAGE_ACCEPT,
+  PHOTO_BOARD_SUPPORTED_IMAGE_LABEL,
+  PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
   buildPhotoBoardSetupSgf,
   computePhotoBoardDelta,
   findPhotoBoardMoveDelta,
   getPhotoBoardClipboardImageFile,
   getPhotoBoardTracePaintValue,
   isPhotoBoardImageFile,
+  isUnsupportedPhotoBoardImageFile,
   photoBoardPointLabel,
   photoBoardStonesFromBoard,
   resizePhotoBoardStones,
@@ -176,6 +180,23 @@ describe('photo board SGF import', () => {
     expect(isPhotoBoardImageFile({ name: 'ios-photo', type: 'image/heic' })).toBe(false);
     expect(isPhotoBoardImageFile({ name: 'game.sgf', type: 'application/x-go-sgf' })).toBe(false);
     expect(isPhotoBoardImageFile({ name: 'archive.zip', type: 'application/zip' })).toBe(false);
+  });
+
+  it('classifies unsupported board photo formats separately from SGF imports', () => {
+    expect(isUnsupportedPhotoBoardImageFile({ name: 'board.jpg', type: '' })).toBe(false);
+    expect(isUnsupportedPhotoBoardImageFile({ name: 'capture', type: 'image/webp' })).toBe(false);
+    expect(isUnsupportedPhotoBoardImageFile({ name: 'diagram.svg', type: '' })).toBe(true);
+    expect(isUnsupportedPhotoBoardImageFile({ name: 'ios-photo', type: 'image/heic' })).toBe(true);
+    expect(isUnsupportedPhotoBoardImageFile({ name: 'camera.avif', type: '' })).toBe(true);
+    expect(isUnsupportedPhotoBoardImageFile({ name: 'game.sgf', type: 'application/x-go-sgf' })).toBe(false);
+  });
+
+  it('advertises only browser-decodable board photo formats', () => {
+    expect(PHOTO_BOARD_IMAGE_ACCEPT).toContain('.jpg');
+    expect(PHOTO_BOARD_IMAGE_ACCEPT).toContain('image/png');
+    expect(PHOTO_BOARD_IMAGE_ACCEPT).not.toContain('image/*');
+    expect(PHOTO_BOARD_SUPPORTED_IMAGE_LABEL).toBe('JPG, PNG, WebP, or BMP');
+    expect(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE).toBe('Board photos must be JPG, PNG, WebP, or BMP.');
   });
 
   it('extracts pasted board images from clipboard data', () => {
