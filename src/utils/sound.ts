@@ -1,5 +1,41 @@
 let audioCtx: AudioContext | null = null;
 
+export interface SoundInitError {
+    message: string;
+    backend: 'web-audio';
+    platform: string;
+}
+
+let onSoundInitError: ((error: SoundInitError) => void) | null = null;
+let soundFailureReported = false;
+
+export const setSoundInitErrorHandler = (handler: ((error: SoundInitError) => void) | null): void => {
+    onSoundInitError = handler;
+};
+
+const formatSoundError = (error: unknown): string => (
+    error instanceof Error && error.message ? error.message : 'Unknown audio error'
+);
+
+const getPlatformLabel = (): string => {
+    try {
+        return typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+    } catch {
+        return 'unknown';
+    }
+};
+
+const reportSoundError = (message: string): void => {
+    if (soundFailureReported) return;
+    if (!onSoundInitError) return;
+    soundFailureReported = true;
+    onSoundInitError({
+        message,
+        backend: 'web-audio',
+        platform: getPlatformLabel(),
+    });
+};
+
 const getAudioContextConstructor = (): typeof AudioContext | null => {
     if (typeof window === 'undefined') return null; // Handle SSR/Test environment
     try {
@@ -8,7 +44,8 @@ const getAudioContextConstructor = (): typeof AudioContext | null => {
             webkitAudioContext?: typeof AudioContext;
         };
         return audioWindow.AudioContext || audioWindow.webkitAudioContext || null;
-    } catch {
+    } catch (error) {
+        reportSoundError(`Browser audio API is blocked: ${formatSoundError(error)}`);
         return null;
     }
 };
@@ -17,13 +54,19 @@ const getAudioContext = () => {
     if (audioCtx) return audioCtx;
 
     const AudioContextCtor = getAudioContextConstructor();
-    if (!AudioContextCtor) return null;
+    if (!AudioContextCtor) {
+        if (typeof window !== 'undefined') {
+            reportSoundError('Browser audio API is not available.');
+        }
+        return null;
+    }
 
     try {
         audioCtx = new AudioContextCtor();
         return audioCtx;
-    } catch {
+    } catch (error) {
         audioCtx = null;
+        reportSoundError(`Could not initialize browser audio: ${formatSoundError(error)}`);
         return null;
     }
 };
@@ -34,13 +77,17 @@ const resumeContext = () => {
     let state: AudioContextState | null = null;
     try {
         state = ctx?.state ?? null;
-    } catch {
+    } catch (error) {
+        reportSoundError(`Could not read browser audio state: ${formatSoundError(error)}`);
         return null;
     }
     if (ctx && state === 'suspended') {
         try {
-            void ctx.resume().catch(() => {});
-        } catch {
+            void ctx.resume().catch((error: unknown) => {
+                reportSoundError(`Could not resume browser audio: ${formatSoundError(error)}`);
+            });
+        } catch (error) {
+            reportSoundError(`Could not resume browser audio: ${formatSoundError(error)}`);
             return null;
         }
     }
@@ -52,7 +99,8 @@ const runSound = (play: (ctx: AudioContext) => void) => {
     if (!ctx) return;
     try {
         play(ctx);
-    } catch {
+    } catch (error) {
+        reportSoundError(`Could not play browser audio: ${formatSoundError(error)}`);
         // Audio is optional; never let a browser audio failure interrupt play.
     }
 };
@@ -154,4 +202,6 @@ export const playNewGameSound = () => {
 
 export const resetAudioContextForTests = (): void => {
     audioCtx = null;
+    onSoundInitError = null;
+    soundFailureReported = false;
 };

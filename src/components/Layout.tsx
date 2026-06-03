@@ -93,6 +93,7 @@ import { getDroppedSgfOrOgsText, hasDraggedFiles, hasPotentialGameImportDrag } f
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { appendRestoredAnalysisSummary } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
+import { setSoundInitErrorHandler } from '../utils/sound';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -574,13 +575,28 @@ export const Layout: React.FC = () => {
   };
 
   // Toast helper
-  const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info') => {
-    const notification = { message, type };
+  const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info', copyText?: string) => {
+    const notification = { message, type, ...(copyText ? { copyText } : {}) };
     useGameStore.setState({ notification });
     window.setTimeout(() => {
       useGameStore.setState((state) => (state.notification === notification ? { notification: null } : {}));
     }, 2500);
   }, []);
+
+  useEffect(() => {
+    setSoundInitErrorHandler((error) => {
+      updateSettings({ soundEnabled: false });
+      const soundDetails = [
+        `Sound error: ${error.message}`,
+        `Backend: ${error.backend}`,
+        `Platform: ${error.platform}`,
+      ].join('\n');
+
+      toast('Sound disabled because browser audio is unavailable.', 'error', soundDetails);
+    });
+
+    return () => setSoundInitErrorHandler(null);
+  }, [toast, updateSettings]);
 
   const toggleScoringMode = useCallback(() => {
     if (!scoringMode && (isEditMode || isInsertMode || isSelectingRegionOfInterest)) {

@@ -1,5 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { playCaptureSound, playNewGameSound, playPassSound, playStoneSound, resetAudioContextForTests } from '../src/utils/sound';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  playCaptureSound,
+  playNewGameSound,
+  playPassSound,
+  playStoneSound,
+  resetAudioContextForTests,
+  setSoundInitErrorHandler,
+} from '../src/utils/sound';
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 
@@ -38,6 +45,31 @@ describe('sound helpers', () => {
     });
 
     expect(() => playStoneSound()).not.toThrow();
+  });
+
+  it('reports blocked AudioContext construction once', () => {
+    const handler = vi.fn();
+    setSoundInitErrorHandler(handler);
+
+    class BlockedAudioContext {
+      constructor() {
+        throw new Error('audio blocked');
+      }
+    }
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { AudioContext: BlockedAudioContext },
+    });
+
+    expect(() => playStoneSound()).not.toThrow();
+    expect(() => playPassSound()).not.toThrow();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'web-audio',
+      message: 'Could not initialize browser audio: audio blocked',
+      platform: expect.any(String),
+    }));
   });
 
   it('swallows blocked AudioContext accessor reads', () => {
@@ -91,6 +123,9 @@ describe('sound helpers', () => {
   });
 
   it('swallows oscillator setup failures after context creation', () => {
+    const handler = vi.fn();
+    setSoundInitErrorHandler(handler);
+
     class BrokenAudioContext {
       currentTime = 0;
       destination = {};
@@ -113,5 +148,9 @@ describe('sound helpers', () => {
     });
 
     expect(() => playPassSound()).not.toThrow();
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'web-audio',
+      message: 'Could not play browser audio: oscillator blocked',
+    }));
   });
 });

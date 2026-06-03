@@ -7,6 +7,7 @@ export type NotificationToastType = 'info' | 'error' | 'success';
 export interface NotificationToastMessage {
   message: string;
   type: NotificationToastType;
+  copyText?: string;
 }
 
 interface NotificationToastProps {
@@ -47,7 +48,7 @@ export function NotificationToast({ notification, onClose, commandBarVisible = f
   }, [notification.message, notification.type]);
 
   const handleCopy = async () => {
-    setCopyState((await copyTextToClipboard(notification.message)) ? 'copied' : 'failed');
+    setCopyState((await copyTextToClipboard(notification.copyText ?? notification.message)) ? 'copied' : 'failed');
   };
 
   return (

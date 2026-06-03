@@ -17,6 +17,25 @@ describe('NotificationToast', () => {
     expect(html).toContain('aria-label="Copy notification"');
   });
 
+  it('supports detailed copy text without rendering it in the toast body', () => {
+    const html = renderToStaticMarkup(
+      <NotificationToast
+        notification={{
+          message: 'Sound disabled because browser audio is unavailable.',
+          type: 'error',
+          copyText: 'Sound error: audio blocked\nBackend: web-audio',
+        }}
+        onClose={() => undefined}
+      />
+    );
+
+    expect(html).toContain('Sound disabled because browser audio is unavailable.');
+    expect(html).not.toContain('Backend: web-audio');
+
+    const source = readFileSync('src/components/layout/NotificationToast.tsx', 'utf8');
+    expect(source).toContain('notification.copyText ?? notification.message');
+  });
+
   it('keeps success and info notifications lightweight', () => {
     const html = renderToStaticMarkup(
       <NotificationToast

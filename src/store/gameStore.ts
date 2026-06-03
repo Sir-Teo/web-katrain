@@ -74,7 +74,7 @@ interface GameStore extends GameState {
   isAnalysisMode: boolean;
   isContinuousAnalysis: boolean;
   isTeachMode: boolean;
-  notification: { message: string, type: 'info' | 'error' | 'success' } | null;
+  notification: { message: string, type: 'info' | 'error' | 'success', copyText?: string } | null;
   analysisData: AnalysisResult | null;
   analysisCacheSize: number;
   settings: GameSettings;
