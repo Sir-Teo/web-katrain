@@ -547,15 +547,26 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <div className="move-counter">
               <span>Move</span>
               <input
+                type="number"
                 value={moveInputValue}
+                aria-label="Move number"
+                inputMode="numeric"
+                min={0}
+                max={totalMoves}
                 onChange={(e) => setMoveInputDraft(e.target.value)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
                   if (e.key === 'Enter') {
-                    const n = parseInt(moveInputValue, 10);
-                    if (!Number.isNaN(n)) navigateToMove(n);
+                    e.preventDefault();
+                    const trimmedMove = moveInputValue.trim();
+                    const n = Number(trimmedMove);
+                    if (trimmedMove && Number.isInteger(n) && n >= 0) navigateToMove(n);
                     setMoveInputDraft(null);
-                    (e.target as HTMLInputElement).blur();
+                    e.currentTarget.blur();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setMoveInputDraft(null);
+                    e.currentTarget.blur();
                   }
                 }}
                 onBlur={() => setMoveInputDraft(null)}

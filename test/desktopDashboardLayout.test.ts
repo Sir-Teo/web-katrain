@@ -65,4 +65,22 @@ describe('desktop dashboard layout', () => {
     expect(dashboardSource).toContain('onClick={onCopySgf}');
     expect(layoutSource).toContain('onCopySgf={handleCopySgf}');
   });
+
+  it('keeps desktop move-number editing keyboard-local and bounded', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const moveCounterStart = dashboardSource.indexOf('<div className="move-counter">');
+    const moveCounterEnd = dashboardSource.indexOf('<div className="navgroup">', moveCounterStart);
+    const moveCounterBlock = dashboardSource.slice(moveCounterStart, moveCounterEnd);
+
+    expect(moveCounterBlock).toContain('type="number"');
+    expect(moveCounterBlock).toContain('aria-label="Move number"');
+    expect(moveCounterBlock).toContain('inputMode="numeric"');
+    expect(moveCounterBlock).toContain('min={0}');
+    expect(moveCounterBlock).toContain('max={totalMoves}');
+    expect(moveCounterBlock).toContain("e.key === 'Escape'");
+    expect(moveCounterBlock).toContain('e.stopPropagation()');
+    expect(moveCounterBlock).toContain('e.preventDefault()');
+    expect(moveCounterBlock).toContain('Number.isInteger(n)');
+    expect(moveCounterBlock).toContain('e.currentTarget.blur()');
+  });
 });
