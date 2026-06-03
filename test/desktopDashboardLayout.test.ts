@@ -22,4 +22,13 @@ describe('desktop dashboard layout', () => {
     expect(responsiveBlock).not.toContain('setLibraryOpen(true');
     expect(responsiveBlock).not.toContain('setSidebarOpen(true');
   });
+
+  it('surfaces build metadata from the dashboard view menu', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+
+    expect(source).toContain('APP_BUILD_LABEL');
+    expect(source).toContain('APP_COMMIT_URL');
+    expect(source).toContain('data-dashboard-build-link="true"');
+    expect(source).toContain('Open build commit');
+  });
 });

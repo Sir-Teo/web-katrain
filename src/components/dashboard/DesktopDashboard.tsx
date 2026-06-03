@@ -12,6 +12,7 @@ import { NotesPanel } from '../NotesPanel';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage } from '../../utils/storage';
+import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
 
@@ -825,6 +826,26 @@ const ViewMenu: React.FC<{
       <div className="menu-section-label">More</div>
       {item('Settings', null, '', onSettings, 'settings')}
       {item('About', null, '', onAbout, 'info')}
+      <div className="menu-divider" />
+      {APP_COMMIT_URL ? (
+        <a
+          href={APP_COMMIT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="menu-build"
+          title={`Open build commit: ${APP_BUILD_LABEL}`}
+          aria-label={`Open build commit ${APP_BUILD_LABEL}`}
+          data-dashboard-build-link="true"
+        >
+          <Icon name="info" size={12} />
+          <span className="menu-build-text">{APP_BUILD_LABEL}</span>
+        </a>
+      ) : (
+        <div className="menu-build" title={APP_BUILD_LABEL}>
+          <Icon name="info" size={12} />
+          <span className="menu-build-text">{APP_BUILD_LABEL}</span>
+        </div>
+      )}
     </div>
   );
 };
