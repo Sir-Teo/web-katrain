@@ -1,3 +1,4 @@
+import { APP_INFO, APP_REPOSITORY_URL } from './appInfo';
 import { getSessionStorage } from './storage';
 
 export const APP_ERROR_STORAGE_KEY = 'web-katrain:last-error:v1';
@@ -128,6 +129,9 @@ export function consumeStoredErrorReport(storage: Storage | null = getSessionSto
 export function formatAppErrorReport(report: AppErrorReport): string {
   const lines = [
     `Web KaTrain diagnostics`,
+    `Version: v${APP_INFO.version}`,
+    `Commit: ${APP_INFO.commit}${APP_INFO.commitDate ? ` (${APP_INFO.commitDate})` : ''}`,
+    `Repository: ${APP_REPOSITORY_URL}`,
     `Type: ${report.type}`,
     `Time: ${report.occurredAt}`,
     `Message: ${report.message}`,

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StatusBar } from '../src/components/layout/StatusBar';
+import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../src/utils/appInfo';
 import { getMoveInsight } from '../src/utils/moveInsight';
 import type { Move } from '../src/types';
 
@@ -106,5 +107,24 @@ describe('StatusBar', () => {
     expect(html).not.toContain('data-autosave-status');
     expect(html).not.toContain('>Auto-saved<');
     expect(html).not.toContain('title="Unsaved changes">Unsaved');
+  });
+
+  it('keeps the Kaya-style issue reporting affordance wired to app metadata', () => {
+    const html = renderToStaticMarkup(
+      <StatusBar
+        {...baseProps}
+      />,
+    );
+
+    expect(html).toContain('data-status-report-issue="true"');
+    expect(html).toContain(`href="${APP_ISSUE_REPORT_URL}"`);
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain('aria-label="Report an issue on GitHub"');
+    expect(html).toContain(APP_BUILD_LABEL);
+    if (APP_COMMIT_URL) {
+      expect(html).toContain('data-status-build-link="true"');
+      expect(html).toContain(`href="${APP_COMMIT_URL}"`);
+    }
   });
 });

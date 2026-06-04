@@ -44,6 +44,9 @@ describe('app error reporting', () => {
 
     const formatted = formatAppErrorReport(report);
     expect(formatted).toContain('Web KaTrain diagnostics');
+    expect(formatted).toContain('Version: v');
+    expect(formatted).toContain('Commit:');
+    expect(formatted).toContain('Repository: https://github.com/Sir-Teo/web-katrain');
     expect(formatted).toContain('Type: react-render');
     expect(formatted).toContain('React component stack:');
     expect(formatted).toContain('at GoBoard');

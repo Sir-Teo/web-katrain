@@ -1,9 +1,7 @@
 import React from 'react';
 import { FaBug, FaExternalLinkAlt, FaGithub, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
-import { APP_COMMIT_URL, APP_INFO, APP_REPOSITORY_URL } from '../utils/appInfo';
-
-const ISSUE_REPORT_URL = `${APP_REPOSITORY_URL}/issues/new/choose`;
+import { APP_COMMIT_URL, APP_INFO, APP_ISSUE_REPORT_URL, APP_REPOSITORY_URL } from '../utils/appInfo';
 
 interface AboutDialogProps {
   onClose: () => void;
@@ -92,7 +90,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose }) => {
               <FaGithub aria-hidden="true" /> GitHub
             </AboutLink>
             <AboutLink
-              href={ISSUE_REPORT_URL}
+              href={APP_ISSUE_REPORT_URL}
               className="justify-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold hover:bg-[var(--ui-surface-2)]"
             >
               <FaBug aria-hidden="true" /> Report Issue

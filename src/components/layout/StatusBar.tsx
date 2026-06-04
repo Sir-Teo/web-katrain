@@ -1,12 +1,10 @@
 import React from 'react';
 import { FaBug, FaCheckCircle, FaExclamationTriangle, FaGamepad, FaInfoCircle, FaStar, FaSyncAlt, FaTimes } from 'react-icons/fa';
-import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
+import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
 import { formatGameInfoPlayer } from '../../utils/gameInfoDisplay';
 import { formatGamepadLabel } from '../../utils/gamepadLabel';
 import { getMoveInsightCoach, type MoveInsight } from '../../utils/moveInsight';
 import { getSaveStatusDisplay, type AutoSaveStatus } from '../../utils/saveStatusDisplay';
-
-const ISSUE_REPORT_URL = 'https://github.com/Sir-Teo/web-katrain/issues/new/choose';
 
 export type { AutoSaveStatus } from '../../utils/saveStatusDisplay';
 
@@ -421,7 +419,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       </div>
       <div className="ml-auto hidden xl:flex items-center gap-2">
         <a
-          href={ISSUE_REPORT_URL}
+          href={APP_ISSUE_REPORT_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border border-[var(--ui-border)] shadow-sm hover:text-[var(--ui-text)] hover:border-[var(--ui-accent)] transition-colors"

@@ -1,6 +1,7 @@
 import { APP_REPOSITORY_URL } from './versionMetadata';
 
 export { APP_REPOSITORY_URL };
+export const APP_ISSUE_REPORT_URL = `${APP_REPOSITORY_URL}/issues/new/choose`;
 
 export const APP_INFO = {
   name: 'web-KaTrain',
