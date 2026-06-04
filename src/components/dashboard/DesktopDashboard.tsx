@@ -12,7 +12,7 @@ import { NotesPanel } from '../NotesPanel';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage } from '../../utils/storage';
-import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
+import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_INFO, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
 
@@ -348,6 +348,23 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
           <span className="brand-name">Web <b>KaTrain</b></span>
+          {APP_COMMIT_URL ? (
+            <a
+              href={APP_COMMIT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="build-chip"
+              title={`Open build commit: ${APP_BUILD_LABEL}`}
+              aria-label={`Open build commit ${APP_BUILD_LABEL}`}
+              data-dashboard-build-chip="true"
+            >
+              v{APP_INFO.version}
+            </a>
+          ) : (
+            <span className="build-chip" title={APP_BUILD_LABEL} data-dashboard-build-chip="true">
+              v{APP_INFO.version}
+            </span>
+          )}
         </div>
         <div className="header-divider" />
         <div className="iconcluster" id="wk-file-actions">

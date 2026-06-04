@@ -32,6 +32,17 @@ describe('desktop dashboard layout', () => {
     expect(source).toContain('Open build commit');
   });
 
+  it('keeps a compact build identity visible in the dashboard header', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(dashboardSource).toContain('APP_INFO');
+    expect(dashboardSource).toContain('data-dashboard-build-chip="true"');
+    expect(dashboardSource).toContain('v{APP_INFO.version}');
+    expect(css).toContain('.wk-dashboard .build-chip');
+    expect(css).toContain('max-width: 84px;');
+  });
+
   it('mounts the full library manager inside the desktop dashboard library column', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
