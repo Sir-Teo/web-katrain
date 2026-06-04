@@ -182,6 +182,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [graphTick, setGraphTick] = useState(0);
   const [showReportGuide, setShowReportGuide] = useState(false);
   useEscapeToClose(onClose, !showReportGuide);
+  const reportGuideButtonRef = useRef<HTMLButtonElement>(null);
+  const reportGuideCloseRef = useRef<HTMLButtonElement>(null);
   const snapshotTimerRef = useRef<number | null>(null);
   const boardSize = normalizeBoardSize(currentNode.gameState.board.length, DEFAULT_BOARD_SIZE);
   const sectionClass =
@@ -819,12 +821,22 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   useEffect(() => {
     if (!showReportGuide) return;
+    reportGuideCloseRef.current?.focus({ preventScroll: true });
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowReportGuide(false);
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setShowReportGuide(false);
+      window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showReportGuide]);
+
+  const closeReportGuide = () => {
+    setShowReportGuide(false);
+    window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
@@ -847,6 +859,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className="flex items-center gap-2 print-hide">
             <button
               type="button"
+              ref={reportGuideButtonRef}
               onClick={() => setShowReportGuide(true)}
               className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
               title="Open report guide"
@@ -1891,7 +1904,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           aria-modal="true"
           aria-labelledby="report-guide-title"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowReportGuide(false);
+            if (event.target === event.currentTarget) closeReportGuide();
           }}
         >
           <div className="ui-panel flex max-h-[88dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border shadow-2xl">
@@ -1904,7 +1917,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               </div>
               <button
                 type="button"
-                onClick={() => setShowReportGuide(false)}
+                ref={reportGuideCloseRef}
+                onClick={closeReportGuide}
                 className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                 aria-label="Close report guide"
                 title="Close report guide"
