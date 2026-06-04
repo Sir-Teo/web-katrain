@@ -175,6 +175,10 @@ describe('SettingsModal', () => {
     expect(source).toContain('aria-labelledby="settings-katago-backend-label"');
     expect(source).toContain('FaCheck aria-hidden="true"');
     expect(source).toContain('fallback from <span className="font-mono">{requestedBackendLabel}</span>');
+    expect(source).toContain("event.key === 'ArrowRight'");
+    expect(source).toContain("event.key === 'ArrowLeft'");
+    expect(source).toContain('tabIndex={active ? 0 : -1}');
+    expect(source).toContain('onKeyDown={(event) => handleBackendOptionKeyDown(event, option.value)}');
     expect(source).toContain('getModelFileNameFromUrl(url)');
     expect(source).toContain('role="progressbar"');
     expect(source).toContain('Active browser upload');

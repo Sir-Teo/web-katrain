@@ -221,6 +221,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const activeBackendLabel = formatEngineBackendLabel(engineBackend ?? settings.katagoBackend);
     const requestedBackendLabel = formatEngineBackendLabel(settings.katagoBackend);
     const isBackendFallback = !!engineBackend && engineBackend !== settings.katagoBackend;
+    const focusBackendOption = (value: GameSettings['katagoBackend']) => {
+        window.setTimeout(() => {
+            document.querySelector<HTMLElement>(`[data-katago-backend-option="${value}"]`)?.focus();
+        }, 0);
+    };
+    const handleBackendOptionKeyDown = (
+        event: React.KeyboardEvent<HTMLButtonElement>,
+        value: GameSettings['katagoBackend']
+    ) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            updateSettings({ katagoBackend: value });
+            return;
+        }
+
+        const direction =
+            event.key === 'ArrowRight' || event.key === 'ArrowDown'
+                ? 1
+                : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                    ? -1
+                    : 0;
+        if (!direction) return;
+
+        event.preventDefault();
+        const currentIndex = backendOptions.findIndex((option) => option.value === value);
+        const nextOption = backendOptions[(currentIndex + direction + backendOptions.length) % backendOptions.length];
+        if (!nextOption) return;
+        updateSettings({ katagoBackend: nextOption.value });
+        focusBackendOption(nextOption.value);
+    };
     const maxHandicap = getMaxHandicap(settings.defaultBoardSize);
     const boardThemeChoices = React.useMemo(
         () => BOARD_THEME_OPTIONS.map((theme) => ({ ...theme, config: getBoardTheme(theme.value) })),
@@ -1900,8 +1930,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             className={backendCardClass(active)}
                                                             role="radio"
                                                             aria-checked={active}
+                                                            tabIndex={active ? 0 : -1}
                                                             data-katago-backend-option={option.value}
                                                             onClick={() => updateSettings({ katagoBackend: option.value })}
+                                                            onKeyDown={(event) => handleBackendOptionKeyDown(event, option.value)}
                                                         >
                                                             <span
                                                                 className={[
