@@ -86,7 +86,6 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   currentPlayer,
   initialPhotoFile = null,
 }) => {
-  useEscapeToClose(onClose);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const photoUrlRef = React.useRef<string | null>(null);
@@ -113,6 +112,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [cameraAvailability, setCameraAvailability] = React.useState<CameraAvailability>('unknown');
   const [liveCameraSupported, setLiveCameraSupported] = React.useState(false);
   const [cameraCaptureOpen, setCameraCaptureOpen] = React.useState(false);
+  useEscapeToClose(onClose, !cameraCaptureOpen);
 
   const currentBoardSize = React.useMemo<BoardSize | null>(() => {
     const size = currentBoard?.length;

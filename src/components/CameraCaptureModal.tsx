@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaCamera, FaTimes } from 'react-icons/fa';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 interface CameraCaptureModalProps {
   onCapture: (file: File) => void;
@@ -64,6 +65,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCaptur
     stopCamera();
     onClose();
   }, [onClose, stopCamera]);
+  useEscapeToClose(handleClose);
 
   const handleCapture = React.useCallback(() => {
     const video = videoRef.current;
