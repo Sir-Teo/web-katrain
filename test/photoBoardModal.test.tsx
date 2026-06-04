@@ -72,6 +72,7 @@ describe('PhotoBoardModal', () => {
 
     expect(source).toContain('detectCameraAvailability');
     expect(source).toContain('data-photo-board-camera-state={cameraAvailability}');
+    expect(source).toContain("cameraAvailability === 'unavailable' && !liveCameraSupported");
     expect(source).toContain('disabled={cameraUnavailable}');
     expect(source).toContain('data-photo-board-camera-unavailable="true"');
     expect(source).toContain('No camera detected.');

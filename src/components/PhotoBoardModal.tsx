@@ -225,7 +225,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const canAddToCurrent = !!onAddSetupStones && counts.total > 0 && currentBoardSize === boardSize;
   const canClearBoard = counts.total > 0;
   const canTransformTrace = counts.total > 0;
-  const cameraUnavailable = cameraAvailability === 'unavailable';
+  const cameraUnavailable = cameraAvailability === 'unavailable' && !liveCameraSupported;
   const cameraButtonTitle = cameraUnavailable ? 'No camera detected' : 'Take board photo with camera';
   const clearBoardTitle = canClearBoard ? 'Clear all traced stones' : 'No traced stones to clear';
   const transformTraceTitle = canTransformTrace ? 'Adjust traced board orientation' : 'Trace stones before transforming the board';
