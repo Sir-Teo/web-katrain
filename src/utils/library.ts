@@ -256,6 +256,41 @@ export const formatLibrarySize = (bytes: number): string => {
   return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
 };
 
+const librarySearchTokens = (query: string): string[] =>
+  query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+
+export const getLibraryItemSearchText = (item: LibraryItem): string => {
+  const fields: Array<string | undefined> = [item.name, item.type];
+  if (item.type === 'file') {
+    const metadata = item.metadata;
+    fields.push(
+      metadata.gameName,
+      metadata.black,
+      metadata.white,
+      metadata.event,
+      metadata.date,
+      metadata.result,
+      metadata.rules,
+      typeof metadata.boardSize === 'number' ? `${metadata.boardSize}x${metadata.boardSize}` : undefined,
+      typeof metadata.komi === 'number' ? `komi ${metadata.komi}` : undefined,
+      typeof metadata.handicap === 'number' ? `handicap ${metadata.handicap}` : undefined,
+      `${item.moveCount} moves`,
+    );
+  }
+  return fields.filter((field): field is string => !!field).join(' ').toLowerCase();
+};
+
+export const libraryItemMatchesQuery = (item: LibraryItem, query: string): boolean => {
+  const tokens = librarySearchTokens(query);
+  if (tokens.length === 0) return true;
+  const haystack = getLibraryItemSearchText(item);
+  return tokens.every((token) => haystack.includes(token));
+};
+
 const countMoves = (sgf: string): number => {
   if (!sgf) return 0;
   const matches = sgf.match(/;[BW]\[/g);

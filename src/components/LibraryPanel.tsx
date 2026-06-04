@@ -30,6 +30,7 @@ import {
   formatLibrarySize,
   getLibraryFolderOptions,
   getLibraryStats,
+  libraryItemMatchesQuery,
   librarySgfDownloadFilename,
   loadLibrary,
   restoreLibrary,
@@ -529,9 +530,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [contextMenu]);
 
   const filteredItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((item) => item.name.toLowerCase().includes(q));
+    if (!query.trim()) return items;
+    return items.filter((item) => libraryItemMatchesQuery(item, query));
   }, [items, query]);
 
   const isSearching = query.trim().length > 0;

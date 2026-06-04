@@ -11,6 +11,8 @@ import {
   getLibraryFolderOptions,
   getLibrarySaveTargetFolderId,
   getLibraryStats,
+  getLibraryItemSearchText,
+  libraryItemMatchesQuery,
   librarySgfDownloadFilename,
   loadLibrary,
   normalizeLibraryItems,
@@ -61,6 +63,26 @@ describe('library storage helpers', () => {
     expect(item.moveCount).toBe(2);
     expect(item.size).toBe(sgf.length);
     expect(item.metadata.black).toBe('Black Player');
+  });
+
+  it('matches library search queries against SGF metadata', () => {
+    const item = createLibraryItem(
+      'Round 3',
+      '(;GM[1]FF[4]SZ[19]KM[7.5]HA[2]RU[chinese]GN[Final Review]EV[Honinbo]PB[Lee Changho]PW[Choi Cheolhan]DT[2005-02-19]RE[W+2.5];B[pd];W[dd];B[qp])',
+      null,
+      123
+    );
+    const folder = createLibraryFolder('Pro Games', null);
+
+    expect(getLibraryItemSearchText(item)).toContain('lee changho');
+    expect(libraryItemMatchesQuery(item, 'lee final')).toBe(true);
+    expect(libraryItemMatchesQuery(item, 'honinbo w+2.5')).toBe(true);
+    expect(libraryItemMatchesQuery(item, '19x19 komi 7.5')).toBe(true);
+    expect(libraryItemMatchesQuery(item, 'handicap 2 chinese')).toBe(true);
+    expect(libraryItemMatchesQuery(item, '3 moves')).toBe(true);
+    expect(libraryItemMatchesQuery(item, 'sedol')).toBe(false);
+    expect(libraryItemMatchesQuery(folder, 'pro')).toBe(true);
+    expect(libraryItemMatchesQuery(folder, 'lee')).toBe(false);
   });
 
   it('updates a saved file in place with fresh SGF metadata', () => {
