@@ -14,6 +14,7 @@ import {
   createLibraryItem,
   getLibraryFolderOptions,
   getLibrarySaveTargetFolderId,
+  getUniqueLibraryItemName,
   loadLibrary,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
@@ -718,11 +719,12 @@ export const Layout: React.FC = () => {
         return;
       }
       const updatedAt = Date.now();
-      await saveLibrary(updateLibraryItem(items, loadedLibraryFileId, { name: nextName }, updatedAt));
-      setLoadedLibraryFile(loadedLibraryFileId, nextName);
-      setExternalLibraryItemRename({ id: loadedLibraryFileId, name: nextName, updatedAt });
+      const uniqueName = getUniqueLibraryItemName(nextName, items, loadedItem.parentId ?? null, loadedLibraryFileId);
+      await saveLibrary(updateLibraryItem(items, loadedLibraryFileId, { name: uniqueName }, updatedAt));
+      setLoadedLibraryFile(loadedLibraryFileId, uniqueName);
+      setExternalLibraryItemRename({ id: loadedLibraryFileId, name: uniqueName, updatedAt });
       setLibraryVersion((prev) => prev + 1);
-      toast(`Renamed "${loadedItem.name}" to "${nextName}".`, 'success');
+      toast(`Renamed "${loadedItem.name}" to "${uniqueName}".`, 'success');
     } catch {
       toast('Failed to rename loaded library file.', 'error');
     }
@@ -858,7 +860,8 @@ export const Layout: React.FC = () => {
       const targetFolderId =
         folderId && items.some((item) => item.type === 'folder' && item.id === folderId) ? folderId : null;
       const updatedAt = Date.now();
-      const newItem = createLibraryItem(itemName, sgf, targetFolderId, updatedAt);
+      const uniqueName = getUniqueLibraryItemName(itemName, items, targetFolderId);
+      const newItem = createLibraryItem(uniqueName, sgf, targetFolderId, updatedAt);
       await saveLibrary([newItem, ...items]);
       setLoadedLibraryFile(newItem.id, newItem.name);
       setExternalLibraryItemCreate({ item: newItem, updatedAt });

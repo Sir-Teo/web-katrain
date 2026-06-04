@@ -12,6 +12,7 @@ import {
   getLibrarySaveTargetFolderId,
   getLibraryStats,
   getLibraryItemSearchText,
+  getUniqueLibraryItemName,
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
   loadLibrary,
@@ -126,6 +127,22 @@ describe('library storage helpers', () => {
       createdAt: 123,
       updatedAt: 789,
     });
+  });
+
+  it('generates unique library item names within a folder', () => {
+    const folder = createLibraryFolder('Folder', null);
+    const otherFolder = createLibraryFolder('Other', null);
+    const first = createLibraryItem('Game', sgf, folder.id, 123);
+    const second = createLibraryItem('Game 2', sgf, folder.id, 124);
+    const otherFolderGame = createLibraryItem('Game', sgf, otherFolder.id, 125);
+    const rootGame = createLibraryItem('Game', sgf, null, 126);
+    const items = [folder, otherFolder, first, second, otherFolderGame, rootGame];
+
+    expect(getUniqueLibraryItemName('Game', items, folder.id)).toBe('Game 3');
+    expect(getUniqueLibraryItemName('Game', items, otherFolder.id)).toBe('Game 2');
+    expect(getUniqueLibraryItemName('Game', items, null)).toBe('Game 2');
+    expect(getUniqueLibraryItemName('Game', items, folder.id, first.id)).toBe('Game');
+    expect(getUniqueLibraryItemName('Game.sgf', [createLibraryItem('Game.sgf', sgf, null)], null)).toBe('Game 2.sgf');
   });
 
   it('moves library items while preventing folder cycles', () => {

@@ -30,6 +30,7 @@ import {
   formatLibrarySize,
   getLibraryFolderOptions,
   getLibraryStats,
+  getUniqueLibraryItemName,
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
   loadLibrary,
@@ -807,7 +808,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         options: folderOptions,
       },
       onSubmit: (name, targetFolderId) => {
-        const newItem = createLibraryItem(name, sgf, targetFolderId ?? null);
+        const parentId = targetFolderId ?? null;
+        const uniqueName = getUniqueLibraryItemName(name, items, parentId);
+        const newItem = createLibraryItem(uniqueName, sgf, parentId);
         setItems((prev) => [newItem, ...prev]);
         onLoadedFileChange?.(newItem.id, newItem.name);
         onCurrentSaved?.();
@@ -824,8 +827,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       placeholder: isFolder(item) ? 'Folder name' : 'Game name',
       confirmLabel: 'Rename',
       onSubmit: (next) => {
-        setItems((prev) => updateLibraryItem(prev, item.id, { name: next }));
-        if (item.id === loadedFileId) onLoadedFileChange?.(item.id, next);
+        const uniqueName = getUniqueLibraryItemName(next, items, item.parentId ?? null, item.id);
+        setItems((prev) => updateLibraryItem(prev, item.id, { name: uniqueName }));
+        if (item.id === loadedFileId) onLoadedFileChange?.(item.id, uniqueName);
       },
     });
   };
@@ -838,7 +842,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       placeholder: 'Folder name',
       confirmLabel: 'Create',
       onSubmit: (name) => {
-        const folder = createLibraryFolder(name, parentId);
+        const uniqueName = getUniqueLibraryItemName(name, items, parentId);
+        const folder = createLibraryFolder(uniqueName, parentId);
         setItems((prev) => [folder, ...prev]);
         setExpandedFolderIds((prev) => new Set(prev).add(folder.id));
         setCurrentFolderId(folder.id);
@@ -1099,6 +1104,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let openedPhotoBoard = false;
     let skippedUnsupportedPhotoImages = 0;
     let skippedInvalidSgfFiles = 0;
+    const pushImportedItem = (item: LibraryItem) => {
+      const uniqueName = getUniqueLibraryItemName(item.name, [...items, ...imported], item.parentId ?? null);
+      imported.push(uniqueName === item.name ? item : { ...item, name: uniqueName });
+    };
     for (const file of Array.from(files)) {
       const name = file.name.toLowerCase();
       try {
@@ -1114,7 +1123,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           continue;
         }
         if (name.endsWith('.zip')) {
-          imported.push(...(await importLibraryItemsFromZip(file, folderId)));
+          for (const item of await importLibraryItemsFromZip(file, folderId)) pushImportedItem(item);
           continue;
         }
         if (!name.endsWith('.sgf')) continue;
@@ -1125,7 +1134,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           skippedInvalidSgfFiles += 1;
           continue;
         }
-        imported.push(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
+        pushImportedItem(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
       } catch {
         // ignore per-file failures
       }
@@ -1172,11 +1181,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         folderId,
         `Game ${items.length + 1}`
       );
-      setItems((prev) => [result.item, ...prev]);
+      const uniqueName = getUniqueLibraryItemName(result.item.name, items, result.item.parentId ?? null);
+      const item = uniqueName === result.item.name ? result.item : { ...result.item, name: uniqueName };
+      setItems((prev) => [item, ...prev]);
       onToast(
         result.source === 'ogs' && result.gameId
           ? `Imported OGS game ${result.gameId} to Library.`
-          : `Imported "${result.item.name}" to Library.`,
+          : `Imported "${item.name}" to Library.`,
         'success'
       );
     } catch {

@@ -632,6 +632,19 @@ const uniqueLibraryName = (preferred: string, siblings: LibraryItem[]): string =
   return `${base} ${Date.now()}${suffix}`;
 };
 
+export const getUniqueLibraryItemName = (
+  preferred: string,
+  items: LibraryItem[],
+  parentId: string | null,
+  excludeId?: string
+): string => {
+  const normalizedParentId = parentId ?? null;
+  const siblings = items.filter(
+    (item) => item.id !== excludeId && (item.parentId ?? null) === normalizedParentId
+  );
+  return uniqueLibraryName(preferred.trim() || 'Untitled', siblings);
+};
+
 export const duplicateLibraryItem = (
   items: LibraryItem[],
   id: string,
