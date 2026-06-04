@@ -499,11 +499,13 @@ function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
 function serializeSequence(node: GameNode, trainer: KaTrainSgfExportTrainerConfig): string {
     let out = serializeMoveNode(node, trainer);
 
-    const children = node.children;
-    if (children.length === 0) return out;
-    if (children.length === 1) return out + serializeSequence(children[0]!, trainer);
+    const childSequences = node.children
+        .map((child) => serializeSequence(child, trainer))
+        .filter((childSgf) => childSgf.length > 0);
+    if (childSequences.length === 0) return out;
+    if (childSequences.length === 1) return out + childSequences[0]!;
 
-    for (const child of children) out += `(${serializeSequence(child, trainer)})`;
+    for (const childSgf of childSequences) out += `(${childSgf})`;
     return out;
 }
 
@@ -554,10 +556,12 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
 
     let sgf = `(;${serializeProps(props)}`;
 
-    const children = rootNode.children;
-    if (children.length === 1) sgf += serializeSequence(children[0]!, trainer);
-    else if (children.length > 1) {
-        for (const child of children) sgf += `(${serializeSequence(child, trainer)})`;
+    const childSequences = rootNode.children
+        .map((child) => serializeSequence(child, trainer))
+        .filter((childSgf) => childSgf.length > 0);
+    if (childSequences.length === 1) sgf += childSequences[0]!;
+    else if (childSequences.length > 1) {
+        for (const childSgf of childSequences) sgf += `(${childSgf})`;
     }
 
     sgf += ')';

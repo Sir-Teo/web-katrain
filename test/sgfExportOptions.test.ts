@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
 import { generateSgfFromTree } from '../src/utils/sgf';
-import type { AnalysisResult, CandidateMove } from '../src/types';
+import type { AnalysisResult, CandidateMove, GameNode } from '../src/types';
 
 const EMPTY_TERRITORY: number[][] = Array.from({ length: 19 }, () => Array.from({ length: 19 }, () => 0));
 
@@ -87,6 +87,46 @@ describe('SGF export trainer options', () => {
     expect(sgf).toContain('KA[');
     expect(sgf).toContain('KT[');
     expect(sgf).toContain('"m":"Q4"');
+  });
+
+  it('flattens empty no-move container nodes instead of exporting empty variations', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+
+    store.playMove(0, 0);
+    store.playMove(1, 1);
+    store.navigateToMove(1);
+    store.playMove(2, 2);
+
+    const root = useGameStore.getState().rootNode;
+    const firstMove = root.children[0]!;
+    const branchChildren = [...firstMove.children];
+    const emptyContainer: GameNode = {
+      id: 'empty-container',
+      parent: firstMove,
+      children: branchChildren,
+      move: null,
+      gameState: {
+        ...firstMove.gameState,
+        board: firstMove.gameState.board.map((row) => [...row]),
+        moveHistory: [...firstMove.gameState.moveHistory],
+      },
+      analysis: null,
+      note: '',
+      properties: {},
+    };
+    for (const child of branchChildren) child.parent = emptyContainer;
+    firstMove.children = [emptyContainer];
+
+    const sgf = generateSgfFromTree(root, {
+      trainer: {
+        saveAnalysis: false,
+        saveMarks: false,
+      },
+    });
+
+    expect(sgf).toContain(';B[aa](;W[bb])(;W[cc])');
+    expect(sgf).not.toContain('()');
   });
 
   it('adds KaTrain-style SGF marks (MA/SQ) when save_marks is enabled', () => {
