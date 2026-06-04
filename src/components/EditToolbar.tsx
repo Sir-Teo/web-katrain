@@ -75,6 +75,23 @@ const TOOL_LABELS: Record<EditTool, string> = Object.fromEntries(
 const EDIT_TOOLBAR_SHORTCUT_IDS = ['toggle-edit-mode', ...EDIT_TOOL_SHORTCUT_IDS] as const;
 type EditToolbarShortcutId = (typeof EDIT_TOOLBAR_SHORTCUT_IDS)[number];
 
+type CountableBranchNode = { children: CountableBranchNode[] };
+
+const countBranchNodes = (node: CountableBranchNode | null): number => {
+  if (!node) return 0;
+  let count = 0;
+  const stack = [node];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+    count += 1;
+    stack.push(...current.children);
+  }
+  return count;
+};
+
+const formatBranchNodeCount = (count: number): string => `${count} node${count === 1 ? '' : 's'}`;
+
 const toolButtonClass = (active: boolean) =>
   [
     'min-h-11 min-w-11 px-2 rounded-md border inline-flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors touch-manipulation',
@@ -146,6 +163,13 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   const siblingCount = currentNode.parent?.children.length ?? 0;
   const canShiftEarlier = siblingIndex > 0;
   const canShiftLater = siblingIndex >= 0 && siblingIndex < siblingCount - 1;
+  const currentBranchNodeCount = React.useMemo(
+    () => (canEditBranch ? countBranchNodes(currentNode) : 0),
+    [canEditBranch, currentNode]
+  );
+  const copiedBranchNodeCount = React.useMemo(() => countBranchNodes(copiedBranch), [copiedBranch]);
+  const currentBranchNodeLabel = formatBranchNodeCount(currentBranchNodeCount);
+  const copiedBranchNodeLabel = formatBranchNodeCount(copiedBranchNodeCount);
   let branchSiblingCount = 0;
   let branchCursor = currentNode;
   while (branchCursor.parent) {
@@ -160,9 +184,15 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   const moveVariationEarlierLabel = 'Move variation earlier';
   const moveVariationLaterLabel = 'Move variation later';
   const makeMainBranchLabel = 'Make current variation the main branch';
-  const copyBranchLabel = 'Copy current branch';
-  const pasteBranchLabel = 'Paste copied branch';
-  const deleteCurrentNodeLabel = 'Delete current node';
+  const copyBranchLabel = canEditBranch
+    ? `Copy current branch (${currentBranchNodeLabel})`
+    : 'Select a move branch to copy';
+  const pasteBranchLabel = copiedBranch
+    ? `Paste copied branch (${copiedBranchNodeLabel})`
+    : 'No copied branch to paste';
+  const deleteCurrentNodeLabel = canEditBranch
+    ? `Delete current branch (${currentBranchNodeLabel})`
+    : 'Select a move branch to delete';
   const pruneOtherBranchesLabel = canPruneOtherBranches
     ? `Delete ${branchSiblingCount} other branch${branchSiblingCount === 1 ? '' : 'es'} and keep the current line`
     : 'No other branches on the current line';

@@ -25,4 +25,15 @@ describe('EditToolbar accessibility', () => {
       expect(source).toContain(`aria-label={${label}}`);
     }
   });
+
+  it('names branch edit actions with the affected node count', () => {
+    const source = readFileSync('src/components/EditToolbar.tsx', 'utf8');
+
+    expect(source).toContain('countBranchNodes(currentNode)');
+    expect(source).toContain('countBranchNodes(copiedBranch)');
+    expect(source).toContain('`Copy current branch (${currentBranchNodeLabel})`');
+    expect(source).toContain('`Paste copied branch (${copiedBranchNodeLabel})`');
+    expect(source).toContain('`Delete current branch (${currentBranchNodeLabel})`');
+    expect(source).not.toContain("const deleteCurrentNodeLabel = 'Delete current node'");
+  });
 });
