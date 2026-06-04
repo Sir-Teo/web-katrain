@@ -414,7 +414,7 @@ function serializeProps(props: Record<string, string[]>): string {
             out += `${key}[]`;
             continue;
         }
-        for (const value of values) out += `${key}[${escapeSgfValue(value)}]`;
+        out += `${key}${values.map((value) => `[${escapeSgfValue(value)}]`).join('')}`;
     }
     return out;
 }

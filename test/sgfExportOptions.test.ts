@@ -121,6 +121,36 @@ describe('SGF export trainer options', () => {
     expect(sgf).toContain('SQ[ba]');
   });
 
+  it('groups multi-value SGF properties under one property identifier', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+    store.applySetupStones([
+      { x: 0, y: 0, player: 'black' },
+      { x: 18, y: 18, player: 'black' },
+      { x: 8, y: 8, player: 'white' },
+    ]);
+    store.playMove(3, 3);
+
+    const root = useGameStore.getState().rootNode;
+    const firstMove = root.children[0]!;
+    firstMove.properties = {
+      ...firstMove.properties,
+      LB: ['cc:A', 'dc:1'],
+      TR: ['aa', 'bb'],
+    };
+
+    const sgf = generateSgfFromTree(root);
+
+    expect(sgf).toContain('AB[aa][ss]');
+    expect(sgf).toContain('AW[ii]');
+    expect(sgf).toContain('LB[cc:A][dc:1]');
+    expect(sgf).toContain('TR[aa][bb]');
+    expect(sgf.match(/AB\[/g)).toHaveLength(1);
+    expect(sgf.match(/AW\[/g)).toHaveLength(1);
+    expect(sgf.match(/LB\[/g)).toHaveLength(1);
+    expect(sgf.match(/TR\[/g)).toHaveLength(1);
+  });
+
   it('uses save_feedback and notes to decide whether to include auto-comments', () => {
     const store = useGameStore.getState();
     store.resetGame();
