@@ -44,6 +44,11 @@ import {
     type SettingsTabId,
 } from '../utils/settingsTabs';
 import { formatEngineBackendLabel } from '../utils/engineStatusSummary';
+import {
+    detectWebGpuAvailability,
+    isKataGoBackendAvailable,
+    type BrowserBackendAvailability,
+} from '../utils/backendAvailability';
 
 const OFFICIAL_MODELS: Array<{
     label: string;
@@ -149,6 +154,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const [downloadError, setDownloadError] = React.useState<string | null>(null);
     const [modelUploadError, setModelUploadError] = React.useState<string | null>(null);
     const [uploadedModelInfo, setUploadedModelInfo] = React.useState<UploadedModelInfo | null>(() => getUploadedModelInfo());
+    const [webGpuAvailability, setWebGpuAvailability] = React.useState<BrowserBackendAvailability>(() => detectWebGpuAvailability());
     const shortcutLabels = useShortcutLabels(ANALYSIS_OVERLAY_SHORTCUT_IDS);
 
     const [activeTab, setActiveTab] = React.useState<SettingsTabId>(() => {
@@ -192,10 +198,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         'text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] border border-[var(--ui-border)]';
     const modelActionClass =
         'px-2 py-1 text-xs rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface)] hover:text-[var(--ui-text)]';
-    const backendCardClass = (active: boolean) => [
+    const backendCardClass = (active: boolean, available: boolean) => [
         'min-h-20 rounded-lg border px-3 py-3 text-left transition-colors',
         'flex items-start gap-3',
-        active
+        !available
+            ? 'cursor-not-allowed border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-faint)] opacity-70'
+            : active
             ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
             : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
     ].join(' ');
@@ -212,9 +220,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         label: string;
         badge?: string;
         description: string;
+        unavailableDescription?: string;
         icon: React.ReactNode;
     }> = [
-        { value: 'webgpu', label: 'WebGPU', badge: 'Recommended', description: 'Fast GPU path', icon: <FaBolt aria-hidden="true" /> },
+        {
+            value: 'webgpu',
+            label: 'WebGPU',
+            badge: 'Recommended',
+            description: 'Fast GPU path',
+            unavailableDescription: 'Not available in this browser',
+            icon: <FaBolt aria-hidden="true" />,
+        },
         { value: 'wasm', label: 'WASM', description: 'Reliable CPU path', icon: <FaGlobe aria-hidden="true" /> },
         { value: 'cpu', label: 'CPU', description: 'Compatibility path', icon: <FaMicrochip aria-hidden="true" /> },
     ];
@@ -232,7 +248,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     ) => {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            updateSettings({ katagoBackend: value });
+            if (isKataGoBackendAvailable(value, webGpuAvailability)) {
+                updateSettings({ katagoBackend: value });
+            }
             return;
         }
 
@@ -246,7 +264,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
         event.preventDefault();
         const currentIndex = backendOptions.findIndex((option) => option.value === value);
-        const nextOption = backendOptions[(currentIndex + direction + backendOptions.length) % backendOptions.length];
+        let nextOption = backendOptions[(currentIndex + direction + backendOptions.length) % backendOptions.length];
+        for (let i = 0; nextOption && i < backendOptions.length; i++) {
+            if (isKataGoBackendAvailable(nextOption.value, webGpuAvailability)) break;
+            nextOption = backendOptions[(backendOptions.indexOf(nextOption) + direction + backendOptions.length) % backendOptions.length];
+        }
         if (!nextOption) return;
         updateSettings({ katagoBackend: nextOption.value });
         focusBackendOption(nextOption.value);
@@ -260,6 +282,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     React.useEffect(() => {
         syncUploadedModelUrl(settings.katagoModelUrl);
     }, [settings.katagoModelUrl]);
+
+    React.useEffect(() => {
+        setWebGpuAvailability(detectWebGpuAvailability());
+    }, []);
 
     React.useEffect(() => {
         setUploadedModelInfo(isUploadedModel ? getUploadedModelInfo() : null);
@@ -1923,22 +1949,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             >
                                                 {backendOptions.map((option) => {
                                                     const active = settings.katagoBackend === option.value;
+                                                    const available = isKataGoBackendAvailable(option.value, webGpuAvailability);
                                                     return (
                                                         <button
                                                             key={option.value}
                                                             type="button"
-                                                            className={backendCardClass(active)}
+                                                            className={backendCardClass(active, available)}
                                                             role="radio"
                                                             aria-checked={active}
+                                                            aria-disabled={!available}
                                                             tabIndex={active ? 0 : -1}
                                                             data-katago-backend-option={option.value}
-                                                            onClick={() => updateSettings({ katagoBackend: option.value })}
+                                                            data-katago-backend-available={available}
+                                                            onClick={() => {
+                                                                if (!available) return;
+                                                                updateSettings({ katagoBackend: option.value });
+                                                            }}
                                                             onKeyDown={(event) => handleBackendOptionKeyDown(event, option.value)}
                                                         >
                                                             <span
                                                                 className={[
                                                                     'grid h-9 w-9 shrink-0 place-items-center rounded-md border',
-                                                                    active
+                                                                    !available
+                                                                        ? 'border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-[var(--ui-text-faint)]'
+                                                                        : active
                                                                         ? 'border-[var(--ui-accent)] bg-[var(--ui-accent)] text-[var(--ui-accent-contrast)]'
                                                                         : 'border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-[var(--ui-accent)]',
                                                                 ].join(' ')}
@@ -1955,7 +1989,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                         </span>
                                                                     ) : null}
                                                                 </span>
-                                                                <span className="mt-1 block text-xs ui-text-muted">{option.description}</span>
+                                                                <span className="mt-1 block text-xs ui-text-muted">
+                                                                    {available ? option.description : option.unavailableDescription ?? 'Unavailable'}
+                                                                </span>
                                                             </span>
                                                             {active ? (
                                                                 <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--ui-accent)] text-[10px] text-[var(--ui-accent-contrast)]">

@@ -169,9 +169,15 @@ describe('SettingsModal', () => {
     expect(source).toContain('data-katago-model-download-progress="true"');
     expect(source).toContain('data-katago-backend-selector="true"');
     expect(source).toContain('data-katago-backend-option={option.value}');
+    expect(source).toContain('data-katago-backend-available={available}');
     expect(source).toContain('data-katago-backend-status="true"');
     expect(source).toContain('role="radiogroup"');
     expect(source).toContain('role="radio"');
+    expect(source).toContain('aria-disabled={!available}');
+    expect(source).toContain('detectWebGpuAvailability');
+    expect(source).toContain('isKataGoBackendAvailable(option.value, webGpuAvailability)');
+    expect(source).toContain("unavailableDescription: 'Not available in this browser'");
+    expect(source).toContain('if (!available) return;');
     expect(source).toContain('aria-labelledby="settings-katago-backend-label"');
     expect(source).toContain('FaCheck aria-hidden="true"');
     expect(source).toContain('fallback from <span className="font-mono">{requestedBackendLabel}</span>');
