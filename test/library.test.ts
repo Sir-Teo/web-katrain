@@ -15,6 +15,7 @@ import {
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
   loadLibrary,
+  moveLibraryItems,
   normalizeLibraryItems,
   parseLibraryBackup,
   saveLibrary,
@@ -125,6 +126,41 @@ describe('library storage helpers', () => {
       createdAt: 123,
       updatedAt: 789,
     });
+  });
+
+  it('moves library items while preventing folder cycles', () => {
+    const folder = createLibraryFolder('Folder', null);
+    const nestedFolder = createLibraryFolder('Nested', folder.id);
+    const file = createLibraryItem('Game', sgf, null, 123);
+    const nestedFile = createLibraryItem('Nested Game', sgf, nestedFolder.id, 124);
+    const items = [folder, nestedFolder, file, nestedFile];
+
+    const moved = moveLibraryItems(items, [file.id], folder.id, 500);
+    expect(moved.movedIds).toEqual([file.id]);
+    expect(moved.skippedIds).toEqual([]);
+    expect(moved.items.find((item) => item.id === file.id)).toMatchObject({
+      parentId: folder.id,
+      updatedAt: 500,
+    });
+
+    const cycle = moveLibraryItems(items, [folder.id, file.id], nestedFolder.id, 600);
+    expect(cycle.movedIds).toEqual([file.id]);
+    expect(cycle.skippedIds).toEqual([folder.id]);
+    expect(cycle.items.find((item) => item.id === folder.id)?.parentId).toBeNull();
+    expect(cycle.items.find((item) => item.id === file.id)).toMatchObject({
+      parentId: nestedFolder.id,
+      updatedAt: 600,
+    });
+
+    const invalidTarget = moveLibraryItems(items, [file.id], 'missing-folder', 700);
+    expect(invalidTarget.items).toBe(items);
+    expect(invalidTarget.movedIds).toEqual([]);
+    expect(invalidTarget.skippedIds).toEqual([file.id]);
+
+    const noOp = moveLibraryItems(items, [nestedFile.id], nestedFolder.id, 800);
+    expect(noOp.items).toBe(items);
+    expect(noOp.movedIds).toEqual([]);
+    expect(noOp.skippedIds).toEqual([nestedFile.id]);
   });
 
   it('suggests library names from SGF metadata and keeps downloads single-extension', () => {

@@ -51,6 +51,12 @@ export type DuplicateLibraryItemResult = {
   duplicatedIds: string[];
 };
 
+export type MoveLibraryItemsResult = {
+  items: LibraryItem[];
+  movedIds: string[];
+  skippedIds: string[];
+};
+
 export type LibraryStats = {
   files: number;
   folders: number;
@@ -724,6 +730,61 @@ export const updateLibraryItem = (
   timestamp = Date.now()
 ): LibraryItem[] => {
   return items.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: timestamp } : item));
+};
+
+const libraryParentById = (items: LibraryItem[]): Map<string, string | null> =>
+  new Map(items.map((item) => [item.id, item.parentId ?? null]));
+
+const libraryItemIsDescendantOf = (
+  parentById: Map<string, string | null>,
+  candidateId: string | null,
+  ancestorId: string
+): boolean => {
+  if (!candidateId) return false;
+  let current = parentById.get(candidateId) ?? null;
+  while (current) {
+    if (current === ancestorId) return true;
+    current = parentById.get(current) ?? null;
+  }
+  return false;
+};
+
+export const moveLibraryItems = (
+  items: LibraryItem[],
+  ids: Iterable<string>,
+  targetParentId: string | null,
+  timestamp = Date.now()
+): MoveLibraryItemsResult => {
+  const selectedIds = new Set(ids);
+  if (selectedIds.size === 0) return { items, movedIds: [], skippedIds: [] };
+
+  const targetId = targetParentId ?? null;
+  const targetIsValid = targetId === null || items.some((item) => item.type === 'folder' && item.id === targetId);
+  const existingSelectedIds = items.filter((item) => selectedIds.has(item.id)).map((item) => item.id);
+  if (!targetIsValid) return { items, movedIds: [], skippedIds: existingSelectedIds };
+
+  const parentById = libraryParentById(items);
+  const movedIds: string[] = [];
+  const skippedIds: string[] = [];
+  const nextItems = items.map((item) => {
+    if (!selectedIds.has(item.id)) return item;
+    if ((item.parentId ?? null) === targetId) {
+      skippedIds.push(item.id);
+      return item;
+    }
+    if (targetId && (item.id === targetId || libraryItemIsDescendantOf(parentById, targetId, item.id))) {
+      skippedIds.push(item.id);
+      return item;
+    }
+    movedIds.push(item.id);
+    return { ...item, parentId: targetId, updatedAt: timestamp };
+  });
+
+  return {
+    items: movedIds.length > 0 ? nextItems : items,
+    movedIds,
+    skippedIds,
+  };
 };
 
 const collectDescendants = (items: LibraryItem[], id: string): Set<string> => {

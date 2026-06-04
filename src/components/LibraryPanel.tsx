@@ -33,6 +33,7 @@ import {
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
   loadLibrary,
+  moveLibraryItems,
   restoreLibrary,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
@@ -1054,15 +1055,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (visibleSelectedIds.size === 0) return;
     if (!bulkMoveTarget) return;
     const targetId = bulkMoveTarget === 'root' ? null : bulkMoveTarget;
-    setItems((prev) =>
-      prev.map((item) => {
-        if (!visibleSelectedIds.has(item.id)) return item;
-        if (targetId && (item.id === targetId || isDescendantOf(targetId, item.id))) return item;
-        return { ...item, parentId: targetId, updatedAt: Date.now() };
-      })
-    );
+    const result = moveLibraryItems(items, visibleSelectedIds, targetId);
+    setItems(result.items);
     setBulkMoveTarget('');
-    onToast('Moved selected items.', 'success');
+    if (result.movedIds.length === 0) {
+      onToast('No selected items were moved.', 'info');
+      return;
+    }
+    if (result.skippedIds.length > 0) {
+      onToast(`Moved ${result.movedIds.length} item(s); skipped ${result.skippedIds.length} invalid move(s).`, 'info');
+      return;
+    }
+    onToast(`Moved ${result.movedIds.length} selected item${result.movedIds.length === 1 ? '' : 's'}.`, 'success');
   };
 
   const handleMoveToRoot = (item: LibraryItem) => {
