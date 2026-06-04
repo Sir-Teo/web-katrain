@@ -20,6 +20,7 @@ function restoreWindow() {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   resetAudioContextForTests();
   restoreWindow();
 });
@@ -191,6 +192,45 @@ describe('sound helpers', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it('debounces rapid repeats of the same sound effect', () => {
+    const start = vi.fn();
+    vi.spyOn(performance, 'now').mockReturnValueOnce(100).mockReturnValueOnce(120).mockReturnValueOnce(160);
+
+    class RunningAudioContext {
+      currentTime = 0;
+      destination = {};
+      state: AudioContextState = 'running';
+      resume = () => Promise.resolve();
+      createOscillator = () => ({
+        connect: () => {},
+        type: 'sine',
+        frequency: {
+          setValueAtTime: () => {},
+          exponentialRampToValueAtTime: () => {},
+        },
+        start,
+        stop: () => {},
+      });
+      createGain = () => ({
+        connect: () => {},
+        gain: {
+          setValueAtTime: () => {},
+          exponentialRampToValueAtTime: () => {},
+        },
+      });
+    }
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { AudioContext: RunningAudioContext },
+    });
+
+    playStoneSound();
+    playStoneSound();
+    playStoneSound();
+
+    expect(start).toHaveBeenCalledTimes(2);
   });
 
   it('swallows oscillator setup failures after context creation', () => {

@@ -1,4 +1,8 @@
 let audioCtx: AudioContext | null = null;
+type SoundEffectKey = 'stone' | 'capture' | 'pass' | 'new-game';
+
+const MIN_SOUND_INTERVAL_MS = 50;
+const lastSoundTimeByKey = new Map<SoundEffectKey, number>();
 
 export interface SoundInitError {
     message: string;
@@ -15,6 +19,7 @@ export const setSoundInitErrorHandler = (handler: ((error: SoundInitError) => vo
 
 export const resetSoundFailureReport = (): void => {
     soundFailureReported = false;
+    lastSoundTimeByKey.clear();
 };
 
 const formatSoundError = (error: unknown): string => (
@@ -38,6 +43,22 @@ const reportSoundError = (message: string): void => {
         backend: 'web-audio',
         platform: getPlatformLabel(),
     });
+};
+
+const getSoundNow = (): number => {
+    try {
+        return typeof performance !== 'undefined' ? performance.now() : Date.now();
+    } catch {
+        return Date.now();
+    }
+};
+
+const shouldSkipRepeatedSound = (key: SoundEffectKey): boolean => {
+    const now = getSoundNow();
+    const last = lastSoundTimeByKey.get(key);
+    if (last !== undefined && now - last < MIN_SOUND_INTERVAL_MS) return true;
+    lastSoundTimeByKey.set(key, now);
+    return false;
 };
 
 const getAudioContextConstructor = (): typeof AudioContext | null => {
@@ -109,7 +130,8 @@ const resumeContext = (): { ctx: AudioContext; resumePromise?: Promise<void> } |
     return ctx ? { ctx } : null;
 };
 
-const runSound = (play: (ctx: AudioContext) => void) => {
+const runSound = (key: SoundEffectKey, play: (ctx: AudioContext) => void) => {
+    if (shouldSkipRepeatedSound(key)) return;
     const audio = resumeContext();
     if (!audio) return;
     if (audio.resumePromise) {
@@ -122,7 +144,7 @@ const runSound = (play: (ctx: AudioContext) => void) => {
 };
 
 export const playStoneSound = () => {
-    runSound((ctx) => {
+    runSound('stone', (ctx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
@@ -144,7 +166,7 @@ export const playStoneSound = () => {
 };
 
 export const playCaptureSound = (count: number) => {
-    runSound((ctx) => {
+    runSound('capture', (ctx) => {
         // Capture: rattling stones. Multiple short clicks.
         // We play 'count' clicks with slight random delay.
         const clicks = Math.min(count, 5); // Limit to 5 clicks to avoid chaos
@@ -173,7 +195,7 @@ export const playCaptureSound = (count: number) => {
 };
 
 export const playPassSound = () => {
-    runSound((ctx) => {
+    runSound('pass', (ctx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
@@ -194,7 +216,7 @@ export const playPassSound = () => {
 };
 
 export const playNewGameSound = () => {
-    runSound((ctx) => {
+    runSound('new-game', (ctx) => {
         // Upward chime
         const now = ctx.currentTime;
         [440, 554, 659].forEach((freq, i) => {
