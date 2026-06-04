@@ -15,12 +15,17 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
   useEscapeToClose(() => onChoice('cancel'));
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom">
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom"
+      onClick={() => onChoice('cancel')}
+    >
       <div
         className="ui-panel flex w-full max-w-md flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="unsaved-changes-title"
+        aria-describedby="unsaved-changes-description"
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="unsaved-changes-title" className="text-lg font-semibold text-[var(--ui-text)]">
@@ -37,7 +42,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
         </div>
 
         <div className="space-y-3 p-4">
-          <p className="text-sm leading-6 text-[var(--ui-text-muted)]">
+          <p id="unsaved-changes-description" className="text-sm leading-6 text-[var(--ui-text-muted)]">
             {savesToLibrary
               ? 'The loaded library game has unsaved changes. Save it to Library before replacing it?'
               : 'The current game has changes that are not saved. Save an SGF before replacing it?'}
@@ -49,6 +54,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
             type="button"
             onClick={() => onChoice('cancel')}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+            autoFocus
           >
             Cancel
           </button>
