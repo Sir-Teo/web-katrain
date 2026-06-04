@@ -86,4 +86,15 @@ describe('drag import helpers', () => {
     expect(dropBlock).toContain('if (droppedText) {');
     expect(dropBlock).toContain('await handleOpenSgfFromText(droppedText)');
   });
+
+  it('clears the global app drop overlay when dragging over the library', () => {
+    const source = readFileSync('src/components/Layout.tsx', 'utf8');
+    const dragStart = source.indexOf('const handleAppDragEnter =');
+    const dragEnd = source.indexOf('const handleAppDrop = async', dragStart);
+    const dragBlock = source.slice(dragStart, dragEnd);
+
+    expect(dragBlock).toContain('if (isDragOverLibrary(event.target)) {');
+    expect(dragBlock).toContain('resetFileDragState();');
+    expect(dragBlock).toContain('return;');
+  });
 });

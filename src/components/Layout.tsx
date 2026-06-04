@@ -1723,7 +1723,11 @@ export const Layout: React.FC = () => {
   }, []);
 
   const handleAppDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!isGameImportDragEvent(event) || isDragOverLibrary(event.target)) return;
+    if (!isGameImportDragEvent(event)) return;
+    if (isDragOverLibrary(event.target)) {
+      resetFileDragState();
+      return;
+    }
     event.preventDefault();
     if (fileDragResetTimer.current) {
       clearTimeout(fileDragResetTimer.current);
@@ -1734,7 +1738,10 @@ export const Layout: React.FC = () => {
   };
 
   const handleAppDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    if (isDragOverLibrary(event.target)) return;
+    if (isDragOverLibrary(event.target)) {
+      resetFileDragState();
+      return;
+    }
     fileDragCounter.current = Math.max(0, fileDragCounter.current - 1);
     if (fileDragCounter.current === 0) {
       resetFileDragState();
@@ -1742,7 +1749,11 @@ export const Layout: React.FC = () => {
   };
 
   const handleAppDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!isGameImportDragEvent(event) || isDragOverLibrary(event.target)) return;
+    if (!isGameImportDragEvent(event)) return;
+    if (isDragOverLibrary(event.target)) {
+      resetFileDragState();
+      return;
+    }
     event.preventDefault();
     if (fileDragResetTimer.current) {
       clearTimeout(fileDragResetTimer.current);
