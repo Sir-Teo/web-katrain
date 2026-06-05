@@ -43,6 +43,11 @@ describe('board theme assets', () => {
     expect(resolveBoardThemeAsset('baduktv', '//example.com/stone.png')).toBeUndefined();
     expect(resolveBoardThemeAsset('baduktv', 'data:image/png;base64,abc')).toBeUndefined();
     expect(resolveBoardThemeAsset('baduktv', '../other-theme/board.png')).toBeUndefined();
+    expect(resolveBoardThemeAsset('baduktv', '%2e%2e/other-theme/board.png')).toBeUndefined();
+    expect(resolveBoardThemeAsset('baduktv', 'stone%2f..%2fsecret.png')).toBeUndefined();
     expect(resolveBoardThemeAsset('baduktv', 'assets\\board.png')).toBeUndefined();
+    expect(resolveBoardThemeAsset('baduktv', '/robots.txt')).toBeUndefined();
+    expect(resolveBoardThemeAsset('baduktv', 'stone-black.png?cache=1')).toBeUndefined();
+    expect(resolveBoardThemeAsset('baduktv', 'stone-black.png#preview')).toBeUndefined();
   });
 });

@@ -309,19 +309,50 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
   },
 };
 
-export const resolveBoardThemeAsset = (themeId: BoardThemeId, assetPath: string | undefined): string | undefined => {
+const hasUnsafeThemeAssetCharacters = (value: string): boolean => {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return value.includes('\\') || value.includes('?') || value.includes('#');
+};
+
+const normalizeThemeAssetPath = (assetPath: string | undefined): string | undefined => {
   const trimmed = assetPath?.trim();
   if (!trimmed) return undefined;
   if (/^(data:|blob:|https?:|\/\/)/i.test(trimmed)) return undefined;
-  if (trimmed.includes('\\')) return undefined;
-  const pathParts = trimmed.split('/');
+  if (hasUnsafeThemeAssetCharacters(trimmed)) return undefined;
+
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(trimmed);
+  } catch {
+    return undefined;
+  }
+
+  if (decoded !== decoded.trim()) return undefined;
+  if (/^(data:|blob:|https?:|\/\/)/i.test(decoded)) return undefined;
+  if (hasUnsafeThemeAssetCharacters(decoded)) return undefined;
+
+  const pathParts = decoded.split('/');
   if (pathParts.some((part) => part === '..')) return undefined;
+  return decoded;
+};
 
-  if (trimmed.startsWith('/')) return publicUrl(trimmed.slice(1));
-  if (trimmed.startsWith('katrain/')) return publicUrl(trimmed);
-  if (trimmed.startsWith('themes/')) return publicUrl(trimmed);
+export const resolveBoardThemeAsset = (themeId: BoardThemeId, assetPath: string | undefined): string | undefined => {
+  const normalized = normalizeThemeAssetPath(assetPath);
+  if (!normalized) return undefined;
 
-  const relativePath = trimmed.replace(/^(\.\/)+/, '');
+  const rootPath = normalized.replace(/^\/+/, '');
+  if (normalized.startsWith('/')) {
+    if (!rootPath.startsWith('katrain/') && !rootPath.startsWith('themes/')) return undefined;
+    return publicUrl(rootPath);
+  }
+  if (normalized.startsWith('katrain/')) return publicUrl(normalized);
+  if (normalized.startsWith('themes/')) return publicUrl(normalized);
+
+  const relativePath = normalized.replace(/^(\.\/)+/, '');
+  if (!relativePath || relativePath.startsWith('/')) return undefined;
   return publicUrl(`themes/${themeId}/${relativePath}`);
 };
 
