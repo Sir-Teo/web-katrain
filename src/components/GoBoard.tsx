@@ -2092,6 +2092,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const boardTouchAction = isEditMode || scoringMode || isSelectingRegionOfInterest ? 'none' : 'pan-x pan-y pinch-zoom';
   const boardQaString = useMemo(() => boardToQaString(board), [board]);
   const boardStoneCount = useMemo(() => countBoardStones(board), [board]);
+  const boardQaProps = currentNode.properties ?? {};
 
   return (
     <div ref={containerRef} className="w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center">
@@ -2110,6 +2111,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         data-board-current-player={currentPlayer}
         data-board-stone-count={boardStoneCount}
         data-board-stones={boardQaString}
+        data-board-triangles={(boardQaProps.TR ?? []).join(',')}
+        data-board-squares={(boardQaProps.SQ ?? []).join(',')}
+        data-board-circles={(boardQaProps.CR ?? []).join(',')}
+        data-board-crosses={(boardQaProps.MA ?? []).join(',')}
+        data-board-labels={(boardQaProps.LB ?? []).join(',')}
         ref={boardSnapshotRef}
         style={{
           width: boardWidth,

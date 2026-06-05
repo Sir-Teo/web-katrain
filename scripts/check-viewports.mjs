@@ -284,6 +284,9 @@ function assertViewport(result) {
   if (result.clipboardSmokeFailures.length > 0) {
     failures.push(`clipboard smoke failures: ${result.clipboardSmokeFailures.join(', ')}`);
   }
+  if (result.editToolSmokeFailures.length > 0) {
+    failures.push(`edit tool smoke failures: ${result.editToolSmokeFailures.join(', ')}`);
+  }
   if (!result.scorePanelReachable) failures.push('score panel not reachable');
   if (result.scorePanelFailures.length > 0) {
     failures.push(`score panel failures: ${result.scorePanelFailures.join(', ')}`);
@@ -544,6 +547,84 @@ async function main() {
           }
           return failures;
         };
+        const runEditToolSmoke = async () => {
+          const failures = [];
+          const boardEl = document.querySelector('[data-board-snapshot="true"]');
+          if (!boardEl) return ['edit tool smoke: board missing'];
+          const size = Number(boardEl.getAttribute('data-board-size'));
+          const cellSize = Number(boardEl.getAttribute('data-board-cell-size'));
+          const originX = Number(boardEl.getAttribute('data-board-origin-x'));
+          const originY = Number(boardEl.getAttribute('data-board-origin-y'));
+          const beforeStones = boardEl.getAttribute('data-board-stones') || '';
+          if (!Number.isFinite(size) || size <= 0 || beforeStones.length !== size * size) {
+            return ['edit tool smoke: board metadata invalid'];
+          }
+          if (!Number.isFinite(cellSize) || cellSize <= 0 || !Number.isFinite(originX) || !Number.isFinite(originY)) {
+            return ['edit tool smoke: board geometry metadata invalid'];
+          }
+
+          const clickBoardPoint = async (x, y) => {
+            const r = boardEl.getBoundingClientRect();
+            boardEl.dispatchEvent(new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              clientX: r.left + originX + x * cellSize,
+              clientY: r.top + originY + y * cellSize,
+            }));
+            await waitForFrames(4);
+          };
+          const xyToSgf = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
+          const emptyIndexes = [];
+          for (let i = 0; i < beforeStones.length; i++) {
+            if (beforeStones[i] === '.') emptyIndexes.push(i);
+          }
+          if (emptyIndexes.length < 2) return ['edit tool smoke: not enough empty points'];
+          const setupIndex = emptyIndexes[0];
+          const markerIndex = emptyIndexes[1];
+          const setupPoint = { x: setupIndex % size, y: Math.floor(setupIndex / size) };
+          const markerPoint = { x: markerIndex % size, y: Math.floor(markerIndex / size) };
+          const markerCoord = xyToSgf(markerPoint.x, markerPoint.y);
+
+          const findFreshButton = (label) => Array.from(document.querySelectorAll('button')).find((button) =>
+            targetSearchText(button).includes(label)
+          ) || null;
+          const openEditButton = findFreshButton('Open SGF edit tools');
+          if (!openEditButton) return ['edit tool smoke: open control missing'];
+          openEditButton.click();
+          await waitForFrames(3);
+          if (!document.querySelector('[data-edit-toolbar]')) failures.push('edit toolbar did not open');
+
+          const whiteTool = findFreshButton('Setup white stone');
+          if (!whiteTool) {
+            failures.push('setup white tool missing');
+          } else {
+            whiteTool.click();
+            await waitForFrames(2);
+            await clickBoardPoint(setupPoint.x, setupPoint.y);
+            const afterSetup = boardEl.getAttribute('data-board-stones') || '';
+            if (afterSetup[setupIndex] !== 'W') failures.push('setup white tool did not place W');
+          }
+
+          const triangleTool = findFreshButton('Triangle marker');
+          if (!triangleTool) {
+            failures.push('triangle marker tool missing');
+          } else {
+            triangleTool.click();
+            await waitForFrames(2);
+            await clickBoardPoint(markerPoint.x, markerPoint.y);
+            const triangles = (boardEl.getAttribute('data-board-triangles') || '').split(',').filter(Boolean);
+            if (!triangles.includes(markerCoord)) failures.push('triangle marker tool did not record marker');
+          }
+
+          const closeEditButton = findFreshButton('Close edit mode');
+          if (!closeEditButton) {
+            failures.push('edit close control missing');
+          } else {
+            closeEditButton.click();
+            await waitForFrames(2);
+          }
+          return failures;
+        };
         const waitForSelector = async (selector) => {
           for (let i = 0; i < 60; i++) {
             const el = document.querySelector(selector);
@@ -784,6 +865,7 @@ async function main() {
         const scorePanelSmallTouchTargets = [];
         let scorePanelReachable = true;
         const clipboardSmokeFailures = await runClipboardSmoke();
+        let editToolSmokeFailures = [];
         const analysisDepthFailures = [];
         const analysisDepthSmallTouchTargets = [];
         let analysisDepthReachable = true;
@@ -1058,6 +1140,7 @@ async function main() {
             }
           }
         }
+        editToolSmokeFailures = await runEditToolSmoke();
         const boardInteractionFailures = await runBoardInteractionSmoke();
         const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
         const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
@@ -1096,6 +1179,7 @@ async function main() {
           modalSmokeFailures,
           modalSmallTouchTargets,
           clipboardSmokeFailures,
+          editToolSmokeFailures,
           scorePanelReachable,
           scorePanelFailures,
           scorePanelSmallTouchTargets,
