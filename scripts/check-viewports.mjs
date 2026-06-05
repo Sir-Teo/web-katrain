@@ -281,6 +281,9 @@ function assertViewport(result) {
   if (result.modalSmokeFailures.length > 0) {
     failures.push(`modal smoke failures: ${result.modalSmokeFailures.join(', ')}`);
   }
+  if (result.clipboardSmokeFailures.length > 0) {
+    failures.push(`clipboard smoke failures: ${result.clipboardSmokeFailures.join(', ')}`);
+  }
   if (!result.scorePanelReachable) failures.push('score panel not reachable');
   if (result.scorePanelFailures.length > 0) {
     failures.push(`score panel failures: ${result.scorePanelFailures.join(', ')}`);
@@ -664,6 +667,89 @@ async function main() {
             window.dispatchEvent(new CustomEvent('web-katrain:shortcuts-updated'));
           }
         };
+        const runClipboardSmoke = async () => {
+          const failures = [];
+          const waitForToastText = async (text) => {
+            for (let i = 0; i < 30; i++) {
+              const toast = Array.from(document.querySelectorAll('.notification-toast')).find((candidate) =>
+                (candidate.textContent || '').includes(text)
+              );
+              if (toast) return toast;
+              await waitForFrames(1);
+            }
+            return null;
+          };
+          const originalClipboard = (() => {
+            try {
+              return navigator.clipboard;
+            } catch {
+              return undefined;
+            }
+          })();
+          const hadOwnClipboard = Object.prototype.hasOwnProperty.call(navigator, 'clipboard');
+          const originalQaClipboard = window.__webKatrainQaClipboardText;
+          try {
+            Object.defineProperty(navigator, 'clipboard', {
+              configurable: true,
+              value: {
+                writeText: async (text) => {
+                  window.__webKatrainQaClipboardText = String(text);
+                },
+                readText: async () => String(window.__webKatrainQaClipboardText || ''),
+              },
+            });
+          } catch (error) {
+            return ['clipboard mock failed: ' + (error instanceof Error ? error.message : String(error))];
+          }
+
+          try {
+            await withShortcutOverride('copy-sgf', { key: 'F10', ctrl: false, shift: false, alt: false }, async () => {
+              dispatchShortcut('F10');
+              await waitForFrames(4);
+            });
+            const copied = String(window.__webKatrainQaClipboardText || '');
+            if (!/^\\(\\s*;/.test(copied)) failures.push('copied text is not SGF');
+            if (!copied.includes('SZ[')) failures.push('copied SGF is missing board size');
+            const copiedToast = await waitForToastText('Copied SGF to clipboard');
+            if (!copiedToast) failures.push('copy success toast missing');
+            copiedToast?.querySelector('.notification-toast-close')?.click();
+            await waitForFrames(2);
+
+            const pasteSgf = '(;FF[4]GM[1]SZ[19]AB[dd]PL[W])';
+            window.__webKatrainQaClipboardText = pasteSgf;
+            await withShortcutOverride('paste-sgf', { key: 'F11', ctrl: false, shift: false, alt: false }, async () => {
+              dispatchShortcut('F11');
+              await waitForFrames(8);
+            });
+            const boardEl = document.querySelector('[data-board-snapshot="true"]');
+            const stones = boardEl?.getAttribute('data-board-stones') || '';
+            const size = Number(boardEl?.getAttribute('data-board-size'));
+            const ddIndex = 3 + 3 * size;
+            if (!boardEl || !Number.isFinite(size) || stones[ddIndex] !== 'B') {
+              failures.push('pasted setup SGF did not place B at dd');
+            }
+            const loadedToast = await waitForToastText('Loaded SGF');
+            if (!loadedToast) failures.push('paste success toast missing');
+            loadedToast?.querySelector('.notification-toast-close')?.click();
+            await waitForFrames(2);
+          } finally {
+            if (originalQaClipboard === undefined) {
+              delete window.__webKatrainQaClipboardText;
+            } else {
+              window.__webKatrainQaClipboardText = originalQaClipboard;
+            }
+            try {
+              if (hadOwnClipboard) {
+                Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard });
+              } else {
+                delete navigator.clipboard;
+              }
+            } catch {
+              // Best effort restore for the mocked clipboard.
+            }
+          }
+          return failures;
+        };
         const findButtonByLabel = (label, scope = document) => Array.from(scope.querySelectorAll('button')).find((candidate) => {
           const candidateLabel = targetLabel(candidate);
           return candidateLabel === label || candidateLabel.includes(label) || targetSearchText(candidate).includes(label);
@@ -697,6 +783,7 @@ async function main() {
         const scorePanelFailures = [];
         const scorePanelSmallTouchTargets = [];
         let scorePanelReachable = true;
+        const clipboardSmokeFailures = await runClipboardSmoke();
         const analysisDepthFailures = [];
         const analysisDepthSmallTouchTargets = [];
         let analysisDepthReachable = true;
@@ -1008,6 +1095,7 @@ async function main() {
           editModeSmallTouchTargets,
           modalSmokeFailures,
           modalSmallTouchTargets,
+          clipboardSmokeFailures,
           scorePanelReachable,
           scorePanelFailures,
           scorePanelSmallTouchTargets,

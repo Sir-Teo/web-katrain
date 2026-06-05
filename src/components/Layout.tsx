@@ -2838,6 +2838,13 @@ export const Layout: React.FC = () => {
                 stopGameAnalysis={stopGameAnalysis}
                 onOpenGameReport={() => setIsGameReportOpen(true)}
               />
+              {notification && (
+                <NotificationToast
+                  notification={notification}
+                  onClose={clearNotification}
+                  commandBarVisible={showAnalysisCommandBar}
+                />
+              )}
               <div className="relative flex min-h-0 flex-1 min-w-0">
                 <EditToolbar isMobile={false} analysisCommandBarVisible={false} />
                 <ManualScorePanel

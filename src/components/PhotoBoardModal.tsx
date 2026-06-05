@@ -481,7 +481,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
   ].join(' ');
   const traceTransformButtonClass = [
-    'min-h-10 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] transition-colors hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--ui-surface)] disabled:hover:text-[var(--ui-text-muted)]',
+    'min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] transition-colors hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--ui-surface)] disabled:hover:text-[var(--ui-text-muted)]',
   ].join(' ');
   const deltaMarkerClass = (type: PhotoBoardDeltaStone['type']) => [
     'pointer-events-none absolute z-20 grid h-4 w-4 place-items-center rounded-full border text-[9px] font-black leading-none shadow',
@@ -731,7 +731,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="min-h-10 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!canUseCurrentBoard}
                 onClick={useCurrentBoard}
                 title={
