@@ -38,3 +38,27 @@ export function getAppLocaleHtmlLang(value: AppLocaleId): string {
 export function getAppLocaleShortLabel(value: AppLocaleId): string {
   return getAppLocaleOption(value).value.toUpperCase();
 }
+
+function appLocaleFromLanguageTag(languageTag: unknown): AppLocaleId | null {
+  if (typeof languageTag !== 'string') return null;
+  const normalized = languageTag.trim().toLowerCase().replace('_', '-');
+  if (!normalized) return null;
+  const [baseLanguage] = normalized.split('-');
+  if (!baseLanguage) return null;
+  return isAppLocaleId(baseLanguage) ? baseLanguage : null;
+}
+
+export function getPreferredAppLocaleId(languageTags?: readonly unknown[]): AppLocaleId {
+  const candidates = languageTags ?? (
+    typeof navigator === 'undefined'
+      ? []
+      : [...(navigator.languages ?? []), navigator.language]
+  );
+
+  for (const languageTag of candidates) {
+    const locale = appLocaleFromLanguageTag(languageTag);
+    if (locale) return locale;
+  }
+
+  return 'en';
+}

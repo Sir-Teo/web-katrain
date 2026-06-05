@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { APP_LOCALE_OPTIONS, getAppLocaleHtmlLang, getAppLocaleOption, getAppLocaleShortLabel, isAppLocaleId } from '../src/utils/locales';
+import {
+  APP_LOCALE_OPTIONS,
+  getAppLocaleHtmlLang,
+  getAppLocaleOption,
+  getAppLocaleShortLabel,
+  getPreferredAppLocaleId,
+  isAppLocaleId,
+} from '../src/utils/locales';
 
 describe('app locales', () => {
   it('matches Kaya locale coverage with browser language metadata', () => {
@@ -17,5 +24,12 @@ describe('app locales', () => {
     expect(isAppLocaleId('pt')).toBe(false);
     expect(isAppLocaleId(null)).toBe(false);
     expect(getAppLocaleOption('en').nativeLabel).toBe('English');
+  });
+
+  it('chooses the first supported browser language before falling back to English', () => {
+    expect(getPreferredAppLocaleId(['fr-CA', 'en-US'])).toBe('fr');
+    expect(getPreferredAppLocaleId(['pt-BR', 'zh-TW'])).toBe('zh');
+    expect(getPreferredAppLocaleId(['de_DE'])).toBe('de');
+    expect(getPreferredAppLocaleId(['', null, 'pt-BR'])).toBe('en');
   });
 });

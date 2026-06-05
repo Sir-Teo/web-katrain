@@ -11,7 +11,7 @@ import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katra
 import { decodeKayaKa } from '../utils/kayaSgfAnalysis';
 import { publicUrl } from '../utils/publicUrl';
 import { isBoardThemeId } from '../utils/boardThemes';
-import { isAppLocaleId } from '../utils/locales';
+import { getPreferredAppLocaleId, isAppLocaleId } from '../utils/locales';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
 import {
@@ -1055,6 +1055,7 @@ const defaultSettings: GameSettings = {
 
 const initialSettings: GameSettings = {
   ...defaultSettings,
+  appLocale: getPreferredAppLocaleId(),
   ...(loadStoredSettings() ?? {}),
 };
 
