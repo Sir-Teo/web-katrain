@@ -117,6 +117,7 @@ describe('MenuDrawer', () => {
     expect(html).toContain('for="menu-app-locale"');
     expect(html).toContain('id="menu-app-locale"');
     expect(html).toContain('data-menu-locale="true"');
+    expect(html).toContain('言語');
     expect(html).toContain('Japanese');
   });
 });

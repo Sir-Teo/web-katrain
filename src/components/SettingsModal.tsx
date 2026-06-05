@@ -714,7 +714,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         <p className={subtextClass}>Defaults for the New Game dialog.</p>
 
                                         <div className="space-y-2">
-                                            <label htmlFor="settings-app-locale" className="ui-text-muted block">Language</label>
+                                            <label htmlFor="settings-app-locale" className="ui-text-muted block">{appLocaleMeta?.languageLabel ?? 'Language'}</label>
                                             <select
                                                 id="settings-app-locale"
                                                 value={settings.appLocale}

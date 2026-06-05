@@ -42,8 +42,8 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
         type="button"
         className="h-8 min-w-[74px] px-2 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
         onClick={() => setOpen((value) => !value)}
-        title={`Language: ${activeLocale.label} (${activeLocale.nativeLabel})`}
-        aria-label={`Change language, current language ${activeLocale.label}`}
+        title={`${activeLocale.languageLabel}: ${activeLocale.label} (${activeLocale.nativeLabel})`}
+        aria-label={`${activeLocale.changeLanguageLabel}: ${activeLocale.label}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={menuId}
@@ -59,12 +59,12 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
         <div
           id={menuId}
           role="listbox"
-          aria-label="Select language"
+          aria-label={activeLocale.selectLanguageLabel}
           className="absolute right-0 top-full mt-2 w-[224px] ui-panel border rounded-lg shadow-xl overflow-hidden z-50"
           data-language-switcher-menu="true"
         >
           <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)]">
-            Language
+            {activeLocale.selectLanguageLabel}
           </div>
           {APP_LOCALE_OPTIONS.map((locale) => {
             const active = locale.value === activeLocale.value;

@@ -240,7 +240,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded"
             >
               <span className="flex min-w-0 flex-col">
-                <span className="text-sm text-[var(--ui-text)]">Language</span>
+                <span className="text-sm text-[var(--ui-text)]">{activeLocale.languageLabel}</span>
                 <span className="text-xs ui-text-faint truncate">{activeLocale.label}</span>
               </span>
               <select

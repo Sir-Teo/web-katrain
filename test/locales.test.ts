@@ -7,6 +7,8 @@ describe('app locales', () => {
     expect(getAppLocaleHtmlLang('zh')).toBe('zh-Hans');
     expect(getAppLocaleHtmlLang('ja')).toBe('ja');
     expect(getAppLocaleShortLabel('de')).toBe('DE');
+    expect(getAppLocaleOption('es').languageLabel).toBe('Idioma');
+    expect(getAppLocaleOption('it').selectLanguageLabel).toBe('Seleziona lingua');
   });
 
   it('validates persisted locale ids defensively', () => {

@@ -91,7 +91,7 @@ describe('TopControlBar', () => {
     expect(html).toContain('data-language-switcher="desktop"');
     expect(html).toContain('data-language-switcher-button="true"');
     expect(html).toContain('data-current-locale="en"');
-    expect(html).toContain('Change language, current language English');
+    expect(html).toContain('Change language: English');
   });
 
   it('lists all locale choices when the desktop language switcher is open', () => {
@@ -102,6 +102,7 @@ describe('TopControlBar', () => {
     expect(source).toContain('role="listbox"');
     expect(source).toContain('role="option"');
     expect(source).toContain('onLocaleChange(locale);');
+    expect(source).toContain('activeLocale.selectLanguageLabel');
     expect(readFileSync('src/index.css', 'utf8')).toContain('.app-language-switcher');
   });
 
