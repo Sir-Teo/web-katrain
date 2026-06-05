@@ -27,4 +27,16 @@ describe('DesktopDashboard', () => {
     expect(css).toContain('.wk-dashboard .dashboard-language-switcher');
     expect(css).toContain('.wk-dashboard[data-layout="compact"] .dashboard-language-switcher');
   });
+
+  it('uses the design-system dashboard theme and real app icon', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(source).toContain("publicUrl('pwa/icon-512.png')");
+    expect(source).toContain('<img className="brand-mark" src={BRAND_ICON_URL}');
+    expect(css).toContain('--canvas: var(--ui-bg);');
+    expect(css).toContain('--panel: var(--ui-panel);');
+    expect(css).not.toContain('--ui-bg: #f5f7fb;');
+    expect(css).not.toContain('--ui-panel: #ffffff;');
+  });
 });

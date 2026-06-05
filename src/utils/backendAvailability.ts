@@ -12,8 +12,9 @@ function getNavigatorGpuLike(): NavigatorGpuLike | null {
 }
 
 export function detectWebGpuAvailability(
-  nav: NavigatorGpuLike | null | undefined = getNavigatorGpuLike()
+  navArg?: NavigatorGpuLike | null | undefined
 ): BrowserBackendAvailability {
+  const nav = arguments.length === 0 ? getNavigatorGpuLike() : navArg;
   if (!nav) return 'unknown';
   return nav.gpu ? 'available' : 'unavailable';
 }

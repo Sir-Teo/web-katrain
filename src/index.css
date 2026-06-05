@@ -108,6 +108,94 @@
     color-scheme: light;
   }
 
+  :root {
+    --sans: var(--ui-font);
+    --mono: var(--ui-font-mono);
+
+    --space-0: 0;
+    --space-1: 2px;
+    --space-2: 4px;
+    --space-3: 6px;
+    --space-4: 8px;
+    --space-5: 10px;
+    --space-6: 12px;
+    --space-7: 14px;
+    --space-8: 16px;
+    --space-10: 20px;
+    --space-12: 24px;
+    --space-16: 32px;
+
+    --text-2xs: 10px;
+    --text-xs: 11px;
+    --text-sm: 12.5px;
+    --text-base: 14px;
+    --text-md: 15px;
+    --text-lg: 17px;
+    --text-xl: 20px;
+    --text-2xl: 26px;
+    --text-3xl: 34px;
+
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+
+    --leading-tight: 1.1;
+    --leading-snug: 1.3;
+    --leading-normal: 1.45;
+    --leading-relaxed: 1.5;
+
+    --tracking-normal: 0;
+    --tracking-label: 0.06em;
+    --tracking-wide: 0.09em;
+
+    --r-xs: 5px;
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+    --r-pill: 999px;
+
+    --shadow-card: 0 2px 10px rgba(17, 24, 39, 0.07);
+    --shadow-pop: 0 8px 28px rgba(17, 24, 39, 0.14);
+    --shadow-pop-dark: 0 12px 32px rgba(0, 0, 0, 0.22);
+    --shadow-modal-dark: 0 16px 40px rgba(0, 0, 0, 0.34);
+
+    --eval-blunder: rgb(114, 33, 107);
+    --eval-mistake: rgb(204, 0, 0);
+    --eval-inaccuracy: rgb(230, 102, 26);
+    --eval-slight: rgb(216, 216, 0);
+    --eval-good: rgb(171, 230, 46);
+    --eval-best: rgb(30, 150, 0);
+
+    --goban: #e9d4a6;
+    --goban-edge: #d8bd86;
+    --goban-line: #9a7e4f;
+    --goban-star: #6f5a35;
+    --stone-shadow: rgba(31, 28, 20, 0.32);
+    --stone-black: radial-gradient(circle at 35% 30%, #5a5a5a 0%, #232323 40%, #050505 100%);
+    --stone-white: radial-gradient(circle at 32% 28%, #ffffff 0%, #f1f1f1 42%, #cfcfcf 100%);
+
+    --live: #4f6ef7;
+    --live-soft: #eef1fe;
+
+    --grade-green: #047857;
+    --grade-green-bg: #ecfdf5;
+    --grade-amber: #92400e;
+    --grade-amber-bg: #fffbeb;
+    --grade-red: #b91c1c;
+    --grade-red-bg: #fef2f2;
+
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --dur-fast: 0.12s;
+    --dur: 0.15s;
+    --dur-slow: 0.22s;
+    --transition-colors:
+      background var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
   :root[data-ui-density='compact'] {
     --ui-font-size: 14px;
     --ui-bar-height: 52px;

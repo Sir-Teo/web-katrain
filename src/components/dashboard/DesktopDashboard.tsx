@@ -14,8 +14,10 @@ import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/da
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage } from '../../utils/storage';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_INFO, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
+import { publicUrl } from '../../utils/publicUrl';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
+const BRAND_ICON_URL = publicUrl('pwa/icon-512.png');
 
 export interface DesktopDashboardProps {
   // ---- slots (heavy components, read from the store themselves) ----
@@ -349,7 +351,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       {/* ============ Header ============ */}
       <header className="header">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true" />
+          <img className="brand-mark" src={BRAND_ICON_URL} alt="" aria-hidden="true" />
           <span className="brand-name">Web <b>KaTrain</b></span>
           {APP_COMMIT_URL ? (
             <a
