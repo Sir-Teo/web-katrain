@@ -9,6 +9,7 @@ import { formatMoveLabel } from '../layout/ui-utils';
 import { MoveTree } from '../MoveTree';
 import { ScoreWinrateGraph } from '../ScoreWinrateGraph';
 import { NotesPanel } from '../NotesPanel';
+import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage } from '../../utils/storage';
@@ -395,6 +396,12 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         </div>
 
         <div className="header-spacer" />
+
+        <LanguageSwitcher
+          appLocale={settings.appLocale}
+          onLocaleChange={(appLocale) => updateSettings({ appLocale })}
+          className="dashboard-language-switcher"
+        />
 
         <button
           type="button"

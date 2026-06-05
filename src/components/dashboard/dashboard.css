@@ -185,6 +185,32 @@
 
 .wk-dashboard .header-divider { width: 1px; height: 22px; background: var(--line); flex: none; }
 .wk-dashboard .header-spacer { flex: 1 1 auto; min-width: 8px; }
+.wk-dashboard .dashboard-language-switcher { flex: none; }
+.wk-dashboard .dashboard-language-switcher > button {
+  background: var(--panel);
+  border-color: var(--line-strong);
+  color: var(--ink-soft);
+}
+.wk-dashboard .dashboard-language-switcher > button:hover {
+  background: var(--panel-soft);
+  color: var(--ink);
+}
+.wk-dashboard .dashboard-language-switcher [data-language-switcher-menu="true"] {
+  background: var(--canvas);
+  border-color: var(--line);
+  box-shadow: var(--shadow-pop);
+}
+.wk-dashboard .dashboard-language-switcher [data-language-option] {
+  color: var(--muted);
+}
+.wk-dashboard .dashboard-language-switcher [data-language-option]:hover {
+  background: var(--panel-soft);
+  color: var(--ink);
+}
+.wk-dashboard .dashboard-language-switcher [data-language-option][aria-selected="true"] {
+  background: var(--panel-soft);
+  color: var(--ink);
+}
 
 /* generic icon button */
 .wk-dashboard .iconbtn {
@@ -803,6 +829,8 @@
   gap: 6px;
   padding: 0 8px;
 }
+.wk-dashboard[data-layout="compact"] .dashboard-language-switcher,
+.wk-dashboard[data-layout="narrow"] .dashboard-language-switcher { display: none; }
 .wk-dashboard[data-layout="compact"] #wk-engine-pill-meta { display: none; }
 
 .wk-dashboard[data-layout="narrow"] #wk-util-actions,

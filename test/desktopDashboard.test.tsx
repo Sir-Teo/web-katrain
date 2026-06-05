@@ -15,4 +15,15 @@ describe('DesktopDashboard', () => {
     expect(icons).toContain('bug:');
     expect(APP_ISSUE_REPORT_URL).toBe('https://github.com/Sir-Teo/web-katrain/issues/new/choose');
   });
+
+  it('keeps the language switcher on the wide desktop dashboard header', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(source).toContain("import { LanguageSwitcher } from '../layout/LanguageSwitcher';");
+    expect(source).toContain('className="dashboard-language-switcher"');
+    expect(source).toContain('onLocaleChange={(appLocale) => updateSettings({ appLocale })}');
+    expect(css).toContain('.wk-dashboard .dashboard-language-switcher');
+    expect(css).toContain('.wk-dashboard[data-layout="compact"] .dashboard-language-switcher');
+  });
 });

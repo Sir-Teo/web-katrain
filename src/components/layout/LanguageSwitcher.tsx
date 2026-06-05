@@ -6,9 +6,10 @@ import { APP_LOCALE_OPTIONS, getAppLocaleOption, getAppLocaleShortLabel } from '
 interface LanguageSwitcherProps {
   appLocale: AppLocaleId;
   onLocaleChange: (locale: AppLocaleId) => void;
+  className?: string;
 }
 
-export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, onLocaleChange }) => {
+export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, onLocaleChange, className }) => {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const activeLocale = getAppLocaleOption(appLocale);
@@ -36,7 +37,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
   };
 
   return (
-    <div className="relative hidden xl:block" ref={containerRef} data-language-switcher="desktop">
+    <div className={['relative hidden xl:block', className ?? ''].join(' ')} ref={containerRef} data-language-switcher="desktop">
       <button
         type="button"
         className="h-8 min-w-[74px] px-2 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
