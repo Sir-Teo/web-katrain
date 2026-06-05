@@ -5,7 +5,8 @@ import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { formatLibrarySize, type LibraryFile } from '../../utils/library';
 import { getQuickNewGameWarning } from '../../utils/quickNewGame';
-import type { BoardSize } from '../../types';
+import { APP_LOCALE_OPTIONS, getAppLocaleOption } from '../../utils/locales';
+import type { AppLocaleId, BoardSize } from '../../types';
 
 const MENU_DRAWER_SHORTCUT_IDS = [
   'new-game',
@@ -36,6 +37,8 @@ interface MenuDrawerProps {
   onCommandPalette: () => void;
   onKeyboardHelp: () => void;
   onAbout: () => void;
+  appLocale?: AppLocaleId;
+  onLocaleChange?: (locale: AppLocaleId) => void;
   quickNewGameBoardSize?: BoardSize;
   recentItems?: LibraryFile[];
   onOpenRecent?: (item: LibraryFile) => void;
@@ -58,12 +61,15 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onCommandPalette,
   onKeyboardHelp,
   onAbout,
+  appLocale = 'en',
+  onLocaleChange,
   quickNewGameBoardSize = 19,
   recentItems = [],
   onOpenRecent,
 }) => {
   const shortcutLabels = useShortcutLabels(MENU_DRAWER_SHORTCUT_IDS);
   const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize);
+  const activeLocale = getAppLocaleOption(appLocale);
   useEscapeToClose(onClose, open);
 
   if (!open) return null;
@@ -229,6 +235,28 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           </div>
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Settings</div>
+            <label
+              htmlFor="menu-app-locale"
+              className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded"
+            >
+              <span className="flex min-w-0 flex-col">
+                <span className="text-sm text-[var(--ui-text)]">Language</span>
+                <span className="text-xs ui-text-faint truncate">{activeLocale.label}</span>
+              </span>
+              <select
+                id="menu-app-locale"
+                value={activeLocale.value}
+                onChange={(event) => onLocaleChange?.(event.target.value as AppLocaleId)}
+                className="ui-input min-h-11 max-w-[9rem] rounded border px-2 py-1 text-sm text-[var(--ui-text)]"
+                data-menu-locale="true"
+              >
+                {APP_LOCALE_OPTIONS.map((locale) => (
+                  <option key={locale.value} value={locale.value}>
+                    {locale.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
               onClick={() => {

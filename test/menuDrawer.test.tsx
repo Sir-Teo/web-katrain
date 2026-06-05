@@ -91,4 +91,32 @@ describe('MenuDrawer', () => {
     expect(html).toContain('Quick new game (13x13): starts immediately and replaces the current game without saving.');
     expect(html).toContain('Immediate');
   });
+
+  it('offers the app locale in the mobile menu settings section', () => {
+    const html = renderToStaticMarkup(
+      <MenuDrawer
+        open
+        onClose={() => undefined}
+        onQuickNewGame={() => undefined}
+        onNewGame={() => undefined}
+        onSave={() => undefined}
+        onSaveToLibrary={() => undefined}
+        onLoad={() => undefined}
+        onScanBoard={() => undefined}
+        onCopy={() => undefined}
+        onPaste={() => undefined}
+        onSettings={() => undefined}
+        onCommandPalette={() => undefined}
+        onKeyboardHelp={() => undefined}
+        onAbout={() => undefined}
+        appLocale="ja"
+        onLocaleChange={() => undefined}
+      />
+    );
+
+    expect(html).toContain('for="menu-app-locale"');
+    expect(html).toContain('id="menu-app-locale"');
+    expect(html).toContain('data-menu-locale="true"');
+    expect(html).toContain('Japanese');
+  });
 });

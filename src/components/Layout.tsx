@@ -2749,6 +2749,8 @@ export const Layout: React.FC = () => {
         onCommandPalette={() => setIsCommandPaletteOpen(true)}
         onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
         onAbout={() => setIsAboutOpen(true)}
+        appLocale={settings.appLocale}
+        onLocaleChange={(appLocale) => updateSettings({ appLocale })}
         quickNewGameBoardSize={settings.defaultBoardSize}
         recentItems={recentLibraryItems}
         onOpenRecent={handleOpenRecent}

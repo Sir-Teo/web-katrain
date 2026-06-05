@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { APP_LOCALE_OPTIONS, getAppLocaleHtmlLang, getAppLocaleOption, isAppLocaleId } from '../src/utils/locales';
+import { APP_LOCALE_OPTIONS, getAppLocaleHtmlLang, getAppLocaleOption, getAppLocaleShortLabel, isAppLocaleId } from '../src/utils/locales';
 
 describe('app locales', () => {
   it('matches Kaya locale coverage with browser language metadata', () => {
     expect(APP_LOCALE_OPTIONS.map((locale) => locale.value)).toEqual(['en', 'zh', 'ko', 'ja', 'fr', 'de', 'es', 'it']);
     expect(getAppLocaleHtmlLang('zh')).toBe('zh-Hans');
     expect(getAppLocaleHtmlLang('ja')).toBe('ja');
+    expect(getAppLocaleShortLabel('de')).toBe('DE');
   });
 
   it('validates persisted locale ids defensively', () => {

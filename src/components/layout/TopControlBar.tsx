@@ -30,6 +30,7 @@ import {
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
 import { EngineStatusBadge, IconButton } from './ui';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../../utils/boardThemes';
 import { UI_THEME_OPTIONS } from '../../utils/uiThemes';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
@@ -727,6 +728,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <FaKeyboard />
           </IconButton>
         </div>
+        {!isMobile && (
+          <LanguageSwitcher
+            appLocale={settings.appLocale}
+            onLocaleChange={(appLocale) => updateSettings({ appLocale })}
+          />
+        )}
         <div className="relative" data-menu-popover>
           {isMobile ? (
             <IconButton

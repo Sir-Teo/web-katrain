@@ -84,6 +84,25 @@ describe('TopControlBar', () => {
     expect(html).not.toContain('data-mobile-board-theme-cycle="true"');
   });
 
+  it('exposes the desktop language switcher', () => {
+    const html = renderToStaticMarkup(<TopControlBar {...baseProps} isMobile={false} />);
+
+    expect(html).toContain('data-language-switcher="desktop"');
+    expect(html).toContain('data-language-switcher-button="true"');
+    expect(html).toContain('data-current-locale="en"');
+    expect(html).toContain('Change language, current language English');
+  });
+
+  it('lists all locale choices when the desktop language switcher is open', () => {
+    const source = readFileSync('src/components/layout/LanguageSwitcher.tsx', 'utf8');
+
+    expect(source).toContain('data-language-switcher-menu="true"');
+    expect(source).toContain('data-language-option={locale.value}');
+    expect(source).toContain('role="listbox"');
+    expect(source).toContain('role="option"');
+    expect(source).toContain('onLocaleChange(locale);');
+  });
+
   it('warns that quick new game replaces the current game immediately', () => {
     const html = renderToStaticMarkup(<TopControlBar {...baseProps} isMobile={false} />);
 

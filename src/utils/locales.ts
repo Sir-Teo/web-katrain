@@ -31,3 +31,7 @@ export function getAppLocaleOption(value: AppLocaleId): AppLocaleOption {
 export function getAppLocaleHtmlLang(value: AppLocaleId): string {
   return getAppLocaleOption(value).htmlLang;
 }
+
+export function getAppLocaleShortLabel(value: AppLocaleId): string {
+  return getAppLocaleOption(value).value.toUpperCase();
+}

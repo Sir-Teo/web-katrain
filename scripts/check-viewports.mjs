@@ -1172,6 +1172,42 @@ async function main() {
         let boardThemeSmokeRan = false;
         const localeSmokeFailures = [];
         let localeSmokeRan = false;
+        const runTopLanguageSwitcherSmoke = async () => {
+          if (${viewport.mobile}) return;
+          const trigger = document.querySelector('[data-language-switcher-button="true"]');
+          if (!trigger || !isVisibleBox(trigger)) {
+            return;
+          }
+          trigger.click();
+          await waitForFrames(3);
+          const menu = document.querySelector('[data-language-switcher-menu="true"]');
+          if (!menu) {
+            localeSmokeFailures.push('top language switcher menu missing');
+            return;
+          }
+          const optionValues = Array.from(menu.querySelectorAll('[data-language-option]')).map((option) => option.getAttribute('data-language-option'));
+          const requiredLocales = ['en', 'zh', 'ko', 'ja', 'fr', 'de', 'es', 'it'];
+          for (const locale of requiredLocales) {
+            if (!optionValues.includes(locale)) localeSmokeFailures.push('top language option missing: ' + locale);
+          }
+          const germanOption = menu.querySelector('[data-language-option="de"]');
+          if (!germanOption) {
+            localeSmokeFailures.push('top language German option missing');
+            return;
+          }
+          germanOption.click();
+          await waitForFrames(4);
+          if (document.documentElement.lang !== 'de') {
+            localeSmokeFailures.push('top language switcher did not update html lang to de');
+          }
+          if (document.documentElement.getAttribute('data-locale') !== 'de') {
+            localeSmokeFailures.push('top language switcher did not update root data-locale to de');
+          }
+          const afterTrigger = document.querySelector('[data-language-switcher-button="true"]');
+          if (afterTrigger?.getAttribute('data-current-locale') !== 'de') {
+            localeSmokeFailures.push('top language switcher current locale not updated');
+          }
+        };
         const runBoardThemePickerSmoke = async (dialog) => {
           if (boardThemeSmokeRan) return;
           boardThemeSmokeRan = true;
@@ -1478,6 +1514,7 @@ async function main() {
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }
         photoBoardTraceImportFailures = await runPhotoBoardTraceImportSmoke();
+        await runTopLanguageSwitcherSmoke();
         await smokeModal({
           name: 'keyboard shortcuts',
           selector: '[aria-labelledby="keyboard-help-title"]',
@@ -1538,6 +1575,26 @@ async function main() {
               const menuDialog = await waitForSelector('[aria-labelledby="menu-title"]');
               if (!menuDialog) throw new Error('Menu drawer did not open');
               modalSmallTouchTargets.push(...auditSmallTouchTargets(menuDialog).map((target) => ({ ...target, modal: 'menu drawer' })));
+              const menuLocale = menuDialog.querySelector('[data-menu-locale="true"]');
+              if (!menuLocale) {
+                localeSmokeFailures.push('mobile menu locale selector missing');
+              } else {
+                const optionValues = Array.from(menuLocale.querySelectorAll('option')).map((option) => option.value);
+                for (const locale of ['en', 'zh', 'ko', 'ja', 'fr', 'de', 'es', 'it']) {
+                  if (!optionValues.includes(locale)) localeSmokeFailures.push('mobile menu locale option missing: ' + locale);
+                }
+                const valueSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+                if (valueSetter) valueSetter.call(menuLocale, 'fr');
+                else menuLocale.value = 'fr';
+                menuLocale.dispatchEvent(new Event('change', { bubbles: true }));
+                await waitForFrames(4);
+                if (document.documentElement.lang !== 'fr') {
+                  localeSmokeFailures.push('mobile menu locale did not update html lang to fr');
+                }
+                if (document.documentElement.getAttribute('data-locale') !== 'fr') {
+                  localeSmokeFailures.push('mobile menu locale did not update root data-locale to fr');
+                }
+              }
               const settingsButton = findButtonByLabel('Open settings', menuDialog) || findButtonByLabel('Settings', menuDialog);
               if (!settingsButton) throw new Error('Settings action missing in menu');
               settingsButton.click();
