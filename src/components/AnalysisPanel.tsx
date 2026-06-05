@@ -34,6 +34,7 @@ import { formatEngineErrorReport } from '../utils/engineDiagnostics';
 import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import {
+  isReportReadyAnalysis,
   summarizeAnalysisCoverage,
   type AnalysisCoverageSummary,
 } from '../utils/analysisCoverage';
@@ -315,13 +316,17 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   );
   const scoreLeadLabel = formatAnalysisScoreLead(scoreLead);
   const pointsSummary = summarizePointsLost(pointsLost);
-  const analysisCoverage = summarizeAnalysisCoverage(getCurrentLineNodes(currentNode, activeBranchChildIds));
+  const currentLineNodes = getCurrentLineNodes(currentNode, activeBranchChildIds);
+  const analysisCoverage = summarizeAnalysisCoverage(currentLineNodes);
+  const reportReadyCoverage = summarizeAnalysisCoverage(currentLineNodes, {
+    isAnalyzed: (node) => isReportReadyAnalysis(node.analysis),
+  });
   const fastMctsButton = getFastMctsPanelButtonState({
     isGameAnalysisRunning,
     gameAnalysisType,
     gameAnalysisDone,
     gameAnalysisTotal,
-    analysisCoverage,
+    analysisCoverage: reportReadyCoverage,
   });
   React.useEffect(() => {
     setEngineErrorCopied(false);

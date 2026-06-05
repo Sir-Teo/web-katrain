@@ -12,11 +12,20 @@ export interface AnalysisCoverageSummary {
   tone: AnalysisCoverageTone;
 }
 
+export function isReportReadyAnalysis(analysis: GameNode['analysis']): boolean {
+  if (!analysis) return false;
+  if (!Number.isFinite(analysis.rootScoreLead) || !Number.isFinite(analysis.rootWinRate)) return false;
+  if (analysis.moves.length > 0) return true;
+  return typeof analysis.rootVisits === 'number' && Number.isFinite(analysis.rootVisits) && analysis.rootVisits > 1;
+}
+
 export function summarizeAnalysisCoverage(
-  nodes: readonly Pick<GameNode, 'analysis'>[]
+  nodes: readonly Pick<GameNode, 'analysis'>[],
+  options: { isAnalyzed?: (node: Pick<GameNode, 'analysis'>) => boolean } = {}
 ): AnalysisCoverageSummary {
   const total = nodes.length;
-  const analyzed = nodes.reduce((count, node) => count + (node.analysis ? 1 : 0), 0);
+  const isAnalyzed = options.isAnalyzed ?? ((node: Pick<GameNode, 'analysis'>) => !!node.analysis);
+  const analyzed = nodes.reduce((count, node) => count + (isAnalyzed(node) ? 1 : 0), 0);
   const percent = total > 0 ? analyzed / total : 0;
   const tone: AnalysisCoverageTone =
     total === 0 || analyzed === 0 ? 'empty' : analyzed === total ? 'complete' : 'partial';

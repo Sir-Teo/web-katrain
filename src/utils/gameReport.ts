@@ -1,4 +1,5 @@
 import type { CandidateMove, GameNode, Player } from '../types';
+import { isReportReadyAnalysis } from './analysisCoverage';
 import { getCurrentLineNodes, type ActiveBranchMap } from './branchNavigation';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
@@ -105,11 +106,7 @@ function computePointsLostStrict(node: GameNode): number | null {
 }
 
 function hasReportPositionAnalysis(node: GameNode): boolean {
-  const analysis = node.analysis;
-  if (!analysis) return false;
-  if (!Number.isFinite(analysis.rootScoreLead) || !Number.isFinite(analysis.rootWinRate)) return false;
-  if (analysis.moves.length > 0) return true;
-  return typeof analysis.rootVisits === 'number' && Number.isFinite(analysis.rootVisits) && analysis.rootVisits > 1;
+  return isReportReadyAnalysis(node.analysis);
 }
 
 function hasReportCandidateMoves(node: GameNode): boolean {

@@ -1,15 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AnalysisCoverageReadout } from '../src/components/AnalysisPanel';
-import { summarizeAnalysisCoverage } from '../src/utils/analysisCoverage';
-import type { GameNode } from '../src/types';
-
-const analyzedNode = (): Pick<GameNode, 'analysis'> => ({
-  analysis: {} as NonNullable<GameNode['analysis']>,
-});
+import { isReportReadyAnalysis, summarizeAnalysisCoverage } from '../src/utils/analysisCoverage';
+import type { AnalysisResult, GameNode } from '../src/types';
 
 const unanalyzedNode = (): Pick<GameNode, 'analysis'> => ({
   analysis: null,
+});
+
+const analysis = (overrides: Partial<AnalysisResult>): AnalysisResult => ({
+  rootWinRate: 0.5,
+  rootScoreLead: 0,
+  moves: [],
+  territory: [],
+  policy: undefined,
+  ownershipStdev: undefined,
+  ...overrides,
+});
+
+const analyzedNode = (): Pick<GameNode, 'analysis'> => ({
+  analysis: analysis({ moves: [] }),
 });
 
 describe('analysis coverage summary', () => {
@@ -52,5 +62,31 @@ describe('analysis coverage summary', () => {
     expect(html).toContain('1/2');
     expect(html).toContain('Partial');
     expect(html).toContain('Analysis coverage for the current line: 1/2 positions.');
+  });
+
+  it('can count only report-ready analysis for review actions', () => {
+    const quickNode: Pick<GameNode, 'analysis'> = {
+      analysis: analysis({ moves: [], rootVisits: undefined }),
+    };
+    const mctsNode: Pick<GameNode, 'analysis'> = {
+      analysis: analysis({ moves: [{ x: 3, y: 3, winRate: 0.55, scoreLead: 1, visits: 8, pointsLost: 0, order: 0 }] }),
+    };
+    const multiVisitRootNode: Pick<GameNode, 'analysis'> = {
+      analysis: analysis({ moves: [], rootVisits: 16 }),
+    };
+
+    expect(isReportReadyAnalysis(quickNode.analysis)).toBe(false);
+    expect(isReportReadyAnalysis(mctsNode.analysis)).toBe(true);
+    expect(isReportReadyAnalysis(multiVisitRootNode.analysis)).toBe(true);
+
+    expect(summarizeAnalysisCoverage([quickNode, mctsNode, multiVisitRootNode], {
+      isAnalyzed: (node) => isReportReadyAnalysis(node.analysis),
+    })).toMatchObject({
+      analyzed: 2,
+      total: 3,
+      valueLabel: '2/3',
+      stateLabel: 'Partial',
+      tone: 'partial',
+    });
   });
 });

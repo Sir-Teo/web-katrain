@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeAnalysisCoverage } from '../src/utils/analysisCoverage';
+import { isReportReadyAnalysis, summarizeAnalysisCoverage } from '../src/utils/analysisCoverage';
 import {
   getFastMctsPanelButtonState,
   getFastReviewButtonState,
@@ -7,7 +7,25 @@ import {
 import type { GameNode } from '../src/types';
 
 const analyzedNode = (): Pick<GameNode, 'analysis'> => ({
-  analysis: {} as NonNullable<GameNode['analysis']>,
+  analysis: {
+    rootWinRate: 0.5,
+    rootScoreLead: 0,
+    moves: [{ x: 3, y: 3, winRate: 0.55, scoreLead: 1, visits: 8, pointsLost: 0, order: 0 }],
+    territory: [],
+    policy: undefined,
+    ownershipStdev: undefined,
+  },
+});
+
+const quickValueNode = (): Pick<GameNode, 'analysis'> => ({
+  analysis: {
+    rootWinRate: 0.5,
+    rootScoreLead: 0,
+    moves: [],
+    territory: [],
+    policy: undefined,
+    ownershipStdev: undefined,
+  },
 });
 
 const unanalyzedNode = (): Pick<GameNode, 'analysis'> => ({
@@ -48,6 +66,24 @@ describe('fast review button state', () => {
       title: 'Current line is fully analyzed (2/2). Use Re-analyze game for a deeper pass.',
       disabled: true,
       ariaLabel: 'Current line fully analyzed',
+    });
+  });
+
+  it('keeps Fast MCTS actionable after quick value-only analysis', () => {
+    const state = getFastMctsPanelButtonState({
+      isGameAnalysisRunning: false,
+      gameAnalysisType: null,
+      gameAnalysisDone: 0,
+      gameAnalysisTotal: 0,
+      analysisCoverage: summarizeAnalysisCoverage([quickValueNode(), quickValueNode()], {
+        isAnalyzed: (node) => isReportReadyAnalysis(node.analysis),
+      }),
+    });
+
+    expect(state).toMatchObject({
+      state: 'ready',
+      label: 'Fast MCTS',
+      disabled: false,
     });
   });
 
