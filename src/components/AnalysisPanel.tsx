@@ -674,6 +674,11 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             Requested {engineSummary.requestedBackendLabel}, running {engineSummary.activeBackendLabel}.
           </div>
         )}
+        {engineSummary.reasonLabel && (
+          <div className="mt-2 text-[11px] ui-text-faint" data-engine-reason="true">
+            {engineSummary.reasonLabel}
+          </div>
+        )}
         {engineError && (
           <div className="mt-2 rounded border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] p-2 text-[11px] text-[var(--ui-danger)]">
             <div className="flex items-start gap-2">

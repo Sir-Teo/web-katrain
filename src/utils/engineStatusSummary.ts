@@ -17,6 +17,7 @@ export interface EngineStatusSummary {
   requestedBackendLabel: string;
   modelSource: string;
   isFallback: boolean;
+  reasonLabel: string;
   compactLabel: string;
   title: string;
   dotClass: string;
@@ -77,6 +78,44 @@ export function getEngineModelSource(modelUrl: string | null | undefined): strin
   return 'Local';
 }
 
+function getEngineBackendReason(args: {
+  status: EngineStatus;
+  error?: string | null;
+  requestedBackendLabel: string;
+  activeBackendLabel: string;
+  activeBackend?: string | null;
+  isFallback: boolean;
+}): string {
+  if (args.error) {
+    return args.isFallback
+      ? `${args.requestedBackendLabel} failed; ${args.activeBackendLabel} is the active fallback.`
+      : `${args.activeBackendLabel} failed to start.`;
+  }
+
+  if (args.status === 'loading') {
+    return `Loading ${args.activeBackendLabel} analysis.`;
+  }
+
+  if (args.isFallback) {
+    return `${args.requestedBackendLabel} was requested; ${args.activeBackendLabel} is running.`;
+  }
+
+  const normalized = args.activeBackend?.trim().toLowerCase();
+  if (normalized === 'webgpu' || normalized === 'webgpu-gc') {
+    return 'Browser GPU acceleration is active.';
+  }
+  if (normalized === 'wasm') {
+    return 'Compatible CPU analysis path; slower than WebGPU but broadly supported.';
+  }
+  if (normalized === 'cpu') {
+    return 'Plain CPU analysis path selected for maximum compatibility.';
+  }
+  if (!normalized) {
+    return 'Analysis engine will start when analysis runs.';
+  }
+  return `${args.activeBackendLabel} analysis path is active.`;
+}
+
 export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineStatusSummary {
   const hasLoadedBackend = !!args.activeBackend?.trim();
   const hasConfiguredModel = !!args.modelLabel?.trim();
@@ -97,6 +136,14 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
   if (args.modelLabel) parts.push(args.modelLabel);
   const modelSource = getEngineModelSource(args.modelUrl);
   const isReady = stateLabel === 'Ready';
+  const reasonLabel = getEngineBackendReason({
+    status: args.status,
+    error: args.error,
+    requestedBackendLabel,
+    activeBackendLabel,
+    activeBackend: args.activeBackend,
+    isFallback,
+  });
   const titleLines = [
     `State: ${stateLabel}`,
     reportsReadyWhileIdle ? 'Activity: Idle' : '',
@@ -104,6 +151,7 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
     isFallback ? `Requested: ${requestedBackendLabel}` : '',
     args.modelLabel ? `Model: ${args.modelLabel}` : '',
     `Source: ${modelSource}`,
+    reasonLabel ? `Reason: ${reasonLabel}` : '',
     args.error ? `Error: ${args.error}` : '',
   ].filter(Boolean);
 
@@ -113,6 +161,7 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
     requestedBackendLabel,
     modelSource,
     isFallback,
+    reasonLabel,
     compactLabel: parts.join(' · '),
     title: titleLines.join('\n'),
     dotClass: args.error

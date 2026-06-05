@@ -37,6 +37,8 @@ describe('engine status summary', () => {
     expect(summary.compactLabel).toBe('Ready · WebGPU · kata1-b18');
     expect(summary.title).toContain('State: Ready');
     expect(summary.title).toContain('Source: Bundled');
+    expect(summary.title).toContain('Reason: Browser GPU acceleration is active.');
+    expect(summary.reasonLabel).toBe('Browser GPU acceleration is active.');
     expect(summary.dotClass).toBe('bg-green-400');
     expect(summary.tone).toBe('default');
   });
@@ -79,6 +81,7 @@ describe('engine status summary', () => {
     expect(summary.compactLabel).toBe('Idle · WebGPU');
     expect(summary.title).toContain('State: Idle');
     expect(summary.title).not.toContain('Activity: Idle');
+    expect(summary.reasonLabel).toBe('Analysis engine will start when analysis runs.');
     expect(summary.dotClass).toBe('bg-slate-500');
   });
 
@@ -95,6 +98,7 @@ describe('engine status summary', () => {
     expect(summary.compactLabel).toBe('Error fallback · CPU (WASM) · Uploaded weights');
     expect(summary.isFallback).toBe(true);
     expect(summary.title).toContain('Requested: WebGPU');
+    expect(summary.reasonLabel).toBe('WebGPU failed; CPU (WASM) is the active fallback.');
     expect(summary.title).toContain('Error: WebGPU unavailable');
     expect(summary.dotClass).toBe('bg-red-500');
     expect(summary.tone).toBe('error');

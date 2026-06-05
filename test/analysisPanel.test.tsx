@@ -56,6 +56,8 @@ describe('AnalysisPanel', () => {
     expect(html).toContain('aria-label="Open analysis options"');
     expect(html).toContain('aria-label="Open game report"');
     expect(html).toContain('data-analysis-panel-fast-review-state="ready"');
+    expect(html).toContain('data-engine-reason="true"');
+    expect(html).toContain('Browser GPU acceleration is active.');
     expect(html).toContain('>Heatmap</span>');
   });
 
