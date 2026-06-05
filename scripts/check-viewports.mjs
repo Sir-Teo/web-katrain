@@ -1396,6 +1396,22 @@ async function main() {
             const blackIndex = blackPoint.y * boardSize + blackPoint.x;
             const whiteIndex = whitePoint.y * boardSize + whitePoint.x;
             await chooseSyntheticBoardPhoto(dialog, boardSize, blackPoint, whitePoint);
+            const sensitivity = dialog.querySelector('[data-photo-board-auto-trace-sensitivity="true"]');
+            if (!sensitivity) {
+              failures.push('auto trace sensitivity control missing');
+            } else {
+              const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+              if (valueSetter) valueSetter.call(sensitivity, '75');
+              else sensitivity.value = '75';
+              sensitivity.dispatchEvent(new Event('input', { bubbles: true }));
+              sensitivity.dispatchEvent(new Event('change', { bubbles: true }));
+              await waitForFrames(2);
+              const displayedSensitivity = dialog.querySelector('[data-photo-board-auto-trace-sensitivity-value="true"]');
+              if (sensitivity.value !== '75') failures.push('auto trace sensitivity input did not keep value');
+              if (!displayedSensitivity || !(displayedSensitivity.textContent || '').includes('75')) {
+                failures.push('auto trace sensitivity value missing');
+              }
+            }
             const autoTraceButton = dialog.querySelector('[data-photo-board-auto-trace="true"]');
             if (!autoTraceButton) {
               failures.push('auto trace control missing');

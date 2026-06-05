@@ -36,7 +36,11 @@ import {
   type PhotoBoardTraceTransform,
   type PhotoBoardTraceTool,
 } from '../utils/photoBoard';
-import { recognizePhotoBoardFromImageUrl } from '../utils/photoBoardRecognition';
+import {
+  DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY,
+  getPhotoBoardRecognitionOptionsForSensitivity,
+  recognizePhotoBoardFromImageUrl,
+} from '../utils/photoBoardRecognition';
 import { createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { isTextEntryTarget } from '../utils/keyboardTarget';
@@ -120,6 +124,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [cameraCaptureOpen, setCameraCaptureOpen] = React.useState(false);
   const [isAutoTracing, setIsAutoTracing] = React.useState(false);
   const [autoTraceStatus, setAutoTraceStatus] = React.useState<string | null>(null);
+  const [autoTraceSensitivity, setAutoTraceSensitivity] = React.useState(DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY);
   useEscapeToClose(onClose, !cameraCaptureOpen);
 
   const currentBoardSize = React.useMemo<BoardSize | null>(() => {
@@ -427,7 +432,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     setIsAutoTracing(true);
     setAutoTraceStatus('Reading photo...');
     try {
-      const result = await recognizePhotoBoardFromImageUrl(photoUrl, boardSize);
+      const result = await recognizePhotoBoardFromImageUrl(
+        photoUrl,
+        boardSize,
+        getPhotoBoardRecognitionOptionsForSensitivity(autoTraceSensitivity)
+      );
       setStones(result.stones);
       setMobileTab('trace');
       setAutoTraceStatus(
@@ -440,7 +449,13 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     } finally {
       setIsAutoTracing(false);
     }
-  }, [boardSize, photoUrl]);
+  }, [autoTraceSensitivity, boardSize, photoUrl]);
+
+  const updateAutoTraceSensitivity = (value: number) => {
+    const next = Math.max(0, Math.min(100, Number.isFinite(value) ? value : DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY));
+    setAutoTraceSensitivity(next);
+    setAutoTraceStatus(null);
+  };
 
   const rotatePhoto = (degrees: number) => {
     if (photoAlignmentDisabled) return;
@@ -781,6 +796,24 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                   <FaLayerGroup aria-hidden="true" /> Use current
                 </span>
               </button>
+              <label className="flex min-h-11 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)]">
+                <span>Sensitivity</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={autoTraceSensitivity}
+                  onChange={(event) => updateAutoTraceSensitivity(Number.parseInt(event.target.value || '0', 10))}
+                  className="min-h-11 w-28 accent-[var(--ui-accent)]"
+                  aria-label="Auto trace sensitivity"
+                  title="Lower detects fewer weak stones; higher detects more candidates"
+                  data-photo-board-auto-trace-sensitivity="true"
+                />
+                <span className="w-8 text-right text-xs ui-text-faint" data-photo-board-auto-trace-sensitivity-value="true">
+                  {autoTraceSensitivity}%
+                </span>
+              </label>
               {currentBoardStoneCount > 0 && (
                 <span className="text-xs font-medium text-[var(--ui-text-muted)]">
                   {currentBoardStoneCount} current stone{currentBoardStoneCount === 1 ? '' : 's'}

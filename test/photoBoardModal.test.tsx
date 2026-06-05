@@ -186,7 +186,11 @@ describe('PhotoBoardModal', () => {
     );
 
     expect(source).toContain('recognizePhotoBoardFromImageUrl');
+    expect(source).toContain('getPhotoBoardRecognitionOptionsForSensitivity(autoTraceSensitivity)');
     expect(html).toContain('data-photo-board-auto-trace="true"');
+    expect(html).toContain('data-photo-board-auto-trace-sensitivity="true"');
+    expect(html).toContain('data-photo-board-auto-trace-sensitivity-value="true"');
+    expect(html).toContain('Auto trace sensitivity');
     expect(html).toContain('Choose a board photo before auto tracing');
     expect(html).toContain('disabled=""');
   });

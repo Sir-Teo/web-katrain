@@ -24,6 +24,20 @@ export type PhotoBoardRecognitionResult = {
 };
 
 const DEFAULT_MARGIN_FRACTION = 0.06;
+export const DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY = 50;
+
+const clampSensitivity = (value: number): number =>
+  Math.max(0, Math.min(100, Number.isFinite(value) ? value : DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY));
+
+export function getPhotoBoardRecognitionOptionsForSensitivity(sensitivity: number): PhotoBoardRecognitionOptions {
+  const normalized = (clampSensitivity(sensitivity) - DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY) / DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY;
+  return {
+    blackDelta: 54 - normalized * 24,
+    whiteDelta: 24 - normalized * 16,
+    absoluteBlackThreshold: 86 + normalized * 34,
+    absoluteWhiteThreshold: 218 - normalized * 28,
+  };
+}
 
 const clampByte = (value: number): number => Math.max(0, Math.min(255, value));
 

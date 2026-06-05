@@ -19,7 +19,7 @@ import {
   type PhotoBoardStone,
 } from '../src/utils/photoBoard';
 import { createEmptyBoard } from '../src/utils/boardSize';
-import { recognizePhotoBoardFromPixels } from '../src/utils/photoBoardRecognition';
+import { getPhotoBoardRecognitionOptionsForSensitivity, recognizePhotoBoardFromPixels } from '../src/utils/photoBoardRecognition';
 import { parseSgf } from '../src/utils/sgf';
 
 const emptyStones = (boardSize: number): PhotoBoardStone[] =>
@@ -27,7 +27,7 @@ const emptyStones = (boardSize: number): PhotoBoardStone[] =>
 
 function makeRecognitionImage(
   boardSize: 9 | 13 | 19,
-  stones: Array<{ x: number; y: number; stone: Exclude<PhotoBoardStone, null> }>
+  stones: Array<{ x: number; y: number; stone: Exclude<PhotoBoardStone, null>; color?: [number, number, number] }>
 ) {
   const width = 360;
   const height = 360;
@@ -59,7 +59,7 @@ function makeRecognitionImage(
     paintCircle(
       margin + (item.x / (boardSize - 1)) * span,
       margin + (item.y / (boardSize - 1)) * span,
-      item.stone === 'black' ? [24, 24, 24] : [248, 248, 248]
+      item.color ?? (item.stone === 'black' ? [24, 24, 24] : [248, 248, 248])
     );
   }
 
@@ -350,5 +350,15 @@ describe('photo board SGF import', () => {
 
     expect(result.total).toBe(0);
     expect(result.stones).toHaveLength(13 * 13);
+  });
+
+  it('uses sensitivity options to include or reject weak stone candidates', () => {
+    const image = makeRecognitionImage(9, [{ x: 4, y: 4, stone: 'black', color: [112, 112, 112] }]);
+
+    expect(recognizePhotoBoardFromPixels(image, 9).total).toBe(0);
+    expect(recognizePhotoBoardFromPixels(image, 9, getPhotoBoardRecognitionOptionsForSensitivity(0)).total).toBe(0);
+    const sensitive = recognizePhotoBoardFromPixels(image, 9, getPhotoBoardRecognitionOptionsForSensitivity(100));
+    expect(sensitive.black).toBe(1);
+    expect(sensitive.stones[4 * 9 + 4]).toBe('black');
   });
 });
