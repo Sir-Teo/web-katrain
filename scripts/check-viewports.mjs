@@ -210,6 +210,9 @@ function assertViewport(result) {
   if (result.boardInteractionFailures?.length > 0) {
     failures.push(...result.boardInteractionFailures);
   }
+  if (result.navigationSmokeFailures.length > 0) {
+    failures.push(`navigation smoke failures: ${result.navigationSmokeFailures.join(', ')}`);
+  }
   if (result.documentOverflow > 1) failures.push(`document overflows by ${result.documentOverflow}px`);
   if (!result.board) failures.push('board missing');
   if (result.board && result.board.left < -1) failures.push('board overflows left edge');
@@ -544,6 +547,96 @@ async function main() {
           if (afterPlayer !== expectedNextPlayer) failures.push(\`board click did not switch player to \${expectedNextPlayer}\`);
           if (afterStones[emptyIndex] !== expectedStone) {
             failures.push(\`board click did not place \${expectedStone} at index \${emptyIndex}\`);
+          }
+          return failures;
+        };
+        const runNavigationSmoke = async () => {
+          const failures = [];
+          const boardEl = document.querySelector('[data-board-snapshot="true"]');
+          if (!boardEl) return ['navigation smoke: board missing'];
+          const size = Number(boardEl.getAttribute('data-board-size'));
+          const cellSize = Number(boardEl.getAttribute('data-board-cell-size'));
+          const originX = Number(boardEl.getAttribute('data-board-origin-x'));
+          const originY = Number(boardEl.getAttribute('data-board-origin-y'));
+          const initialStones = boardEl.getAttribute('data-board-stones') || '';
+          const initialMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          if (!Number.isFinite(size) || size <= 0 || initialStones.length !== size * size) {
+            return ['navigation smoke: board metadata invalid'];
+          }
+          if (!Number.isFinite(cellSize) || cellSize <= 0 || !Number.isFinite(originX) || !Number.isFinite(originY)) {
+            return ['navigation smoke: board geometry metadata invalid'];
+          }
+          if (!Number.isFinite(initialMoveCount)) return ['navigation smoke: move-count metadata invalid'];
+
+          const clickBoardIndex = async (index) => {
+            const x = index % size;
+            const y = Math.floor(index / size);
+            const r = boardEl.getBoundingClientRect();
+            boardEl.dispatchEvent(new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              clientX: r.left + originX + x * cellSize,
+              clientY: r.top + originY + y * cellSize,
+            }));
+            await waitForFrames(4);
+          };
+          const emptyIndexes = [];
+          for (let i = 0; i < initialStones.length; i++) {
+            if (initialStones[i] === '.') emptyIndexes.push(i);
+          }
+          if (emptyIndexes.length < 3) return ['navigation smoke: not enough empty points'];
+          const moveIndexes = emptyIndexes.slice(0, 3);
+          for (const index of moveIndexes) await clickBoardIndex(index);
+
+          const atEndMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          const atEndStones = boardEl.getAttribute('data-board-stones') || '';
+          if (atEndMoveCount !== initialMoveCount + 3) {
+            failures.push('played moves did not advance move count by 3 (' + initialMoveCount + ' -> ' + atEndMoveCount + ')');
+          }
+          if (moveIndexes.some((index) => atEndStones[index] === '.')) {
+            failures.push('played move stones missing at end before navigation');
+          }
+
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+          dispatchShortcut('ArrowLeft');
+          await waitForFrames(4);
+          const afterBackMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          const afterBackStones = boardEl.getAttribute('data-board-stones') || '';
+          if (afterBackMoveCount !== initialMoveCount + 2) {
+            failures.push('ArrowLeft did not move back once (' + afterBackMoveCount + ')');
+          }
+          if (afterBackStones[moveIndexes[2]] !== '.') failures.push('ArrowLeft did not hide the last move stone');
+
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+          dispatchShortcut('ArrowRight');
+          await waitForFrames(4);
+          const afterForwardMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          const afterForwardStones = boardEl.getAttribute('data-board-stones') || '';
+          if (afterForwardMoveCount !== initialMoveCount + 3) {
+            failures.push('ArrowRight did not restore the last move (' + afterForwardMoveCount + ')');
+          }
+          if (afterForwardStones[moveIndexes[2]] === '.') failures.push('ArrowRight did not restore the last move stone');
+
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+          dispatchShortcut('Home');
+          await waitForFrames(4);
+          const afterHomeMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          const afterHomeStones = boardEl.getAttribute('data-board-stones') || '';
+          if (afterHomeMoveCount !== 0) failures.push('Home did not navigate to root (' + afterHomeMoveCount + ')');
+          if (moveIndexes.some((index) => afterHomeStones[index] !== '.')) {
+            failures.push('Home left played move stones visible');
+          }
+
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+          dispatchShortcut('End');
+          await waitForFrames(4);
+          const afterEndMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          const afterEndStones = boardEl.getAttribute('data-board-stones') || '';
+          if (afterEndMoveCount !== initialMoveCount + 3) {
+            failures.push('End did not navigate to line end (' + afterEndMoveCount + ')');
+          }
+          if (moveIndexes.some((index) => afterEndStones[index] === '.')) {
+            failures.push('End did not restore played move stones');
           }
           return failures;
         };
@@ -1141,6 +1234,7 @@ async function main() {
           }
         }
         editToolSmokeFailures = await runEditToolSmoke();
+        const navigationSmokeFailures = await runNavigationSmoke();
         const boardInteractionFailures = await runBoardInteractionSmoke();
         const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
         const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
@@ -1171,6 +1265,7 @@ async function main() {
           noteEditorReachable,
           noteEditorKeyboardAware,
           noteEditorLifecycleFailures,
+          navigationSmokeFailures,
           reviewSmallTouchTargets,
           boardTouchAction,
           smallTouchTargets,
