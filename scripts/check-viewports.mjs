@@ -207,6 +207,9 @@ async function waitForBoard(cdp) {
 
 function assertViewport(result) {
   const failures = [];
+  if (result.boardInteractionFailures?.length > 0) {
+    failures.push(...result.boardInteractionFailures);
+  }
   if (result.documentOverflow > 1) failures.push(`document overflows by ${result.documentOverflow}px`);
   if (!result.board) failures.push('board missing');
   if (result.board && result.board.left < -1) failures.push('board overflows left edge');
@@ -481,6 +484,50 @@ async function main() {
           for (let i = 0; i < frames; i++) {
             await new Promise((resolve) => requestAnimationFrame(resolve));
           }
+        };
+        const runBoardInteractionSmoke = async () => {
+          const failures = [];
+          const boardEl = document.querySelector('[data-board-snapshot="true"]');
+          if (!boardEl) return ['board interaction smoke: board missing'];
+          const size = Number(boardEl.getAttribute('data-board-size'));
+          const cellSize = Number(boardEl.getAttribute('data-board-cell-size'));
+          const originX = Number(boardEl.getAttribute('data-board-origin-x'));
+          const originY = Number(boardEl.getAttribute('data-board-origin-y'));
+          const beforeStones = boardEl.getAttribute('data-board-stones') || '';
+          const beforeMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          const beforePlayer = boardEl.getAttribute('data-board-current-player');
+          if (!Number.isFinite(size) || size <= 0) failures.push('board size metadata missing');
+          if (!Number.isFinite(cellSize) || cellSize <= 0) failures.push('board cell metadata missing');
+          if (!Number.isFinite(originX) || !Number.isFinite(originY)) failures.push('board origin metadata missing');
+          if (!Number.isFinite(beforeMoveCount)) failures.push('board move-count metadata missing');
+          if (beforePlayer !== 'black' && beforePlayer !== 'white') failures.push('board current-player metadata missing');
+          if (beforeStones.length !== size * size) failures.push(\`board stone metadata length \${beforeStones.length}, expected \${size * size}\`);
+          if (failures.length > 0) return failures;
+
+          const emptyIndex = beforeStones.indexOf('.');
+          if (emptyIndex < 0) return ['board interaction smoke: no empty intersection available'];
+          const x = emptyIndex % size;
+          const y = Math.floor(emptyIndex / size);
+          const r = boardEl.getBoundingClientRect();
+          boardEl.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            clientX: r.left + originX + x * cellSize,
+            clientY: r.top + originY + y * cellSize,
+          }));
+          await waitForFrames(4);
+
+          const afterMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
+          const afterPlayer = boardEl.getAttribute('data-board-current-player');
+          const afterStones = boardEl.getAttribute('data-board-stones') || '';
+          const expectedStone = beforePlayer === 'black' ? 'B' : 'W';
+          const expectedNextPlayer = beforePlayer === 'black' ? 'white' : 'black';
+          if (afterMoveCount !== beforeMoveCount + 1) failures.push(\`board click did not advance move count (\${beforeMoveCount} -> \${afterMoveCount})\`);
+          if (afterPlayer !== expectedNextPlayer) failures.push(\`board click did not switch player to \${expectedNextPlayer}\`);
+          if (afterStones[emptyIndex] !== expectedStone) {
+            failures.push(\`board click did not place \${expectedStone} at index \${emptyIndex}\`);
+          }
+          return failures;
         };
         const waitForSelector = async (selector) => {
           for (let i = 0; i < 60; i++) {
@@ -822,6 +869,7 @@ async function main() {
             }
           }
         }
+        const boardInteractionFailures = await runBoardInteractionSmoke();
         const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
         const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
         return {
@@ -863,6 +911,7 @@ async function main() {
           analysisDepthReachable,
           analysisDepthFailures,
           analysisDepthSmallTouchTargets,
+          boardInteractionFailures,
           commandBarOverlaps,
           topToggleOverTopBar: intersects(rect(topToggle), topBarRect),
           topToggleOverEditToolbar: intersects(rect(topToggle), rect(editToolbar)),

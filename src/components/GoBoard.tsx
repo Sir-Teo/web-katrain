@@ -27,6 +27,7 @@ import {
   moveBoardKeyboardCursor,
   type BoardKeyboardPoint,
 } from '../utils/boardKeyboardNavigation';
+import { boardToQaString, countBoardStones } from '../utils/boardQaSnapshot';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -2089,6 +2090,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     };
   }, [cellSize, cursorPt, isKeyboardCursorActive, originX, originY, toDisplay]);
   const boardTouchAction = isEditMode || scoringMode || isSelectingRegionOfInterest ? 'none' : 'pan-x pan-y pinch-zoom';
+  const boardQaString = useMemo(() => boardToQaString(board), [board]);
+  const boardStoneCount = useMemo(() => countBoardStones(board), [board]);
 
   return (
     <div ref={containerRef} className="w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center">
@@ -2099,6 +2102,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         ].join(' ')}
         data-board-snapshot="true"
         data-board-theme={settings.boardTheme}
+        data-board-size={boardSize}
+        data-board-cell-size={cellSize}
+        data-board-origin-x={originX}
+        data-board-origin-y={originY}
+        data-board-move-count={moveHistory.length}
+        data-board-current-player={currentPlayer}
+        data-board-stone-count={boardStoneCount}
+        data-board-stones={boardQaString}
         ref={boardSnapshotRef}
         style={{
           width: boardWidth,
