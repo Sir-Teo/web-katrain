@@ -12,7 +12,7 @@ import { NotesPanel } from '../NotesPanel';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
-import { readLocalStorage } from '../../utils/storage';
+import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_INFO, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
@@ -178,6 +178,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   } = props;
 
   const [sections, setSections] = useState({ info: false, tree: true, analysis: true, notes: true });
+  // Top game-info strip and bottom metrics bar collapse like the side panels so
+  // the board can take the full column; reopen handles mirror the edge toggles.
+  const [gamestripOpen, setGamestripOpen] = useState(() => {
+    return readLocalStorage('web-katrain:dash_gamestrip_open:v1') !== 'false';
+  });
+  const [commandbarOpen, setCommandbarOpen] = useState(() => {
+    return readLocalStorage('web-katrain:dash_commandbar_open:v1') !== 'false';
+  });
+  useEffect(() => {
+    writeLocalStorage('web-katrain:dash_gamestrip_open:v1', String(gamestripOpen));
+  }, [gamestripOpen]);
+  useEffect(() => {
+    writeLocalStorage('web-katrain:dash_commandbar_open:v1', String(commandbarOpen));
+  }, [commandbarOpen]);
   const [legend, setLegend] = useState({ winrate: true, score: true });
   const [legendOpen, setLegendOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -344,6 +358,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       data-layout={layoutMode}
       data-library={libraryOpen ? 'open' : 'closed'}
       data-sidebar={sidebarOpen ? 'open' : 'closed'}
+      data-gamestrip={gamestripOpen ? 'open' : 'closed'}
+      data-commandbar={commandbarOpen ? 'open' : 'closed'}
       style={dashboardStyle}
     >
       {/* ============ Header ============ */}
@@ -490,6 +506,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
 
         {/* Board column */}
         <main className="board-col">
+          {gamestripOpen && (
           <div className="gamestrip">
             <div className="gs-players">
               <div className={`gs-player${currentPlayer === 'black' ? ' to-move' : ''}`}>
@@ -519,7 +536,17 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <span className={`gs-save ${dirty ? 'dirty' : 'saved'}`}>
               <Icon name={dirty ? 'alert' : 'check'} size={11} />{dirty ? 'Unsaved' : 'Saved'}
             </span>
+            <button
+              type="button"
+              className="strip-collapse gs-collapse"
+              title="Hide game info"
+              aria-label="Hide game info"
+              onClick={() => setGamestripOpen(false)}
+            >
+              <Icon name="chevU" size={13} />
+            </button>
           </div>
+          )}
 
           <div className="board-action-strip">
             <div className="board-tools">
@@ -545,15 +572,22 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             {!libraryOpen && (
               <button type="button" className="edge-toggle left" title="Show library" onClick={toggleLibrary}><Icon name="chevR" size={13} /></button>
             )}
+            {!gamestripOpen && (
+              <button type="button" className="edge-toggle top" title="Show game info" onClick={() => setGamestripOpen(true)}><Icon name="chevD" size={13} /></button>
+            )}
             <div className="board-wrap">
               <div className="goban-frame">{board}</div>
             </div>
             {!sidebarOpen && (
               <button type="button" className="edge-toggle right" title="Show analysis" onClick={toggleSidebar}><Icon name="chevL" size={13} /></button>
             )}
+            {!commandbarOpen && (
+              <button type="button" className="edge-toggle bottom" title="Show metrics" onClick={() => setCommandbarOpen(true)}><Icon name="chevU" size={13} /></button>
+            )}
           </div>
 
           {/* Command bar */}
+          {commandbarOpen && (
           <div className="commandbar">
             <div className="cb-metrics">
               <div className="cb-metric">
@@ -598,7 +632,17 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 </>
               )}
             </div>
+            <button
+              type="button"
+              className="strip-collapse cb-collapse"
+              title="Hide metrics"
+              aria-label="Hide metrics"
+              onClick={() => setCommandbarOpen(false)}
+            >
+              <Icon name="chevD" size={13} />
+            </button>
           </div>
+          )}
 
           {/* Nav bar */}
           <div className="navbar">
@@ -609,11 +653,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <span className="nav-divider" />
             <div className="navgroup">
               <button type="button" className="navbtn" title="To start" onClick={navigateStart}><Icon name="skipBack" size={15} /></button>
-              <button type="button" className="navbtn" title="Back 10" onClick={jumpBack}><Icon name="fastBack" size={15} /></button>
+              <button type="button" className="navbtn navbtn-skip" title="Back 10" onClick={jumpBack}><Icon name="fastBack" size={15} /></button>
               <button type="button" className="navbtn" title="Back" onClick={navigateBack}><Icon name="chevL" size={15} /></button>
             </div>
             <div className="move-counter">
-              <span>Move</span>
+              <span className="mc-label">Move</span>
               <input
                 type="number"
                 value={moveInputValue}
@@ -647,7 +691,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             </div>
             <div className="navgroup">
               <button type="button" className="navbtn" title="Forward" onClick={navigateForward}><Icon name="chevR" size={15} /></button>
-              <button type="button" className="navbtn" title="Forward 10" onClick={jumpForward}><Icon name="fastFwd" size={15} /></button>
+              <button type="button" className="navbtn navbtn-skip" title="Forward 10" onClick={jumpForward}><Icon name="fastFwd" size={15} /></button>
               <button type="button" className="navbtn" title="To end" onClick={navigateEnd}><Icon name="skipFwd" size={15} /></button>
             </div>
             <span className="nav-divider" />
@@ -659,14 +703,14 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <div className="playactions">
               {mode === 'play' ? (
                 <>
-                  <button type="button" className="tbtn" onClick={onUndo}><Icon name="undo" size={14} />Undo</button>
-                  <button type="button" className="tbtn" onClick={onAiMove}><Icon name="bot" size={14} />AI move</button>
-                  <button type="button" className="tbtn" style={{ color: 'var(--red)', borderColor: '#f0c4c4' }} onClick={onResign}><Icon name="flag" size={14} />Resign</button>
+                  <button type="button" className="tbtn" title="Undo" onClick={onUndo}><Icon name="undo" size={14} /><span className="tbtn-label">Undo</span></button>
+                  <button type="button" className="tbtn" title="AI move" onClick={onAiMove}><Icon name="bot" size={14} /><span className="tbtn-label">AI move</span></button>
+                  <button type="button" className="tbtn" style={{ color: 'var(--red)', borderColor: '#f0c4c4' }} title="Resign" onClick={onResign}><Icon name="flag" size={14} /><span className="tbtn-label">Resign</span></button>
                 </>
               ) : (
                 <>
-                  <button type="button" className="tbtn" onClick={onAiMove}><Icon name="bot" size={14} />AI move</button>
-                  <button type="button" className="tbtn primary" onClick={onPlayBest}><Icon name="play" size={14} />Play best</button>
+                  <button type="button" className="tbtn" title="AI move" onClick={onAiMove}><Icon name="bot" size={14} /><span className="tbtn-label">AI move</span></button>
+                  <button type="button" className="tbtn primary" title="Play best" onClick={onPlayBest}><Icon name="play" size={14} /><span className="tbtn-label">Play best</span></button>
                 </>
               )}
             </div>

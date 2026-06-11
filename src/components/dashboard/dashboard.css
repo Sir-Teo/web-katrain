@@ -364,6 +364,9 @@
   min-width: 0; min-height: 0;
   background: var(--canvas);
   grid-column: 2 / 3;
+  /* Size container so the nav bar can densify based on the column's actual
+     width — the sidebar and library squeeze it independently of the viewport. */
+  container: boardcol / inline-size;
 }
 
 /* Game-info strip */
@@ -536,8 +539,9 @@
   font-size: 11.5px; font-weight: 600; color: var(--muted);
   transition: all .12s ease;
 }
-.wk-dashboard .board-chip:hover { color: var(--ink); }
+.wk-dashboard .board-chip:hover:not(:disabled) { color: var(--ink); }
 .wk-dashboard .board-chip.on { color: var(--ink); border-color: var(--ink); background: #fff; }
+.wk-dashboard .board-chip:disabled { opacity: .45; cursor: not-allowed; }
 .wk-dashboard .board-chip svg { width: 13px; height: 13px; }
 
 /* ---------------- Command bar (single home for live metrics) ------------- */
@@ -622,6 +626,30 @@
 .wk-dashboard .navbar-spacer { flex: 1 1 0; min-width: 0; }
 
 .wk-dashboard .playactions { display: flex; align-items: center; gap: 6px; }
+
+/* Keep the nav bar on a single row as the board column narrows: first drop the
+   play-action labels (tooltips keep them discoverable), then tighten paddings.
+   Wrapping stays as the last-resort fallback. */
+@container boardcol (max-width: 919px) {
+  .wk-dashboard .navbar { gap: 4px; }
+  .wk-dashboard .playactions { gap: 4px; }
+  .wk-dashboard .playactions .tbtn { padding: 0 9px; }
+  .wk-dashboard .playactions .tbtn-label { display: none; }
+}
+@container boardcol (max-width: 699px) {
+  .wk-dashboard .navbtn { width: 30px; }
+  .wk-dashboard .pass-btn { padding: 0 12px; }
+  .wk-dashboard .move-counter { padding: 0 8px; gap: 4px; }
+  .wk-dashboard .nav-divider { margin: 0; }
+  .wk-dashboard .navbar { padding: 8px 12px 12px; }
+}
+/* Tightest squeeze (wide layout with library and sidebar both open): drop the
+   jump-10 buttons and the counter's "Move" word, keeping one row of controls. */
+@container boardcol (max-width: 619px) {
+  .wk-dashboard .navbtn-skip { display: none; }
+  .wk-dashboard .move-counter .mc-label { display: none; }
+  .wk-dashboard .pass-btn { padding: 0 10px; }
+}
 
 /* ---------------- Sidebar (analysis) ---------------- */
 .wk-dashboard .sidebar {
@@ -861,6 +889,33 @@
 .wk-dashboard .edge-toggle svg { width: 13px; height: 13px; }
 .wk-dashboard .edge-toggle.left { left: 0; border-left: none; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .wk-dashboard .edge-toggle.right { right: 0; border-right: none; border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.wk-dashboard .edge-toggle.top,
+.wk-dashboard .edge-toggle.bottom {
+  left: 50%; transform: translateX(-50%);
+  width: 56px; height: 18px;
+}
+.wk-dashboard .edge-toggle.top { top: 0; border-top: none; border-radius: 0 0 var(--r-sm) var(--r-sm); }
+.wk-dashboard .edge-toggle.bottom { top: auto; bottom: 0; border-bottom: none; border-radius: var(--r-sm) var(--r-sm) 0 0; }
+
+/* collapse buttons inside the top/bottom strips */
+.wk-dashboard .strip-collapse {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--faint);
+  transition: color .12s ease, background .12s ease;
+}
+.wk-dashboard .strip-collapse:hover { color: var(--ink); background: var(--panel-soft); }
+.wk-dashboard .strip-collapse svg { width: 13px; height: 13px; }
+.wk-dashboard .gs-collapse {
+  margin-left: auto;
+  width: 26px; height: 26px;
+  border-radius: var(--r-sm);
+}
+.wk-dashboard .cb-collapse {
+  width: 26px;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+}
 
 .wk-dashboard .hidden { display: none !important; }
 

@@ -13,7 +13,6 @@ import {
   FaSquare,
   FaPlus,
   FaArrowUp,
-  FaStop,
   FaFileAlt,
   FaFileArchive,
   FaCopy,
@@ -55,7 +54,6 @@ import {
   isPhotoBoardImageFile,
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
-import { ScoreWinrateGraph } from './ScoreWinrateGraph';
 import { SectionHeader } from './layout/ui';
 import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils';
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from '../utils/storage';
@@ -272,9 +270,6 @@ interface LibraryPanelProps {
   onClose: () => void;
   showCloseButtonOnDesktop?: boolean;
   isMobile?: boolean;
-  analysisContent?: React.ReactNode;
-  isAnalysisRunning?: boolean;
-  onStopAnalysis?: () => void;
   getCurrentSgf: () => string;
   onLoadSgf: (sgf: string) => boolean | Promise<boolean>;
   onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
@@ -296,9 +291,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   onClose,
   showCloseButtonOnDesktop = false,
   isMobile = false,
-  analysisContent,
-  isAnalysisRunning = false,
-  onStopAnalysis,
   getCurrentSgf,
   onLoadSgf,
   onToast,
@@ -355,26 +347,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const headerSecondaryDangerActionClass = `${headerDangerActionClass} library-header-secondary-action`;
   const bulkActionClass = 'panel-icon-button';
   const bulkDangerActionClass = 'panel-icon-button ui-danger-soft';
-  const analysisActionClass =
-    'panel-icon-button disabled:opacity-50 disabled:cursor-not-allowed';
   const [sortKey, setSortKey] = useState(() => {
     return readLocalStorage('web-katrain:library_sort:v1') ?? 'recent';
   });
-  const [graphOptions] = useState(() => {
-    try {
-      const raw = readLocalStorage('web-katrain:library_graph_opts:v1');
-      if (!raw) return { score: true, winrate: true };
-      const parsed = JSON.parse(raw) as { score?: boolean; winrate?: boolean };
-      return { score: parsed.score !== false, winrate: parsed.winrate !== false };
-    } catch {
-      return { score: true, winrate: true };
-    }
-  });
   const [listOpen, setListOpen] = useState(() => {
     return readLocalStorage('web-katrain:library_list_open:v1') !== 'false';
-  });
-  const [analysisOpen, setAnalysisOpen] = useState(() => {
-    return readLocalStorage('web-katrain:library_analysis_open:v1') !== 'false';
   });
 
   useEffect(() => {
@@ -488,16 +465,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [sortKey]);
 
   useEffect(() => {
-    writeLocalStorage('web-katrain:library_graph_opts:v1', JSON.stringify(graphOptions));
-  }, [graphOptions]);
-
-  useEffect(() => {
     writeLocalStorage('web-katrain:library_list_open:v1', String(listOpen));
   }, [listOpen]);
-
-  useEffect(() => {
-    writeLocalStorage('web-katrain:library_analysis_open:v1', String(analysisOpen));
-  }, [analysisOpen]);
 
   useEffect(() => {
     onLibraryUpdated?.();
@@ -2070,44 +2039,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               ),
             })}
 
-            {docked &&
-              renderSection({
-                title: 'Analysis',
-                open: analysisOpen,
-                onToggle: () => setAnalysisOpen((prev) => !prev),
-                wrapperClassName: 'mx-0',
-                contentClassName: 'panel-section-content p-0',
-                actions: onStopAnalysis ? (
-                  <button
-                    type="button"
-                    className={[
-                      analysisActionClass,
-                      isAnalysisRunning ? 'ui-danger-soft' : 'text-[var(--ui-text-muted)]',
-                    ].join(' ')}
-                    onClick={onStopAnalysis}
-                    disabled={!isAnalysisRunning}
-                    title="Stop analysis"
-                    aria-label="Stop analysis"
-                  >
-                    <FaStop size={12} />
-                  </button>
-                ) : null,
-                children: (
-                  <div className="panel-scroll-region">
-                    {analysisContent ? (
-                      analysisContent
-                    ) : graphOptions.score || graphOptions.winrate ? (
-                      <div className="panel-compact-graph">
-                        <ScoreWinrateGraph showScore={graphOptions.score} showWinrate={graphOptions.winrate} />
-                      </div>
-                    ) : (
-                      <div className="panel-compact-graph flex items-center justify-center text-xs ui-text-faint border border-[var(--ui-border)] rounded">
-                        Graph hidden
-                      </div>
-                    )}
-                  </div>
-                ),
-              })}
           </div>
         </div>
       </div>

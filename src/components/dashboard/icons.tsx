@@ -25,6 +25,7 @@ const PATHS: Record<string, string> = {
   chevR: '<path d="m9 18 6-6-6-6"/>',
   chevL: '<path d="m15 18-6-6 6-6"/>',
   chevD: '<path d="m6 9 6 6 6-6"/>',
+  chevU: '<path d="m18 15-6-6-6 6"/>',
   skipBack: '<path d="M19 20 9 12l10-8v16Z"/><path d="M5 19V5"/>',
   skipFwd: '<path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/>',
   fastBack: '<path d="m11 19-7-7 7-7M18 19l-7-7 7-7"/>',

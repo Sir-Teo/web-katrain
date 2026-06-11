@@ -84,10 +84,27 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   }, [active, isCompact, docked]);
 
   if (!active) {
+    if (docked) {
+      // Match the Region/Insert board chips in the dashboard action strip; the
+      // shortcut stays discoverable via the title/aria-label.
+      return (
+        <button
+          type="button"
+          className="board-chip"
+          onClick={onToggle}
+          disabled={disabled}
+          title={scoreTitle}
+          aria-label={showShortcutLabel ? `Score position, keyboard shortcut ${shortcutLabel}` : 'Score position'}
+        >
+          <FaCalculator size={13} />
+          <span>Score</span>
+        </button>
+      );
+    }
     return (
       <button
         type="button"
-        className={['manual-score-launch', commandBarOffset ? 'manual-score-offset' : '', docked ? 'manual-score-docked' : ''].join(' ')}
+        className={['manual-score-launch', commandBarOffset ? 'manual-score-offset' : ''].join(' ')}
         onClick={onToggle}
         disabled={disabled}
         title={scoreTitle}
@@ -95,7 +112,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
       >
         <FaCalculator size={13} />
         <span>Score</span>
-        {showShortcutLabel ? <kbd className="manual-score-shortcut">{shortcutLabel}</kbd> : null}
+        {showShortcutLabel && !isCompact ? <kbd className="manual-score-shortcut">{shortcutLabel}</kbd> : null}
       </button>
     );
   }

@@ -2697,10 +2697,6 @@
     max-height: 240px;
   }
 
-  .panel-compact-graph {
-    height: 112px;
-  }
-
   /* Compact density for the Analysis dashboard card (desktop docked panel).
      Trims the shared panel paddings without affecting other panels. */
   @media (min-width: 1024px) {
@@ -2719,10 +2715,6 @@
 
     .analysis-panel-compact .panel-tab {
       padding: 5px 10px;
-    }
-
-    .analysis-panel-compact .panel-compact-graph {
-      height: 96px;
     }
   }
 

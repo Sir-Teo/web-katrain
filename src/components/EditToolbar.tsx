@@ -229,19 +229,36 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
       }
     >
       {!isEditMode ? (
-        <button
-          type="button"
-          onClick={toggleEditMode}
-          className="pointer-events-auto min-h-11 px-3 rounded-lg ui-panel border shadow-xl text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] flex items-center gap-2"
-          title={openEditToolsLabel}
-          aria-label={openEditToolsLabel}
-        >
-          <FaEdit className="text-[var(--ui-accent)]" />
-          Edit
-          <span className="ml-1 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--ui-text-muted)]">
-            {shortcutLabels['toggle-edit-mode']}
-          </span>
-        </button>
+        docked ? (
+          // Match the Region/Insert board chips so the action strip reads as one
+          // row of equal-weight mode toggles.
+          <button
+            type="button"
+            onClick={toggleEditMode}
+            className="board-chip"
+            title={openEditToolsLabel}
+            aria-label={openEditToolsLabel}
+          >
+            <FaEdit />
+            Edit
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={toggleEditMode}
+            className="pointer-events-auto min-h-11 px-3 rounded-lg ui-panel border shadow-lg text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] flex items-center gap-2"
+            title={openEditToolsLabel}
+            aria-label={openEditToolsLabel}
+          >
+            <FaEdit className="text-[var(--ui-accent)]" />
+            Edit
+            {!isMobile && (
+              <span className="ml-1 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--ui-text-muted)]">
+                {shortcutLabels['toggle-edit-mode']}
+              </span>
+            )}
+          </button>
+        )
       ) : (
         <div className="pointer-events-auto ui-panel border rounded-lg shadow-xl overflow-hidden backdrop-blur max-w-full">
           <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-[var(--ui-border)] bg-[var(--ui-surface-2)]">

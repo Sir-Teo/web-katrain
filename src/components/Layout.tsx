@@ -2,7 +2,6 @@ import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
-import { AnalysisPanel } from './AnalysisPanel';
 import { AnalysisCommandBar } from './AnalysisCommandBar';
 import { EditToolbar } from './EditToolbar';
 import { ManualScorePanel } from './ManualScorePanel';
@@ -2941,8 +2940,6 @@ export const Layout: React.FC = () => {
                 externalFileUpdate={externalLibraryFileUpdate}
                 externalItemRename={externalLibraryItemRename}
                 externalItemCreate={externalLibraryItemCreate}
-                isAnalysisRunning={isGameAnalysisRunning}
-                onStopAnalysis={stopGameAnalysis}
                 showCloseButtonOnDesktop
               />
             }
@@ -3020,41 +3017,6 @@ export const Layout: React.FC = () => {
           externalFileUpdate={externalLibraryFileUpdate}
           externalItemRename={externalLibraryItemRename}
           externalItemCreate={externalLibraryItemCreate}
-          isAnalysisRunning={isGameAnalysisRunning}
-          onStopAnalysis={stopGameAnalysis}
-          analysisContent={
-            isDesktop ? (
-              <AnalysisPanel
-                analysisControls={modeControls}
-                updateControls={updateControls}
-                statusText={statusText}
-                engineDot={engineDot}
-                engineMeta={engineMeta}
-                engineMetaTitle={engineMetaTitle}
-                engineStatus={engineStatus}
-                engineError={engineError}
-                engineBackend={engineBackend}
-                engineModelLabel={engineModelLabel}
-                requestedBackend={settings.katagoBackend}
-                modelUrl={settings.katagoModelUrl}
-                isGameAnalysisRunning={isGameAnalysisRunning}
-                gameAnalysisType={gameAnalysisType}
-                gameAnalysisDone={gameAnalysisDone}
-                gameAnalysisTotal={gameAnalysisTotal}
-                startQuickGameAnalysis={startQuickGameAnalysis}
-                startFastGameAnalysis={startFastGameAnalysis}
-                stopGameAnalysis={stopGameAnalysis}
-                clearAnalysisCache={requestClearAnalysisCache}
-                analysisCacheSize={analysisCacheSize}
-                onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
-                onOpenGameReport={() => setIsGameReportOpen(true)}
-                currentMoveNumber={currentMoveNumber}
-                winRate={winRate ?? null}
-                scoreLead={scoreLead ?? null}
-                pointsLost={pointsLost}
-              />
-            ) : null
-          }
         />
 
         {isDesktop && libraryOpen && (
