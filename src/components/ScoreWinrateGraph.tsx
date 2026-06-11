@@ -75,6 +75,9 @@ export const ScoreWinrateGraph: React.FC<{
     trainerShowDots,
     treeVersion,
     gameAnalysisDone,
+    gameAnalysisTotal,
+    isGameAnalysisRunning,
+    startFastGameAnalysis,
   } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
@@ -86,6 +89,9 @@ export const ScoreWinrateGraph: React.FC<{
       trainerShowDots: state.settings.trainerShowDots,
       treeVersion: state.treeVersion,
       gameAnalysisDone: state.gameAnalysisDone,
+      gameAnalysisTotal: state.gameAnalysisTotal,
+      isGameAnalysisRunning: state.isGameAnalysisRunning,
+      startFastGameAnalysis: state.startFastGameAnalysis,
     }),
     shallow
   );
@@ -367,7 +373,28 @@ export const ScoreWinrateGraph: React.FC<{
           data-analysis-graph-empty-state="true"
         >
           <div className={graphTheme.emptyBadgeClass}>
-            No analyzed moves yet
+            {count <= 1 ? (
+              <span>Play or load a game to chart win rate and score</span>
+            ) : isGameAnalysisRunning ? (
+              <span>
+                Analyzing game… {gameAnalysisDone}/{gameAnalysisTotal}
+              </span>
+            ) : (
+              <>
+                <span>No analyzed moves yet</span>
+                <button
+                  type="button"
+                  className={graphTheme.emptyActionClass}
+                  data-analysis-graph-empty-cta="true"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    startFastGameAnalysis();
+                  }}
+                >
+                  Analyze game
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

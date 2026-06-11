@@ -460,7 +460,9 @@ async function main() {
         const topToggle = Array.from(document.querySelectorAll('button')).find((button) => (button.getAttribute('title') || '').includes('top bar')) || null;
         const editToolbar = document.querySelector('[data-edit-toolbar]');
         const board = document.querySelector('[data-board-snapshot="true"]');
-        const requiredFileActions = ['New game', 'Save SGF', 'Load SGF, board photo, or model weights', 'Paste SGF / OGS', 'Photo Board'];
+        // Paste SGF / OGS and Photo Board live in the header File menu ('More file
+        // actions'); the dedicated smoke flows open that menu to reach them.
+        const requiredFileActions = ['New game', 'Save SGF', 'Load SGF, board photo, or model weights', 'More file actions'];
         const allButtons = Array.from(document.querySelectorAll('button'));
         const targetLabel = (el) => {
           const aria = el.getAttribute('aria-label');
@@ -1301,7 +1303,14 @@ async function main() {
               await waitForFrames(2);
               return;
             }
-            const photoBoardButton = findButtonByLabel('Photo Board');
+            let photoBoardButton = findButtonByLabel('Photo Board');
+            if (!photoBoardButton) {
+              const moreFileActions = findButtonByLabel('More file actions');
+              if (!moreFileActions) throw new Error('Photo Board action missing');
+              moreFileActions.click();
+              await waitForFrames(2);
+              photoBoardButton = findButtonByLabel('Photo Board');
+            }
             if (!photoBoardButton) throw new Error('Photo Board action missing');
             photoBoardButton.click();
             await waitForFrames(2);
@@ -1660,7 +1669,14 @@ async function main() {
               if (!photoBoardButton) throw new Error('Photo Board action missing in tools');
               photoBoardButton.click();
             } else {
-              const photoBoardButton = findButtonByLabel('Photo Board');
+              let photoBoardButton = findButtonByLabel('Photo Board');
+              if (!photoBoardButton) {
+                const moreFileActions = findButtonByLabel('More file actions');
+                if (!moreFileActions) throw new Error('Photo Board action missing');
+                moreFileActions.click();
+                await waitForFrames(2);
+                photoBoardButton = findButtonByLabel('Photo Board');
+              }
               if (!photoBoardButton) throw new Error('Photo Board action missing');
               photoBoardButton.click();
             }

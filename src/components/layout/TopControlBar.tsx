@@ -534,7 +534,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis(); else startFastGameAnalysis(); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
-            <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop' : 'Fast MCTS'}</span>
+            <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop' : 'Fast review'}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { setIsGameAnalysisOpen(true); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
@@ -1019,7 +1019,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                       setAnalysisMenuOpen(false);
                     }}
                   >
-                    <span className="flex items-center gap-2"><FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast MCTS)'}</span>
+                    <span className="flex items-center gap-2"><FaRobot /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast review)'}</span>
                     <span className="text-xs ui-text-faint">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}</span>
                   </button>
                   <button type="button"

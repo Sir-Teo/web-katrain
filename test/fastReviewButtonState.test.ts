@@ -38,20 +38,20 @@ describe('fast review button state', () => {
       isGameAnalysisRunning: false,
       gameProgress: null,
       analysisCoverage: summarizeAnalysisCoverage([analyzedNode(), unanalyzedNode()]),
-      readyLabel: 'Fast MCTS',
-      readyTitle: 'Run a fast MCTS review of the current line',
+      readyLabel: 'Fast review',
+      readyTitle: 'Run a fast review of the current line',
     });
 
     expect(state).toEqual({
       state: 'ready',
-      label: 'Fast MCTS',
-      title: 'Run a fast MCTS review of the current line',
+      label: 'Fast review',
+      title: 'Run a fast review of the current line',
       disabled: false,
-      ariaLabel: 'Run a fast MCTS review of the current line',
+      ariaLabel: 'Run a fast review of the current line',
     });
   });
 
-  it('marks the panel Fast MCTS action reviewed when the current line is complete', () => {
+  it('marks the panel Fast review action reviewed when the current line is complete', () => {
     const state = getFastMctsPanelButtonState({
       isGameAnalysisRunning: false,
       gameAnalysisType: null,
@@ -69,7 +69,7 @@ describe('fast review button state', () => {
     });
   });
 
-  it('keeps Fast MCTS actionable after quick value-only analysis', () => {
+  it('keeps Fast review actionable after quick value-only analysis', () => {
     const state = getFastMctsPanelButtonState({
       isGameAnalysisRunning: false,
       gameAnalysisType: null,
@@ -82,12 +82,12 @@ describe('fast review button state', () => {
 
     expect(state).toMatchObject({
       state: 'ready',
-      label: 'Fast MCTS',
+      label: 'Fast review',
       disabled: false,
     });
   });
 
-  it('turns the panel Fast MCTS action into stop while fast review is running', () => {
+  it('turns the panel Fast review action into stop while fast review is running', () => {
     const state = getFastMctsPanelButtonState({
       isGameAnalysisRunning: true,
       gameAnalysisType: 'fast',
@@ -99,13 +99,13 @@ describe('fast review button state', () => {
     expect(state).toEqual({
       state: 'running',
       label: 'Stop fast (3/8)',
-      title: 'Stop fast MCTS review',
+      title: 'Stop fast review',
       disabled: false,
-      ariaLabel: 'Stop fast MCTS review',
+      ariaLabel: 'Stop fast review',
     });
   });
 
-  it('blocks panel Fast MCTS while a different analysis job is active', () => {
+  it('blocks panel Fast review while a different analysis job is active', () => {
     const state = getFastMctsPanelButtonState({
       isGameAnalysisRunning: true,
       gameAnalysisType: 'quick',
@@ -116,10 +116,10 @@ describe('fast review button state', () => {
 
     expect(state).toEqual({
       state: 'blocked',
-      label: 'Fast MCTS',
-      title: 'Stop quick analysis before starting Fast MCTS.',
+      label: 'Fast review',
+      title: 'Stop quick analysis before starting a fast review.',
       disabled: true,
-      ariaLabel: 'Fast MCTS unavailable while quick analysis is running',
+      ariaLabel: 'Fast review unavailable while quick analysis is running',
     });
   });
 });

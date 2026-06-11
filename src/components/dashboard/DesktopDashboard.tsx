@@ -139,7 +139,9 @@ function evalColorForPointsLost(pl: number): string {
   return 'var(--eval-best)';
 }
 
-type PopoverId = 'engine' | 'view' | null;
+type PopoverId = 'engine' | 'view' | 'file' | 'help' | null;
+
+const HERO_DISMISSED_KEY = 'wk-getting-started-dismissed';
 type DashboardOverlayKey = keyof Pick<
   GameSettings,
   'analysisShowChildren' | 'analysisShowEval' | 'analysisShowHints' | 'analysisShowPolicy' | 'analysisShowOwnership'
@@ -212,6 +214,27 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   const [moveInputDraft, setMoveInputDraft] = useState<string | null>(null);
   const moveInputValue = moveInputDraft ?? String(moveCount);
 
+  // ---- first-run hero ----
+  const [heroDismissed, setHeroDismissed] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return window.localStorage.getItem(HERO_DISMISSED_KEY) === 'true';
+    } catch {
+      return true;
+    }
+  });
+  const dismissHero = useCallback(() => {
+    setHeroDismissed(true);
+    try {
+      window.localStorage.setItem(HERO_DISMISSED_KEY, 'true');
+    } catch {
+      // ignore storage failures
+    }
+  }, []);
+  // Only on a fresh, untouched game: the board stays playable underneath, and
+  // the card hides itself as soon as a move exists or the game has edits.
+  const showHero = !heroDismissed && totalMoves === 0 && !dirty;
+
   useEffect(() => {
     libraryOpenRef.current = libraryOpen;
     if (layoutMode === 'wide') {
@@ -281,10 +304,12 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     return `${who} ${m.x < 0 || m.y < 0 ? 'pass' : formatMoveLabel(m.x, m.y, boardSize)}`;
   })();
   const bestMove = currentNode.analysis?.moves?.[0] ?? null;
+  // "Fast review" matches the command bar's name for the same operation;
+  // avoid exposing MCTS jargon in one surface and not the other.
   const dashboardFastMctsTitle = isGameAnalysisRunning
     ? `Stop ${gameAnalysisType ?? 'current'} analysis`
-    : 'Run a fast MCTS review of the current line';
-  const dashboardFastMctsLabel = isGameAnalysisRunning ? 'Stop game analysis' : 'Run fast MCTS review';
+    : 'Run a fast engine review of the current line';
+  const dashboardFastMctsLabel = isGameAnalysisRunning ? 'Stop game analysis' : 'Run fast review';
 
   const sectionHead = (
     key: keyof typeof sections,
@@ -390,27 +415,33 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" /></button>
           <button type="button" className="iconbtn" title="Open SGF / photo / weights" aria-label="Load SGF, board photo, or model weights" onClick={onLoadSgf}><Icon name="folder" /></button>
           <button type="button" className="iconbtn" title="Save SGF" aria-label="Save SGF" onClick={onSaveSgf}><Icon name="save" /></button>
-          <button type="button" className="iconbtn shed" title="Copy SGF" aria-label="Copy SGF" onClick={onCopySgf}><Icon name="copy" /></button>
-          <button type="button" className="iconbtn shed" title="Save to library" aria-label="Save to library" onClick={onSaveToLibrary}><Icon name="book" /></button>
-          <button type="button" className="iconbtn shed" title="Paste SGF / OGS" aria-label="Paste SGF / OGS" onClick={onPasteSgf}><Icon name="clipboard" /></button>
+          <button
+            type="button"
+            className={`iconbtn${pop?.id === 'file' ? ' active' : ''}`}
+            title="More file actions"
+            aria-label="More file actions"
+            aria-haspopup="menu"
+            aria-expanded={pop?.id === 'file'}
+            onClick={(e) => openPop('file', e)}
+          >
+            <Icon name="dots" />
+          </button>
         </div>
         <div className="header-divider shed" />
         <div className="iconcluster" id="wk-util-actions">
           <button type="button" className="iconbtn" title="Command palette" aria-label="Command palette" onClick={onCommandPalette}><Icon name="search" /></button>
-          <button type="button" className="iconbtn" title="Photo board" aria-label="Photo Board" onClick={onScanBoard}><Icon name="camera" /></button>
           <button type="button" className="iconbtn" title="Settings" aria-label="Settings" onClick={onSettings}><Icon name="settings" /></button>
-          <button type="button" className="iconbtn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" onClick={onKeyboardHelp}><Icon name="keyboard" /></button>
-          <a
-            className="iconbtn"
-            href={APP_ISSUE_REPORT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Report an issue on GitHub"
-            aria-label="Report an issue on GitHub"
-            data-dashboard-report-issue="true"
+          <button
+            type="button"
+            className={`iconbtn${pop?.id === 'help' ? ' active' : ''}`}
+            title="Help"
+            aria-label="Help"
+            aria-haspopup="menu"
+            aria-expanded={pop?.id === 'help'}
+            onClick={(e) => openPop('help', e)}
           >
-            <Icon name="bug" />
-          </a>
+            <Icon name="help" />
+          </button>
         </div>
 
         <div className="header-spacer" />
@@ -432,7 +463,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         >
           <span className="dot" />
           <span id="wk-engine-pill-label">{enginePillLabel}</span>
-          <span className="meta" id="wk-engine-pill-meta">{engineMeta}</span>
+          {/* The label already states readiness, so the meta sticks to backend
+              and model instead of repeating it ("KataGo ready · Ready · …"). */}
+          <span className="meta" id="wk-engine-pill-meta">
+            {[engineBackend, engineModelLabel].filter(Boolean).join(' · ') || engineMeta}
+          </span>
         </button>
         <button
           type="button"
@@ -578,6 +613,35 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <div className="board-wrap">
               <div className="goban-frame">{board}</div>
             </div>
+            {showHero && (
+              <div className="hero-card" data-dashboard-hero="true" role="region" aria-label="Get started">
+                <button
+                  type="button"
+                  className="iconbtn hero-close"
+                  title="Dismiss"
+                  aria-label="Dismiss get started"
+                  onClick={dismissHero}
+                >
+                  <Icon name="x" size={13} />
+                </button>
+                <div className="hero-title">Get started</div>
+                <div className="hero-sub">Play a move right on the board, or bring in a game:</div>
+                <div className="hero-actions">
+                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onNewGame(); }}>
+                    <Icon name="plus" size={14} /> New game
+                  </button>
+                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onLoadSgf(); }}>
+                    <Icon name="folder" size={14} /> Open SGF
+                  </button>
+                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onPasteSgf(); }}>
+                    <Icon name="clipboard" size={14} /> Paste SGF / OGS
+                  </button>
+                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onScanBoard(); }}>
+                    <Icon name="camera" size={14} /> From photo
+                  </button>
+                </div>
+              </div>
+            )}
             {!sidebarOpen && (
               <button type="button" className="edge-toggle right" title="Show analysis" onClick={toggleSidebar}><Icon name="chevL" size={13} /></button>
             )}
@@ -648,7 +712,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <div className="navbar">
             <button type="button" className="pass-btn" title="Pass (P)" onClick={passTurn}>Pass</button>
             <div className="navgroup">
-              <button type="button" className="navbtn danger" title="Previous mistake" onClick={() => findMistake(-1)}><Icon name="alert" size={15} /></button>
+              <button type="button" className="navbtn danger navbtn-pair" title="Previous mistake" onClick={() => findMistake(-1)}><Icon name="chevL" size={11} /><Icon name="alert" size={14} /></button>
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
@@ -696,7 +760,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
-              <button type="button" className="navbtn danger" title="Next mistake" onClick={() => findMistake(1)}><Icon name="alert" size={15} /></button>
+              <button type="button" className="navbtn danger navbtn-pair" title="Next mistake" onClick={() => findMistake(1)}><Icon name="alert" size={14} /><Icon name="chevR" size={11} /></button>
               <button type="button" className="navbtn" title="Rotate board" onClick={rotateBoard}><Icon name="rotate" size={15} /></button>
             </div>
             <span className="navbar-spacer" />
@@ -858,7 +922,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     title={dashboardFastMctsTitle}
                     onClick={() => (isGameAnalysisRunning ? stopGameAnalysis() : startFastGameAnalysis())}
                   >
-                    <Icon name="gauge" size={12} />{isGameAnalysisRunning ? 'Stop' : 'Fast MCTS'}
+                    <Icon name="gauge" size={12} />{isGameAnalysisRunning ? 'Stop' : 'Fast review'}
                   </button>
                   <button
                     type="button"
@@ -906,6 +970,49 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           cacheSize={analysisCacheSize}
           onClearCache={() => { closePop(); onClearAnalysisCache(); }}
         />
+      )}
+      {pop?.id === 'file' && (
+        <div className="popover menu" style={popoverStyle(pop.rect, 230)} onClick={(e) => e.stopPropagation()}>
+          <div className="menu-section-label">Export</div>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onCopySgf(); }}>
+            <Icon name="copy" size={14} /><span className="mi-label">Copy SGF</span>
+          </button>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onSaveToLibrary(); }}>
+            <Icon name="book" size={14} /><span className="mi-label">Save to library</span>
+          </button>
+          <div className="menu-divider" />
+          <div className="menu-section-label">Import</div>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onPasteSgf(); }}>
+            <Icon name="clipboard" size={14} /><span className="mi-label">Paste SGF / OGS</span>
+          </button>
+          <button type="button" className="menu-item" aria-label="Photo Board" onClick={() => { closePop(); onScanBoard(); }}>
+            <Icon name="camera" size={14} /><span className="mi-label">Board from photo</span>
+          </button>
+        </div>
+      )}
+      {pop?.id === 'help' && (
+        <div className="popover menu" style={popoverStyle(pop.rect, 230)} onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onKeyboardHelp(); }}>
+            <Icon name="keyboard" size={14} /><span className="mi-label">Keyboard shortcuts</span>
+          </button>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onAbout(); }}>
+            <Icon name="info" size={14} /><span className="mi-label">About Web KaTrain</span>
+          </button>
+          <div className="menu-divider" />
+          <a
+            className="menu-item"
+            href={APP_ISSUE_REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Report an issue on GitHub"
+            aria-label="Report an issue on GitHub"
+            data-dashboard-report-issue="true"
+            onClick={closePop}
+          >
+            <Icon name="bug" />
+            <span className="mi-label">Report an issue</span>
+          </a>
+        </div>
       )}
       {pop?.id === 'view' && (
         <ViewMenu

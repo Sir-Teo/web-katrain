@@ -18,7 +18,7 @@ export function getFastReviewButtonState({
   gameProgress,
   analysisCoverage,
   readyLabel = 'Fast review',
-  readyTitle = 'Run a fast MCTS review of the game',
+  readyTitle = 'Run a fast review of the game',
 }: {
   isGameAnalysisRunning: boolean;
   gameProgress: GameProgressButtonSummary;
@@ -77,10 +77,10 @@ export function getFastMctsPanelButtonState({
   if (isGameAnalysisRunning && !isFastReviewRunning) {
     return {
       state: 'blocked',
-      label: 'Fast MCTS',
-      title: `Stop ${gameAnalysisType ?? 'current'} analysis before starting Fast MCTS.`,
+      label: 'Fast review',
+      title: `Stop ${gameAnalysisType ?? 'current'} analysis before starting a fast review.`,
       disabled: true,
-      ariaLabel: `Fast MCTS unavailable while ${gameAnalysisType ?? 'current'} analysis is running`,
+      ariaLabel: `Fast review unavailable while ${gameAnalysisType ?? 'current'} analysis is running`,
     };
   }
 
@@ -88,10 +88,10 @@ export function getFastMctsPanelButtonState({
     isGameAnalysisRunning: isFastReviewRunning,
     gameProgress: {
       buttonLabel: gameAnalysisTotal > 0 ? `fast (${gameAnalysisDone}/${gameAnalysisTotal})` : 'fast',
-      title: 'Stop fast MCTS review',
+      title: 'Stop fast review',
     },
     analysisCoverage,
-    readyLabel: 'Fast MCTS',
-    readyTitle: 'Run a fast MCTS review of the current line',
+    readyLabel: 'Fast review',
+    readyTitle: 'Run a fast review of the current line',
   });
 }

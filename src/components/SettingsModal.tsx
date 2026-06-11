@@ -831,7 +831,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             />
                                         </div>
                                         <p className={subtextClass}>
-                                            KaTrain-style: runs fast MCTS analysis on load (uses “Fast Visits”) so graphs/points lost fill in quickly.
+                                            KaTrain-style: runs a fast engine review on load (uses “Fast Visits”) so graphs/points lost fill in quickly.
                                         </p>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

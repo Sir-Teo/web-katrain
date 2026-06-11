@@ -67,13 +67,14 @@ describe('desktop dashboard layout', () => {
     expect(dashboardLibraryBlock).not.toContain('width={leftPanelWidth}');
   });
 
-  it('keeps direct Copy SGF access in the desktop dashboard header', () => {
+  it('keeps Copy SGF access in the desktop dashboard File menu', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
 
     expect(dashboardSource).toContain('onCopySgf: () => void');
-    expect(dashboardSource).toContain('aria-label="Copy SGF"');
-    expect(dashboardSource).toContain('onClick={onCopySgf}');
+    expect(dashboardSource).toContain('aria-label="More file actions"');
+    expect(dashboardSource).toContain('<span className="mi-label">Copy SGF</span>');
+    expect(dashboardSource).toContain('onClick={() => { closePop(); onCopySgf(); }}');
     expect(layoutSource).toContain('onCopySgf={handleCopySgf}');
   });
 

@@ -3173,13 +3173,16 @@ export const Layout: React.FC = () => {
                 // Portrait only: in landscape the board is height-limited and centered with
                 // the launchers in the side margins, so vertical padding there would just
                 // squash/clip the board.
+                // Bias the board to the top in portrait: vertical centering left all
+                // the slack as a dead gap under the command bar while the floating
+                // Edit launcher occupied the bottom slack anyway.
                 !isMobile
                   ? 'items-center'
                   : isEditMode
-                    ? 'items-center portrait:pt-14 portrait:pb-36'
+                    ? 'items-center portrait:items-start portrait:pt-14 portrait:pb-36'
                     : scoringMode
-                      ? 'items-center portrait:pt-14 portrait:pb-[20rem]'
-                      : 'items-center portrait:py-14',
+                      ? 'items-center portrait:items-start portrait:pt-14 portrait:pb-[20rem]'
+                      : 'items-center portrait:items-start portrait:py-14',
               ].join(' ')}
             >
               <GoBoard

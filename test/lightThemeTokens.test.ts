@@ -32,8 +32,10 @@ describe('light theme shell tokens', () => {
     expect(css).not.toContain('fonts.gstatic.com');
     expect(css).toContain('--ui-font: ui-sans-serif');
     expect(css).toContain('--ui-font-mono: ui-monospace');
-    expect(css).toContain('--sans: ui-sans-serif');
-    expect(css).toContain('--mono: ui-monospace');
+    // The dashboard aliases its font tokens onto the shared --ui-* stacks so
+    // there is a single, offline-safe definition.
+    expect(css).toContain('--sans: var(--ui-font)');
+    expect(css).toContain('--mono: var(--ui-font-mono)');
   });
 
   it('keeps shared shell hover text on theme tokens instead of hard white', () => {

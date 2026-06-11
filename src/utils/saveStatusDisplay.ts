@@ -57,7 +57,9 @@ export function getSaveStatusDisplay(
     return {
       state: 'saved',
       label: 'Recovery saved',
-      compactLabel: detail ?? 'Saved',
+      // Keep the compact badge short and fixed-width; the save time stays in
+      // the detail/title so narrow bottom bars never clip it mid-string.
+      compactLabel: 'Saved',
       detail,
       title: detail
         ? `Recovery copy saved at ${detail}. This game is still unsaved until you save to Library or download SGF.`

@@ -23,7 +23,9 @@
     --ui-border-strong: #344664;
     --ui-text: #e6edf7;
     --ui-text-muted: #94a3b8;
-    --ui-text-faint: #64748b;
+    /* Faint text still has to clear ~4.5:1 on --ui-bg for the tiny uppercase
+       labels it is used on. */
+    --ui-text-faint: #74859e;
     --ui-accent: #22c55e;
     --ui-accent-soft: #1a3a2a;
     --ui-accent-contrast: #0b0f16;
@@ -71,7 +73,7 @@
     --ui-border-strong: #314760;
     --ui-text: #e7eef8;
     --ui-text-muted: #9aa8bb;
-    --ui-text-faint: #6f8198;
+    --ui-text-faint: #7b8da5;
     --ui-accent: #38bdf8;
     --ui-accent-soft: #122a3a;
     --ui-accent-contrast: #0c1219;
@@ -94,8 +96,8 @@
     --ui-border: #d6dde8;
     --ui-border-strong: #c1cbd9;
     --ui-text: #1e293b;
-    --ui-text-muted: #64748b;
-    --ui-text-faint: #94a3b8;
+    --ui-text-muted: #526075;
+    --ui-text-faint: #64748b;
     --ui-accent: #0284c7;
     --ui-accent-soft: #e0f2fe;
     --ui-accent-contrast: #ffffff;
@@ -1011,12 +1013,17 @@
     white-space: nowrap;
   }
 
+  /* Win rate and score are neutral state readouts; semantic colors stay
+     reserved for move-quality tones (success/warning/danger below). */
   .analysis-command-bar__value--win,
+  .analysis-command-bar__value--score {
+    color: var(--ui-text);
+  }
+
   .analysis-command-bar__value--success {
     color: var(--ui-success);
   }
 
-  .analysis-command-bar__value--score,
   .analysis-command-bar__value--warning {
     color: var(--ui-warning);
   }
@@ -1431,6 +1438,12 @@
       justify-content: flex-start;
       overflow-x: auto;
       scrollbar-width: none;
+      /* Fade the trailing edge so a clipped button reads as "scroll for more"
+         rather than broken; the padding keeps the last button clear of the
+         fade once scrolled to the end. */
+      padding-right: 1.25rem;
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
     }
 
     .analysis-command-bar__actions::-webkit-scrollbar {
@@ -1489,6 +1502,16 @@
 
     .analysis-command-bar__metric {
       padding: 0.25rem 0.375rem;
+    }
+
+    /* With four metrics the auto-fit grid wraps 3+1, stranding the last stat
+       on its own ragged row — switch to a balanced 2×2 instead. */
+    .analysis-command-bar__metrics:has(> :nth-child(4)) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .analysis-command-bar__metrics:has(> :nth-child(4)) .analysis-command-bar__metric:nth-child(odd) {
+      border-left: none;
     }
 
     .analysis-command-bar__value {

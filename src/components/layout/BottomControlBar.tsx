@@ -792,7 +792,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           disabled={isInsertMode}
           className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
         >
-          <FaExclamationTriangle />
+          <span className="inline-flex items-center gap-px" aria-hidden="true">
+            <FaChevronLeft size={9} />
+            <FaExclamationTriangle />
+          </span>
         </IconButton>
 
         <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
@@ -898,7 +901,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           disabled={isInsertMode}
           className="text-[var(--ui-danger)] hover:text-[var(--ui-danger)]"
         >
-          <FaExclamationTriangle />
+          <span className="inline-flex items-center gap-px" aria-hidden="true">
+            <FaExclamationTriangle />
+            <FaChevronRight size={9} />
+          </span>
         </IconButton>
         <IconButton title={withShortcut('Rotate', 'rotate-board')} onClick={rotateBoard}>
           <FaSyncAlt />
