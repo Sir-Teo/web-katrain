@@ -117,6 +117,7 @@ const PasteSgfModal = lazy(() => import('./PasteSgfModal').then((module) => ({ d
 const SaveToLibraryDialog = lazy(() => import('./SaveToLibraryDialog').then((module) => ({ default: module.SaveToLibraryDialog })));
 const ScoreQuizModal = lazy(() => import('./ScoreQuizModal').then((module) => ({ default: module.ScoreQuizModal })));
 const TournamentModal = lazy(() => import('./TournamentModal').then((module) => ({ default: module.TournamentModal })));
+const ProGamesModal = lazy(() => import('./ProGamesModal').then((module) => ({ default: module.ProGamesModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 const mainFileInputAccept = ['.sgf', PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
@@ -325,6 +326,7 @@ export const Layout: React.FC = () => {
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const [isScoreQuizOpen, setIsScoreQuizOpen] = useState(false);
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
+  const [isProGamesOpen, setIsProGamesOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
@@ -1606,6 +1608,23 @@ export const Layout: React.FC = () => {
     setPhotoBoardInitialFile(null);
   }, []);
 
+  const handleLoadProGame = useCallback(async (sgf: string, name: string) => {
+    try {
+      const parsed = parseSgf(sgf);
+      if (!(await prepareForGameReplacement())) return;
+      loadGame(parsed);
+      const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
+      setLoadedLibraryFile(null);
+      setLoadedExternalFile({ kind: 'pasted', name: getImportedSgfNameFromProperties(parsed.tree?.props, name) });
+      markCurrentGameCleanAndClearAutoSave();
+      setIsProGamesOpen(false);
+      navigateEnd();
+      toast(appendRestoredAnalysisSummary(`Loaded ${name}.`, restoredAnalysisCount), 'success');
+    } catch {
+      toast('Failed to load pro game.', 'error');
+    }
+  }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, navigateEnd, toast]);
+
   const handleOpenSgfFromText = useCallback(async (text: string): Promise<PasteSgfSubmitResult> => {
     try {
       const result = await loadSgfOrOgs(text);
@@ -2318,6 +2337,13 @@ export const Layout: React.FC = () => {
         keywords: ['tournament', 'ladder', 'climb', 'bot', 'rank', 'challenge'],
       },
       {
+        id: 'pro-games',
+        label: 'Browse pro game library',
+        category: 'Study',
+        run: () => openSimpleModal(() => setIsProGamesOpen(true)),
+        keywords: ['professional', 'database', 'famous', 'kifu', 'player', 'event'],
+      },
+      {
         id: 'game-analysis',
         label: 'Open game re-analysis',
         category: 'Analysis',
@@ -2562,6 +2588,7 @@ export const Layout: React.FC = () => {
       !isUnsavedChangesOpen &&
       !isScoreQuizOpen &&
       !isTournamentOpen &&
+      !isProGamesOpen &&
       !pendingResignPlayer,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
@@ -2643,6 +2670,12 @@ export const Layout: React.FC = () => {
           <TournamentModal
             onClose={() => setIsTournamentOpen(false)}
             onPlayGame={handlePlayTournamentGame}
+          />
+        )}
+        {isProGamesOpen && (
+          <ProGamesModal
+            onClose={() => setIsProGamesOpen(false)}
+            onLoadGame={handleLoadProGame}
           />
         )}
         {isPhotoBoardOpen && (
