@@ -112,6 +112,7 @@ const NewGameModal = lazy(() => import('./NewGameModal').then((module) => ({ def
 const PhotoBoardModal = lazy(() => import('./PhotoBoardModal').then((module) => ({ default: module.PhotoBoardModal })));
 const PasteSgfModal = lazy(() => import('./PasteSgfModal').then((module) => ({ default: module.PasteSgfModal })));
 const SaveToLibraryDialog = lazy(() => import('./SaveToLibraryDialog').then((module) => ({ default: module.SaveToLibraryDialog })));
+const ScoreQuizModal = lazy(() => import('./ScoreQuizModal').then((module) => ({ default: module.ScoreQuizModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 const mainFileInputAccept = ['.sgf', PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
@@ -318,6 +319,7 @@ export const Layout: React.FC = () => {
   const [isGameReportOpen, setIsGameReportOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
+  const [isScoreQuizOpen, setIsScoreQuizOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
@@ -2297,6 +2299,13 @@ export const Layout: React.FC = () => {
         keywords: ['review', 'mistakes'],
       },
       {
+        id: 'score-quiz',
+        label: 'Score estimation quiz',
+        category: 'Study',
+        run: () => openSimpleModal(() => setIsScoreQuizOpen(true)),
+        keywords: ['estimate', 'quiz', 'count', 'territory', 'judgement', 'guess'],
+      },
+      {
         id: 'game-analysis',
         label: 'Open game re-analysis',
         category: 'Analysis',
@@ -2524,6 +2533,7 @@ export const Layout: React.FC = () => {
       !isPhotoBoardOpen &&
       !isPasteSgfOpen &&
       !isUnsavedChangesOpen &&
+      !isScoreQuizOpen &&
       !pendingResignPlayer,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
@@ -2597,6 +2607,9 @@ export const Layout: React.FC = () => {
             onClose={() => setIsKeyboardHelpOpen(false)}
             onOpenShortcutSettings={openShortcutSettings}
           />
+        )}
+        {isScoreQuizOpen && (
+          <ScoreQuizModal onClose={() => setIsScoreQuizOpen(false)} />
         )}
         {isPhotoBoardOpen && (
           <PhotoBoardModal
