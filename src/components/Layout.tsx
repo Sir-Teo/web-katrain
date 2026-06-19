@@ -81,6 +81,9 @@ import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
+import { useTournamentWatcher } from '../hooks/useTournamentWatcher';
+import { useTournamentStore } from '../store/tournamentStore';
+import type { LadderState } from '../utils/tournament';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
 import { getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber } from '../utils/branchNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
@@ -113,6 +116,7 @@ const PhotoBoardModal = lazy(() => import('./PhotoBoardModal').then((module) => 
 const PasteSgfModal = lazy(() => import('./PasteSgfModal').then((module) => ({ default: module.PasteSgfModal })));
 const SaveToLibraryDialog = lazy(() => import('./SaveToLibraryDialog').then((module) => ({ default: module.SaveToLibraryDialog })));
 const ScoreQuizModal = lazy(() => import('./ScoreQuizModal').then((module) => ({ default: module.ScoreQuizModal })));
+const TournamentModal = lazy(() => import('./TournamentModal').then((module) => ({ default: module.TournamentModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 const mainFileInputAccept = ['.sgf', PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
@@ -320,6 +324,7 @@ export const Layout: React.FC = () => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const [isScoreQuizOpen, setIsScoreQuizOpen] = useState(false);
+  const [isTournamentOpen, setIsTournamentOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
@@ -2306,6 +2311,13 @@ export const Layout: React.FC = () => {
         keywords: ['estimate', 'quiz', 'count', 'territory', 'judgement', 'guess'],
       },
       {
+        id: 'rank-ladder',
+        label: 'Rank ladder (tournament)',
+        category: 'Study',
+        run: () => openSimpleModal(() => setIsTournamentOpen(true)),
+        keywords: ['tournament', 'ladder', 'climb', 'bot', 'rank', 'challenge'],
+      },
+      {
         id: 'game-analysis',
         label: 'Open game re-analysis',
         category: 'Analysis',
@@ -2518,6 +2530,21 @@ export const Layout: React.FC = () => {
     toast('Gamepad navigation disabled.', 'info');
   }, [toast, updateSettings]);
 
+  useTournamentWatcher();
+
+  const handlePlayTournamentGame = useCallback((ladder: LadderState) => {
+    setIsTournamentOpen(false);
+    startNewGame({ komi: ladder.komi, rules: settings.gameRules, boardSize: ladder.boardSize, handicap: ladder.handicap });
+    updateSettings({ aiStrategy: 'rank', aiRankKyu: ladder.currentKyu });
+    const opponent = ladder.userColor === 'black' ? 'white' : 'black';
+    // Start a fresh game first, then hand the opponent color to the rank bot.
+    window.setTimeout(() => {
+      useGameStore.getState().toggleAi(opponent);
+      useTournamentStore.getState().beginGame();
+    }, 0);
+    toast(`Ladder game vs ${ladder.boardSize}×${ladder.boardSize} ${ladder.userColor === 'black' ? 'White' : 'Black'} bot started.`, 'success');
+  }, [startNewGame, updateSettings, settings.gameRules, toast]);
+
   const gamepadStatus = useGamepadNavigation({
     enabled:
       settings.gamepadNavigation &&
@@ -2534,6 +2561,7 @@ export const Layout: React.FC = () => {
       !isPasteSgfOpen &&
       !isUnsavedChangesOpen &&
       !isScoreQuizOpen &&
+      !isTournamentOpen &&
       !pendingResignPlayer,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
@@ -2610,6 +2638,12 @@ export const Layout: React.FC = () => {
         )}
         {isScoreQuizOpen && (
           <ScoreQuizModal onClose={() => setIsScoreQuizOpen(false)} />
+        )}
+        {isTournamentOpen && (
+          <TournamentModal
+            onClose={() => setIsTournamentOpen(false)}
+            onPlayGame={handlePlayTournamentGame}
+          />
         )}
         {isPhotoBoardOpen && (
           <PhotoBoardModal
