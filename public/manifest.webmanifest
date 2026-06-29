@@ -61,5 +61,23 @@
         }
       ]
     }
-  ]
+  ],
+  "file_handlers": [
+    {
+      "action": ".",
+      "accept": {
+        "application/x-go-sgf": [".sgf"],
+        "text/plain": [".sgf"]
+      }
+    }
+  ],
+  "share_target": {
+    "action": ".",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

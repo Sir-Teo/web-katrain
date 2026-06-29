@@ -41,6 +41,22 @@ export async function writeClipboardText(text: string, target?: Navigator | null
   }
 }
 
+export async function writeClipboardImage(blob: Blob, target?: Navigator | null): Promise<boolean> {
+  const clipboard = getClipboard(target);
+  if (typeof clipboard?.write !== 'function') return false;
+  const ClipboardItemCtor = typeof globalThis !== 'undefined'
+    ? (globalThis as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem
+    : undefined;
+  if (typeof ClipboardItemCtor !== 'function') return false;
+  try {
+    const item = new ClipboardItemCtor({ [blob.type || 'image/png']: blob });
+    await withClipboardTimeout(clipboard.write([item]));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function readClipboardText(target?: Navigator | null): Promise<string | null> {
   const clipboard = getClipboard(target);
   if (typeof clipboard?.readText !== 'function') return null;

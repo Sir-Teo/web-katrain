@@ -7,6 +7,9 @@ import { EditToolbar } from './EditToolbar';
 import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
 import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, getImportedSgfNameFromProperties, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
+import { copyBoardImage, downloadBoardImage } from '../utils/boardImageExport';
+import { buildShareUrl, decodeSgfFromFragment, MAX_SHARE_URL_LENGTH } from '../utils/shareLink';
+import { pickSharedImportText, readSharedFromQuery } from '../utils/pwaOpen';
 import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
@@ -119,6 +122,8 @@ const ScoreQuizModal = lazy(() => import('./ScoreQuizModal').then((module) => ({
 const TournamentModal = lazy(() => import('./TournamentModal').then((module) => ({ default: module.TournamentModal })));
 const ProGamesModal = lazy(() => import('./ProGamesModal').then((module) => ({ default: module.ProGamesModal })));
 const LessonsModal = lazy(() => import('./LessonsModal').then((module) => ({ default: module.LessonsModal })));
+const GuessMoveModal = lazy(() => import('./GuessMoveModal').then((module) => ({ default: module.GuessMoveModal })));
+const ProblemModal = lazy(() => import('./ProblemModal').then((module) => ({ default: module.ProblemModal })));
 const VideoBoardModal = lazy(() => import('./VideoBoardModal').then((module) => ({ default: module.VideoBoardModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
@@ -127,6 +132,7 @@ const LAYOUT_SHORTCUT_IDS = [
   'toggle-library',
   'toggle-sidebar',
   'toggle-scoring',
+  'toggle-edit-mode',
   'toggle-top-bar',
   'toggle-bottom-bar',
 ] as const;
@@ -330,6 +336,8 @@ export const Layout: React.FC = () => {
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
   const [isProGamesOpen, setIsProGamesOpen] = useState(false);
   const [isLessonsOpen, setIsLessonsOpen] = useState(false);
+  const [isGuessMoveOpen, setIsGuessMoveOpen] = useState(false);
+  const [isProblemOpen, setIsProblemOpen] = useState(false);
   const [isVideoBoardOpen, setIsVideoBoardOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
@@ -773,6 +781,84 @@ export const Layout: React.FC = () => {
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  // Holds the latest text/file open handlers (defined later in the component) so
+  // the early startup effect can route shared content without a TDZ on those
+  // callbacks. Refreshed every render below.
+  const pwaOpenHandlersRef = useRef<{
+    openText: (text: string) => unknown;
+    openFile: (file: File) => unknown;
+  } | null>(null);
+
+  const sharedLinkCheckedRef = useRef(false);
+  useEffect(() => {
+    if (sharedLinkCheckedRef.current) return;
+    sharedLinkCheckedRef.current = true;
+    if (typeof window === 'undefined') return;
+
+    // The shared/opened content is the intended state, so skip the recovery
+    // prompt (auto-save itself stays active for subsequent edits).
+    const suppressRecoveryPrompt = () => {
+      autoSaveRecoveryCheckedRef.current = true;
+      setAutoSaveRecoveryChecked(true);
+    };
+
+    // 1) Share link — full SGF compressed into the URL fragment (#sgf=...).
+    const sharedSgf = decodeSgfFromFragment(window.location.hash);
+    if (sharedSgf) {
+      try {
+        const parsed = parseSgf(sharedSgf);
+        loadGame(parsed);
+        setLoadedLibraryFile(null);
+        navigateEnd();
+        suppressRecoveryPrompt();
+        toast('Loaded shared game from link.', 'success');
+      } catch {
+        toast('Could not load the shared game from this link.', 'error');
+      } finally {
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch {
+          // Ignore environments without the History API.
+        }
+      }
+    } else {
+      // 2) Web Share Target (GET) — shared text / URL appended as query params.
+      const shared = readSharedFromQuery(window.location.search);
+      const sharedText = shared ? pickSharedImportText(shared) : null;
+      if (sharedText) {
+        suppressRecoveryPrompt();
+        void pwaOpenHandlersRef.current?.openText(sharedText);
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        } catch {
+          // Ignore environments without the History API.
+        }
+      }
+    }
+
+    // 3) File handler — files opened via the OS ("Open with Web KaTrain").
+    const launchQueue = (window as Window & {
+      launchQueue?: { setConsumer: (consumer: (params: { files?: Array<{ getFile: () => Promise<File> }> }) => void) => void };
+    }).launchQueue;
+    if (launchQueue && typeof launchQueue.setConsumer === 'function') {
+      launchQueue.setConsumer((params) => {
+        const handles = params?.files ?? [];
+        if (handles.length === 0) return;
+        suppressRecoveryPrompt();
+        void (async () => {
+          for (const handle of handles) {
+            try {
+              const file = await handle.getFile();
+              await pwaOpenHandlersRef.current?.openFile(file);
+            } catch {
+              toast('Could not open the file.', 'error');
+            }
+          }
+        })();
+      });
+    }
+  }, [loadGame, navigateEnd, setLoadedLibraryFile, toast]);
 
   useEffect(() => {
     if (autoSaveRecoveryCheckedRef.current) return;
@@ -1601,6 +1687,37 @@ export const Layout: React.FC = () => {
     toast('Copy failed (clipboard unavailable).', 'error');
   };
 
+  const handleExportBoardImage = async () => {
+    const moveNumber = useGameStore.getState().currentNode.gameState.moveHistory.length;
+    if (await downloadBoardImage(rootNode, moveNumber)) {
+      toast('Exported board image (PNG).', 'success');
+      return;
+    }
+    toast('Could not export the board image.', 'error');
+  };
+
+  const handleCopyBoardImage = async () => {
+    if (await copyBoardImage()) {
+      toast('Copied board image to clipboard.', 'success');
+      return;
+    }
+    toast('Copy failed (image clipboard unavailable).', 'error');
+  };
+
+  const handleCopyShareLink = async () => {
+    const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
+    const url = buildShareUrl(sgf, window.location);
+    if (!(await copyTextToClipboard(url))) {
+      toast('Copy failed (clipboard unavailable).', 'error');
+      return;
+    }
+    if (url.length > MAX_SHARE_URL_LENGTH) {
+      toast('Copied share link. It is long and may not open in every browser.', 'info');
+    } else {
+      toast('Copied share link to clipboard.', 'success');
+    }
+  };
+
   const handlePasteSgf = () => {
     setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
@@ -1663,6 +1780,29 @@ export const Layout: React.FC = () => {
       return 'failed';
     }
   }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, toast]);
+
+  // Plain function (not memoised): only consumed via the handler ref assigned
+  // below during render, so it never feeds an effect/callback dependency list.
+  const handleOpenLaunchFile = async (file: File) => {
+    if (isPhotoBoardImageFile(file)) {
+      openPhotoBoard(file);
+      toast('Opened photo board from shared image.', 'info');
+      return;
+    }
+    if (file.name.toLowerCase().endsWith('.sgf') || file.type === 'application/x-go-sgf') {
+      try {
+        const text = await file.text();
+        await loadLocalSgfText(text, file.name);
+      } catch {
+        toast('Failed to open the SGF file.', 'error');
+      }
+      return;
+    }
+    toast('Unsupported file type. Open an SGF file or board image.', 'error');
+  };
+
+  // Keep the startup-effect handler ref pointed at the current callbacks.
+  pwaOpenHandlersRef.current = { openText: handleOpenSgfFromText, openFile: handleOpenLaunchFile };
 
   const handleOpenRecent = async (item: LibraryFile) => {
     const loaded = await handleLoadFromLibrary(item.sgf);
@@ -2046,6 +2186,27 @@ export const Layout: React.FC = () => {
         keywords: ['clipboard'],
       },
       {
+        id: 'export-board-image',
+        label: 'Export board image (PNG)',
+        category: 'File',
+        run: () => { void handleExportBoardImage(); },
+        keywords: ['png', 'screenshot', 'diagram', 'picture', 'save image', 'download image', 'share'],
+      },
+      {
+        id: 'copy-board-image',
+        label: 'Copy board image',
+        category: 'File',
+        run: () => { void handleCopyBoardImage(); },
+        keywords: ['png', 'screenshot', 'diagram', 'clipboard', 'picture', 'share'],
+      },
+      {
+        id: 'copy-share-link',
+        label: 'Copy share link',
+        category: 'File',
+        run: () => { void handleCopyShareLink(); },
+        keywords: ['url', 'link', 'share', 'sgf', 'send', 'position'],
+      },
+      {
         id: 'nav-back',
         label: 'Previous move',
         category: 'Navigation',
@@ -2368,6 +2529,20 @@ export const Layout: React.FC = () => {
         keywords: ['learn', 'tutorial', 'teach', 'beginner', 'fundamentals', 'capture', 'eyes'],
       },
       {
+        id: 'guess-move',
+        label: 'Guess the move',
+        category: 'Study',
+        run: () => openSimpleModal(() => setIsGuessMoveOpen(true)),
+        keywords: ['predict', 'next move', 'quiz', 'pro', 'practice', 'replay'],
+      },
+      {
+        id: 'problem-practice',
+        label: 'Problem practice (tsumego)',
+        category: 'Study',
+        run: () => openSimpleModal(() => setIsProblemOpen(true)),
+        keywords: ['tsumego', 'problem', 'life and death', 'puzzle', 'solve', 'tesuji'],
+      },
+      {
         id: 'game-analysis',
         label: 'Open game re-analysis',
         category: 'Analysis',
@@ -2614,6 +2789,8 @@ export const Layout: React.FC = () => {
       !isTournamentOpen &&
       !isProGamesOpen &&
       !isLessonsOpen &&
+      !isGuessMoveOpen &&
+      !isProblemOpen &&
       !isVideoBoardOpen &&
       !pendingResignPlayer,
     handlers: {
@@ -2706,6 +2883,12 @@ export const Layout: React.FC = () => {
         )}
         {isLessonsOpen && (
           <LessonsModal onClose={() => setIsLessonsOpen(false)} />
+        )}
+        {isGuessMoveOpen && (
+          <GuessMoveModal onClose={() => setIsGuessMoveOpen(false)} />
+        )}
+        {isProblemOpen && (
+          <ProblemModal onClose={() => setIsProblemOpen(false)} />
         )}
         {isVideoBoardOpen && (
           <VideoBoardModal
@@ -2872,6 +3055,8 @@ export const Layout: React.FC = () => {
         onRankLadder={() => setIsTournamentOpen(true)}
         onProGames={() => setIsProGamesOpen(true)}
         onLessons={() => setIsLessonsOpen(true)}
+        onGuessMove={() => setIsGuessMoveOpen(true)}
+        onProblem={() => setIsProblemOpen(true)}
         onCopy={handleCopySgf}
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
@@ -3238,12 +3423,13 @@ export const Layout: React.FC = () => {
             {/* Edit and scoring are mutually exclusive; on mobile the compact score bar
                 docks at the bottom, so hide the bottom Edit launcher while scoring. */}
             {!(isMobile && scoringMode) && (
-              <EditToolbar isMobile={isMobile} analysisCommandBarVisible={showAnalysisCommandBar} />
+              <EditToolbar isMobile={isMobile} analysisCommandBarVisible={showAnalysisCommandBar} hideIdleLauncher={isMobile} />
             )}
             <ManualScorePanel
               active={scoringMode}
               disabled={isEditMode || isInsertMode || isSelectingRegionOfInterest}
               isCompact={isMobile}
+              hideLauncher={isMobile}
               commandBarOffset={showAnalysisCommandBar}
               score={manualScoreEstimate}
               blackName={blackName}
@@ -3543,6 +3729,14 @@ export const Layout: React.FC = () => {
                     onResign={handleResign}
                     unsavedChanges={currentGameDirty}
                     autoSaveStatus={autoSaveStatus}
+                    isEditMode={isEditMode}
+                    scoringMode={scoringMode}
+                    onToggleEdit={toggleEditMode}
+                    onToggleScore={toggleScoringMode}
+                    editDisabled={scoringMode}
+                    scoreDisabled={isEditMode || isInsertMode || isSelectingRegionOfInterest}
+                    editShortcut={layoutShortcutLabels['toggle-edit-mode']}
+                    scoreShortcut={layoutShortcutLabels['toggle-scoring']}
                   />
                 </div>
               )}

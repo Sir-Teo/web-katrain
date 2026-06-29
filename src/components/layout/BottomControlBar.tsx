@@ -15,6 +15,8 @@ import {
   FaUndo,
   FaRobot,
   FaFlag,
+  FaEdit,
+  FaCalculator,
 } from 'react-icons/fa';
 import type { Player } from '../../types';
 import { IconButton } from './ui';
@@ -78,6 +80,14 @@ interface BottomControlBarProps {
   onResign?: () => void;
   unsavedChanges?: boolean;
   autoSaveStatus?: AutoSaveStatus | null;
+  isEditMode?: boolean;
+  scoringMode?: boolean;
+  onToggleEdit?: () => void;
+  onToggleScore?: () => void;
+  editDisabled?: boolean;
+  scoreDisabled?: boolean;
+  editShortcut?: string;
+  scoreShortcut?: string;
 }
 
 export const BottomControlBar: React.FC<BottomControlBarProps> = ({
@@ -114,6 +124,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   onResign,
   unsavedChanges = false,
   autoSaveStatus = null,
+  isEditMode = false,
+  scoringMode = false,
+  onToggleEdit,
+  onToggleScore,
+  editDisabled = false,
+  scoreDisabled = false,
+  editShortcut,
+  scoreShortcut,
 }) => {
   const passBtnRef = useRef<HTMLButtonElement>(null);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
@@ -477,6 +495,51 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             <FaChevronRight />
           </IconButton>
         </div>
+
+        {(onToggleEdit || onToggleScore) && (
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            {onToggleEdit && (
+              <button
+                type="button"
+                onClick={onToggleEdit}
+                disabled={editDisabled}
+                aria-pressed={isEditMode}
+                aria-label={editShortcut ? `Edit position (${editShortcut})` : 'Edit position'}
+                title={editShortcut ? `Edit position (${editShortcut})` : 'Edit position'}
+                data-bottom-edit-toggle="true"
+                className={[
+                  'min-h-11 min-w-11 flex items-center justify-center rounded-lg transition-colors touch-manipulation',
+                  isEditMode
+                    ? 'bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-accent)]'
+                    : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+                  editDisabled ? 'opacity-40 cursor-not-allowed' : '',
+                ].join(' ')}
+              >
+                <FaEdit size={15} />
+              </button>
+            )}
+            {onToggleScore && (
+              <button
+                type="button"
+                onClick={onToggleScore}
+                disabled={scoreDisabled}
+                aria-pressed={scoringMode}
+                aria-label={scoreShortcut ? `Score position (${scoreShortcut})` : 'Score position'}
+                title={scoreShortcut ? `Score position (${scoreShortcut})` : 'Score position'}
+                data-bottom-score-toggle="true"
+                className={[
+                  'min-h-11 min-w-11 flex items-center justify-center rounded-lg transition-colors touch-manipulation',
+                  scoringMode
+                    ? 'bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-accent)]'
+                    : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+                  scoreDisabled ? 'opacity-40 cursor-not-allowed' : '',
+                ].join(' ')}
+              >
+                <FaCalculator size={15} />
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="relative" data-bottom-more>
           <IconButton

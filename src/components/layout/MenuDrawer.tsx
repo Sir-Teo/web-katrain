@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera, FaInfoCircle, FaBook, FaBolt, FaSearch, FaTrophy, FaGraduationCap, FaVideo, FaBalanceScale } from 'react-icons/fa';
+import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera, FaInfoCircle, FaBook, FaBolt, FaSearch, FaTrophy, FaGraduationCap, FaVideo, FaBalanceScale, FaBullseye, FaPuzzlePiece } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
@@ -36,6 +36,8 @@ interface MenuDrawerProps {
   onRankLadder?: () => void;
   onProGames?: () => void;
   onLessons?: () => void;
+  onGuessMove?: () => void;
+  onProblem?: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onSettings: () => void;
@@ -65,6 +67,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onRankLadder,
   onProGames,
   onLessons,
+  onGuessMove,
+  onProblem,
   onCopy,
   onPaste,
   onSettings,
@@ -243,7 +247,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <kbd className="text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</kbd>
             </button>
           </div>
-          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onVideoBoard) && (
+          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem || onVideoBoard) && (
             <div>
               <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Study &amp; Practice</div>
               {onLessons && (
@@ -260,6 +264,22 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                   onClick={() => { onScoreQuiz(); onClose(); }}
                 >
                   <FaBalanceScale aria-hidden="true" /> Score Quiz
+                </button>
+              )}
+              {onGuessMove && (
+                <button type="button"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+                  onClick={() => { onGuessMove(); onClose(); }}
+                >
+                  <FaBullseye aria-hidden="true" /> Guess the Move
+                </button>
+              )}
+              {onProblem && (
+                <button type="button"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+                  onClick={() => { onProblem(); onClose(); }}
+                >
+                  <FaPuzzlePiece aria-hidden="true" /> Problem Practice
                 </button>
               )}
               {onRankLadder && (

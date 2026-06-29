@@ -100,10 +100,11 @@ const toolButtonClass = (active: boolean) =>
       : 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
   ].join(' ');
 
-export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisible?: boolean; docked?: boolean }> = ({
+export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisible?: boolean; docked?: boolean; hideIdleLauncher?: boolean }> = ({
   isMobile = false,
   analysisCommandBarVisible = false,
   docked = false,
+  hideIdleLauncher = false,
 }) => {
   const {
     isEditMode,
@@ -211,6 +212,11 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   const groupClass = isMobile
     ? 'flex items-center gap-1.5 pr-2 border-r border-[var(--ui-border)] shrink-0'
     : 'flex items-center gap-1.5 pr-2 border-r border-[var(--ui-border)] max-sm:w-full max-sm:border-r-0 max-sm:border-b max-sm:pb-2 max-sm:last:border-b-0 max-sm:last:pb-0';
+
+  // When the launcher lives elsewhere (e.g. the mobile bottom bar), render
+  // nothing while idle so the board area stays clear; the active editing strip
+  // still appears once edit mode is on.
+  if (!isEditMode && hideIdleLauncher) return null;
 
   return (
     <div

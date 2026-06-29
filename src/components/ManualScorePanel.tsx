@@ -8,6 +8,7 @@ interface ManualScorePanelProps {
   isCompact?: boolean;
   commandBarOffset?: boolean;
   docked?: boolean;
+  hideLauncher?: boolean;
   scoreMode?: 'manual' | 'estimate';
   score: ManualScoreEstimate;
   blackName: string;
@@ -50,6 +51,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   isCompact = false,
   commandBarOffset = false,
   docked = false,
+  hideLauncher = false,
   scoreMode = 'manual',
   score,
   blackName,
@@ -84,6 +86,10 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   }, [active, isCompact, docked]);
 
   if (!active) {
+    // When the launcher lives elsewhere (e.g. the mobile bottom bar), render
+    // nothing while idle so the board stays clear; the active scoring panel
+    // still appears once scoring is on.
+    if (hideLauncher) return null;
     if (docked) {
       // Match the Region/Insert board chips in the dashboard action strip; the
       // shortcut stays discoverable via the title/aria-label.
