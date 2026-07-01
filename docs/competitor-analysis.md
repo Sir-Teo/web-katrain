@@ -97,15 +97,31 @@ no server, private by construction).
 
 ## Suggested priorities
 
-1. **Real i18n** (Kaya #1) — we already advertise it; currently stubbed.
-2. **Pattern/joseki/shape recognition with Sensei's Library links** (Kaya #2) — client-side,
-   proven crowd-pleaser, fits our study focus.
-3. **OGS library sync by username** (Kifubara #3, client-side subset) — turns one-off URL
-   import into "review all my games".
-4. **Auto-tagging library games** (Kifubara #8) — cheap reuse of analysis we already compute.
-5. **Board-scan calibration UI** (Kaya #5) — corner drag + click-to-correct; consider an
-   ONNX detection model later.
-6. **Persona bots + mid-game score quizzes** (Kifubara #7/#10) — packaging, not new tech.
-7. **Remote-engine (KataGo WebSocket) option** (Kifubara #4) — strong analysis on weak devices.
-8. Longer-term/strategic: Tauri desktop builds with auto-update; larger pro-game corpus;
-   markdown comments; tree minimap.
+Items marked ✅ were implemented on this branch after a full source scan of the Kaya
+repository (mirrored file-by-file; its `boardmatcher` turned out to be adapted from the
+MIT-licensed `@sabaki/boardmatcher`, which is what we ported — Kaya itself is AGPL and
+was used for behavioral reference only).
+
+1. ✅ **Pattern/joseki/shape recognition with Sensei's Library links** (Kaya #2) — shipped:
+   ten named fuseki openings, the 3-3 invasion, and thirteen classic shapes now surface
+   through the move-insight status bar (`src/utils/boardPatterns.ts`,
+   `src/data/boardPatternLibrary.ts`).
+2. ✅ **OGS library sync by username** (Kifubara #3, client-side subset) — shipped: library
+   toolbar → cloud button syncs recent finished games into an "OGS - username" folder with
+   dedup by game id (`src/utils/ogsSync.ts`, `src/components/OgsSyncModal.tsx`).
+3. ✅ **Auto-tagging analyzed games** (Kifubara #8) — shipped: Epic comeback / Missed win /
+   Rollercoaster / Close game / Marathon / Perfect play chips in the game report header
+   (`src/utils/gameTags.ts`).
+4. ✅ **Markdown notes & problem spoiler guard** (Kaya #6/#8) — verified already at parity:
+   `notePreview.ts` renders markdown notes, and `loadSgfRewind` (default on) opens SGFs at
+   the start position with problem-collection detection.
+5. **Real i18n** (Kaya #1) — still the biggest gap; we advertise 8 languages but only the
+   language picker is localized. Kaya's reference: flat i18next namespace, ~680 keys,
+   en.json first, 8 locale files kept in parity.
+6. **Board-scan calibration UI** (Kaya #5) — corner drag + click-to-correct; consider an
+   ONNX detection model later (Kaya's Moku is RT-DETR at 640×640 with corner classes).
+7. **Persona bots + mid-game score quizzes** (Kifubara #7/#10) — packaging, not new tech.
+8. **Remote-engine (KataGo WebSocket) option** (Kifubara #4) — strong analysis on weak devices.
+9. Longer-term/strategic: Tauri desktop builds with auto-update; larger pro-game corpus;
+   tree minimap (Kaya: reactflow + worker layout, main line straight, variations offset
+   per depth).
