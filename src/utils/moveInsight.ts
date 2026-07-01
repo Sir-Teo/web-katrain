@@ -1,4 +1,10 @@
 import type { BoardState, Move } from '../types';
+import {
+  CONTACT_MOVE_PATTERNS,
+  FUSEKI_PATTERNS,
+  NAMED_SHAPE_PATTERNS,
+} from '../data/boardPatternLibrary';
+import { findBoardPattern, type BoardPattern } from './boardPatterns';
 import { getLiberties, getOpponent } from './gameLogic';
 
 export type MoveInsightTone = 'corner' | 'side' | 'center' | 'pass' | 'tactical' | 'neutral';
@@ -29,6 +35,126 @@ type CornerRelationPattern = {
   anchorColor: 'friendly' | 'opponent';
   localMax: Point;
 };
+
+const LIBRARY_PATTERN_DETAILS: Record<string, { detail: string; tone: MoveInsightTone }> = {
+  'Low Chinese Opening': {
+    detail: 'Whole-board formation: the low Chinese builds a wide framework that invites invasions on your terms.',
+    tone: 'corner',
+  },
+  'High Chinese Opening': {
+    detail: 'Whole-board formation: the high Chinese emphasizes influence and attacks over immediate territory.',
+    tone: 'corner',
+  },
+  'Orthodox Opening': {
+    detail: 'Whole-board formation balancing a corner enclosure with a wide side extension.',
+    tone: 'corner',
+  },
+  'Enclosure Opening': {
+    detail: 'Whole-board formation built around an early corner enclosure and steady development.',
+    tone: 'corner',
+  },
+  'Kobayashi Opening': {
+    detail: 'Whole-board formation that invites an approach, planning to attack it for profit.',
+    tone: 'corner',
+  },
+  'Small Chinese Opening': {
+    detail: 'Whole-board formation: a tighter Chinese-style framework with sharper follow-ups.',
+    tone: 'corner',
+  },
+  'Micro Chinese Opening': {
+    detail: 'Whole-board formation: the narrowest Chinese-style framework, favoring fighting continuations.',
+    tone: 'corner',
+  },
+  'Sanrensei Opening': {
+    detail: 'Whole-board formation: three star points in a row aiming at a large influence-based framework.',
+    tone: 'corner',
+  },
+  'Nirensei Opening': {
+    detail: 'Whole-board formation: two star points on one side for fast, flexible development.',
+    tone: 'corner',
+  },
+  'Shūsaku Opening': {
+    detail: 'Whole-board formation: the classical diagonal opening prizing solid, patient development.',
+    tone: 'corner',
+  },
+  '3-3 Point Invasion': {
+    detail: 'Invades beneath the 4-4 stone, trading outside influence for immediate corner territory.',
+    tone: 'tactical',
+  },
+  'Mouth Shape': {
+    detail: 'Completes the mouth shape: a strong, flexible formation with excellent eye potential.',
+    tone: 'tactical',
+  },
+  'Table Shape': {
+    detail: 'Completes the table shape: a solid formation balancing connection, eyes, and outward reach.',
+    tone: 'tactical',
+  },
+  'Tippy Table': {
+    detail: 'Completes a tippy table: a lighter cousin of the table shape, fast but thinner.',
+    tone: 'tactical',
+  },
+  Trapezium: {
+    detail: 'Completes a trapezium: a sturdy four-stone formation often arising from contact fights.',
+    tone: 'tactical',
+  },
+  Diamond: {
+    detail: 'Completes a diamond: four stones around a shared point — extremely thick, but slow.',
+    tone: 'tactical',
+  },
+  Square: {
+    detail: 'Completes a square formation: loosely linked stones enclosing a shared area.',
+    tone: 'tactical',
+  },
+  'Throwing Star': {
+    detail: 'Completes a pinwheel of stones around a shared point, common in crosscut fighting.',
+    tone: 'tactical',
+  },
+  Parallelogram: {
+    detail: 'Completes a parallelogram: a slanted four-stone formation mixing speed with connection.',
+    tone: 'tactical',
+  },
+  'Dog’s Head': {
+    detail: 'Completes the dog’s head (sake bottle): a classic good-shape formation from contact play.',
+    tone: 'tactical',
+  },
+  'Horse’s Head': {
+    detail: 'Completes the horse’s head: a wider good-shape formation reaching toward the center.',
+    tone: 'tactical',
+  },
+  'Big Bulge': {
+    detail: 'Completes the big bulge: three stones curving around a key point with strong follow-ups.',
+    tone: 'tactical',
+  },
+  Turn: {
+    detail: 'Turns around the opponent’s stone while staying connected — usually thick and forcing.',
+    tone: 'tactical',
+  },
+  Stretch: {
+    detail: 'Extends solidly from a friendly stone; unhurried, but leaves no weakness behind.',
+    tone: 'tactical',
+  },
+};
+
+const FUSEKI_PATTERN_NAMES = new Set(FUSEKI_PATTERNS.map((pattern) => pattern.name));
+const SHAPE_PATTERN_NAMES = new Set(
+  [...NAMED_SHAPE_PATTERNS, ...CONTACT_MOVE_PATTERNS].map((pattern) => pattern.name)
+);
+
+function getLibraryPatternInsight(
+  move: Move,
+  parentBoard: BoardState,
+  patterns: BoardPattern[]
+): MoveInsight | null {
+  const match = findBoardPattern(move, parentBoard, patterns);
+  if (!match) return null;
+  const info = LIBRARY_PATTERN_DETAILS[match.pattern.name];
+  return {
+    label: match.pattern.name,
+    detail: info?.detail ?? 'Named Go pattern.',
+    tone: info?.tone ?? 'tactical',
+    learnMoreUrl: match.pattern.url ?? undefined,
+  };
+}
 
 const CORNER_PATTERNS: Record<string, { label: string; detail: string; learnMoreUrl?: string }> = {
   '3-3': {
@@ -813,6 +939,11 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
     };
   }
 
+  // Multi-stone named shapes (table shape, dog's head, ...) are more specific
+  // than the two- and three-stone relations checked below.
+  const namedShapeInsight = getLibraryPatternInsight(move, parentBoard, NAMED_SHAPE_PATTERNS);
+  if (namedShapeInsight) return namedShapeInsight;
+
   const wedgeInsight = getWedgeInsight(move, nextBoard, boardSize);
   if (wedgeInsight) return wedgeInsight;
 
@@ -830,6 +961,14 @@ function getTacticalMoveInsight(move: Move, boardSize: number, parentBoard?: Boa
 
   const tigersMouthInsight = getTigersMouthInsight(move, nextBoard, boardSize);
   if (tigersMouthInsight) return tigersMouthInsight;
+
+  // Turn and stretch outrank the generic diagonal/jump labels but rank below
+  // the more specific contact relations checked above, and never preempt a
+  // move that joins two friendly groups (labeled "Connect" below).
+  if (friendlyGroups.size < 2) {
+    const contactMoveInsight = getLibraryPatternInsight(move, parentBoard, CONTACT_MOVE_PATTERNS);
+    if (contactMoveInsight) return contactMoveInsight;
+  }
 
   const cutOrDiagonalInsight = getCutOrDiagonalInsight(move, nextBoard, boardSize);
   if (cutOrDiagonalInsight) return cutOrDiagonalInsight;
@@ -862,6 +1001,13 @@ export function getMoveInsight(move: Move | null, boardSize: number, parentBoard
     };
   }
   if (boardSize <= 0 || move.x >= boardSize || move.y >= boardSize) return null;
+
+  if (parentBoard && parentBoard.length === boardSize && parentBoard[move.y]?.[move.x] === null) {
+    // Whole-board fusekis and the 3-3 invasion are more specific than any
+    // tactical label (e.g. a 3-3 invasion would otherwise read "Shoulder hit").
+    const fusekiInsight = getLibraryPatternInsight(move, parentBoard, FUSEKI_PATTERNS);
+    if (fusekiInsight) return fusekiInsight;
+  }
 
   const tacticalInsight = getTacticalMoveInsight(move, boardSize, parentBoard);
   if (tacticalInsight) return tacticalInsight;
@@ -933,6 +1079,29 @@ export function getMoveInsight(move: Move | null, boardSize: number, parentBoard
 }
 
 export function getMoveInsightCoach(insight: MoveInsight): MoveInsightCoach {
+  if (FUSEKI_PATTERN_NAMES.has(insight.label)) {
+    if (insight.label === '3-3 Point Invasion') {
+      return {
+        beginner: 'The 3-3 invasion takes the corner right away but gives the opponent a strong outside wall.',
+        pro: 'Time the invasion by how well the resulting wall works with the rest of the board.',
+        checks: ['Wall direction', 'Timing', 'Ladder breaks'],
+      };
+    }
+    return {
+      beginner: 'This completes a named whole-board opening — a plan for the entire board, not just one corner.',
+      pro: 'Study games with this formation to learn its standard follow-ups, invasion points, and direction of play.',
+      checks: ['Framework plan', 'Invasion points', 'Direction of play'],
+    };
+  }
+
+  if (SHAPE_PATTERN_NAMES.has(insight.label)) {
+    return {
+      beginner: 'This completes a classic named shape — good shape gives your stones connection and eye potential.',
+      pro: 'Confirm the shape is doing real work here: efficiency matters more than the shape itself.',
+      checks: ['Connection', 'Eye shape', 'Efficiency'],
+    };
+  }
+
   if (insight.tone === 'pass') {
     return {
       beginner: 'Passing is usually right when both players have no valuable moves left.',

@@ -28,6 +28,7 @@ import { captureBoardSnapshot } from '../utils/boardSnapshot';
 import { normalizeBoardSize } from '../utils/boardSize';
 import { captureReportBoardSnapshot } from '../utils/reportBoardSnapshot';
 import { formatGameInfoPlayer, readRootInfoValue } from '../utils/gameInfoDisplay';
+import { computeGameTags } from '../utils/gameTags';
 import { setTimedNotification } from '../utils/timedNotification';
 import { afterAnimationFrames } from '../utils/animationFrame';
 import { printWindow } from '../utils/print';
@@ -408,6 +409,17 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   ]);
 
   const report = reportsByPhase[phaseFilter] ?? reportsByPhase.all;
+  const gameTags = useMemo(() => {
+    void treeVersion;
+    const wholeGame = reportsByPhase.all;
+    return computeGameTags({
+      entries: wholeGame.moveEntries,
+      stats: wholeGame.stats,
+      boardSize,
+      moveCount: wholeGame.movesInFilter,
+      result: readRootInfoValue(rootPropertiesForNode(currentNode), 'RE'),
+    });
+  }, [boardSize, currentNode, reportsByPhase, treeVersion]);
   const phaseCounts = useMemo(() => {
     return GAME_REPORT_PHASES.reduce(
       (acc, phase) => {
@@ -855,6 +867,20 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="mt-1 text-sm ui-text-muted">
               {playerNames.black} vs {playerNames.white}
             </div>
+            {gameTags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Game tags">
+                {gameTags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    title={tag.description}
+                    data-game-tag={tag.id}
+                    className="inline-flex items-center rounded-full border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2.5 py-0.5 text-xs font-semibold text-[var(--ui-accent)]"
+                  >
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 print-hide">
             <button

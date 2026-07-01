@@ -11,9 +11,16 @@ function getNavigatorGpuLike(): NavigatorGpuLike | null {
   return navigator as NavigatorGpuLike;
 }
 
+export function detectWebGpuAvailability(): BrowserBackendAvailability;
 export function detectWebGpuAvailability(
-  nav: NavigatorGpuLike | null | undefined = getNavigatorGpuLike()
+  nav: NavigatorGpuLike | null | undefined
+): BrowserBackendAvailability;
+export function detectWebGpuAvailability(
+  ...args: [(NavigatorGpuLike | null | undefined)?]
 ): BrowserBackendAvailability {
+  // An explicitly passed null/undefined means "no navigator information",
+  // which must stay 'unknown' even on runtimes with a global `navigator`.
+  const nav = args.length > 0 ? args[0] : getNavigatorGpuLike();
   if (!nav) return 'unknown';
   return nav.gpu ? 'available' : 'unavailable';
 }

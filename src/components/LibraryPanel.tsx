@@ -17,6 +17,7 @@ import {
   FaFileArchive,
   FaCopy,
   FaPlay,
+  FaCloudDownloadAlt,
 } from 'react-icons/fa';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
@@ -61,6 +62,8 @@ import { isMobileLayoutViewport } from '../utils/responsiveLayout';
 import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
 import { getDroppedSgfOrOgsText, hasPotentialGameImportDrag } from '../utils/dragImport';
 import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
+import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
+import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
   getLibraryRowKeyAction,
@@ -331,6 +334,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [dragOverRoot, setDragOverRoot] = useState(false);
   const [textDialog, setTextDialog] = useState<LibraryTextDialogState | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<LibraryConfirmDialogState | null>(null);
+  const [showOgsSync, setShowOgsSync] = useState(false);
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -828,6 +832,33 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         onToast(`Created folder "${folder.name}".`, 'success');
       },
     });
+  };
+
+  const handleOgsSyncImport = (username: string, games: OgsSyncedGame[]) => {
+    if (games.length === 0) return;
+    const folderName = ogsSyncFolderName(username);
+    let next = items;
+    let folder = next.find(
+      (item): item is LibraryFolder =>
+        isFolder(item) && item.parentId === null && item.name === folderName
+    );
+    if (!folder) {
+      folder = createLibraryFolder(folderName, null);
+      next = [folder, ...next];
+    }
+    const folderId = folder.id;
+    const files: LibraryItem[] = [];
+    for (const game of games) {
+      const name = getUniqueLibraryItemName(
+        ogsSyncFileName(game.summary),
+        [...next, ...files],
+        folderId
+      );
+      files.push(createLibraryItem(name, game.sgf, folderId));
+    }
+    setItems([...files, ...next]);
+    setExpandedFolderIds((prev) => new Set(prev).add(folderId));
+    onToast(`Synced ${games.length} OGS game${games.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
   };
 
   const handleClearLibrary = () => {
@@ -1695,6 +1726,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     <>
       {textDialog && <LibraryTextDialog dialog={textDialog} onClose={() => setTextDialog(null)} />}
       {confirmDialog && <LibraryConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />}
+      {showOgsSync && (
+        <OgsSyncModal items={items} onClose={() => setShowOgsSync(false)} onImport={handleOgsSyncImport} />
+      )}
       <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={onClose} />
       <div
         ref={panelRef}
@@ -1779,6 +1813,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               aria-label="Export library as ZIP"
             >
               <FaFileArchive />
+            </button>
+            <button
+              type="button"
+              className={headerSecondaryActionClass}
+              onClick={() => setShowOgsSync(true)}
+              title="Sync games from an OGS account"
+              aria-label="Sync games from an OGS account"
+            >
+              <FaCloudDownloadAlt />
             </button>
             <button
               type="button"
