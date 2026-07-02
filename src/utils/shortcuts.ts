@@ -47,6 +47,8 @@ export const EDIT_TOOL_SHORTCUT_DEFINITIONS: EditToolShortcutDefinition[] = [
   { id: 'edit-tool-label-alpha', category: 'Edit', label: 'Select letter label', tool: 'label-alpha', defaultBindings: [{ key: '9' }] },
   { id: 'edit-tool-label-number', category: 'Edit', label: 'Select number label', tool: 'label-number', defaultBindings: [{ key: '0' }] },
   { id: 'edit-tool-marker-erase', category: 'Edit', label: 'Select marker eraser', tool: 'marker-erase', defaultBindings: [{ key: '-' }] },
+  { id: 'edit-tool-markup-arrow', category: 'Edit', label: 'Select arrow tool', tool: 'markup-arrow', defaultBindings: [{ key: '[' }] },
+  { id: 'edit-tool-markup-line', category: 'Edit', label: 'Select line tool', tool: 'markup-line', defaultBindings: [{ key: ']' }] },
 ];
 
 export const EDIT_TOOL_SHORTCUT_IDS = EDIT_TOOL_SHORTCUT_DEFINITIONS.map((shortcut) => shortcut.id);
@@ -114,6 +116,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { id: 'game-report-modal', category: 'Modals', label: 'Game report', defaultBindings: [{ key: 'F3' }] },
   { id: 'settings-modal', category: 'Modals', label: 'Settings', defaultBindings: [{ key: ',', ctrl: true }, { key: 'F8' }] },
   { id: 'escape', category: 'Modals', label: 'Close / cancel', defaultBindings: [{ key: 'Escape' }] },
+  { id: 'toggle-focus-mode', category: 'View', label: 'Toggle focus mode', defaultBindings: [{ key: 'f', shift: true }] },
   { id: 'toggle-top-bar', category: 'View', label: 'Toggle top bar', defaultBindings: [{ key: 'm', ctrl: true, shift: true }] },
   { id: 'toggle-bottom-bar', category: 'View', label: 'Toggle bottom controls', defaultBindings: [{ key: 'u', ctrl: true, shift: true }] },
   { id: 'fullscreen', category: 'View', label: 'Toggle fullscreen', defaultBindings: [{ key: 'F11' }] },

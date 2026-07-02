@@ -268,6 +268,12 @@
 .wk-dashboard .engine-pill .meta { color: var(--faint); font-weight: 500; font-family: var(--mono); font-size: 11.5px; }
 @keyframes wk-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
+/* ---------------- Focus mode: board + minimal move ticker only ---------------- */
+.wk-dashboard[data-focus="on"] { --header-h: 0px; }
+.wk-dashboard[data-focus="on"] .header,
+.wk-dashboard[data-focus="on"] .commandbar,
+.wk-dashboard[data-focus="on"] .edge-toggle { display: none !important; }
+
 /* ---------------- Body grid: library | board | sidebar ---------------- */
 .wk-dashboard .body {
   display: grid;

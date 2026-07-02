@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { FaTimes, FaSearch, FaDownload } from 'react-icons/fa';
+import { FaTimes, FaSearch, FaDownload, FaDice } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { StaticBoard } from './StaticBoard';
 import { PRO_GAMES, buildFinalBoard, filterProGames, type ProGameMeta } from '../utils/proGames';
+import { tagsFromResult, narrativeTagToneClass } from '../utils/narrativeTags';
 
 interface ProGamesModalProps {
   onClose: () => void;
@@ -11,12 +12,22 @@ interface ProGamesModalProps {
 
 const playerLine = (name: string, rank?: string) => (rank ? `${name} (${rank})` : name);
 
+// A small curated strip so first-time visitors have a starting point.
+const FEATURED_PRO_GAMES = PRO_GAMES.slice(0, Math.min(4, PRO_GAMES.length));
+
 export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGame }) => {
   useEscapeToClose(onClose);
 
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);
   const [selectedId, setSelectedId] = useState<string>(PRO_GAMES[0]?.id ?? '');
+
+  const surpriseMe = () => {
+    if (PRO_GAMES.length === 0) return;
+    const pick = PRO_GAMES[Math.floor(Math.random() * PRO_GAMES.length)]!;
+    setQuery('');
+    setSelectedId(pick.id);
+  };
 
   const selected: ProGameMeta | undefined = useMemo(
     () => filtered.find((g) => g.id === selectedId) ?? filtered[0],
@@ -61,18 +72,49 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* List */}
           <div className="flex min-h-0 flex-1 flex-col border-b border-[var(--ui-border)] md:max-w-[55%] md:border-b-0 md:border-r">
-            <div className="border-b border-[var(--ui-border)] p-3">
-              <div className="relative">
-                <FaSearch aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-muted)]" />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search by player, event, date…"
-                  className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)]"
-                  autoFocus
-                />
+            <div className="space-y-2 border-b border-[var(--ui-border)] p-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <FaSearch aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-muted)]" />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search by player, event, date…"
+                    className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)]"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={surpriseMe}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                  title="Jump to a random pro game"
+                >
+                  <FaDice aria-hidden="true" /> <span className="hidden sm:inline">Surprise me</span>
+                </button>
               </div>
+              {FEATURED_PRO_GAMES.length > 0 && !query && (
+                <div className="flex flex-wrap items-center gap-1.5" aria-label="Featured games">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Featured</span>
+                  {FEATURED_PRO_GAMES.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setSelectedId(g.id)}
+                      className={[
+                        'rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                        selected?.id === g.id
+                          ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-text)]'
+                          : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+                      ].join(' ')}
+                      title={`${playerLine(g.black, g.blackRank)} vs ${playerLine(g.white, g.whiteRank)}`}
+                    >
+                      {g.black.split(' ').slice(-1)[0]} v {g.white.split(' ').slice(-1)[0]}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <ul className="min-h-0 flex-1 overflow-y-auto">
               {filtered.length === 0 && (
@@ -95,6 +137,23 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                       <div className="text-xs text-[var(--ui-text-muted)]">
                         {[g.event, g.date, g.result].filter(Boolean).join(' · ')}
                       </div>
+                      {(() => {
+                        const tags = tagsFromResult(g.result);
+                        if (tags.length === 0) return null;
+                        return (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {tags.map((tag) => (
+                              <span
+                                key={tag.id}
+                                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${narrativeTagToneClass(tag.tone)}`}
+                                title={tag.title}
+                              >
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </button>
                   </li>
                 );

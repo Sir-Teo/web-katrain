@@ -10,6 +10,7 @@ import { getBoardTheme } from '../utils/boardThemes';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
 import { expandSgfPointList, sgfCoordToXy } from '../utils/sgf';
 import { getHorizontalSwipeNavigationAction } from '../utils/swipeNavigation';
+import { buildStonePlacementGrid } from '../utils/stonePlacementMove';
 import {
   getWheelNavigationAction,
   WHEEL_NAVIGATION_THROTTLE_MS,
@@ -157,6 +158,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     isEditMode,
     editTool,
     applyEditTool,
+    addSegmentMarkup,
     toggleBoardPointMarkup,
     moveHistory,
     analysisData,
@@ -177,6 +179,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     navigateForward,
     navigateNextMistake,
     navigatePrevMistake,
+    navigateToMove,
   } = useGameStore(
     (state) => ({
       board: state.board,
@@ -184,6 +187,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       isEditMode: state.isEditMode,
       editTool: state.editTool,
       applyEditTool: state.applyEditTool,
+      addSegmentMarkup: state.addSegmentMarkup,
       toggleBoardPointMarkup: state.toggleBoardPointMarkup,
       moveHistory: state.moveHistory,
       analysisData: state.analysisData,
@@ -204,6 +208,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       navigateForward: state.navigateForward,
       navigateNextMistake: state.navigateNextMistake,
       navigatePrevMistake: state.navigatePrevMistake,
+      navigateToMove: state.navigateToMove,
     }),
     shallow
   );
@@ -216,6 +221,24 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     return () => {
       if (wheelThrottleRef.current !== null) window.clearTimeout(wheelThrottleRef.current);
       if (tapConfirmTimerRef.current !== null) window.clearTimeout(tapConfirmTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey) setAltHeld(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt' || !e.altKey) setAltHeld(false);
+    };
+    const reset = () => setAltHeld(false);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', reset);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', reset);
     };
   }, []);
 
@@ -299,6 +322,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const [dotTextureVersion, setDotTextureVersion] = useState(0);
   const [topMoveTextureVersion, setTopMoveTextureVersion] = useState(0);
   const [stoneTextureVersion, setStoneTextureVersion] = useState(0);
+  // While Alt/Option is held, momentarily show every returned candidate at full
+  // prominence (undim the low-visit "uncertain" hints).
+  const [altHeld, setAltHeld] = useState(false);
+  // First click of a two-click arrow/line placement (null = waiting for start).
+  const [pendingSegment, setPendingSegment] = useState<{ x: number; y: number } | null>(null);
+  const isSegmentTool = editTool === 'markup-arrow' || editTool === 'markup-line';
+
+  // Reset a half-drawn segment when leaving edit mode or switching tools.
+  useEffect(() => {
+    if (!isEditMode || !isSegmentTool) setPendingSegment(null);
+  }, [isEditMode, isSegmentTool]);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [pendingTap, setPendingTap] = useState<TapConfirmPoint | null>(null);
   const [isKeyboardCursorActive, setIsKeyboardCursorActive] = useState(false);
@@ -511,6 +545,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
     return grid;
   }, [boardSize, moveHistory, settings.showMoveNumbers]);
+
+  // Always-on grid of the move number that placed the stone at each point,
+  // independent of the move-number display toggle (drives modifier-click jump).
+  const placementGrid = useMemo(
+    () => buildStonePlacementGrid(moveHistory, boardSize),
+    [moveHistory, boardSize]
+  );
 
   const childMoveRings = useMemo(() => {
     if (!hasAnalysisOverlay || !settings.analysisShowChildren) return [];
@@ -892,11 +933,55 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     };
 
+    const drawSegment = (value: string, withArrow: boolean) => {
+      const sep = value.indexOf(':');
+      if (sep < 0) return;
+      const a = pointFromCoord(value.slice(0, sep));
+      const b = pointFromCoord(value.slice(sep + 1));
+      if (!a || !b) return;
+      const colors = colorsForStone(null);
+      ctx.lineCap = 'round';
+      strokeWithHalo(() => {
+        ctx.beginPath();
+        ctx.moveTo(a.cx, a.cy);
+        ctx.lineTo(b.cx, b.cy);
+      }, colors);
+      if (withArrow) {
+        const angle = Math.atan2(b.cy - a.cy, b.cx - a.cx);
+        const head = Math.max(cellSize * 0.3, radius);
+        const spread = Math.PI / 7;
+        strokeWithHalo(() => {
+          ctx.beginPath();
+          ctx.moveTo(b.cx, b.cy);
+          ctx.lineTo(b.cx - head * Math.cos(angle - spread), b.cy - head * Math.sin(angle - spread));
+          ctx.moveTo(b.cx, b.cy);
+          ctx.lineTo(b.cx - head * Math.cos(angle + spread), b.cy - head * Math.sin(angle + spread));
+        }, colors);
+      }
+      ctx.lineCap = 'butt';
+    };
+
     for (const coord of props.TR ?? []) forEachPoint(coord, drawTriangle);
     for (const coord of props.SQ ?? []) forEachPoint(coord, drawSquare);
     for (const coord of props.CR ?? []) forEachPoint(coord, drawCircle);
     for (const coord of props.MA ?? []) forEachPoint(coord, drawCross);
+    for (const value of props.AR ?? []) drawSegment(value, true);
+    for (const value of props.LN ?? []) drawSegment(value, false);
     for (const label of props.LB ?? []) drawLabel(label);
+
+    // Pending start of a two-click arrow/line placement.
+    if (pendingSegment && isSegmentTool) {
+      const d = toDisplay(pendingSegment.x, pendingSegment.y);
+      const cx = originX + d.x * cellSize;
+      const cy = originY + d.y * cellSize;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(4, radius * 0.55), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(56,189,248,0.9)';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.stroke();
+    }
   }, [
     board,
     boardSize,
@@ -907,6 +992,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     setupOverlayCanvas,
     toDisplay,
     treeVersion,
+    pendingSegment,
+    isSegmentTool,
   ]);
 
   useEffect(() => {
@@ -1096,7 +1183,18 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       ctx.lineWidth = Math.max(1, cellSize * 0.04);
       ctx.stroke();
     }
-  }, [board, cellSize, lastMove, originX, originY, setupOverlayCanvas, stoneTextureVersion, toDisplay]);
+
+    // Standout-move halo: the last move matched the engine's top choice.
+    const bestCandidate = currentNode.parent?.analysis?.moves?.find((m) => m.order === 0);
+    if (bestCandidate && bestCandidate.x === lastMove.x && bestCandidate.y === lastMove.y) {
+      const haloRadius = stoneDiameter / 2 + Math.max(1, cellSize * 0.02);
+      ctx.beginPath();
+      ctx.arc(originX + d.x * cellSize, originY + d.y * cellSize, haloRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = rgba(TOP_MOVE_BORDER_COLOR);
+      ctx.lineWidth = Math.max(1.5, cellSize * 0.05);
+      ctx.stroke();
+    }
+  }, [board, cellSize, currentNode, lastMove, originX, originY, setupOverlayCanvas, stoneTextureVersion, toDisplay]);
 
   useEffect(() => {
     const canvas = ringsCanvasRef.current;
@@ -1400,12 +1498,23 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const pt = eventToInternal(e);
     if (!pt) return;
 
+    // Cmd/Alt-click a stone to jump to the move that placed it.
+    if ((e.metaKey || e.altKey) && !isEditMode && !scoringMode) {
+      const placedAt = placementGrid[pt.y]?.[pt.x];
+      if (placedAt != null && placedAt > 0) {
+        navigateToMove(placedAt);
+        return;
+      }
+    }
+
     if (scoringMode) {
       if (board[pt.y]?.[pt.x]) onToggleDeadStone?.(pt.x, pt.y);
       return;
     }
 
     if (isEditMode) {
+      // Segment tools are handled on pointer-down (two-click); nothing to do here.
+      if (isSegmentTool) return;
       applyEditTool(pt.x, pt.y);
       return;
     }
@@ -1429,6 +1538,21 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     if (isEditMode && !scoringMode && !isSelectingRegionOfInterest) {
       const pt = eventToInternal(e);
       if (!pt) return;
+      // Arrow/line tools are two-click: first press sets the start, second commits.
+      if (isSegmentTool) {
+        e.preventDefault();
+        e.stopPropagation();
+        suppressNextClickRef.current = true;
+        if (!pendingSegment) {
+          setPendingSegment(pt);
+        } else {
+          if (pendingSegment.x !== pt.x || pendingSegment.y !== pt.y) {
+            addSegmentMarkup(editTool === 'markup-arrow' ? 'AR' : 'LN', pendingSegment.x, pendingSegment.y, pt.x, pt.y);
+          }
+          setPendingSegment(null);
+        }
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       suppressNextClickRef.current = true;
@@ -1884,7 +2008,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     for (const move of moves) {
       const d = toDisplay(move.x, move.y);
       const isBest = move.order === 0;
-      const uncertain = move.visits < lowVisitsThreshold && !isBest && !childMoveCoords.has(`${move.x},${move.y}`);
+      // Alt held → treat every candidate as certain so low-visit hints render fully.
+      const uncertain =
+        !altHeld && move.visits < lowVisitsThreshold && !isBest && !childMoveCoords.has(`${move.x},${move.y}`);
       const scale = uncertain ? UNCERTAIN_HINT_SCALE : HINT_SCALE;
       const textOn = !uncertain && showText;
       const alpha = uncertain ? HINTS_LO_ALPHA : HINTS_ALPHA;
@@ -1944,6 +2070,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     }
   }, [
+    altHeld,
     approxBoardColor,
     cellSize,
     childMoveCoords,

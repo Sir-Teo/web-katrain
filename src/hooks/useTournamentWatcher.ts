@@ -13,7 +13,10 @@ export function useTournamentWatcher(): void {
   const treeVersion = useGameStore((s) => s.treeVersion);
   const ladder = useTournamentStore((s) => s.ladder);
   const recordResult = useTournamentStore((s) => s.recordResult);
+  const gauntlet = useTournamentStore((s) => s.gauntlet);
+  const recordGauntletResult = useTournamentStore((s) => s.recordGauntletResult);
   const handledRef = useRef<string | null>(null);
+  const gauntletHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!ladder || !ladder.awaitingResult) {
@@ -27,4 +30,17 @@ export function useTournamentWatcher(): void {
     handledRef.current = re;
     recordResult(winner === ladder.userColor ? 'win' : 'loss');
   }, [rootNode, treeVersion, ladder, recordResult]);
+
+  useEffect(() => {
+    if (!gauntlet || !gauntlet.awaitingResult) {
+      gauntletHandledRef.current = null;
+      return;
+    }
+    const re = rootNode.properties?.RE?.[0] ?? null;
+    if (!re || re === gauntletHandledRef.current) return;
+    const winner = parseResultWinner(re);
+    if (!winner) return;
+    gauntletHandledRef.current = re;
+    recordGauntletResult(winner === gauntlet.userColor ? 'win' : 'loss');
+  }, [rootNode, treeVersion, gauntlet, recordGauntletResult]);
 }

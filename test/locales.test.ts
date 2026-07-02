@@ -10,8 +10,11 @@ import {
 
 describe('app locales', () => {
   it('matches Kaya locale coverage with browser language metadata', () => {
-    expect(APP_LOCALE_OPTIONS.map((locale) => locale.value)).toEqual(['en', 'zh', 'ko', 'ja', 'fr', 'de', 'es', 'it']);
+    expect(APP_LOCALE_OPTIONS.map((locale) => locale.value)).toEqual([
+      'en', 'zh', 'zh-TW', 'ko', 'ja', 'fr', 'de', 'es', 'it', 'uk', 'ru',
+    ]);
     expect(getAppLocaleHtmlLang('zh')).toBe('zh-Hans');
+    expect(getAppLocaleHtmlLang('zh-TW')).toBe('zh-Hant');
     expect(getAppLocaleHtmlLang('ja')).toBe('ja');
     expect(getAppLocaleShortLabel('de')).toBe('DE');
     expect(getAppLocaleOption('es').languageLabel).toBe('Idioma');
@@ -28,7 +31,9 @@ describe('app locales', () => {
 
   it('chooses the first supported browser language before falling back to English', () => {
     expect(getPreferredAppLocaleId(['fr-CA', 'en-US'])).toBe('fr');
-    expect(getPreferredAppLocaleId(['pt-BR', 'zh-TW'])).toBe('zh');
+    // Traditional-Chinese browser tags now resolve to the Traditional locale.
+    expect(getPreferredAppLocaleId(['pt-BR', 'zh-TW'])).toBe('zh-TW');
+    expect(getPreferredAppLocaleId(['zh-CN'])).toBe('zh');
     expect(getPreferredAppLocaleId(['de_DE'])).toBe('de');
     expect(getPreferredAppLocaleId(['', null, 'pt-BR'])).toBe('en');
   });

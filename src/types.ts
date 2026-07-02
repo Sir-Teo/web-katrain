@@ -67,7 +67,9 @@ export type EditTool =
   | 'marker-cross'
   | 'label-alpha'
   | 'label-number'
-  | 'marker-erase';
+  | 'marker-erase'
+  | 'markup-arrow'
+  | 'markup-line';
 
 export interface GameNode {
   id: string;
@@ -100,7 +102,7 @@ export type BoardThemeId =
 export type ResolvedUiThemeId = 'noir' | 'kaya' | 'studio' | 'light';
 export type UiThemeId = ResolvedUiThemeId | 'system';
 export type UiDensityId = 'compact' | 'comfortable' | 'large';
-export type AppLocaleId = 'en' | 'zh' | 'ko' | 'ja' | 'fr' | 'de' | 'es' | 'it';
+export type AppLocaleId = 'en' | 'zh' | 'zh-TW' | 'ko' | 'ja' | 'fr' | 'de' | 'es' | 'it' | 'uk' | 'ru';
 
 export interface GameSettings {
   appLocale: AppLocaleId;
@@ -109,6 +111,7 @@ export interface GameSettings {
   showMoveNumbers: boolean;
   showBoardControls: boolean;
   showAnalysisBar: boolean;
+  noteFontScale: number; // Font-size multiplier for the notes panel preview/editor (A- / A+).
   fuzzyStonePlacement: boolean;
   showNextMovePreview: boolean;
   boardTheme: BoardThemeId;

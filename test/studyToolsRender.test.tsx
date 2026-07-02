@@ -26,8 +26,9 @@ describe('study tool components render without crashing', () => {
   });
 
   it('TournamentModal renders the ladder setup', () => {
-    const html = renderToString(<TournamentModal onClose={noop} onPlayGame={noop} />);
-    expect(html).toContain('Rank Ladder');
+    const html = renderToString(<TournamentModal onClose={noop} onPlayGame={noop} onPlayGauntletGame={noop} />);
+    expect(html).toContain('Rank ladder');
+    expect(html).toContain('Gauntlet');
     expect(html).toContain('Start ladder');
   });
 

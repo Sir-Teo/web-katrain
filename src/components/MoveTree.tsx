@@ -503,6 +503,9 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
               {isAutoUndone && (
                 <circle cx={layoutNode.x} cy={layoutNode.y} r={layout.radius + 4} fill="none" stroke="#EF4444" strokeWidth="2" />
               )}
+              {markers.includes('best') && !isCurrent && (
+                <circle cx={layoutNode.x} cy={layoutNode.y} r={layout.radius + 3} className="move-tree-node-halo-best" />
+              )}
               {isKeyboardFocused && (
                 <circle
                   cx={layoutNode.x}

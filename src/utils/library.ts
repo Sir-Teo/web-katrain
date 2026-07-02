@@ -31,6 +31,8 @@ export type LibraryFile = LibraryBase & {
   moveCount: number;
   size: number;
   metadata: LibraryFileMetadata;
+  favorite?: boolean;
+  tags?: string[];
 };
 
 export type LibraryFolder = LibraryBase & {
@@ -299,6 +301,8 @@ export const getLibraryItemSearchText = (item: LibraryItem): string => {
       typeof metadata.handicap === 'number' ? `handicap ${metadata.handicap}` : undefined,
       typeof metadata.setupStoneCount === 'number' ? `${metadata.setupStoneCount} setup stones` : undefined,
       getLibraryFileMoveSummary(item),
+      item.favorite ? 'favorite starred' : undefined,
+      ...(item.tags ?? []),
     );
   }
   return fields.filter((field): field is string => !!field).join(' ').toLowerCase();
@@ -347,6 +351,18 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         ...extractLibraryMetadata(sgf),
         ...(raw.metadata && typeof raw.metadata === 'object' ? (raw.metadata as LibraryFileMetadata) : {}),
       };
+      const tags = Array.isArray(raw.tags)
+        ? Array.from(
+            new Set(
+              raw.tags
+                .filter((tag): tag is string => typeof tag === 'string')
+                .map((tag) => tag.trim())
+                .filter(Boolean)
+            )
+          )
+        : [];
+      // Only attach favorite/tags when meaningful so untagged items keep their
+      // original shape (no forced defaults), which keeps round-trips stable.
       return {
         id,
         name,
@@ -358,6 +374,8 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         moveCount: typeof raw.moveCount === 'number' && Number.isFinite(raw.moveCount) ? raw.moveCount : countMoves(sgf),
         size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
         metadata,
+        ...(raw.favorite === true ? { favorite: true } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
       } as LibraryFile;
     });
 };
@@ -758,6 +776,43 @@ export const updateLibraryItem = (
 ): LibraryItem[] => {
   return items.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: timestamp } : item));
 };
+
+export const normalizeTagList = (tags: Iterable<string>): string[] =>
+  Array.from(
+    new Set(
+      Array.from(tags)
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+export const toggleLibraryFileFavorite = (
+  items: LibraryItem[],
+  id: string,
+  timestamp = Date.now()
+): LibraryItem[] =>
+  items.map((item) =>
+    item.id === id && isLibraryFile(item)
+      ? { ...item, favorite: !item.favorite, updatedAt: timestamp }
+      : item
+  );
+
+export const setLibraryFileTags = (
+  items: LibraryItem[],
+  id: string,
+  tags: Iterable<string>,
+  timestamp = Date.now()
+): LibraryItem[] => {
+  const normalized = normalizeTagList(tags);
+  return items.map((item) =>
+    item.id === id && isLibraryFile(item)
+      ? { ...item, tags: normalized, updatedAt: timestamp }
+      : item
+  );
+};
+
+export const getAllLibraryTags = (items: LibraryItem[]): string[] =>
+  normalizeTagList(items.flatMap((item) => (isLibraryFile(item) ? item.tags ?? [] : [])));
 
 const libraryParentById = (items: LibraryItem[]): Map<string, string | null> =>
   new Map(items.map((item) => [item.id, item.parentId ?? null]));

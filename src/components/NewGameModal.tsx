@@ -2,6 +2,8 @@ import React from 'react';
 import type { BoardSize, GameRules, GameSettings, Player } from '../types';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { BotPersonaPicker } from './BotPersonaPicker';
+import { botPersonaAiPatch, type BotPersona } from '../data/botPersonas';
 
 export type GameInfoValues = {
   blackName: string;
@@ -110,8 +112,14 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   const maxHandicap = React.useMemo(() => getMaxHandicap(boardSize), [boardSize]);
 
   const showAiOptions = aiConfig.opponent !== 'none';
+  const [personaId, setPersonaId] = React.useState<string | null>(null);
+  const [showAdvancedAi, setShowAdvancedAi] = React.useState(false);
   const updateAiConfig = (patch: Partial<AiConfigValues>) =>
     setAiConfig((prev) => ({ ...prev, ...patch }));
+  const selectPersona = (persona: BotPersona) => {
+    setPersonaId(persona.id);
+    updateAiConfig(botPersonaAiPatch(persona) as Partial<AiConfigValues>);
+  };
   const updateTimerConfig = (patch: Partial<TimerConfigValues>) =>
     setTimerConfig((prev) => ({ ...prev, ...patch }));
   const aiColor = aiConfig.opponent === 'none' ? null : aiConfig.opponent;
@@ -458,12 +466,27 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 <div className="text-xs ui-text-faint">
                   You play as {humanColor === 'black' ? 'Black' : 'White'}.
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
+                  <div className="text-[var(--ui-text-muted)] text-sm">Choose a bot</div>
+                  <BotPersonaPicker selectedId={personaId} onSelect={selectPersona} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedAi((prev) => !prev)}
+                  className="text-xs font-semibold text-[var(--ui-accent)] hover:underline"
+                  aria-expanded={showAdvancedAi}
+                >
+                  {showAdvancedAi ? 'Hide advanced strategy options' : 'Advanced strategy options'}
+                </button>
+                <div className={showAdvancedAi ? 'space-y-1' : 'hidden'}>
                   <label htmlFor="new-game-ai-strategy" className="text-[var(--ui-text-muted)] text-sm">Strategy</label>
                   <select
                     id="new-game-ai-strategy"
                     value={aiConfig.aiStrategy}
-                    onChange={(e) => updateAiConfig({ aiStrategy: e.target.value as GameSettings['aiStrategy'] })}
+                    onChange={(e) => {
+                      setPersonaId(null);
+                      updateAiConfig({ aiStrategy: e.target.value as GameSettings['aiStrategy'] });
+                    }}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
                   >
                     <option value="default">Default (engine top move)</option>

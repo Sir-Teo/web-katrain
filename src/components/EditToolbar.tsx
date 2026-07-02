@@ -20,6 +20,8 @@ import {
   FaTimes,
   FaTrash,
   FaUndo,
+  FaLongArrowAltRight,
+  FaSlash,
 } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -64,6 +66,13 @@ const TOOL_GROUPS: Array<{ title: string; items: EditToolItem[] }> = [
       { tool: 'label-alpha', label: 'A-Z', title: 'Auto letter label', icon: <FaFont /> },
       { tool: 'label-number', label: '1-9', title: 'Auto number label', icon: <FaHashtag /> },
       { tool: 'marker-erase', label: 'Clear', title: 'Erase marker or label', icon: <FaEraser /> },
+    ],
+  },
+  {
+    title: 'Draw',
+    items: [
+      { tool: 'markup-arrow', label: 'Arrow', title: 'Arrow — click a start point then an end point', icon: <FaLongArrowAltRight /> },
+      { tool: 'markup-line', label: 'Line', title: 'Line — click a start point then an end point', icon: <FaSlash /> },
     ],
   },
 ];

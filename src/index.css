@@ -1680,6 +1680,25 @@
     fill: var(--ui-danger);
   }
 
+  .move-tree-node-marker.blunder {
+    fill: #dc2626;
+  }
+
+  .move-tree-node-marker.best {
+    fill: #22d3ee;
+  }
+
+  .move-tree-node-marker.setup {
+    fill: #a855f7;
+  }
+
+  .move-tree-node-halo-best {
+    fill: none;
+    stroke: #22d3ee;
+    stroke-width: 1.75;
+    opacity: 0.9;
+  }
+
   .move-tree-keyboard-focus {
     fill: none;
     stroke: var(--ui-accent);

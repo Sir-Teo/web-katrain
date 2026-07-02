@@ -59,7 +59,7 @@ describe('desktop dashboard layout', () => {
   it('lets the dashboard library container own embedded panel width', () => {
     const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
     const dashboardLibraryStart = layoutSource.indexOf('libraryPanel={');
-    const dashboardLibraryEnd = layoutSource.indexOf('sidebarOpen={showSidebar}', dashboardLibraryStart);
+    const dashboardLibraryEnd = layoutSource.indexOf('sidebarOpen={showSidebar', dashboardLibraryStart);
     const dashboardLibraryBlock = layoutSource.slice(dashboardLibraryStart, dashboardLibraryEnd);
 
     expect(layoutSource).toContain('libraryWidth={leftPanelWidth}');

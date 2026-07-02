@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FaEdit, FaSave, FaStickyNote, FaTimes } from 'react-icons/fa';
+import { FaEdit, FaSave, FaStickyNote, FaTimes, FaMinus, FaPlus } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { CandidateMove, FloatArray, GameNode, Move, Player } from '../types';
@@ -14,6 +14,14 @@ import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/s
 import { getCurrentLineMoveNumber, isGameNodeStep } from '../utils/branchNavigation';
 
 const NOTE_SHORTCUT_IDS = ['edit-note'] as const;
+
+const NOTE_FONT_SCALE_MIN = 0.8;
+const NOTE_FONT_SCALE_MAX = 1.5;
+const NOTE_FONT_SCALE_STEP = 0.1;
+const clampNoteFontScale = (value: number): number => {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(NOTE_FONT_SCALE_MAX, Math.max(NOTE_FONT_SCALE_MIN, Math.round(value * 100) / 100));
+};
 
 function moveToLabel(move: Move | null, boardSize: number): string {
   if (!move) return 'Root';
@@ -236,7 +244,7 @@ function NotePreview({ note }: { note: string }) {
 }
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes, showShapeCoach = true, focusRequest = 0 }) => {
-  const { rootNode, currentNode, setCurrentNodeNote, treeVersion, gameRules, isAnalysisMode, engineStatus, engineError } = useGameStore(
+  const { rootNode, currentNode, setCurrentNodeNote, treeVersion, gameRules, isAnalysisMode, engineStatus, engineError, noteFontScale, updateSettings } = useGameStore(
     (state) => ({
       rootNode: state.rootNode,
       currentNode: state.currentNode,
@@ -246,9 +254,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       isAnalysisMode: state.isAnalysisMode,
       engineStatus: state.engineStatus,
       engineError: state.engineError,
+      noteFontScale: state.settings.noteFontScale,
+      updateSettings: state.updateSettings,
     }),
     shallow
   );
+  const fontScale = clampNoteFontScale(noteFontScale ?? 1);
+  const adjustNoteFontScale = (delta: number) => {
+    updateSettings({ noteFontScale: clampNoteFontScale(fontScale + delta) });
+  };
   void treeVersion;
 
   const move = currentNode.move;
@@ -562,8 +576,30 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
           ].join(' ')}
         >
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
               <div className="text-xs font-semibold ui-text-faint" title="Saved as an SGF comment (C property) with the game">Note</div>
+              <div className="flex items-center rounded border border-[var(--ui-border)] bg-[var(--ui-surface)]" role="group" aria-label="Note text size">
+                <button
+                  type="button"
+                  className="grid h-6 w-6 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
+                  onClick={() => adjustNoteFontScale(-NOTE_FONT_SCALE_STEP)}
+                  disabled={fontScale <= NOTE_FONT_SCALE_MIN + 0.001}
+                  title="Smaller note text"
+                  aria-label="Decrease note text size"
+                >
+                  <FaMinus size={9} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="grid h-6 w-6 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
+                  onClick={() => adjustNoteFontScale(NOTE_FONT_SCALE_STEP)}
+                  disabled={fontScale >= NOTE_FONT_SCALE_MAX - 0.001}
+                  title="Larger note text"
+                  aria-label="Increase note text size"
+                >
+                  <FaPlus size={9} aria-hidden="true" />
+                </button>
+              </div>
             </div>
             {isEditingNote ? (
               <div className="flex items-center gap-1.5">
@@ -625,6 +661,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               placeholder="Write a note for this position..."
               className="w-full min-h-[88px] max-h-44 ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-y"
               style={{
+                fontSize: `${fontScale * 0.875}rem`,
                 scrollMarginBlockEnd: `calc(${keyboardInset}px + var(--mobile-tabbar-height, 0px) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + 24px)`,
               }}
             />
@@ -632,6 +669,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             <div
               className="min-h-[88px] max-h-44 cursor-text overflow-y-auto rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] p-2 text-sm leading-6 text-[var(--ui-text-muted)]"
               data-note-preview="true"
+              style={{ fontSize: `${fontScale * 0.875}rem` }}
               onClick={startNoteEdit}
             >
               {noteHasContent ? (

@@ -79,6 +79,7 @@ export interface DesktopDashboardProps {
   libraryWidth?: number;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  focusMode?: boolean;
 
   // ---- game analysis ----
   isGameAnalysisRunning: boolean;
@@ -175,7 +176,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     mode, setMode, isContinuousAnalysis, toggleContinuousAnalysis,
     settings, updateControls, updateSettings,
     isInsertMode, toggleInsertMode, isSelectingRegionOfInterest, startSelectRegionOfInterest,
-    libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen,
+    libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, focusMode = false,
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
     navigateBack, navigateForward, navigateStart, navigateEnd, navigateToMove,
@@ -385,6 +386,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       data-layout={layoutMode}
       data-library={libraryOpen ? 'open' : 'closed'}
       data-sidebar={sidebarOpen ? 'open' : 'closed'}
+      data-focus={focusMode ? 'on' : 'off'}
       data-gamestrip={gamestripOpen ? 'open' : 'closed'}
       data-commandbar={commandbarOpen ? 'open' : 'closed'}
       style={dashboardStyle}

@@ -18,6 +18,9 @@ import {
   FaCopy,
   FaPlay,
   FaCloudDownloadAlt,
+  FaStar,
+  FaRegStar,
+  FaTag,
 } from 'react-icons/fa';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
@@ -42,10 +45,14 @@ import {
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
   updateLibraryItem,
+  toggleLibraryFileFavorite,
+  setLibraryFileTags,
+  getAllLibraryTags,
   type LibraryItem,
   type LibraryFile,
   type LibraryFolder,
 } from '../utils/library';
+import { tagsFromResult } from '../utils/narrativeTags';
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { stripUnsafeFilenameControls } from '../utils/filename';
@@ -312,6 +319,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const indexedDbAvailable = useMemo(() => getIndexedDB() !== null, []);
   const [query, setQuery] = useState('');
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(() => {
     const raw = readLocalStorage(LIBRARY_CURRENT_FOLDER_STORAGE_KEY);
@@ -506,12 +515,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     return () => window.cancelAnimationFrame(frame);
   }, [contextMenu]);
 
-  const filteredItems = useMemo(() => {
-    if (!query.trim()) return items;
-    return items.filter((item) => libraryItemMatchesQuery(item, query));
-  }, [items, query]);
+  const availableTags = useMemo(() => getAllLibraryTags(items), [items]);
 
-  const isSearching = query.trim().length > 0;
+  // Drop a stale active tag once no file carries it anymore.
+  useEffect(() => {
+    if (activeTag && !availableTags.includes(activeTag)) setActiveTag(null);
+  }, [activeTag, availableTags]);
+
+  const filteredItems = useMemo(() => {
+    const q = query.trim();
+    if (!q && !favoritesOnly && !activeTag) return items;
+    return items.filter((item) => {
+      if (favoritesOnly || activeTag) {
+        if (!isFile(item)) return false;
+        if (favoritesOnly && !item.favorite) return false;
+        if (activeTag && !(item.tags ?? []).includes(activeTag)) return false;
+      }
+      if (q && !libraryItemMatchesQuery(item, query)) return false;
+      return true;
+    });
+  }, [items, query, favoritesOnly, activeTag]);
+
+  const isSearching = query.trim().length > 0 || favoritesOnly || activeTag != null;
 
   const sortedItems = useMemo(() => {
     const arr = [...filteredItems];
@@ -812,6 +837,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         const uniqueName = getUniqueLibraryItemName(next, items, item.parentId ?? null, item.id);
         setItems((prev) => updateLibraryItem(prev, item.id, { name: uniqueName }));
         if (item.id === loadedFileId) onLoadedFileChange?.(item.id, uniqueName);
+      },
+    });
+  };
+
+  const handleToggleFavorite = (item: LibraryFile) => {
+    setItems((prev) => toggleLibraryFileFavorite(prev, item.id));
+  };
+
+  const handleEditTags = (item: LibraryFile) => {
+    setTextDialog({
+      title: `Tags for ${item.name}`,
+      label: 'Tags (comma-separated)',
+      initialValue: (item.tags ?? []).join(', '),
+      placeholder: 'joseki, review, tsumego',
+      confirmLabel: 'Save tags',
+      onSubmit: (next) => {
+        setItems((prev) => setLibraryFileTags(prev, item.id, next.split(',')));
       },
     });
   };
@@ -1340,7 +1382,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
         </button>
         <span className="library-tree-node-icon">
-          <FaFileAlt size={12} />
+          {item.favorite ? <FaStar size={12} className="text-amber-400" /> : <FaFileAlt size={12} />}
         </span>
         <div className="library-tree-node-name">{item.name}</div>
         <div className="library-tree-node-meta">
@@ -1349,6 +1391,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             : ''}
           {item.metadata.date ? `${item.metadata.date} · ` : ''}
           {moveSummary} · {(item.size / 1024).toFixed(1)} KB
+          {tagsFromResult(item.metadata.result).map((tag) => (
+            <span key={tag.id} className="ml-1 opacity-80" title={tag.title}>· {tag.label}</span>
+          ))}
+          {(item.tags ?? []).length > 0 && (
+            <span className="ml-1 text-[var(--ui-accent)]">
+              {' · '}
+              {(item.tags ?? []).map((tag) => `#${tag}`).join(' ')}
+            </span>
+          )}
         </div>
         {isLoadedDirty && (
           <span
@@ -1361,6 +1412,31 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </span>
         )}
         <div className="library-tree-node-actions">
+          <button
+            type="button"
+            className="library-tree-node-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleFavorite(item);
+            }}
+            title={item.favorite ? `Unstar ${item.name}` : `Star ${item.name}`}
+            aria-label={item.favorite ? `Unstar ${item.name}` : `Star ${item.name}`}
+            aria-pressed={!!item.favorite}
+          >
+            {item.favorite ? <FaStar size={12} className="text-amber-400" /> : <FaRegStar size={12} />}
+          </button>
+          <button
+            type="button"
+            className="library-tree-node-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditTags(item);
+            }}
+            title={`Edit tags for ${item.name}`}
+            aria-label={`Edit tags for ${item.name}`}
+          >
+            <FaTag size={12} />
+          </button>
           <button
             type="button"
             className="library-tree-node-action"
@@ -1901,6 +1977,31 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   <option value="moves">Moves</option>
                   <option value="size">Size</option>
                 </select>
+                <button
+                  type="button"
+                  className="panel-icon-button"
+                  onClick={() => setFavoritesOnly((prev) => !prev)}
+                  aria-pressed={favoritesOnly}
+                  title={favoritesOnly ? 'Show all games' : 'Show favorites only'}
+                  aria-label={favoritesOnly ? 'Show all games' : 'Show favorites only'}
+                  style={favoritesOnly ? { color: 'var(--ui-accent)' } : undefined}
+                >
+                  {favoritesOnly ? <FaStar size={12} className="text-amber-400" /> : <FaRegStar size={12} />}
+                </button>
+                {availableTags.length > 0 && (
+                  <select
+                    value={activeTag ?? ''}
+                    onChange={(e) => setActiveTag(e.target.value || null)}
+                    className="ui-input border rounded px-2 py-1 text-xs text-[var(--ui-text)]"
+                    aria-label="Filter by tag"
+                    title="Filter by tag"
+                  >
+                    <option value="">All tags</option>
+                    {availableTags.map((tag) => (
+                      <option key={tag} value={tag}>#{tag}</option>
+                    ))}
+                  </select>
+                )}
                 <button
                   type="button"
                   className="panel-icon-button"

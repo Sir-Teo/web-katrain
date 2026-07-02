@@ -25,9 +25,11 @@ import {
   findSiblingBranchTarget,
   getActiveChild,
   getCurrentLineNodes,
+  getCurrentLineMoveNumber,
   rememberActiveBranchPath,
   type ActiveBranchMap,
 } from '../utils/branchNavigation';
+import { getNodePath, resolveNodePath, type PinnedVariation } from '../utils/pinnedVariations';
 import { getResignResult } from '../utils/resign';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getAnimationNow } from '../utils/animationFrame';
@@ -120,6 +122,11 @@ interface GameStore extends GameState {
   copyCurrentBranch: () => void;
   pasteCopiedBranch: () => void;
   jumpToNode: (node: GameNode) => void; // Navigate to arbitrary node
+  pinnedVariations: PinnedVariation[];
+  pinCurrentVariation: () => void;
+  recallVariation: (id: string) => void;
+  unpinVariation: (id: string) => void;
+  clearPinnedVariations: () => void;
   navigateNextMistake: () => void;
   navigatePrevMistake: () => void;
   resetGame: () => void;
@@ -154,6 +161,7 @@ interface GameStore extends GameState {
   clearCurrentNodeSetupStones: () => void;
   applySetupStones: (stones: Array<{ x: number; y: number; player: Player | null }>) => number;
   clearCurrentNodeAnnotations: () => void;
+  addSegmentMarkup: (prop: SegmentProperty, sx: number, sy: number, ex: number, ey: number) => void;
   selfplayToEnd: () => void;
   stopSelfplayToEnd: () => void;
   startQuickGameAnalysis: () => void;
@@ -476,6 +484,10 @@ const findNodeById = (root: GameNode, id: string): GameNode | null => {
 
 const MARKER_PROPERTIES = ['TR', 'SQ', 'CR', 'MA'] as const;
 type MarkerProperty = (typeof MARKER_PROPERTIES)[number];
+// Two-point segment markup: SGF AR (arrows) and LN (lines). Stored as
+// 'startCoord:endCoord' and deliberately kept out of the point-list expansion.
+const SEGMENT_PROPERTIES = ['AR', 'LN'] as const;
+export type SegmentProperty = (typeof SEGMENT_PROPERTIES)[number];
 const SETUP_PROPERTIES = ['AB', 'AW', 'AE'] as const;
 
 const editToolToMarkerProperty = (tool: EditTool): MarkerProperty | null => {
@@ -951,6 +963,7 @@ const defaultSettings: GameSettings = {
   showMoveNumbers: false,
   showBoardControls: true,
   showAnalysisBar: true,
+  noteFontScale: 1,
   fuzzyStonePlacement: true,
   showNextMovePreview: true,
   boardTheme: 'hikaru',
@@ -1134,6 +1147,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentNode: initialRoot,
   treeVersion: 0,
   activeBranchChildIds: {},
+  pinnedVariations: [],
 
   boardRotation: 0,
   regionOfInterest: null,
@@ -1570,14 +1584,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearCurrentNodeAnnotations: () =>
     set((state) => {
       const props = ensureNodeProperties(state.currentNode);
-      const changed = [...MARKER_PROPERTIES, 'LB'].some((key) => !!props[key]?.length);
+      const clearKeys = [...MARKER_PROPERTIES, ...SEGMENT_PROPERTIES, 'LB'];
+      const changed = clearKeys.some((key) => !!props[key]?.length);
       if (!changed) return {};
       const history = pushEditHistory(state);
-      for (const key of [...MARKER_PROPERTIES, 'LB']) delete props[key];
+      for (const key of clearKeys) delete props[key];
       return {
         ...history,
         treeVersion: state.treeVersion + 1,
-        notification: { message: 'Cleared markers and labels on this node.', type: 'info' },
+        notification: { message: 'Cleared markers, labels and drawings on this node.', type: 'info' },
+      };
+    }),
+
+  addSegmentMarkup: (prop, sx, sy, ex, ey) =>
+    set((state) => {
+      const boardSize = state.board.length;
+      const inRange = (x: number, y: number) => x >= 0 && y >= 0 && x < boardSize && y < boardSize;
+      if (!inRange(sx, sy) || !inRange(ex, ey) || (sx === ex && sy === ey)) return {};
+      const props = ensureNodeProperties(state.currentNode);
+      const value = `${coordinateToSgf(sx, sy)}:${coordinateToSgf(ex, ey)}`;
+      if (props[prop]?.includes(value)) return {};
+      const history = pushEditHistory(state);
+      addUniqueValue(props, prop, value);
+      return {
+        ...history,
+        treeVersion: state.treeVersion + 1,
       };
     }),
 
@@ -4225,6 +4256,52 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
   }),
 
+  pinCurrentVariation: () => set((state) => {
+    const node = state.currentNode;
+    if (!node.parent) {
+      return { notification: { message: 'Play or navigate to a move before pinning a line.', type: 'info' } };
+    }
+    const path = getNodePath(node);
+    const moveNumber = getCurrentLineMoveNumber(node);
+    const coord = node.move && node.move.x >= 0 && node.move.y >= 0
+      ? `${String.fromCharCode(65 + (node.move.x >= 8 ? node.move.x + 1 : node.move.x))}${node.gameState.board.length - node.move.y}`
+      : node.move ? 'pass' : 'setup';
+    const side = node.move ? (node.move.player === 'black' ? 'B' : 'W') : '';
+    const label = `Move ${moveNumber}${side ? ` ${side} ${coord}` : ''}`;
+    const pin: PinnedVariation = {
+      id: `pin_${moveNumber}_${path.join('-')}`,
+      label,
+      path,
+      moveNumber,
+      createdAt: state.treeVersion,
+    };
+    if (state.pinnedVariations.some((p) => p.id === pin.id)) {
+      return { notification: { message: 'This line is already pinned.', type: 'info' } };
+    }
+    return {
+      pinnedVariations: [...state.pinnedVariations, pin],
+      notification: { message: `Pinned ${label}.`, type: 'success' },
+    };
+  }),
+
+  recallVariation: (id: string) => {
+    const state = get();
+    const pin = state.pinnedVariations.find((p) => p.id === id);
+    if (!pin) return;
+    const node = resolveNodePath(state.rootNode, pin.path);
+    if (!node) {
+      set({ notification: { message: 'That pinned line no longer exists in this game.', type: 'error' } });
+      return;
+    }
+    get().jumpToNode(node);
+  },
+
+  unpinVariation: (id: string) => set((state) => ({
+    pinnedVariations: state.pinnedVariations.filter((p) => p.id !== id),
+  })),
+
+  clearPinnedVariations: () => set({ pinnedVariations: [] }),
+
   navigateNextMistake: () => {
       get().findMistake('redo');
   },
@@ -4303,6 +4380,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       rootNode: newRoot,
       currentNode: newRoot,
       activeBranchChildIds: {},
+      pinnedVariations: [],
       treeVersion: state.treeVersion + 1,
     });
   },
@@ -4356,6 +4434,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       rootNode: newRoot,
       currentNode: newRoot,
       activeBranchChildIds: {},
+      pinnedVariations: [],
       treeVersion: state.treeVersion + 1,
     });
   },

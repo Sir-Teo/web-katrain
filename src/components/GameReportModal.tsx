@@ -174,6 +174,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [bucketFilter, setBucketFilter] = useState<number | null>(null);
   const [policyFilter, setPolicyFilter] = useState<MovePolicyCategory | null>(null);
   const [mistakeSort, setMistakeSort] = useState<GameReportMistakeSort>('loss');
+  const [showAllMistakes, setShowAllMistakes] = useState(false);
+  const [outcomeRevealed, setOutcomeRevealed] = useState(false);
   const [reviewQueue, setReviewQueue] = useState<MoveReportEntry[]>([]);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
@@ -436,6 +438,33 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     );
   }, [reportsByPhase]);
 
+  const phaseAccuracyRows = useMemo(() => {
+    return GAME_REPORT_PHASES.filter((phase) => phase.key !== 'all').map((phase) => {
+      const phaseReport = reportsByPhase[phase.key];
+      return {
+        key: phase.key,
+        label: phase.label,
+        players: (['black', 'white'] as const).reduce(
+          (acc, player) => {
+            const playerStats = phaseReport?.stats[player];
+            acc[player] = {
+              accuracy: playerStats && playerStats.numMoves > 0 ? playerStats.accuracy : undefined,
+              numMoves: playerStats?.numMoves ?? 0,
+            };
+            return acc;
+          },
+          {} as Record<Player, { accuracy: number | undefined; numMoves: number }>
+        ),
+      };
+    });
+  }, [reportsByPhase]);
+
+  const gameResult = useMemo(() => readRootInfoValue(rootPropertiesForNode(currentNode), 'RE'), [currentNode]);
+  // Spoiler shield: hide the outcome-revealing sections until the user opts in,
+  // but only when there is actually a recorded result to spoil.
+  const canShieldOutcome = !!(gameResult && gameResult.trim());
+  const showOutcome = outcomeRevealed || !canShieldOutcome;
+
   const analyzedMoves = report.stats.black.numMoves + report.stats.white.numMoves;
   const totalMoves = report.movesInFilter;
   const coverage = totalMoves > 0 ? analyzedMoves / totalMoves : 0;
@@ -480,12 +509,16 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     () => sortMoveReportEntries(filteredReportEntries, mistakeSort),
     [filteredReportEntries, mistakeSort]
   );
-  const topMistakes = useMemo(() => allMistakes.slice(0, 10), [allMistakes]);
+  const topMistakes = useMemo(
+    () => (showAllMistakes ? allMistakes : allMistakes.slice(0, 10)),
+    [allMistakes, showAllMistakes]
+  );
   const studyFocus = useMemo(
     () => getReportStudyFocus({ reportsByPhase, phaseFilter, playerFilter }),
     [phaseFilter, playerFilter, reportsByPhase]
   );
-  const pdfMistakes = topMistakes;
+  // Keep the printable PDF bounded even when the on-screen list shows all mistakes.
+  const pdfMistakes = useMemo(() => allMistakes.slice(0, 10), [allMistakes]);
   const turningPoints = useMemo(
     () => getReportTurningPoints(filteredReportEntries, CRITICAL_SWING_THRESHOLD, 5),
     [filteredReportEntries]
@@ -810,12 +843,24 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   useEffect(() => {
     setPdfSnapshots([]);
+    setShowAllMistakes(false);
   }, [bucketFilter, mistakeSort, playerFilter, phaseFilter, policyFilter, treeVersion]);
 
   useEffect(() => {
     setBucketFilter(null);
     setPolicyFilter(null);
   }, [phaseFilter]);
+
+  // Re-hide the outcome when a different game is loaded (root node identity changes),
+  // not on every in-report navigation.
+  const rootNodeId = useMemo(() => {
+    let root = currentNode;
+    while (root.parent) root = root.parent;
+    return root.id;
+  }, [currentNode]);
+  useEffect(() => {
+    setOutcomeRevealed(false);
+  }, [rootNodeId]);
 
   useEffect(() => {
     if (phaseFilter !== 'all' && phaseCounts[phaseFilter]?.total === 0) {
@@ -867,7 +912,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="mt-1 text-sm ui-text-muted">
               {playerNames.black} vs {playerNames.white}
             </div>
-            {gameTags.length > 0 && (
+            {showOutcome && gameTags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Game tags">
                 {gameTags.map((tag) => (
                   <span
@@ -1148,6 +1193,46 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           </div>
 
           <div className={sectionClass}>
+            <div className={sectionTitleClass}>Phase Accuracy</div>
+            <div className={['mt-3 grid gap-2 text-sm', statsPlayers.length === 2 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>
+              <div className={`text-xs uppercase tracking-wide ${faintClass}`}>Phase</div>
+              {statsPlayers.map((player) => (
+                <div key={`phase-acc-head-${player}`} className={`min-w-0 truncate text-center text-xs font-semibold ${faintClass}`} title={playerNames[player]}>
+                  {playerNames[player]}
+                </div>
+              ))}
+              {phaseAccuracyRows.map((row) => (
+                <React.Fragment key={`phase-acc-${row.key}`}>
+                  <div className={labelClass}>{row.label}</div>
+                  {statsPlayers.map((player) => {
+                    const cell = row.players[player];
+                    const acc = cell?.accuracy;
+                    const toneClass =
+                      acc == null
+                        ? faintClass
+                        : acc >= 80
+                          ? 'text-emerald-500'
+                          : acc >= 60
+                            ? 'text-amber-500'
+                            : 'text-rose-400';
+                    return (
+                      <div key={`phase-acc-${row.key}-${player}`} className="text-center font-mono">
+                        <span className={toneClass}>{fmtNum(acc, 1)}</span>
+                        {cell && cell.numMoves > 0 && (
+                          <span className={`ml-1 text-[10px] ${faintClass}`}>/{cell.numMoves}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+            <p className={`mt-3 text-xs ${faintClass}`}>
+              KaTrain-style accuracy per game phase; the small number is analyzed moves in that phase.
+            </p>
+          </div>
+
+          <div className={sectionClass}>
             <div className={sectionTitleClass}>Key Stats</div>
             <div className={['mt-3 grid gap-2 text-sm', statsPlayers.length === 2 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>
               <div className={`text-xs uppercase tracking-wide ${faintClass}`}>Metric</div>
@@ -1304,6 +1389,25 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             </div>
           </div>
 
+          {!showOutcome && (
+            <div className={`${sectionClass} print-hide`}>
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <div className={sectionTitleClass}>Result hidden</div>
+                <p className={`max-w-sm text-sm ${mutedClass}`}>
+                  The win-rate graph, critical swings and highlights are hidden so you can review the moves without spoilers.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setOutcomeRevealed(true)}
+                  className="min-h-11 rounded-lg px-4 py-2 text-sm font-semibold ui-accent-bg hover:brightness-110"
+                >
+                  Reveal result &amp; analysis
+                </button>
+              </div>
+            </div>
+          )}
+          {showOutcome && (
+          <React.Fragment>
           <div className={sectionClass}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -1446,6 +1550,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             )}
           </div>
 
+          </React.Fragment>
+          )}
+
           <div className={sectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -1479,14 +1586,27 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   })}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => startReviewQueue(topMistakes)}
-                disabled={topMistakes.length === 0}
-                className={`px-3 py-1 text-xs font-semibold disabled:opacity-40 print-hide ${secondaryPillClass}`}
-              >
-                Review {topMistakes.length}
-              </button>
+              <div className="flex items-center gap-2 print-hide">
+                {allMistakes.length > 10 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllMistakes((prev) => !prev)}
+                    aria-pressed={showAllMistakes}
+                    className={`px-3 py-1 text-xs font-semibold ${secondaryPillClass}`}
+                    title={showAllMistakes ? 'Show only the top 10 mistakes' : `Show all ${allMistakes.length} mistakes`}
+                  >
+                    {showAllMistakes ? 'Show top 10' : `Show all (${allMistakes.length})`}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => startReviewQueue(topMistakes)}
+                  disabled={topMistakes.length === 0}
+                  className={`px-3 py-1 text-xs font-semibold disabled:opacity-40 ${secondaryPillClass}`}
+                >
+                  Review {topMistakes.length}
+                </button>
+              </div>
             </div>
             {activeReview && (
               <div className={`mt-3 p-3 print-hide ${insetSurfaceClass}`}>

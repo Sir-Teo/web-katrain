@@ -3,6 +3,7 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { AnalysisCommandBar } from './AnalysisCommandBar';
+import { CandidatePvTiles } from './CandidatePvTiles';
 import { EditToolbar } from './EditToolbar';
 import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
@@ -86,7 +87,8 @@ import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
 import { useTournamentWatcher } from '../hooks/useTournamentWatcher';
 import { useTournamentStore } from '../store/tournamentStore';
-import type { LadderState } from '../utils/tournament';
+import { formatKyuRank, type LadderState } from '../utils/tournament';
+import { currentGauntletOpponentKyu, type GauntletState } from '../utils/gauntlet';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
 import { getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber } from '../utils/branchNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
@@ -100,7 +102,7 @@ import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
 import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
 import { saveSettingsActiveTab } from '../utils/settingsTabs';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
-import { EDIT_TOOL_SHORTCUT_DEFINITIONS } from '../utils/shortcuts';
+import { EDIT_TOOL_SHORTCUT_DEFINITIONS, eventMatchesShortcut } from '../utils/shortcuts';
 import { dispatchMoveTreeCommand, type MoveTreeCommand } from '../utils/moveTreeCommands';
 import { ANALYSIS_VISIT_PRESETS, formatVisitCount, visitPresetDescription, visitPresetLabel } from '../utils/visitPresets';
 import { getDroppedSgfOrOgsText, getFirstDraggedFile, hasDraggedFiles, hasPotentialGameImportDrag } from '../utils/dragImport';
@@ -125,6 +127,7 @@ const LessonsModal = lazy(() => import('./LessonsModal').then((module) => ({ def
 const GuessMoveModal = lazy(() => import('./GuessMoveModal').then((module) => ({ default: module.GuessMoveModal })));
 const ProblemModal = lazy(() => import('./ProblemModal').then((module) => ({ default: module.ProblemModal })));
 const VideoBoardModal = lazy(() => import('./VideoBoardModal').then((module) => ({ default: module.VideoBoardModal })));
+const KifuPrintModal = lazy(() => import('./KifuPrintModal').then((module) => ({ default: module.KifuPrintModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 const mainFileInputAccept = ['.sgf', PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
@@ -135,6 +138,7 @@ const LAYOUT_SHORTCUT_IDS = [
   'toggle-edit-mode',
   'toggle-top-bar',
   'toggle-bottom-bar',
+  'toggle-focus-mode',
 ] as const;
 type LoadedExternalFile = { name: string; kind: 'file' | 'ogs' | 'pasted' };
 type SaveToLibraryDialogState = {
@@ -175,6 +179,10 @@ export const Layout: React.FC = () => {
     navigateBack,
     navigateForward,
     navigateToMove,
+    pinnedVariations,
+    pinCurrentVariation,
+    recallVariation,
+    clearPinnedVariations,
     navigateStart,
     navigateEnd,
     switchBranch,
@@ -247,6 +255,10 @@ export const Layout: React.FC = () => {
       navigateBack: state.navigateBack,
       navigateForward: state.navigateForward,
       navigateToMove: state.navigateToMove,
+      pinnedVariations: state.pinnedVariations,
+      pinCurrentVariation: state.pinCurrentVariation,
+      recallVariation: state.recallVariation,
+      clearPinnedVariations: state.clearPinnedVariations,
       navigateStart: state.navigateStart,
       navigateEnd: state.navigateEnd,
       switchBranch: state.switchBranch,
@@ -339,6 +351,7 @@ export const Layout: React.FC = () => {
   const [isGuessMoveOpen, setIsGuessMoveOpen] = useState(false);
   const [isProblemOpen, setIsProblemOpen] = useState(false);
   const [isVideoBoardOpen, setIsVideoBoardOpen] = useState(false);
+  const [isKifuPrintOpen, setIsKifuPrintOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
@@ -352,6 +365,7 @@ export const Layout: React.FC = () => {
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>('board');
   const [lastRightTab, setLastRightTab] = useState<MobileTab>('tree');
   const [uiState, setUiState] = useState<UiState>(() => loadUiState());
@@ -688,6 +702,25 @@ export const Layout: React.FC = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [scoringMode]);
+
+  const toggleFocusMode = useCallback(() => setFocusMode((prev) => !prev), []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isEditableKeyboardTarget(event.target)) return;
+      if (eventMatchesShortcut(event, 'toggle-focus-mode')) {
+        event.preventDefault();
+        toggleFocusMode();
+        return;
+      }
+      if (focusMode && event.key === 'Escape') {
+        event.preventDefault();
+        setFocusMode(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [focusMode, toggleFocusMode]);
 
   useEffect(() => {
     if (scoringMode && (isEditMode || isInsertMode || isSelectingRegionOfInterest)) {
@@ -2174,6 +2207,13 @@ export const Layout: React.FC = () => {
         keywords: ['video', 'record', 'capture', 'movie', 'clip', 'sgf'],
       },
       {
+        id: 'print-kifu',
+        label: 'Print kifu (PDF)',
+        category: 'File',
+        run: () => openSimpleModal(() => setIsKifuPrintOpen(true)),
+        keywords: ['print', 'pdf', 'diagram', 'kifu', 'export', 'moves per diagram'],
+      },
+      {
         id: 'paste-sgf',
         label: 'Paste SGF or OGS URL',
         category: 'File',
@@ -2354,6 +2394,51 @@ export const Layout: React.FC = () => {
         run: () => runMoveTreeCommand('toggle-minimap'),
         keywords: ['game tree', 'minimap', 'overview'],
       },
+      {
+        id: 'toggle-focus-mode',
+        label: focusMode ? 'Exit focus mode' : 'Enter focus mode',
+        category: 'View',
+        shortcutId: 'toggle-focus-mode',
+        run: () => {
+          closeFloatingMenus();
+          toggleFocusMode();
+        },
+        keywords: ['board only', 'distraction free', 'zen', 'hide panels'],
+      },
+      {
+        id: 'pin-variation',
+        label: 'Pin current line',
+        category: 'Navigation',
+        run: () => {
+          closeFloatingMenus();
+          pinCurrentVariation();
+        },
+        keywords: ['bookmark', 'save variation', 'recall', 'pinned'],
+      },
+      ...pinnedVariations.map((pin) => ({
+        id: `recall-variation-${pin.id}`,
+        label: `Recall pinned: ${pin.label}`,
+        category: 'Navigation',
+        run: () => {
+          closeFloatingMenus();
+          recallVariation(pin.id);
+        },
+        keywords: ['pinned', 'variation', 'jump', 'bookmark'],
+      })),
+      ...(pinnedVariations.length > 0
+        ? [
+            {
+              id: 'clear-pinned-variations',
+              label: 'Clear pinned lines',
+              category: 'Navigation',
+              run: () => {
+                closeFloatingMenus();
+                clearPinnedVariations();
+              },
+              keywords: ['unpin', 'remove pinned'],
+            },
+          ]
+        : []),
       {
         id: 'toggle-top-bar',
         label: topBarOpen ? 'Hide top bar' : 'Show top bar',
@@ -2774,6 +2859,19 @@ export const Layout: React.FC = () => {
     toast(`Ladder game vs ${ladder.boardSize}×${ladder.boardSize} ${ladder.userColor === 'black' ? 'White' : 'Black'} bot started.`, 'success');
   }, [startNewGame, updateSettings, settings.gameRules, toast]);
 
+  const handlePlayGauntletGame = useCallback((gauntlet: GauntletState) => {
+    setIsTournamentOpen(false);
+    const opponentKyu = currentGauntletOpponentKyu(gauntlet);
+    startNewGame({ komi: gauntlet.komi, rules: settings.gameRules, boardSize: gauntlet.boardSize, handicap: gauntlet.handicap });
+    updateSettings({ aiStrategy: 'rank', aiRankKyu: opponentKyu });
+    const opponent = gauntlet.userColor === 'black' ? 'white' : 'black';
+    window.setTimeout(() => {
+      useGameStore.getState().toggleAi(opponent);
+      useTournamentStore.getState().beginGauntletGame();
+    }, 0);
+    toast(`Gauntlet game ${gauntlet.index + 1}/4 vs ${formatKyuRank(opponentKyu)} started.`, 'success');
+  }, [startNewGame, updateSettings, settings.gameRules, toast]);
+
   const gamepadStatus = useGamepadNavigation({
     enabled:
       settings.gamepadNavigation &&
@@ -2849,6 +2947,7 @@ export const Layout: React.FC = () => {
           />
         )}
         {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
+        {isKifuPrintOpen && <KifuPrintModal onClose={() => setIsKifuPrintOpen(false)} />}
         {isGameReportOpen && (
           <GameReportModal
             onClose={() => {
@@ -2877,6 +2976,7 @@ export const Layout: React.FC = () => {
           <TournamentModal
             onClose={() => setIsTournamentOpen(false)}
             onPlayGame={handlePlayTournamentGame}
+            onPlayGauntletGame={handlePlayGauntletGame}
           />
         )}
         {isProGamesOpen && (
@@ -3237,7 +3337,8 @@ export const Layout: React.FC = () => {
             toggleInsertMode={toggleInsertMode}
             isSelectingRegionOfInterest={isSelectingRegionOfInterest}
             startSelectRegionOfInterest={startSelectRegionOfInterest}
-            libraryOpen={libraryOpen}
+            focusMode={focusMode}
+            libraryOpen={libraryOpen && !focusMode}
             setLibraryOpen={setLibraryOpen}
             libraryWidth={leftPanelWidth}
             libraryPanel={
@@ -3260,7 +3361,7 @@ export const Layout: React.FC = () => {
                 showCloseButtonOnDesktop
               />
             }
-            sidebarOpen={showSidebar}
+            sidebarOpen={showSidebar && !focusMode}
             setSidebarOpen={setShowSidebar}
             isGameAnalysisRunning={isGameAnalysisRunning}
             gameAnalysisType={gameAnalysisType}
@@ -3317,7 +3418,7 @@ export const Layout: React.FC = () => {
       {!isDesktop && (
       <div className="flex flex-1 min-h-0 min-w-0 w-full overflow-hidden">
         <LibraryPanel
-          open={libraryOpen}
+          open={libraryOpen && !focusMode}
           onClose={handleCloseLibrary}
           docked={isDesktop}
           width={leftPanelWidth}
@@ -3349,7 +3450,7 @@ export const Layout: React.FC = () => {
           className={['flex flex-col flex-1 min-w-0 min-h-0 w-full max-w-full relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
           style={isMobile ? { paddingBottom: 'calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))' } : undefined}
         >
-          {topBarOpen && (
+          {topBarOpen && !focusMode && (
             <TopControlBar
               settings={settings}
               updateControls={updateControls}
@@ -3482,6 +3583,12 @@ export const Layout: React.FC = () => {
                 onOpenGameReport={() => setIsGameReportOpen(true)}
               />
             </div>
+            {isMobile && isAnalysisMode && !isEditMode && !scoringMode && (
+              <CandidatePvTiles
+                pinnedKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
+                onPin={setReportHoverMove}
+              />
+            )}
             <div
               className={[
                 'flex-1 flex justify-center min-h-0 min-w-0',
@@ -3520,7 +3627,7 @@ export const Layout: React.FC = () => {
             </div>
           </div>
 
-          {!isMobile && settings.showBoardControls && bottomBarOpen && (
+          {!isMobile && settings.showBoardControls && bottomBarOpen && !focusMode && (
             <BottomControlBar
               passTurn={passTurn}
               navigateBack={navigateBack}
@@ -3556,7 +3663,7 @@ export const Layout: React.FC = () => {
             />
           )}
 
-          {!isMobile && (
+          {!isMobile && !focusMode && (
             <div
               className="absolute right-3 z-30"
               style={{ top: topBarOpen ? 'calc(var(--ui-bar-height) + 8px)' : 8 }}
@@ -3584,7 +3691,7 @@ export const Layout: React.FC = () => {
           open={rightPanelOpen}
           onClose={handleCloseRightPanel}
           width={isDesktop ? rightPanelWidth : undefined}
-          showOnDesktop={showSidebar}
+          showOnDesktop={showSidebar && !focusMode}
           mode={mode}
           setMode={setMode}
           modePanels={modePanels}
@@ -3676,7 +3783,7 @@ export const Layout: React.FC = () => {
           </>
         )}
 
-        {!isMobile && (
+        {!isMobile && !focusMode && (
           <>
             {settings.showBoardControls && (
               <div
@@ -3694,7 +3801,7 @@ export const Layout: React.FC = () => {
           </>
         )}
 
-        {isMobile && (
+        {isMobile && !focusMode && (
           <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col pointer-events-none">
             <div className="pointer-events-auto bg-[var(--ui-bar)]/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(0,0,0,0.3)] border-t border-[var(--ui-border)] divide-y divide-[var(--ui-border)]">
               {settings.showBoardControls && bottomBarOpen && mobileTab === 'board' && (
@@ -3754,6 +3861,29 @@ export const Layout: React.FC = () => {
           </div>
         )}
       </div>
+      )}
+      {focusMode && (
+        <div
+          className="fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-1 rounded-full border border-[var(--ui-border)] bg-[var(--ui-bar)]/95 px-2 py-1 text-xs text-[var(--ui-text)] shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md mobile-safe-area-bottom"
+          role="toolbar"
+          aria-label="Focus mode controls"
+        >
+          <button type="button" onClick={navigateStart} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="First move" aria-label="First move">⏮</button>
+          <button type="button" onClick={navigateBack} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="Previous move" aria-label="Previous move">◀</button>
+          <span className="min-w-[4.5rem] px-1 text-center font-mono tabular-nums">
+            {currentMoveNumber}/{totalMovesInCurrentLine}
+          </span>
+          <button type="button" onClick={navigateForward} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="Next move" aria-label="Next move">▶</button>
+          <button type="button" onClick={navigateEnd} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="Last move" aria-label="Last move">⏭</button>
+          <button
+            type="button"
+            onClick={() => setFocusMode(false)}
+            className="ml-1 rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-1.5 text-[11px] font-semibold hover:bg-[var(--ui-surface-2)]"
+            title="Exit focus mode (Esc)"
+          >
+            Exit focus
+          </button>
+        </div>
       )}
       {pendingResignPlayer && (
         <ResignConfirmModal
