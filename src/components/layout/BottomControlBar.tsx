@@ -135,9 +135,11 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 }) => {
   const passBtnRef = useRef<HTMLButtonElement>(null);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const moreSheetRef = useRef<HTMLDivElement>(null);
   const moreCloseRef = useRef<HTMLButtonElement>(null);
   const [passBtnHeight, setPassBtnHeight] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [suppressMoreTriggerFocusRing, setSuppressMoreTriggerFocusRing] = useState(false);
   const moreSheetId = React.useId();
   const moreSheetTitleId = React.useId();
   const [isMoveNumberEditing, setIsMoveNumberEditing] = useState(false);
@@ -196,33 +198,80 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
     return () => obs.disconnect();
   }, []);
 
-  const closeMoreControls = React.useCallback(() => {
+  const closeMoreControls = React.useCallback((inputMode: 'pointer' | 'keyboard' = 'keyboard') => {
     setMoreOpen(false);
+    setSuppressMoreTriggerFocusRing(inputMode === 'pointer');
     if (typeof window !== 'undefined') {
       window.setTimeout(() => moreTriggerRef.current?.focus({ preventScroll: true }), 0);
     }
   }, []);
 
   useEffect(() => {
+    if (!suppressMoreTriggerFocusRing) return;
+    const trigger = moreTriggerRef.current;
+    if (!trigger) return;
+    const clearSuppression = () => setSuppressMoreTriggerFocusRing(false);
+    trigger.addEventListener('blur', clearSuppression);
+    document.addEventListener('keydown', clearSuppression, true);
+    return () => {
+      trigger.removeEventListener('blur', clearSuppression);
+      document.removeEventListener('keydown', clearSuppression, true);
+    };
+  }, [suppressMoreTriggerFocusRing]);
+
+  useEffect(() => {
     if (!moreOpen) return;
-    moreCloseRef.current?.focus({ preventScroll: true });
+    const focusableSelector = [
+      'a[href]:not([tabindex="-1"])',
+      'button:not([disabled]):not([tabindex="-1"])',
+      'input:not([disabled]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    const focusCloseButton = window.requestAnimationFrame(() => {
+      moreCloseRef.current?.focus({ preventScroll: true });
+    });
     const onDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
       if (target.closest('[data-bottom-more]')) return;
-      closeMoreControls();
+      closeMoreControls('pointer');
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        closeMoreControls();
+        closeMoreControls('keyboard');
+        return;
+      }
+      if (event.key !== 'Tab' || event.defaultPrevented) return;
+
+      const sheet = moreSheetRef.current;
+      if (!sheet) return;
+      const focusableElements = Array.from(sheet.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((element) => element.getClientRects().length > 0);
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === first || !sheet.contains(activeElement))) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (activeElement === last || !sheet.contains(activeElement))) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
       }
     };
     window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
     return () => {
+      window.cancelAnimationFrame(focusCloseButton);
       window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onKeyDown, true);
     };
   }, [closeMoreControls, moreOpen]);
 
@@ -357,7 +406,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
   if (isMobile) {
     return (
-      <div className="ui-bar ui-bar-height ui-bar-pad border-t flex items-center gap-1.5 sm:gap-2 select-none">
+      <div className="mobile-bottom-controls ui-bar ui-bar-height ui-bar-pad border-t flex items-center gap-1.5 sm:gap-2 select-none">
         <div className="relative">
           {passPolicyColor && (
             <div
@@ -367,7 +416,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           )}
           <button type="button"
             ref={passBtnRef}
-            className="relative min-h-11 min-w-11 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[var(--ui-surface-2)] hover:brightness-110 rounded-lg text-[11px] sm:text-xs font-medium text-[var(--ui-text)] transition-colors"
+            className="relative min-h-11 min-w-11 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-transparent hover:bg-[var(--ui-surface-2)] rounded-md text-[11px] sm:text-xs font-medium text-[var(--ui-text)] transition-colors"
             onClick={passTurn}
             aria-label="Pass turn"
             title={withShortcut('Pass', 'pass')}
@@ -409,16 +458,16 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           )}
         </div>
 
-        <div className="flex-1 min-w-0 flex items-center justify-center gap-1">
+        <div className="mobile-bottom-navigation flex-1 min-w-0 flex items-center justify-center gap-1">
           <IconButton title={withShortcut('Back', 'nav-back')} onClick={navigateBack} disabled={isInsertMode}>
             <FaChevronLeft />
           </IconButton>
           <div
-            className="mobile-bottom-meta min-w-0 max-w-full overflow-hidden px-2 py-1 rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[10px] sm:text-xs font-mono text-[var(--ui-text-muted)] flex items-center gap-1"
+            className="mobile-bottom-meta min-w-0 max-w-full overflow-hidden px-2 py-1 text-[10px] sm:text-xs font-mono text-[var(--ui-text-muted)] flex items-center gap-1"
             title={matchupSummary}
             aria-label={matchupSummary}
           >
-            <span className="mobile-bottom-turn-chip inline-flex min-w-0 items-center gap-1">
+            <span className="mobile-bottom-turn-chip inline-flex min-w-0 items-center gap-1" data-mobile-turn-chip="true">
               <span
                 className={['mobile-bottom-stone', currentPlayer === 'black' ? 'mobile-bottom-stone-black' : 'mobile-bottom-stone-white'].join(' ')}
                 aria-hidden="true"
@@ -426,19 +475,21 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
               <span className="mobile-bottom-current-player min-w-0 truncate font-sans font-semibold text-[var(--ui-text)]">
                 {currentPlayerLabel}
               </span>
-              <span className="mobile-bottom-current-captures text-[var(--ui-text-faint)]">C{currentCaptureCount}</span>
+              {currentCaptureCount > 0 ? (
+                <span className="mobile-bottom-current-captures text-[var(--ui-text-faint)]">{currentCaptureCount} captured</span>
+              ) : null}
             </span>
             <span className={`${metaDividerClass} mx-1`}>|</span>
-            <span className="ui-text-faint">{boardSize}×{boardSize}</span>
+            <span className="mobile-bottom-board-size ui-text-faint">{boardSize}×{boardSize}</span>
             {handicap > 0 && (
               <>
                 <span className={metaDividerClass}>·</span>
-                <span className="ui-text-faint">H{handicap}</span>
+                <span className="mobile-bottom-handicap ui-text-faint">H{handicap}</span>
               </>
             )}
             <span className={`${metaDividerClass} mx-1`}>|</span>
             {isMoveNumberEditing ? (
-              <span className="inline-flex items-center gap-0.5">
+              <span className="mobile-bottom-move-editor inline-flex items-center gap-0.5">
                 <span className="ui-text-faint">#</span>
                 <input
                   type="number"
@@ -458,8 +509,9 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             ) : (
               <button
                 type="button"
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 font-mono text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:opacity-50"
+                className="mobile-bottom-move-button inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 font-mono text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:opacity-50"
                 title="Set move number"
+                aria-label={`Move ${currentMoveNumber} of ${totalMovesInCurrentLine}. Tap to jump to a move.`}
                 onClick={openMoveNumberEditor}
                 disabled={isInsertMode}
               >
@@ -486,7 +538,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   data-mobile-save-state={mobileSaveStatus.state}
                 >
                   {mobileSaveStatusIcon}
-                  <span>{mobileSaveStatus.compactLabel}</span>
+                  <span className="mobile-bottom-save-status-label">{mobileSaveStatus.compactLabel}</span>
                 </span>
               </>
             )}
@@ -497,7 +549,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         </div>
 
         {(onToggleEdit || onToggleScore) && (
-          <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="mobile-bottom-mode-actions flex items-center gap-1 sm:gap-1.5">
             {onToggleEdit && (
               <button
                 type="button"
@@ -508,10 +560,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 title={editShortcut ? `Edit position (${editShortcut})` : 'Edit position'}
                 data-bottom-edit-toggle="true"
                 className={[
-                  'min-h-11 min-w-11 flex items-center justify-center rounded-lg transition-colors touch-manipulation',
+                  'min-h-11 min-w-11 flex items-center justify-center rounded-md border-b-2 transition-colors touch-manipulation',
                   isEditMode
-                    ? 'bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-accent)]'
-                    : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+                    ? 'border-[var(--ui-accent)] text-[var(--ui-accent)]'
+                    : 'border-transparent text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
                   editDisabled ? 'opacity-40 cursor-not-allowed' : '',
                 ].join(' ')}
               >
@@ -528,10 +580,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 title={scoreShortcut ? `Score position (${scoreShortcut})` : 'Score position'}
                 data-bottom-score-toggle="true"
                 className={[
-                  'min-h-11 min-w-11 flex items-center justify-center rounded-lg transition-colors touch-manipulation',
+                  'min-h-11 min-w-11 flex items-center justify-center rounded-md border-b-2 transition-colors touch-manipulation',
                   scoringMode
-                    ? 'bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-accent)]'
-                    : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+                    ? 'border-[var(--ui-accent)] text-[var(--ui-accent)]'
+                    : 'border-transparent text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
                   scoreDisabled ? 'opacity-40 cursor-not-allowed' : '',
                 ].join(' ')}
               >
@@ -541,14 +593,22 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           </div>
         )}
 
-        <div className="relative" data-bottom-more>
+        <div
+          className="relative"
+          data-bottom-more
+          data-bottom-more-focus-origin={suppressMoreTriggerFocusRing ? 'pointer' : 'keyboard'}
+        >
           <IconButton
             title="More controls"
-            onClick={() => setMoreOpen((prev) => !prev)}
+            onClick={() => {
+              setSuppressMoreTriggerFocusRing(false);
+              setMoreOpen((prev) => !prev);
+            }}
             ariaControls={moreSheetId}
             ariaExpanded={moreOpen}
             ariaHasPopup="dialog"
             buttonRef={moreTriggerRef}
+            className={suppressMoreTriggerFocusRing ? 'mobile-more-trigger-pointer-focus' : ''}
           >
             <FaEllipsisH />
           </IconButton>
@@ -557,11 +617,12 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
               {/* Backdrop */}
               <div
                 className="fixed inset-0 bg-black/50 z-40 transition-opacity backdrop-blur-[2px]"
-                onClick={closeMoreControls}
+                onClick={() => closeMoreControls('pointer')}
                 aria-hidden="true"
               />
               {/* Bottom Sheet */}
               <div
+                ref={moreSheetRef}
                 id={moreSheetId}
                 role="dialog"
                 aria-modal="true"
@@ -573,10 +634,11 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   <div id={moreSheetTitleId} className="text-sm font-semibold">More Controls</div>
                   <button type="button"
                     ref={moreCloseRef}
-                    onClick={closeMoreControls}
+                    onClick={(event) => closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer')}
                     aria-label="Close more controls"
                     title="Close more controls"
-                    className="p-2 -mr-2 text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] rounded-full hover:bg-[var(--ui-surface-2)]"
+                    data-bottom-more-close="true"
+                    className="-mr-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] touch-manipulation"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

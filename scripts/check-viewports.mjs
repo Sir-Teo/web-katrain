@@ -9,6 +9,7 @@ const VIEWPORTS = [
   { width: 1024, height: 768, mobile: false },
   { width: 768, height: 1024, mobile: true },
   { width: 390, height: 844, mobile: true },
+  { width: 360, height: 800, mobile: true },
   { width: 844, height: 390, mobile: true },
 ];
 
@@ -210,6 +211,21 @@ function assertViewport(result) {
   if (result.boardInteractionFailures?.length > 0) {
     failures.push(...result.boardInteractionFailures);
   }
+  if (result.moveTreeEmptyStateFailures?.length > 0) {
+    failures.push(...result.moveTreeEmptyStateFailures);
+  }
+  if (result.notificationMessage === 'Edit mode off.' && result.mobileNotificationTooWide) {
+    failures.push(`short mobile notification is too wide (${Math.round(result.notificationToast?.width ?? 0)}px)`);
+  }
+  if (result.desktop && result.notificationOverlapsSidePanel) {
+    failures.push('desktop notification overlaps the analysis sidebar');
+  }
+  if (result.desktop && result.notificationOverlapsBoard) {
+    failures.push('desktop notification overlaps the board');
+  }
+  if (result.desktop && result.notificationOverlapsGameStripControl) {
+    failures.push('desktop notification overlaps game status controls');
+  }
   if (result.navigationSmokeFailures.length > 0) {
     failures.push(`navigation smoke failures: ${result.navigationSmokeFailures.join(', ')}`);
   }
@@ -244,6 +260,23 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.topControlsOutOfBar} top controls escape top bar${summary ? `: ${summary}` : ''}`);
     }
+    if (result.dashboardHeaderSmallTargets.length > 0) {
+      const summary = result.dashboardHeaderSmallTargets
+        .slice(0, 8)
+        .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+        .join(', ');
+      failures.push(`${result.dashboardHeaderSmallTargets.length} desktop header target(s) below 32px: ${summary}`);
+    }
+    if (result.dashboardBoardActionSmallTargets.length > 0) {
+      const summary = result.dashboardBoardActionSmallTargets
+        .slice(0, 8)
+        .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+        .join(', ');
+      failures.push(`${result.dashboardBoardActionSmallTargets.length} desktop board action target(s) below 32px: ${summary}`);
+    }
+    if (result.viewport === '1280x800' && result.dashboardNavbarWrapped) {
+      failures.push('standard desktop command bar wraps primary play actions onto a second row');
+    }
     if (result.missingFileActions.length > 0) failures.push(`missing file actions: ${result.missingFileActions.join(', ')}`);
     if (!result.viewMenuReachable) failures.push('View menu not reachable');
     if (!result.actionsMenuReachable) failures.push('Actions menu not reachable');
@@ -270,12 +303,62 @@ function assertViewport(result) {
     if (result.editModeBoardTouchAction !== 'none') {
       failures.push(`edit-mode board touch-action should be none (${result.editModeBoardTouchAction})`);
     }
+    if (result.innerHeight > result.innerWidth) {
+      if (result.defaultBoardContainerAlign !== 'flex-start') {
+        failures.push(`portrait board wrapper should top-align (${result.defaultBoardContainerAlign || 'missing'})`);
+      }
+      if (result.defaultBoardCanvasTopInset == null || result.defaultBoardCanvasTopInset > 32) {
+        failures.push(`portrait board starts too far below its canvas (${Math.round(result.defaultBoardCanvasTopInset ?? -1)}px)`);
+      }
+      if (result.defaultIdleAnalysisSlotHeight > 1) {
+        failures.push(`idle analysis slot reserves ${Math.round(result.defaultIdleAnalysisSlotHeight)}px above the mobile board`);
+      }
+    }
     if (result.smallTouchTargets.length > 0) {
       const summary = result.smallTouchTargets
         .slice(0, 8)
         .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
         .join(', ');
       failures.push(`${result.smallTouchTargets.length} mobile touch target(s) below 44px: ${summary}`);
+    }
+    if (result.mobileBottomControlOverlaps.length > 0) {
+      const summary = result.mobileBottomControlOverlaps
+        .slice(0, 6)
+        .map((overlap) => `${overlap.first} / ${overlap.second} (${Math.round(overlap.width)}px)`)
+        .join(', ');
+      failures.push(`${result.mobileBottomControlOverlaps.length} overlapping mobile bottom-control pair(s): ${summary}`);
+    }
+    if (!result.mobileTurnIndicator || result.mobileTurnIndicator.width < 13 || result.mobileTurnIndicator.height < 13) {
+      failures.push(`mobile turn indicator is too small (${Math.round(result.mobileTurnIndicator?.width ?? 0)}x${Math.round(result.mobileTurnIndicator?.height ?? 0)}px)`);
+    }
+    if (result.mobileTurnIndicator?.isBlack && result.mobileTurnIndicator.borderWidth < 1) {
+      failures.push('black mobile turn indicator has no contrasting outline');
+    }
+    if (!result.postMoveMobileStatus.turnVisible) {
+      failures.push('mobile turn indicator disappears after a move');
+    }
+    if (result.innerWidth <= 380 && result.postMoveMobileStatus.saveVisible) {
+      failures.push('secondary mobile save badge remains visible on the narrowest phone layout');
+    }
+    if (result.innerWidth > 380 && !result.postMoveMobileStatus.saveVisible) {
+      failures.push('mobile save feedback is missing where it fits beside the turn indicator');
+    }
+    if (result.postMoveMobileStatus.overlaps.length > 0) {
+      const summary = result.postMoveMobileStatus.overlaps
+        .slice(0, 6)
+        .map((overlap) => `${overlap.first} / ${overlap.second} (${Math.round(overlap.width)}px)`)
+        .join(', ');
+      failures.push(`${result.postMoveMobileStatus.overlaps.length} post-move mobile control overlap(s): ${summary}`);
+    }
+    if (result.bottomMoreSheetFailures.length > 0) {
+      failures.push(`mobile More Controls sheet failures: ${result.bottomMoreSheetFailures.join(', ')}`);
+    }
+    if (result.bottomMoreSheetSmallTouchTargets.length > 0) {
+      const summary = result.bottomMoreSheetSmallTouchTargets
+        .slice(0, 6)
+        .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+        .join(', ');
+      failures.push(`${result.bottomMoreSheetSmallTouchTargets.length} More Controls touch target(s) below 44px: ${summary}`);
     }
     if (result.editModeSmallTouchTargets.length > 0) {
       const summary = result.editModeSmallTouchTargets
@@ -420,8 +503,17 @@ async function main() {
         const board = document.querySelector('[data-board-snapshot="true"]');
         if (!board) return { board: null };
         const r = board.getBoundingClientRect();
+        const boardCanvas = board.closest('.mobile-board-canvas');
+        const boardContainer = board.closest('[data-board-container="true"]');
+        const analysisSlot = document.querySelector('.analysis-command-bar-slot');
+        const analysisCommandBar = analysisSlot?.querySelector('[data-analysis-command-bar="true"]');
+        const boardCanvasRect = boardCanvas?.getBoundingClientRect() ?? null;
+        const analysisSlotRect = analysisSlot?.getBoundingClientRect() ?? null;
         return {
           board: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height },
+          boardCanvasTopInset: boardCanvasRect ? r.top - boardCanvasRect.top : null,
+          boardContainerAlign: boardContainer ? getComputedStyle(boardContainer).alignItems : null,
+          idleAnalysisSlotHeight: analysisSlotRect && !analysisCommandBar ? analysisSlotRect.height : 0,
           documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
         };
       })()`);
@@ -503,6 +595,56 @@ async function main() {
             width: r.width,
             height: r.height,
           }));
+        const dashboardHeaderSmallTargets = dashboard && topBar
+          ? Array.from(topBar.querySelectorAll('button'))
+            .filter((element) => {
+              const style = getComputedStyle(element);
+              const bounds = element.getBoundingClientRect();
+              return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
+            })
+            .map((element) => ({ element, bounds: element.getBoundingClientRect() }))
+            .filter(({ bounds }) => bounds.width < 32 || bounds.height < 32)
+            .map(({ element, bounds }) => ({
+              label: targetLabel(element),
+              width: bounds.width,
+              height: bounds.height,
+            }))
+          : [];
+        const dashboardBoardActionSmallTargets = dashboard
+          ? Array.from(dashboard.querySelectorAll('.board-tools .board-chip, .playactions .tbtn'))
+            .filter((element) => {
+              const style = getComputedStyle(element);
+              const bounds = element.getBoundingClientRect();
+              return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
+            })
+            .map((element) => ({ element, bounds: element.getBoundingClientRect() }))
+            .filter(({ bounds }) => bounds.width < 32 || bounds.height < 32)
+            .map(({ element, bounds }) => ({
+              label: targetLabel(element),
+              width: bounds.width,
+              height: bounds.height,
+            }))
+          : [];
+        const dashboardNavbar = dashboard?.querySelector('.navbar');
+        const dashboardPassButton = dashboardNavbar?.querySelector('.pass-btn');
+        const dashboardPlayActions = dashboardNavbar?.querySelector('.playactions');
+        const dashboardNavbarWrapped = dashboardPassButton && dashboardPlayActions
+          ? Math.abs(
+              dashboardPassButton.getBoundingClientRect().top + dashboardPassButton.getBoundingClientRect().height / 2 -
+              (dashboardPlayActions.getBoundingClientRect().top + dashboardPlayActions.getBoundingClientRect().height / 2)
+            ) > 2
+          : false;
+        const mobileTurnIndicatorElement = document.querySelector('.mobile-bottom-stone');
+        const mobileTurnIndicatorBounds = mobileTurnIndicatorElement?.getBoundingClientRect() ?? null;
+        const mobileTurnIndicatorStyle = mobileTurnIndicatorElement ? getComputedStyle(mobileTurnIndicatorElement) : null;
+        const mobileTurnIndicator = mobileTurnIndicatorElement && mobileTurnIndicatorBounds && mobileTurnIndicatorStyle
+          ? {
+              width: mobileTurnIndicatorBounds.width,
+              height: mobileTurnIndicatorBounds.height,
+              borderWidth: Number.parseFloat(mobileTurnIndicatorStyle.borderTopWidth) || 0,
+              isBlack: mobileTurnIndicatorElement.classList.contains('mobile-bottom-stone-black'),
+            }
+          : null;
         const commandBar = document.querySelector('[data-analysis-command-bar="true"]');
         const commandBarRect = rect(commandBar);
         const commandBarOverlaps = commandBarRect
@@ -523,6 +665,80 @@ async function main() {
           for (let i = 0; i < frames; i++) {
             await new Promise((resolve) => requestAnimationFrame(resolve));
           }
+        };
+        const runBottomMoreSheetSmoke = async () => {
+          const failures = [];
+          const trigger = Array.from(document.querySelectorAll('button')).find((button) => button.getAttribute('aria-label') === 'More controls');
+          if (!trigger) return { failures: ['trigger missing'], smallTouchTargets: [] };
+          trigger.click();
+          await waitForFrames(3);
+
+          const sheet = document.querySelector('[data-bottom-more-sheet="true"]');
+          if (!sheet) return { failures: ['sheet did not open'], smallTouchTargets: [] };
+          if (sheet.getAttribute('aria-modal') !== 'true') failures.push('sheet is not modal');
+          const smallTouchTargets = auditSmallTouchTargets(sheet);
+          const focusableSelector = [
+            'a[href]:not([tabindex="-1"])',
+            'button:not([disabled]):not([tabindex="-1"])',
+            'input:not([disabled]):not([tabindex="-1"])',
+            'select:not([disabled]):not([tabindex="-1"])',
+            'textarea:not([disabled]):not([tabindex="-1"])',
+            '[tabindex]:not([tabindex="-1"])',
+          ].join(',');
+          const focusableElements = Array.from(sheet.querySelectorAll(focusableSelector))
+            .filter((element) => element.getClientRects().length > 0);
+          const first = focusableElements[0];
+          const last = focusableElements[focusableElements.length - 1];
+          const closeButton = sheet.querySelector('[data-bottom-more-close="true"]');
+          if (!first || !last || !closeButton) {
+            failures.push('focusable controls missing');
+          } else {
+            first.focus({ preventScroll: true });
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+            if (document.activeElement !== last) failures.push('Shift+Tab does not wrap to the last control');
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+            if (document.activeElement !== first) failures.push('Tab does not wrap to the first control');
+            closeButton.dispatchEvent(new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              detail: 1,
+            }));
+            await waitForFrames(3);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            if (document.querySelector('[data-bottom-more-sheet="true"]')) failures.push('close control did not dismiss the sheet');
+            if (document.activeElement !== trigger) failures.push('focus did not return to the More controls trigger');
+            if (trigger.closest('[data-bottom-more]')?.getAttribute('data-bottom-more-focus-origin') !== 'pointer') {
+              failures.push('pointer dismissal did not mark restored focus as pointer-originated');
+            }
+            if (getComputedStyle(trigger).outlineStyle !== 'none') {
+              failures.push('pointer dismissal left a keyboard focus ring on More controls');
+            }
+
+            trigger.focus({ preventScroll: true });
+            trigger.dispatchEvent(new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              detail: 1,
+            }));
+            await waitForFrames(3);
+            if (!document.querySelector('[data-bottom-more-sheet="true"]')) {
+              failures.push('sheet did not reopen for keyboard dismissal check');
+            } else {
+              document.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+              }));
+              await waitForFrames(3);
+              await new Promise((resolve) => setTimeout(resolve, 0));
+              if (document.querySelector('[data-bottom-more-sheet="true"]')) failures.push('Escape did not dismiss the sheet');
+              if (document.activeElement !== trigger) failures.push('Escape dismissal did not return focus to More controls');
+              if (trigger.closest('[data-bottom-more]')?.getAttribute('data-bottom-more-focus-origin') !== 'keyboard') {
+                failures.push('keyboard dismissal did not preserve keyboard focus feedback');
+              }
+            }
+          }
+          return { failures, smallTouchTargets };
         };
         const setTextControlValue = (control, value) => {
           const setter = Object.getOwnPropertyDescriptor(control.constructor.prototype, 'value')?.set;
@@ -557,13 +773,88 @@ async function main() {
           const x = emptyIndex % size;
           const y = Math.floor(emptyIndex / size);
           const r = boardEl.getBoundingClientRect();
+          const clientX = r.left + originX + x * cellSize;
+          const clientY = r.top + originY + y * cellSize;
+          boardEl.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true,
+            button: 0,
+            buttons: 1,
+            clientX,
+            clientY,
+          }));
+          boardEl.focus({ preventScroll: true });
+          boardEl.dispatchEvent(new PointerEvent('pointerup', {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true,
+            button: 0,
+            buttons: 0,
+            clientX,
+            clientY,
+          }));
           boardEl.dispatchEvent(new MouseEvent('click', {
             bubbles: true,
             cancelable: true,
-            clientX: r.left + originX + x * cellSize,
-            clientY: r.top + originY + y * cellSize,
+            clientX,
+            clientY,
           }));
           await waitForFrames(4);
+
+          if (boardEl.getAttribute('data-board-input-mode') !== 'pointer') {
+            failures.push('pointer focus activated keyboard-only board feedback');
+          }
+          if (boardEl.querySelector('[data-board-keyboard-cursor="true"]')) {
+            failures.push('pointer focus displayed the keyboard cursor');
+          }
+
+          boardEl.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'ArrowRight',
+            bubbles: true,
+            cancelable: true,
+          }));
+          await waitForFrames(2);
+          if (boardEl.getAttribute('data-board-input-mode') !== 'keyboard') {
+            failures.push('keyboard navigation did not activate board feedback');
+          }
+          if (!boardEl.querySelector('[data-board-keyboard-cursor="true"]')) {
+            failures.push('keyboard navigation did not display the board cursor');
+          }
+
+          boardEl.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 2,
+            pointerType: 'mouse',
+            isPrimary: true,
+            button: 0,
+            buttons: 1,
+            clientX,
+            clientY,
+          }));
+          boardEl.dispatchEvent(new PointerEvent('pointerup', {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 2,
+            pointerType: 'mouse',
+            isPrimary: true,
+            button: 0,
+            buttons: 0,
+            clientX,
+            clientY,
+          }));
+          await waitForFrames(2);
+          if (boardEl.getAttribute('data-board-input-mode') !== 'pointer') {
+            failures.push('pointer interaction did not clear keyboard-only board feedback');
+          }
+          if (boardEl.querySelector('[data-board-keyboard-cursor="true"]')) {
+            failures.push('pointer interaction did not clear the keyboard cursor');
+          }
 
           const afterMoveCount = Number(boardEl.getAttribute('data-board-move-count'));
           const afterPlayer = boardEl.getAttribute('data-board-current-player');
@@ -739,11 +1030,14 @@ async function main() {
 
           const clickBoardPoint = async (x, y) => {
             const r = boardEl.getBoundingClientRect();
+            const currentCellSize = Number(boardEl.getAttribute('data-board-cell-size'));
+            const currentOriginX = Number(boardEl.getAttribute('data-board-origin-x'));
+            const currentOriginY = Number(boardEl.getAttribute('data-board-origin-y'));
             boardEl.dispatchEvent(new MouseEvent('click', {
               bubbles: true,
               cancelable: true,
-              clientX: r.left + originX + x * cellSize,
-              clientY: r.top + originY + y * cellSize,
+              clientX: r.left + currentOriginX + x * currentCellSize,
+              clientY: r.top + currentOriginY + y * currentCellSize,
             }));
             await waitForFrames(4);
           };
@@ -762,7 +1056,7 @@ async function main() {
           const findFreshButton = (label) => Array.from(document.querySelectorAll('button')).find((button) =>
             targetSearchText(button).includes(label)
           ) || null;
-          const openEditButton = findFreshButton('Open SGF edit tools');
+          const openEditButton = findFreshButton('Open SGF edit tools') || findFreshButton('Edit position');
           if (!openEditButton) return ['edit tool smoke: open control missing'];
           openEditButton.click();
           await waitForFrames(3);
@@ -1170,6 +1464,213 @@ async function main() {
             modalSmokeFailures.push(\`\${name}: \${error instanceof Error ? error.message : String(error)}\`);
           }
         };
+        const runMobileToolsDialogSmoke = async () => {
+          if (!${viewport.mobile}) return;
+          const trigger = findButtonByLabel('Tools');
+          if (!trigger) {
+            modalSmokeFailures.push('mobile tools trigger missing');
+            return;
+          }
+          const pointerActivate = (element, pointerId) => {
+            element.dispatchEvent(new PointerEvent('pointerdown', {
+              bubbles: true,
+              cancelable: true,
+              pointerId,
+              pointerType: 'mouse',
+              isPrimary: true,
+              button: 0,
+              buttons: 1,
+            }));
+            element.focus({ preventScroll: true });
+            element.dispatchEvent(new PointerEvent('pointerup', {
+              bubbles: true,
+              cancelable: true,
+              pointerId,
+              pointerType: 'mouse',
+              isPrimary: true,
+              button: 0,
+              buttons: 0,
+            }));
+            element.dispatchEvent(new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              detail: 1,
+            }));
+          };
+
+          try {
+            pointerActivate(trigger, 31);
+            await waitForFrames(3);
+            const dialog = await waitForSelector('[data-mobile-tools-dialog="true"]');
+            const panel = dialog?.querySelector('[data-mobile-tools-panel="true"]');
+            const backdrop = dialog?.querySelector('[data-mobile-tools-backdrop="true"]');
+            if (!dialog || !panel) {
+              modalSmokeFailures.push('mobile tools dialog or panel missing');
+              return;
+            }
+            if (!backdrop || backdrop.tagName === 'BUTTON' || backdrop.tabIndex >= 0) {
+              modalSmokeFailures.push('mobile tools backdrop is keyboard-focusable');
+            }
+
+            const actionTargets = Array.from(panel.querySelectorAll('button, input, select, textarea, a[href], [role="button"], [role="tab"]'))
+              .filter((element) => {
+                const style = getComputedStyle(element);
+                const bounds = element.getBoundingClientRect();
+                return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
+              })
+              .map((element) => ({ element, bounds: element.getBoundingClientRect() }));
+            modalSmallTouchTargets.push(...actionTargets
+              .filter(({ bounds }) => bounds.width < 44 || bounds.height < 44)
+              .map(({ element, bounds }) => ({
+                modal: 'mobile tools',
+                label: targetLabel(element),
+                tag: element.tagName.toLowerCase(),
+                width: bounds.width,
+                height: bounds.height,
+              })));
+
+            const stickyHeader = panel.querySelector('[data-mobile-tools-header="true"]');
+            const closeControl = stickyHeader?.querySelector('button[aria-label="Close tools"]');
+            if (dialog.getAttribute('data-mobile-tools-focus-origin') !== 'pointer') {
+              modalSmokeFailures.push('pointer-opened mobile tools displayed keyboard focus feedback');
+            }
+            if (document.activeElement !== closeControl) {
+              modalSmokeFailures.push('mobile tools did not move focus to its close control');
+            }
+            if (closeControl && getComputedStyle(closeControl).outlineStyle !== 'none') {
+              modalSmokeFailures.push('pointer-opened mobile tools left a keyboard ring on Close tools');
+            }
+            panel.scrollTop = panel.scrollHeight;
+            await waitForFrames(2);
+            const panelBounds = panel.getBoundingClientRect();
+            const headerBounds = stickyHeader?.getBoundingClientRect();
+            const closeBounds = closeControl?.getBoundingClientRect();
+            if (!headerBounds || Math.abs(headerBounds.top - panelBounds.top) > 1) {
+              modalSmokeFailures.push('mobile tools header does not stay pinned while scrolling');
+            }
+            if (!closeBounds || closeBounds.bottom <= panelBounds.top || closeBounds.top >= panelBounds.bottom) {
+              modalSmokeFailures.push('mobile tools close control is not visible after scrolling');
+            }
+            panel.scrollTop = 0;
+            await waitForFrames(2);
+
+            const focusableSelector = [
+              'a[href]:not([tabindex="-1"])',
+              'button:not([disabled]):not([tabindex="-1"])',
+              'input:not([disabled]):not([tabindex="-1"])',
+              'select:not([disabled]):not([tabindex="-1"])',
+              'textarea:not([disabled]):not([tabindex="-1"])',
+              '[tabindex]:not([tabindex="-1"])',
+            ].join(',');
+            const focusableElements = Array.from(panel.querySelectorAll(focusableSelector))
+              .filter((element) => element.getClientRects().length > 0);
+            const first = focusableElements[0];
+            const last = focusableElements[focusableElements.length - 1];
+            if (!first || !last) {
+              modalSmokeFailures.push('mobile tools focusable controls missing');
+              return;
+            }
+            first.focus({ preventScroll: true });
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+            if (document.activeElement !== last) modalSmokeFailures.push('mobile tools Shift+Tab does not wrap');
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+            if (document.activeElement !== first) modalSmokeFailures.push('mobile tools Tab does not wrap');
+            first.click();
+            await waitForFrames(3);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            if (document.querySelector('[data-mobile-tools-dialog="true"]')) {
+              modalSmokeFailures.push('mobile tools close control did not dismiss the dialog');
+            }
+            if (document.activeElement !== trigger) {
+              modalSmokeFailures.push('mobile tools focus did not return to trigger');
+            }
+            if (trigger.closest('[data-mobile-tools-focus-origin]')?.getAttribute('data-mobile-tools-focus-origin') !== 'keyboard') {
+              modalSmokeFailures.push('keyboard-closed mobile tools did not preserve keyboard focus feedback');
+            }
+
+            pointerActivate(trigger, 32);
+            await waitForFrames(3);
+            const pointerDialog = await waitForSelector('[data-mobile-tools-dialog="true"]');
+            const pointerClose = pointerDialog?.querySelector('button[aria-label="Close tools"]');
+            if (!pointerDialog || !pointerClose) {
+              modalSmokeFailures.push('mobile tools did not reopen for pointer dismissal check');
+              return;
+            }
+            pointerActivate(pointerClose, 33);
+            await waitForFrames(3);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            if (document.activeElement !== trigger) {
+              modalSmokeFailures.push('pointer-closed mobile tools did not return focus to trigger');
+            }
+            if (trigger.closest('[data-mobile-tools-focus-origin]')?.getAttribute('data-mobile-tools-focus-origin') !== 'pointer') {
+              modalSmokeFailures.push('pointer-closed mobile tools did not preserve pointer focus origin');
+            }
+            if (getComputedStyle(trigger).outlineStyle !== 'none') {
+              modalSmokeFailures.push('pointer-closed mobile tools left a keyboard ring on Tools');
+            }
+            trigger.blur();
+          } catch (error) {
+            modalSmokeFailures.push(\`mobile tools: \${error instanceof Error ? error.message : String(error)}\`);
+          }
+        };
+        const runMoveTreeEmptyStateSmoke = async () => {
+          const failures = [];
+          if (${viewport.mobile}) {
+            const treeTab = Array.from(document.querySelectorAll('button[role="tab"]'))
+              .find((button) => button.getAttribute('aria-label') === 'Tree');
+            if (!treeTab) return ['move tree empty state: Tree tab missing'];
+            treeTab.click();
+            await waitForFrames(3);
+          }
+
+          const emptyState = document.querySelector('[data-move-tree-empty-state="true"]');
+          if (!emptyState) {
+            failures.push('move tree empty state is missing before the first move');
+          } else {
+            if (!emptyState.textContent?.includes('No moves yet')) {
+              failures.push('move tree empty state title is missing');
+            }
+            if (!emptyState.textContent?.includes('Play on the board to start the game tree.')) {
+              failures.push('move tree empty state guidance is missing');
+            }
+            const emptyContent = emptyState.querySelector('.move-tree-empty-state-content');
+            const clippingParent = emptyState.parentElement;
+            if (!emptyContent || !clippingParent) {
+              failures.push('move tree empty state content wrapper is missing');
+            } else {
+              const contentBounds = emptyContent.getBoundingClientRect();
+              const stateBounds = emptyState.getBoundingClientRect();
+              const clipBounds = clippingParent.getBoundingClientRect();
+              const visibleTop = Math.max(stateBounds.top, clipBounds.top);
+              const visibleBottom = Math.min(stateBounds.bottom, clipBounds.bottom);
+              if (contentBounds.top < visibleTop - 1 || contentBounds.bottom > visibleBottom + 1) {
+                failures.push('move tree empty state content is clipped by its compact panel');
+              }
+            }
+          }
+
+          if (${viewport.mobile}) {
+            const backToBoard = emptyState
+              ? findButtonByLabel('Back to board', emptyState)
+              : null;
+            if (!backToBoard) {
+              failures.push('move tree empty state Back to board action is missing');
+            } else {
+              const bounds = backToBoard.getBoundingClientRect();
+              if (bounds.width < 44 || bounds.height < 44) {
+                failures.push('move tree empty action is too small (' + Math.round(bounds.width) + 'x' + Math.round(bounds.height) + 'px)');
+              }
+              backToBoard.click();
+              await waitForFrames(3);
+              const boardTab = Array.from(document.querySelectorAll('button[role="tab"]'))
+                .find((button) => button.getAttribute('aria-label') === 'Board');
+              if (boardTab?.getAttribute('aria-selected') !== 'true') {
+                failures.push('move tree empty action did not return to Board');
+              }
+            }
+          }
+          return failures;
+        };
         const boardThemeSmokeFailures = [];
         let boardThemeSmokeRan = false;
         const localeSmokeFailures = [];
@@ -1476,6 +1977,9 @@ async function main() {
         const scorePanelFailures = [];
         const scorePanelSmallTouchTargets = [];
         let scorePanelReachable = true;
+        const bottomMoreSheetSmoke = ${viewport.mobile}
+          ? await runBottomMoreSheetSmoke()
+          : { failures: [], smallTouchTargets: [] };
         const fullscreenSmokeFailures = await runFullscreenSmoke();
         const clipboardSmokeFailures = await runClipboardSmoke();
         const pwaBannerSmoke = await runPwaBannerSmoke();
@@ -1490,11 +1994,35 @@ async function main() {
             button.getAttribute('title') || '',
             button.textContent || '',
           ].join(' ');
-          return label.includes('Open SGF edit tools');
+          return label.includes('Open SGF edit tools') || label.includes('Edit position');
         }) || null;
         const editToolsReachable = ${viewport.mobile} ? !!editButton : true;
         const smallTouchTargets = ${viewport.mobile} ? auditSmallTouchTargets() : [];
+        const auditMobileBottomControlOverlaps = () => {
+          const controls = document.querySelector('.mobile-bottom-controls');
+          if (!controls) return [];
+          const targets = Array.from(controls.querySelectorAll('button'))
+            .filter(isVisibleTarget)
+            .map((el) => ({ el, r: rect(el) }))
+            .sort((a, b) => a.r.left - b.r.left);
+          const overlaps = [];
+          for (let firstIndex = 0; firstIndex < targets.length; firstIndex += 1) {
+            for (let secondIndex = firstIndex + 1; secondIndex < targets.length; secondIndex += 1) {
+              const first = targets[firstIndex];
+              const second = targets[secondIndex];
+              if (!intersects(first.r, second.r)) continue;
+              overlaps.push({
+                first: targetLabel(first.el),
+                second: targetLabel(second.el),
+                width: Math.min(first.r.right, second.r.right) - Math.max(first.r.left, second.r.left),
+              });
+            }
+          }
+          return overlaps;
+        };
+        const mobileBottomControlOverlaps = ${viewport.mobile} ? auditMobileBottomControlOverlaps() : [];
         const boardTouchAction = board ? getComputedStyle(board).touchAction : '';
+        const moveTreeEmptyStateFailures = await runMoveTreeEmptyStateSmoke();
         let noteEditorReachable = true;
         let noteEditorKeyboardAware = true;
         let noteEditorLifecycleFailures = [];
@@ -1504,6 +2032,8 @@ async function main() {
           reviewTab?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           reviewSmallTouchTargets = auditSmallTouchTargets();
+          document.querySelector('[data-note-edit="true"]')?.click();
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           const noteEditor = document.querySelector('[data-note-editor="true"]');
           noteEditorReachable = !!noteEditor;
           if (noteEditor) {
@@ -1523,7 +2053,11 @@ async function main() {
         let editModeSmallTouchTargets = [];
         let editModeBoardTouchAction = 'none';
         if (${viewport.mobile} && editButton) {
-          editButton.click();
+          const currentEditButton = Array.from(document.querySelectorAll('button')).find((button) => {
+            const label = targetSearchText(button);
+            return label.includes('Open SGF edit tools') || label.includes('Edit position');
+          });
+          currentEditButton?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           editModeSmallTouchTargets = auditSmallTouchTargets();
           editModeBoardTouchAction = board ? getComputedStyle(board).touchAction : '';
@@ -1538,6 +2072,7 @@ async function main() {
           closeEditButton?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }
+        await runMobileToolsDialogSmoke();
         photoBoardTraceImportFailures = await runPhotoBoardTraceImportSmoke();
         await runTopLanguageSwitcherSmoke();
         await smokeModal({
@@ -1596,9 +2131,53 @@ async function main() {
             if (${viewport.mobile}) {
               const menuButton = findButtonByLabel('Menu');
               if (!menuButton) throw new Error('Menu button missing');
-              menuButton.click();
-              const menuDialog = await waitForSelector('[aria-labelledby="menu-title"]');
+              menuButton.focus({ preventScroll: true });
+              menuButton.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                detail: 1,
+              }));
+              let menuDialog = await waitForSelector('[aria-labelledby="menu-title"]');
               if (!menuDialog) throw new Error('Menu drawer did not open');
+              await waitForFrames(3);
+              const menuCloseButton = findButtonByLabel('Close menu', menuDialog);
+              if (!menuCloseButton) {
+                modalSmokeFailures.push('menu drawer close control missing');
+              } else {
+                if (menuDialog.getAttribute('data-menu-focus-origin') !== 'pointer') {
+                  modalSmokeFailures.push('pointer-opened menu drawer displayed keyboard focus feedback');
+                }
+                if (document.activeElement !== menuCloseButton) {
+                  modalSmokeFailures.push('menu drawer did not move focus to its close control');
+                }
+                if (getComputedStyle(menuCloseButton).outlineStyle !== 'none') {
+                  modalSmokeFailures.push('pointer-opened menu drawer left a keyboard ring on its close control');
+                }
+                menuCloseButton.dispatchEvent(new MouseEvent('click', {
+                  bubbles: true,
+                  cancelable: true,
+                  detail: 1,
+                }));
+                await waitForFrames(3);
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                if (document.activeElement !== menuButton) {
+                  modalSmokeFailures.push('menu drawer did not restore focus to Menu');
+                }
+                if (menuButton.getAttribute('data-menu-restored-focus-origin') !== 'pointer') {
+                  modalSmokeFailures.push('pointer-closed menu drawer did not preserve pointer focus origin');
+                }
+                if (getComputedStyle(menuButton).outlineStyle !== 'none') {
+                  modalSmokeFailures.push('pointer-closed menu drawer left a keyboard ring on Menu');
+                }
+                menuButton.dispatchEvent(new MouseEvent('click', {
+                  bubbles: true,
+                  cancelable: true,
+                  detail: 1,
+                }));
+                menuDialog = await waitForSelector('[aria-labelledby="menu-title"]');
+                if (!menuDialog) throw new Error('Menu drawer did not reopen');
+                await waitForFrames(3);
+              }
               modalSmallTouchTargets.push(...auditSmallTouchTargets(menuDialog).map((target) => ({ ...target, modal: 'menu drawer' })));
               const menuLocale = menuDialog.querySelector('[data-menu-locale="true"]');
               if (!menuLocale) {
@@ -1696,58 +2275,79 @@ async function main() {
             }
           },
         });
-        const analyzeButton = Array.from(document.querySelectorAll('button')).find((button) => targetSearchText(button).includes('Toggle analysis mode')) || findButtonByLabel('Analyze');
-        if (!analyzeButton) {
-          analysisDepthReachable = false;
-          analysisDepthFailures.push('analyze control missing');
-        } else {
-          analyzeButton.click();
-          await waitForFrames(4);
-          const commandBar = await waitForSelector('[data-analysis-command-bar="true"]');
-          const depthButton = commandBar?.querySelector('[data-analysis-live-depth="true"]');
-          if (!commandBar || !depthButton) {
-            analysisDepthReachable = false;
-            if (commandBar) {
-              analysisDepthFailures.push('depth control missing');
-            } else {
-              const visibleButtonLabels = Array.from(document.querySelectorAll('button'))
-                .filter(isVisibleTarget)
-                .map((button) => targetSearchText(button).slice(0, 64))
-                .slice(0, 10)
-                .join(' | ');
-              analysisDepthFailures.push(\`command bar did not open after \${targetSearchText(analyzeButton).slice(0, 64)}; buttons: \${visibleButtonLabels}\`);
+        if (${viewport.mobile}) {
+          const shortLandscape = innerHeight <= 520 && innerWidth > innerHeight;
+          if (shortLandscape) {
+            const toolsButton = findButtonByLabel('Tools');
+            toolsButton?.click();
+            await waitForFrames(2);
+            const toolsDialog = await waitForSelector('[data-mobile-tools-dialog="true"]');
+            const settingsButton = toolsDialog ? findButtonByLabel('Settings', toolsDialog) : null;
+            settingsButton?.click();
+            await waitForFrames(2);
+            const settingsDialog = await waitForSelector('[aria-labelledby="settings-title"]');
+            const aiTab = settingsDialog ? findButtonByLabel('AI/Engine', settingsDialog) : null;
+            aiTab?.click();
+            await waitForFrames(2);
+            if (!settingsDialog?.querySelector('#settings-katago-visits')) {
+              analysisDepthReachable = false;
+              analysisDepthFailures.push('landscape depth setting not reachable');
+            }
+            if (settingsDialog && !(await closeDialog(settingsDialog, 'Close settings'))) {
+              analysisDepthFailures.push('settings close control missing');
             }
           } else {
-            depthButton.click();
-            await waitForFrames(2);
-            const depthPopover = await waitForSelector('[data-analysis-live-depth-popover="true"]');
-            if (!depthPopover) {
+            const analyzeButton = Array.from(document.querySelectorAll('button')).find((button) => targetSearchText(button).includes('Toggle analysis mode')) || findButtonByLabel('Analyze');
+            if (!analyzeButton) {
               analysisDepthReachable = false;
-              analysisDepthFailures.push('depth popover did not open');
+              analysisDepthFailures.push('analyze control missing');
             } else {
-              const depthPopoverRect = rect(depthPopover);
-              if (depthPopoverRect && (depthPopoverRect.left < -1 || depthPopoverRect.right > innerWidth + 1 || depthPopoverRect.top < -1 || depthPopoverRect.bottom > innerHeight + 1)) {
-                analysisDepthFailures.push(\`popover escapes viewport \${Math.round(depthPopoverRect.width)}x\${Math.round(depthPopoverRect.height)} at \${Math.round(depthPopoverRect.left)},\${Math.round(depthPopoverRect.top)}-\${Math.round(depthPopoverRect.right)},\${Math.round(depthPopoverRect.bottom)} in \${innerWidth}x\${innerHeight}\`);
-              }
-              if (depthPopover.querySelectorAll('[data-analysis-live-depth-option]').length < 4) {
-                analysisDepthFailures.push('preset options missing');
-              }
-              if (!depthPopover.querySelector('.analysis-command-bar__depth-help')) {
-                analysisDepthFailures.push('depth help missing');
-              }
-              if (!depthPopover.querySelector('.analysis-command-bar__depth-slider')) {
-                analysisDepthFailures.push('depth slider missing');
-              }
-              if (!depthPopover.querySelector('.analysis-command-bar__depth-input')) {
-                analysisDepthFailures.push('exact visits input missing');
-              }
-              if (${viewport.mobile}) {
-                analysisDepthSmallTouchTargets.push(...auditSmallTouchTargets(depthPopover));
-              }
-              if (!(await closeDialog(depthPopover, 'Close live depth selector'))) {
-                analysisDepthFailures.push('close control missing');
+              analyzeButton.click();
+              await waitForFrames(4);
+              const commandBar = await waitForSelector('[data-analysis-command-bar="true"]');
+              const depthButton = commandBar?.querySelector('[data-analysis-live-depth="true"]');
+              if (!commandBar || !depthButton) {
+                analysisDepthReachable = false;
+                analysisDepthFailures.push(commandBar ? 'depth control missing' : 'analysis command bar did not open');
+              } else {
+                depthButton.click();
+                await waitForFrames(2);
+                const depthPopover = await waitForSelector('[data-analysis-live-depth-popover="true"]');
+                if (!depthPopover) {
+                  analysisDepthReachable = false;
+                  analysisDepthFailures.push('depth popover did not open');
+                } else {
+                  const depthPopoverRect = rect(depthPopover);
+                  if (depthPopoverRect && (depthPopoverRect.left < -1 || depthPopoverRect.right > innerWidth + 1 || depthPopoverRect.top < -1 || depthPopoverRect.bottom > innerHeight + 1)) {
+                    analysisDepthFailures.push(\`popover escapes viewport \${Math.round(depthPopoverRect.width)}x\${Math.round(depthPopoverRect.height)} at \${Math.round(depthPopoverRect.left)},\${Math.round(depthPopoverRect.top)}-\${Math.round(depthPopoverRect.right)},\${Math.round(depthPopoverRect.bottom)} in \${innerWidth}x\${innerHeight}\`);
+                  }
+                  if (depthPopover.querySelectorAll('[data-analysis-live-depth-option]').length < 4) analysisDepthFailures.push('preset options missing');
+                  if (!depthPopover.querySelector('.analysis-command-bar__depth-help')) analysisDepthFailures.push('depth help missing');
+                  if (!depthPopover.querySelector('.analysis-command-bar__depth-slider')) analysisDepthFailures.push('depth slider missing');
+                  if (!depthPopover.querySelector('.analysis-command-bar__depth-input')) analysisDepthFailures.push('exact visits input missing');
+                  analysisDepthSmallTouchTargets.push(...auditSmallTouchTargets(depthPopover));
+                  if (!(await closeDialog(depthPopover, 'Close live depth selector'))) analysisDepthFailures.push('close control missing');
+                }
               }
             }
+          }
+        } else {
+          const engineButton = document.querySelector('#wk-engine-pill');
+          if (!engineButton) {
+            analysisDepthReachable = false;
+            analysisDepthFailures.push('engine control missing');
+          } else {
+            engineButton.click();
+            await waitForFrames(2);
+            const depthPresets = await waitForSelector('[data-analysis-live-visit-presets="true"]');
+            if (!depthPresets) {
+              analysisDepthReachable = false;
+              analysisDepthFailures.push('desktop depth presets did not open');
+            } else if (depthPresets.querySelectorAll('[data-analysis-live-depth-option]').length < 4) {
+              analysisDepthFailures.push('desktop preset options missing');
+            }
+            document.querySelector('.scrim')?.click();
+            await waitForFrames(2);
           }
         }
         const scoreButton = Array.from(document.querySelectorAll('button')).find((button) => {
@@ -1792,8 +2392,20 @@ async function main() {
         const navigationSmokeFailures = await runNavigationSmoke();
         const captureSmokeFailures = await runCaptureSmoke();
         const boardInteractionFailures = await runBoardInteractionSmoke();
+        const postMoveMobileStatus = ${viewport.mobile}
+          ? {
+              turnVisible: isVisibleBox(document.querySelector('[data-mobile-turn-chip="true"]')),
+              saveVisible: isVisibleBox(document.querySelector('[data-mobile-save-status="true"]')),
+              overlaps: auditMobileBottomControlOverlaps(),
+            }
+          : { turnVisible: true, saveVisible: false, overlaps: [] };
         const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
         const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
+        const notificationToast = document.querySelector('.notification-toast');
+        const notificationToastRect = rect(notificationToast);
+        const notificationMessage = notificationToast?.querySelector('.notification-toast-message')?.textContent?.trim() || '';
+        const dashboardGameStripTargets = Array.from(document.querySelectorAll('.wk-dashboard .gamestrip > *'))
+          .filter(isVisibleTarget);
         return {
           viewport: '${viewport.width}x${viewport.height}',
           desktop: ${viewport.width >= 1024},
@@ -1804,6 +2416,11 @@ async function main() {
           topBar: topBarRect,
           topControlsOutOfBar,
           topControlsOutOfBarDetails,
+          dashboardHeaderSmallTargets,
+          dashboardBoardActionSmallTargets,
+          dashboardNavbarWrapped,
+          mobileTurnIndicator,
+          postMoveMobileStatus,
           topToggle: rect(topToggle),
           editToolbar: rect(editToolbar),
           board: rect(board),
@@ -1813,6 +2430,12 @@ async function main() {
           sidePanelVisible: isVisibleBox(sidePanel),
           libraryPanelOverlapsBoard: intersects(rect(libraryPanel), rect(board)),
           sidePanelOverlapsBoard: intersects(rect(sidePanel), rect(board)),
+          notificationToast: notificationToastRect,
+          notificationMessage,
+          mobileNotificationTooWide: ${viewport.mobile} && notificationMessage === 'Edit mode off.' && (notificationToastRect?.width ?? 0) > Math.min(320, innerWidth - 24),
+          notificationOverlapsSidePanel: intersects(notificationToastRect, rect(sidePanel)),
+          notificationOverlapsBoard: intersects(notificationToastRect, rect(board)),
+          notificationOverlapsGameStripControl: dashboardGameStripTargets.some((target) => intersects(notificationToastRect, rect(target))),
           missingFileActions: requiredFileActions.filter((label) => !allButtons.some((button) => button.getAttribute('aria-label') === label)),
           viewMenuReachable: !!Array.from(document.querySelectorAll('button')).find((button) => (button.textContent || '').includes('View')),
           actionsMenuReachable: !!dashboard || !!Array.from(document.querySelectorAll('button')).find((button) => (button.textContent || '').includes('Actions')),
@@ -1832,6 +2455,9 @@ async function main() {
           reviewSmallTouchTargets,
           boardTouchAction,
           smallTouchTargets,
+          mobileBottomControlOverlaps,
+          bottomMoreSheetFailures: bottomMoreSheetSmoke.failures,
+          bottomMoreSheetSmallTouchTargets: bottomMoreSheetSmoke.smallTouchTargets,
           editModeBoardTouchAction,
           editModeSmallTouchTargets,
           modalSmokeFailures,
@@ -1845,12 +2471,16 @@ async function main() {
           analysisDepthFailures,
           analysisDepthSmallTouchTargets,
           boardInteractionFailures,
+          moveTreeEmptyStateFailures,
           commandBarOverlaps,
           topToggleOverTopBar: intersects(rect(topToggle), topBarRect),
           topToggleOverEditToolbar: intersects(rect(topToggle), rect(editToolbar)),
         };
       })()`);
       result.defaultBoard = defaultLayout.board;
+      result.defaultBoardCanvasTopInset = defaultLayout.boardCanvasTopInset;
+      result.defaultBoardContainerAlign = defaultLayout.boardContainerAlign;
+      result.defaultIdleAnalysisSlotHeight = defaultLayout.idleAnalysisSlotHeight;
       result.defaultDocumentOverflow = defaultLayout.documentOverflow;
       assertViewport(result);
       const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });

@@ -49,6 +49,26 @@ describe('NotificationToast', () => {
     expect(html).not.toContain('data-notification-copy="true"');
   });
 
+  it('supports a desktop dashboard placement below interactive header controls', () => {
+    const html = renderToStaticMarkup(
+      <NotificationToast
+        notification={{ message: 'Continuous analysis on', type: 'info' }}
+        onClose={() => undefined}
+        placement="desktop-dashboard"
+      />
+    );
+
+    expect(html).toContain('notification-toast-region--desktop-dashboard');
+    const css = readFileSync('src/index.css', 'utf8');
+    expect(css).toContain('top: 3.25rem;');
+    expect(css).toContain('right: calc(360px + 1rem);');
+    expect(css).toContain('.notification-toast-region--desktop-dashboard .notification-toast');
+    expect(css).toContain('min-height: 2.75rem;');
+    expect(css).toContain('@media (min-width: 1024px) and (max-width: 1100px)');
+    expect(css).toContain('right: calc(360px + 0.5rem);');
+    expect(css).toContain('display: none;');
+  });
+
   it('keeps mobile notification actions at touch target size', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
@@ -60,5 +80,9 @@ describe('NotificationToast', () => {
     expect(css).toContain('@media (min-width: 1024px)');
     expect(css).toContain('width: 2rem;');
     expect(css).toContain('height: 2rem;');
+    expect(css).toContain('min-width: min(100%, 14rem);');
+    expect(css).toContain('max-width: min(30rem, calc(100% - 1rem));');
+    expect(css).toContain('width: 45px;');
+    expect(css).toContain('height: 45px;');
   });
 });

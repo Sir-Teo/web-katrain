@@ -49,6 +49,10 @@ export const EDIT_TOOL_SHORTCUT_DEFINITIONS: EditToolShortcutDefinition[] = [
   { id: 'edit-tool-marker-erase', category: 'Edit', label: 'Select marker eraser', tool: 'marker-erase', defaultBindings: [{ key: '-' }] },
   { id: 'edit-tool-markup-arrow', category: 'Edit', label: 'Select arrow tool', tool: 'markup-arrow', defaultBindings: [{ key: '[' }] },
   { id: 'edit-tool-markup-line', category: 'Edit', label: 'Select line tool', tool: 'markup-line', defaultBindings: [{ key: ']' }] },
+  { id: 'edit-tool-draw-pen', category: 'Edit', label: 'Select freehand pen', tool: 'draw-pen', defaultBindings: [{ key: ';' }] },
+  { id: 'edit-tool-draw-highlight', category: 'Edit', label: 'Select highlighter', tool: 'draw-highlight', defaultBindings: [{ key: "'" }] },
+  { id: 'edit-tool-region-count', category: 'Edit', label: 'Select region stone count', tool: 'region-count', defaultBindings: [{ key: ',' }] },
+  { id: 'edit-tool-region-score', category: 'Edit', label: 'Select region AI score', tool: 'region-score', defaultBindings: [{ key: '.' }] },
 ];
 
 export const EDIT_TOOL_SHORTCUT_IDS = EDIT_TOOL_SHORTCUT_DEFINITIONS.map((shortcut) => shortcut.id);

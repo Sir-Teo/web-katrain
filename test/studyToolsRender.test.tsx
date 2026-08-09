@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { ScoreQuizModal } from '../src/components/ScoreQuizModal';
 import { TournamentModal } from '../src/components/TournamentModal';

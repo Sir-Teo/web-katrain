@@ -362,6 +362,7 @@ export const Layout: React.FC = () => {
   const [pendingResignPlayer, setPendingResignPlayer] = useState<Player | null>(null);
   const [isClearAnalysisCacheConfirmOpen, setIsClearAnalysisCacheConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuFocusInputMode, setMenuFocusInputMode] = useState<'pointer' | 'keyboard'>('keyboard');
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
@@ -402,6 +403,7 @@ export const Layout: React.FC = () => {
   const [isDesktop, setIsDesktop] = useState(() => {
     return isDesktopLayoutViewport();
   });
+  const isMobile = !isDesktop;
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
     const raw = readLocalStorage('web-katrain:left_panel_width:v1');
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
@@ -1333,16 +1335,22 @@ export const Layout: React.FC = () => {
       isGameAnalysisRunning ||
       typeof winRate === 'number' ||
       typeof scoreLead === 'number');
+  const mobileContextToolActive = isMobile && (isEditMode || scoringMode);
+  const showBoardAnalysisCommandBar = showAnalysisCommandBar && !mobileContextToolActive;
   const [boardToolOffsetY, setBoardToolOffsetY] = useState(12);
-  const analysisCommandBarSlotClass = isGameAnalysisRunning
+  const analysisCommandBarSlotClass = mobileContextToolActive
+    ? 'analysis-command-bar-slot'
+    : isGameAnalysisRunning
     ? undefined
     : [
         'analysis-command-bar-slot',
-        settings.showAnalysisBar ? 'analysis-command-bar-slot--reserve' : '',
+        settings.showAnalysisBar && (!isMobile || showAnalysisCommandBar)
+          ? 'analysis-command-bar-slot--reserve'
+          : '',
       ].filter(Boolean).join(' ');
 
   useLayoutEffect(() => {
-    if (!showAnalysisCommandBar) {
+    if (!showBoardAnalysisCommandBar) {
       setBoardToolOffsetY(12);
       return;
     }
@@ -1380,7 +1388,7 @@ export const Layout: React.FC = () => {
       observer?.disconnect();
       window.removeEventListener('resize', updateOffset);
     };
-  }, [showAnalysisCommandBar]);
+  }, [showBoardAnalysisCommandBar]);
   const totalMovesInCurrentLine = useMemo(() => {
     void treeVersion;
     return getCurrentLineMoveCount(currentNode, activeBranchChildIds);
@@ -1443,8 +1451,6 @@ export const Layout: React.FC = () => {
   const toggleShapeCoach = () => {
     setUiState((prev) => ({ ...prev, shapeCoachEnabled: !prev.shapeCoachEnabled }));
   };
-
-  const isMobile = !isDesktop;
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -1646,7 +1652,7 @@ export const Layout: React.FC = () => {
     setScoringMode(false);
     setManualDeadStones(new Set());
     markCurrentGameCleanAndClearAutoSave();
-    toast(`Started ${settings.defaultBoardSize}x${settings.defaultBoardSize} game.`, 'success');
+    toast(`Started ${settings.defaultBoardSize}×${settings.defaultBoardSize} game.`, 'success');
   }, [
     komi,
     markCurrentGameCleanAndClearAutoSave,
@@ -2764,7 +2770,7 @@ export const Layout: React.FC = () => {
       },
       {
         id: 'about',
-        label: 'About web-KaTrain',
+        label: 'About Web KaTrain',
         category: 'Help & Settings',
         run: () => openSimpleModal(() => setIsAboutOpen(true)),
         keywords: ['version', 'build'],
@@ -3146,6 +3152,7 @@ export const Layout: React.FC = () => {
       <MenuDrawer
         open={menuOpen && isMobile}
         onClose={() => setMenuOpen(false)}
+        initialFocusInputMode={menuFocusInputMode}
         onHome={openMobileHome}
         onQuickNewGame={() => void startQuickNewGame()}
         onNewGame={() => void openNewGameWithGuard()}
@@ -3410,6 +3417,7 @@ export const Layout: React.FC = () => {
               notification={notification}
               onClose={clearNotification}
               commandBarVisible={false}
+              placement="desktop-dashboard"
             />
           )}
         </>
@@ -3487,7 +3495,10 @@ export const Layout: React.FC = () => {
               stopGameAnalysis={stopGameAnalysis}
               setIsGameAnalysisOpen={setIsGameAnalysisOpen}
               setIsGameReportOpen={setIsGameReportOpen}
-              onOpenMenu={() => setMenuOpen(true)}
+              onOpenMenu={(inputMode) => {
+                setMenuFocusInputMode(inputMode);
+                setMenuOpen(true);
+              }}
               onQuickNewGame={() => void startQuickNewGame()}
               onNewGame={() => void openNewGameWithGuard()}
               onSaveSgf={handleSaveCurrentSgf}
@@ -3515,27 +3526,32 @@ export const Layout: React.FC = () => {
           {/* Board */}
           <div
             ref={boardShellRef}
-            className={['flex-1 flex flex-col justify-center ui-bg overflow-hidden relative', isMobile ? 'p-2 sm:p-3 pb-0' : 'p-4 xl:p-6'].join(' ')}
+            className={[
+              'flex-1 flex flex-col justify-center ui-bg overflow-hidden relative',
+              isMobile ? 'mobile-board-shell p-2 sm:p-3 pb-0' : 'p-4 xl:p-6',
+              isMobile && isEditMode ? 'mobile-board-shell--edit' : '',
+              isMobile && scoringMode ? 'mobile-board-shell--scoring' : '',
+            ].filter(Boolean).join(' ')}
             style={{ '--board-tool-offset-y': `${boardToolOffsetY}px` } as React.CSSProperties}
           >
             {notification && (
               <NotificationToast
                 notification={notification}
                 onClose={clearNotification}
-                commandBarVisible={showAnalysisCommandBar}
+                commandBarVisible={showBoardAnalysisCommandBar}
               />
             )}
             {/* Edit and scoring are mutually exclusive; on mobile the compact score bar
                 docks at the bottom, so hide the bottom Edit launcher while scoring. */}
             {!(isMobile && scoringMode) && (
-              <EditToolbar isMobile={isMobile} analysisCommandBarVisible={showAnalysisCommandBar} hideIdleLauncher={isMobile} />
+              <EditToolbar isMobile={isMobile} analysisCommandBarVisible={showBoardAnalysisCommandBar} hideIdleLauncher={isMobile} />
             )}
             <ManualScorePanel
               active={scoringMode}
               disabled={isEditMode || isInsertMode || isSelectingRegionOfInterest}
               isCompact={isMobile}
               hideLauncher={isMobile}
-              commandBarOffset={showAnalysisCommandBar}
+              commandBarOffset={showBoardAnalysisCommandBar}
               score={manualScoreEstimate}
               blackName={blackName}
               whiteName={whiteName}
@@ -3557,7 +3573,7 @@ export const Layout: React.FC = () => {
               ref={analysisCommandBarRef}
               className={analysisCommandBarSlotClass}
             >
-              <AnalysisCommandBar
+              {!mobileContextToolActive && <AnalysisCommandBar
                 mode={mode}
                 isAnalysisMode={isAnalysisMode}
                 statusText={statusText}
@@ -3581,9 +3597,9 @@ export const Layout: React.FC = () => {
                 startFastGameAnalysis={startFastGameAnalysis}
                 stopGameAnalysis={stopGameAnalysis}
                 onOpenGameReport={() => setIsGameReportOpen(true)}
-              />
+              />}
             </div>
-            {isMobile && isAnalysisMode && !isEditMode && !scoringMode && (
+            {isMobile && showBoardAnalysisCommandBar && isAnalysisMode && !isEditMode && !scoringMode && (
               <CandidatePvTiles
                 pinnedKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
                 onPin={setReportHoverMove}
@@ -3591,7 +3607,7 @@ export const Layout: React.FC = () => {
             )}
             <div
               className={[
-                'flex-1 flex justify-center min-h-0 min-w-0',
+                'mobile-board-canvas flex-1 flex justify-center min-h-0 min-w-0',
                 // On mobile the Score (top-left) and Edit (bottom-left) launchers float
                 // over the board shell. Reserve vertical clearance so the board never
                 // grows under them and covers the corner coordinates / play area.
@@ -3607,10 +3623,10 @@ export const Layout: React.FC = () => {
                 !isMobile
                   ? 'items-center'
                   : isEditMode
-                    ? 'items-center portrait:items-start portrait:pt-14 portrait:pb-36'
+                    ? 'mobile-board-canvas--edit items-center portrait:items-start portrait:pt-2 portrait:pb-44'
                     : scoringMode
-                      ? 'items-center portrait:items-start portrait:pt-14 portrait:pb-[20rem]'
-                      : 'items-center portrait:items-start portrait:py-14',
+                      ? 'mobile-board-canvas--scoring items-center portrait:items-start portrait:pt-2 portrait:pb-52'
+                      : 'items-center portrait:items-start portrait:py-6',
               ].join(' ')}
             >
               <GoBoard
@@ -3803,7 +3819,7 @@ export const Layout: React.FC = () => {
 
         {isMobile && !focusMode && (
           <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col pointer-events-none">
-            <div className="pointer-events-auto bg-[var(--ui-bar)]/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(0,0,0,0.3)] border-t border-[var(--ui-border)] divide-y divide-[var(--ui-border)]">
+            <div className="mobile-bottom-dock pointer-events-auto bg-[var(--ui-bar)] border-t border-[var(--ui-border)] divide-y divide-[var(--ui-border)]">
               {settings.showBoardControls && bottomBarOpen && mobileTab === 'board' && (
                 <div className="[&>div]:border-t-0 [&>div]:bg-transparent">
                   <BottomControlBar

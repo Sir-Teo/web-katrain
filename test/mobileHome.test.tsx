@@ -68,6 +68,16 @@ describe('MobileHome', () => {
 
     expect(html).toContain('Save Copy to Library');
     expect(html).toContain('Copy SGF');
+    expect(html).toContain('aria-label="Manage game and app"');
+  });
+
+  it('uses full-width actions and promotes recent games above management utilities', () => {
+    const html = renderToStaticMarkup(<MobileHome {...baseProps} recentItems={[recentFile]} />);
+
+    expect(html).toContain('min-h-12 w-full');
+    expect(html).toContain('mobile-home-actions--primary');
+    expect(html).toContain('mobile-home-actions--secondary');
+    expect(html.indexOf('Teaching Game')).toBeLessThan(html.indexOf('Save Copy to Library'));
   });
 
   it('makes the scan action discoverable as camera or image import', () => {
@@ -80,8 +90,8 @@ describe('MobileHome', () => {
   it('explains the quick new game replacement risk on mobile home', () => {
     const html = renderToStaticMarkup(<MobileHome {...baseProps} quickNewGameBoardSize={13} />);
 
-    expect(html).toContain('Quick new game (13x13): starts immediately and replaces the current game without saving.');
-    expect(html).toContain('13x13 immediate');
+    expect(html).toContain('Quick new game (13×13): uses your saved defaults and replaces the current game after the unsaved-changes check.');
+    expect(html).toContain('13×13 defaults');
   });
 
   it('shows move count and size for recent games', () => {

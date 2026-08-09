@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAnalysisScoreLead, formatAnalysisWinRate, summarizePointsLost } from '../src/utils/analysisSummary';
+import { formatAnalysisScoreLead, formatAnalysisWinRate, formatReadableScoreLead, formatWinRateFavorLabel, summarizePointsLost } from '../src/utils/analysisSummary';
 
 describe('analysis summary formatting', () => {
   it('formats win rate and score lead for compact board metrics', () => {
@@ -16,5 +16,20 @@ describe('analysis summary formatting', () => {
     expect(summarizePointsLost(0.6)).toEqual({ label: 'Lost 0.6', tone: 'warning' });
     expect(summarizePointsLost(2.4)).toEqual({ label: 'Lost 2.4', tone: 'danger' });
     expect(summarizePointsLost(null)).toEqual({ label: '-', tone: 'muted' });
+  });
+
+  it('describes near-even win rates without overstating a favorite', () => {
+    expect(formatWinRateFavorLabel(0.503)).toBe('Even');
+    expect(formatWinRateFavorLabel(0.52)).toBe('Even');
+    expect(formatWinRateFavorLabel(0.521)).toBe('Black favored');
+    expect(formatWinRateFavorLabel(0.479)).toBe('White favored');
+    expect(formatWinRateFavorLabel(null)).toBe('');
+  });
+
+  it('formats the dashboard score lead in plain language', () => {
+    expect(formatReadableScoreLead(0.4)).toBe('Black +0.4');
+    expect(formatReadableScoreLead(-2)).toBe('White +2.0');
+    expect(formatReadableScoreLead(0)).toBe('Even');
+    expect(formatReadableScoreLead(null)).toBe('—');
   });
 });

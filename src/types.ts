@@ -69,7 +69,20 @@ export type EditTool =
   | 'label-number'
   | 'marker-erase'
   | 'markup-arrow'
-  | 'markup-line';
+  | 'markup-line'
+  | 'draw-pen'
+  | 'draw-highlight'
+  | 'region-count'
+  | 'region-score';
+
+// Freehand strokes drawn over the board. Points are internal board units
+// (fractional intersections) so strokes survive resize and rotation.
+// Session-only: never serialized to SGF.
+export type BoardDrawingKind = 'pen' | 'highlight';
+export interface BoardDrawing {
+  kind: BoardDrawingKind;
+  points: Array<{ x: number; y: number }>;
+}
 
 export interface GameNode {
   id: string;
@@ -86,6 +99,7 @@ export interface GameNode {
   aiThoughts?: string;
   note?: string; // User-editable note (SGF C), KaTrain-style.
   properties?: Record<string, string[]>;
+  drawings?: BoardDrawing[]; // Freehand pen/highlight strokes, session-only.
 }
 
 export type BoardThemeId =

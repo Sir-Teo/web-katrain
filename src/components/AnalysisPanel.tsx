@@ -312,7 +312,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   }, [engineError]);
   const bestMoveSummary = React.useMemo(
     () => getCurrentNodeBestMoveSummary(currentNode),
-    [currentNode]
+    [currentNode, currentNode.analysis]
   );
   const playedMoveQuality = React.useMemo(
     () => getPlayedMoveQuality(currentNode, pointsLost),

@@ -1,5 +1,5 @@
 import type { BoardSize } from '../types';
 
 export function getQuickNewGameWarning(boardSize: BoardSize): string {
-  return `Quick new game (${boardSize}x${boardSize}): starts immediately and replaces the current game without saving.`;
+  return `Quick new game (${boardSize}×${boardSize}): uses your saved defaults and replaces the current game after the unsaved-changes check.`;
 }

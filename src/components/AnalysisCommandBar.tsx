@@ -73,6 +73,60 @@ interface AnalysisCommandBarProps {
   onOpenGameReport: () => void;
 }
 
+type HorizontalScrollEdges = { overflow: boolean; atStart: boolean; atEnd: boolean };
+
+const INITIAL_SCROLL_EDGES: HorizontalScrollEdges = { overflow: false, atStart: true, atEnd: true };
+
+function horizontalOverflowLabel(edges: HorizontalScrollEdges): 'none' | 'left' | 'right' | 'both' {
+  if (!edges.overflow) return 'none';
+  if (edges.atStart) return 'right';
+  if (edges.atEnd) return 'left';
+  return 'both';
+}
+
+function useHorizontalScrollEdges(enabled: boolean) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [scrollEdges, setScrollEdges] = React.useState<HorizontalScrollEdges>(INITIAL_SCROLL_EDGES);
+  const updateScrollEdges = React.useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const maxScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const next = {
+      overflow: maxScrollLeft > 2,
+      atStart: scroller.scrollLeft <= 2,
+      atEnd: scroller.scrollLeft >= maxScrollLeft - 2,
+    };
+    setScrollEdges((current) =>
+      current.overflow === next.overflow && current.atStart === next.atStart && current.atEnd === next.atEnd
+        ? current
+        : next
+    );
+  }, []);
+
+  React.useEffect(() => {
+    if (!enabled) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    updateScrollEdges();
+    scroller.addEventListener('scroll', updateScrollEdges, { passive: true });
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateScrollEdges);
+    resizeObserver?.observe(scroller);
+    for (const child of Array.from(scroller.children)) resizeObserver?.observe(child);
+    const mutationObserver =
+      typeof MutationObserver === 'undefined' ? null : new MutationObserver(updateScrollEdges);
+    mutationObserver?.observe(scroller, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('resize', updateScrollEdges);
+    return () => {
+      scroller.removeEventListener('scroll', updateScrollEdges);
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      window.removeEventListener('resize', updateScrollEdges);
+    };
+  }, [enabled, updateScrollEdges]);
+
+  return { scrollRef, scrollEdges };
+}
+
 export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   mode,
   isAnalysisMode,
@@ -123,6 +177,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       isGameAnalysisRunning ||
       typeof winRate === 'number' ||
       typeof scoreLead === 'number');
+  const { scrollRef: metricsRef, scrollEdges: metricScrollEdges } = useHorizontalScrollEdges(shouldShow);
+  const { scrollRef: actionsRef, scrollEdges: actionScrollEdges } = useHorizontalScrollEdges(shouldShow);
 
   const pointsSummary = summarizePointsLost(pointsLost);
   const gameProgress = isGameAnalysisRunning && gameAnalysisTotal > 0
@@ -212,7 +268,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   );
   const bestMoveSummary = React.useMemo(
     () => getCurrentNodeBestMoveSummary(currentNode),
-    [currentNode]
+    [currentNode, currentNode.analysis]
   );
   const displayedMoveQuality = playedMoveQuality ?? nextMoveQuality;
   const moveQualityKind = playedMoveQuality ? 'played' : nextMoveQuality ? 'next' : 'quality';
@@ -445,7 +501,17 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         )}
       </div>
 
-      <div className="analysis-command-bar__metrics" aria-label="Analysis summary">
+      <div
+        ref={metricsRef}
+        className={[
+          'analysis-command-bar__metrics',
+          metricScrollEdges.overflow ? 'is-scrollable' : '',
+          metricScrollEdges.overflow && !metricScrollEdges.atStart ? 'has-overflow-left' : '',
+          metricScrollEdges.overflow && !metricScrollEdges.atEnd ? 'has-overflow-right' : '',
+        ].join(' ')}
+        aria-label="Analysis summary"
+        data-analysis-metrics-overflow={horizontalOverflowLabel(metricScrollEdges)}
+      >
         <div className="analysis-command-bar__metric">
           <span className="analysis-command-bar__value analysis-command-bar__value--win">
             {formatAnalysisWinRate(winRate)}
@@ -478,7 +544,17 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         )}
       </div>
 
-      <div className="analysis-command-bar__actions" aria-label="Analysis controls">
+      <div
+        ref={actionsRef}
+        className={[
+          'analysis-command-bar__actions',
+          actionScrollEdges.overflow ? 'is-scrollable' : '',
+          actionScrollEdges.overflow && !actionScrollEdges.atStart ? 'has-overflow-left' : '',
+          actionScrollEdges.overflow && !actionScrollEdges.atEnd ? 'has-overflow-right' : '',
+        ].join(' ')}
+        aria-label="Analysis controls"
+        data-analysis-actions-overflow={horizontalOverflowLabel(actionScrollEdges)}
+      >
         <button
           type="button"
           className={['analysis-command-bar__button', isAnalysisMode ? 'active' : ''].join(' ')}

@@ -23,6 +23,7 @@ const MENU_DRAWER_SHORTCUT_IDS = [
 interface MenuDrawerProps {
   open: boolean;
   onClose: () => void;
+  initialFocusInputMode?: 'pointer' | 'keyboard';
   onHome?: () => void;
   onQuickNewGame: () => void;
   onNewGame: () => void;
@@ -54,6 +55,7 @@ interface MenuDrawerProps {
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   open,
   onClose,
+  initialFocusInputMode = 'keyboard',
   onHome,
   onQuickNewGame,
   onNewGame,
@@ -84,14 +86,110 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   const shortcutLabels = useShortcutLabels(MENU_DRAWER_SHORTCUT_IDS);
   const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize);
   const activeLocale = getAppLocaleOption(appLocale);
+  const drawerRef = React.useRef<HTMLDivElement>(null);
+  const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  const focusInputModeRef = React.useRef<'pointer' | 'keyboard'>('keyboard');
+  const [focusInputMode, setFocusInputMode] = React.useState<'pointer' | 'keyboard'>('keyboard');
+  const [showScrollHint, setShowScrollHint] = React.useState(false);
+  const updateScrollHint = React.useCallback(() => {
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+    setShowScrollHint(drawer.scrollTop + drawer.clientHeight < drawer.scrollHeight - 4);
+  }, []);
   useEscapeToClose(onClose, open);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const updateFocusInputMode = (mode: 'pointer' | 'keyboard') => {
+      focusInputModeRef.current = mode;
+      setFocusInputMode(mode);
+    };
+    updateFocusInputMode(initialFocusInputMode);
+    const focusableSelector = [
+      'a[href]:not([tabindex="-1"])',
+      'button:not([disabled]):not([tabindex="-1"])',
+      'input:not([disabled]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+
+    const focusCloseButton = window.requestAnimationFrame(() => {
+      closeButtonRef.current?.focus({ preventScroll: true });
+      updateScrollHint();
+    });
+
+    const notePointerInput = () => updateFocusInputMode('pointer');
+    const keepFocusInDrawer = (event: KeyboardEvent) => {
+      updateFocusInputMode('keyboard');
+      if (event.key !== 'Tab' || event.defaultPrevented) return;
+
+      const drawer = drawerRef.current;
+      if (!drawer) return;
+      const focusableElements = Array.from(drawer.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((element) => element.getClientRects().length > 0);
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === first || !drawer.contains(activeElement))) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (activeElement === last || !drawer.contains(activeElement))) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    };
+
+    document.addEventListener('pointerdown', notePointerInput, true);
+    document.addEventListener('keydown', keepFocusInDrawer, true);
+    return () => {
+      window.cancelAnimationFrame(focusCloseButton);
+      document.removeEventListener('pointerdown', notePointerInput, true);
+      document.removeEventListener('keydown', keepFocusInDrawer, true);
+      if (previouslyFocused?.isConnected) {
+        const restoredMode = focusInputModeRef.current;
+        const clearRestoredFocusOrigin = () => {
+          previouslyFocused.classList.remove('menu-drawer-pointer-focus');
+          previouslyFocused.removeAttribute('data-menu-restored-focus-origin');
+          previouslyFocused.removeEventListener('blur', clearRestoredFocusOrigin);
+          document.removeEventListener('keydown', clearRestoredFocusOrigin, true);
+          document.removeEventListener('pointerdown', clearRestoredFocusOrigin, true);
+        };
+        previouslyFocused.classList.toggle('menu-drawer-pointer-focus', restoredMode === 'pointer');
+        previouslyFocused.setAttribute('data-menu-restored-focus-origin', restoredMode);
+        previouslyFocused.addEventListener('blur', clearRestoredFocusOrigin);
+        document.addEventListener('keydown', clearRestoredFocusOrigin, true);
+        document.addEventListener('pointerdown', clearRestoredFocusOrigin, true);
+        previouslyFocused.focus({ preventScroll: true });
+      }
+    };
+  }, [initialFocusInputMode, open, updateScrollHint]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+    <div
+      className="fixed inset-0 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="menu-title"
+      data-menu-focus-origin={focusInputMode}
+    >
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div className="absolute left-0 top-0 h-full w-[90vw] max-w-sm ui-panel border-r shadow-xl p-3 overflow-y-auto overscroll-contain mobile-safe-inset mobile-safe-area-bottom">
+      <div
+        ref={drawerRef}
+        className="absolute left-0 top-0 h-full w-[90vw] max-w-sm ui-panel border-r shadow-xl p-3 overflow-y-auto overscroll-contain mobile-safe-inset mobile-safe-area-bottom"
+        onScroll={updateScrollHint}
+      >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold" id="menu-title">Menu</h2>
@@ -114,7 +212,11 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             </div>
           </div>
           <button type="button"
-            className="shrink-0 ui-text-muted hover:text-[var(--ui-text)]"
+            ref={closeButtonRef}
+            className={[
+              'shrink-0 ui-text-muted hover:text-[var(--ui-text)]',
+              focusInputMode === 'pointer' ? 'menu-drawer-pointer-focus' : '',
+            ].join(' ')}
             onClick={onClose}
             aria-label="Close menu"
           >
@@ -151,7 +253,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaBolt aria-hidden="true" /> Quick New Game
               </span>
-              <span className="text-xs ui-text-faint">Immediate</span>
+              <span className="text-xs ui-text-faint">Defaults</span>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -164,7 +266,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaPlay aria-hidden="true" /> New Game
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['new-game']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['new-game']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -177,7 +279,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaSave aria-hidden="true" /> {saveLabel}
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['save-sgf']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['save-sgf']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -190,7 +292,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaBook aria-hidden="true" /> Save Copy to Library
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['save-library']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['save-library']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -198,12 +300,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 onLoad();
                 onClose();
               }}
-              aria-label={`Load SGF file, board photo, or model weights, keyboard shortcut ${shortcutLabels['open-sgf']}`}
+              aria-label={`Open SGF file or model weights, keyboard shortcut ${shortcutLabels['open-sgf']}`}
             >
               <span className="flex items-center gap-2">
-                <FaFolderOpen aria-hidden="true" /> Load SGF / Photo / Model
+                <FaFolderOpen aria-hidden="true" /> Open SGF / Model
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['open-sgf']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['open-sgf']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -231,7 +333,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaCopy aria-hidden="true" /> Copy SGF
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['copy-sgf']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['copy-sgf']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -244,7 +346,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaPaste aria-hidden="true" /> Paste SGF / OGS
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</kbd>
             </button>
           </div>
           {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem || onVideoBoard) && (
@@ -315,8 +417,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded"
             >
               <span className="flex min-w-0 flex-col">
-                <span className="text-sm text-[var(--ui-text)]">{activeLocale.languageLabel}</span>
-                <span className="text-xs ui-text-faint truncate">{activeLocale.label}</span>
+                <span className="text-sm text-[var(--ui-text)]">Document language</span>
+                <span className="text-xs ui-text-faint truncate">Metadata · {activeLocale.label}</span>
               </span>
               <select
                 id="menu-app-locale"
@@ -343,7 +445,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaSearch aria-hidden="true" /> Command Palette
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['command-palette']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['command-palette']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -356,7 +458,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaCog aria-hidden="true" /> Settings
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['settings-modal']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['settings-modal']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -369,7 +471,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               <span className="flex items-center gap-2">
                 <FaKeyboard aria-hidden="true" /> Keyboard Shortcuts
               </span>
-              <kbd className="text-xs ui-text-faint">{shortcutLabels['keyboard-help']}</kbd>
+              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['keyboard-help']}</kbd>
             </button>
             <button type="button"
               className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
@@ -411,6 +513,16 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
         )}
 
       </div>
+      <div
+        className={[
+          'pointer-events-none absolute bottom-0 left-0 h-10 w-[90vw] max-w-sm',
+          'bg-gradient-to-t from-[var(--ui-panel)] via-[var(--ui-panel)]/80 to-transparent',
+          'transition-opacity duration-150',
+          showScrollHint ? 'opacity-100' : 'opacity-0',
+        ].join(' ')}
+        aria-hidden="true"
+        data-menu-scroll-hint="true"
+      />
     </div>
   );
 };

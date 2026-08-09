@@ -1,5 +1,5 @@
 import { createWithEqualityFn as create } from 'zustand/traditional';
-import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
+import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type BoardDrawing, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
 import { applyCapturesInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import { coordinateToSgf, expandSgfPointList, extractKaTrainUserNoteFromSgfComment, formatSgfDate, type ParsedSgf } from '../utils/sgf';
@@ -29,7 +29,7 @@ import {
   rememberActiveBranchPath,
   type ActiveBranchMap,
 } from '../utils/branchNavigation';
-import { getNodePath, resolveNodePath, type PinnedVariation } from '../utils/pinnedVariations';
+import { ensurePinGameId, getNodePath, getPinGameId, resolveNodePath, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
 import { getResignResult } from '../utils/resign';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getAnimationNow } from '../utils/animationFrame';
@@ -162,6 +162,8 @@ interface GameStore extends GameState {
   applySetupStones: (stones: Array<{ x: number; y: number; player: Player | null }>) => number;
   clearCurrentNodeAnnotations: () => void;
   addSegmentMarkup: (prop: SegmentProperty, sx: number, sy: number, ex: number, ey: number) => void;
+  addNodeDrawing: (drawing: BoardDrawing) => void;
+  clearNodeDrawings: () => void;
   selfplayToEnd: () => void;
   stopSelfplayToEnd: () => void;
   startQuickGameAnalysis: () => void;
@@ -1609,6 +1611,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return {
         ...history,
         treeVersion: state.treeVersion + 1,
+      };
+    }),
+
+  addNodeDrawing: (drawing) =>
+    set((state) => {
+      if (drawing.points.length < 2) return {};
+      const node = state.currentNode;
+      node.drawings = [...(node.drawings ?? []), drawing];
+      return { treeVersion: state.treeVersion + 1 };
+    }),
+
+  clearNodeDrawings: () =>
+    set((state) => {
+      const node = state.currentNode;
+      if (!node.drawings?.length) return {};
+      node.drawings = [];
+      return {
+        treeVersion: state.treeVersion + 1,
+        notification: { message: 'Cleared drawings on this node.', type: 'info' },
       };
     }),
 
@@ -4278,8 +4299,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.pinnedVariations.some((p) => p.id === pin.id)) {
       return { notification: { message: 'This line is already pinned.', type: 'info' } };
     }
+    // Assigning the WKID root property makes pins recoverable after reloads;
+    // bump treeVersion so auto-save picks up the new property.
+    const gameId = ensurePinGameId(state.rootNode);
+    const pins = [...state.pinnedVariations, pin];
+    writeStoredPinnedVariations(gameId, pins);
     return {
-      pinnedVariations: [...state.pinnedVariations, pin],
+      pinnedVariations: pins,
+      treeVersion: state.treeVersion + 1,
       notification: { message: `Pinned ${label}.`, type: 'success' },
     };
   }),
@@ -4296,11 +4323,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().jumpToNode(node);
   },
 
-  unpinVariation: (id: string) => set((state) => ({
-    pinnedVariations: state.pinnedVariations.filter((p) => p.id !== id),
-  })),
+  unpinVariation: (id: string) => set((state) => {
+    const pins = state.pinnedVariations.filter((p) => p.id !== id);
+    writeStoredPinnedVariations(getPinGameId(state.rootNode), pins);
+    return { pinnedVariations: pins };
+  }),
 
-  clearPinnedVariations: () => set({ pinnedVariations: [] }),
+  clearPinnedVariations: () => set((state) => {
+    writeStoredPinnedVariations(getPinGameId(state.rootNode), []);
+    return { pinnedVariations: [] };
+  }),
 
   navigateNextMistake: () => {
       get().findMistake('redo');
@@ -4712,6 +4744,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set((state) => ({
       rootNode: newRoot,
       currentNode: current,
+      pinnedVariations: restorePinnedVariations(newRoot),
       activeBranchChildIds: rememberActiveBranchPath({}, current),
       board: current.gameState.board,
       currentPlayer: current.gameState.currentPlayer,

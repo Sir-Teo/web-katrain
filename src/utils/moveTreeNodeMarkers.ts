@@ -14,9 +14,9 @@ export const MOVE_TREE_NODE_MARKER_LABELS: Record<MoveTreeNodeMarker, string> = 
 
 // A follow-up losing this many points marks the prior move as a "set-up" (the
 // opponent blundered right after — a trap that paid off).
-const SETUP_MOVE_LOSS = 5;
+export const SETUP_MOVE_LOSS = 5;
 // Losses at/above this are their own, more severe tier than a plain mistake.
-const BLUNDER_LOSS = 6;
+export const BLUNDER_LOSS = 6;
 
 function playedTopMove(node: GameNode): boolean {
   const move = node.move;

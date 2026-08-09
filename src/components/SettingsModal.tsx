@@ -181,8 +181,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const DEFAULT_ANIM_PV_TIME = 0.5;
     const SMALL_MODEL_URL = publicUrl(KATAGO_SMALL_MODEL_PATH);
     const isUploadedModel = isUploadedModelUrl(settings.katagoModelUrl);
-    const sectionClass =
-        'rounded-2xl border ui-surface p-4 sm:p-5 shadow-[0_14px_40px_rgba(0,0,0,0.35)]';
+    const sectionClass = 'settings-section rounded-xl border ui-surface p-4 sm:p-5';
     const sectionTitleClass = 'text-xs font-semibold ui-text-muted tracking-[0.12em] uppercase';
     const rowClass = 'flex items-center justify-between gap-4 min-h-11';
     const labelClass = 'text-[var(--ui-text)] text-sm sm:text-base';
@@ -375,7 +374,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
             <div
-                className="settings-modal w-full max-w-[960px] h-[92dvh] sm:h-auto sm:max-h-[92dvh] ui-panel rounded-2xl shadow-2xl border overflow-hidden flex flex-col"
+                className="settings-modal w-full max-w-[960px] h-[92dvh] sm:h-auto sm:max-h-[92dvh] ui-panel rounded-xl sm:rounded-2xl shadow-xl border overflow-hidden flex flex-col"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="settings-title"
@@ -626,7 +625,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         <p className={subtextClass}>Defaults for the New Game dialog.</p>
 
                                         <div className="space-y-2">
-                                            <label htmlFor="settings-app-locale" className="ui-text-muted block">{appLocaleMeta?.languageLabel ?? 'Language'}</label>
+                                            <label htmlFor="settings-app-locale" className="ui-text-muted block">Document language metadata</label>
                                             <select
                                                 id="settings-app-locale"
                                                 value={settings.appLocale}

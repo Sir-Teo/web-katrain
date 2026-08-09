@@ -4,7 +4,7 @@ export { APP_REPOSITORY_URL };
 export const APP_ISSUE_REPORT_URL = `${APP_REPOSITORY_URL}/issues/new/choose`;
 
 export const APP_INFO = {
-  name: 'web-KaTrain',
+  name: 'Web KaTrain',
   version: __APP_VERSION__,
   commit: __APP_COMMIT__,
   commitDate: __APP_COMMIT_DATE__,

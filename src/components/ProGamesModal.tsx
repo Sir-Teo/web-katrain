@@ -185,6 +185,14 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                     <span>{selected.source}</span>
                   </div>
                 </div>
+                {selected.editorial && (
+                  <p
+                    className="mt-3 rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3 text-xs leading-relaxed text-[var(--ui-text-muted)]"
+                    data-pro-game-editorial
+                  >
+                    {selected.editorial}
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => void onLoadGame(selected.sgf, selected.name)}

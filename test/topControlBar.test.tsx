@@ -91,7 +91,8 @@ describe('TopControlBar', () => {
     expect(html).toContain('data-language-switcher="desktop"');
     expect(html).toContain('data-language-switcher-button="true"');
     expect(html).toContain('data-current-locale="en"');
-    expect(html).toContain('Change language: English');
+    expect(html).toContain('Change document language metadata: English');
+    expect(html).toContain('SGF · EN');
   });
 
   it('lists all locale choices when the desktop language switcher is open', () => {
@@ -102,14 +103,14 @@ describe('TopControlBar', () => {
     expect(source).toContain('role="listbox"');
     expect(source).toContain('role="option"');
     expect(source).toContain('onLocaleChange(locale);');
-    expect(source).toContain('activeLocale.selectLanguageLabel');
+    expect(source).toContain('Select document language metadata');
     expect(readFileSync('src/index.css', 'utf8')).toContain('.app-language-switcher');
   });
 
-  it('warns that quick new game replaces the current game immediately', () => {
+  it('explains that quick new game uses defaults and checks unsaved changes', () => {
     const html = renderToStaticMarkup(<TopControlBar {...baseProps} isMobile={false} />);
 
-    expect(html).toContain('Quick new game (19x19): starts immediately and replaces the current game without saving.');
+    expect(html).toContain('Quick new game (19×19): uses your saved defaults and replaces the current game after the unsaved-changes check.');
   });
 
   it('labels theme selectors in the view menu', () => {
@@ -142,8 +143,14 @@ describe('TopControlBar', () => {
 
   it('exposes mobile tools as a modal dialog owned by the tools button', () => {
     const html = renderToStaticMarkup(<TopControlBar {...baseProps} viewMenuOpen={true} isMobile={true} />);
+    const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
 
     expect(html).toContain('data-mobile-tools-dialog="true"');
+    expect(html).toContain('data-mobile-tools-focus-origin="keyboard"');
+    expect(html).toContain('data-mobile-tools-panel="true"');
+    expect(html).toContain('data-mobile-tools-backdrop="true"');
+    expect(html).toContain('data-mobile-tools-header="true"');
     expect(html).toContain('aria-label="Tools"');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="true"');
@@ -151,6 +158,21 @@ describe('TopControlBar', () => {
     expect(html).toContain('title="Close tools"');
     expect(html).toMatch(/aria-controls="[^"]+"/);
     expect(html).toMatch(/aria-labelledby="[^"]+"/);
+    expect(html).toMatch(/<div[^>]*data-mobile-tools-backdrop="true"/);
+    expect(html).not.toMatch(/<button[^>]*data-mobile-tools-backdrop="true"/);
+    expect(html).toMatch(/class="[^"]*sticky top-0 z-10[^"]*" data-mobile-tools-header="true"/);
+    expect(source).toContain('const mobileToolsPanelRef = React.useRef<HTMLDivElement>(null)');
+    expect(source).toContain('<FaTools size={16} aria-hidden="true" />');
+    expect(source).not.toContain('FaEllipsisV');
+    expect(source).toContain("if (event.key !== 'Tab' || event.defaultPrevented || !isMobile || !viewMenuOpen) return");
+    expect(source).toContain("document.addEventListener('keydown', handleKeyDown, true)");
+    expect(source).toContain("updateMobileToolsInputMode(event.detail === 0 ? 'keyboard' : 'pointer')");
+    expect(source).toContain("onPointerDown={() => updateMobileToolsInputMode('pointer')}");
+    expect(source).toContain("mobileToolsInputMode === 'pointer' ? 'mobile-tools-pointer-focus' : ''");
+    expect(source).toContain("closeViewMenuWithFocus(true, 'keyboard')");
+    expect(css).toMatch(/\.mobile-tools-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
+    expect(css).toContain("[data-mobile-tools-panel='true'] select");
+    expect(css).toContain('min-height: 44px !important');
   });
 
   it('keeps desktop toolbar menus mutually exclusive', () => {

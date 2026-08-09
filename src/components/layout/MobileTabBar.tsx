@@ -57,7 +57,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     <nav
       className={[
         'w-full mobile-tabbar transition-colors',
-        hasControlBarAbove ? 'bg-transparent' : 'ui-bar border-t border-[var(--ui-border)] backdrop-blur-sm shadow-xl shadow-black/30'
+        hasControlBarAbove ? 'bg-transparent' : 'ui-bar border-t border-[var(--ui-border)]'
       ].filter(Boolean).join(' ')}
       role="tablist"
     >
@@ -75,7 +75,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               className={[
                 'py-2.5 sm:py-3 px-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium leading-tight transition-all touch-manipulation',
                 isActive
-                  ? 'text-[var(--ui-accent)] bg-[var(--ui-accent-soft)] border-t-2 border-[var(--ui-accent)] shadow-inner'
+                  ? 'text-[var(--ui-accent)] border-t-2 border-[var(--ui-accent)]'
                   : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] border-t-2 border-transparent',
               ].join(' ')}
               role="tab"

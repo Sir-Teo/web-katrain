@@ -52,7 +52,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose }) => {
         <div className="ui-bar flex items-start justify-between gap-3 border-b border-[var(--ui-border)] px-4 py-4">
           <div className="min-w-0">
             <h2 id="about-title" className="text-lg font-semibold text-[var(--ui-text)]">
-              web-KaTrain
+              Web KaTrain
             </h2>
             <p className="mt-1 text-sm ui-text-muted">Browser Go review, training, and KataGo analysis.</p>
           </div>

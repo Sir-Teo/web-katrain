@@ -21,7 +21,7 @@ export function createVersionMetadata({
   buildDate: string;
 }): VersionMetadata {
   return {
-    name: 'web-KaTrain',
+    name: 'Web KaTrain',
     version,
     gitHash: commit,
     commitDate,

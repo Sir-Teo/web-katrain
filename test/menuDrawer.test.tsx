@@ -67,7 +67,7 @@ describe('MenuDrawer', () => {
     expect(html).toContain('Ctrl+Shift+S');
   });
 
-  it('explains that quick new game is immediate and replaces the current game', () => {
+  it('explains that quick new game uses defaults and checks unsaved changes', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
         open
@@ -88,8 +88,8 @@ describe('MenuDrawer', () => {
       />
     );
 
-    expect(html).toContain('Quick new game (13x13): starts immediately and replaces the current game without saving.');
-    expect(html).toContain('Immediate');
+    expect(html).toContain('Quick new game (13×13): uses your saved defaults and replaces the current game after the unsaved-changes check.');
+    expect(html).toContain('Defaults');
   });
 
   it('offers the app locale in the mobile menu settings section', () => {
@@ -117,7 +117,8 @@ describe('MenuDrawer', () => {
     expect(html).toContain('for="menu-app-locale"');
     expect(html).toContain('id="menu-app-locale"');
     expect(html).toContain('data-menu-locale="true"');
-    expect(html).toContain('言語');
+    expect(html).toContain('Document language');
+    expect(html).toContain('Metadata');
     expect(html).toContain('Japanese');
   });
 });

@@ -23,6 +23,27 @@ describe('desktop dashboard layout', () => {
     expect(responsiveBlock).not.toContain('setSidebarOpen(true');
   });
 
+  it('keeps the board-first Library affordance visibly discoverable', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(dashboardSource).toContain('!libraryOpen && <span className="edge-toggle-label">Library</span>');
+    expect(css).toContain('.wk-dashboard .edge-toggle.left:not(.open):has(.edge-toggle-label)');
+    expect(css).toContain('writing-mode: vertical-rl;');
+  });
+
+  it('keeps first-run actions in a compact, non-overlapping board rail', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(dashboardSource).toContain('data-dashboard-hero="true"');
+    expect(dashboardSource).toContain('<div className="hero-title">Start here</div>');
+    expect(dashboardSource).not.toContain('className="hero-tips"');
+    expect(css).toContain('grid-template-rows: minmax(0, 1fr) auto;');
+    expect(css).toContain('min-height: 46px;');
+    expect(css).toContain('flex-wrap: nowrap;');
+  });
+
   it('surfaces build metadata from the dashboard view menu', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
 
@@ -32,15 +53,34 @@ describe('desktop dashboard layout', () => {
     expect(source).toContain('Open build commit');
   });
 
-  it('keeps a compact build identity visible in the dashboard header', () => {
+  it('keeps build identity out of the primary header and in the dashboard menu', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
 
-    expect(dashboardSource).toContain('APP_INFO');
-    expect(dashboardSource).toContain('data-dashboard-build-chip="true"');
-    expect(dashboardSource).toContain('v{APP_INFO.version}');
-    expect(css).toContain('.wk-dashboard .build-chip');
-    expect(css).toContain('max-width: 84px;');
+    expect(dashboardSource).not.toContain('data-dashboard-build-chip="true"');
+    expect(dashboardSource).toContain('data-dashboard-build-link="true"');
+    expect(css).not.toContain('.wk-dashboard .build-chip');
+  });
+
+  it('keeps primary desktop header icon targets at the standard 32px size', () => {
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(css).toMatch(/\.wk-dashboard \.iconbtn \{\s*width: 32px; height: 32px;/);
+    expect(css).not.toContain('.wk-dashboard .iconcluster .iconbtn { width: 28px; height: 28px; }');
+  });
+
+  it('keeps frequent desktop board actions at the standard 32px height', () => {
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(css).toMatch(/\.wk-dashboard \.board-chip \{[^}]*height: 32px;/);
+    expect(css).not.toMatch(/\.wk-dashboard \.board-chip \{[^}]*height: 28px;/);
+  });
+
+  it('compacts play actions before the standard desktop command bar wraps', () => {
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(css).toContain('@container boardcol (max-width: 960px)');
+    expect(css).toContain('.wk-dashboard .playactions .tbtn { padding: 0 8px; }');
   });
 
   it('mounts the full library manager inside the desktop dashboard library column', () => {

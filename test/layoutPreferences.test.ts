@@ -8,9 +8,9 @@ describe('layout preferences', () => {
     expect(shouldOpenLibraryByDefault('false', { width: 1280, height: 800 })).toBe(false);
   });
 
-  it('opens the library by default for roomy new desktop sessions', () => {
-    expect(shouldOpenLibraryByDefault(null, { width: 1280, height: 800 })).toBe(true);
-    expect(shouldOpenLibraryByDefault('', { width: 1440, height: 768 })).toBe(true);
+  it('keeps roomy new desktop sessions board-first', () => {
+    expect(shouldOpenLibraryByDefault(null, { width: 1280, height: 800 })).toBe(false);
+    expect(shouldOpenLibraryByDefault('', { width: 1440, height: 768 })).toBe(false);
   });
 
   it('keeps compact desktop, mobile, and unknown viewports board-first', () => {

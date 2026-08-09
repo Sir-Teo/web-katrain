@@ -139,28 +139,6 @@
   white-space: nowrap;
 }
 .wk-dashboard .brand-name b { font-weight: 700; }
-.wk-dashboard .build-chip {
-  display: inline-flex;
-  align-items: center;
-  max-width: 84px;
-  min-width: 0;
-  height: 22px;
-  padding: 0 7px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--panel-soft);
-  color: var(--faint);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 1;
-  text-decoration: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.wk-dashboard .build-chip:hover { color: var(--ink); background: var(--panel); border-color: var(--line-strong); }
-
 .wk-dashboard .header-divider { width: 1px; height: 22px; background: var(--line); flex: none; }
 .wk-dashboard .header-spacer { flex: 1 1 auto; min-width: 8px; }
 .wk-dashboard .dashboard-language-switcher { flex: none; }
@@ -207,8 +185,15 @@
 .wk-dashboard .iconbtn svg { width: 16px; height: 16px; }
 .wk-dashboard .iconbtn:focus-visible { outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, var(--ui-panel)); outline-offset: 2px; }
 
-.wk-dashboard .iconcluster { display: flex; align-items: center; gap: 2px; }
-
+.wk-dashboard .iconcluster {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 1px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+}
 /* text button */
 .wk-dashboard .tbtn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -368,9 +353,13 @@
 .wk-dashboard .gs-player { display: flex; align-items: center; gap: 7px; }
 .wk-dashboard .gs-player .stone-mini { width: 14px; height: 14px; border-radius: 50%; flex: none; }
 .wk-dashboard .gs-player.to-move { position: relative; }
+.wk-dashboard .gs-player.to-move .stone-mini {
+  box-shadow: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ui-accent);
+}
+.wk-dashboard .gs-player.to-move .nm { color: var(--ui-accent); }
 .wk-dashboard .gs-player.to-move::after {
-  content: 'to move'; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--ink); background: var(--panel-soft); border: 1px solid var(--line);
+  content: 'to move'; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ui-accent); background: var(--ui-accent-soft); border: 1px solid color-mix(in srgb, var(--ui-accent) 35%, var(--line));
   padding: 1px 5px; border-radius: var(--r-pill); margin-left: 2px;
 }
 .wk-dashboard .gs-player .nm { font-weight: 600; white-space: nowrap; }
@@ -407,6 +396,10 @@
 }
 @container (max-width: 1080px) {
   .wk-dashboard .playactions .tbtn-label { display: none; }
+  .wk-dashboard .playactions .tbtn.primary .tbtn-label { display: inline; }
+}
+@container (max-width: 760px) {
+  .wk-dashboard .playactions .tbtn.primary .tbtn-label { display: none; }
 }
 /* When the library and sidebar squeeze the column, the game strip sheds its
    low-value facts (komi, rules) before it would wrap the save status onto a
@@ -440,72 +433,55 @@
   overflow-y: auto;
 }
 
-/* First-run hero: floats over the lower board stage on a fresh empty game so
-   the board stays visible and playable underneath. */
+/* First-run actions occupy one compact rail instead of covering the board. */
+.wk-dashboard .board-stage:has(.hero-card) {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
 .wk-dashboard .hero-card {
-  position: absolute;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
   z-index: 16;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 7px;
   align-items: center;
-  max-width: min(92%, 480px);
-  padding: 14px 16px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--shadow-pop);
-  text-align: center;
-}
-.wk-dashboard .hero-card .hero-title { font-size: 13.5px; font-weight: 700; }
-.wk-dashboard .hero-card .hero-sub { font-size: 12px; color: var(--muted); }
-.wk-dashboard .hero-card .hero-actions {
-  display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
-  margin-top: 2px;
-}
-.wk-dashboard .hero-card .hero-tips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 6px 12px;
-  margin-top: 6px;
-  padding-top: 10px;
+  width: min(100%, 660px);
+  max-width: 100%;
+  min-height: 46px;
+  padding: 6px 42px 6px 10px;
   border-top: 1px solid var(--line);
-  width: 100%;
-  font-size: 11.5px;
-  color: var(--muted);
+  background: transparent;
+  text-align: left;
 }
-.wk-dashboard .hero-card .hero-tip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.wk-dashboard .hero-card .hero-title {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
   white-space: nowrap;
 }
-.wk-dashboard .hero-card .hero-tip kbd {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  line-height: 1;
-  color: var(--ink);
-  background: var(--panel-2, color-mix(in srgb, var(--ink) 6%, transparent));
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  padding: 3px 6px;
-  box-shadow: 0 1px 0 var(--line-strong);
+.wk-dashboard .hero-card .hero-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 0;
 }
 .wk-dashboard .hero-card .hero-close {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 24px;
-  height: 24px;
+  top: 2px;
+  right: 2px;
+  width: 32px;
+  height: 32px;
+}
+
+@container boardcol (max-width: 620px) {
+  .wk-dashboard .hero-card .hero-title { display: none; }
 }
 
 /* Board controls live outside the goban frame. */
@@ -516,11 +492,27 @@
 }
 .wk-dashboard .board-extra-tools {
   display: flex;
+  position: relative;
   min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* Editing is a contextual popover anchored to the Edit chip. Keeping the
+   expanded palette out of the navbar's document flow prevents it from
+   collapsing the board stage on laptop-sized viewports. */
+.wk-dashboard .edit-toolbar-docked--active .edit-toolbar-panel--docked {
+  position: fixed;
+  right: auto;
+  bottom: 60px;
+  left: max(16px, calc(50vw - 520px));
+  width: min(680px, calc(100vw - 32px));
+  max-width: min(680px, calc(100vw - 32px));
+  max-height: min(360px, 46vh);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Active scoring docks into the action strip as a slim horizontal bar so the
@@ -597,7 +589,7 @@
 }
 .wk-dashboard .board-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 10px;
+  height: 32px; padding: 0 10px;
   border: 1px solid var(--line); border-radius: var(--r-pill);
   background: var(--panel);
   font-size: 11.5px; font-weight: 600; color: var(--muted);
@@ -686,8 +678,12 @@
 .wk-dashboard .move-counter b { color: var(--ink); font-weight: 600; }
 .wk-dashboard .move-counter input {
   width: 38px; border: none; background: transparent; outline: none;
+  border-bottom: 1px dashed var(--line-strong); cursor: text;
   font-family: var(--mono); font-size: 12.5px; color: var(--ink); text-align: right; font-weight: 600;
 }
+.wk-dashboard .move-counter:focus-within { border-color: var(--ui-accent); }
+.wk-dashboard .move-counter input:hover { border-bottom-color: var(--ink-soft); }
+.wk-dashboard .move-counter input:focus { border-bottom-style: solid; border-bottom-color: var(--ui-accent); }
 .wk-dashboard .move-counter input::-webkit-outer-spin-button,
 .wk-dashboard .move-counter input::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -705,10 +701,10 @@
 /* Keep the nav bar on a single row as the board column narrows: first drop the
    play-action labels (tooltips keep them discoverable), then tighten paddings.
    Wrapping stays as the last-resort fallback. */
-@container boardcol (max-width: 919px) {
+@container boardcol (max-width: 960px) {
   .wk-dashboard .navbar { gap: 4px; }
   .wk-dashboard .playactions { gap: 4px; }
-  .wk-dashboard .playactions .tbtn { padding: 0 9px; }
+  .wk-dashboard .playactions .tbtn { padding: 0 8px; }
   .wk-dashboard .playactions .tbtn-label { display: none; }
 }
 @container boardcol (max-width: 699px) {
@@ -747,7 +743,7 @@
   transition: color .12s ease;
 }
 .wk-dashboard .mode-tab:hover { color: var(--ink-soft); }
-.wk-dashboard .mode-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+.wk-dashboard .mode-tab.active { color: var(--ink); border-bottom-color: var(--ui-accent); }
 
 .wk-dashboard .sidebar-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 
@@ -842,7 +838,11 @@
 /* Winrate graph */
 .wk-dashboard .graph-wrap { padding: 10px 14px 4px; }
 .wk-dashboard .graph-legend { display: flex; align-items: center; gap: 14px; padding: 4px 14px 0; font-size: 11px; color: var(--muted); }
-.wk-dashboard .graph-legend .lg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; background: none; border: none; cursor: pointer; padding: 0; color: inherit; font-size: inherit; }
+.wk-dashboard .graph-legend .lg { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; white-space: nowrap; background: transparent; border: 1px solid transparent; border-radius: var(--r-xs); cursor: pointer; padding: 0 5px; color: inherit; font-size: inherit; }
+.wk-dashboard .graph-legend .lg:hover { background: var(--panel-soft); color: var(--ink-soft); }
+.wk-dashboard .graph-legend .lg.on { background: var(--panel-soft); border-color: var(--line); color: var(--ink); }
+.wk-dashboard .graph-legend .lg-check { display: inline-flex; opacity: 0; color: var(--ink); }
+.wk-dashboard .graph-legend .lg.on .lg-check { opacity: 1; }
 .wk-dashboard .graph-legend .lg .sw { width: 10px; height: 3px; border-radius: 2px; }
 
 /* Overlay toggles row */
@@ -941,6 +941,8 @@
 .wk-dashboard .engine-detail .ed-grid dt { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
 .wk-dashboard .engine-detail .ed-grid dd { margin: 2px 0 0; font-size: 12.5px; font-weight: 600; }
 .wk-dashboard .engine-detail .ed-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.wk-dashboard .engine-detail .ed-row-depth { display: block; }
+.wk-dashboard .engine-detail .ed-depth-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--faint); font-size: 11px; font-weight: 600; }
 .wk-dashboard .depth-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
 .wk-dashboard .depth-preset {
   text-align: left; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-sm);
@@ -948,8 +950,9 @@
 }
 .wk-dashboard .depth-preset:hover { background: var(--panel-soft); }
 .wk-dashboard .depth-preset.on { border-color: var(--ink); }
-.wk-dashboard .depth-preset .dp-v { font-family: var(--mono); font-weight: 600; font-size: 13px; }
-.wk-dashboard .depth-preset .dp-l { font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
+.wk-dashboard .depth-preset:disabled { cursor: not-allowed; opacity: .45; }
+.wk-dashboard .depth-preset .dp-v { display: block; font-family: var(--mono); font-weight: 600; font-size: 13px; }
+.wk-dashboard .depth-preset .dp-l { display: block; margin-top: 1px; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
 
 /* Progress (game analysis) */
 .wk-dashboard .progress-wrap { padding: 0 14px 12px; }
@@ -960,7 +963,7 @@
 /* edge toggles to reopen panels */
 .wk-dashboard .edge-toggle {
   position: absolute; top: 50%; transform: translateY(-50%);
-  width: 18px; height: 56px; z-index: 15;
+  width: 24px; height: 56px; z-index: 15;
   border: 1px solid var(--line); background: var(--panel);
   display: flex; align-items: center; justify-content: center;
   color: var(--muted); box-shadow: var(--shadow-card);
@@ -969,10 +972,26 @@
 .wk-dashboard .edge-toggle svg { width: 13px; height: 13px; }
 .wk-dashboard .edge-toggle.left { left: 0; border-left: none; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .wk-dashboard .edge-toggle.right { right: 0; border-right: none; border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.wk-dashboard .edge-toggle.left:not(.open):has(.edge-toggle-label) {
+  width: 30px;
+  height: 88px;
+  flex-direction: column;
+  gap: 5px;
+}
+.wk-dashboard .edge-toggle-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.wk-dashboard .edge-toggle:hover .edge-toggle-label { color: var(--ink-soft); }
 .wk-dashboard .edge-toggle.top,
 .wk-dashboard .edge-toggle.bottom {
   left: 50%; transform: translateX(-50%);
-  width: 56px; height: 18px;
+  width: 56px; height: 24px;
 }
 .wk-dashboard .edge-toggle.top { top: 0; border-top: none; border-radius: 0 0 var(--r-sm) var(--r-sm); }
 .wk-dashboard .edge-toggle.bottom { top: auto; bottom: 0; border-bottom: none; border-radius: var(--r-sm) var(--r-sm) 0 0; }

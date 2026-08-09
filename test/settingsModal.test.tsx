@@ -55,7 +55,7 @@ describe('SettingsModal', () => {
       ['settings-fuzzy-stone-placement', 'Fuzzy Stone Placement'],
       ['settings-default-board-size', 'Default Board Size'],
       ['settings-default-handicap', 'Default Handicap'],
-      ['settings-app-locale', 'Language'],
+      ['settings-app-locale', 'Document language metadata'],
       ['settings-ui-theme', 'UI Theme'],
       ['settings-ui-density', 'UI Density'],
       ['settings-gamepad-navigation', 'Gamepad Navigation'],

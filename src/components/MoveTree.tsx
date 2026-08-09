@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { FaArrowsAltH, FaArrowsAltV, FaCompressArrowsAlt, FaCrosshairs, FaMapMarkedAlt } from 'react-icons/fa';
+import { FaArrowsAltH, FaArrowsAltV, FaCompressArrowsAlt, FaCrosshairs, FaMapMarkedAlt, FaProjectDiagram } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import type { GameNode } from '../types';
 import {
@@ -542,6 +542,24 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           );
         })}
       </svg>
+      {flatTree.length === 1 && (
+        <div className="move-tree-empty-state" data-move-tree-empty-state="true">
+          <div className="move-tree-empty-state-content">
+            <FaProjectDiagram size={22} aria-hidden="true" />
+            <div className="move-tree-empty-state-title">No moves yet</div>
+            <p>Play on the board to start the game tree.</p>
+            {onSelectNode && (
+              <button
+                type="button"
+                className="move-tree-empty-state-action"
+                onClick={() => onSelectNode(rootNode)}
+              >
+                Back to board
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {layoutStatus === 'working' && (
         <div className="pointer-events-none sticky bottom-1 left-1 inline-flex rounded bg-[var(--ui-surface)]/90 px-2 py-1 text-[10px] uppercase tracking-wide ui-text-muted">
           Laying out {flatTree.length} nodes

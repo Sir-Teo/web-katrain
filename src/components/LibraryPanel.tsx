@@ -21,6 +21,7 @@ import {
   FaStar,
   FaRegStar,
   FaTag,
+  FaEllipsisH,
 } from 'react-icons/fa';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
@@ -706,6 +707,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       rect.top + Math.min(32, rect.height / 2),
       item
     );
+  };
+
+  const openButtonContextMenu = (event: React.MouseEvent<HTMLButtonElement>, item: LibraryItem) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    openContextMenuAt(rect.right - 230, rect.bottom + 4, item);
   };
 
   const closeContextMenu = () => setContextMenu(null);
@@ -1502,6 +1510,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const exportFolderLabel = `Export ${item.name} as ZIP`;
     const renameFolderLabel = `Rename ${item.name}`;
     const deleteFolderLabel = `Delete ${item.name}`;
+    const moreFolderActionsLabel = `More actions for ${item.name}`;
     return (
       <div key={item.id}>
         <div
@@ -1623,6 +1632,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               <FaTrash size={12} />
             </button>
           </div>
+          <button
+            type="button"
+            className="library-tree-node-more"
+            onClick={(event) => openButtonContextMenu(event, item)}
+            title={moreFolderActionsLabel}
+            aria-label={moreFolderActionsLabel}
+            aria-haspopup="menu"
+            aria-expanded={contextMenu?.itemId === item.id}
+          >
+            <FaEllipsisH size={14} />
+          </button>
         </div>
         {allowChildren && isExpanded && children.length > 0 && (
           <div>

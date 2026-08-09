@@ -1,16 +1,28 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaCheck } from 'react-icons/fa';
+import { FaCheck, FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { DEFAULT_BOARD_SIZE, type CandidateMove, type GameNode } from '../types';
+import { DEFAULT_BOARD_SIZE, type BoardDrawing, type CandidateMove, type EditTool, type GameNode } from '../types';
+import {
+  appendStrokePoint,
+  countRegionStones,
+  formatRegionOwnership,
+  formatRegionStoneCount,
+  normalizeRegionRect,
+  sumRegionOwnership,
+  type RegionRect,
+} from '../utils/boardDrawing';
 import { parseGtpMove } from '../lib/gtp';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
+import { selectAnalysisHintMoves, usesCompactAnalysisHints } from '../utils/analysisHints';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
 import { expandSgfPointList, sgfCoordToXy } from '../utils/sgf';
 import { getHorizontalSwipeNavigationAction } from '../utils/swipeNavigation';
 import { buildStonePlacementGrid } from '../utils/stonePlacementMove';
+import { getMoveAnimation } from '../utils/moveAnimation';
+import { getPunishQuizPrompt, gradePunishGuess, punishQuizPromptText, punishQuizVerdictText } from '../utils/punishQuiz';
 import {
   getWheelNavigationAction,
   WHEEL_NAVIGATION_THROTTLE_MS,
@@ -56,6 +68,7 @@ const PASS_CIRCLE_TEXT_COLOR = [0.85, 0.85, 0.85, 1] as const; // KaTrain Theme.
 const HINTS_LO_ALPHA = 0.6;
 const HINTS_ALPHA = 0.8;
 const HINT_SCALE = 0.98;
+const ALTERNATIVE_HINT_SCALE = 0.82;
 const UNCERTAIN_HINT_SCALE = 0.7;
 const TOP_MOVE_BORDER_COLOR = [10 / 255, 200 / 255, 250 / 255, 1] as const;
 const HINT_TEXT_COLOR = 'black';
@@ -159,6 +172,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     editTool,
     applyEditTool,
     addSegmentMarkup,
+    addNodeDrawing,
     toggleBoardPointMarkup,
     moveHistory,
     analysisData,
@@ -188,6 +202,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       editTool: state.editTool,
       applyEditTool: state.applyEditTool,
       addSegmentMarkup: state.addSegmentMarkup,
+      addNodeDrawing: state.addNodeDrawing,
       toggleBoardPointMarkup: state.toggleBoardPointMarkup,
       moveHistory: state.moveHistory,
       analysisData: state.analysisData,
@@ -223,6 +238,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       if (tapConfirmTimerRef.current !== null) window.clearTimeout(tapConfirmTimerRef.current);
     };
   }, []);
+
+  // While Alt/Option is held, momentarily show every returned candidate at full
+  // prominence (undim the low-visit "uncertain" hints).
+  const [altHeld, setAltHeld] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -322,20 +341,67 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const [dotTextureVersion, setDotTextureVersion] = useState(0);
   const [topMoveTextureVersion, setTopMoveTextureVersion] = useState(0);
   const [stoneTextureVersion, setStoneTextureVersion] = useState(0);
-  // While Alt/Option is held, momentarily show every returned candidate at full
-  // prominence (undim the low-visit "uncertain" hints).
-  const [altHeld, setAltHeld] = useState(false);
-  // First click of a two-click arrow/line placement (null = waiting for start).
-  const [pendingSegment, setPendingSegment] = useState<{ x: number; y: number } | null>(null);
+  // First click of a two-click arrow/line placement (null = waiting for
+  // start). Tagged with the tool so a half-drawn segment silently expires
+  // when the tool changes or edit mode closes.
+  const [pendingSegmentRaw, setPendingSegmentRaw] = useState<{ x: number; y: number; tool: EditTool } | null>(null);
   const isSegmentTool = editTool === 'markup-arrow' || editTool === 'markup-line';
+  const isDrawTool = editTool === 'draw-pen' || editTool === 'draw-highlight';
+  const isRegionTool = editTool === 'region-count' || editTool === 'region-score';
+  const pendingSegment = pendingSegmentRaw && isEditMode && pendingSegmentRaw.tool === editTool ? pendingSegmentRaw : null;
 
-  // Reset a half-drawn segment when leaving edit mode or switching tools.
-  useEffect(() => {
-    if (!isEditMode || !isSegmentTool) setPendingSegment(null);
-  }, [isEditMode, isSegmentTool]);
+  // Freehand stroke being drawn (pointer captured) and its live render copy.
+  const drawStrokeRef = useRef<{ pointerId: number; drawing: BoardDrawing } | null>(null);
+  const [liveStroke, setLiveStroke] = useState<BoardDrawing | null>(null);
+  // Rectangle drag for the region count / AI-score tools. The ref is the
+  // source of truth during the drag (pointer events can outrun renders);
+  // the state mirror only drives drawing.
+  const regionDragRef = useRef<{
+    pointerId: number;
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  } | null>(null);
+  const [regionDrag, setRegionDrag] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(null);
+  // Tagged with node + tool so the readout expires on navigation or tool change.
+  const [regionResultRaw, setRegionResultRaw] = useState<{ rect: RegionRect; text: string; nodeId: string; tool: EditTool } | null>(null);
+  const regionResult =
+    regionResultRaw && isEditMode && regionResultRaw.tool === editTool && regionResultRaw.nodeId === currentNode.id
+      ? regionResultRaw
+      : null;
+
+  // One-shot animation when landing on a notable move. Fully derived: the
+  // JSX below is keyed by node id, so the CSS animation replays once per
+  // visit and ends invisible — no state or timers needed.
+  const moveAnimationSpec =
+    currentNode.move && currentNode.move.x >= 0 && currentNode.move.y >= 0
+      ? getMoveAnimation(currentNode, settings.mistakeThreshold)
+      : null;
+  const moveAnimation =
+    moveAnimationSpec && currentNode.move
+      ? { nodeId: currentNode.id, x: currentNode.move.x, y: currentNode.move.y, spec: moveAnimationSpec }
+      : null;
+
+  // Auto-offered "find the punish" quiz when sitting on a blunder in analyze
+  // mode. The offer is derived from the position; state only records how the
+  // user responded ('armed' redirects the next board click into a graded
+  // guess, 'dismissed' hides the chip for this node).
+  const [punishQuizResponse, setPunishQuizResponse] = useState<{ nodeId: string; phase: 'armed' | 'result' | 'dismissed'; text: string } | null>(null);
+  const punishQuizResponseForNode = punishQuizResponse?.nodeId === currentNode.id ? punishQuizResponse : null;
+  const punishQuizOffer =
+    !punishQuizResponseForNode && uiMode === 'analyze' && !isEditMode && !scoringMode && !isAiPlaying
+      ? getPunishQuizPrompt(currentNode, settings.mistakeThreshold)
+      : null;
+  const punishQuiz: { phase: 'offer' | 'armed' | 'result'; text: string } | null =
+    punishQuizResponseForNode && punishQuizResponseForNode.phase !== 'dismissed'
+      ? { phase: punishQuizResponseForNode.phase, text: punishQuizResponseForNode.text }
+      : punishQuizOffer
+        ? { phase: 'offer', text: punishQuizPromptText(punishQuizOffer) }
+        : null;
+  const dismissPunishQuiz = () => setPunishQuizResponse({ nodeId: currentNode.id, phase: 'dismissed', text: '' });
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [pendingTap, setPendingTap] = useState<TapConfirmPoint | null>(null);
   const [isKeyboardCursorActive, setIsKeyboardCursorActive] = useState(false);
+  const boardPointerFocusRef = useRef(false);
 
   const evalThresholds: readonly number[] = settings.trainerEvalThresholds?.length ? settings.trainerEvalThresholds : KATRAN_EVAL_THRESHOLDS;
   const boardTheme = useMemo(() => getBoardTheme(settings.boardTheme), [settings.boardTheme]);
@@ -465,6 +531,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
 
   const boardWidth = cellSize * xGridSpaces;
   const boardHeight = cellSize * yGridSpaces;
+  const compactAnalysisHints = usesCompactAnalysisHints(cellSize);
   const originX = Math.floor(cellSize * gridSpacesMarginX.left + 0.5);
   const originY = Math.floor(cellSize * gridSpacesMarginY.top + 0.5);
   const coordOffset = (cellSize * 1.5) / 2;
@@ -560,11 +627,16 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       .filter((m): m is NonNullable<typeof m> => !!m && m.x >= 0 && m.y >= 0);
   }, [currentNode, hasAnalysisOverlay, settings.analysisShowChildren]);
 
+  const analysisHintMoves = useMemo(
+    () => selectAnalysisHintMoves(visibleAnalysis?.moves ?? [], compactAnalysisHints),
+    [compactAnalysisHints, visibleAnalysis]
+  );
+
   const bestHintMoveCoords = useMemo(() => {
     if (!hasAnalysisOverlay || !settings.analysisShowHints || settings.analysisShowPolicy) return null;
-    const best = visibleAnalysis?.moves.find((m) => m.order === 0 && m.x >= 0 && m.y >= 0);
+    const best = analysisHintMoves.find((m) => m.order === 0);
     return best ? { x: best.x, y: best.y } : null;
-  }, [hasAnalysisOverlay, settings.analysisShowHints, settings.analysisShowPolicy, visibleAnalysis]);
+  }, [analysisHintMoves, hasAnalysisOverlay, settings.analysisShowHints, settings.analysisShowPolicy]);
 
   const showOwnership = hasAnalysisOverlay && settings.analysisShowOwnership;
   const editSetupPlayer: 'black' | 'white' | null =
@@ -576,17 +648,21 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       ? currentNode.parent.analysis.territory
       : null;
   const territory = (scoringMode ? scoreTerritory : null) ?? analysisTerritory ?? parentTerritory ?? null;
-  const shouldShowHints = hasAnalysisOverlay && !!visibleAnalysis && settings.analysisShowHints && !settings.analysisShowPolicy;
+  // While a punish-quiz guess is armed, hide hints so the answer isn't on screen.
+  const punishQuizArmed = punishQuiz?.phase === 'armed';
+  const shouldShowHints =
+    hasAnalysisOverlay && !!visibleAnalysis && settings.analysisShowHints && !settings.analysisShowPolicy && !punishQuizArmed;
   const canHoverAnalysisMove = hasAnalysisOverlay && !!visibleAnalysis && (shouldShowHints || settings.analysisShowPolicy);
   const hoverMoveMap = useMemo(() => {
     if (!canHoverAnalysisMove || !visibleAnalysis) return null;
     const map = new Map<string, CandidateMove>();
-    for (const move of visibleAnalysis.moves) {
+    const moves = shouldShowHints ? analysisHintMoves : visibleAnalysis.moves;
+    for (const move of moves) {
       if (move.x < 0 || move.y < 0) continue;
       map.set(`${move.x},${move.y}`, move);
     }
     return map;
-  }, [canHoverAnalysisMove, visibleAnalysis]);
+  }, [analysisHintMoves, canHoverAnalysisMove, shouldShowHints, visibleAnalysis]);
 
   const [roiDrag, setRoiDrag] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(
     null
@@ -969,6 +1045,62 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     for (const value of props.LN ?? []) drawSegment(value, false);
     for (const label of props.LB ?? []) drawLabel(label);
 
+    // Freehand pen/highlighter strokes (committed + the one being drawn).
+    const drawFreehand = (drawing: BoardDrawing) => {
+      if (drawing.points.length < 2) return;
+      const trace = () => {
+        ctx.beginPath();
+        drawing.points.forEach((p, i) => {
+          const d = toDisplay(p.x, p.y);
+          const px = originX + d.x * cellSize;
+          const py = originY + d.y * cellSize;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
+      };
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (drawing.kind === 'highlight') {
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.38)';
+        ctx.lineWidth = Math.max(8, cellSize * 0.6);
+        trace();
+        ctx.stroke();
+      } else {
+        // Classic red teaching pen with a light halo so it reads on black stones.
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.lineWidth = Math.max(3.5, cellSize * 0.11);
+        trace();
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(220, 38, 38, 0.95)';
+        ctx.lineWidth = Math.max(2, cellSize * 0.07);
+        trace();
+        ctx.stroke();
+      }
+      ctx.restore();
+    };
+    for (const drawing of currentNode.drawings ?? []) drawFreehand(drawing);
+    if (liveStroke) drawFreehand(liveStroke);
+
+    // Region-inspection rectangle (while dragging and for the last readout).
+    const activeRegion = regionDrag ? normalizeRegionRect(regionDrag.start, regionDrag.end) : regionResult?.rect ?? null;
+    if (activeRegion && isRegionTool) {
+      const a = toDisplay(activeRegion.xMin, activeRegion.yMin);
+      const b = toDisplay(activeRegion.xMax, activeRegion.yMax);
+      const left = originX + Math.min(a.x, b.x) * cellSize - cellSize * 0.45;
+      const top = originY + Math.min(a.y, b.y) * cellSize - cellSize * 0.45;
+      const width = Math.abs(a.x - b.x) * cellSize + cellSize * 0.9;
+      const height = Math.abs(a.y - b.y) * cellSize + cellSize * 0.9;
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.10)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.95)';
+      ctx.lineWidth = Math.max(1.5, cellSize * 0.05);
+      ctx.fillRect(left, top, width, height);
+      ctx.strokeRect(left, top, width, height);
+      ctx.restore();
+    }
+
     // Pending start of a two-click arrow/line placement.
     if (pendingSegment && isSegmentTool) {
       const d = toDisplay(pendingSegment.x, pendingSegment.y);
@@ -994,6 +1126,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     treeVersion,
     pendingSegment,
     isSegmentTool,
+    liveStroke,
+    regionDrag,
+    regionResult,
+    isRegionTool,
   ]);
 
   useEffect(() => {
@@ -1279,6 +1415,18 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     return null;
   };
 
+  // Like eventToInternal but keeps fractional positions (freehand drawing);
+  // toInternal is a pure linear map so it works with floats.
+  const eventToInternalFloat = (
+    e: { clientX: number; clientY: number; currentTarget: HTMLDivElement }
+  ): { x: number; y: number } | null => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const displayX = (e.clientX - rect.left - originX) / cellSize;
+    const displayY = (e.clientY - rect.top - originY) / cellSize;
+    if (displayX < -0.5 || displayY < -0.5 || displayX > boardSize - 0.5 || displayY > boardSize - 0.5) return null;
+    return toInternal(displayX, displayY);
+  };
+
   const samePoint = (
     a: { x: number; y: number } | null,
     b: { x: number; y: number } | null
@@ -1334,15 +1482,21 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   }, [boardSize]);
 
   const handleBoardFocus = () => {
+    if (boardPointerFocusRef.current) {
+      setIsKeyboardCursorActive(false);
+      return;
+    }
     activateKeyboardCursor();
   };
 
   const handleBoardBlur = () => {
+    boardPointerFocusRef.current = false;
     setIsKeyboardCursorActive(false);
   };
 
   const handleBoardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
+    boardPointerFocusRef.current = false;
 
     const movement: Record<string, [number, number] | undefined> = {
       ArrowUp: [0, -1],
@@ -1361,6 +1515,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
 
     if (event.key === 'Escape') {
+      if (regionResult || punishQuiz) {
+        event.preventDefault();
+        event.stopPropagation();
+        setRegionResultRaw(null);
+        if (punishQuiz) dismissPunishQuiz();
+        return;
+      }
       if (!isKeyboardCursorActive && !cursorPt) return;
       event.preventDefault();
       event.stopPropagation();
@@ -1513,9 +1674,21 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
 
     if (isEditMode) {
-      // Segment tools are handled on pointer-down (two-click); nothing to do here.
-      if (isSegmentTool) return;
+      // Segment, freehand, and region tools are handled on pointer events.
+      if (isSegmentTool || isDrawTool || isRegionTool) return;
       applyEditTool(pt.x, pt.y);
+      return;
+    }
+
+    // An armed punish quiz consumes the click as the user's answer.
+    if (punishQuiz?.phase === 'armed') {
+      if (board[pt.y]?.[pt.x]) return; // occupied points are not a legal guess
+      const verdict = gradePunishGuess(currentNode, pt);
+      if (verdict) {
+        setPunishQuizResponse({ nodeId: currentNode.id, phase: 'result', text: punishQuizVerdictText(verdict) });
+      } else {
+        dismissPunishQuiz();
+      }
       return;
     }
 
@@ -1534,8 +1707,44 @@ export const GoBoard: React.FC<GoBoardProps> = ({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    boardPointerFocusRef.current = true;
+    setIsKeyboardCursorActive(false);
 
     if (isEditMode && !scoringMode && !isSelectingRegionOfInterest) {
+      // Freehand pen/highlighter: capture the pointer and record the stroke.
+      if (isDrawTool) {
+        const start = eventToInternalFloat(e);
+        if (!start) return;
+        e.preventDefault();
+        e.stopPropagation();
+        suppressNextClickRef.current = true;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // Ignore browsers that do not keep capture for this pointer.
+        }
+        const drawing: BoardDrawing = { kind: editTool === 'draw-pen' ? 'pen' : 'highlight', points: [start] };
+        drawStrokeRef.current = { pointerId: e.pointerId, drawing };
+        setLiveStroke({ kind: drawing.kind, points: [...drawing.points] });
+        return;
+      }
+      // Region inspection tools: drag a rectangle, result computed on release.
+      if (isRegionTool) {
+        const start = eventToInternal(e);
+        if (!start) return;
+        e.preventDefault();
+        e.stopPropagation();
+        suppressNextClickRef.current = true;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // Ignore.
+        }
+        regionDragRef.current = { pointerId: e.pointerId, start, end: start };
+        setRegionResultRaw(null);
+        setRegionDrag({ start, end: start });
+        return;
+      }
       const pt = eventToInternal(e);
       if (!pt) return;
       // Arrow/line tools are two-click: first press sets the start, second commits.
@@ -1544,12 +1753,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         e.stopPropagation();
         suppressNextClickRef.current = true;
         if (!pendingSegment) {
-          setPendingSegment(pt);
+          setPendingSegmentRaw({ ...pt, tool: editTool });
         } else {
           if (pendingSegment.x !== pt.x || pendingSegment.y !== pt.y) {
             addSegmentMarkup(editTool === 'markup-arrow' ? 'AR' : 'LN', pendingSegment.x, pendingSegment.y, pt.x, pt.y);
           }
-          setPendingSegment(null);
+          setPendingSegmentRaw(null);
         }
         return;
       }
@@ -1590,6 +1799,24 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     }
     setCursorPt((prev) => (samePoint(prev, pt) ? prev : pt));
+    const activeStroke = drawStrokeRef.current;
+    if (activeStroke?.pointerId === e.pointerId) {
+      const floatPt = eventToInternalFloat(e);
+      if (floatPt && appendStrokePoint(activeStroke.drawing.points, floatPt)) {
+        setLiveStroke({ kind: activeStroke.drawing.kind, points: [...activeStroke.drawing.points] });
+      }
+      if (hoveredMove) onHoverMove(null);
+      return;
+    }
+    const activeRegionDrag = regionDragRef.current;
+    if (activeRegionDrag?.pointerId === e.pointerId) {
+      if (pt && !samePoint(activeRegionDrag.end, pt)) {
+        activeRegionDrag.end = pt;
+        setRegionDrag({ start: activeRegionDrag.start, end: pt });
+      }
+      if (hoveredMove) onHoverMove(null);
+      return;
+    }
     if (scoringMode) {
       if (hoveredMove) onHoverMove(null);
       return;
@@ -1616,7 +1843,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             shouldShowHints && move.visits < lowVisitsThreshold && !isBest && !childMoveCoords.has(`${move.x},${move.y}`);
           const policyPrior = visibleAnalysis?.policy?.[move.y * boardSize + move.x] ?? move.prior ?? 0;
           const policyScale = policyPrior > 0.01 * 0.01 ? 0.95 : 0.5;
-          const scale = shouldShowHints ? (uncertain ? UNCERTAIN_HINT_SCALE : HINT_SCALE) : HINT_SCALE * policyScale;
+          const scale = shouldShowHints
+            ? (isBest ? HINT_SCALE : uncertain ? UNCERTAIN_HINT_SCALE : ALTERNATIVE_HINT_SCALE)
+            : HINT_SCALE * policyScale;
           const radius = cellSize * STONE_SIZE * scale;
           const d = toDisplay(move.x, move.y);
           const cx = originX + d.x * cellSize;
@@ -1647,6 +1876,49 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (drawStrokeRef.current?.pointerId === e.pointerId) {
+      const { drawing } = drawStrokeRef.current;
+      drawStrokeRef.current = null;
+      suppressNextClickRef.current = true;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignore.
+      }
+      setLiveStroke(null);
+      if (drawing.points.length >= 2) {
+        addNodeDrawing({ kind: drawing.kind, points: [...drawing.points] });
+      }
+      return;
+    }
+
+    if (regionDragRef.current?.pointerId === e.pointerId) {
+      const drag = regionDragRef.current;
+      regionDragRef.current = null;
+      suppressNextClickRef.current = true;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignore.
+      }
+      const end = eventToInternal(e) ?? drag.end;
+      const rect = normalizeRegionRect(drag.start, end);
+      setRegionDrag(null);
+      // Ownership for the AI readout ignores the overlay toggle: use the
+      // current node's analysis, falling back to the parent's.
+      const inspectTerritory =
+        (visibleAnalysis && (visibleAnalysis.ownershipMode ?? 'root') !== 'none' ? visibleAnalysis.territory : null) ??
+        (currentNode.parent?.analysis && (currentNode.parent.analysis.ownershipMode ?? 'root') !== 'none'
+          ? currentNode.parent.analysis.territory
+          : null);
+      const text =
+        editTool === 'region-count'
+          ? formatRegionStoneCount(countRegionStones(board, rect))
+          : formatRegionOwnership(sumRegionOwnership(inspectTerritory, rect));
+      setRegionResultRaw({ rect, text, nodeId: currentNode.id, tool: editTool });
+      return;
+    }
+
     if (editDragRef.current?.pointerId === e.pointerId) {
       editDragRef.current = null;
       suppressNextClickRef.current = true;
@@ -1678,6 +1950,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
     if (editDragRef.current?.pointerId === e.pointerId) {
       editDragRef.current = null;
+    }
+    if (drawStrokeRef.current?.pointerId === e.pointerId) {
+      drawStrokeRef.current = null;
+      setLiveStroke(null);
+    }
+    if (regionDragRef.current?.pointerId === e.pointerId) {
+      regionDragRef.current = null;
+      setRegionDrag(null);
     }
     if (roiDrag) setRoiDrag(null);
   };
@@ -1965,14 +2245,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     if (!ctx) return;
     if (!shouldShowHints || !visibleAnalysis) return;
 
-    const moves = visibleAnalysis.moves.filter((m) => m.x >= 0 && m.y >= 0);
+    const moves = analysisHintMoves;
     if (moves.length === 0) return;
 
     const topMoveImg = topMoveImageRef.current;
     const lowVisitsThreshold = Math.max(1, settings.trainerLowVisits);
     const primary = settings.trainerTopMovesShow;
     const secondary = settings.trainerTopMovesShowSecondary;
-    const show = [primary, secondary].filter((opt) => opt !== 'top_move_nothing');
+    const availableMetrics = [primary, secondary].filter((opt) => opt !== 'top_move_nothing');
+    const show = compactAnalysisHints ? availableMetrics.slice(0, 1) : availableMetrics;
     const showText = show.length > 0;
     const sign = currentPlayer === 'black' ? 1 : -1;
     const stoneRadius = cellSize * STONE_SIZE;
@@ -2011,7 +2292,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       // Alt held → treat every candidate as certain so low-visit hints render fully.
       const uncertain =
         !altHeld && move.visits < lowVisitsThreshold && !isBest && !childMoveCoords.has(`${move.x},${move.y}`);
-      const scale = uncertain ? UNCERTAIN_HINT_SCALE : HINT_SCALE;
+      const scale = isBest ? HINT_SCALE : uncertain ? UNCERTAIN_HINT_SCALE : ALTERNATIVE_HINT_SCALE;
       const textOn = !uncertain && showText;
       const alpha = uncertain ? HINTS_LO_ALPHA : HINTS_ALPHA;
       if (scale <= 0) continue;
@@ -2056,24 +2337,35 @@ export const GoBoard: React.FC<GoBoardProps> = ({
 
       if (textOn) {
         ctx.fillStyle = HINT_TEXT_COLOR;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'round';
         if (show.length === 1) {
           ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
-          ctx.fillText(getLabel(move, show[0] as typeof primary), cx, cy);
+          const label = getLabel(move, show[0] as typeof primary);
+          ctx.strokeText(label, cx, cy);
+          ctx.fillText(label, cx, cy);
         } else {
           ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
-          ctx.fillText(getLabel(move, show[0] as typeof primary), cx, cy - baseFontSize * 0.35);
+          const primaryLabel = getLabel(move, show[0] as typeof primary);
+          ctx.strokeText(primaryLabel, cx, cy - baseFontSize * 0.35);
+          ctx.fillText(primaryLabel, cx, cy - baseFontSize * 0.35);
           ctx.font = `700 ${subFontSize}px ${fontFamily}`;
           ctx.globalAlpha = 0.9;
-          ctx.fillText(getLabel(move, show[1] as typeof primary), cx, cy + subFontSize * 0.55);
+          const secondaryLabel = getLabel(move, show[1] as typeof primary);
+          ctx.strokeText(secondaryLabel, cx, cy + subFontSize * 0.55);
+          ctx.fillText(secondaryLabel, cx, cy + subFontSize * 0.55);
           ctx.globalAlpha = 1;
         }
       }
     }
   }, [
     altHeld,
+    analysisHintMoves,
     approxBoardColor,
     cellSize,
     childMoveCoords,
+    compactAnalysisHints,
     currentPlayer,
     evalColors,
     evalThresholds,
@@ -2186,6 +2478,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     };
   }, [cellSize, originX, originY, regionOfInterest, roiDrag, toDisplay]);
 
+  // Anchor for the region-inspection readout chip: centered above the
+  // rectangle, clamped so it never leaves the board area.
+  const regionChip = useMemo(() => {
+    if (!regionResult) return null;
+    const a = toDisplay(regionResult.rect.xMin, regionResult.rect.yMin);
+    const b = toDisplay(regionResult.rect.xMax, regionResult.rect.yMax);
+    const centerX = originX + ((Math.min(a.x, b.x) + Math.max(a.x, b.x)) / 2) * cellSize;
+    const top = Math.max(cellSize * 0.9, originY + Math.min(a.y, b.y) * cellSize - cellSize * 0.55);
+    return { left: centerX, top, text: regionResult.text };
+  }, [cellSize, originX, originY, regionResult, toDisplay]);
+
   const passCircle = useMemo(() => {
     const m = lastMove;
     if (!m || m.x >= 0 || m.y >= 0) return null;
@@ -2224,13 +2527,18 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const boardQaProps = currentNode.properties ?? {};
 
   return (
-    <div ref={containerRef} className="w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center">
+    <div
+      ref={containerRef}
+      className="go-board-container w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center portrait:items-start lg:portrait:items-center"
+      data-board-container="true"
+    >
       <div
         className={[
-          'relative shadow-lg rounded-sm select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]',
+          'relative shadow-lg rounded-sm select-none',
           isEditMode || scoringMode ? 'cursor-crosshair' : 'cursor-pointer',
         ].join(' ')}
         data-board-snapshot="true"
+        data-board-input-mode={isKeyboardCursorActive ? 'keyboard' : 'pointer'}
         data-board-theme={settings.boardTheme}
         data-board-size={boardSize}
         data-board-cell-size={cellSize}
@@ -2245,6 +2553,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         data-board-circles={(boardQaProps.CR ?? []).join(',')}
         data-board-crosses={(boardQaProps.MA ?? []).join(',')}
         data-board-labels={(boardQaProps.LB ?? []).join(',')}
+        data-analysis-hint-mode={compactAnalysisHints ? 'compact' : 'full'}
+        data-analysis-hint-count={shouldShowHints ? analysisHintMoves.length : 0}
         ref={boardSnapshotRef}
         style={{
           width: boardWidth,
@@ -2254,6 +2564,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           backgroundSize: boardTexture ? '100% 100%' : undefined,
           backgroundRepeat: boardTexture ? 'no-repeat' : undefined,
           overflow: 'hidden',
+          outline: isKeyboardCursorActive ? '2px solid var(--ui-accent)' : 'none',
+          outlineOffset: isKeyboardCursorActive ? 2 : undefined,
           touchAction: boardTouchAction,
         }}
         onClick={handleClick}
@@ -2289,6 +2601,73 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             }}
           />
         )}
+
+        {/* Region-inspection readout (stone count / AI score) */}
+        {regionChip && (
+          <div
+            className="absolute z-30 pointer-events-none"
+            style={{ left: regionChip.left, top: regionChip.top, transform: 'translate(-50%, -100%)' }}
+            role="status"
+            data-region-readout
+          >
+            <div className="ui-panel border rounded-md px-2 py-1 text-xs font-semibold shadow-lg whitespace-nowrap">
+              {regionChip.text}
+            </div>
+          </div>
+        )}
+
+        {/* Auto-offered "find the punish" quiz chip */}
+        {punishQuiz && !isEditMode && !scoringMode && (
+          <div
+            className="absolute left-1/2 bottom-3 -translate-x-1/2 z-40 max-w-[calc(100%-1rem)]"
+            data-punish-quiz={punishQuiz.phase}
+          >
+            <div className="ui-panel border rounded-lg shadow-xl pl-3 pr-1 py-1.5 text-xs font-semibold flex items-center gap-2">
+              <span className="min-w-0 truncate">{punishQuiz.text}</span>
+              {punishQuiz.phase === 'offer' && (
+                <button
+                  type="button"
+                  className="shrink-0 min-h-8 px-2.5 rounded-md border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] font-semibold hover:brightness-110"
+                  onClick={() =>
+                    setPunishQuizResponse({ nodeId: currentNode.id, phase: 'armed', text: 'Click the move you would play (hints hidden).' })
+                  }
+                >
+                  Try it
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Dismiss quiz"
+                className="shrink-0 h-8 w-8 rounded-md inline-flex items-center justify-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface)]"
+                onClick={dismissPunishQuiz}
+              >
+                <FaTimes size={11} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* One-shot notable-move animation (score-loss pill / set-up sparkle) */}
+        {moveAnimation && (() => {
+          const d = toDisplay(moveAnimation.x, moveAnimation.y);
+          const cx = originX + d.x * cellSize;
+          const cy = originY + d.y * cellSize;
+          return (
+            <div key={moveAnimation.nodeId} className="move-anim" style={{ left: cx, top: cy - cellSize * 0.7 }} data-move-anim={moveAnimation.spec.kind}>
+              {moveAnimation.spec.kind === 'score-loss' ? (
+                <div className={`move-anim-pill${moveAnimation.spec.severe ? ' move-anim-pill--severe' : ''}`}>
+                  {moveAnimation.spec.label}
+                </div>
+              ) : (
+                <div className="move-anim-sparkle" style={{ fontSize: Math.max(12, cellSize * 0.5) }}>
+                  <span style={{ left: -cellSize * 0.75, top: -cellSize * 0.15 }}>✦</span>
+                  <span style={{ left: cellSize * 0.35, top: -cellSize * 0.35 }}>✦</span>
+                  <span style={{ left: -cellSize * 0.15, top: cellSize * 0.25 }}>✦</span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Coordinates */}
         {settings.showCoordinates && (

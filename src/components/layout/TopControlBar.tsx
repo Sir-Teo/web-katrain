@@ -19,7 +19,7 @@ import {
   FaCog,
   FaSave,
   FaKeyboard,
-  FaEllipsisV,
+  FaTools,
   FaCamera,
   FaTrash,
   FaInfoCircle,
@@ -119,7 +119,7 @@ interface TopControlBarProps {
   setIsGameAnalysisOpen: (v: boolean) => void;
   setIsGameReportOpen: (v: boolean) => void;
   // Menu callbacks
-  onOpenMenu: () => void;
+  onOpenMenu: (inputMode: 'pointer' | 'keyboard') => void;
   onQuickNewGame: () => void;
   onNewGame: () => void;
   onSaveSgf: () => void;
@@ -215,13 +215,16 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const activeBoardTheme = getBoardTheme(activeBoardThemeOption.value);
   const mobileHeaderToggleClass = [
     topIconClass,
-    'relative flex items-center justify-center rounded-lg transition-colors touch-manipulation',
-    'border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)]',
+    'relative flex items-center justify-center rounded-md transition-colors touch-manipulation',
+    'border border-transparent bg-transparent text-[var(--ui-text-muted)]',
     'hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
   ].join(' ');
   const viewMenuButtonRef = React.useRef<HTMLButtonElement>(null);
   const actionsMenuButtonRef = React.useRef<HTMLButtonElement>(null);
+  const mobileToolsPanelRef = React.useRef<HTMLDivElement>(null);
   const mobileToolsCloseRef = React.useRef<HTMLButtonElement>(null);
+  const mobileToolsInputModeRef = React.useRef<'pointer' | 'keyboard'>('keyboard');
+  const [mobileToolsInputMode, setMobileToolsInputMode] = React.useState<'pointer' | 'keyboard'>('keyboard');
   const viewPopoverId = React.useId();
   const viewPopoverTitleId = React.useId();
   const mobileToolsTitleId = React.useId();
@@ -232,12 +235,21 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     return isFullscreenActive();
   });
 
-  const closeViewMenuWithFocus = React.useCallback((restoreFocus = false) => {
+  const updateMobileToolsInputMode = React.useCallback((mode: 'pointer' | 'keyboard') => {
+    mobileToolsInputModeRef.current = mode;
+    setMobileToolsInputMode(mode);
+  }, []);
+
+  const closeViewMenuWithFocus = React.useCallback((
+    restoreFocus = false,
+    inputMode?: 'pointer' | 'keyboard',
+  ) => {
+    if (inputMode) updateMobileToolsInputMode(inputMode);
     setViewMenuOpen(false);
     if (restoreFocus && typeof window !== 'undefined') {
       window.setTimeout(() => viewMenuButtonRef.current?.focus({ preventScroll: true }), 0);
     }
-  }, [setViewMenuOpen]);
+  }, [setViewMenuOpen, updateMobileToolsInputMode]);
 
   const closeAnalysisMenuWithFocus = React.useCallback((restoreFocus = false) => {
     setAnalysisMenuOpen(false);
@@ -254,25 +266,84 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
   React.useEffect(() => {
     if (!viewMenuOpen && !analysisMenuOpen) return;
+    const focusableSelector = [
+      'a[href]:not([tabindex="-1"])',
+      'button:not([disabled]):not([tabindex="-1"])',
+      'input:not([disabled]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    let focusCloseButton = 0;
     if (isMobile && viewMenuOpen) {
-      mobileToolsCloseRef.current?.focus({ preventScroll: true });
+      focusCloseButton = window.requestAnimationFrame(() => {
+        mobileToolsCloseRef.current?.focus({ preventScroll: true });
+      });
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (analysisMenuOpen) closeAnalysisMenuWithFocus(true);
-      if (viewMenuOpen) closeViewMenuWithFocus(true);
+    const handlePointerDown = () => {
+      if (isMobile && viewMenuOpen) updateMobileToolsInputMode('pointer');
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isMobile && viewMenuOpen) updateMobileToolsInputMode('keyboard');
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (analysisMenuOpen) closeAnalysisMenuWithFocus(true);
+        if (viewMenuOpen) closeViewMenuWithFocus(true, 'keyboard');
+        return;
+      }
+      if (event.key !== 'Tab' || event.defaultPrevented || !isMobile || !viewMenuOpen) return;
+
+      const panel = mobileToolsPanelRef.current;
+      if (!panel) return;
+      const focusableElements = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((element) => element.getClientRects().length > 0);
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === first || !panel.contains(activeElement))) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (activeElement === last || !panel.contains(activeElement))) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      if (focusCloseButton) window.cancelAnimationFrame(focusCloseButton);
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
   }, [
     analysisMenuOpen,
     closeAnalysisMenuWithFocus,
     closeViewMenuWithFocus,
     isMobile,
+    updateMobileToolsInputMode,
     viewMenuOpen,
   ]);
+
+  React.useEffect(() => {
+    if (!isMobile || viewMenuOpen || mobileToolsInputModeRef.current !== 'pointer') return;
+    const trigger = viewMenuButtonRef.current;
+    if (!trigger) return;
+    const clearPointerFocus = () => updateMobileToolsInputMode('keyboard');
+    trigger.addEventListener('blur', clearPointerFocus);
+    document.addEventListener('keydown', clearPointerFocus, true);
+    document.addEventListener('pointerdown', clearPointerFocus, true);
+    return () => {
+      trigger.removeEventListener('blur', clearPointerFocus);
+      document.removeEventListener('keydown', clearPointerFocus, true);
+      document.removeEventListener('pointerdown', clearPointerFocus, true);
+    };
+  }, [isMobile, mobileToolsInputMode, updateMobileToolsInputMode, viewMenuOpen]);
 
   const toggleFullscreen = () => {
     if (typeof document === 'undefined') return;
@@ -446,12 +517,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     </div>
   );
 
-  const mobileToolsGridBtn = "flex flex-col items-center justify-center p-3 gap-1.5 hover:bg-[var(--ui-surface-2)] text-center transition-colors";
+  const mobileToolsGridBtn = "mobile-tools-action flex min-h-12 items-center gap-3 px-4 py-2 hover:bg-[var(--ui-surface-2)] text-left transition-colors";
   const mobileToolsMenu = (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
-        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
+    <div className="flex flex-col pb-6">
+      <div className="border-t border-[var(--ui-border)]">
+        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
+        <div className="flex flex-col divide-y divide-[var(--ui-border)]">
           <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Extra analysis</span>
@@ -486,9 +557,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         </div>
       </div>
 
-      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
-        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Control</div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
+      <div className="border-t border-[var(--ui-border)]">
+        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Control</div>
+        <div className="flex flex-col divide-y divide-[var(--ui-border)]">
           <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeViewMenu(); }}>
             <FaRobot size={18} className={isAnalysisMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Cont. analysis</span>
@@ -525,9 +596,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         </div>
       </div>
 
-      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
-        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-[var(--ui-border)] [&>button:nth-child(-n+2)]:border-t-0">
+      <div className="border-t border-[var(--ui-border)]">
+        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
+        <div className="flex flex-col divide-y divide-[var(--ui-border)]">
           <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis(); else startQuickGameAnalysis(); closeViewMenu(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop' : 'Quick graph'}</span>
@@ -549,9 +620,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         </div>
       </div>
 
-      <div className="bg-[var(--ui-surface)] border border-[var(--ui-border)] rounded-xl overflow-hidden shadow-sm">
-        <div className="px-3 py-2 bg-[var(--ui-surface-2)] border-b border-[var(--ui-border)] text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">View Options</div>
-        <div className="flex flex-col">
+      <div className="border-t border-[var(--ui-border)]">
+        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">View Options</div>
+        <div className="mobile-tools-view-options flex flex-col">
           {desktopViewMenu}
         </div>
       </div>
@@ -562,7 +633,11 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     <div className="ui-bar ui-bar-height ui-bar-pad border-b flex flex-nowrap items-center gap-1 sm:gap-2 select-none overflow-visible min-w-0 w-full max-w-full">
       {/* Mobile menu */}
       <div className="lg:hidden shrink-0">
-        <IconButton title="Menu" onClick={onOpenMenu} className={topIconClass}>
+        <IconButton
+          title="Menu"
+          onClick={(event) => onOpenMenu(event.detail === 0 ? 'keyboard' : 'pointer')}
+          className={topIconClass}
+        >
           <FaBars />
         </IconButton>
       </div>
@@ -659,8 +734,8 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             className={[
               'min-h-11 px-2 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors',
               isAnalysisMode
-                ? 'bg-[var(--ui-accent-soft)] border border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm shadow-black/20'
-                : 'bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
+                ? 'border border-transparent text-[var(--ui-accent)] shadow-[inset_0_-2px_0_var(--ui-accent)]'
+                : 'border border-transparent text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
             ].join(' ')}
             title={withShortcut('Toggle analysis mode', 'toggle-analysis')}
             onClick={toggleAnalysisMode}
@@ -699,12 +774,21 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               <FaPalette aria-hidden="true" />
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full border shadow-sm"
+                className="pointer-events-none absolute bottom-1 right-0.5 h-3 w-4 overflow-hidden rounded-[2px] border shadow-sm"
                 style={{
                   backgroundColor: activeBoardTheme.board.backgroundColor,
                   borderColor: activeBoardTheme.board.foregroundColor ?? 'var(--ui-border-strong)',
                 }}
-              />
+              >
+                <span
+                  className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 opacity-70"
+                  style={{ backgroundColor: activeBoardTheme.board.foregroundColor ?? 'var(--ui-border-strong)' }}
+                />
+                <span
+                  className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 opacity-70"
+                  style={{ backgroundColor: activeBoardTheme.board.foregroundColor ?? 'var(--ui-border-strong)' }}
+                />
+              </span>
             </button>
           </>
         )}
@@ -734,21 +818,31 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             onLocaleChange={(appLocale) => updateSettings({ appLocale })}
           />
         )}
-        <div className="relative" data-menu-popover>
+        <div
+          className="relative"
+          data-menu-popover
+          data-mobile-tools-focus-origin={isMobile ? mobileToolsInputMode : undefined}
+        >
           {isMobile ? (
             <IconButton
               title="Tools"
               buttonRef={viewMenuButtonRef}
-              onClick={() => {
+              onPointerDown={() => updateMobileToolsInputMode('pointer')}
+              onClick={(event) => {
+                updateMobileToolsInputMode(event.detail === 0 ? 'keyboard' : 'pointer');
                 setViewMenuOpen(!viewMenuOpen);
                 setAnalysisMenuOpen(false);
               }}
               ariaControls={viewPopoverId}
               ariaExpanded={viewMenuOpen}
               ariaHasPopup="dialog"
-              className={[topIconClass, 'bg-[var(--ui-surface)] border border-[var(--ui-border)]'].join(' ')}
+              className={[
+                topIconClass,
+                'rounded-md bg-transparent border border-transparent',
+                mobileToolsInputMode === 'pointer' ? 'mobile-tools-pointer-focus' : '',
+              ].join(' ')}
             >
-              <FaEllipsisV size={16} />
+              <FaTools size={16} aria-hidden="true" />
             </IconButton>
           ) : (
             <button
@@ -776,20 +870,35 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                 aria-modal="true"
                 aria-labelledby={mobileToolsTitleId}
                 data-mobile-tools-dialog="true"
+                data-mobile-tools-focus-origin={mobileToolsInputMode}
               >
-                <button type="button"
+                <div
                   className="absolute inset-0 bg-black/70"
-                  onClick={() => closeViewMenuWithFocus(true)}
-                  aria-label="Close tools"
+                  onClick={() => closeViewMenuWithFocus(true, 'pointer')}
+                  aria-hidden="true"
+                  data-mobile-tools-backdrop="true"
                 />
-                <div className="absolute inset-0 ui-panel overflow-y-auto overscroll-contain mobile-safe-inset mobile-safe-area-bottom">
-                  <div className="ui-bar ui-bar-height ui-bar-pad border-b flex items-center justify-between">
+                <div
+                  ref={mobileToolsPanelRef}
+                  className="absolute inset-0 ui-panel overflow-y-auto overscroll-contain mobile-safe-inset mobile-safe-area-bottom"
+                  data-mobile-tools-panel="true"
+                >
+                  <div
+                    className="sticky top-0 z-10 ui-bar ui-bar-height ui-bar-pad border-b flex items-center justify-between bg-[var(--ui-bar)]/95 backdrop-blur-md"
+                    data-mobile-tools-header="true"
+                  >
                     <div id={mobileToolsTitleId} className="text-sm font-semibold">Tools</div>
                     <button
                       ref={mobileToolsCloseRef}
                       type="button"
-                      className="ui-control flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
-                      onClick={() => closeViewMenuWithFocus(true)}
+                      className={[
+                        'ui-control flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]',
+                        mobileToolsInputMode === 'pointer' ? 'mobile-tools-pointer-focus' : '',
+                      ].join(' ')}
+                      onClick={(event) => closeViewMenuWithFocus(
+                        true,
+                        event.detail === 0 ? 'keyboard' : 'pointer',
+                      )}
                       aria-label="Close tools"
                       title="Close tools"
                     >

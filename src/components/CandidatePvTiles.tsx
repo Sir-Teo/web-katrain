@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { CandidateMove } from '../types';
@@ -26,6 +26,8 @@ function moveLabel(move: CandidateMove, boardSize: number): string {
  * ghost sequence without navigating. Tap again (or another tile) to swap/clear.
  */
 export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, onPin }) => {
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [scrollEdges, setScrollEdges] = useState({ overflow: false, atStart: true, atEnd: true });
   const { moves, boardSize, nodeId, trainerTheme } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
@@ -53,10 +55,50 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId]);
 
+  const updateScrollEdges = useCallback(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const maxScrollLeft = Math.max(0, strip.scrollWidth - strip.clientWidth);
+    const next = {
+      overflow: maxScrollLeft > 2,
+      atStart: strip.scrollLeft <= 2,
+      atEnd: strip.scrollLeft >= maxScrollLeft - 2,
+    };
+    setScrollEdges((current) =>
+      current.overflow === next.overflow && current.atStart === next.atStart && current.atEnd === next.atEnd
+        ? current
+        : next
+    );
+  }, []);
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    updateScrollEdges();
+    strip.addEventListener('scroll', updateScrollEdges, { passive: true });
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateScrollEdges);
+    resizeObserver?.observe(strip);
+    window.addEventListener('resize', updateScrollEdges);
+    return () => {
+      strip.removeEventListener('scroll', updateScrollEdges);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateScrollEdges);
+    };
+  }, [tiles, updateScrollEdges]);
+
   if (tiles.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto px-1 py-1" aria-label="Preview continuations">
+    <div
+      ref={stripRef}
+      className={[
+        'candidate-pv-strip flex items-center gap-1.5 overflow-x-auto px-1 py-1',
+        scrollEdges.overflow ? 'is-scrollable' : '',
+        scrollEdges.overflow && !scrollEdges.atStart ? 'has-overflow-left' : '',
+        scrollEdges.overflow && !scrollEdges.atEnd ? 'has-overflow-right' : '',
+      ].join(' ')}
+      aria-label="Preview continuations"
+    >
       {tiles.map((move) => {
         const key = moveKey(move);
         const active = pinnedKey === key;
@@ -70,7 +112,7 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
             onClick={() => onPin(active ? null : move)}
             aria-pressed={active}
             className={[
-              'flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-mono transition-colors',
+              'candidate-pv-tile flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-mono transition-colors touch-manipulation',
               active
                 ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
                 : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]',
@@ -86,8 +128,9 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
         <button
           type="button"
           onClick={() => onPin(null)}
-          className="shrink-0 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-xs text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]"
+          className="candidate-pv-tile shrink-0 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-xs text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] touch-manipulation"
           title="Clear preview"
+          aria-label="Clear continuation preview"
         >
           Clear
         </button>

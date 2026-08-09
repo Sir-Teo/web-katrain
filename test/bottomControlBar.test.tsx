@@ -74,6 +74,44 @@ describe('BottomControlBar', () => {
     expect(html).toContain('+1');
   });
 
+  it('prioritizes the move jump target when the mobile control bar gets narrow', () => {
+    const html = renderToStaticMarkup(<BottomControlBar {...baseProps} isMobile={true} />);
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain('mobile-bottom-controls');
+    expect(html).toContain('data-mobile-turn-chip="true"');
+    expect(html).toContain('mobile-bottom-move-button');
+    expect(html).toContain('aria-label="Move 1 of 12. Tap to jump to a move."');
+    expect(css).toMatch(/@media \(max-width: 430px\)[\s\S]*\.mobile-bottom-board-size[\s\S]*display: none/);
+    expect(css).toContain(".mobile-bottom-meta [data-bottom-branch-chip='true']");
+    expect(css).not.toContain(".mobile-bottom-meta:has([data-mobile-save-status='true']) .mobile-bottom-turn-chip");
+    expect(css).toMatch(/@media \(max-width: 380px\)[\s\S]*\.mobile-bottom-meta \[data-mobile-save-status='true'\][\s\S]*display: none/);
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.mobile-bottom-dock \.mobile-bottom-current-player,[\s\S]*display: none/);
+    expect(css).toContain(".mobile-bottom-dock .mobile-bottom-meta [data-bottom-branch-chip='true']");
+  });
+
+  it('keeps the compact turn stone large and outlined enough to read on dark bars', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\.mobile-bottom-stone \{[^}]*width: 13px;[^}]*height: 13px;[^}]*border: 1px solid transparent;/);
+    expect(css).toMatch(/\.mobile-bottom-stone-black \{[^}]*border-color: color-mix\(in srgb, var\(--ui-text-muted\) 72%, transparent\);/);
+  });
+
+  it('keeps keyboard focus and a full-size close target inside the mobile More Controls sheet', () => {
+    const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(componentSource).toContain('const moreSheetRef = useRef<HTMLDivElement>(null)');
+    expect(componentSource).toContain("if (event.key !== 'Tab' || event.defaultPrevented) return");
+    expect(componentSource).toContain("document.addEventListener('keydown', onKeyDown, true)");
+    expect(componentSource).toContain('last.focus({ preventScroll: true })');
+    expect(componentSource).toContain('first.focus({ preventScroll: true })');
+    expect(componentSource).toMatch(/data-bottom-more-close="true"[\s\S]{0,220}min-h-11 min-w-11/);
+    expect(componentSource).toContain("closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer')");
+    expect(componentSource).toContain("data-bottom-more-focus-origin={suppressMoreTriggerFocusRing ? 'pointer' : 'keyboard'}");
+    expect(css).toMatch(/\.mobile-more-trigger-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
+  });
+
   it('uses compact recovery save status on mobile', () => {
     const html = renderToStaticMarkup(
       <BottomControlBar

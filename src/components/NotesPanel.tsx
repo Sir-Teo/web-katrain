@@ -581,7 +581,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               <div className="flex items-center rounded border border-[var(--ui-border)] bg-[var(--ui-surface)]" role="group" aria-label="Note text size">
                 <button
                   type="button"
-                  className="grid h-6 w-6 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
+                  className="grid h-7 w-7 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
                   onClick={() => adjustNoteFontScale(-NOTE_FONT_SCALE_STEP)}
                   disabled={fontScale <= NOTE_FONT_SCALE_MIN + 0.001}
                   title="Smaller note text"
@@ -591,7 +591,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                 </button>
                 <button
                   type="button"
-                  className="grid h-6 w-6 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
+                  className="grid h-7 w-7 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
                   onClick={() => adjustNoteFontScale(NOTE_FONT_SCALE_STEP)}
                   disabled={fontScale >= NOTE_FONT_SCALE_MAX - 0.001}
                   title="Larger note text"
@@ -671,12 +671,21 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               data-note-preview="true"
               style={{ fontSize: `${fontScale * 0.875}rem` }}
               onClick={startNoteEdit}
+              role={noteHasContent ? undefined : 'button'}
+              tabIndex={noteHasContent ? undefined : 0}
+              aria-label={noteHasContent ? undefined : noteActionTitle}
+              onKeyDown={noteHasContent ? undefined : (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                startNoteEdit();
+              }}
             >
               {noteHasContent ? (
                 <NotePreview note={currentNote} />
               ) : (
-                <div className="flex h-full min-h-[4.5rem] items-center justify-center text-xs ui-text-faint">
-                  No note yet
+                <div className="flex h-full min-h-[4.5rem] flex-col items-center justify-center text-xs ui-text-faint">
+                  <span className="font-semibold text-[var(--ui-text-muted)]">Add a note</span>
+                  <span>{noteShortcutLabel === 'Disabled' ? 'Select this area to start writing' : `Select this area or press ${noteShortcutLabel}`}</span>
                 </div>
               )}
             </div>

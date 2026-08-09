@@ -16,7 +16,27 @@ export interface ProGameMeta {
   date?: string;
   result?: string;
   boardSize: number;
+  editorial?: string;
 }
+
+// Short editorial write-ups keyed by the preloaded game's name. Kept next to
+// the catalog (rather than in the SGF) so they can be edited freely.
+const PRO_GAME_EDITORIALS: Record<string, string> = {
+  'Lee Sedol vs Hong Jansik - 3rd Korean KAT Cup (2003-04-23)':
+    'A young Lee Sedol in the middle of his early-2000s breakout, when his ferocious fighting style was tearing through the Korean scene. Playing Black, he steers the game into complications and closes it out by resignation — a compact showcase of why the go world had started talking about him.',
+  'Choi Cheolhan vs Lee Changho - 48th Korean Kuksu, title match #3 (2005-02-19)':
+    'The marquee Korean rivalry of the mid-2000s: Choi Cheolhan, the young attacker nicknamed "the Viper", challenging Lee Changho, the calm endgame master who had ruled the previous decade. In this Kuksu title-match game Choi takes Black and forces a resignation — the new generation biting back.',
+  'Cho Chikun vs O Rissei - 43rd Japanese Judan, title match #5 (2005-04-27)':
+    'A deciding fifth game between two stalwarts of the Japanese title scene. Cho Chikun — holder of the all-time Japanese title record — grinds out a 5.5-point win with Black over O Rissei. A patient, counting-driven game that rewards studying the endgame move by move.',
+  'Gu Li vs Lee Sedol - 10th LG Cup, semi-final (2005-10-19)':
+    'One chapter of the defining rivalry of the decade. Gu Li and Lee Sedol met across every major international stage, and their games rarely stayed quiet for long. Here Gu Li takes Black in an LG Cup semi-final and wins by resignation — trademark head-on fighting from both.',
+  'Lee Sedol vs Gu Li - 7th Chinese League A, round 20 (2005-12-10)':
+    'The rematch, weeks later, with colors reversed: Lee Sedol takes Black in a Chinese League A round, and Gu Li answers with a resignation win as White. Compare it with their LG Cup meeting the same year to see how each adapts to the other.',
+  'Choi Cheolhan vs Luo Xihe - 10th Samsung Cup, semi-final 3 (2005-12-16)':
+    'The deciding third game of a Samsung Cup semi-final. Luo Xihe — renowned for raw reading strength and fearless ko fighting — beats Choi Cheolhan by 7.5 points as White, booking his place in the final he went on to win. Heavy, committed fighting from the opening on.',
+  'Shin Jinseo vs Kang Yootaek - 2015 Korean League (2015-09-20)':
+    'A curiosity from the Korean League: Shin Jinseo as a 15-year-old 3-dan, years before he became the world\'s top player. The record ends with a rare "Void" result — the game itself is a snapshot of a prodigy already playing well beyond his rank.',
+};
 
 /** Read a single SGF property value from the root-node header. */
 const readHeaderProp = (header: string, key: string): string | undefined => {
@@ -41,17 +61,18 @@ const parseProGameMeta = (game: { name: string; source: string; sgf: string }, i
     date: readHeaderProp(header, 'DT'),
     result: readHeaderProp(header, 'RE'),
     boardSize: Number.isFinite(size) ? size : 19,
+    editorial: PRO_GAME_EDITORIALS[game.name],
   };
 };
 
 export const PRO_GAMES: ProGameMeta[] = PRELOADED_GAMES.map(parseProGameMeta);
 
-/** Free-text filter across players, event, date, and result. */
+/** Free-text filter across players, event, date, result, and editorial. */
 export const filterProGames = (games: ProGameMeta[], query: string): ProGameMeta[] => {
   const q = query.trim().toLowerCase();
   if (!q) return games;
   return games.filter((g) =>
-    [g.black, g.white, g.event, g.date, g.result, g.name].filter(Boolean).join(' ').toLowerCase().includes(q),
+    [g.black, g.white, g.event, g.date, g.result, g.name, g.editorial].filter(Boolean).join(' ').toLowerCase().includes(q),
   );
 };
 

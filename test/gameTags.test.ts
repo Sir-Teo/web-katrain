@@ -94,7 +94,7 @@ describe('computeGameTags', () => {
 
   it('tags rollercoaster games with repeated lead changes', () => {
     const swings = [0.7, 0.3, 0.7, 0.3, 0.7, 0.3];
-    const entries = swings.flatMap((wr, i) => steadyEntries(10, wr).map((e, j) => entry(i * 10 + j + 1, wr)));
+    const entries = swings.flatMap((wr, i) => steadyEntries(10, wr).map((_, j) => entry(i * 10 + j + 1, wr)));
     const tags = computeGameTags({
       entries,
       stats: emptyStats,

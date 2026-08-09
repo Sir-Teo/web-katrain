@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   getInitialBoardKeyboardCursor,
@@ -15,5 +16,14 @@ describe('board keyboard navigation', () => {
     expect(moveBoardKeyboardCursor({ x: 0, y: 0 }, 19, -1, 0)).toEqual({ x: 18, y: 0 });
     expect(moveBoardKeyboardCursor({ x: 18, y: 18 }, 19, 1, 1)).toEqual({ x: 0, y: 0 });
     expect(moveBoardKeyboardCursor(null, 9, 0, -1)).toEqual({ x: 4, y: 3 });
+  });
+
+  it('keeps keyboard-only board feedback separate from pointer focus', () => {
+    const goBoardSource = readFileSync(new URL('../src/components/GoBoard.tsx', import.meta.url), 'utf8');
+
+    expect(goBoardSource).toContain('const boardPointerFocusRef = useRef(false);');
+    expect(goBoardSource).toContain('data-board-input-mode={isKeyboardCursorActive');
+    expect(goBoardSource).toContain('data-board-keyboard-cursor="true"');
+    expect(goBoardSource).not.toContain('focus-visible:outline');
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AnalysisCommandBar } from '../src/components/AnalysisCommandBar';
 import { defaultUiState } from '../src/components/layout/types';
@@ -65,6 +66,25 @@ describe('AnalysisCommandBar', () => {
     expect(html).toContain('aria-label="Cycle move heatmap metric. Current: Prob."');
     expect(html).toContain('aria-label="Hide territory ownership"');
     expect(html).toContain('aria-label="Open the full game report"');
+    expect(html).toContain('data-analysis-metrics-overflow="none"');
+    expect(html).toContain('data-analysis-actions-overflow="none"');
+  });
+
+  it('uses adaptive scroll-edge affordances for narrow action rows', () => {
+    const source = readFileSync('src/components/AnalysisCommandBar.tsx', 'utf8');
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    expect(source).toContain("actionScrollEdges.overflow ? 'is-scrollable' : ''");
+    expect(source).toContain("!actionScrollEdges.atStart ? 'has-overflow-left' : ''");
+    expect(source).toContain("!actionScrollEdges.atEnd ? 'has-overflow-right' : ''");
+    expect(source).toContain("!metricScrollEdges.atEnd ? 'has-overflow-right' : ''");
+    expect(source).toContain('data-analysis-metrics-overflow={horizontalOverflowLabel(metricScrollEdges)}');
+    expect(source).toContain('[currentNode, currentNode.analysis]');
+    expect(styles).toContain('.analysis-command-bar__actions.has-overflow-left.has-overflow-right');
+    expect(styles).toContain('.analysis-command-bar__metrics.has-overflow-left.has-overflow-right');
+    expect(styles).toContain('overscroll-behavior-x: contain;');
+    expect(styles).toContain('scroll-snap-type: x proximity;');
+    expect(styles).toContain('grid-template-columns: minmax(6rem, 7.5rem) minmax(7.5rem, 1fr) minmax(5rem, 30vw);');
   });
 
   it('keeps fallback and error states visible in the status pill', () => {

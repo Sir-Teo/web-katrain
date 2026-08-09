@@ -62,17 +62,17 @@ const HomeAction: React.FC<HomeActionProps> = ({ label, icon, onClick, primary, 
     title={title}
     aria-label={ariaLabel}
     className={[
-      'min-h-12 rounded-lg border px-3 py-3 text-left transition-colors touch-manipulation',
+      'min-h-12 w-full px-3 py-3 text-left transition-colors touch-manipulation',
       'flex items-center gap-3',
       primary
-        ? 'border-[var(--ui-accent)] bg-[var(--ui-accent)] text-[var(--ui-accent-contrast)]'
-        : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
+        ? 'border-l-2 border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
+        : 'text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
     ].join(' ')}
   >
     <span
       className={[
-        'grid h-9 w-9 shrink-0 place-items-center rounded-md',
-        primary ? 'bg-black/15' : 'bg-[var(--ui-surface-2)] text-[var(--ui-accent)]',
+        'grid h-9 w-9 shrink-0 place-items-center',
+        primary ? 'text-[var(--ui-accent)]' : 'text-[var(--ui-text-muted)]',
       ].join(' ')}
       aria-hidden="true"
     >
@@ -125,7 +125,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
         <header className="ui-bar border-b border-[var(--ui-border)] px-3 py-2">
           <div className="flex min-h-11 items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-base font-bold text-[var(--ui-text)]">web-KaTrain</div>
+              <div className="truncate text-base font-bold text-[var(--ui-text)]">Web KaTrain</div>
               <div className="truncate text-xs ui-text-muted">
                 {blackName} vs {whiteName}
               </div>
@@ -170,46 +170,44 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             scrollPaddingBottom: 'calc(0.75rem + var(--pwa-banner-height, 0px))',
           }}
         >
-          <section className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)] p-3">
+          <section className="mobile-home-summary border-y border-[var(--ui-border)] py-3">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-md bg-[var(--ui-surface)] px-2 py-2">
+              <div className="px-2 py-2">
                 <div className="text-[11px] uppercase tracking-wide ui-text-faint">Board</div>
                 <div className="mt-1 text-sm font-semibold">{boardSize}x{boardSize}</div>
               </div>
-              <div className="rounded-md bg-[var(--ui-surface)] px-2 py-2">
+              <div className="border-x border-[var(--ui-border)] px-2 py-2">
                 <div className="text-[11px] uppercase tracking-wide ui-text-faint">Move</div>
                 <div className="mt-1 text-sm font-semibold">#{moveCount}</div>
               </div>
-              <div className="rounded-md bg-[var(--ui-surface)] px-2 py-2">
+              <div className="px-2 py-2">
                 <div className="text-[11px] uppercase tracking-wide ui-text-faint">Engine</div>
                 <div className="mt-1 truncate text-sm font-semibold">{engineMeta.split(' · ')[0] ?? 'Idle'}</div>
               </div>
             </div>
           </section>
 
-          <section className="mt-3 grid grid-cols-1 gap-2">
+          <section
+            className="mobile-home-actions mobile-home-actions--primary mt-3 border-y border-[var(--ui-border)]"
+            aria-label="Start or continue"
+          >
             <HomeAction label="Continue Board" icon={<FaThLarge />} onClick={onClose} primary />
             <HomeAction
               label="Quick New Game"
               icon={<FaBolt />}
               onClick={onQuickNewGame}
-              hint={`${quickNewGameBoardSize}x${quickNewGameBoardSize} immediate`}
+              hint={`${quickNewGameBoardSize}×${quickNewGameBoardSize} defaults`}
               title={quickNewGameWarning}
               ariaLabel={quickNewGameWarning}
             />
             <HomeAction label="New Game" icon={<FaPlay />} onClick={onNewGame} />
-            <HomeAction label="Save Copy to Library" icon={<FaSave />} onClick={onSaveToLibrary} />
-            <HomeAction label="Copy SGF" icon={<FaCopy />} onClick={onCopySgf} />
-            <HomeAction label="Open SGF / Photo / Model" icon={<FaFolderOpen />} onClick={onOpenSgf} />
+            <HomeAction label="Open SGF / Model" icon={<FaFolderOpen />} onClick={onOpenSgf} />
             <HomeAction label="Photo Board" icon={<FaCamera />} onClick={onScanBoard} hint="Camera or image" />
             <HomeAction label="Paste SGF / OGS" icon={<FaClipboard />} onClick={onPasteSgf} />
-            <HomeAction label="Game Library" icon={<FaBook />} onClick={onOpenLibrary} />
-            <HomeAction label="Game Report" icon={<FaChartLine />} onClick={onOpenReport} />
-            <HomeAction label="Settings" icon={<FaCog />} onClick={onOpenSettings} />
           </section>
 
           {recentItems.length > 0 && (
-            <section className="mt-4">
+            <section className="mobile-home-recent mt-4">
               <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide ui-text-faint">Recent</div>
               <div className="space-y-2">
                 {recentItems.slice(0, 4).map((item) => (
@@ -228,6 +226,20 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               </div>
             </section>
           )}
+
+          <section className="mobile-home-manage mt-4">
+            <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide ui-text-faint">Manage</div>
+            <div
+              className="mobile-home-actions mobile-home-actions--secondary border-y border-[var(--ui-border)]"
+              aria-label="Manage game and app"
+            >
+              <HomeAction label="Save Copy to Library" icon={<FaSave />} onClick={onSaveToLibrary} />
+              <HomeAction label="Copy SGF" icon={<FaCopy />} onClick={onCopySgf} />
+              <HomeAction label="Game Library" icon={<FaBook />} onClick={onOpenLibrary} />
+              <HomeAction label="Game Report" icon={<FaChartLine />} onClick={onOpenReport} />
+              <HomeAction label="Settings" icon={<FaCog />} onClick={onOpenSettings} />
+            </div>
+          </section>
         </main>
       </div>
     </div>

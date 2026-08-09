@@ -440,7 +440,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         )}
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-3">
-          <div className="flex flex-col min-h-0">
+          <div className={['flex flex-col min-h-0', isMobile && activeMobileTab === 'tree' ? 'h-full' : ''].join(' ')}>
             {/* Game Info */}
             {renderSection({
               show: showGameInfo,
@@ -458,7 +458,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaSitemap size={12} />,
               open: modePanels.treeOpen,
               onToggle: () => updatePanels((current) => ({ treeOpen: !current.treeOpen })),
-              wrapperClassName: 'flex flex-col min-h-0',
+              wrapperClassName: ['flex flex-col min-h-0', isMobile ? 'flex-1' : ''].join(' '),
               actions: (
                 <div className="flex items-center gap-2">
                   <button
@@ -483,7 +483,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   </button>
                 </div>
               ),
-              contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
+              contentClassName: ['panel-section-content flex flex-col min-h-0 p-0', isMobile ? 'flex-1' : ''].join(' '),
               children: (
                 <>
                   <div className="panel-toolbar">
@@ -616,7 +616,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   <div
                     className={[
                       'panel-scroll-region',
-                      isMobile ? 'max-h-[calc(100dvh-180px)]' : 'panel-compact-tree',
+                      isMobile ? 'flex-1 max-h-[calc(100dvh-180px)]' : 'panel-compact-tree',
                     ].join(' ')}
                   >
                     {treeView === 'tree' ? (
@@ -624,7 +624,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                         if (isMobile) onClose();
                       }} />
                     ) : (
-                      <div className="divide-y divide-[var(--ui-border)]">
+                      <div className="relative min-h-full divide-y divide-[var(--ui-border)]">
                         {treeListNodes.map((node) => {
                           const move = node.move;
                           const isCurrent = node.id === currentNode.id;
@@ -672,6 +672,24 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                             </button>
                           );
                         })}
+                        {treeListNodes.length === 1 && (
+                          <div className="move-tree-empty-state" data-move-tree-empty-state="true">
+                            <div className="move-tree-empty-state-content">
+                              <FaSitemap size={22} aria-hidden="true" />
+                              <div className="move-tree-empty-state-title">No moves yet</div>
+                              <p>Play on the board to start the game tree.</p>
+                              {isMobile && (
+                                <button
+                                  type="button"
+                                  className="move-tree-empty-state-action"
+                                  onClick={onClose}
+                                >
+                                  Back to board
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

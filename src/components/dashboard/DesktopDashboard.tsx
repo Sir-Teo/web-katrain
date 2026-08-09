@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard.css';
 import { Icon, type IconName } from './icons';
-import type { GameNode, GameSettings, Player } from '../../types';
+import type { GameNode, GameRules, GameSettings, Player } from '../../types';
 import type { BranchInfo } from '../../utils/branchNavigation';
 import type { LibraryFile } from '../../utils/library';
 import type { AnalysisControlsState } from '../layout/types';
@@ -13,8 +13,11 @@ import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
-import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_INFO, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
+import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
 import { formatEngineBackendLabel } from '../../utils/engineStatusSummary';
+import { ANALYSIS_VISIT_PRESETS, clampAnalysisVisits, visitPresetLabel } from '../../utils/visitPresets';
+import { formatRulesLabel } from '../../utils/gameInfoDisplay';
+import { formatReadableScoreLead, formatWinRateFavorLabel } from '../../utils/analysisSummary';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
 
@@ -33,7 +36,7 @@ export interface DesktopDashboardProps {
   komi: number;
   boardSize: number;
   handicap: number;
-  rules: string;
+  rules: GameRules;
   result: string | null;
   currentPlayer: Player;
   moveCount: number;
@@ -187,6 +190,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     recentItems, loadedFileId, onOpenRecent,
     toast,
   } = props;
+  const rulesLabel = formatRulesLabel(rules);
 
   const [sections, setSections] = useState({ info: false, tree: true, analysis: true, notes: true });
   // Top game-info strip and bottom metrics bar collapse like the side panels so
@@ -396,23 +400,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
           <span className="brand-name">Web <b>KaTrain</b></span>
-          {APP_COMMIT_URL ? (
-            <a
-              href={APP_COMMIT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="build-chip"
-              title={`Open build commit: ${APP_BUILD_LABEL}`}
-              aria-label={`Open build commit ${APP_BUILD_LABEL}`}
-              data-dashboard-build-chip="true"
-            >
-              v{APP_INFO.version}
-            </a>
-          ) : (
-            <span className="build-chip" title={APP_BUILD_LABEL} data-dashboard-build-chip="true">
-              v{APP_INFO.version}
-            </span>
-          )}
         </div>
         <div className="header-divider" />
         <div className="iconcluster" id="wk-file-actions">
@@ -431,7 +418,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <Icon name="dots" />
           </button>
         </div>
-        <div className="header-divider shed" />
         <div className="iconcluster" id="wk-util-actions">
           <button type="button" className="iconbtn" title="Command palette" aria-label="Command palette" onClick={onCommandPalette}><Icon name="search" /></button>
           <button type="button" className="iconbtn" title="Settings" aria-label="Settings" onClick={onSettings}><Icon name="settings" /></button>
@@ -554,20 +540,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 <span className="stone-mini b" />
                 <span className="nm">{blackName || 'Black'}</span>
                 {blackRank ? <span className="rk">{blackRank}</span> : null}
-                <span className="cap">{capturedWhite} cap</span>
+                {capturedWhite > 0 ? <span className="cap">{capturedWhite} captured</span> : null}
               </div>
               <div className={`gs-player${currentPlayer === 'white' ? ' to-move' : ''}`}>
                 <span className="stone-mini w" />
                 <span className="nm">{whiteName || 'White'}</span>
                 {whiteRank ? <span className="rk">{whiteRank}</span> : null}
-                <span className="cap">{capturedBlack} cap</span>
+                {capturedBlack > 0 ? <span className="cap">{capturedBlack} captured</span> : null}
               </div>
             </div>
             <span className="gs-sep" />
             <span className="gs-fact gs-fact-primary">{boardSize}×{boardSize}</span>
             <span className="gs-fact">komi <b>{komi}</b></span>
             {handicap > 0 ? <span className="gs-fact">H{handicap}</span> : null}
-            <span className="gs-fact">{rules}</span>
+            <span className="gs-fact">{rulesLabel}</span>
             {result ? <span className="gs-result">{result}</span> : null}
             <span className="gs-sep" />
             <div className="gs-file">
@@ -590,6 +576,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               onClick={toggleLibrary}
             >
               <Icon name={libraryOpen ? 'chevL' : 'chevR'} size={13} />
+              {!libraryOpen && <span className="edge-toggle-label">Library</span>}
             </button>
             <button
               type="button"
@@ -615,10 +602,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 >
                   <Icon name="x" size={13} />
                 </button>
-                <div className="hero-title">Get started</div>
-                <div className="hero-sub">Play a move right on the board, or bring in a game:</div>
+                <div className="hero-title">Start here</div>
                 <div className="hero-actions">
-                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onNewGame(); }}>
+                  <button type="button" className="tbtn primary" onClick={() => { dismissHero(); onNewGame(); }}>
                     <Icon name="plus" size={14} /> New game
                   </button>
                   <button type="button" className="tbtn" onClick={() => { dismissHero(); onLoadSgf(); }}>
@@ -630,13 +616,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <button type="button" className="tbtn" onClick={() => { dismissHero(); onScanBoard(); }}>
                     <Icon name="camera" size={14} /> From photo
                   </button>
-                </div>
-                <div className="hero-tips">
-                  <span className="hero-tip">
-                    Press <kbd>Space</kbd> to start live analysis
-                  </span>
-                  <span className="hero-tip"><kbd>Tab</kbd> Analysis mode</span>
-                  <span className="hero-tip"><kbd>?</kbd> all shortcuts</span>
                 </div>
               </div>
             )}
@@ -671,12 +650,12 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <div className="cb-metric">
                     <div className="k">Win rate</div>
                     <div className="v win">{winRate != null ? `${(winRate * 100).toFixed(1)}%` : '—'}</div>
-                    <div className="sub">{winRate != null ? `${winRate >= 0.5 ? 'Black' : 'White'} favored` : ''}</div>
+                    <div className="sub">{formatWinRateFavorLabel(winRate)}</div>
                   </div>
                   <div className="cb-metric">
                     <div className="k">Score</div>
-                    <div className="v score">{scoreLead != null ? `${scoreLead >= 0 ? 'B+' : 'W+'}${Math.abs(scoreLead).toFixed(1)}` : '—'}</div>
-                    <div className="sub">lead</div>
+                    <div className="v score">{formatReadableScoreLead(scoreLead)}</div>
+                    <div className="sub">score lead</div>
                   </div>
                   <div className="cb-metric">
                     <div className="k">Best move</div>
@@ -726,6 +705,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 type="number"
                 value={moveInputValue}
                 aria-label="Move number"
+                title="Enter a move number to jump"
                 inputMode="numeric"
                 min={0}
                 max={totalMoves}
@@ -815,7 +795,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <div className="section-body">
                 <div className="info-card">
                   <div className="info-title">{loadedFileName || 'Current game'}</div>
-                  <div className="info-sub">{boardSize}×{boardSize} · {rules}</div>
+                  <div className="info-sub">{boardSize}×{boardSize} · {rulesLabel}</div>
                   <div className="info-row"><span className="stone-mini b" /><div><div className="ir-k">Black</div><div className="ir-v">{blackName || 'Black'} {blackRank}</div></div></div>
                   <div className="info-row"><span className="stone-mini w" /><div><div className="ir-k">White</div><div className="ir-v">{whiteName || 'White'} {whiteRank}</div></div></div>
                   <dl className="info-grid">
@@ -882,24 +862,24 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 <div className="graph-legend">
                   <button
                     type="button"
-                    className="lg"
-                    style={{ opacity: legend.winrate ? 1 : 0.4 }}
+                    className={`lg${legend.winrate ? ' on' : ''}`}
                     aria-pressed={legend.winrate}
                     aria-label={legend.winrate ? 'Hide win rate graph' : 'Show win rate graph'}
                     title={legend.winrate ? 'Hide win rate graph' : 'Show win rate graph'}
                     onClick={() => setLegend((l) => ({ ...l, winrate: !l.winrate }))}
                   >
+                    <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
                     <span className="sw" style={{ background: 'var(--green)' }} />Win rate
                   </button>
                   <button
                     type="button"
-                    className="lg"
-                    style={{ opacity: legend.score ? 1 : 0.4 }}
+                    className={`lg${legend.score ? ' on' : ''}`}
                     aria-pressed={legend.score}
                     aria-label={legend.score ? 'Hide score graph' : 'Show score graph'}
                     title={legend.score ? 'Hide score graph' : 'Show score graph'}
                     onClick={() => setLegend((l) => ({ ...l, score: !l.score }))}
                   >
+                    <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
                     <span className="sw" style={{ background: 'var(--amber)' }} />Score
                   </button>
                 </div>
@@ -1012,6 +992,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           backend={engineBackend}
           model={engineModelLabel}
           cacheSize={analysisCacheSize}
+          visits={settings.katagoVisits}
+          visitsDisabled={isGameAnalysisRunning}
+          onVisitsChange={(katagoVisits) => updateSettings({ katagoVisits })}
           onClearCache={() => { closePop(); onClearAnalysisCache(); }}
         />
       )}
@@ -1089,8 +1072,11 @@ const EnginePopover: React.FC<{
   backend: string;
   model: string;
   cacheSize: number;
+  visits: number;
+  visitsDisabled: boolean;
+  onVisitsChange: (visits: number) => void;
   onClearCache: () => void;
-}> = ({ rect, engineState, backend, model, cacheSize, onClearCache }) => {
+}> = ({ rect, engineState, backend, model, cacheSize, visits, visitsDisabled, onVisitsChange, onClearCache }) => {
   const states: Record<EngineState, [string, string]> = {
     ready: ['Ready', 'var(--green)'],
     running: ['Analyzing', 'var(--live)'],
@@ -1109,6 +1095,29 @@ const EnginePopover: React.FC<{
           <div><dt>Model</dt><dd>{model || '—'}</dd></div>
           <div><dt>Source</dt><dd>Bundled</dd></div>
         </dl>
+        <div className="ed-row ed-row-depth" data-analysis-live-visit-presets="true">
+          <div className="ed-depth-heading">
+            <span>MCTS depth</span>
+            <span>{clampAnalysisVisits(visits)} visits</span>
+          </div>
+          <div className="depth-presets">
+            {ANALYSIS_VISIT_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={`depth-preset${clampAnalysisVisits(visits) === preset ? ' on' : ''}`}
+                onClick={() => onVisitsChange(preset)}
+                disabled={visitsDisabled}
+                aria-pressed={clampAnalysisVisits(visits) === preset}
+                data-analysis-live-depth-option={preset}
+                title={visitsDisabled ? 'Stop game analysis before changing live visits' : `Set live analysis to ${preset} visits`}
+              >
+                <span className="dp-v">{preset}</span>
+                <span className="dp-l">{visitPresetLabel(preset)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="ed-row">
           <span style={{ color: 'var(--faint)', fontSize: 12 }}>Cached positions</span>
           <button type="button" className="pbtn" onClick={onClearCache}><Icon name="trash" size={12} /> {cacheSize}</button>

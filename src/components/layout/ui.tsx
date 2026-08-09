@@ -44,7 +44,8 @@ export const Tooltip: React.FC<{
 
 export const IconButton: React.FC<{
   title: string;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onPointerDown?: React.PointerEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   className?: string;
   ariaControls?: string;
@@ -55,6 +56,7 @@ export const IconButton: React.FC<{
 }> = ({
   title,
   onClick,
+  onPointerDown,
   disabled,
   className,
   ariaControls,
@@ -77,6 +79,7 @@ export const IconButton: React.FC<{
         aria-expanded={ariaExpanded}
         aria-haspopup={ariaHasPopup}
         onClick={onClick}
+        onPointerDown={onPointerDown}
         disabled={disabled}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}

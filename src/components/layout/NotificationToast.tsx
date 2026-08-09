@@ -14,6 +14,7 @@ interface NotificationToastProps {
   notification: NotificationToastMessage;
   onClose: () => void;
   commandBarVisible?: boolean;
+  placement?: 'default' | 'desktop-dashboard';
 }
 
 const notificationMeta = {
@@ -37,7 +38,7 @@ const notificationMeta = {
   },
 } as const;
 
-export function NotificationToast({ notification, onClose, commandBarVisible = false }: NotificationToastProps) {
+export function NotificationToast({ notification, onClose, commandBarVisible = false, placement = 'default' }: NotificationToastProps) {
   const meta = notificationMeta[notification.type];
   const Icon = meta.Icon;
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
@@ -53,7 +54,11 @@ export function NotificationToast({ notification, onClose, commandBarVisible = f
 
   return (
     <div
-      className={['notification-toast-region', commandBarVisible ? 'notification-toast-region--below-command-bar' : ''].join(' ')}
+      className={[
+        'notification-toast-region',
+        commandBarVisible ? 'notification-toast-region--below-command-bar' : '',
+        placement === 'desktop-dashboard' ? 'notification-toast-region--desktop-dashboard' : '',
+      ].join(' ')}
       data-notification-region="true"
     >
       <div

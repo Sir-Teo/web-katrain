@@ -24,11 +24,14 @@ describe('LibraryPanel accessibility', () => {
       'exportFolderLabel',
       'renameFolderLabel',
       'deleteFolderLabel',
+      'moreFolderActionsLabel',
     ];
 
     for (const label of rowActionLabels) {
       expect(source).toContain(`aria-label={${label}}`);
     }
+
+    expect(source).toContain('aria-haspopup="menu"');
 
     expect(source).toContain('aria-label="Go to parent folder"');
     expect(source).toContain('aria-label="Go to library root"');
@@ -40,6 +43,14 @@ describe('LibraryPanel accessibility', () => {
     for (const block of rowButtonBlocks) {
       expect(block).toContain('aria-label=');
     }
+  });
+
+  it('provides true touch-sized mobile library controls', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    expect(styles).toContain(".library-tree-node[data-library-row='folder'] .library-tree-node-more");
+    expect(styles).toContain('grid-template-columns: 44px 44px 16px minmax(0, 1fr) auto 44px;');
+    expect(styles).toContain('min-height: 44px;');
   });
 
   it('sanitizes folder download names with the shared filename guard', () => {

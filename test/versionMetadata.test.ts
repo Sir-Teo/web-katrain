@@ -16,7 +16,7 @@ describe('version metadata', () => {
         buildDate: '2026-06-03T14:30:00.000Z',
       })
     ).toEqual({
-      name: 'web-KaTrain',
+      name: 'Web KaTrain',
       version: '1.2.3',
       gitHash: 'abcdef1',
       commitDate: '2026-06-03',

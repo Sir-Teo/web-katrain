@@ -12,8 +12,9 @@ export function shouldOpenLibraryByDefault(
   if (!viewport) return false;
   if (!isDesktopLayoutSize(viewport.width, viewport.height)) return false;
   if (viewport.width < FIRST_RUN_LIBRARY_MIN_WIDTH) return false;
-  if (storedValue === 'true') return true;
-  return true;
+  // Keep the playfield primary for a new desktop session. The Library is one
+  // edge-tab away, while an explicit prior choice to leave it open stays sticky.
+  return storedValue === 'true';
 }
 
 export function getInitialLibraryOpen(): boolean {

@@ -22,6 +22,10 @@ import {
   FaUndo,
   FaLongArrowAltRight,
   FaSlash,
+  FaPen,
+  FaHighlighter,
+  FaCalculator,
+  FaBrain,
 } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -73,6 +77,15 @@ const TOOL_GROUPS: Array<{ title: string; items: EditToolItem[] }> = [
     items: [
       { tool: 'markup-arrow', label: 'Arrow', title: 'Arrow — click a start point then an end point', icon: <FaLongArrowAltRight /> },
       { tool: 'markup-line', label: 'Line', title: 'Line — click a start point then an end point', icon: <FaSlash /> },
+      { tool: 'draw-pen', label: 'Pen', title: 'Freehand pen — drag to draw on the board (not saved to SGF)', icon: <FaPen /> },
+      { tool: 'draw-highlight', label: 'Mark', title: 'Highlighter — drag to highlight an area (not saved to SGF)', icon: <FaHighlighter /> },
+    ],
+  },
+  {
+    title: 'Inspect',
+    items: [
+      { tool: 'region-count', label: 'Count', title: 'Stone count — drag a rectangle to count stones inside it', icon: <FaCalculator /> },
+      { tool: 'region-score', label: 'AI', title: 'AI region score — drag a rectangle to reveal the AI score inside it', icon: <FaBrain /> },
     ],
   },
 ];
@@ -127,6 +140,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
     setEditTool,
     clearCurrentNodeAnnotations,
     clearCurrentNodeSetupStones,
+    clearNodeDrawings,
     passTurn,
     makeCurrentNodeMainBranch,
     shiftCurrentVariation,
@@ -149,6 +163,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
       setEditTool: state.setEditTool,
       clearCurrentNodeAnnotations: state.clearCurrentNodeAnnotations,
       clearCurrentNodeSetupStones: state.clearCurrentNodeSetupStones,
+      clearNodeDrawings: state.clearNodeDrawings,
       passTurn: state.passTurn,
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
       shiftCurrentVariation: state.shiftCurrentVariation,
@@ -210,6 +225,9 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   const undoEditLabel = editUndoCount > 0 ? `Undo last edit (${editUndoCount} available)` : 'No edit to undo';
   const redoEditLabel = editRedoCount > 0 ? `Redo edit (${editRedoCount} available)` : 'No edit to redo';
   const clearNodeAnnotationsLabel = 'Clear all markers and labels on this node';
+  const drawingCount = currentNode.drawings?.length ?? 0;
+  const clearDrawingsLabel =
+    drawingCount > 0 ? `Clear ${drawingCount} drawing${drawingCount === 1 ? '' : 's'} on this node` : 'No drawings on this node';
   void treeVersion;
 
   // On mobile the panel floats over the board, so a tall stacked layout would hide
@@ -232,9 +250,13 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
       data-edit-toolbar
       className={
         docked
-          ? 'relative z-40 max-w-full'
+          ? [
+              'edit-toolbar-docked relative z-40 max-w-full',
+              isEditMode ? 'edit-toolbar-docked--active h-7 w-0' : '',
+            ].filter(Boolean).join(' ')
           : [
             'absolute z-40 pointer-events-none max-w-[calc(100%-1rem)]',
+            isMobile ? 'edit-toolbar-mobile' : '',
             isMobile
               // Idle launcher sits bottom-right so it shares the bottom edge
               // with the Score launcher (bottom-left) instead of floating in
@@ -278,7 +300,10 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
           </button>
         )
       ) : (
-        <div className="pointer-events-auto ui-panel border rounded-lg shadow-xl overflow-hidden backdrop-blur max-w-full">
+        <div className={[
+          'edit-toolbar-panel pointer-events-auto ui-panel border rounded-lg shadow-xl overflow-hidden max-w-full',
+          docked ? 'edit-toolbar-panel--docked' : '',
+        ].filter(Boolean).join(' ')}>
           <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-[var(--ui-border)] bg-[var(--ui-surface-2)]">
             <div className="flex items-center gap-2 min-w-0">
               <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[var(--ui-accent)] shadow-sm shadow-black/30" />
@@ -344,6 +369,19 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
                     </button>
                   );
                 })}
+                {group.title === 'Draw' && (
+                  <button
+                    type="button"
+                    className={[toolButtonClass(false), drawingCount === 0 ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                    onClick={clearNodeDrawings}
+                    disabled={drawingCount === 0}
+                    title={clearDrawingsLabel}
+                    aria-label={clearDrawingsLabel}
+                  >
+                    <FaEraser />
+                    <span className="hidden sm:inline">Clear</span>
+                  </button>
+                )}
                 {group.title === 'Setup' && (
                   <button
                     type="button"
