@@ -36,7 +36,7 @@ describe('MenuDrawer', () => {
         onAbout={() => undefined}
         recentItems={[recentFile]}
         onOpenRecent={() => undefined}
-      />
+      />,
     );
 
     expect(html).toContain('Teaching Game');
@@ -60,7 +60,7 @@ describe('MenuDrawer', () => {
         onCommandPalette={() => undefined}
         onKeyboardHelp={() => undefined}
         onAbout={() => undefined}
-      />
+      />,
     );
 
     expect(html).toContain('Save Copy to Library');
@@ -85,7 +85,7 @@ describe('MenuDrawer', () => {
         onKeyboardHelp={() => undefined}
         onAbout={() => undefined}
         quickNewGameBoardSize={13}
-      />
+      />,
     );
 
     expect(html).toContain('Quick new game (13×13): uses your saved defaults and replaces the current game after the unsaved-changes check.');
@@ -111,7 +111,7 @@ describe('MenuDrawer', () => {
         onAbout={() => undefined}
         appLocale="ja"
         onLocaleChange={() => undefined}
-      />
+      />,
     );
 
     expect(html).toContain('for="menu-app-locale"');
@@ -120,5 +120,59 @@ describe('MenuDrawer', () => {
     expect(html).toContain('Document language');
     expect(html).toContain('Metadata');
     expect(html).toContain('Japanese');
+  });
+
+  it('keeps the drawer title and close action available while scrolling', () => {
+    const html = renderToStaticMarkup(
+      <MenuDrawer
+        open
+        onClose={() => undefined}
+        onQuickNewGame={() => undefined}
+        onNewGame={() => undefined}
+        onSave={() => undefined}
+        onSaveToLibrary={() => undefined}
+        onLoad={() => undefined}
+        onScanBoard={() => undefined}
+        onCopy={() => undefined}
+        onPaste={() => undefined}
+        onSettings={() => undefined}
+        onCommandPalette={() => undefined}
+        onKeyboardHelp={() => undefined}
+        onAbout={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('data-menu-header="true"');
+    expect(html).toContain('sticky top-0');
+    expect(html).toMatch(/class="[^"]*ui-control[^"]*" aria-label="Close menu"/);
+  });
+
+  it('groups common mobile actions into compact responsive grids', () => {
+    const html = renderToStaticMarkup(
+      <MenuDrawer
+        open
+        onClose={() => undefined}
+        onQuickNewGame={() => undefined}
+        onNewGame={() => undefined}
+        onSave={() => undefined}
+        onSaveToLibrary={() => undefined}
+        onLoad={() => undefined}
+        onScanBoard={() => undefined}
+        onLessons={() => undefined}
+        onCopy={() => undefined}
+        onPaste={() => undefined}
+        onSettings={() => undefined}
+        onCommandPalette={() => undefined}
+        onKeyboardHelp={() => undefined}
+        onAbout={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('data-menu-drawer-panel="true"');
+    expect(html).toContain('data-menu-action-grid="game"');
+    expect(html).toContain('data-menu-action-grid="edit"');
+    expect(html).toContain('data-menu-action-grid="study"');
+    expect(html).toContain('data-menu-action-grid="settings"');
+    expect(html).toContain('grid-cols-2');
   });
 });

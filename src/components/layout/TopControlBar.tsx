@@ -351,11 +351,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   };
   const cycleBoardTheme = () => updateSettings({ boardTheme: nextBoardThemeOption.value });
   const closeViewMenu = () => setViewMenuOpen(false);
+  const closeMobileToolsAfterAction = () => {
+    closeViewMenuWithFocus(true, mobileToolsInputModeRef.current);
+  };
   const closeViewMenuIfMobile = () => {
-    if (isMobile) setViewMenuOpen(false);
+    if (isMobile) closeViewMenuWithFocus(true, mobileToolsInputModeRef.current);
   };
   const desktopViewMenu = (
-    <div className="grid grid-cols-1 sm:grid-cols-2">
+    <div className="grid grid-cols-2" data-mobile-tools-view-grid="true">
       {/* Settings column */}
       <div className="flex flex-col border-r border-[var(--ui-border)]">
         <button type="button"
@@ -517,39 +520,41 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     </div>
   );
 
-  const mobileToolsGridBtn = "mobile-tools-action flex min-h-12 items-center gap-3 px-4 py-2 hover:bg-[var(--ui-surface-2)] text-left transition-colors";
+  const mobileToolsGridBtn = "mobile-tools-action flex min-h-12 min-w-0 items-center gap-2 bg-[var(--ui-panel)] px-3 py-2 hover:bg-[var(--ui-surface-2)] text-left transition-colors";
+  const mobileToolsActionGrid = "grid grid-cols-2";
+  const mobileToolsSectionLabel = "px-4 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider";
   const mobileToolsMenu = (
     <div className="flex flex-col pb-6">
       <div className="border-t border-[var(--ui-border)]">
-        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
-        <div className="flex flex-col divide-y divide-[var(--ui-border)]">
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeViewMenu(); }}>
+        <div className={mobileToolsSectionLabel}>AI Tools</div>
+        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true">
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Extra analysis</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-extra']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('equalize'); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('equalize'); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Equalize</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-equalize']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('sweep'); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('sweep'); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Sweep</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-sweep']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('alternative'); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('alternative'); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Alternative</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-alternative']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { startSelectRegionOfInterest(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { startSelectRegionOfInterest(); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Select region</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['select-region']}</span>
           </button>
           {regionOfInterest && (
-            <button type="button" className={`${mobileToolsGridBtn} text-[var(--ui-danger)]`} onClick={() => { setRegionOfInterest(null); closeViewMenu(); }}>
+            <button type="button" className={`${mobileToolsGridBtn} text-[var(--ui-danger)]`} onClick={() => { setRegionOfInterest(null); closeMobileToolsAfterAction(); }}>
               <FaTimes size={18} />
               <span className="text-sm font-medium">Clear region</span>
             </button>
@@ -558,29 +563,29 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       <div className="border-t border-[var(--ui-border)]">
-        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Control</div>
-        <div className="flex flex-col divide-y divide-[var(--ui-border)]">
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeViewMenu(); }}>
+        <div className={mobileToolsSectionLabel}>Game Control</div>
+        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true">
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className={isAnalysisMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Cont. analysis</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { makeAiMove(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { makeAiMove(); closeMobileToolsAfterAction(); }}>
             <FaPlay size={18} className="text-[var(--ui-success)]" />
             <span className="text-sm font-medium">AI move</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['ai-move']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeMobileToolsAfterAction(); }}>
             <FaPlay size={18} className={isInsertMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Insert mode</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['toggle-insert']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { selfplayToEnd(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { selfplayToEnd(); closeMobileToolsAfterAction(); }}>
             <FaPlay size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Selfplay to end</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels.selfplay}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeMobileToolsAfterAction(); }}>
             <FaSyncAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Rotate board</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['rotate-board']}</span>
@@ -589,7 +594,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <FaCamera size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Photo Board</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className={isTeachMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Teach mode</span>
           </button>
@@ -597,13 +602,13 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       <div className="border-t border-[var(--ui-border)]">
-        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
-        <div className="flex flex-col divide-y divide-[var(--ui-border)]">
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis(); else startQuickGameAnalysis(); closeViewMenu(); }}>
+        <div className={mobileToolsSectionLabel}>Reports</div>
+        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true">
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis(); else startQuickGameAnalysis(); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop' : 'Quick graph'}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis(); else startFastGameAnalysis(); closeViewMenu(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis(); else startFastGameAnalysis(); closeMobileToolsAfterAction(); }}>
             <FaRobot size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop' : 'Fast review'}</span>
           </button>
@@ -621,7 +626,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       <div className="border-t border-[var(--ui-border)]">
-        <div className="px-4 pb-2 pt-4 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">View Options</div>
+        <div className={mobileToolsSectionLabel}>View Options</div>
         <div className="mobile-tools-view-options flex flex-col">
           {desktopViewMenu}
         </div>

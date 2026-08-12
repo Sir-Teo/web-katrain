@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { KeyboardHelpModal } from '../src/components/KeyboardHelpModal';
@@ -24,5 +25,20 @@ describe('KeyboardHelpModal', () => {
     expect(html).toContain('Previous/next move over the board or move tree');
     expect(html).toContain('Shift + wheel');
     expect(html).toContain('Previous/next mistake over the board or move tree');
+  });
+
+  it('keeps the narrow-screen customize action compact and accessible', () => {
+    const html = renderToStaticMarkup(
+      <KeyboardHelpModal onClose={() => undefined} onOpenShortcutSettings={() => undefined} />,
+    );
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain('data-keyboard-help-customize="true"');
+    expect(html).toContain('aria-label="Customize keyboard shortcuts"');
+    expect(html).toContain('keyboard-help-customize-label');
+    expect(html).toContain('keyboard-help-title');
+    expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\[data-keyboard-help-customize='true'\][\s\S]*width: 44px/);
+    expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.keyboard-help-customize-label[\s\S]*display: none/);
+    expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.keyboard-help-title[\s\S]*font-size: 1rem/);
   });
 });

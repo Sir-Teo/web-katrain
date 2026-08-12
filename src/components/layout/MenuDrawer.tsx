@@ -1,5 +1,26 @@
 import React from 'react';
-import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboard, FaHome, FaCamera, FaInfoCircle, FaBook, FaBolt, FaSearch, FaTrophy, FaGraduationCap, FaVideo, FaBalanceScale, FaBullseye, FaPuzzlePiece } from 'react-icons/fa';
+import {
+  FaTimes,
+  FaPlay,
+  FaSave,
+  FaFolderOpen,
+  FaCog,
+  FaCopy,
+  FaPaste,
+  FaKeyboard,
+  FaHome,
+  FaCamera,
+  FaInfoCircle,
+  FaBook,
+  FaBolt,
+  FaSearch,
+  FaTrophy,
+  FaGraduationCap,
+  FaVideo,
+  FaBalanceScale,
+  FaBullseye,
+  FaPuzzlePiece,
+} from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
@@ -8,17 +29,10 @@ import { getQuickNewGameWarning } from '../../utils/quickNewGame';
 import { APP_LOCALE_OPTIONS, getAppLocaleOption } from '../../utils/locales';
 import type { AppLocaleId, BoardSize } from '../../types';
 
-const MENU_DRAWER_SHORTCUT_IDS = [
-  'new-game',
-  'save-sgf',
-  'save-library',
-  'open-sgf',
-  'copy-sgf',
-  'paste-sgf',
-  'command-palette',
-  'settings-modal',
-  'keyboard-help',
-] as const;
+const MENU_DRAWER_SHORTCUT_IDS = ['new-game', 'save-sgf', 'save-library', 'open-sgf', 'copy-sgf', 'paste-sgf', 'command-palette', 'settings-modal', 'keyboard-help'] as const;
+
+const menuActionGrid = 'grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)]';
+const menuAction = 'flex min-h-11 min-w-0 w-full items-center gap-2 bg-[var(--ui-panel)] px-3 py-2 text-left hover:bg-[var(--ui-surface-2)]';
 
 interface MenuDrawerProps {
   open: boolean;
@@ -101,9 +115,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   React.useEffect(() => {
     if (!open) return;
 
-    const previouslyFocused = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const updateFocusInputMode = (mode: 'pointer' | 'keyboard') => {
       focusInputModeRef.current = mode;
       setFocusInputMode(mode);
@@ -130,8 +142,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 
       const drawer = drawerRef.current;
       if (!drawer) return;
-      const focusableElements = Array.from(drawer.querySelectorAll<HTMLElement>(focusableSelector))
-        .filter((element) => element.getClientRects().length > 0);
+      const focusableElements = Array.from(drawer.querySelectorAll<HTMLElement>(focusableSelector)).filter((element) => element.getClientRects().length > 0);
       const first = focusableElements[0];
       const last = focusableElements[focusableElements.length - 1];
       if (!first || !last) {
@@ -177,22 +188,19 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="menu-title"
-      data-menu-focus-origin={focusInputMode}
-    >
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="menu-title" data-menu-focus-origin={focusInputMode}>
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
         ref={drawerRef}
         className="absolute left-0 top-0 h-full w-[90vw] max-w-sm ui-panel border-r shadow-xl p-3 overflow-y-auto overscroll-contain mobile-safe-inset mobile-safe-area-bottom"
+        data-menu-drawer-panel="true"
         onScroll={updateScrollHint}
       >
-        <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-3 flex items-start justify-between gap-3 border-b border-[var(--ui-border)] bg-[var(--ui-panel)] px-3 py-3" data-menu-header="true">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold" id="menu-title">Menu</h2>
+            <h2 className="text-lg font-semibold" id="menu-title">
+              Menu
+            </h2>
             <div className="mt-1 text-[11px] ui-text-faint">
               {APP_COMMIT_URL ? (
                 <a
@@ -211,10 +219,11 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               )}
             </div>
           </div>
-          <button type="button"
+          <button
+            type="button"
             ref={closeButtonRef}
             className={[
-              'shrink-0 ui-text-muted hover:text-[var(--ui-text)]',
+              'ui-control grid shrink-0 place-items-center rounded-lg ui-text-muted hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
               focusInputMode === 'pointer' ? 'menu-drawer-pointer-focus' : '',
             ].join(' ')}
             onClick={onClose}
@@ -227,195 +236,235 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
         <nav className="space-y-4" aria-label="Main menu">
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Game</div>
-            {onHome && (
-              <button type="button"
-                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
+            <div className={menuActionGrid} data-menu-action-grid="game">
+              {onHome && (
+                <button
+                  type="button"
+                  className={menuAction}
+                  onClick={() => {
+                    onHome();
+                    onClose();
+                  }}
+                  aria-label="Open home"
+                >
+                  <span className="flex items-center gap-2">
+                    <FaHome aria-hidden="true" /> Home
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
                 onClick={() => {
-                  onHome();
+                  onQuickNewGame();
                   onClose();
                 }}
-                aria-label="Open home"
+                aria-label={quickNewGameWarning}
+                title={quickNewGameWarning}
               >
-                <span className="flex items-center gap-2">
-                  <FaHome aria-hidden="true" /> Home
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaBolt className="shrink-0" aria-hidden="true" /> Quick New Game
+                </span>
+                <span className="mobile-shortcut-hint text-xs ui-text-faint">Defaults</span>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onNewGame();
+                  onClose();
+                }}
+                aria-label={`New game, keyboard shortcut ${shortcutLabels['new-game']}`}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaPlay className="shrink-0" aria-hidden="true" /> New Game
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['new-game']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onSave();
+                  onClose();
+                }}
+                aria-label={`${saveLabel}, keyboard shortcut ${shortcutLabels['save-sgf']}`}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaSave className="shrink-0" aria-hidden="true" /> {saveLabel}
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['save-sgf']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onSaveToLibrary();
+                  onClose();
+                }}
+                aria-label={`Save a copy to Library, keyboard shortcut ${shortcutLabels['save-library']}`}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaBook className="shrink-0" aria-hidden="true" /> Save Copy to Library
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['save-library']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onLoad();
+                  onClose();
+                }}
+                aria-label={`Open SGF file or model weights, keyboard shortcut ${shortcutLabels['open-sgf']}`}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaFolderOpen className="shrink-0" aria-hidden="true" /> Open SGF / Model
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['open-sgf']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={menuAction}
+                onClick={() => {
+                  onScanBoard();
+                  onClose();
+                }}
+                aria-label="Open photo board"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaCamera className="shrink-0" aria-hidden="true" /> Photo Board
                 </span>
               </button>
-            )}
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onQuickNewGame();
-                onClose();
-              }}
-              aria-label={quickNewGameWarning}
-              title={quickNewGameWarning}
-            >
-              <span className="flex items-center gap-2">
-                <FaBolt aria-hidden="true" /> Quick New Game
-              </span>
-              <span className="text-xs ui-text-faint">Defaults</span>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onNewGame();
-                onClose();
-              }}
-              aria-label={`New game, keyboard shortcut ${shortcutLabels['new-game']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaPlay aria-hidden="true" /> New Game
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['new-game']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onSave();
-                onClose();
-              }}
-              aria-label={`${saveLabel}, keyboard shortcut ${shortcutLabels['save-sgf']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaSave aria-hidden="true" /> {saveLabel}
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['save-sgf']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onSaveToLibrary();
-                onClose();
-              }}
-              aria-label={`Save a copy to Library, keyboard shortcut ${shortcutLabels['save-library']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaBook aria-hidden="true" /> Save Copy to Library
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['save-library']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onLoad();
-                onClose();
-              }}
-              aria-label={`Open SGF file or model weights, keyboard shortcut ${shortcutLabels['open-sgf']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaFolderOpen aria-hidden="true" /> Open SGF / Model
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['open-sgf']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onScanBoard();
-                onClose();
-              }}
-              aria-label="Open photo board"
-            >
-              <span className="flex items-center gap-2">
-                <FaCamera aria-hidden="true" /> Photo Board
-              </span>
-            </button>
+            </div>
           </div>
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Edit</div>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onCopy();
-                onClose();
-              }}
-              aria-label={`Copy SGF, keyboard shortcut ${shortcutLabels['copy-sgf']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaCopy aria-hidden="true" /> Copy SGF
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['copy-sgf']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onPaste();
-                onClose();
-              }}
-              aria-label={`Paste SGF or OGS URL, keyboard shortcut ${shortcutLabels['paste-sgf']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaPaste aria-hidden="true" /> Paste SGF / OGS
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</kbd>
-            </button>
+            <div className={menuActionGrid} data-menu-action-grid="edit">
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onCopy();
+                  onClose();
+                }}
+                aria-label={`Copy SGF, keyboard shortcut ${shortcutLabels['copy-sgf']}`}
+              >
+                <span className="flex items-center gap-2">
+                  <FaCopy aria-hidden="true" /> Copy SGF
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['copy-sgf']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onPaste();
+                  onClose();
+                }}
+                aria-label={`Paste SGF or OGS URL, keyboard shortcut ${shortcutLabels['paste-sgf']}`}
+              >
+                <span className="flex items-center gap-2">
+                  <FaPaste aria-hidden="true" /> Paste SGF / OGS
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</kbd>
+              </button>
+            </div>
           </div>
           {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem || onVideoBoard) && (
             <div>
               <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Study &amp; Practice</div>
-              {onLessons && (
-                <button type="button"
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-                  onClick={() => { onLessons(); onClose(); }}
-                >
-                  <FaGraduationCap aria-hidden="true" /> Lessons
-                </button>
-              )}
-              {onScoreQuiz && (
-                <button type="button"
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-                  onClick={() => { onScoreQuiz(); onClose(); }}
-                >
-                  <FaBalanceScale aria-hidden="true" /> Score Quiz
-                </button>
-              )}
-              {onGuessMove && (
-                <button type="button"
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-                  onClick={() => { onGuessMove(); onClose(); }}
-                >
-                  <FaBullseye aria-hidden="true" /> Guess the Move
-                </button>
-              )}
-              {onProblem && (
-                <button type="button"
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-                  onClick={() => { onProblem(); onClose(); }}
-                >
-                  <FaPuzzlePiece aria-hidden="true" /> Problem Practice
-                </button>
-              )}
-              {onRankLadder && (
-                <button type="button"
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-                  onClick={() => { onRankLadder(); onClose(); }}
-                >
-                  <FaTrophy aria-hidden="true" /> Rank Ladder
-                </button>
-              )}
-              {onProGames && (
-                <button type="button"
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-                  onClick={() => { onProGames(); onClose(); }}
-                >
-                  <FaBook aria-hidden="true" /> Pro Game Library
-                </button>
-              )}
-              {onVideoBoard && (
-                <button type="button"
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-                  onClick={() => { onVideoBoard(); onClose(); }}
-                >
-                  <FaVideo aria-hidden="true" /> Video to SGF
-                </button>
-              )}
+              <div className={menuActionGrid} data-menu-action-grid="study">
+                {onLessons && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    onClick={() => {
+                      onLessons();
+                      onClose();
+                    }}
+                  >
+                    <FaGraduationCap aria-hidden="true" /> Lessons
+                  </button>
+                )}
+                {onScoreQuiz && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    onClick={() => {
+                      onScoreQuiz();
+                      onClose();
+                    }}
+                  >
+                    <FaBalanceScale aria-hidden="true" /> Score Quiz
+                  </button>
+                )}
+                {onGuessMove && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    onClick={() => {
+                      onGuessMove();
+                      onClose();
+                    }}
+                  >
+                    <FaBullseye aria-hidden="true" /> Guess the Move
+                  </button>
+                )}
+                {onProblem && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    onClick={() => {
+                      onProblem();
+                      onClose();
+                    }}
+                  >
+                    <FaPuzzlePiece aria-hidden="true" /> Problem Practice
+                  </button>
+                )}
+                {onRankLadder && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    onClick={() => {
+                      onRankLadder();
+                      onClose();
+                    }}
+                  >
+                    <FaTrophy aria-hidden="true" /> Rank Ladder
+                  </button>
+                )}
+                {onProGames && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    onClick={() => {
+                      onProGames();
+                      onClose();
+                    }}
+                  >
+                    <FaBook aria-hidden="true" /> Pro Game Library
+                  </button>
+                )}
+                {onVideoBoard && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    onClick={() => {
+                      onVideoBoard();
+                      onClose();
+                    }}
+                  >
+                    <FaVideo aria-hidden="true" /> Video to SGF
+                  </button>
+                )}
+              </div>
             </div>
           )}
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Settings</div>
-            <label
-              htmlFor="menu-app-locale"
-              className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded"
-            >
+            <label htmlFor="menu-app-locale" className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded">
               <span className="flex min-w-0 flex-col">
                 <span className="text-sm text-[var(--ui-text)]">Document language</span>
                 <span className="text-xs ui-text-faint truncate">Metadata · {activeLocale.label}</span>
@@ -434,58 +483,64 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 ))}
               </select>
             </label>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onCommandPalette();
-                onClose();
-              }}
-              aria-label={`Open command palette, keyboard shortcut ${shortcutLabels['command-palette']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaSearch aria-hidden="true" /> Command Palette
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['command-palette']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onSettings();
-                onClose();
-              }}
-              aria-label={`Open settings, keyboard shortcut ${shortcutLabels['settings-modal']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaCog aria-hidden="true" /> Settings
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['settings-modal']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onKeyboardHelp();
-                onClose();
-              }}
-              aria-label={`Open keyboard shortcuts, keyboard shortcut ${shortcutLabels['keyboard-help']}`}
-            >
-              <span className="flex items-center gap-2">
-                <FaKeyboard aria-hidden="true" /> Keyboard Shortcuts
-              </span>
-              <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['keyboard-help']}</kbd>
-            </button>
-            <button type="button"
-              className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
-              onClick={() => {
-                onAbout();
-                onClose();
-              }}
-              aria-label="Open about dialog"
-            >
-              <span className="flex items-center gap-2">
-                <FaInfoCircle aria-hidden="true" /> About
-              </span>
-              <span className="text-xs ui-text-faint">Build</span>
-            </button>
+            <div className={menuActionGrid} data-menu-action-grid="settings">
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onCommandPalette();
+                  onClose();
+                }}
+                aria-label={`Open command palette, keyboard shortcut ${shortcutLabels['command-palette']}`}
+              >
+                <span className="flex items-center gap-2">
+                  <FaSearch aria-hidden="true" /> Command Palette
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['command-palette']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onSettings();
+                  onClose();
+                }}
+                aria-label={`Open settings, keyboard shortcut ${shortcutLabels['settings-modal']}`}
+              >
+                <span className="flex items-center gap-2">
+                  <FaCog aria-hidden="true" /> Settings
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['settings-modal']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onKeyboardHelp();
+                  onClose();
+                }}
+                aria-label={`Open keyboard shortcuts, keyboard shortcut ${shortcutLabels['keyboard-help']}`}
+              >
+                <span className="flex items-center gap-2">
+                  <FaKeyboard aria-hidden="true" /> Keyboard Shortcuts
+                </span>
+                <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['keyboard-help']}</kbd>
+              </button>
+              <button
+                type="button"
+                className={`${menuAction} justify-between`}
+                onClick={() => {
+                  onAbout();
+                  onClose();
+                }}
+                aria-label="Open about dialog"
+              >
+                <span className="flex items-center gap-2">
+                  <FaInfoCircle aria-hidden="true" /> About
+                </span>
+                <span className="text-xs ui-text-faint">Build</span>
+              </button>
+            </div>
           </div>
         </nav>
 
@@ -494,7 +549,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <div className="text-xs ui-text-faint px-3 uppercase tracking-wide">Recent</div>
             <div className="space-y-1">
               {recentItems.map((item) => (
-                <button type="button"
+                <button
+                  type="button"
                   key={item.id}
                   className="w-full text-left px-3 py-2 rounded hover:bg-[var(--ui-surface-2)] text-sm text-[var(--ui-text)]"
                   onClick={() => {
@@ -511,7 +567,6 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             </div>
           </div>
         )}
-
       </div>
       <div
         className={[

@@ -72,6 +72,18 @@ describe('AnalysisPanel', () => {
     expect(html).toContain('aria-label="Hide move heatmap"');
   });
 
+  it('collapses redundant engine diagnostics and keeps depth presets on one compact row', () => {
+    const html = renderToStaticMarkup(<AnalysisPanel {...baseProps} compact />);
+
+    expect(html).toContain('aria-label="Show engine details"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('data-analysis-engine-details="true"');
+    expect(html).not.toContain('>Backend</div>');
+    expect(html).not.toContain('kata1-b18');
+    expect(html).toContain('grid-cols-4');
+    expect(html).toContain('min-h-11');
+  });
+
   it('uses beginner-friendly heatmap wording in the overlay legend', () => {
     const html = renderToStaticMarkup(<AnalysisQualityLegend items={[]} />);
 

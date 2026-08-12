@@ -581,7 +581,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               <div className="flex items-center rounded border border-[var(--ui-border)] bg-[var(--ui-surface)]" role="group" aria-label="Note text size">
                 <button
                   type="button"
-                  className="grid h-7 w-7 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
+                  className="grid h-11 w-11 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 lg:h-7 lg:w-7"
                   onClick={() => adjustNoteFontScale(-NOTE_FONT_SCALE_STEP)}
                   disabled={fontScale <= NOTE_FONT_SCALE_MIN + 0.001}
                   title="Smaller note text"
@@ -591,7 +591,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                 </button>
                 <button
                   type="button"
-                  className="grid h-7 w-7 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40"
+                  className="grid h-11 w-11 place-items-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 lg:h-7 lg:w-7"
                   onClick={() => adjustNoteFontScale(NOTE_FONT_SCALE_STEP)}
                   disabled={fontScale >= NOTE_FONT_SCALE_MAX - 0.001}
                   title="Larger note text"

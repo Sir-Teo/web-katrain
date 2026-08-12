@@ -170,9 +170,29 @@ describe('TopControlBar', () => {
     expect(source).toContain("onPointerDown={() => updateMobileToolsInputMode('pointer')}");
     expect(source).toContain("mobileToolsInputMode === 'pointer' ? 'mobile-tools-pointer-focus' : ''");
     expect(source).toContain("closeViewMenuWithFocus(true, 'keyboard')");
+    expect(source.match(/closeViewMenuWithFocus\(true, mobileToolsInputModeRef\.current\)/g) ?? []).toHaveLength(2);
+    expect(source.match(/closeMobileToolsAfterAction\(\)/g) ?? []).toHaveLength(14);
+    expect(source).toContain("onScanBoard(); closeViewMenu();");
+    expect(source).toContain("setIsGameAnalysisOpen(true); closeViewMenu();");
+    expect(source).toContain("setIsGameReportOpen(true); closeViewMenu();");
     expect(css).toMatch(/\.mobile-tools-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
     expect(css).toContain("[data-mobile-tools-panel='true'] select");
     expect(css).toContain('min-height: 44px !important');
+  });
+
+  it('uses compact responsive grids inside the mobile Tools dialog', () => {
+    const html = renderToStaticMarkup(<TopControlBar {...baseProps} viewMenuOpen={true} isMobile={true} />);
+    const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html.match(/data-mobile-tools-action-grid="true"/g) ?? []).toHaveLength(3);
+    expect(html).toContain('data-mobile-tools-view-grid="true"');
+    expect(source).toContain('const mobileToolsActionGrid = "grid grid-cols-2"');
+    expect(source).toContain('const mobileToolsSectionLabel = "px-4 py-2');
+    expect(source).toContain('className="grid grid-cols-2" data-mobile-tools-view-grid="true"');
+    expect(css).toMatch(/\[data-mobile-tools-action-grid='true'\] > button \{[^}]*border-bottom: 1px solid var\(--ui-border\);/);
+    expect(css).toMatch(/@media \(min-width: 600px\) and \(max-width: 1023px\)[\s\S]*\[data-mobile-tools-action-grid='true'\][\s\S]*repeat\(3, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\[data-mobile-tools-action-grid='true'\][\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
   });
 
   it('keeps desktop toolbar menus mutually exclusive', () => {

@@ -152,6 +152,7 @@ function formatVisitCount(n: number): string {
 }
 
 type PopoverId = 'engine' | 'view' | 'file' | 'help' | null;
+type PopoverInputMode = 'pointer' | 'keyboard';
 
 const HERO_DISMISSED_KEY = 'wk-getting-started-dismissed';
 type DashboardOverlayKey = keyof Pick<
@@ -223,7 +224,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   const layoutModeRef = useRef<DashboardLayoutMode>(layoutMode);
   const libraryOpenRef = useRef(libraryOpen);
   const wideLibraryOpenRef = useRef(initialWideLibraryOpen);
-  const [pop, setPop] = useState<{ id: PopoverId; rect: DOMRect } | null>(null);
+  const [pop, setPop] = useState<{ id: PopoverId; rect: DOMRect; inputMode: PopoverInputMode } | null>(null);
+  const popTriggerRef = useRef<HTMLElement | null>(null);
   const [moveInputDraft, setMoveInputDraft] = useState<string | null>(null);
   const moveInputValue = moveInputDraft ?? String(moveCount);
 
@@ -298,16 +300,42 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
 
   // ---- popovers ----
   const openPop = (id: Exclude<PopoverId, null>, e: React.MouseEvent) => {
+    if (pop?.id === id) {
+      setPop(null);
+      return;
+    }
+    popTriggerRef.current = e.currentTarget as HTMLElement;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPop((cur) => (cur?.id === id ? null : { id, rect }));
+    setPop({ id, rect, inputMode: e.detail === 0 ? 'keyboard' : 'pointer' });
   };
   const closePop = useCallback(() => setPop(null), []);
+  const closePopWithFocus = useCallback(() => {
+    setPop(null);
+    window.setTimeout(() => popTriggerRef.current?.focus({ preventScroll: true }), 0);
+  }, []);
   useEffect(() => {
     if (!pop) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closePop(); };
+    const focusPopover = pop.inputMode === 'keyboard'
+      ? window.requestAnimationFrame(() => {
+          const popover = document.querySelector<HTMLElement>('[data-dashboard-popover="true"]');
+          const firstControl = popover?.querySelector<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          (firstControl ?? popover)?.focus({ preventScroll: true });
+        })
+      : 0;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      closePopWithFocus();
+    };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [pop, closePop]);
+    return () => {
+      if (focusPopover) window.cancelAnimationFrame(focusPopover);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [pop, closePopWithFocus]);
 
   // ---- command bar metrics ----
   const bestMove = currentNode.analysis?.moves?.[0] ?? null;
@@ -383,6 +411,23 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     if (!q) return items;
     return items.filter((it) => it.name.toLowerCase().includes(q));
   }, [recentItems, search]);
+  const showCompactStartStrip = showHero && layoutMode === 'compact' && gamestripOpen;
+  const renderStartActions = () => (
+    <>
+      <button type="button" className="tbtn primary" onClick={() => { dismissHero(); onNewGame(); }}>
+        <Icon name="plus" size={14} /> New game
+      </button>
+      <button type="button" className="tbtn" onClick={() => { dismissHero(); onLoadSgf(); }}>
+        <Icon name="folder" size={14} /> Open SGF
+      </button>
+      <button type="button" className="tbtn" onClick={() => { dismissHero(); onPasteSgf(); }}>
+        <Icon name="clipboard" size={14} /> Paste SGF / OGS
+      </button>
+      <button type="button" className="tbtn" onClick={() => { dismissHero(); onScanBoard(); }}>
+        <Icon name="camera" size={14} /> From photo
+      </button>
+    </>
+  );
 
   return (
     <div
@@ -411,7 +456,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             className={`iconbtn${pop?.id === 'file' ? ' active' : ''}`}
             title="More file actions"
             aria-label="More file actions"
-            aria-haspopup="menu"
+            aria-haspopup="dialog"
             aria-expanded={pop?.id === 'file'}
             onClick={(e) => openPop('file', e)}
           >
@@ -426,7 +471,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             className={`iconbtn${pop?.id === 'help' ? ' active' : ''}`}
             title="Help"
             aria-label="Help"
-            aria-haspopup="menu"
+            aria-haspopup="dialog"
             aria-expanded={pop?.id === 'help'}
             onClick={(e) => openPop('help', e)}
           >
@@ -448,6 +493,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           id="wk-engine-pill"
           data-state={engineState}
           aria-haspopup="dialog"
+          aria-expanded={pop?.id === 'engine'}
           title={engineMetaTitle}
           onClick={(e) => openPop('engine', e)}
         >
@@ -473,7 +519,14 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <span className="dot" />
           Analyze
         </button>
-        <button type="button" className="tbtn" id="wk-view-menu-btn" onClick={(e) => openPop('view', e)}>
+        <button
+          type="button"
+          className="tbtn"
+          id="wk-view-menu-btn"
+          aria-haspopup="dialog"
+          aria-expanded={pop?.id === 'view'}
+          onClick={(e) => openPop('view', e)}
+        >
           <Icon name="sliders" size={14} /> <span className="vlabel">View</span>
         </button>
       </header>
@@ -534,35 +587,53 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         {/* Board column */}
         <main className="board-col">
           {gamestripOpen && (
-          <div className="gamestrip">
-            <div className="gs-players">
-              <div className={`gs-player${currentPlayer === 'black' ? ' to-move' : ''}`}>
-                <span className="stone-mini b" />
-                <span className="nm">{blackName || 'Black'}</span>
-                {blackRank ? <span className="rk">{blackRank}</span> : null}
-                {capturedWhite > 0 ? <span className="cap">{capturedWhite} captured</span> : null}
+          <div className={`gamestrip${showCompactStartStrip ? ' start-strip' : ''}`}>
+            {showCompactStartStrip ? (
+              <div className="compact-start" role="region" aria-label="Get started" data-dashboard-compact-start="true">
+                <span className="compact-start-title">Start</span>
+                <div className="compact-start-actions">{renderStartActions()}</div>
+                <button
+                  type="button"
+                  className="iconbtn compact-start-close"
+                  title="Dismiss"
+                  aria-label="Dismiss get started"
+                  onClick={dismissHero}
+                >
+                  <Icon name="x" size={13} />
+                </button>
               </div>
-              <div className={`gs-player${currentPlayer === 'white' ? ' to-move' : ''}`}>
-                <span className="stone-mini w" />
-                <span className="nm">{whiteName || 'White'}</span>
-                {whiteRank ? <span className="rk">{whiteRank}</span> : null}
-                {capturedBlack > 0 ? <span className="cap">{capturedBlack} captured</span> : null}
-              </div>
-            </div>
-            <span className="gs-sep" />
-            <span className="gs-fact gs-fact-primary">{boardSize}×{boardSize}</span>
-            <span className="gs-fact">komi <b>{komi}</b></span>
-            {handicap > 0 ? <span className="gs-fact">H{handicap}</span> : null}
-            <span className="gs-fact">{rulesLabel}</span>
-            {result ? <span className="gs-result">{result}</span> : null}
-            <span className="gs-sep" />
-            <div className="gs-file">
-              <Icon name="book" size={13} />
-              <span className="fn">{loadedFileName || 'Untitled'}</span>
-            </div>
-            <span className={`gs-save ${dirty ? 'dirty' : 'saved'}`}>
-              <Icon name={dirty ? 'alert' : 'check'} size={11} />{dirty ? 'Unsaved' : 'Saved'}
-            </span>
+            ) : (
+              <>
+                <div className="gs-players">
+                  <div className={`gs-player${currentPlayer === 'black' ? ' to-move' : ''}`}>
+                    <span className="stone-mini b" />
+                    <span className="nm">{blackName || 'Black'}</span>
+                    {blackRank ? <span className="rk">{blackRank}</span> : null}
+                    {capturedWhite > 0 ? <span className="cap">{capturedWhite} captured</span> : null}
+                  </div>
+                  <div className={`gs-player${currentPlayer === 'white' ? ' to-move' : ''}`}>
+                    <span className="stone-mini w" />
+                    <span className="nm">{whiteName || 'White'}</span>
+                    {whiteRank ? <span className="rk">{whiteRank}</span> : null}
+                    {capturedBlack > 0 ? <span className="cap">{capturedBlack} captured</span> : null}
+                  </div>
+                </div>
+                <span className="gs-sep" />
+                <span className="gs-fact gs-fact-primary">{boardSize}×{boardSize}</span>
+                <span className="gs-fact">komi <b>{komi}</b></span>
+                {handicap > 0 ? <span className="gs-fact">H{handicap}</span> : null}
+                <span className="gs-fact">{rulesLabel}</span>
+                {result ? <span className="gs-result">{result}</span> : null}
+                <span className="gs-sep" />
+                <div className="gs-file">
+                  <Icon name="book" size={13} />
+                  <span className="fn">{loadedFileName || 'Untitled'}</span>
+                </div>
+                <span className={`gs-save ${dirty ? 'dirty' : 'saved'}`}>
+                  <Icon name={dirty ? 'alert' : 'check'} size={11} />{dirty ? 'Unsaved' : 'Saved'}
+                </span>
+              </>
+            )}
           </div>
           )}
 
@@ -591,7 +662,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <div className="board-wrap">
               <div className="goban-frame">{board}</div>
             </div>
-            {showHero && (
+            {showHero && !showCompactStartStrip && (
               <div className="hero-card" data-dashboard-hero="true" role="region" aria-label="Get started">
                 <button
                   type="button"
@@ -603,20 +674,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <Icon name="x" size={13} />
                 </button>
                 <div className="hero-title">Start here</div>
-                <div className="hero-actions">
-                  <button type="button" className="tbtn primary" onClick={() => { dismissHero(); onNewGame(); }}>
-                    <Icon name="plus" size={14} /> New game
-                  </button>
-                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onLoadSgf(); }}>
-                    <Icon name="folder" size={14} /> Open SGF
-                  </button>
-                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onPasteSgf(); }}>
-                    <Icon name="clipboard" size={14} /> Paste SGF / OGS
-                  </button>
-                  <button type="button" className="tbtn" onClick={() => { dismissHero(); onScanBoard(); }}>
-                    <Icon name="camera" size={14} /> From photo
-                  </button>
-                </div>
+                <div className="hero-actions">{renderStartActions()}</div>
               </div>
             )}
             <button
@@ -655,13 +713,12 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <div className="cb-metric">
                     <div className="k">Score</div>
                     <div className="v score">{formatReadableScoreLead(scoreLead)}</div>
-                    <div className="sub">score lead</div>
                   </div>
                   <div className="cb-metric">
                     <div className="k">Best move</div>
                     <div className="v best">{bestMove ? formatMoveLabel(bestMove.x, bestMove.y, boardSize) : '—'}</div>
                     <div className="sub" title={bestMove ? `${(bestMove.winRate * 100).toFixed(1)}% win rate · ${bestMove.visits} visits` : undefined}>
-                      {bestMove ? `${(bestMove.winRate * 100).toFixed(0)}% · ${formatVisitCount(bestMove.visits)} visits` : ''}
+                      {bestMove ? `${(bestMove.winRate * 100).toFixed(0)}% · ${formatVisitCount(bestMove.visits)}` : ''}
                     </div>
                   </div>
                   <div className="cb-metric">
@@ -999,7 +1056,16 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         />
       )}
       {pop?.id === 'file' && (
-        <div className="popover menu" style={popoverStyle(pop.rect, 230)} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="popover menu"
+          style={popoverStyle(pop.rect, 230)}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="false"
+          aria-label="File actions"
+          tabIndex={-1}
+          data-dashboard-popover="true"
+        >
           <div className="menu-section-label">Export</div>
           <button type="button" className="menu-item" onClick={() => { closePop(); onCopySgf(); }}>
             <Icon name="copy" size={14} /><span className="mi-label">Copy SGF</span>
@@ -1018,7 +1084,16 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         </div>
       )}
       {pop?.id === 'help' && (
-        <div className="popover menu" style={popoverStyle(pop.rect, 230)} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="popover menu"
+          style={popoverStyle(pop.rect, 230)}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="false"
+          aria-label="Help"
+          tabIndex={-1}
+          data-dashboard-popover="true"
+        >
           <button type="button" className="menu-item" onClick={() => { closePop(); onKeyboardHelp(); }}>
             <Icon name="keyboard" size={14} /><span className="mi-label">Keyboard shortcuts</span>
           </button>
@@ -1086,7 +1161,16 @@ const EnginePopover: React.FC<{
   const [label, color] = states[engineState];
   const left = Math.max(8, Math.min(rect.left, window.innerWidth - 300 - 8));
   return (
-    <div className="popover" style={{ left, top: rect.bottom + 6 }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="popover"
+      style={{ left, top: rect.bottom + 6 }}
+      onClick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="false"
+      aria-label="Engine details"
+      tabIndex={-1}
+      data-dashboard-popover="true"
+    >
       <div className="pop-head"><div className="pop-eyebrow">Engine</div><div className="pop-title">KataGo · in-browser</div></div>
       <div className="engine-detail">
         <dl className="ed-grid">
@@ -1147,7 +1231,16 @@ const ViewMenu: React.FC<{
     </button>
   );
   return (
-    <div className="popover menu" style={popoverStyle(rect, 230)} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="popover menu"
+      style={popoverStyle(rect, 230)}
+      onClick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="false"
+      aria-label="View options"
+      tabIndex={-1}
+      data-dashboard-popover="true"
+    >
       <div className="menu-section-label">Display</div>
       {item('Coordinates', showCoords, 'C', onToggleCoords)}
       <div className="menu-divider" />

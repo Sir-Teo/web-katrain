@@ -202,7 +202,7 @@ export const ScoreWinrateGraph: React.FC<{
   }, [displayNodes, evalColors, evalThresholds, gameAnalysisDone, trainerShowDots, treeVersion, xScale]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!svgRef.current) return;
+    if (!hasGraphData || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const index = Math.round((x / rect.width) * (count - 1));
@@ -212,7 +212,7 @@ export const ScoreWinrateGraph: React.FC<{
   const handleMouseLeave = () => setHoverIndex(null);
 
   const handleClick = () => {
-    if (hoverIndex !== null && displayNodes[hoverIndex]) jumpToNode(displayNodes[hoverIndex]);
+    if (hasGraphData && hoverIndex !== null && displayNodes[hoverIndex]) jumpToNode(displayNodes[hoverIndex]);
   };
 
   const clampedHighlighted = Math.min(Math.max(0, highlighted), Math.max(0, count - 1));
@@ -221,12 +221,13 @@ export const ScoreWinrateGraph: React.FC<{
   const activeMoveIndex = activeGraphIndex + (range?.start ?? 0);
 
   const handleFocus = () => {
-    if (count > 0) setHoverIndex((index) => index ?? clampedHighlighted);
+    if (hasGraphData && count > 0) setHoverIndex((index) => index ?? clampedHighlighted);
   };
 
   const handleBlur = () => setHoverIndex(null);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!hasGraphData) return;
     if (event.key === 'Enter' || event.key === ' ') {
       if (hoverIndex !== null && displayNodes[hoverIndex]) {
         event.preventDefault();
@@ -280,9 +281,12 @@ export const ScoreWinrateGraph: React.FC<{
 
   return (
     <div
-      className="w-full h-full relative border border-[var(--ui-border)] rounded overflow-hidden cursor-crosshair focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]"
+      className={[
+        'w-full h-full relative border border-[var(--ui-border)] rounded overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]',
+        hasGraphData ? 'cursor-crosshair' : 'cursor-default',
+      ].join(' ')}
       role="slider"
-      tabIndex={0}
+      tabIndex={hasGraphData ? 0 : -1}
       aria-label={
         hasGraphData
           ? 'Analysis graph move preview. Use arrow keys to preview moves, Enter to jump to the selected move.'
@@ -376,7 +380,7 @@ export const ScoreWinrateGraph: React.FC<{
         >
           <div className={graphTheme.emptyBadgeClass}>
             {count <= 1 ? (
-              <span>Play or load a game to chart win rate and score</span>
+              <span>Play a move or open an SGF to chart win rate and score</span>
             ) : isGameAnalysisRunning ? (
               <span>
                 Analyzing game… {gameAnalysisDone}/{gameAnalysisTotal}

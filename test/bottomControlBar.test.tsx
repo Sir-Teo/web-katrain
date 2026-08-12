@@ -108,8 +108,24 @@ describe('BottomControlBar', () => {
     expect(componentSource).toContain('first.focus({ preventScroll: true })');
     expect(componentSource).toMatch(/data-bottom-more-close="true"[\s\S]{0,220}min-h-11 min-w-11/);
     expect(componentSource).toContain("closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer')");
+    expect(componentSource).toContain('const closeMoreControlsFromAction = React.useCallback');
+    expect(componentSource.match(/closeMoreControlsFromAction\(event\)/g) ?? []).toHaveLength(12);
+    expect(componentSource.match(/setMoreOpen\(false\)/g) ?? []).toHaveLength(1);
     expect(componentSource).toContain("data-bottom-more-focus-origin={suppressMoreTriggerFocusRing ? 'pointer' : 'keyboard'}");
     expect(css).toMatch(/\.mobile-more-trigger-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
+  });
+
+  it('keeps the mobile More Controls sheet compact without shrinking touch targets', () => {
+    const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(componentSource).toContain('data-bottom-more-grid="true"');
+    expect(componentSource).toContain('className="grid grid-cols-2 gap-1.5 p-2"');
+    expect(componentSource).toContain("const mobileMoreActionClass = 'w-full min-h-12 px-2.5 py-2");
+    expect(componentSource).toContain('className="col-span-2 h-px bg-[var(--ui-border)] mx-2 my-1"');
+    expect(componentSource).toContain('<div className="flex-1 font-medium">Rotate board</div>');
+    expect(componentSource).not.toContain('px-4 py-3.5 text-left');
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\[data-bottom-more-grid='true'\][\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   });
 
   it('uses compact recovery save status on mobile', () => {

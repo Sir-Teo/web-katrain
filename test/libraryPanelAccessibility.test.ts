@@ -45,12 +45,34 @@ describe('LibraryPanel accessibility', () => {
     }
   });
 
+  it('keeps infrequent library maintenance actions in one keyboard-accessible menu', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    expect(source).toContain('aria-label="More library actions"');
+    expect(source).toContain('aria-expanded={headerMenuOpen}');
+    expect(source).toContain('onKeyDown={handleHeaderMenuKeyDown}');
+    expect(source).toContain('> Export library as ZIP');
+    expect(source).toContain('> Sync from OGS');
+    expect(source).toContain('> Download backup');
+    expect(source).toContain('> Restore backup');
+    expect(source).toContain('> Clear library');
+    expect(source).not.toContain('library-header-secondary-action');
+  });
+
   it('provides true touch-sized mobile library controls', () => {
     const styles = readFileSync('src/index.css', 'utf8');
 
     expect(styles).toContain(".library-tree-node[data-library-row='folder'] .library-tree-node-more");
     expect(styles).toContain('grid-template-columns: 44px 44px 16px minmax(0, 1fr) auto 44px;');
     expect(styles).toContain('min-height: 44px;');
+  });
+
+  it('keeps the standalone mobile library open without repeating its workspace title', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    expect(source).toContain('open: isMobile || listOpen');
+    expect(source).toContain('hideHeader: isMobile');
+    expect(source).toContain("isMobile ? 'h-11 min-h-11 w-11 min-w-11' : 'h-9 w-9'");
   });
 
   it('sanitizes folder download names with the shared filename guard', () => {

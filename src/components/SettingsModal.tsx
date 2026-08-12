@@ -112,11 +112,11 @@ const OFFICIAL_MODELS: Array<{
 const MIN_ANALYSIS_VISITS = 16;
 const FAST_REVIEW_VISIT_PRESETS = [16, 25, 50, 100] as const;
 const SETTINGS_TABS = [
-    { id: 'general', label: 'General' },
-    { id: 'analysis', label: 'Analysis' },
-    { id: 'ai', label: 'AI/Engine' },
-    { id: 'shortcuts', label: 'Shortcuts' },
-] as const satisfies ReadonlyArray<{ id: SettingsTabId; label: string }>;
+    { id: 'general', label: 'General', compactLabel: 'General' },
+    { id: 'analysis', label: 'Analysis', compactLabel: 'Analysis' },
+    { id: 'ai', label: 'AI/Engine', compactLabel: 'Engine' },
+    { id: 'shortcuts', label: 'Shortcuts', compactLabel: 'Keys' },
+] as const satisfies ReadonlyArray<{ id: SettingsTabId; label: string; compactLabel: string }>;
 
 function clampSettingsVisits(value: number): number {
     if (!Number.isFinite(value)) return MIN_ANALYSIS_VISITS;
@@ -403,6 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     key={tab.id}
                                     id={`tab-${tab.id}`}
                                     role="tab"
+                                    aria-label={tab.label}
                                     aria-selected={isActive}
                                     aria-controls={`panel-${tab.id}`}
                                     tabIndex={isActive ? 0 : -1}
@@ -421,7 +422,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             : ''
                                     }`}
                                 >
-                                    {tab.label}
+                                    <span className="settings-tab-label-full" aria-hidden="true">{tab.label}</span>
+                                    <span className="settings-tab-label-compact" aria-hidden="true">{tab.compactLabel}</span>
                                 </button>
                             );
                         })}

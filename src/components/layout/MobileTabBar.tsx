@@ -27,6 +27,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   commentBadge,
   hasControlBarAbove,
 }) => {
+  const [pointerFocusedTab, setPointerFocusedTab] = React.useState<MobileTab | null>(null);
   const tabs: TabConfig[] = [
     {
       id: 'board',
@@ -71,16 +72,25 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             <button
               key={tab.id}
               type="button"
-              onClick={() => onTabChange(tab.id)}
+              onPointerDown={() => setPointerFocusedTab(tab.id)}
+              onPointerCancel={() => setPointerFocusedTab(null)}
+              onKeyDown={() => setPointerFocusedTab(null)}
+              onBlur={() => setPointerFocusedTab((focusedTab) => focusedTab === tab.id ? null : focusedTab)}
+              onClick={(event) => {
+                setPointerFocusedTab(event.detail === 0 ? null : tab.id);
+                onTabChange(tab.id);
+              }}
               className={[
                 'py-2.5 sm:py-3 px-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium leading-tight transition-all touch-manipulation',
                 isActive
                   ? 'text-[var(--ui-accent)] border-t-2 border-[var(--ui-accent)]'
                   : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] border-t-2 border-transparent',
+                pointerFocusedTab === tab.id ? 'mobile-tab-pointer-focus' : '',
               ].join(' ')}
               role="tab"
               aria-selected={isActive}
               aria-label={tab.label}
+              data-mobile-tab-focus-origin={pointerFocusedTab === tab.id ? 'pointer' : 'keyboard'}
             >
               <span className="relative">
                 {tab.icon}

@@ -85,4 +85,16 @@ describe('NotificationToast', () => {
     expect(css).toContain('width: 45px;');
     expect(css).toContain('height: 45px;');
   });
+
+  it('overlays mobile notifications without resizing the board', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\/\* Mobile workspaces keep the board as the primary interaction surface\. \*\/[\s\S]*?\.notification-toast-region,[\s\S]*?position: absolute;/);
+    expect(css).toContain('inset: 0.5rem 0.5rem auto;');
+    expect(css).toContain('.notification-toast-region--below-command-bar {\n      top: 4rem;');
+    expect(css).toContain('@media (max-width: 480px) and (min-height: 700px) and (orientation: portrait)');
+    expect(css).toContain('bottom: 0.5rem;');
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\) \{[\s\S]*?\.notification-toast-region,[\s\S]*?justify-content: flex-end;/);
+    expect(css).toContain('max-width: min(18rem, calc(100% - 1rem));');
+  });
 });

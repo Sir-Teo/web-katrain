@@ -28,6 +28,7 @@ const modalSources = [
   { path: 'src/components/SettingsModal.tsx', titleId: 'settings-title', escape: 'useEscapeToClose(onClose)' },
   { path: 'src/components/UnsavedChangesModal.tsx', titleId: 'unsaved-changes-title', escape: "useEscapeToClose(() => onChoice('cancel'))" },
   { path: 'src/components/layout/MenuDrawer.tsx', titleId: 'menu-title', escape: 'useEscapeToClose(onClose, open)' },
+  { path: 'src/components/MobileHome.tsx', titleId: 'mobile-home-title', escape: 'useEscapeToClose(onClose, open)' },
 ] as const;
 
 describe('modal accessibility semantics', () => {
@@ -75,6 +76,19 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain("previouslyFocused.setAttribute('data-menu-restored-focus-origin', restoredMode)");
     expect(css).toMatch(/\.menu-drawer-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
     expect(source).toContain('ref={drawerRef}');
+    expect(source).toContain('ref={closeButtonRef}');
+  });
+
+  it('moves focus into mobile Home, traps it there, and restores its launcher', () => {
+    const source = readFileSync('src/components/MobileHome.tsx', 'utf8');
+
+    expect(source).toContain('const homeRef = React.useRef<HTMLDivElement>(null)');
+    expect(source).toContain('const closeButtonRef = React.useRef<HTMLButtonElement>(null)');
+    expect(source).toContain('closeButtonRef.current?.focus({ preventScroll: true })');
+    expect(source).toContain("document.addEventListener('keydown', keepFocusInHome, true)");
+    expect(source).toContain('home.contains(activeElement)');
+    expect(source).toContain('previouslyFocused.focus({ preventScroll: true })');
+    expect(source).toContain('ref={homeRef}');
     expect(source).toContain('ref={closeButtonRef}');
   });
 });

@@ -260,6 +260,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const updateSettings = useGameStore((state) => state.updateSettings);
   const [legendOpen, setLegendOpen] = React.useState(false);
   const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
+  const [engineDetailsOpen, setEngineDetailsOpen] = React.useState(false);
   const engineSummary = React.useMemo(() => getEngineStatusSummary({
     status: engineStatus,
     error: engineError,
@@ -502,7 +503,11 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   );
   const liveVisitPresetControls = (
     <div
-      className="mt-2 border-t border-[var(--ui-border)] pt-2"
+      className={[
+        !compact || engineDetailsOpen || engineSummary.isFallback || !!engineError
+          ? 'mt-2 border-t border-[var(--ui-border)] pt-2'
+          : '',
+      ].join(' ')}
       data-analysis-live-visit-presets="true"
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -511,7 +516,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
         <div className="text-[11px] ui-text-faint">Kaya-style</div>
       </div>
-      <div className="grid grid-cols-2 gap-1">
+      <div className={['grid gap-1', compact ? 'grid-cols-4' : 'grid-cols-2'].join(' ')}>
         {liveVisitPresets.map((preset) => {
           const active = liveVisits === preset;
           return (
@@ -553,7 +558,21 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           className="lg:hidden"
           maxWidthClassName="max-w-[180px]"
         />
-        <span className="ml-auto">{statusText}</span>
+        {compact ? (
+          <button
+            type="button"
+            className={['panel-icon-button ml-auto', engineDetailsOpen ? 'active' : ''].join(' ')}
+            onClick={() => setEngineDetailsOpen((open) => !open)}
+            title={engineDetailsOpen ? 'Hide engine details' : 'Show engine details'}
+            aria-label={engineDetailsOpen ? 'Hide engine details' : 'Show engine details'}
+            aria-expanded={engineDetailsOpen}
+            aria-controls="analysis-engine-details"
+          >
+            <FaInfoCircle size={12} aria-hidden="true" />
+          </button>
+        ) : (
+          <span className="ml-auto">{statusText}</span>
+        )}
       </div>
       {isGameAnalysisRunning && gameAnalysisTotal > 0 && (
         <div className="panel-section-content border-b border-[var(--ui-border)]">
@@ -569,38 +588,42 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
       )}
       <div className="panel-section-content border-b border-[var(--ui-border)]">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-          <div>
-            <div className="ui-text-faint">State</div>
-            <div className={engineStatus === 'error' ? 'text-[var(--ui-danger)] font-semibold' : 'text-[var(--ui-text)] font-semibold'}>
-              {engineSummary.stateLabel}
+        {(!compact || engineDetailsOpen) && (
+          <div id="analysis-engine-details" data-analysis-engine-details="true">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+              <div>
+                <div className="ui-text-faint">State</div>
+                <div className={engineStatus === 'error' ? 'text-[var(--ui-danger)] font-semibold' : 'text-[var(--ui-text)] font-semibold'}>
+                  {engineSummary.stateLabel}
+                </div>
+              </div>
+              <div>
+                <div className="ui-text-faint">Backend</div>
+                <div className="text-[var(--ui-text)] font-semibold">
+                  {engineSummary.activeBackendLabel}{engineSummary.isFallback ? ' fallback' : ''}
+                </div>
+              </div>
+              <div>
+                <div className="ui-text-faint">Model</div>
+                <div className="text-[var(--ui-text)] truncate" title={engineModelLabel ?? modelUrl}>
+                  {engineModelLabel ?? 'Not loaded'}
+                </div>
+              </div>
+              <div>
+                <div className="ui-text-faint">Source</div>
+                <div className="text-[var(--ui-text)]">{engineSummary.modelSource}</div>
+              </div>
             </div>
-          </div>
-          <div>
-            <div className="ui-text-faint">Backend</div>
-            <div className="text-[var(--ui-text)] font-semibold">
-              {engineSummary.activeBackendLabel}{engineSummary.isFallback ? ' fallback' : ''}
-            </div>
-          </div>
-          <div>
-            <div className="ui-text-faint">Model</div>
-            <div className="text-[var(--ui-text)] truncate" title={engineModelLabel ?? modelUrl}>
-              {engineModelLabel ?? 'Not loaded'}
-            </div>
-          </div>
-          <div>
-            <div className="ui-text-faint">Source</div>
-            <div className="text-[var(--ui-text)]">{engineSummary.modelSource}</div>
-          </div>
-        </div>
-        {engineSummary.isFallback && (
-          <div className="mt-2 text-[11px] text-[var(--ui-warning)]">
-            Requested {engineSummary.requestedBackendLabel}, running {engineSummary.activeBackendLabel}.
+            {engineSummary.reasonLabel && (
+              <div className="mt-2 text-[11px] ui-text-faint" data-engine-reason="true">
+                {engineSummary.reasonLabel}
+              </div>
+            )}
           </div>
         )}
-        {engineSummary.reasonLabel && (
-          <div className="mt-2 text-[11px] ui-text-faint" data-engine-reason="true">
-            {engineSummary.reasonLabel}
+        {engineSummary.isFallback && (
+          <div className={[compact && !engineDetailsOpen ? '' : 'mt-2', 'text-[11px] text-[var(--ui-warning)]'].join(' ')}>
+            Requested {engineSummary.requestedBackendLabel}, running {engineSummary.activeBackendLabel}.
           </div>
         )}
         {engineError && (

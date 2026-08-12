@@ -274,8 +274,14 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.dashboardBoardActionSmallTargets.length} desktop board action target(s) below 32px: ${summary}`);
     }
-    if (result.viewport === '1280x800' && result.dashboardNavbarWrapped) {
-      failures.push('standard desktop command bar wraps primary play actions onto a second row');
+    if (['1280x800', '1024x768'].includes(result.viewport) && result.dashboardNavbarWrapped) {
+      failures.push('desktop command bar wraps primary play actions onto a second row');
+    }
+    if (result.dashboardCommandbarHeight > 40) {
+      failures.push(`desktop metric rail is too tall (${Math.round(result.dashboardCommandbarHeight)}px)`);
+    }
+    if (result.dashboardMetricClipping.length > 0) {
+      failures.push(`desktop metrics clip visible content: ${result.dashboardMetricClipping.join(', ')}`);
     }
     if (result.missingFileActions.length > 0) failures.push(`missing file actions: ${result.missingFileActions.join(', ')}`);
     if (!result.viewMenuReachable) failures.push('View menu not reachable');
@@ -349,6 +355,9 @@ function assertViewport(result) {
         .map((overlap) => `${overlap.first} / ${overlap.second} (${Math.round(overlap.width)}px)`)
         .join(', ');
       failures.push(`${result.postMoveMobileStatus.overlaps.length} post-move mobile control overlap(s): ${summary}`);
+    }
+    if (result.innerWidth <= 640 && result.innerHeight > 520 && !result.analysisPrimaryMetricsFullyVisible) {
+      failures.push('primary analysis metrics are clipped in the phone summary rail');
     }
     if (result.bottomMoreSheetFailures.length > 0) {
       failures.push(`mobile More Controls sheet failures: ${result.bottomMoreSheetFailures.join(', ')}`);
@@ -2406,6 +2415,20 @@ async function main() {
         const notificationMessage = notificationToast?.querySelector('.notification-toast-message')?.textContent?.trim() || '';
         const dashboardGameStripTargets = Array.from(document.querySelectorAll('.wk-dashboard .gamestrip > *'))
           .filter(isVisibleTarget);
+        const dashboardMetricClipping = dashboard ? Array.from(dashboard.querySelectorAll('.cb-metric'))
+          .filter((metric) => Array.from(metric.children).some((child) => {
+            const style = getComputedStyle(child);
+            return style.display !== 'none' && child.scrollWidth > child.clientWidth + 1;
+          }))
+          .map((metric) => metric.innerText.replace(/\s+/g, ' ').trim()) : [];
+        const analysisMetrics = document.querySelector('.analysis-command-bar__metrics');
+        const analysisMetricsRect = rect(analysisMetrics);
+        const analysisPrimaryMetricsFullyVisible = !analysisMetricsRect || Array.from(
+          analysisMetrics.querySelectorAll('.analysis-command-bar__metric')
+        ).slice(0, 2).every((metric) => {
+          const metricRect = rect(metric);
+          return metricRect && metricRect.left >= analysisMetricsRect.left - 1 && metricRect.right <= analysisMetricsRect.right + 1;
+        });
         return {
           viewport: '${viewport.width}x${viewport.height}',
           desktop: ${viewport.width >= 1024},
@@ -2419,8 +2442,11 @@ async function main() {
           dashboardHeaderSmallTargets,
           dashboardBoardActionSmallTargets,
           dashboardNavbarWrapped,
+          dashboardCommandbarHeight: rect(dashboard?.querySelector('.commandbar'))?.height ?? 0,
+          dashboardMetricClipping,
           mobileTurnIndicator,
           postMoveMobileStatus,
+          analysisPrimaryMetricsFullyVisible,
           topToggle: rect(topToggle),
           editToolbar: rect(editToolbar),
           board: rect(board),

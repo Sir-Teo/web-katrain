@@ -346,7 +346,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [confirmDialog, setConfirmDialog] = useState<LibraryConfirmDialogState | null>(null);
   const [showOgsSync, setShowOgsSync] = useState(false);
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+  const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
@@ -356,9 +359,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const headerActionClass = 'panel-icon-button';
-  const headerDangerActionClass = 'panel-icon-button ui-danger-soft';
-  const headerSecondaryActionClass = `${headerActionClass} library-header-secondary-action`;
-  const headerSecondaryDangerActionClass = `${headerDangerActionClass} library-header-secondary-action`;
   const bulkActionClass = 'panel-icon-button';
   const bulkDangerActionClass = 'panel-icon-button ui-danger-soft';
   const [sortKey, setSortKey] = useState(() => {
@@ -503,6 +503,35 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [contextMenu]);
+
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      headerMenuRef.current
+        ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
+        ?.focus({ preventScroll: true });
+    });
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (headerMenuRef.current?.contains(target) || headerMenuButtonRef.current?.contains(target)) return;
+      setHeaderMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (!isLibraryMenuCloseKey(event.key)) return;
+      event.preventDefault();
+      setHeaderMenuOpen(false);
+      headerMenuButtonRef.current?.focus({ preventScroll: true });
+    };
+
+    window.addEventListener('pointerdown', closeOnOutsidePointer);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('pointerdown', closeOnOutsidePointer);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [headerMenuOpen]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -744,6 +773,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const runContextAction = (action: () => void) => {
     closeContextMenu();
+    action();
+  };
+
+  const handleHeaderMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const menuItems = Array.from(
+      headerMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []
+    );
+    const currentIndex = menuItems.findIndex((item) => item === document.activeElement);
+    const nextIndex = getLibraryMenuNavigationIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: menuItems.length,
+    });
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    menuItems[nextIndex]?.focus();
+  };
+
+  const runHeaderAction = (action: () => void) => {
+    setHeaderMenuOpen(false);
     action();
   };
 
@@ -1790,6 +1841,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     open: boolean;
     onToggle: () => void;
     actions?: React.ReactNode;
+    hideHeader?: boolean;
     wrapperClassName?: string;
     contentClassName?: string;
     children: React.ReactNode;
@@ -1803,12 +1855,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           args.wrapperClassName ?? '',
         ].join(' ')}
       >
-        <SectionHeader
-          title={args.title}
-          open={args.open}
-          onToggle={args.onToggle}
-          actions={args.actions}
-        />
+        {!args.hideHeader && (
+          <SectionHeader
+            title={args.title}
+            open={args.open}
+            onToggle={args.onToggle}
+            actions={args.actions}
+          />
+        )}
         {args.open ? (
           <div className={args.contentClassName ?? 'panel-section-content'}>
             {args.children}
@@ -1842,12 +1896,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2">
+        <div className="ui-bar ui-bar-height ui-bar-pad relative border-b border-[var(--ui-border)] flex items-center gap-2">
           <button
             type="button"
             className={[
               showCloseButtonOnDesktop ? '' : 'lg:hidden',
-              'h-9 w-9 shrink-0 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors',
+              isMobile ? 'h-11 min-h-11 w-11 min-w-11' : 'h-9 w-9',
+              'shrink-0 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors',
             ].join(' ')}
             onClick={onClose}
             title="Close library"
@@ -1903,50 +1958,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className={headerSecondaryActionClass}
-              onClick={() => void handleExportLibraryZip()}
-              title="Export library as ZIP"
-              aria-label="Export library as ZIP"
+              ref={headerMenuButtonRef}
+              className={headerActionClass}
+              onClick={() => setHeaderMenuOpen((prev) => !prev)}
+              title="More library actions"
+              aria-label="More library actions"
+              aria-haspopup="menu"
+              aria-expanded={headerMenuOpen}
             >
-              <FaFileArchive />
+              <FaEllipsisH />
             </button>
-            <button
-              type="button"
-              className={headerSecondaryActionClass}
-              onClick={() => setShowOgsSync(true)}
-              title="Sync games from an OGS account"
-              aria-label="Sync games from an OGS account"
-            >
-              <FaCloudDownloadAlt />
-            </button>
-            <button
-              type="button"
-              className={headerSecondaryActionClass}
-              onClick={handleBackupLibrary}
-              title="Download full library backup"
-              aria-label="Download full library backup"
-            >
-              <FaDownload />
-            </button>
-            <button
-              type="button"
-              className={headerSecondaryActionClass}
-              onClick={() => backupInputRef.current?.click()}
-              title="Restore library backup"
-              aria-label="Restore library backup"
-            >
-              <FaUpload />
-            </button>
-            <button
-              type="button"
-              className={headerSecondaryDangerActionClass}
-              onClick={handleClearLibrary}
-              title="Clear library"
-              aria-label="Clear library"
-            >
-              <FaTrash />
-            </button>
-            <div className="library-header-secondary-action h-5 w-px bg-[var(--ui-border)] mx-1" />
             <input
               ref={fileInputRef}
               type="file"
@@ -1963,14 +1984,69 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               className="hidden"
             />
           </div>
+
+          {headerMenuOpen && (
+            <div
+              ref={headerMenuRef}
+              className="library-context-menu"
+              style={{ position: 'absolute', right: 8, top: 'calc(100% - 4px)', left: 'auto' }}
+            role="menu"
+            aria-label="More library actions"
+            onKeyDown={handleHeaderMenuKeyDown}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+              <button
+                type="button"
+                role="menuitem"
+                className="library-context-menu-item"
+                onClick={() => runHeaderAction(() => void handleExportLibraryZip())}
+              >
+                <FaFileArchive size={12} /> Export library as ZIP
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="library-context-menu-item"
+                onClick={() => runHeaderAction(() => setShowOgsSync(true))}
+              >
+                <FaCloudDownloadAlt size={12} /> Sync from OGS
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="library-context-menu-item"
+                onClick={() => runHeaderAction(handleBackupLibrary)}
+              >
+                <FaDownload size={12} /> Download backup
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="library-context-menu-item"
+                onClick={() => runHeaderAction(() => backupInputRef.current?.click())}
+              >
+                <FaUpload size={12} /> Restore backup
+              </button>
+              <div className="library-context-menu-separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="library-context-menu-item danger"
+                onClick={() => runHeaderAction(handleClearLibrary)}
+              >
+                <FaTrash size={12} /> Clear library
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="flex flex-col min-h-0">
             {renderSection({
               title: 'Library',
-              open: listOpen,
+              open: isMobile || listOpen,
               onToggle: () => setListOpen((prev) => !prev),
+              hideHeader: isMobile,
               contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
               children: (
                 <>

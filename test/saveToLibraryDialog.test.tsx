@@ -20,5 +20,9 @@ describe('SaveToLibraryDialog', () => {
     expect(html).toContain('for="save-to-library-folder"');
     expect(html).toContain('id="save-to-library-folder"');
     expect(html).toMatch(/for="save-to-library-folder"[^>]*>Save to folder<\/label><select/);
+    expect(html).toContain('aria-label="Close save to Library"');
+    expect(html).toContain('min-h-11');
+    expect(html).toContain('>Save copy</span>');
+    expect(html).toContain('ui-bar flex justify-end gap-2 border-t');
   });
 });

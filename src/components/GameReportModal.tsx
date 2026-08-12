@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaBookOpen, FaBullseye, FaInfoCircle, FaTimes } from 'react-icons/fa';
+import { FaBookOpen, FaBullseye, FaChartLine, FaInfoCircle, FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import {
@@ -952,7 +952,23 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         </div>
 
         <div className="px-5 py-4 space-y-4 overflow-y-auto overscroll-contain report-scroll">
-          <div className="print-hide space-y-4">
+          {totalMoves === 0 ? (
+            <div
+              className="print-hide flex min-h-[17rem] items-center justify-center py-6 text-center sm:min-h-[20rem]"
+              data-game-report-empty="true"
+            >
+              <div className="max-w-md">
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-xl text-[var(--ui-accent)] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+                  <FaChartLine aria-hidden="true" />
+                </div>
+                <h3 className="mt-5 text-lg font-semibold text-[var(--ui-text)]">No moves to review</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--ui-text-muted)]">
+                  Play a game on the board or open an SGF with moves. Your analysis summary will appear here.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="print-hide space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {GAME_REPORT_PHASES.map((b) => {
                 const active = phaseFilter === b.key;
@@ -1793,7 +1809,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 })}
             </div>
           </div>
-          </div>
+            </div>
+          )}
 
           <div className="hidden print-only space-y-6">
             <div className="pdf-page">
@@ -2008,31 +2025,35 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
         <div className="px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex flex-wrap items-center justify-between gap-3 print-hide">
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleReviewClick}
-              className={[
-                'min-h-11 px-4 py-2 rounded-lg font-semibold disabled:opacity-60',
-                isGameAnalysisRunning
-                  ? 'bg-rose-600/80 hover:bg-rose-500 text-white'
-                  : hasFullCoverage
-                    ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110'
-                    : 'ui-accent-bg hover:brightness-110',
-              ].join(' ')}
-              disabled={isPreparingPdf || (!isGameAnalysisRunning && !hasReviewTargets)}
-            >
-              {reviewButtonLabel}
-            </button>
-            <button
-              type="button"
-              onClick={handlePrintReport}
-              className="min-h-11 px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
-              disabled={isPreparingPdf}
-            >
-              {isPreparingPdf
-                ? 'Preparing print...'
-                : 'Print / Save PDF'}
-            </button>
+            {totalMoves > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleReviewClick}
+                  className={[
+                    'min-h-11 px-4 py-2 rounded-lg font-semibold disabled:opacity-60',
+                    isGameAnalysisRunning
+                      ? 'bg-rose-600/80 hover:bg-rose-500 text-white'
+                      : hasFullCoverage
+                        ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110'
+                        : 'ui-accent-bg hover:brightness-110',
+                  ].join(' ')}
+                  disabled={isPreparingPdf || (!isGameAnalysisRunning && !hasReviewTargets)}
+                >
+                  {reviewButtonLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintReport}
+                  className="min-h-11 px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
+                  disabled={isPreparingPdf}
+                >
+                  {isPreparingPdf
+                    ? 'Preparing print...'
+                    : 'Print / Save PDF'}
+                </button>
+              </>
+            )}
           </div>
           <button
             type="button"

@@ -8,6 +8,16 @@ describe('RightPanel layout', () => {
     expect(source).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain pb-3');
   });
 
+  it('keeps the standalone mobile tree open without repeating its workspace title', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+
+    expect(source).toContain('open: isMobile || modePanels.treeOpen');
+    expect(source).toContain('hideHeader: isMobile');
+    expect(source).toContain("isMobile && activeMobileTab === 'tree' ? treeViewControls : null");
+    expect(source).toContain('actions: isMobile ? undefined : treeViewControls');
+    expect(source).toContain("isMobile ? 'hidden' : 'flex-1'");
+  });
+
   it('uses strict integer draft parsing for branch number edits', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 

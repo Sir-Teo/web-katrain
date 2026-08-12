@@ -60,6 +60,10 @@ describe('MobileHome', () => {
     const html = renderToStaticMarkup(<MobileHome {...baseProps} />);
 
     expect(html).not.toContain('data-mobile-gamepad-status="connected"');
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('aria-labelledby="mobile-home-title"');
+    expect(html).toContain('data-mobile-home="true"');
     expect(html).toContain('aria-label="Open board"');
   });
 

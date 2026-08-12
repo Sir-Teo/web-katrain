@@ -105,7 +105,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
         </div>
 
         <div className="p-4 space-y-4 overflow-y-auto overscroll-contain">
-          <div className="grid grid-cols-2 gap-3">
+          <div className={['grid gap-3', isRunning ? 'grid-cols-2' : 'grid-cols-1'].join(' ')}>
             <div className="space-y-1">
               <label htmlFor={MAX_VISITS_ID} className="text-[var(--ui-text-muted)] block text-sm">Max Visits</label>
               <input
@@ -120,26 +120,27 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
               <p className="text-xs ui-text-faint">Defaults to engine Visits ({defaultMaxVisits}).</p>
             </div>
 
-            <div className="space-y-1">
-              <div id={STATUS_LABEL_ID} className="text-[var(--ui-text-muted)] block text-sm">Status</div>
-              <div
-                className="w-full ui-surface rounded p-2 border border-[var(--ui-border)] text-sm font-mono"
-                role="status"
-                aria-labelledby={STATUS_LABEL_ID}
-              >
-                {isRunning ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}
-              </div>
-              <div className="flex gap-2 mt-2">
-                <button
-                  type="button"
-                  className="flex-1 px-3 py-2 rounded bg-[var(--ui-surface-2)] hover:brightness-110 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                  disabled={!isRunning}
-                  onClick={() => stopGameAnalysis()}
+            {isRunning && (
+              <div className="space-y-1" data-game-analysis-progress="true">
+                <div id={STATUS_LABEL_ID} className="text-[var(--ui-text-muted)] block text-sm">Progress</div>
+                <div
+                  className="w-full ui-surface rounded p-2 border border-[var(--ui-border)] text-sm font-mono"
+                  role="status"
+                  aria-labelledby={STATUS_LABEL_ID}
                 >
-                  Stop
-                </button>
+                  {gameAnalysisDone}/{gameAnalysisTotal}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    className="flex-1 px-3 py-2 rounded bg-[var(--ui-surface-2)] hover:brightness-110 text-sm font-semibold"
+                    onClick={() => stopGameAnalysis()}
+                  >
+                    Stop
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div

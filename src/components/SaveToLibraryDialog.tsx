@@ -54,6 +54,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="save-to-library-title"
+        aria-busy={saving}
         className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
@@ -63,8 +64,9 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-            aria-label="Close"
+            disabled={saving}
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-wait disabled:opacity-50"
+            aria-label="Close save to Library"
           >
             <FaTimes aria-hidden="true" />
           </button>
@@ -77,6 +79,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
             <input
               id={NAME_INPUT_ID}
               ref={inputRef}
+              disabled={saving}
               value={name}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
@@ -85,7 +88,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
                 if (event.key === 'Escape') onClose();
               }}
               placeholder="Game name"
-              className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none"
+              className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60"
             />
           </div>
           <div className="block space-y-1">
@@ -94,13 +97,14 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
             </label>
             <select
               id={FOLDER_SELECT_ID}
+              disabled={saving}
               value={folderId ?? ''}
               onChange={(event) => setFolderId(event.target.value || null)}
               onKeyDown={(event) => {
                 event.stopPropagation();
                 if (event.key === 'Escape') onClose();
               }}
-              className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none"
+              className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60"
             >
               <option value="">Root</option>
               {folderOptions.map((option) => (
@@ -110,22 +114,27 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               ))}
             </select>
           </div>
-          <div className="flex justify-end gap-2">
-            <button type="button" className="panel-action-button" onClick={onClose} disabled={saving}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="panel-action-button active"
-              onClick={() => void submit()}
-              disabled={!trimmedName || saving}
-            >
-              <span className="inline-flex items-center gap-2">
-                <FaSave />
-                {saving ? 'Saving...' : 'Save'}
-              </span>
-            </button>
-          </div>
+        </div>
+        <div className="ui-bar flex justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+          <button
+            type="button"
+            className="min-h-11 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-4 text-sm font-semibold text-[var(--ui-text)] hover:brightness-110 disabled:cursor-wait disabled:opacity-50"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="min-h-11 rounded px-4 text-sm font-semibold ui-accent-bg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => void submit()}
+            disabled={!trimmedName || saving}
+          >
+            <span className="inline-flex items-center gap-2">
+              <FaSave aria-hidden="true" />
+              {saving ? 'Saving...' : 'Save copy'}
+            </span>
+          </button>
         </div>
       </div>
     </div>

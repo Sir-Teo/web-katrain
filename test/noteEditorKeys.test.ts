@@ -32,5 +32,6 @@ describe('note editor keyboard actions', () => {
     expect(source).toContain('data-note-save="true"');
     expect(source).toContain('data-note-cancel="true"');
     expect(source).toContain('data-note-edit="true"');
+    expect(source.match(/className="grid h-11 w-11[^\n]+lg:h-7 lg:w-7"/g)).toHaveLength(2);
   });
 });

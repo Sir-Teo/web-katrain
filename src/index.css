@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer base {
   :root,
@@ -37,12 +37,12 @@
     --ui-success-soft: #17351f;
     /* KaTrain move-quality eval scale (theme independent, shared with the
        dashboard scale in dashboard.css). */
-    --eval-blunder:    rgb(114, 33, 107);
-    --eval-mistake:    rgb(204, 0, 0);
+    --eval-blunder: rgb(114, 33, 107);
+    --eval-mistake: rgb(204, 0, 0);
     --eval-inaccuracy: rgb(230, 102, 26);
-    --eval-slight:     rgb(216, 216, 0);
-    --eval-good:       rgb(171, 230, 46);
-    --eval-best:       rgb(30, 150, 0);
+    --eval-slight: rgb(216, 216, 0);
+    --eval-good: rgb(171, 230, 46);
+    --eval-best: rgb(30, 150, 0);
     color-scheme: dark;
   }
 
@@ -148,7 +148,7 @@
     --ui-gap: 10px;
   }
 
-@media (max-width: 1023px) {
+  @media (max-width: 1023px) {
     :root,
     :root[data-ui-density='compact'],
     :root[data-ui-density='comfortable'],
@@ -218,13 +218,25 @@
   }
 
   .mobile-bottom-stone-black {
-    background: radial-gradient(circle at 35% 32%, #656565 0%, #2b2b2b 36%, #050505 100%);
+    background: radial-gradient(
+      circle at 35% 32%,
+      #656565 0%,
+      #2b2b2b 36%,
+      #050505 100%
+    );
     border-color: color-mix(in srgb, var(--ui-text-muted) 72%, transparent);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.45);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 1px 3px rgba(0, 0, 0, 0.45);
   }
 
   .mobile-bottom-stone-white {
-    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #f4f4f4 38%, #d2d2d2 100%);
+    background: radial-gradient(
+      circle at 32% 28%,
+      #ffffff 0%,
+      #f4f4f4 38%,
+      #d2d2d2 100%
+    );
     border: 1px solid rgba(15, 23, 42, 0.45);
   }
 
@@ -289,7 +301,6 @@
     .mobile-bottom-save-status-label {
       display: none;
     }
-
   }
 
   @media (max-width: 380px) {
@@ -324,7 +335,7 @@
 
   /* Focus ring for accessibility */
   button:focus-visible,
-  [role="button"]:focus-visible,
+  [role='button']:focus-visible,
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
@@ -334,7 +345,7 @@
 
   /* Remove default outline */
   button:focus:not(:focus-visible),
-  [role="button"]:focus:not(:focus-visible),
+  [role='button']:focus:not(:focus-visible),
   input:focus:not(:focus-visible),
   select:focus:not(:focus-visible),
   textarea:focus:not(:focus-visible) {
@@ -355,6 +366,11 @@
 
   .mobile-tools-pointer-focus:focus,
   .mobile-tools-pointer-focus:focus-visible {
+    outline: none;
+  }
+
+  .mobile-tab-pointer-focus:focus,
+  .mobile-tab-pointer-focus:focus-visible {
     outline: none;
   }
 }
@@ -433,6 +449,46 @@
     border-color: var(--ui-accent);
   }
 
+  .settings-modal .settings-tab-label-compact {
+    display: none;
+  }
+
+  .keyboard-help-title {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+
+  @media (max-width: 360px) {
+    .settings-modal .settings-tab-label-full {
+      display: none;
+    }
+
+    .settings-modal .settings-tab-label-compact {
+      display: inline;
+    }
+
+    [data-keyboard-help-customize='true'] {
+      width: 44px;
+      min-width: 44px;
+      justify-content: center;
+      padding-right: 0;
+      padding-left: 0;
+    }
+
+    .keyboard-help-customize-label {
+      display: none;
+    }
+
+    .keyboard-help-title {
+      font-size: 1rem;
+      line-height: 1.25rem;
+    }
+
+    .command-palette-shortcut {
+      display: none;
+    }
+  }
+
   /* Themed switch for boolean settings on every viewport; the mobile media
      query below only enlarges it to touch-target size. */
   .settings-modal .toggle {
@@ -503,9 +559,18 @@
       align-items: center;
     }
 
+    [data-menu-action-grid] > button:nth-child(odd) {
+      border-right: 1px solid var(--ui-border);
+    }
+
+    [data-menu-action-grid] > button:nth-child(n + 3) {
+      border-top: 1px solid var(--ui-border);
+    }
+
     .settings-modal button,
     .settings-modal a[href],
-    .settings-modal input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+    .settings-modal
+      input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
     .settings-modal select,
     .settings-modal textarea {
       min-width: 44px;
@@ -802,7 +867,9 @@
     align-items: center;
     justify-content: center;
     color: var(--ui-text-muted);
-    transition: transform 0.2s ease, color 0.15s ease;
+    transition:
+      transform 0.2s ease,
+      color 0.15s ease;
   }
 
   .panel-collapse-icon.open {
@@ -900,12 +967,6 @@
     cursor: not-allowed;
   }
 
-  @media (max-width: 1179px) {
-    .library-header-secondary-action {
-      display: none;
-    }
-  }
-
   .panel-tab-strip {
     display: flex;
     align-items: stretch;
@@ -930,7 +991,9 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--ui-text-muted);
-    transition: color 0.15s ease, background 0.15s ease;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease;
   }
 
   .panel-tab:hover {
@@ -972,7 +1035,10 @@
     font-size: 11px;
     font-weight: 500;
     line-height: 1;
-    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
   }
 
   .panel-action-button:hover:not(:disabled) {
@@ -1068,7 +1134,10 @@
   }
 
   .analysis-command-bar-slot .analysis-command-bar {
-    grid-template-columns: minmax(7rem, auto) minmax(10rem, 1fr) minmax(10rem, auto);
+    grid-template-columns: minmax(7rem, auto) minmax(10rem, 1fr) minmax(
+        10rem,
+        auto
+      );
     margin-bottom: 0;
   }
 
@@ -1248,6 +1317,10 @@
     text-overflow: ellipsis;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  .analysis-command-bar__label-compact {
+    display: none;
   }
 
   .analysis-command-bar__actions {
@@ -1655,8 +1728,16 @@
 
     .analysis-command-bar__actions.has-overflow-right:not(.has-overflow-left),
     .analysis-command-bar__metrics.has-overflow-right:not(.has-overflow-left) {
-      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
-      mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
+      -webkit-mask-image: linear-gradient(
+        to right,
+        #000 calc(100% - 1.25rem),
+        transparent
+      );
+      mask-image: linear-gradient(
+        to right,
+        #000 calc(100% - 1.25rem),
+        transparent
+      );
     }
 
     .analysis-command-bar__actions.has-overflow-left:not(.has-overflow-right),
@@ -1667,8 +1748,20 @@
 
     .analysis-command-bar__actions.has-overflow-left.has-overflow-right,
     .analysis-command-bar__metrics.has-overflow-left.has-overflow-right {
-      -webkit-mask-image: linear-gradient(to right, transparent, #000 1.25rem, #000 calc(100% - 1.25rem), transparent);
-      mask-image: linear-gradient(to right, transparent, #000 1.25rem, #000 calc(100% - 1.25rem), transparent);
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 1.25rem,
+        #000 calc(100% - 1.25rem),
+        transparent
+      );
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 1.25rem,
+        #000 calc(100% - 1.25rem),
+        transparent
+      );
     }
 
     .analysis-command-bar__actions::-webkit-scrollbar,
@@ -1709,7 +1802,11 @@
       position: fixed;
       top: max(4.75rem, calc(env(safe-area-inset-top) + 0.75rem));
       right: max(0.75rem, env(safe-area-inset-right));
-      bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + max(0.75rem, env(safe-area-inset-bottom)));
+      bottom: calc(
+        var(--mobile-tabbar-height) +
+          var(--mobile-bottom-controls-height, 0px) +
+          max(0.75rem, env(safe-area-inset-bottom))
+      );
       left: max(0.75rem, env(safe-area-inset-left));
       width: auto;
       max-height: none;
@@ -1726,11 +1823,66 @@
       border-radius: 6px;
     }
 
-    /* The docked mobile bar remains a single compact row. Its desktop track
-       minimums add up wider than a phone, pushing the scrollable actions past
-       the viewport; use proportional phone tracks so the fade stays visible. */
+    /* Keep the state readable while giving the scrollable controls enough of a
+       preview to make their horizontal affordance obvious on a phone. */
     .analysis-command-bar-slot .analysis-command-bar {
-      grid-template-columns: minmax(6rem, 7.5rem) minmax(7.5rem, 1fr) minmax(5rem, 30vw);
+      grid-template-columns: 4.75rem minmax(6rem, 1fr) minmax(6.5rem, 36vw);
+      column-gap: 0.25rem;
+    }
+
+    /* Ready state is already represented by the engine indicator in the phone
+       header. Reclaim that duplicate status column for readable metrics and the
+       two primary analysis actions; fallback and error states remain visible. */
+    .analysis-command-bar-slot
+      .analysis-command-bar:has(> .analysis-command-bar__status--header-duplicate) {
+      grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 46vw);
+    }
+
+    .analysis-command-bar-slot .analysis-command-bar__status--header-duplicate {
+      display: none;
+    }
+
+    .analysis-command-bar-slot .analysis-command-bar__metrics {
+      gap: 0.125rem;
+    }
+
+    .analysis-command-bar-slot .analysis-command-bar__metric:nth-child(-n + 2) {
+      flex: 0 0 3.5rem;
+      min-width: 3.5rem;
+      padding-inline: 0.25rem;
+    }
+
+    .analysis-command-bar-slot
+      .analysis-command-bar:has(> .analysis-command-bar__status--header-duplicate)
+      .analysis-command-bar__metric:nth-child(-n + 2) {
+      flex-basis: 3rem;
+      min-width: 3rem;
+      padding-inline: 0.25rem;
+    }
+
+    .analysis-command-bar-slot
+      .analysis-command-bar:has(> .analysis-command-bar__status--header-duplicate)
+      .analysis-command-bar__metric:nth-child(3) {
+      flex-basis: 3.5rem;
+      min-width: 3.5rem;
+      padding-inline: 0.25rem;
+    }
+
+    .analysis-command-bar__label-full {
+      display: none;
+    }
+
+    .analysis-command-bar__label-compact {
+      display: inline;
+    }
+
+    .analysis-command-bar__status-detail {
+      display: none;
+    }
+
+    .analysis-command-bar-slot
+      .analysis-command-bar:has(.analysis-command-bar__status-copy) {
+      grid-template-columns: 6.25rem minmax(5rem, 1fr) minmax(6.5rem, 32vw);
     }
 
     .analysis-command-bar__metric {
@@ -1743,7 +1895,8 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .analysis-command-bar__metrics:has(> :nth-child(4)) .analysis-command-bar__metric:nth-child(odd) {
+    .analysis-command-bar__metrics:has(> :nth-child(4))
+      .analysis-command-bar__metric:nth-child(odd) {
       border-left: none;
     }
 
@@ -1777,6 +1930,12 @@
       gap: 0.125rem;
       min-height: 3rem;
       font-size: 0.6875rem;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .analysis-command-bar-slot .analysis-command-bar {
+      grid-template-columns: 4rem minmax(6rem, 1fr) minmax(6.5rem, 36vw);
     }
   }
 
@@ -2058,7 +2217,11 @@
 
   .game-report-player-swatch--black {
     background: #05070a;
-    border-color: color-mix(in srgb, var(--ui-text-muted) 72%, var(--ui-border));
+    border-color: color-mix(
+      in srgb,
+      var(--ui-text-muted) 72%,
+      var(--ui-border)
+    );
   }
 
   .game-report-player-swatch--white {
@@ -2411,7 +2574,15 @@
     padding: 1px 5px;
     color: var(--ui-text-muted);
     background: var(--ui-surface);
-    font: 700 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font:
+      700 10px/1.4 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      'Liberation Mono',
+      'Courier New',
+      monospace;
   }
 
   .manual-score-launch:disabled {
@@ -2884,7 +3055,10 @@
   }
 
   .mobile-safe-bottom {
-    padding-bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom));
+    padding-bottom: calc(
+      var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) +
+        var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom)
+    );
   }
 
   .mobile-safe-area-bottom {
@@ -3177,7 +3351,10 @@
     position: fixed;
     left: auto;
     right: max(12px, env(safe-area-inset-right));
-    bottom: calc(var(--ui-bar-height) + var(--desktop-bottom-controls-height, 0px) + max(12px, env(safe-area-inset-bottom)));
+    bottom: calc(
+      var(--ui-bar-height) + var(--desktop-bottom-controls-height, 0px) +
+        max(12px, env(safe-area-inset-bottom))
+    );
     z-index: 45;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -3291,7 +3468,11 @@
       width: auto;
       max-width: calc(100vw - 24px);
       margin: 0 auto;
-      bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + max(12px, env(safe-area-inset-bottom)));
+      bottom: calc(
+        var(--mobile-tabbar-height) +
+          var(--mobile-bottom-controls-height, 0px) +
+          max(12px, env(safe-area-inset-bottom))
+      );
     }
   }
 
@@ -3342,12 +3523,16 @@
   @media (max-width: 1023px) {
     .notification-toast-region,
     .notification-toast-region--below-command-bar {
-      position: relative;
-      inset: auto;
-      z-index: 20;
+      position: absolute;
+      inset: 0.5rem 0.5rem auto;
+      z-index: 40;
       flex: 0 0 auto;
       justify-content: center;
-      padding: 0 0 6px;
+      padding: 0;
+    }
+
+    .notification-toast-region--below-command-bar {
+      top: 4rem;
     }
 
     .notification-toast {
@@ -3406,8 +3591,16 @@
     }
 
     .candidate-pv-strip.has-overflow-right:not(.has-overflow-left) {
-      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
-      mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+      -webkit-mask-image: linear-gradient(
+        to right,
+        #000 calc(100% - 24px),
+        transparent
+      );
+      mask-image: linear-gradient(
+        to right,
+        #000 calc(100% - 24px),
+        transparent
+      );
     }
 
     .candidate-pv-strip.has-overflow-left:not(.has-overflow-right) {
@@ -3416,7 +3609,13 @@
     }
 
     .candidate-pv-strip.has-overflow-left.has-overflow-right {
-      -webkit-mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 24px,
+        #000 calc(100% - 24px),
+        transparent
+      );
       mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
     }
 
@@ -3573,7 +3772,8 @@
     }
 
     .library-tree-node[data-library-row='folder'] .library-tree-node-more:hover,
-    .library-tree-node[data-library-row='folder'] .library-tree-node-more:focus-visible {
+    .library-tree-node[data-library-row='folder']
+      .library-tree-node-more:focus-visible {
       color: var(--ui-text);
       background: var(--ui-surface-2);
     }
@@ -3601,6 +3801,62 @@
     [data-mobile-tools-panel='true'] select {
       min-height: 44px !important;
     }
+
+    [data-mobile-tools-action-grid='true'] > button {
+      border-bottom: 1px solid var(--ui-border);
+    }
+
+    [data-mobile-tools-action-grid='true'] > button:nth-child(odd) {
+      border-right: 1px solid var(--ui-border);
+    }
+  }
+
+  @media (max-width: 480px) and (min-height: 700px) and (orientation: portrait) {
+    .notification-toast-region,
+    .notification-toast-region--below-command-bar {
+      top: auto;
+      bottom: 0.5rem;
+    }
+  }
+
+  @media (min-width: 600px) and (max-width: 1023px) {
+    [data-menu-drawer-panel='true'],
+    [data-menu-scroll-hint='true'] {
+      width: min(90vw, 36rem) !important;
+      max-width: 36rem !important;
+    }
+
+    [data-menu-action-grid] {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    [data-menu-action-grid] > button:nth-child(odd) {
+      border-right: 0;
+    }
+
+    [data-menu-action-grid] > button:nth-child(n + 3) {
+      border-top: 0;
+    }
+
+    [data-menu-action-grid] > button:not(:nth-child(3n)) {
+      border-right: 1px solid var(--ui-border);
+    }
+
+    [data-menu-action-grid] > button:nth-child(n + 4) {
+      border-top: 1px solid var(--ui-border);
+    }
+
+    [data-mobile-tools-action-grid='true'] {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    [data-mobile-tools-action-grid='true'] > button:nth-child(odd) {
+      border-right: 0;
+    }
+
+    [data-mobile-tools-action-grid='true'] > button:not(:nth-child(3n)) {
+      border-right: 1px solid var(--ui-border);
+    }
   }
 
   @media (max-height: 520px) and (orientation: landscape) {
@@ -3612,10 +3868,40 @@
       --mobile-bottom-controls-height: 0px !important;
     }
 
+    .notification-toast-region,
+    .notification-toast-region--below-command-bar {
+      top: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .notification-toast {
+      max-width: min(18rem, calc(100% - 1rem));
+    }
+
     .analysis-command-bar-slot,
     .analysis-command-bar-slot--reserve,
     .mobile-board-shell > [aria-label='Preview continuations'] {
       display: none;
+    }
+
+    [data-bottom-more-grid='true'] {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    [data-bottom-more-grid='true'] > .col-span-2 {
+      grid-column: 1 / -1 !important;
+    }
+
+    [data-mobile-tools-action-grid='true'] {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    [data-mobile-tools-action-grid='true'] > button:nth-child(odd) {
+      border-right: 0;
+    }
+
+    [data-mobile-tools-action-grid='true'] > button:not(:nth-child(4n)) {
+      border-right: 1px solid var(--ui-border);
     }
 
     .mobile-bottom-dock {
@@ -3733,7 +4019,11 @@
       border-bottom: 0;
     }
 
-    .edit-toolbar-mobile .edit-toolbar-panel > :last-child > div > div:first-child {
+    .edit-toolbar-mobile
+      .edit-toolbar-panel
+      > :last-child
+      > div
+      > div:first-child {
       grid-column: 1 / -1;
       width: auto;
       padding: 0 2px;

@@ -158,8 +158,15 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
           </button>
         </div>
         <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-wide ui-text-faint">Game Info</div>
+          <details
+            className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3"
+            data-new-game-info-details="true"
+          >
+            <summary className="min-h-11 cursor-pointer select-none py-3 text-sm font-semibold text-[var(--ui-text)]">
+              Players &amp; game info
+              <span className="float-right text-xs font-normal ui-text-faint">Optional</span>
+            </summary>
+            <div className="space-y-3 pb-3 pt-1">
             {showAiOptions && humanColor ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
@@ -301,7 +308,8 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 </div>
               </div>
             </details>
-          </div>
+            </div>
+          </details>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="new-game-board-size" className="text-[var(--ui-text-muted)] text-sm">Board Size</label>
@@ -359,90 +367,6 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               />
               <div className="text-[11px] ui-text-faint">Placed on star points; White plays first.</div>
             </div>
-          </div>
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-wide ui-text-faint">Clock</div>
-            <div className="space-y-1">
-              <label htmlFor="new-game-time-system" className="text-[var(--ui-text-muted)] text-sm">Time system</label>
-              <select
-                id="new-game-time-system"
-                value={timerConfig.mode}
-                onChange={(e) => {
-                  const mode = e.target.value as TimerConfigValues['mode'];
-                  setTimerConfig((prev) => {
-                    if (mode !== 'byo-yomi') return { ...prev, mode };
-                    return {
-                      ...prev,
-                      mode,
-                      mainTimeMinutes: Math.max(0, prev.mainTimeMinutes),
-                      byoLengthSeconds: prev.byoLengthSeconds > 0 ? prev.byoLengthSeconds : 30,
-                      byoPeriods: prev.byoPeriods > 0 ? prev.byoPeriods : 5,
-                    };
-                  });
-                }}
-                className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-              >
-                <option value="none">No timer</option>
-                <option value="byo-yomi">Byo-yomi (Japanese)</option>
-              </select>
-            </div>
-            {timerConfig.mode === 'byo-yomi' && (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label htmlFor="new-game-main-time" className="text-[var(--ui-text-muted)] text-sm">Main time (min)</label>
-                    <input
-                      id="new-game-main-time"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={timerConfig.mainTimeMinutes}
-                      onChange={(e) =>
-                        updateTimerConfig({
-                          mainTimeMinutes: Math.max(0, parseFloat(e.target.value || '0')),
-                        })
-                      }
-                      className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label htmlFor="new-game-byo-yomi" className="text-[var(--ui-text-muted)] text-sm">Byo-yomi (sec)</label>
-                    <input
-                      id="new-game-byo-yomi"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={timerConfig.byoLengthSeconds}
-                      onChange={(e) =>
-                        updateTimerConfig({
-                          byoLengthSeconds: Math.max(1, parseInt(e.target.value || '1', 10)),
-                        })
-                      }
-                      className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label htmlFor="new-game-byo-periods" className="text-[var(--ui-text-muted)] text-sm">Periods</label>
-                    <input
-                      id="new-game-byo-periods"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={timerConfig.byoPeriods}
-                      onChange={(e) =>
-                        updateTimerConfig({
-                          byoPeriods: Math.max(1, parseInt(e.target.value || '1', 10)),
-                        })
-                      }
-                      className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                    />
-                  </div>
-                </div>
-                <div className="text-xs ui-text-faint">
-                  Main time then {timerConfig.byoPeriods} periods of {timerConfig.byoLengthSeconds} seconds.
-                </div>
-              </>
-            )}
           </div>
           <div className="space-y-3">
             <div className="text-xs uppercase tracking-wide ui-text-faint">Opponent</div>
@@ -1010,6 +934,90 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     </div>
                   </details>
                 )}
+              </>
+            )}
+          </div>
+          <div className="space-y-3">
+            <div className="text-xs uppercase tracking-wide ui-text-faint">Clock</div>
+            <div className="space-y-1">
+              <label htmlFor="new-game-time-system" className="text-[var(--ui-text-muted)] text-sm">Time system</label>
+              <select
+                id="new-game-time-system"
+                value={timerConfig.mode}
+                onChange={(e) => {
+                  const mode = e.target.value as TimerConfigValues['mode'];
+                  setTimerConfig((prev) => {
+                    if (mode !== 'byo-yomi') return { ...prev, mode };
+                    return {
+                      ...prev,
+                      mode,
+                      mainTimeMinutes: Math.max(0, prev.mainTimeMinutes),
+                      byoLengthSeconds: prev.byoLengthSeconds > 0 ? prev.byoLengthSeconds : 30,
+                      byoPeriods: prev.byoPeriods > 0 ? prev.byoPeriods : 5,
+                    };
+                  });
+                }}
+                className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
+              >
+                <option value="none">No timer</option>
+                <option value="byo-yomi">Byo-yomi (Japanese)</option>
+              </select>
+            </div>
+            {timerConfig.mode === 'byo-yomi' && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label htmlFor="new-game-main-time" className="text-[var(--ui-text-muted)] text-sm">Main time (min)</label>
+                    <input
+                      id="new-game-main-time"
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={timerConfig.mainTimeMinutes}
+                      onChange={(e) =>
+                        updateTimerConfig({
+                          mainTimeMinutes: Math.max(0, parseFloat(e.target.value || '0')),
+                        })
+                      }
+                      className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="new-game-byo-yomi" className="text-[var(--ui-text-muted)] text-sm">Byo-yomi (sec)</label>
+                    <input
+                      id="new-game-byo-yomi"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={timerConfig.byoLengthSeconds}
+                      onChange={(e) =>
+                        updateTimerConfig({
+                          byoLengthSeconds: Math.max(1, parseInt(e.target.value || '1', 10)),
+                        })
+                      }
+                      className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="new-game-byo-periods" className="text-[var(--ui-text-muted)] text-sm">Periods</label>
+                    <input
+                      id="new-game-byo-periods"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={timerConfig.byoPeriods}
+                      onChange={(e) =>
+                        updateTimerConfig({
+                          byoPeriods: Math.max(1, parseInt(e.target.value || '1', 10)),
+                        })
+                      }
+                      className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
+                    />
+                  </div>
+                </div>
+                <div className="text-xs ui-text-faint">
+                  Main time then {timerConfig.byoPeriods} periods of {timerConfig.byoLengthSeconds} seconds.
+                </div>
               </>
             )}
           </div>

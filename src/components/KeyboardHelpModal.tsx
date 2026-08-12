@@ -60,7 +60,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
       >
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
           <div className="min-w-0">
-            <h2 id="keyboard-help-title" className="text-lg font-semibold text-[var(--ui-text)]">
+            <h2 id="keyboard-help-title" className="keyboard-help-title font-semibold text-[var(--ui-text)]">
               Keyboard Shortcuts
             </h2>
             <div className="mt-0.5 text-xs ui-text-faint" aria-live="polite" data-keyboard-help-count="true">
@@ -73,10 +73,11 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
                 type="button"
                 className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 text-xs font-semibold text-[var(--ui-text-muted)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-text)]"
                 onClick={onOpenShortcutSettings}
+                aria-label="Customize keyboard shortcuts"
                 data-keyboard-help-customize="true"
               >
                 <FaCog aria-hidden="true" size={12} />
-                <span>Customize</span>
+                <span className="keyboard-help-customize-label" aria-hidden="true">Customize</span>
               </button>
             )}
             <button

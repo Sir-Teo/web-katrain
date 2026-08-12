@@ -171,6 +171,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                     key={command.id}
                     type="button"
                     role="option"
+                    aria-label={[command.label, command.category, shortcut].filter(Boolean).join(', ')}
                     aria-selected={selected}
                     className={[
                       'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
@@ -187,7 +188,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                       <span className="mt-0.5 block truncate text-xs ui-text-faint">{command.category}</span>
                     </span>
                     {shortcut && (
-                      <kbd className="shrink-0 rounded ui-surface-2 px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
+                      <kbd className="command-palette-shortcut shrink-0 rounded ui-surface-2 px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]" aria-hidden="true">
                         {shortcut}
                       </kbd>
                     )}

@@ -305,6 +305,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     open: boolean;
     onToggle: () => void;
     actions?: React.ReactNode;
+    hideHeader?: boolean;
     wrapperClassName?: string;
     contentClassName?: string;
     contentStyle?: React.CSSProperties;
@@ -320,13 +321,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           args.wrapperClassName ?? '',
         ].join(' ')}
       >
-        <SectionHeader
-          title={args.title}
-          icon={args.icon}
-          open={args.open}
-          onToggle={args.onToggle}
-          actions={args.actions}
-        />
+        {!args.hideHeader && (
+          <SectionHeader
+            title={args.title}
+            icon={args.icon}
+            open={args.open}
+            onToggle={args.onToggle}
+            actions={args.actions}
+          />
+        )}
         {args.open ? (
           <div className={args.contentClassName ?? 'panel-section-content'} style={args.contentStyle}>
             {args.children}
@@ -352,6 +355,35 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   React.useEffect(() => {
     writeLocalStorage('web-katrain:notes_list_open:v1', String(notesListOpen));
   }, [notesListOpen]);
+
+  const treeViewControls = (
+    <div className="flex items-center gap-2" role="group" aria-label="Game tree view">
+      <button
+        type="button"
+        className={treeViewTabClass(treeView === 'tree')}
+        onClick={() => setTreeView('tree')}
+        title="Tree view"
+        aria-label="Tree view"
+        aria-pressed={treeView === 'tree'}
+      >
+        <FaSitemap size={12} />
+      </button>
+      <button
+        type="button"
+        className={treeViewTabClass(treeView === 'list')}
+        onClick={() => setTreeView('list')}
+        title="List view"
+        aria-label="List view"
+        aria-pressed={treeView === 'list'}
+      >
+        <FaListUl size={12} />
+      </button>
+    </div>
+  );
+  const treeToolbarSeparatorClass = [
+    'h-5 w-px bg-[var(--ui-border)] mx-1',
+    isMobile ? 'hidden' : '',
+  ].join(' ');
 
   return (
     <>
@@ -406,6 +438,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               </button>
             </div>
           )}
+          {isMobile && activeMobileTab === 'tree' ? treeViewControls : null}
         </div>
         {mode === 'play' && !isMobile && (
           <div className="panel-toolbar">
@@ -456,33 +489,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               show: showTree,
               title: 'Game Tree',
               icon: <FaSitemap size={12} />,
-              open: modePanels.treeOpen,
+              open: isMobile || modePanels.treeOpen,
               onToggle: () => updatePanels((current) => ({ treeOpen: !current.treeOpen })),
+              hideHeader: isMobile,
               wrapperClassName: ['flex flex-col min-h-0', isMobile ? 'flex-1' : ''].join(' '),
-              actions: (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className={treeViewTabClass(treeView === 'tree')}
-                    onClick={() => setTreeView('tree')}
-                    title="Tree view"
-                    aria-label="Tree view"
-                    aria-pressed={treeView === 'tree'}
-                  >
-                    <FaSitemap size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className={treeViewTabClass(treeView === 'list')}
-                    onClick={() => setTreeView('list')}
-                    title="List view"
-                    aria-label="List view"
-                    aria-pressed={treeView === 'list'}
-                  >
-                    <FaListUl size={12} />
-                  </button>
-                </div>
-              ),
+              actions: isMobile ? undefined : treeViewControls,
               contentClassName: ['panel-section-content flex flex-col min-h-0 p-0', isMobile ? 'flex-1' : ''].join(' '),
               children: (
                 <>
@@ -505,7 +516,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     >
                       <FaFastForward size={12} />
                     </button>
-                    <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
+                    <div className={treeToolbarSeparatorClass} />
                     <button
                       type="button"
                       className="panel-icon-button"
@@ -583,7 +594,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                         </button>
                       )
                     )}
-                    <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
+                    <div className={treeToolbarSeparatorClass} />
                     <button
                       type="button"
                       className="panel-icon-button"
@@ -602,7 +613,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     >
                       <FaSitemap size={12} />
                     </button>
-                    <div className="flex-1" />
+                    <div className={isMobile ? 'hidden' : 'flex-1'} />
                     <button
                       type="button"
                       className="panel-icon-button"

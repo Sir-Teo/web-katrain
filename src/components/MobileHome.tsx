@@ -18,6 +18,7 @@ import { formatLibrarySize, type LibraryFile } from '../utils/library';
 import { formatGamepadLabel } from '../utils/gamepadLabel';
 import { getQuickNewGameWarning } from '../utils/quickNewGame';
 import type { BoardSize } from '../types';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 interface MobileHomeProps {
   open: boolean;
@@ -110,6 +111,56 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   onOpenSettings,
   onOpenRecent,
 }) => {
+  const homeRef = React.useRef<HTMLDivElement>(null);
+  const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  useEscapeToClose(onClose, open);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusableSelector = [
+      'a[href]:not([tabindex="-1"])',
+      'button:not([disabled]):not([tabindex="-1"])',
+      'input:not([disabled]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    const focusCloseButton = window.requestAnimationFrame(() => {
+      closeButtonRef.current?.focus({ preventScroll: true });
+    });
+    const keepFocusInHome = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || event.defaultPrevented) return;
+      const home = homeRef.current;
+      if (!home) return;
+      const focusableElements = Array.from(home.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((element) => element.getClientRects().length > 0);
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === first || !home.contains(activeElement))) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (activeElement === last || !home.contains(activeElement))) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    };
+
+    document.addEventListener('keydown', keepFocusInHome, true);
+    return () => {
+      window.cancelAnimationFrame(focusCloseButton);
+      document.removeEventListener('keydown', keepFocusInHome, true);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const compactGamepadName = gamepadName ? formatGamepadLabel(gamepadName, 18) : null;
@@ -120,12 +171,19 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize);
 
   return (
-    <div className="fixed inset-0 z-[45] lg:hidden ui-bg mobile-safe-inset mobile-safe-area-bottom">
+    <div
+      ref={homeRef}
+      className="fixed inset-0 z-[45] lg:hidden ui-bg mobile-safe-inset mobile-safe-area-bottom"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mobile-home-title"
+      data-mobile-home="true"
+    >
       <div className="flex h-full min-h-0 flex-col">
         <header className="ui-bar border-b border-[var(--ui-border)] px-3 py-2">
           <div className="flex min-h-11 items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-base font-bold text-[var(--ui-text)]">Web KaTrain</div>
+              <h2 id="mobile-home-title" className="truncate text-base font-bold text-[var(--ui-text)]">Web KaTrain</h2>
               <div className="truncate text-xs ui-text-muted">
                 {blackName} vs {whiteName}
               </div>
@@ -153,9 +211,11 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               )}
               <button
                 type="button"
+                ref={closeButtonRef}
                 className="ui-control grid place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                 onClick={onClose}
                 aria-label="Open board"
+                title="Return to board"
               >
                 <FaTimes aria-hidden="true" />
               </button>

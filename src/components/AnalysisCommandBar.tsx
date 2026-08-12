@@ -205,10 +205,14 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     modelUrl,
   }), [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
   const engineStatusTitle = [statusText, engineSummary.title].filter(Boolean).join('\n\n');
+  const phoneHeaderAlreadyShowsEngineState = engineSummary.stateLabel === 'Ready'
+    && !engineError
+    && !engineSummary.isFallback;
   const engineStatusClass = [
     'analysis-command-bar__status',
     `analysis-command-bar__status--${engineStatus}`,
     engineSummary.isFallback ? 'analysis-command-bar__status--fallback' : '',
+    phoneHeaderAlreadyShowsEngineState ? 'analysis-command-bar__status--header-duplicate' : '',
   ].join(' ');
   React.useEffect(() => {
     setEngineErrorCopied(false);
@@ -277,6 +281,9 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const moveQualityLabel = displayedMoveQuality
     ? `${moveQualityKind === 'next' ? 'Next ' : ''}${displayedMoveQuality.detailLabel}`
     : 'Move quality';
+  const fastReviewCompactLabel = fastReviewButton.state === 'ready'
+    ? 'Review'
+    : fastReviewButton.label;
   const moveQualityTitle = displayedMoveQuality
     ? `${moveQualityKind === 'next' ? 'Next move: ' : ''}${displayedMoveQuality.title}`
     : 'Move quality';
@@ -484,7 +491,12 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         data-analysis-engine-status={engineStatus}
       >
         <span className={['analysis-command-bar__dot', engineDot].join(' ')} aria-hidden="true" />
-        <span className="analysis-command-bar__status-text">{engineSummary.compactLabel}</span>
+        <span className="analysis-command-bar__status-text">
+          <span className="analysis-command-bar__status-state">{engineSummary.stateLabel}</span>
+          <span className="analysis-command-bar__status-detail" aria-hidden="true">
+            {engineSummary.isFallback ? ' fallback' : ''}{' · '}{engineSummary.activeBackendLabel}
+          </span>
+        </span>
         {engineError && (
           <button
             type="button"
@@ -516,13 +528,19 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           <span className="analysis-command-bar__value analysis-command-bar__value--win">
             {formatAnalysisWinRate(winRate)}
           </span>
-          <span className="analysis-command-bar__label">Black win</span>
+          <span className="analysis-command-bar__label">
+            <span className="analysis-command-bar__label-full">Black win</span>
+            <span className="analysis-command-bar__label-compact">B win</span>
+          </span>
         </div>
         <div className="analysis-command-bar__metric">
           <span className="analysis-command-bar__value analysis-command-bar__value--score">
             {formatAnalysisScoreLead(scoreLead)}
           </span>
-          <span className="analysis-command-bar__label">Score lead</span>
+          <span className="analysis-command-bar__label">
+            <span className="analysis-command-bar__label-full">Score lead</span>
+            <span className="analysis-command-bar__label-compact">Score</span>
+          </span>
         </div>
         <div
           className="analysis-command-bar__metric"
@@ -532,7 +550,10 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           <span className={['analysis-command-bar__value', `analysis-command-bar__value--${moveQualityTone}`].join(' ')}>
             {moveQualityValue}
           </span>
-          <span className="analysis-command-bar__label">{moveQualityLabel}</span>
+          <span className="analysis-command-bar__label">
+            <span className="analysis-command-bar__label-full">{moveQualityLabel}</span>
+            <span className="analysis-command-bar__label-compact">Quality</span>
+          </span>
         </div>
         {bestMoveSummary && (
           <div className="analysis-command-bar__metric" title={bestMoveSummary.title} data-analysis-best-move="true">
@@ -583,7 +604,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           data-analysis-fast-review-state={fastReviewButton.state}
         >
           {isGameAnalysisRunning ? <FaSquare size={12} aria-hidden="true" /> : <FaRobot size={12} aria-hidden="true" />}
-          <span>{fastReviewButton.label}</span>
+          <span className="analysis-command-bar__label-full">{fastReviewButton.label}</span>
+          <span className="analysis-command-bar__label-compact">{fastReviewCompactLabel}</span>
         </button>
         <button
           ref={depthButtonRef}

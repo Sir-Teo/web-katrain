@@ -185,6 +185,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         ? <FaSyncAlt size={9} aria-hidden="true" className="animate-spin" />
         : <FaExclamationTriangle size={9} aria-hidden="true" />
     : null;
+  const mobileMoreActionClass = 'w-full min-h-12 px-2.5 py-2 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-2 transition-colors';
 
   useEffect(() => {
     const el = passBtnRef.current;
@@ -205,6 +206,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
       window.setTimeout(() => moreTriggerRef.current?.focus({ preventScroll: true }), 0);
     }
   }, []);
+
+  const closeMoreControlsFromAction = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer');
+  }, [closeMoreControls]);
 
   useEffect(() => {
     if (!suppressMoreTriggerFocusRing) return;
@@ -630,7 +635,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 data-bottom-more-sheet="true"
                 className="fixed bottom-[var(--mobile-tabbar-height,60px)] left-0 right-0 max-h-[70vh] ui-panel border-t rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] overflow-y-auto z-50 overscroll-contain pb-safe animate-slide-up select-none touch-manipulation"
               >
-                <div className="sticky top-0 bg-[var(--ui-surface)]/95 backdrop-blur-md border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between z-10">
+                <div className="sticky top-0 bg-[var(--ui-surface)]/95 backdrop-blur-md border-b border-[var(--ui-border)] px-4 py-2 flex items-center justify-between z-10">
                   <div id={moreSheetTitleId} className="text-sm font-semibold">More Controls</div>
                   <button type="button"
                     ref={moreCloseRef}
@@ -646,12 +651,12 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   </button>
                 </div>
 
-                <div className="p-2 flex flex-col gap-1">
+                <div className="grid grid-cols-2 gap-1.5 p-2" data-bottom-more-grid="true">
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                    onClick={() => {
+                    className={mobileMoreActionClass}
+                    onClick={(event) => {
                       navigateStart();
-                      setMoreOpen(false);
+                      closeMoreControlsFromAction(event);
                     }}
                     disabled={isInsertMode}
                   >
@@ -662,10 +667,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                    onClick={() => {
+                    className={mobileMoreActionClass}
+                    onClick={(event) => {
                       jumpBack(10);
-                      setMoreOpen(false);
+                      closeMoreControlsFromAction(event);
                     }}
                     disabled={isInsertMode}
                   >
@@ -676,10 +681,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                    onClick={() => {
+                    className={mobileMoreActionClass}
+                    onClick={(event) => {
                       jumpForward(10);
-                      setMoreOpen(false);
+                      closeMoreControlsFromAction(event);
                     }}
                     disabled={isInsertMode}
                   >
@@ -690,10 +695,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                    onClick={() => {
+                    className={mobileMoreActionClass}
+                    onClick={(event) => {
                       navigateEnd();
-                      setMoreOpen(false);
+                      closeMoreControlsFromAction(event);
                     }}
                     disabled={isInsertMode}
                   >
@@ -703,18 +708,18 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                     <div className="flex-1 font-medium">End of game</div>
                   </button>
 
-                  <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+                  <div className="col-span-2 h-px bg-[var(--ui-border)] mx-2 my-1" />
 
                   {showBranchControl && branchInfo && switchBranch && (
                     <>
-                      <div className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
+                      <div className="col-span-2 px-3 pt-1 pb-0.5 text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
                         Variation
                       </div>
                       <button type="button"
-                        className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                        onClick={() => {
+                        className={mobileMoreActionClass}
+                        onClick={(event) => {
                           switchBranch(-1);
-                          setMoreOpen(false);
+                          closeMoreControlsFromAction(event);
                         }}
                         disabled={isInsertMode}
                       >
@@ -726,10 +731,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       </button>
 
                       <button type="button"
-                        className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                        onClick={() => {
+                        className={mobileMoreActionClass}
+                        onClick={(event) => {
                           switchBranch(1);
-                          setMoreOpen(false);
+                          closeMoreControlsFromAction(event);
                         }}
                         disabled={isInsertMode}
                       >
@@ -741,7 +746,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       </button>
 
                       <div
-                        className="mx-2 px-4 py-3 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] flex items-center justify-between gap-3"
+                        className="col-span-2 mx-2 px-3 py-2.5 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] flex items-center justify-between gap-3"
                         data-bottom-branch-control="true"
                       >
                         <div className="min-w-0">
@@ -751,16 +756,16 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                         <div className="shrink-0 text-sm">{renderBranchIndexButton(false)}</div>
                       </div>
 
-                      <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+                      <div className="col-span-2 h-px bg-[var(--ui-border)] mx-2 my-1" />
                     </>
                   )}
 
                   {onUndo && (
                     <button type="button"
-                      className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                      onClick={() => {
+                      className={mobileMoreActionClass}
+                      onClick={(event) => {
                         onUndo();
-                        setMoreOpen(false);
+                        closeMoreControlsFromAction(event);
                       }}
                     >
                       <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
@@ -772,10 +777,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                   {onAiMove && (
                     <button type="button"
-                      className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                      onClick={() => {
+                      className={mobileMoreActionClass}
+                      onClick={(event) => {
                         onAiMove();
-                        setMoreOpen(false);
+                        closeMoreControlsFromAction(event);
                       }}
                     >
                       <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-teal-400">
@@ -787,10 +792,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                   {onResign && (
                     <button type="button"
-                      className="w-full px-4 py-3.5 text-left hover:bg-rose-950/30 active:bg-rose-950/30 rounded-lg flex items-center gap-3 transition-colors text-rose-500"
-                      onClick={() => {
+                      className={`${mobileMoreActionClass} hover:bg-rose-950/30 active:bg-rose-950/30 text-rose-500`}
+                      onClick={(event) => {
                         onResign();
-                        setMoreOpen(false);
+                        closeMoreControlsFromAction(event);
                       }}
                     >
                       <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
@@ -800,13 +805,26 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                     </button>
                   )}
 
-                  <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
+                  <button type="button"
+                    className={mobileMoreActionClass}
+                    onClick={(event) => {
+                      rotateBoard();
+                      closeMoreControlsFromAction(event);
+                    }}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                      <FaSyncAlt size={14} />
+                    </div>
+                    <div className="flex-1 font-medium">Rotate board</div>
+                  </button>
+
+                  <div className="col-span-2 h-px bg-[var(--ui-border)] mx-2 my-1" />
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                    onClick={() => {
+                    className={mobileMoreActionClass}
+                    onClick={(event) => {
                       findMistake('undo');
-                      setMoreOpen(false);
+                      closeMoreControlsFromAction(event);
                     }}
                     disabled={isInsertMode}
                   >
@@ -820,10 +838,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                    onClick={() => {
+                    className={mobileMoreActionClass}
+                    onClick={(event) => {
                       findMistake('redo');
-                      setMoreOpen(false);
+                      closeMoreControlsFromAction(event);
                     }}
                     disabled={isInsertMode}
                   >
@@ -836,23 +854,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                     <div className="flex-1 font-medium">Next mistake</div>
                   </button>
 
-                  <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
-
-                  <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
-                    onClick={() => {
-                      rotateBoard();
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
-                      <FaSyncAlt size={14} />
-                    </div>
-                    <div className="flex-1 font-medium">Rotate Board</div>
-                  </button>
-
                   {/* Bottom padding for safe area */}
-                  <div className="h-4" />
+                  <div className="col-span-2 h-2" />
                 </div>
               </div>
             </>

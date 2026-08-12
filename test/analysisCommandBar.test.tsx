@@ -52,6 +52,9 @@ describe('AnalysisCommandBar', () => {
     expect(html).toContain('data-analysis-engine-status="ready"');
     expect(html).toContain('Engine status: Ready · WebGPU');
     expect(html).toContain('analysis-command-bar__status--ready');
+    expect(html).toContain('analysis-command-bar__status--header-duplicate');
+    expect(html).toContain('analysis-command-bar__status-state');
+    expect(html).toContain('analysis-command-bar__status-detail');
     expect(html).toContain('Ready · WebGPU');
     expect(html).toContain('Source: Bundled');
     expect(html).toContain('data-analysis-live-depth="true"');
@@ -84,7 +87,35 @@ describe('AnalysisCommandBar', () => {
     expect(styles).toContain('.analysis-command-bar__metrics.has-overflow-left.has-overflow-right');
     expect(styles).toContain('overscroll-behavior-x: contain;');
     expect(styles).toContain('scroll-snap-type: x proximity;');
-    expect(styles).toContain('grid-template-columns: minmax(6rem, 7.5rem) minmax(7.5rem, 1fr) minmax(5rem, 30vw);');
+    expect(styles).toContain('grid-template-columns: 4.75rem minmax(6rem, 1fr) minmax(6.5rem, 36vw);');
+    expect(styles).toContain('.analysis-command-bar__status-detail');
+    expect(styles).toContain('.analysis-command-bar:has(.analysis-command-bar__status-copy)');
+  });
+
+  it('uses shorter primary metric labels on phones without changing desktop copy', () => {
+    const html = renderToStaticMarkup(<AnalysisCommandBar {...baseProps} />);
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain('analysis-command-bar__label-full">Black win');
+    expect(html).toContain('analysis-command-bar__label-compact">B win');
+    expect(html).toContain('analysis-command-bar__label-full">Score lead');
+    expect(html).toContain('analysis-command-bar__label-compact">Score');
+    expect(html).toContain('analysis-command-bar__label-full">Move quality');
+    expect(html).toContain('analysis-command-bar__label-compact">Quality');
+    expect(html).toContain('analysis-command-bar__label-full">Fast review');
+    expect(html).toContain('analysis-command-bar__label-compact">Review');
+    expect(styles).toContain('.analysis-command-bar__metric:nth-child(-n + 2)');
+    expect(styles).toContain('flex: 0 0 3.5rem;');
+  });
+
+  it('reclaims the duplicate ready-status column on phones while preserving errors', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    expect(styles).toContain('.analysis-command-bar:has(> .analysis-command-bar__status--header-duplicate)');
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 46vw);');
+    expect(styles).toContain('.analysis-command-bar-slot .analysis-command-bar__status--header-duplicate');
+    expect(styles).toContain('display: none;');
+    expect(styles).not.toContain('.analysis-command-bar-slot .analysis-command-bar__status--error {\n      display: none;');
   });
 
   it('keeps fallback and error states visible in the status pill', () => {
@@ -100,6 +131,7 @@ describe('AnalysisCommandBar', () => {
     expect(html).toContain('data-analysis-engine-status="error"');
     expect(html).toContain('analysis-command-bar__status--error');
     expect(html).toContain('analysis-command-bar__status--fallback');
+    expect(html).not.toContain('analysis-command-bar__status--header-duplicate');
     expect(html).toContain('Error fallback · CPU (WASM)');
     expect(html).toContain('Copy engine error details');
   });

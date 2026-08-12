@@ -91,6 +91,17 @@ function expectLabelPair(html: string, id: string, label: string): void {
 }
 
 describe('NewGameModal', () => {
+  it('keeps optional player and record metadata collapsed by default', () => {
+    const html = renderModal();
+    const detailsTag = html.match(/<details[^>]*data-new-game-info-details="true"[^>]*>/)?.[0];
+
+    expect(detailsTag).toBeDefined();
+    expect(detailsTag).not.toContain(' open');
+    expect(html).toContain('Players &amp; game info');
+    expect(html).toContain('>Optional</span>');
+    expect(html.indexOf('>Opponent</div>')).toBeLessThan(html.indexOf('>Clock</div>'));
+  });
+
   it('binds labels to the core game setup controls', () => {
     const html = renderModal({
       timer: { mode: 'byo-yomi', mainTimeMinutes: 5, byoLengthSeconds: 30, byoPeriods: 5 },

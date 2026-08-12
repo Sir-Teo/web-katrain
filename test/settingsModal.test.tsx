@@ -6,10 +6,18 @@ import { SettingsModal } from '../src/components/SettingsModal';
 describe('SettingsModal', () => {
   it('uses theme-aware tab classes instead of hard-coded dark colors', () => {
     const html = renderToStaticMarkup(<SettingsModal onClose={() => undefined} />);
+    const css = readFileSync('src/index.css', 'utf8');
 
     expect(html).toContain('settings-modal');
     expect(html).toContain('settings-tabs');
     expect(html).toContain('settings-tab-active');
+    expect(html).toContain('aria-label="AI/Engine"');
+    expect(html).toContain('settings-tab-label-full');
+    expect(html).toContain('settings-tab-label-compact');
+    expect(html).toContain('>Engine</span>');
+    expect(html).toContain('>Keys</span>');
+    expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.settings-modal \.settings-tab-label-full[\s\S]*display: none/);
+    expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.settings-modal \.settings-tab-label-compact[\s\S]*display: inline/);
     expect(html).not.toContain('border-blue-500');
     expect(html).not.toContain('text-white border-b-2');
     expect(html).not.toContain('text-white');
