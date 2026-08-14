@@ -99,8 +99,10 @@ describe('NewGameModal', () => {
     [
       ['new-game-black-name', 'Black'],
       ['new-game-white-name', 'White'],
-      ['new-game-black-rank', 'Black Rank'],
-      ['new-game-white-rank', 'White Rank'],
+      // Both rank fields are labelled just "Rank" under the Black/White column
+      // heads; aria-label carries the colour for assistive tech (asserted below).
+      ['new-game-black-rank', 'Rank'],
+      ['new-game-white-rank', 'Rank'],
       ['new-game-event', 'Event'],
       ['new-game-date', 'Date'],
       ['new-game-place', 'Place'],
@@ -115,6 +117,9 @@ describe('NewGameModal', () => {
       ['new-game-byo-periods', 'Periods'],
       ['new-game-opponent', 'Play against'],
     ].forEach(([id, label]) => expectLabelPair(html, id!, label!));
+
+    expect(html).toContain('aria-label="Black rank"');
+    expect(html).toContain('aria-label="White rank"');
   });
 
   it('binds labels for AI opponent setup controls', () => {

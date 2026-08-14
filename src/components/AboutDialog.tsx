@@ -1,6 +1,7 @@
 import React from 'react';
-import { FaBug, FaExternalLinkAlt, FaGithub, FaTimes } from 'react-icons/fa';
+import { FaBug, FaExternalLinkAlt, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { APP_COMMIT_URL, APP_INFO, APP_ISSUE_REPORT_URL, APP_REPOSITORY_URL } from '../utils/appInfo';
 
 interface AboutDialogProps {
@@ -36,10 +37,13 @@ const AboutLink: React.FC<{ href: string; children: React.ReactNode; className?:
 export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose }) => {
   const buildDate = APP_INFO.commitDate || 'unknown';
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom"
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="about-title"
@@ -82,18 +86,18 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose }) => {
             </AboutRow>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <AboutLink
-              href={APP_REPOSITORY_URL}
-              className="justify-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold hover:bg-[var(--ui-surface-2)]"
-            >
-              <FaGithub aria-hidden="true" /> GitHub
-            </AboutLink>
+          {/* No separate GitHub button: it pointed at APP_REPOSITORY_URL, the same
+              href as the Repository row above, which also shows the repo slug. */}
+          <div className="grid grid-cols-1 gap-2">
             <AboutLink
               href={APP_ISSUE_REPORT_URL}
               className="justify-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold hover:bg-[var(--ui-surface-2)]"
             >
-              <FaBug aria-hidden="true" /> Report Issue
+              {/* Preflight makes svg display:block, so the icon needs a flex row to
+                  sit beside the label instead of stacking above it. */}
+              <span className="inline-flex items-center gap-2">
+                <FaBug aria-hidden="true" /> Report Issue
+              </span>
             </AboutLink>
           </div>
         </div>

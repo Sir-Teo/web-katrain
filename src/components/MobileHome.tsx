@@ -14,7 +14,7 @@ import {
   FaTimes,
   FaThLarge,
 } from 'react-icons/fa';
-import { formatLibrarySize, type LibraryFile } from '../utils/library';
+import { formatLibrarySize, formatLibraryTimestamp, type LibraryFile } from '../utils/library';
 import { formatGamepadLabel } from '../utils/gamepadLabel';
 import { getQuickNewGameWarning } from '../utils/quickNewGame';
 import type { BoardSize } from '../types';
@@ -62,7 +62,9 @@ const HomeAction: React.FC<HomeActionProps> = ({ label, icon, onClick, primary, 
     title={title}
     aria-label={ariaLabel}
     className={[
-      'min-h-12 rounded-lg border px-3 py-3 text-left transition-colors touch-manipulation',
+      // min-h-12 keeps the 48px touch target; the padding only has to fill the
+      // gap for single-line rows, so it stays tight and the list scrolls less.
+      'min-h-12 rounded-lg border px-3 py-2 text-left transition-colors touch-manipulation',
       'flex items-center gap-3',
       primary
         ? 'border-[var(--ui-accent)] bg-[var(--ui-accent)] text-[var(--ui-accent-contrast)]'
@@ -71,7 +73,7 @@ const HomeAction: React.FC<HomeActionProps> = ({ label, icon, onClick, primary, 
   >
     <span
       className={[
-        'grid h-9 w-9 shrink-0 place-items-center rounded-md',
+        'grid h-8 w-8 shrink-0 place-items-center rounded-md',
         primary ? 'bg-black/15' : 'bg-[var(--ui-surface-2)] text-[var(--ui-accent)]',
       ].join(' ')}
       aria-hidden="true"
@@ -110,6 +112,15 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   onOpenSettings,
   onOpenRecent,
 }) => {
+  // This overlay covers the tab bar and bottom controls, so the install banner
+  // must drop the offset that clears them or it floats mid-list.
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const root = document.documentElement;
+    root.setAttribute('data-mobile-home', 'open');
+    return () => root.removeAttribute('data-mobile-home');
+  }, [open]);
+
   if (!open) return null;
 
   const compactGamepadName = gamepadName ? formatGamepadLabel(gamepadName, 18) : null;
@@ -221,7 +232,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                   >
                     <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{item.name}</div>
                     <div className="mt-1 truncate text-xs ui-text-faint">
-                      {item.moveCount} moves · {formatLibrarySize(item.size)} · {new Date(item.updatedAt).toLocaleString()}
+                      {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
                     </div>
                   </button>
                 ))}

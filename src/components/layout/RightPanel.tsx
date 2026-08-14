@@ -58,7 +58,9 @@ function getNoMoveNodeLabel(node: GameNode): string {
 }
 
 function getNodeMoveNumberLabel(node: GameNode): string {
-  if (!node.parent) return 'Root';
+  // The root has no move number and the label column already names it, so this
+  // column stays an empty spacer instead of repeating "Root" in the same row.
+  if (!node.parent) return '';
   if (isGameNodeStep(node)) return String(getCurrentLineMoveNumber(node));
   return '-';
 }
@@ -308,10 +310,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     wrapperClassName?: string;
     contentClassName?: string;
     contentStyle?: React.CSSProperties;
+    /** Drop the header row: the enclosing screen already carries this title and
+        collapsing the only section on a dedicated screen just blanks it. */
+    headless?: boolean;
     children: React.ReactNode;
   }) => {
     if (!args.show) return null;
-    const wrapperTone = args.open ? panelCardOpen : panelCardClosed;
+    const open = args.headless || args.open;
+    const wrapperTone = open ? panelCardOpen : panelCardClosed;
     return (
       <div
         className={[
@@ -320,14 +326,16 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           args.wrapperClassName ?? '',
         ].join(' ')}
       >
-        <SectionHeader
-          title={args.title}
-          icon={args.icon}
-          open={args.open}
-          onToggle={args.onToggle}
-          actions={args.actions}
-        />
-        {args.open ? (
+        {args.headless ? null : (
+          <SectionHeader
+            title={args.title}
+            icon={args.icon}
+            open={args.open}
+            onToggle={args.onToggle}
+            actions={args.actions}
+          />
+        )}
+        {open ? (
           <div className={args.contentClassName ?? 'panel-section-content'} style={args.contentStyle}>
             {args.children}
           </div>
@@ -335,6 +343,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       </div>
     );
   };
+
+  // The mobile Tree tab is a dedicated screen whose bar already reads "Game Tree",
+  // so the section renders headless there and lends its view toggle to that bar.
+  const treeIsWholeScreen = isMobile && activeMobileTab === 'tree';
 
   const storedTreeView = readLocalStorage('web-katrain:tree_view:v1');
   const [treeView, setTreeView] = React.useState<'tree' | 'list'>(() => {
@@ -352,6 +364,31 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   React.useEffect(() => {
     writeLocalStorage('web-katrain:notes_list_open:v1', String(notesListOpen));
   }, [notesListOpen]);
+
+  const treeViewToggle = (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        className={treeViewTabClass(treeView === 'tree')}
+        onClick={() => setTreeView('tree')}
+        title="Tree view"
+        aria-label="Tree view"
+        aria-pressed={treeView === 'tree'}
+      >
+        <FaSitemap size={12} />
+      </button>
+      <button
+        type="button"
+        className={treeViewTabClass(treeView === 'list')}
+        onClick={() => setTreeView('list')}
+        title="List view"
+        aria-label="List view"
+        aria-pressed={treeView === 'list'}
+      >
+        <FaListUl size={12} />
+      </button>
+    </div>
+  );
 
   return (
     <>
@@ -387,9 +424,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             </button>
           )}
           {isMobile ? (
-            <div className="flex-1 text-sm font-semibold text-[var(--ui-text)]">
-              {activeMobileTab === 'tree' ? 'Game Tree' : 'Review'}
-            </div>
+            <>
+              <div className="flex-1 text-sm font-semibold text-[var(--ui-text)]">
+                {activeMobileTab === 'tree' ? 'Game Tree' : 'Review'}
+              </div>
+              {treeIsWholeScreen ? treeViewToggle : null}
+            </>
           ) : (
             <div className="panel-tab-strip flex-1">
               <button type="button"
@@ -459,30 +499,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               open: modePanels.treeOpen,
               onToggle: () => updatePanels((current) => ({ treeOpen: !current.treeOpen })),
               wrapperClassName: 'flex flex-col min-h-0',
-              actions: (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className={treeViewTabClass(treeView === 'tree')}
-                    onClick={() => setTreeView('tree')}
-                    title="Tree view"
-                    aria-label="Tree view"
-                    aria-pressed={treeView === 'tree'}
-                  >
-                    <FaSitemap size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className={treeViewTabClass(treeView === 'list')}
-                    onClick={() => setTreeView('list')}
-                    title="List view"
-                    aria-label="List view"
-                    aria-pressed={treeView === 'list'}
-                  >
-                    <FaListUl size={12} />
-                  </button>
-                </div>
-              ),
+              headless: treeIsWholeScreen,
+              actions: treeIsWholeScreen ? undefined : treeViewToggle,
               contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
               children: (
                 <>
@@ -505,7 +523,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     >
                       <FaFastForward size={12} />
                     </button>
-                    <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
+                    <div className="h-5 w-px bg-[var(--ui-border)]" />
                     <button
                       type="button"
                       className="panel-icon-button"
@@ -540,7 +558,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                             inputMode="numeric"
                             min={1}
                             max={branchInfo.totalBranches}
-                            className="w-5 bg-transparent p-0 text-right font-mono text-[var(--ui-text)] outline-none"
+                            // Dropping outline-none restores the base-layer
+                            // :focus-visible ring; it sets --tw-outline-style:none,
+                            // which the focus-visible outline utilities resolve through.
+                            className="w-5 bg-transparent p-0 text-right font-mono text-[var(--ui-text)] focus-visible:outline-offset-0"
                             autoFocus
                           />
                           <span className="font-mono">/{branchInfo.totalBranches}</span>
@@ -583,7 +604,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                         </button>
                       )
                     )}
-                    <div className="h-5 w-px bg-[var(--ui-border)] mx-1" />
+                    <div className="h-5 w-px bg-[var(--ui-border)]" />
                     <button
                       type="button"
                       className="panel-icon-button"
@@ -602,7 +623,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     >
                       <FaSitemap size={12} />
                     </button>
-                    <div className="flex-1" />
+                    {/* No flex-1 spacer here: in a wrapping toolbar it swallows the
+                        row's remainder, so the trailing button wrapped to a second
+                        row at every width. It packs with the branch group instead. */}
                     <button
                       type="button"
                       className="panel-icon-button"

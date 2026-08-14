@@ -50,6 +50,8 @@ import { getFastReviewButtonState } from '../utils/fastReviewButtonState';
 interface AnalysisCommandBarProps {
   mode: UiMode;
   isAnalysisMode: boolean;
+  /** The top bar carries its own Analyze toggle; only show ours when it is hidden. */
+  showLiveToggle?: boolean;
   statusText: string;
   engineDot: string;
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
@@ -76,6 +78,7 @@ interface AnalysisCommandBarProps {
 export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   mode,
   isAnalysisMode,
+  showLiveToggle = true,
   statusText,
   engineDot,
   engineStatus,
@@ -479,17 +482,19 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       </div>
 
       <div className="analysis-command-bar__actions" aria-label="Analysis controls">
-        <button
-          type="button"
-          className={['analysis-command-bar__button', isAnalysisMode ? 'active' : ''].join(' ')}
-          onClick={toggleAnalysisMode}
-          aria-pressed={isAnalysisMode}
-          title={liveAnalysisLabel}
-          aria-label={liveAnalysisLabel}
-        >
-          <FaPlay size={12} aria-hidden="true" />
-          <span>{liveButtonLabel}</span>
-        </button>
+        {showLiveToggle && (
+          <button
+            type="button"
+            className={['analysis-command-bar__button', isAnalysisMode ? 'active' : ''].join(' ')}
+            onClick={toggleAnalysisMode}
+            aria-pressed={isAnalysisMode}
+            title={liveAnalysisLabel}
+            aria-label={liveAnalysisLabel}
+          >
+            <FaPlay size={12} aria-hidden="true" />
+            <span>{liveButtonLabel}</span>
+          </button>
+        )}
         <button
           type="button"
           className={[

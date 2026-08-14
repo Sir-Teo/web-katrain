@@ -54,8 +54,6 @@ import {
   isPhotoBoardImageFile,
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
-import { SectionHeader } from './layout/ui';
-import { panelCardBase, panelCardClosed, panelCardOpen } from './layout/ui-utils';
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { isMobileLayoutViewport } from '../utils/responsiveLayout';
 import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
@@ -350,9 +348,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [sortKey, setSortKey] = useState(() => {
     return readLocalStorage('web-katrain:library_sort:v1') ?? 'recent';
   });
-  const [listOpen, setListOpen] = useState(() => {
-    return readLocalStorage('web-katrain:library_list_open:v1') !== 'false';
-  });
 
   useEffect(() => {
     let cancelled = false;
@@ -463,10 +458,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   useEffect(() => {
     writeLocalStorage('web-katrain:library_sort:v1', String(sortKey));
   }, [sortKey]);
-
-  useEffect(() => {
-    writeLocalStorage('web-katrain:library_list_open:v1', String(listOpen));
-  }, [listOpen]);
 
   useEffect(() => {
     onLibraryUpdated?.();
@@ -1658,39 +1649,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   if (!open) return null;
 
-  const renderSection = (args: {
-    title: string;
-    open: boolean;
-    onToggle: () => void;
-    actions?: React.ReactNode;
-    wrapperClassName?: string;
-    contentClassName?: string;
-    children: React.ReactNode;
-  }) => {
-    const wrapperTone = args.open ? panelCardOpen : panelCardClosed;
-    return (
-      <div
-        className={[
-          panelCardBase,
-          wrapperTone,
-          args.wrapperClassName ?? '',
-        ].join(' ')}
-      >
-        <SectionHeader
-          title={args.title}
-          open={args.open}
-          onToggle={args.onToggle}
-          actions={args.actions}
-        />
-        {args.open ? (
-          <div className={args.contentClassName ?? 'panel-section-content'}>
-            {args.children}
-          </div>
-        ) : null}
-      </div>
-    );
-  };
-
   return (
     <>
       {textDialog && <LibraryTextDialog dialog={textDialog} onClose={() => setTextDialog(null)} />}
@@ -1826,17 +1784,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           </div>
         </div>
 
+        {/* No "Library" section wrapper: this panel has exactly one section, its
+            title repeated the panel header above, and its collapse chevron just
+            emptied the panel — closing it is what the header's × is for. */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          <div className="flex flex-col min-h-0">
-            {renderSection({
-              title: 'Library',
-              open: listOpen,
-              onToggle: () => setListOpen((prev) => !prev),
-              contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
-              children: (
-                <>
+          <div className="panel-section-content flex flex-col min-h-0 p-0">
               <div className="panel-toolbar">
-                <div className="relative flex-1 min-w-[160px]">
+                {/* 160px of minimum put this row's base widths just over a phone's
+                    375px, wrapping the trailing control onto a row of its own;
+                    flex-1 still grows the field back to fill the leftover. */}
+                <div className="relative flex-1 min-w-[120px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
                     value={query}
@@ -1878,9 +1835,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   <FaFolderOpen size={12} />
                 </button>
                 <div className="ml-auto flex items-center gap-2 text-[11px] ui-text-faint">
-                  <div>
-                    {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
-                  </div>
+                  {/* The footer already totals the library ("7 games · 1 folder ·
+                      9.7 KB"), so this only reports what it cannot: how many rows
+                      an active search matched, and the current selection. */}
+                  {(isSearching || visibleSelectedIds.size > 0) && (
+                    <div>
+                      {[
+                        isSearching ? `${sortedItems.length} result${sortedItems.length === 1 ? '' : 's'}` : null,
+                        visibleSelectedIds.size > 0 ? `${visibleSelectedIds.size} selected` : null,
+                      ].filter(Boolean).join(' · ')}
+                    </div>
+                  )}
                   {sortedItems.length > 0 && (
                     <button
                       type="button"
@@ -2035,10 +2000,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   {libraryStatsText}
                 </div>
               )}
-                </>
-              ),
-            })}
-
           </div>
         </div>
       </div>

@@ -19,6 +19,7 @@ import { APP_LOCALE_OPTIONS } from '../utils/locales';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
 import { POLICY_HEATMAP_METRIC_SELECT_OPTIONS, TOP_MOVE_METRIC_SELECT_OPTIONS } from '../utils/topMoveMetric';
 import {
@@ -138,6 +139,7 @@ const ANALYSIS_OVERLAY_SHORTCUT_IDS = [
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     useEscapeToClose(onClose);
+    const dialogRef = useInitialDialogFocus<HTMLDivElement>();
     const { settings, updateSettings, engineBackend, engineModelName } = useGameStore(
         (state) => ({
             settings: state.settings,
@@ -375,6 +377,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
             <div
+                ref={dialogRef}
+                tabIndex={-1}
                 className="settings-modal w-full max-w-[960px] h-[92dvh] sm:h-auto sm:max-h-[92dvh] ui-panel rounded-2xl shadow-2xl border overflow-hidden flex flex-col"
                 role="dialog"
                 aria-modal="true"
@@ -636,7 +640,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             >
                                                 {APP_LOCALE_OPTIONS.map((locale) => (
                                                     <option key={locale.value} value={locale.value} lang={locale.htmlLang}>
-                                                        {locale.label} ({locale.nativeLabel})
+                                                        {/* Same guard as LanguageSwitcher: the native name only adds
+                                                            information when it differs, else this reads "English (English)". */}
+                                                        {locale.label}
+                                                        {locale.label === locale.nativeLabel ? '' : ` (${locale.nativeLabel})`}
                                                     </option>
                                                 ))}
                                             </select>
@@ -1086,13 +1093,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     </div>  
                                 </div>
                 
-                                {/* Show Last N Eval Dots Section */}  
-                                <div className={sectionClass}>  
-                                    <h3 className={sectionTitleClass}>Show Last N Eval Dots</h3>
+                                {/* Groups the two mistake-flagging controls; named for the
+                                    group rather than repeating its first field's label. */}
+                                <div className={sectionClass}>
+                                    <h3 className={sectionTitleClass}>Mistake Highlighting</h3>
                                     <div className="mt-4 space-y-4">
                                         <div className="space-y-2">
                                             <label htmlFor="settings-analysis-last-n-eval-dots" className="text-[var(--ui-text-muted)] block">Show Last N Eval Dots</label>
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                            <div className="flex items-center gap-2">
                                                 <input
                                                     id="settings-analysis-last-n-eval-dots"
                                                     type="range"
@@ -1111,7 +1119,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                                         <div className="space-y-2">
                                             <label htmlFor="settings-analysis-mistake-threshold" className="text-[var(--ui-text-muted)] block">Mistake Threshold (Points)</label>
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                            <div className="flex items-center gap-2">
                                                 <input
                                                     id="settings-analysis-mistake-threshold"
                                                     type="range"
@@ -1892,6 +1900,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                                     className="px-2 py-1 text-xs rounded ui-accent-soft border hover:brightness-110 disabled:opacity-60"
                                                                                     onClick={() => handleDownloadAndLoad(model.url)}
                                                                                     disabled={isDownloadingModel}
+                                                                                    aria-label={
+                                                                                        isDownloadingModel
+                                                                                            ? `${downloadLabel} ${model.name}`
+                                                                                            : `Download and load ${model.name}`
+                                                                                    }
                                                                                 >
                                                                                     {downloadLabel}
                                                                                 </button>
@@ -1939,6 +1952,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                 type="button"
                                                                 className={modelActionClass}
                                                                 onClick={() => handleCopyUrl(model.url)}
+                                                                // One of these per model, all reading "Copy URL" — name them
+                                                                // like the download progress bar above already does.
+                                                                aria-label={
+                                                                    copiedUrl === model.url
+                                                                        ? `Copied URL for ${model.name}`
+                                                                        : `Copy URL for ${model.name}`
+                                                                }
                                                             >
                                                                 {copiedUrl === model.url ? 'Copied' : 'Copy URL'}
                                                             </button>

@@ -122,6 +122,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const [moreOpen, setMoreOpen] = useState(false);
   const moreSheetId = React.useId();
   const moreSheetTitleId = React.useId();
+  // One row shape for the whole More Controls sheet, so its ten rows can't drift
+  // apart. py-2 keeps a 48px touch target while letting all rows fit the sheet
+  // without scrolling; py-3.5 made each 64px and pushed three below the fold.
+  const moreRowClass =
+    'w-full px-4 py-2 text-left rounded-lg flex items-center gap-3 transition-colors hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)]';
+  const moreRowDangerClass =
+    'w-full px-4 py-2 text-left rounded-lg flex items-center gap-3 transition-colors hover:bg-rose-950/30 active:bg-rose-950/30 text-rose-500';
+  const moreIconClass = 'w-8 h-8 rounded-full flex items-center justify-center shrink-0';
   const [isMoveNumberEditing, setIsMoveNumberEditing] = useState(false);
   const [moveNumberDraft, setMoveNumberDraft] = useState('');
   const skipMoveNumberBlurCommit = useRef(false);
@@ -145,6 +153,12 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const currentCaptureCount = currentPlayer === 'black' ? blackCaptures : whiteCaptures;
   const currentPlayerName = currentPlayer === 'black' ? 'Black' : 'White';
   const matchupSummary = `Black: ${blackPlayerLabel}, ${blackCaptures} captured. White: ${whitePlayerLabel}, ${whiteCaptures} captured. ${currentPlayerName} to play.`;
+  // No outline-none here: it is redundant with the base layer's
+  // `input:focus { outline: none }` and actively harmful, because it sets
+  // --tw-outline-style:none, which Tailwind's focus-visible outline utilities
+  // resolve through — leaving these inputs with no keyboard focus ring at all.
+  // Offset 0 keeps the base ring inside the overflow-hidden meta strip.
+  const inlineNumberFocusClass = 'focus-visible:outline-offset-0';
   const metaDividerClass = 'mobile-bottom-meta-divider text-[var(--ui-text-faint)]';
   const activePlayerClass = 'text-[var(--ui-accent)] font-semibold';
   const inactivePlayerClass = 'text-[var(--ui-text-faint)]';
@@ -307,7 +321,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             inputMode="numeric"
             min={1}
             max={branchInfo.totalBranches}
-            className={compact ? 'w-5 bg-transparent p-0 text-right text-[var(--ui-text)] outline-none' : 'w-6 bg-transparent p-0 text-right font-mono text-[var(--ui-text)] outline-none'}
+            className={`${compact ? 'w-5' : 'w-6 font-mono'} bg-transparent p-0 text-right text-[var(--ui-text)] ${inlineNumberFocusClass}`}
             autoFocus
           />
           <span className="font-mono ui-text-faint">/{branchInfo.totalBranches}</span>
@@ -410,8 +424,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
               </span>
               <span className="mobile-bottom-current-captures text-[var(--ui-text-faint)]">C{currentCaptureCount}</span>
             </span>
-            <span className={`${metaDividerClass} mx-1`}>|</span>
-            <span className="ui-text-faint">{boardSize}×{boardSize}</span>
+            {/* Leading divider carries the same shed class so hiding the board size
+                does not leave two adjacent pipes. */}
+            <span className={`${metaDividerClass} mobile-bottom-meta-size mx-1`}>|</span>
+            <span className="mobile-bottom-meta-size ui-text-faint">{boardSize}×{boardSize}</span>
             {handicap > 0 && (
               <>
                 <span className={metaDividerClass}>·</span>
@@ -433,7 +449,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   inputMode="numeric"
                   min={0}
                   max={totalMovesInCurrentLine}
-                  className="w-6 bg-transparent p-0 text-right text-[var(--ui-text)] outline-none"
+                  className={`w-6 bg-transparent p-0 text-right text-[var(--ui-text)] ${inlineNumberFocusClass}`}
                   autoFocus
                 />
               </span>
@@ -468,7 +484,9 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   data-mobile-save-state={mobileSaveStatus.state}
                 >
                   {mobileSaveStatusIcon}
-                  <span>{mobileSaveStatus.compactLabel}</span>
+                  {/* Drops to icon-only on the narrowest phones; the tone colour and
+                      the badge's title/aria-label still carry the full status. */}
+                  <span className="mobile-bottom-save-label">{mobileSaveStatus.compactLabel}</span>
                 </span>
               </>
             )}
@@ -523,56 +541,56 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                 <div className="p-2 flex flex-col gap-1">
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    className={moreRowClass}
                     onClick={() => {
                       navigateStart();
                       setMoreOpen(false);
                     }}
                     disabled={isInsertMode}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                    <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                       <FaStepBackward size={14} />
                     </div>
                     <div className="flex-1 font-medium">Start of game</div>
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    className={moreRowClass}
                     onClick={() => {
                       jumpBack(10);
                       setMoreOpen(false);
                     }}
                     disabled={isInsertMode}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                    <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                       <FaFastBackward size={14} />
                     </div>
                     <div className="flex-1 font-medium">Back 10 moves</div>
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    className={moreRowClass}
                     onClick={() => {
                       jumpForward(10);
                       setMoreOpen(false);
                     }}
                     disabled={isInsertMode}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                    <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                       <FaFastForward size={14} />
                     </div>
                     <div className="flex-1 font-medium">Forward 10 moves</div>
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    className={moreRowClass}
                     onClick={() => {
                       navigateEnd();
                       setMoreOpen(false);
                     }}
                     disabled={isInsertMode}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                    <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                       <FaStepForward size={14} />
                     </div>
                     <div className="flex-1 font-medium">End of game</div>
@@ -586,14 +604,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                         Variation
                       </div>
                       <button type="button"
-                        className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                        className={moreRowClass}
                         onClick={() => {
                           switchBranch(-1);
                           setMoreOpen(false);
                         }}
                         disabled={isInsertMode}
                       >
-                        <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                        <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                           <FaChevronUp size={14} />
                         </div>
                         <div className="flex-1 font-medium">Previous branch</div>
@@ -601,14 +619,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       </button>
 
                       <button type="button"
-                        className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                        className={moreRowClass}
                         onClick={() => {
                           switchBranch(1);
                           setMoreOpen(false);
                         }}
                         disabled={isInsertMode}
                       >
-                        <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                        <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                           <FaChevronDown size={14} />
                         </div>
                         <div className="flex-1 font-medium">Next branch</div>
@@ -632,13 +650,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                   {onUndo && (
                     <button type="button"
-                      className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                      className={moreRowClass}
                       onClick={() => {
                         onUndo();
                         setMoreOpen(false);
                       }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                      <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                         <FaUndo size={14} />
                       </div>
                       <div className="flex-1 font-medium">Undo last move</div>
@@ -647,13 +665,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                   {onAiMove && (
                     <button type="button"
-                      className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                      className={moreRowClass}
                       onClick={() => {
                         onAiMove();
                         setMoreOpen(false);
                       }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-teal-400">
+                      <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-teal-400`}>
                         <FaRobot size={14} />
                       </div>
                       <div className="flex-1 font-medium text-teal-400">Request AI move</div>
@@ -662,13 +680,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                   {onResign && (
                     <button type="button"
-                      className="w-full px-4 py-3.5 text-left hover:bg-rose-950/30 active:bg-rose-950/30 rounded-lg flex items-center gap-3 transition-colors text-rose-500"
+                      className={moreRowDangerClass}
                       onClick={() => {
                         onResign();
                         setMoreOpen(false);
                       }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+                      <div className={`${moreIconClass} bg-rose-500/10 text-rose-500`}>
                         <FaFlag size={14} />
                       </div>
                       <div className="flex-1 font-medium">Resign</div>
@@ -678,14 +696,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    className={moreRowClass}
                     onClick={() => {
                       findMistake('undo');
                       setMoreOpen(false);
                     }}
                     disabled={isInsertMode}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface)] flex items-center justify-center">
+                    <div className={`${moreIconClass} bg-[var(--ui-surface)]`}>
                       <span className="inline-flex items-center gap-1" aria-hidden="true">
                         <FaChevronLeft size={9} />
                         <span className="h-2 w-2 rounded-full bg-[var(--eval-mistake)]" />
@@ -695,14 +713,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   </button>
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    className={moreRowClass}
                     onClick={() => {
                       findMistake('redo');
                       setMoreOpen(false);
                     }}
                     disabled={isInsertMode}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface)] flex items-center justify-center">
+                    <div className={`${moreIconClass} bg-[var(--ui-surface)]`}>
                       <span className="inline-flex items-center gap-1" aria-hidden="true">
                         <span className="h-2 w-2 rounded-full bg-[var(--eval-mistake)]" />
                         <FaChevronRight size={9} />
@@ -714,13 +732,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   <div className="h-px bg-[var(--ui-border)] mx-2 my-1" />
 
                   <button type="button"
-                    className="w-full px-4 py-3.5 text-left hover:bg-[var(--ui-surface-2)] active:bg-[var(--ui-surface-2)] rounded-lg flex items-center gap-3 transition-colors"
+                    className={moreRowClass}
                     onClick={() => {
                       rotateBoard();
                       setMoreOpen(false);
                     }}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                    <div className={`${moreIconClass} bg-[var(--ui-surface-2)] text-[var(--ui-text)]`}>
                       <FaSyncAlt size={14} />
                     </div>
                     <div className="flex-1 font-medium">Rotate Board</div>
@@ -839,7 +857,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 inputMode="numeric"
                 min={0}
                 max={totalMovesInCurrentLine}
-                className="w-7 bg-transparent p-0 text-right font-semibold text-[var(--ui-text)] outline-none"
+                className={`w-7 bg-transparent p-0 text-right font-semibold text-[var(--ui-text)] ${inlineNumberFocusClass}`}
                 autoFocus
               />
               <span className="ui-text-faint">/{totalMovesInCurrentLine}</span>

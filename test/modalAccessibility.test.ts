@@ -42,6 +42,44 @@ describe('modal accessibility semantics', () => {
     }
   });
 
+  it('moves focus into dialogs that use the shared focus hook and wraps Tab inside them', () => {
+    // aria-modal="true" only marks the rest of the page inert for assistive tech;
+    // it does not stop Tab reaching background controls, so the hook enforces the
+    // wrap itself. Each consumer must also give the dialog tabIndex={-1} so the
+    // container can receive the initial focus.
+    const consumers = [
+      'src/components/AboutDialog.tsx',
+      'src/components/CommandPaletteModal.tsx',
+      'src/components/GameReportModal.tsx',
+      'src/components/KeyboardHelpModal.tsx',
+      'src/components/LessonsModal.tsx',
+      'src/components/NewGameModal.tsx',
+      'src/components/ProGamesModal.tsx',
+      'src/components/ScoreQuizModal.tsx',
+      'src/components/SettingsModal.tsx',
+      'src/components/TournamentModal.tsx',
+    ];
+    for (const path of consumers) {
+      const source = readFileSync(path, 'utf8');
+      expect(source, path).toContain('useInitialDialogFocus');
+      expect(source, path).toContain('tabIndex={-1}');
+    }
+
+    // The palette lands focus on its own search field, so it takes the wrap and
+    // the restore but opts out of the container focus.
+    const palette = readFileSync('src/components/CommandPaletteModal.tsx', 'utf8');
+    expect(palette).toContain('{ focusContainer: false }');
+    expect(palette).toContain('inputRef.current?.focus();');
+
+    const hook = readFileSync('src/hooks/useInitialDialogFocus.ts', 'utf8');
+    // Runs on the open/close transition only; depending on onClose identity would
+    // re-run every render and yank focus back out of the dialog. focusContainer is
+    // a plain boolean, so it is stable across renders.
+    expect(hook).toContain('}, [active, focusContainer]);');
+    expect(hook).toContain("event.key !== 'Tab' || event.defaultPrevented");
+    expect(hook).toContain('previouslyFocused?.isConnected');
+  });
+
   it('lets nested modal controls own Escape when they already consumed it', () => {
     const source = readFileSync('src/hooks/useEscapeToClose.ts', 'utf8');
 

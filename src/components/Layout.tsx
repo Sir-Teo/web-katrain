@@ -1198,7 +1198,10 @@ export const Layout: React.FC = () => {
                 ? 'Pondering… (Space)'
                 : isAnalysisMode
                   ? 'Analysis mode on (Tab toggles)'
-                  : 'Ready';
+                  // Nothing notable is happening: stay empty rather than echo the
+                  // engine badge's own "Ready" next to it. Consumers skip the row
+                  // when this is blank.
+                  : '';
 
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
@@ -2355,10 +2358,10 @@ export const Layout: React.FC = () => {
       },
       {
         id: 'pro-games',
-        label: 'Browse pro game library',
+        label: 'Browse pro game database',
         category: 'Study',
         run: () => openSimpleModal(() => setIsProGamesOpen(true)),
-        keywords: ['professional', 'database', 'famous', 'kifu', 'player', 'event'],
+        keywords: ['professional', 'database', 'famous', 'kifu', 'player', 'event', 'opening', 'joseki'],
       },
       {
         id: 'lessons',
@@ -3155,11 +3158,16 @@ export const Layout: React.FC = () => {
           />
         )}
 
-        {/* Main board column */}
-        <div
+        {/* Main board column — a <main> landmark so assistive tech can skip
+            straight here. This layout previously exposed no main/header at all,
+            leaving the tab bar as its only landmark. */}
+        <main
           className={['flex flex-col flex-1 min-w-0 min-h-0 w-full max-w-full relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
           style={isMobile ? { paddingBottom: 'calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))' } : undefined}
         >
+          {/* The mobile shell has no visible app title to promote, so the page's
+              top-level heading is screen-reader only. */}
+          <h1 className="sr-only">Web KaTrain</h1>
           {topBarOpen && (
             <TopControlBar
               settings={settings}
@@ -3269,6 +3277,7 @@ export const Layout: React.FC = () => {
               <AnalysisCommandBar
                 mode={mode}
                 isAnalysisMode={isAnalysisMode}
+                showLiveToggle={!topBarOpen}
                 statusText={statusText}
                 engineDot={engineDot}
                 engineStatus={engineStatus}
@@ -3295,9 +3304,9 @@ export const Layout: React.FC = () => {
             <div
               className={[
                 'flex-1 flex justify-center min-h-0 min-w-0',
-                // On mobile the Score (top-left) and Edit (bottom-left) launchers float
-                // over the board shell. Reserve vertical clearance so the board never
-                // grows under them and covers the corner coordinates / play area.
+                // On mobile the Score and Edit launchers both float over the bottom of
+                // the board shell, so only the bottom needs reserved clearance — the
+                // board never grows under them and covers coordinates / play area.
                 // When the Edit toolbar is expanded it becomes a taller bottom strip, and
                 // the active scoring bar docks at the bottom too — reserve extra bottom
                 // space in both cases so the whole board stays visible above them.
@@ -3306,14 +3315,14 @@ export const Layout: React.FC = () => {
                 // squash/clip the board.
                 // Bias the board to the top in portrait: vertical centering left all
                 // the slack as a dead gap under the command bar while the floating
-                // Edit launcher occupied the bottom slack anyway.
+                // launchers occupied the bottom slack anyway.
                 !isMobile
                   ? 'items-center'
                   : isEditMode
-                    ? 'items-center portrait:items-start portrait:pt-14 portrait:pb-36'
+                    ? 'items-center portrait:items-start portrait:pb-36'
                     : scoringMode
-                      ? 'items-center portrait:items-start portrait:pt-14 portrait:pb-[20rem]'
-                      : 'items-center portrait:items-start portrait:py-14',
+                      ? 'items-center portrait:items-start portrait:pb-[20rem]'
+                      : 'items-center portrait:items-start portrait:pb-14',
               ].join(' ')}
             >
               <GoBoard
@@ -3380,7 +3389,7 @@ export const Layout: React.FC = () => {
               />
             </div>
           )}
-        </div>
+        </main>
 
         {isDesktop && showSidebar && (
           <div

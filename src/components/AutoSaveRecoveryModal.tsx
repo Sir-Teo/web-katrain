@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { formatLibraryTimestamp } from '../utils/library';
 import type { AutoSavedGame } from '../utils/autoSave';
 
 type AutoSaveRecoveryModalProps = {
@@ -14,8 +15,9 @@ export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
   onRestore,
   onDismiss,
 }) => {
-  const savedAt = new Date(snapshot.savedAt);
-  const savedAtLabel = Number.isFinite(savedAt.getTime()) ? savedAt.toLocaleString() : 'an earlier session';
+  // Shared minute-precision format: a recovery prompt needs the date, but not
+  // the seconds a bare toLocaleString() was printing.
+  const savedAtLabel = formatLibraryTimestamp(snapshot.savedAt) || 'an earlier session';
   useEscapeToClose(onDismiss);
 
   return (

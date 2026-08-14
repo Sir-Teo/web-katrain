@@ -25,7 +25,9 @@
     --ui-text-muted: #94a3b8;
     /* Faint text still has to clear ~4.5:1 on --ui-bg for the tiny uppercase
        labels it is used on. */
-    --ui-text-faint: #74859e;
+    /* Lightened one step: the previous value fell to 3.95-4.33:1 on this
+       theme's deepest surfaces (--ui-surface / --ui-surface-2). */
+    --ui-text-faint: #8697b0;
     --ui-accent: #22c55e;
     --ui-accent-soft: #1a3a2a;
     --ui-accent-contrast: #0b0f16;
@@ -57,7 +59,9 @@
     --ui-border-strong: #54402c;
     --ui-text: #f5eee1;
     --ui-text-muted: #c8b8a1;
-    --ui-text-faint: #9a886f;
+    /* Lightened one step: the previous value fell to 3.95-4.33:1 on this
+       theme's deepest surfaces (--ui-surface / --ui-surface-2). */
+    --ui-text-faint: #ac9a81;
     --ui-accent: #f59e0b;
     --ui-accent-soft: #3b2a12;
     --ui-accent-contrast: #120f0a;
@@ -81,7 +85,9 @@
     --ui-border-strong: #314760;
     --ui-text: #e7eef8;
     --ui-text-muted: #9aa8bb;
-    --ui-text-faint: #7b8da5;
+    /* Lightened one step: the previous value fell to 3.95-4.33:1 on this
+       theme's deepest surfaces (--ui-surface / --ui-surface-2). */
+    --ui-text-faint: #8d9fb7;
     --ui-accent: #38bdf8;
     --ui-accent-soft: #122a3a;
     --ui-accent-contrast: #0c1219;
@@ -105,15 +111,19 @@
     --ui-border-strong: #c1cbd9;
     --ui-text: #1e293b;
     --ui-text-muted: #526075;
-    --ui-text-faint: #64748b;
-    --ui-accent: #0284c7;
+    /* Tone and faint values are a step darker than their mid-palette shades so
+       they clear 4.5:1 both as text on the matching -soft fill and, for the
+       tones, under white on a filled button. The mid shades measured 2.9-4.4:1
+       on their own soft backgrounds. */
+    --ui-text-faint: #5d6b7e;
+    --ui-accent: #0369a1;
     --ui-accent-soft: #e0f2fe;
     --ui-accent-contrast: #ffffff;
-    --ui-danger: #e11d48;
+    --ui-danger: #be123c;
     --ui-danger-soft: #ffe4e6;
-    --ui-warning: #d97706;
+    --ui-warning: #a24a08;
     --ui-warning-soft: #fef3c7;
-    --ui-success: #16a34a;
+    --ui-success: #166534;
     --ui-success-soft: #dcfce7;
     color-scheme: light;
   }
@@ -225,12 +235,23 @@
     border: 1px solid rgba(15, 23, 42, 0.45);
   }
 
-  @media (max-width: 430px) {
+  /* 480 rather than 430: at 431px every item was still showing and the strip
+     overflowed by ~7px, since its flex share is narrow until well past the
+     widest phones. */
+  @media (max-width: 480px) {
     .mobile-bottom-current-player {
       max-width: 4.75rem;
     }
 
     .mobile-bottom-current-captures {
+      display: none;
+    }
+
+    /* The strip clips with overflow-hidden, and at 414px the fixed board size
+       pushed the save-status badge past the edge. Drop the value that never
+       changes rather than a live "unsaved" warning or the current-turn chip,
+       which flexbox already squeezes toward zero under pressure. */
+    .mobile-bottom-meta-size {
       display: none;
     }
   }
@@ -247,6 +268,14 @@
 
     .mobile-bottom-meta-player,
     .mobile-bottom-meta-divider {
+      display: none;
+    }
+  }
+
+  /* Below this the move counter's 44px touch target plus the full save badge no
+     longer fit the strip, so the badge goes icon-only rather than being clipped. */
+  @media (max-width: 340px) {
+    .mobile-bottom-save-label {
       display: none;
     }
   }
@@ -416,6 +445,16 @@
     .settings-modal input:not([type='hidden']),
     .settings-modal select,
     .settings-modal textarea {
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    /* The mobile Tools sheet had neither of the treatments above, leaving its
+       theme selects at 26px and its list rows at 39px. */
+    [data-mobile-tools-dialog='true'] button,
+    [data-mobile-tools-dialog='true'] a[href],
+    [data-mobile-tools-dialog='true'] input:not([type='hidden']),
+    [data-mobile-tools-dialog='true'] select {
       min-width: 44px;
       min-height: 44px;
     }
@@ -608,6 +647,21 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    /* Previously this block covered only the toast, leaving ~36 CSS transitions,
+       5 keyframe animations and the Tailwind animate- and transition- utilities
+       running — including the infinite engine-pill pulse in dashboard.css, which
+       had no reduced-motion handling at all. Removing motion wholesale is safe
+       here because nothing conveys state through movement alone: the save status
+       uses a different icon shape per state plus a text label, and the engine dot
+       is colour-coded. No code listens for transitionend/animationend. */
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
     .notification-toast {
       animation: none;
     }
@@ -929,38 +983,47 @@
   }
 
   .analysis-command-bar-slot .analysis-command-bar {
-    grid-template-columns: minmax(7rem, auto) minmax(10rem, 1fr) minmax(10rem, auto);
     margin-bottom: 0;
   }
 
-  .analysis-command-bar-slot .analysis-command-bar__actions {
-    grid-column: auto;
-    min-width: 0;
-    max-width: min(28rem, 45vw);
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
+  /* The slot's single-row layout needs ~27rem of column minimums, so it only
+     applies above the width where the bar stacks (see the 900px rules below) —
+     these selectors outrank that media query and would otherwise force the
+     three columns to overflow a phone-width board column. */
+  @media (min-width: 901px) {
+    .analysis-command-bar-slot .analysis-command-bar {
+      grid-template-columns: minmax(7rem, auto) minmax(10rem, 1fr) minmax(10rem, auto);
+    }
 
-  .analysis-command-bar-slot .analysis-command-bar__actions::-webkit-scrollbar {
-    display: none;
-  }
+    .analysis-command-bar-slot .analysis-command-bar__actions {
+      grid-column: auto;
+      min-width: 0;
+      max-width: min(28rem, 45vw);
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
 
-  .analysis-command-bar-slot .analysis-command-bar__metrics {
-    display: flex;
-    min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
+    .analysis-command-bar-slot .analysis-command-bar__actions::-webkit-scrollbar {
+      display: none;
+    }
 
-  .analysis-command-bar-slot .analysis-command-bar__metrics::-webkit-scrollbar {
-    display: none;
-  }
+    .analysis-command-bar-slot .analysis-command-bar__metrics {
+      display: flex;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
 
-  .analysis-command-bar-slot .analysis-command-bar__metric {
-    flex: 0 0 auto;
-    min-width: 4.75rem;
+    .analysis-command-bar-slot .analysis-command-bar__metrics::-webkit-scrollbar {
+      display: none;
+    }
+
+    .analysis-command-bar-slot .analysis-command-bar__metric {
+      flex: 0 0 auto;
+      min-width: 4.75rem;
+    }
   }
 
   .analysis-command-bar__status {
@@ -1491,14 +1554,13 @@
       margin-bottom: 0.5rem;
     }
 
+    /* Same intent as .scroll-strip-x, but width-conditional: above 900px this
+       row wraps instead of scrolling, so the fade must not apply there. */
     .analysis-command-bar__actions {
       flex-wrap: nowrap;
       justify-content: flex-start;
       overflow-x: auto;
       scrollbar-width: none;
-      /* Fade the trailing edge so a clipped button reads as "scroll for more"
-         rather than broken; the padding keeps the last button clear of the
-         fade once scrolled to the end. */
       padding-right: 1.25rem;
       -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
       mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
@@ -2524,15 +2586,18 @@
     .manual-score-launch,
     .manual-score-panel {
       left: 8px;
-      top: 8px;
     }
 
-    .manual-score-offset {
-      top: var(--board-tool-offset-y, 11.75rem);
-    }
-
+    /* Only the panel gets a top here: the launcher is bottom-anchored by the
+       1023px rules above, and setting both edges stretches it into a
+       full-height strip beside the board. */
     .manual-score-panel {
+      top: 8px;
       width: min(270px, calc(100vw - 16px));
+    }
+
+    .manual-score-panel.manual-score-offset {
+      top: var(--board-tool-offset-y, 11.75rem);
     }
 
     .manual-score-result {
@@ -2927,6 +2992,28 @@
       margin: 0 auto;
       bottom: calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + max(12px, env(safe-area-inset-bottom)));
     }
+
+    /* The mobile home overlay hides the tab bar and bottom controls, so the
+       banner sits on the screen edge instead of floating over the action list. */
+    :root[data-mobile-home='open'] .pwa-install-banner {
+      bottom: max(12px, env(safe-area-inset-bottom));
+    }
+  }
+
+  /* Horizontal control strip that scrolls rather than wraps. Hides the scrollbar
+     and fades the trailing edge so a clipped control reads as "scroll for more"
+     rather than broken; the padding keeps the last one clear of the fade once
+     scrolled to the end. */
+  .scroll-strip-x {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-right: 1.25rem;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.25rem), transparent);
+  }
+
+  .scroll-strip-x::-webkit-scrollbar {
+    display: none;
   }
 
   .ui-border {

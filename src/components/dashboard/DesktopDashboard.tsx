@@ -187,7 +187,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     toast,
   } = props;
 
-  const [sections, setSections] = useState({ info: false, tree: true, analysis: true, notes: true });
+  const [sections, setSections] = useState({ tree: true, analysis: true, notes: true });
   // Top game-info strip and bottom metrics bar collapse like the side panels so
   // the board can take the full column; reopen handles mirror the edge toggles.
   const [gamestripOpen, setGamestripOpen] = useState(() => {
@@ -202,6 +202,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   useEffect(() => {
     writeLocalStorage('web-katrain:dash_commandbar_open:v1', String(commandbarOpen));
   }, [commandbarOpen]);
+  // The command bar only holds live analysis metrics, so it stays out of the way
+  // entirely while analysis is off — engine state, captures and the "analysis is
+  // off" prompt already live in the header pill, the gamestrip and the sidebar.
+  const commandbarVisible = commandbarOpen && showAnalysis;
   const [legend, setLegend] = useState({ winrate: true, score: true });
   const [legendOpen, setLegendOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -386,14 +390,18 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       data-library={libraryOpen ? 'open' : 'closed'}
       data-sidebar={sidebarOpen ? 'open' : 'closed'}
       data-gamestrip={gamestripOpen ? 'open' : 'closed'}
-      data-commandbar={commandbarOpen ? 'open' : 'closed'}
+      data-commandbar={commandbarVisible ? 'open' : 'closed'}
       style={dashboardStyle}
     >
       {/* ============ Header ============ */}
       <header className="header">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-name">Web <b>KaTrain</b></span>
+          {/* The app name is the page's only top-level heading; as a span there was
+              no h1 at all, so heading-based navigation had nothing to land on.
+              .brand-name sets font-size/weight explicitly and Preflight zeroes
+              heading margins, so this renders identically. */}
+          <h1 className="brand-name">Web <b>KaTrain</b></h1>
           {APP_COMMIT_URL ? (
             <a
               href={APP_COMMIT_URL}
@@ -493,7 +501,12 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       {/* ============ Body ============ */}
       <div className="body" style={{ gridTemplateColumns }}>
         {/* Library */}
-        <aside className={`library${libraryPanel ? ' full-library' : ''}${libDrawer ? ' drawer' : ''}${libraryOpen ? ' open' : ''}`}>
+        {/* Both sidebars are <aside>, so without distinct labels a screen reader
+            announces "complementary" twice with no way to tell them apart. */}
+        <aside
+          aria-label="Game library"
+          className={`library${libraryPanel ? ' full-library' : ''}${libDrawer ? ' drawer' : ''}${libraryOpen ? ' open' : ''}`}
+        >
           {libraryPanel ?? (
             <>
               <div className="library-head">
@@ -641,60 +654,52 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             >
               <Icon name={sidebarOpen ? 'chevR' : 'chevL'} size={13} />
             </button>
-            <button
-              type="button"
-              className={`edge-toggle bottom${commandbarOpen ? ' open' : ''}`}
-              title={commandbarOpen ? 'Hide metrics' : 'Show metrics'}
-              aria-label={commandbarOpen ? 'Hide metrics' : 'Show metrics'}
-              aria-pressed={commandbarOpen}
-              onClick={() => setCommandbarOpen((v) => !v)}
-            >
-              <Icon name={commandbarOpen ? 'chevD' : 'chevU'} size={13} />
-            </button>
+            {showAnalysis && (
+              <button
+                type="button"
+                className={`edge-toggle bottom${commandbarOpen ? ' open' : ''}`}
+                title={commandbarOpen ? 'Hide metrics' : 'Show metrics'}
+                aria-label={commandbarOpen ? 'Hide metrics' : 'Show metrics'}
+                aria-pressed={commandbarOpen}
+                onClick={() => setCommandbarOpen((v) => !v)}
+              >
+                <Icon name={commandbarOpen ? 'chevD' : 'chevU'} size={13} />
+              </button>
+            )}
           </div>
 
           {/* Command bar */}
-          {commandbarOpen && (
+          {commandbarVisible && (
           <div className="commandbar">
             <div className="cb-metrics">
-              {showAnalysis ? (
-                <>
-                  <div className="cb-metric">
-                    <div className="k">Win rate</div>
-                    <div className="v win">{winRate != null ? `${(winRate * 100).toFixed(1)}%` : '—'}</div>
-                    <div className="sub">{winRate != null ? `${winRate >= 0.5 ? 'Black' : 'White'} favored` : ''}</div>
-                  </div>
-                  <div className="cb-metric">
-                    <div className="k">Score</div>
-                    <div className="v score">{scoreLead != null ? `${scoreLead >= 0 ? 'B+' : 'W+'}${Math.abs(scoreLead).toFixed(1)}` : '—'}</div>
-                    <div className="sub">lead</div>
-                  </div>
-                  <div className="cb-metric">
-                    <div className="k">Best move</div>
-                    <div className="v best">{bestMove ? formatMoveLabel(bestMove.x, bestMove.y, boardSize) : '—'}</div>
-                    <div className="sub" title={bestMove ? `${(bestMove.winRate * 100).toFixed(1)}% win rate · ${bestMove.visits} visits` : undefined}>
-                      {bestMove ? `${(bestMove.winRate * 100).toFixed(0)}% · ${formatVisitCount(bestMove.visits)} visits` : ''}
-                    </div>
-                  </div>
-                  <div className="cb-metric">
-                    <div className="k">Played</div>
-                    <div className="v">
-                      {pointsLost != null ? (
-                        <><span className="cb-quality-dot" style={{ background: evalColorForPointsLost(pointsLost) }} />{pointsLostLabel}</>
-                      ) : '—'}
-                    </div>
-                    <div className={`sub ${pointsLost != null && pointsLost > 1.5 ? 'delta-bad' : 'delta-good'}`}>
-                      {pointsLost != null ? (pointsLost > 0.05 ? `−${pointsLost.toFixed(1)} pts` : 'optimal') : ''}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="cb-metric"><div className="k">Analysis</div><div className="v">Off</div><div className="sub">enable to evaluate</div></div>
-                  <div className="cb-metric"><div className="k">Engine</div><div className="v">{engineState === 'ready' ? 'Idle' : enginePillLabel}</div><div className="sub">{enginePillLabel}</div></div>
-                  <div className="cb-metric"><div className="k">Captures</div><div className="v">{capturedBlack}·{capturedWhite}</div><div className="sub">B · W</div></div>
-                </>
-              )}
+              <div className="cb-metric">
+                <div className="k">Win rate</div>
+                <div className="v win">{winRate != null ? `${(winRate * 100).toFixed(1)}%` : '—'}</div>
+                <div className="sub">{winRate != null ? `${winRate >= 0.5 ? 'Black' : 'White'} favored` : ''}</div>
+              </div>
+              <div className="cb-metric">
+                <div className="k">Score</div>
+                <div className="v score">{scoreLead != null ? `${scoreLead >= 0 ? 'B+' : 'W+'}${Math.abs(scoreLead).toFixed(1)}` : '—'}</div>
+                <div className="sub">lead</div>
+              </div>
+              <div className="cb-metric">
+                <div className="k">Best move</div>
+                <div className="v best">{bestMove ? formatMoveLabel(bestMove.x, bestMove.y, boardSize) : '—'}</div>
+                <div className="sub" title={bestMove ? `${(bestMove.winRate * 100).toFixed(1)}% win rate · ${bestMove.visits} visits` : undefined}>
+                  {bestMove ? `${(bestMove.winRate * 100).toFixed(0)}% · ${formatVisitCount(bestMove.visits)} visits` : ''}
+                </div>
+              </div>
+              <div className="cb-metric">
+                <div className="k">Played</div>
+                <div className="v">
+                  {pointsLost != null ? (
+                    <><span className="cb-quality-dot" style={{ background: evalColorForPointsLost(pointsLost) }} />{pointsLostLabel}</>
+                  ) : '—'}
+                </div>
+                <div className={`sub ${pointsLost != null && pointsLost > 1.5 ? 'delta-bad' : 'delta-good'}`}>
+                  {pointsLost != null ? (pointsLost > 0.05 ? `−${pointsLost.toFixed(1)} pts` : 'optimal') : ''}
+                </div>
+              </div>
             </div>
           </div>
           )}
@@ -793,29 +798,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         </main>
 
         {/* Analysis sidebar */}
-        <aside className={`sidebar${sideDrawer ? ' drawer' : ''}${sidebarOpen ? ' open' : ''}`}>
+        <aside
+          aria-label="Analysis panel"
+          className={`sidebar${sideDrawer ? ' drawer' : ''}${sidebarOpen ? ' open' : ''}`}
+        >
           <div className="mode-tabs">
             <button type="button" className={`mode-tab${mode === 'play' ? ' active' : ''}`} onClick={() => setMode('play')}>Play</button>
             <button type="button" className={`mode-tab${mode === 'analyze' ? ' active' : ''}`} onClick={() => setMode('analyze')}>Analysis</button>
             <button type="button" className="iconbtn drawer-close" title="Close" style={{ margin: '6px 6px 6px 0' }} onClick={() => setSidebarOpen(false)}><Icon name="x" size={14} /></button>
           </div>
           <div className="sidebar-scroll">
-            {/* Game info */}
-            <div className={`section${sections.info ? ' open' : ''}`}>
-              {sectionHead('info', 'Game info', 'info')}
-              <div className="section-body">
-                <div className="info-card">
-                  <div className="info-title">{loadedFileName || 'Current game'}</div>
-                  <div className="info-sub">{boardSize}×{boardSize} · {rules}</div>
-                  <div className="info-row"><span className="stone-mini b" /><div><div className="ir-k">Black</div><div className="ir-v">{blackName || 'Black'} {blackRank}</div></div></div>
-                  <div className="info-row"><span className="stone-mini w" /><div><div className="ir-k">White</div><div className="ir-v">{whiteName || 'White'} {whiteRank}</div></div></div>
-                  <dl className="info-grid">
-                    <div><dt>Komi</dt><dd>{komi}</dd></div>
-                    <div><dt>Result</dt><dd>{result || '—'}</dd></div>
-                  </dl>
-                </div>
-              </div>
-            </div>
+            {/* No "Game info" section: the gamestrip above the board is a strict
+                superset of it (same title, size, rules, players, komi and result,
+                plus captures, handicap and save state) and its own edge toggle
+                brings it back when hidden. */}
 
             {/* Game tree */}
             <div className={`section${sections.tree ? ' open' : ''}`}>
@@ -1058,8 +1054,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           sidebarOpen={sidebarOpen}
           onToggleLibrary={toggleLibrary}
           onToggleSidebar={toggleSidebar}
-          onSettings={() => { closePop(); onSettings(); }}
-          onAbout={() => { closePop(); onAbout(); }}
         />
       )}
     </div>
@@ -1117,9 +1111,7 @@ const ViewMenu: React.FC<{
   sidebarOpen: boolean;
   onToggleLibrary: () => void;
   onToggleSidebar: () => void;
-  onSettings: () => void;
-  onAbout: () => void;
-}> = ({ rect, showCoords, onToggleCoords, libraryOpen, sidebarOpen, onToggleLibrary, onToggleSidebar, onSettings, onAbout }) => {
+}> = ({ rect, showCoords, onToggleCoords, libraryOpen, sidebarOpen, onToggleLibrary, onToggleSidebar }) => {
   const item = (label: string, on: boolean | null, kbd: string, onClick: () => void, iconName?: IconName) => (
     <button type="button" className={`menu-item${on ? ' on' : ''}`} onClick={onClick}>
       {iconName ? <Icon name={iconName} size={14} /> : null}
@@ -1136,30 +1128,6 @@ const ViewMenu: React.FC<{
       <div className="menu-section-label">Layout</div>
       {item('Library panel', libraryOpen, '[', onToggleLibrary, 'book')}
       {item('Analysis panel', sidebarOpen, ']', onToggleSidebar, 'chart')}
-      <div className="menu-divider" />
-      <div className="menu-section-label">More</div>
-      {item('Settings', null, '', onSettings, 'settings')}
-      {item('About', null, '', onAbout, 'info')}
-      <div className="menu-divider" />
-      {APP_COMMIT_URL ? (
-        <a
-          href={APP_COMMIT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="menu-build"
-          title={`Open build commit: ${APP_BUILD_LABEL}`}
-          aria-label={`Open build commit ${APP_BUILD_LABEL}`}
-          data-dashboard-build-link="true"
-        >
-          <Icon name="info" size={12} />
-          <span className="menu-build-text">{APP_BUILD_LABEL}</span>
-        </a>
-      ) : (
-        <div className="menu-build" title={APP_BUILD_LABEL}>
-          <Icon name="info" size={12} />
-          <span className="menu-build-text">{APP_BUILD_LABEL}</span>
-        </div>
-      )}
     </div>
   );
 };

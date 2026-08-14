@@ -9,6 +9,7 @@ import {
   shortcutDisplay,
 } from '../utils/shortcuts';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 interface KeyboardHelpModalProps {
   onClose: () => void;
@@ -16,8 +17,9 @@ interface KeyboardHelpModalProps {
 }
 
 const GAMEPAD_HELP = [
-  { control: 'D-pad / left stick', action: 'Previous/next move, previous/next branch' },
-  { control: 'Right stick', action: 'Previous/next move, previous/next branch' },
+  // The D-pad and both sticks map to the same four commands in
+  // getGamepadNavigationInput, so they are one row rather than two identical ones.
+  { control: 'D-pad / either stick', action: 'Previous/next move, previous/next branch' },
   { control: 'LB / RB', action: 'Back/forward 10 moves' },
   { control: 'Select / Start', action: 'Go to start/end' },
   { control: 'B / A', action: 'Previous/next move' },
@@ -31,6 +33,7 @@ const POINTER_HELP = [
 
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [query, setQuery] = React.useState('');
 
@@ -54,6 +57,8 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
       <div
         className="ui-panel rounded-lg shadow-xl w-[92vw] max-w-[800px] max-h-[90dvh] overflow-hidden flex flex-col border"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="keyboard-help-title"

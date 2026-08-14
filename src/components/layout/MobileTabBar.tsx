@@ -60,6 +60,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
         hasControlBarAbove ? 'bg-transparent' : 'ui-bar border-t border-[var(--ui-border)] backdrop-blur-sm shadow-xl shadow-black/30'
       ].filter(Boolean).join(' ')}
       role="tablist"
+      aria-label="Main sections"
     >
       <div
         className="grid mobile-tabbar-grid"

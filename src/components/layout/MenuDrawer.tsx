@@ -3,7 +3,7 @@ import { FaTimes, FaPlay, FaSave, FaFolderOpen, FaCog, FaCopy, FaPaste, FaKeyboa
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
-import { formatLibrarySize, type LibraryFile } from '../../utils/library';
+import { formatLibrarySize, formatLibraryTimestamp, type LibraryFile } from '../../utils/library';
 import { getQuickNewGameWarning } from '../../utils/quickNewGame';
 import { APP_LOCALE_OPTIONS, getAppLocaleOption } from '../../utils/locales';
 import type { AppLocaleId, BoardSize } from '../../types';
@@ -275,7 +275,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                   className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-[var(--ui-surface-2)]"
                   onClick={() => { onProGames(); onClose(); }}
                 >
-                  <FaBook aria-hidden="true" /> Pro Game Library
+                  <FaBook aria-hidden="true" /> Pro Game Database
                 </button>
               )}
               {onVideoBoard && (
@@ -294,10 +294,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               htmlFor="menu-app-locale"
               className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded"
             >
-              <span className="flex min-w-0 flex-col">
-                <span className="text-sm text-[var(--ui-text)]">{activeLocale.languageLabel}</span>
-                <span className="text-xs ui-text-faint truncate">{activeLocale.label}</span>
-              </span>
+              {/* No subtitle: it repeated activeLocale.label, which is exactly what
+                  the select beside it displays — and it made the select's accessible
+                  name stutter ("Language English"). */}
+              <span className="min-w-0 text-sm text-[var(--ui-text)]">{activeLocale.languageLabel}</span>
               <select
                 id="menu-app-locale"
                 value={activeLocale.value}
@@ -382,7 +382,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 >
                   <div className="truncate">{item.name}</div>
                   <div className="text-[11px] ui-text-faint">
-                    {item.moveCount} moves · {formatLibrarySize(item.size)} · {new Date(item.updatedAt).toLocaleString()}
+                    {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
                   </div>
                 </button>
               ))}

@@ -265,6 +265,23 @@ export const formatLibrarySize = (bytes: number): string => {
   return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
 };
 
+/**
+ * Timestamp for recency lists: date plus hour and minute, never seconds — nobody
+ * scans a "Recent" list to the second, and the extra digits wrapped the line.
+ * Matches the minute precision already used for save status and game reports.
+ */
+export const formatLibraryTimestamp = (updatedAt: number): string => {
+  const date = new Date(updatedAt);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toLocaleString([], {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 export const getLibraryFileMoveSortCount = (item: LibraryFile): number =>
   item.moveCount > 0 ? item.moveCount : item.metadata.setupStoneCount ?? 0;
 

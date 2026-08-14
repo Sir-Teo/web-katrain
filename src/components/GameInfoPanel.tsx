@@ -151,31 +151,19 @@ export const GameInfoPanel: React.FC = () => {
     </label>
   );
 
-  const openInfoEditor = () => setIsEditingInfo(true);
-
-  const handleDisplayKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    handleKeyDown(e);
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      openInfoEditor();
-    }
-  };
-
+  // The Edit button above is the single affordance for opening the editor; this
+  // card is plain content. It used to be a role="button" too, which both doubled
+  // the control and made screen readers announce the whole block as one button.
   const renderDisplayMode = () => (
     <div
-      role="button"
-      tabIndex={0}
-      className="w-full cursor-pointer text-left space-y-3 rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3 transition-colors hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-surface-2)]"
-      onClick={openInfoEditor}
-      onKeyDown={handleDisplayKeyDown}
-      aria-label="Edit game info"
+      className="w-full text-left space-y-3 rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3"
       data-game-info-display="true"
     >
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{title}</div>
-        <div className="mt-1 text-[11px] ui-text-faint">
-          {hasMetadata ? 'Players, event, result' : 'No metadata yet'}
-        </div>
+        {/* Only worth a line when it explains an empty-looking card — otherwise
+            the players and details are right below. */}
+        {hasMetadata ? null : <div className="mt-1 text-[11px] ui-text-faint">No metadata yet</div>}
       </div>
 
       <div className="grid grid-cols-1 gap-2">
@@ -291,15 +279,16 @@ export const GameInfoPanel: React.FC = () => {
   return (
     <div className="space-y-3" data-game-info-panel="true">
       <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-xs font-semibold text-[var(--ui-text)]">
-            {isEditingInfo ? 'Editing game info' : 'Game summary'}
+        {/* Display mode needs no heading: the enclosing section is already
+            labelled and the game title is the next line. Edit mode keeps one
+            because "Editing…" is state the reader has to see. */}
+        {isEditingInfo ? (
+          <div className="min-w-0">
+            <div className="truncate text-xs font-semibold text-[var(--ui-text)]">Editing game info</div>
+            <div className="text-[10px] ui-text-faint">SGF root metadata</div>
           </div>
-          <div className="text-[10px] ui-text-faint">
-            {isEditingInfo ? 'SGF root metadata' : 'Players, rules, result'}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
+        ) : null}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {!isEditingInfo && sourceLink ? (
             <a
               className="panel-action-button inline-flex items-center gap-1"

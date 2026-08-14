@@ -23,13 +23,19 @@ describe('desktop dashboard layout', () => {
     expect(responsiveBlock).not.toContain('setSidebarOpen(true');
   });
 
-  it('surfaces build metadata from the dashboard view menu', () => {
+  it('keeps the view menu to display and layout toggles', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const menuStart = source.indexOf('const ViewMenu');
+    const viewMenu = source.slice(menuStart);
 
-    expect(source).toContain('APP_BUILD_LABEL');
-    expect(source).toContain('APP_COMMIT_URL');
-    expect(source).toContain('data-dashboard-build-link="true"');
-    expect(source).toContain('Open build commit');
+    expect(viewMenu).toContain("item('Coordinates'");
+    expect(viewMenu).toContain("item('Library panel'");
+    expect(viewMenu).toContain("item('Analysis panel'");
+    // Settings, About and the build link each already have a dedicated home in
+    // the header icon cluster, the Help popover and the header build chip.
+    expect(viewMenu).not.toContain("item('Settings'");
+    expect(viewMenu).not.toContain("item('About'");
+    expect(viewMenu).not.toContain('data-dashboard-build-link');
   });
 
   it('keeps a compact build identity visible in the dashboard header', () => {
@@ -37,6 +43,9 @@ describe('desktop dashboard layout', () => {
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
 
     expect(dashboardSource).toContain('APP_INFO');
+    expect(dashboardSource).toContain('APP_BUILD_LABEL');
+    expect(dashboardSource).toContain('APP_COMMIT_URL');
+    expect(dashboardSource).toContain('Open build commit');
     expect(dashboardSource).toContain('data-dashboard-build-chip="true"');
     expect(dashboardSource).toContain('v{APP_INFO.version}');
     expect(css).toContain('.wk-dashboard .build-chip');

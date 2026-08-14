@@ -2170,7 +2170,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             {Array.from({ length: boardSize }).map((_, i) => (
               <div
                 key={`bottom-${i}`}
-                className="absolute font-bold tracking-tight opacity-80"
+                /* No opacity here: each board theme's coordColor carries its own
+                   alpha, and multiplying the two dropped coordinate contrast as
+                   low as 1.8:1 against the wood. */
+                className="absolute font-bold tracking-tight"
                 style={{
                   left: originX + i * cellSize,
                   top: originY + (boardSize - 1) * cellSize + coordOffset,
@@ -2188,7 +2191,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             {Array.from({ length: boardSize }).map((_, i) => (
               <div
                 key={`left-${i}`}
-                className="absolute font-bold tracking-tight opacity-80"
+                /* No opacity here: each board theme's coordColor carries its own
+                   alpha, and multiplying the two dropped coordinate contrast as
+                   low as 1.8:1 against the wood. */
+                className="absolute font-bold tracking-tight"
                 style={{
                   left: originX - coordOffset,
                   top: originY + i * cellSize,

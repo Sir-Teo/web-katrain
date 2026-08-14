@@ -29,7 +29,9 @@ describe('SettingsModal', () => {
     const html = renderToStaticMarkup(<SettingsModal onClose={() => undefined} />);
 
     expect(html).toContain('Kaya-style previews');
-    expect(html).toContain('English (English)');
+    // The native name is only appended when it differs from the English one, so
+    // English renders bare rather than as "English (English)".
+    expect(html).not.toContain('English (English)');
     expect(html).toContain('Japanese (日本語)');
     expect(html).toContain('data-settings-locale="true"');
     expect(html).toContain('Traditional clamshell and slate stones');

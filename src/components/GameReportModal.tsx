@@ -32,6 +32,7 @@ import { setTimedNotification } from '../utils/timedNotification';
 import { afterAnimationFrames } from '../utils/animationFrame';
 import { printWindow } from '../utils/print';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -182,6 +183,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [graphTick, setGraphTick] = useState(0);
   const [showReportGuide, setShowReportGuide] = useState(false);
   useEscapeToClose(onClose, !showReportGuide);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const reportGuideButtonRef = useRef<HTMLButtonElement>(null);
   const reportGuideCloseRef = useRef<HTMLButtonElement>(null);
   const snapshotTimerRef = useRef<number | null>(null);
@@ -432,13 +434,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const phaseLabel = getPhaseLabel(phaseFilter);
   const reviewMoveRange = useMemo(() => getPhaseAnalysisMoveRange(boardSize, phaseFilter), [boardSize, phaseFilter]);
   const reviewScopeLabel = phaseFilter === 'all' ? 'fast review' : `${phaseLabel.toLowerCase()} review`;
+  // Keep naming the action even with nothing to review: the button is disabled in
+  // that state and the status banner already says "No moves to review" and why, so
+  // relabelling both button instances repeated that line three times on one screen.
   const reviewButtonLabel = isGameAnalysisRunning
     ? `Stop ${gameAnalysisType ?? 'analysis'}${gameAnalysisTotal > 0 ? ` (${gameAnalysisDone}/${gameAnalysisTotal})` : ''}`
     : hasFullCoverage
       ? `Re-run ${reviewScopeLabel}`
-      : hasReviewTargets
-      ? `Run ${reviewScopeLabel}`
-      : 'No moves to review';
+      : `Run ${reviewScopeLabel}`;
   const coveragePercent = totalMoves > 0 ? Math.round(coverage * 100) : 0;
   const analysisStatusTitle = isGameAnalysisRunning
     ? 'Review running'
@@ -842,6 +845,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
       <div
         className="ui-panel rounded-2xl shadow-2xl w-[92vw] max-w-[56rem] max-h-[90dvh] overflow-hidden flex flex-col report-print border"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="game-report-title"
@@ -978,6 +983,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 type="button"
                 onClick={handleReviewClick}
                 disabled={isPreparingPdf || (!isGameAnalysisRunning && !hasReviewTargets)}
+                title={analysisStatusDetail}
                 className={[
                   'min-h-11 shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-60',
                   isGameAnalysisRunning
@@ -1095,7 +1101,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Two cards, not three: "Coverage" was analyzedMoves/totalMoves as a
+              percent — the same fraction as its neighbour — and that card's own
+              progress bar repeated the status bar directly above. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className={sectionClass}>
               <div className={sectionTitleClass}>Phase</div>
               <div className={`mt-2 text-lg font-semibold ${valueClass}`}>{phaseLabel}</div>
@@ -1104,19 +1113,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className={sectionClass}>
               <div className={sectionTitleClass}>Analyzed Moves</div>
               <div className={`mt-2 text-lg font-semibold ${valueClass}`}>
-                {analyzedMoves}/{totalMoves || 0}
+                {analyzedMoves}/{totalMoves || 0}{' '}
+                <span className={`text-sm font-normal ${mutedClass}`}>· {fmtPct(coverage)}</span>
               </div>
-              <div className="mt-2 h-2 rounded-full bg-[var(--ui-surface-2)] overflow-hidden">
-                <div
-                  className="h-full bg-[var(--ui-accent)] opacity-70"
-                  style={{ width: `${Math.round(coverage * 100)}%` }}
-                />
-              </div>
-              <div className={`mt-2 text-xs ${mutedClass}`}>Filters apply to analysis coverage.</div>
-            </div>
-            <div className={sectionClass}>
-              <div className={sectionTitleClass}>Coverage</div>
-              <div className={`mt-2 text-lg font-semibold ${valueClass}`}>{fmtPct(coverage)}</div>
               <div className={`mt-1 text-xs ${mutedClass}`}>Based on moves with analysis data.</div>
             </div>
           </div>
@@ -1861,22 +1860,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         </div>
 
         <div className="px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex flex-wrap items-center justify-between gap-3 print-hide">
+          {/* The review button lives in the status card above, next to the text
+              explaining why you'd run it and the bar it advances — repeating it
+              here rendered the same button twice on one screen. */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleReviewClick}
-              className={[
-                'min-h-11 px-4 py-2 rounded-lg font-semibold disabled:opacity-60',
-                isGameAnalysisRunning
-                  ? 'bg-rose-600/80 hover:bg-rose-500 text-white'
-                  : hasFullCoverage
-                    ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border border-[var(--ui-border)] hover:brightness-110'
-                    : 'ui-accent-bg hover:brightness-110',
-              ].join(' ')}
-              disabled={isPreparingPdf || (!isGameAnalysisRunning && !hasReviewTargets)}
-            >
-              {reviewButtonLabel}
-            </button>
             <button
               type="button"
               onClick={handlePrintReport}

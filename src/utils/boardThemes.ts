@@ -133,7 +133,8 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
         imageOffsetY: '0.14em',
       },
     },
-    coordColor: 'rgba(74, 53, 32, 0.75)',
+    // Opaque: at 0.75 alpha this sat at 3.84:1 on the #dfc080 board.
+    coordColor: '#4a3520',
   },
   'shell-slate': {
     id: 'shell-slate',
@@ -166,7 +167,8 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
         shadowBlur: '0.02em',
       },
     },
-    coordColor: 'rgba(34, 34, 34, 0.7)',
+    // Opaque: 0.7 alpha left Yunzi at 4.13:1 and Shell & Slate with no margin.
+    coordColor: '#222222',
   },
   yunzi: {
     id: 'yunzi',
@@ -199,7 +201,8 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
         shadowBlur: '0.06em',
       },
     },
-    coordColor: 'rgba(34, 34, 34, 0.7)',
+    // Opaque: 0.7 alpha left Yunzi at 4.13:1 and Shell & Slate with no margin.
+    coordColor: '#222222',
   },
   'happy-stones': {
     id: 'happy-stones',
@@ -234,7 +237,9 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
         size: '108%',
       },
     },
-    coordColor: 'rgba(107, 66, 1, 0.59)',
+    // Darkened from rgba(107,66,1,.59): even fully opaque that hue only reached
+    // 3.9:1 on these light-tan boards. Same brown family, 5.6:1.
+    coordColor: '#4a2d01',
   },
   kifu: {
     id: 'kifu',
@@ -305,7 +310,9 @@ const THEMES: Record<BoardThemeId, BoardThemeConfig> = {
         size: '108%',
       },
     },
-    coordColor: 'rgba(107, 66, 1, 0.59)',
+    // Darkened from rgba(107,66,1,.59): even fully opaque that hue only reached
+    // 3.9:1 on these light-tan boards. Same brown family, 5.6:1.
+    coordColor: '#4a2d01',
   },
 };
 

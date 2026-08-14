@@ -19,6 +19,9 @@ export const APP_LOCALE_OPTIONS: AppLocaleOption[] = [
   { value: 'de', label: 'German', nativeLabel: 'Deutsch', htmlLang: 'de', languageLabel: 'Sprache', changeLanguageLabel: 'Sprache ändern', selectLanguageLabel: 'Sprache wählen' },
   { value: 'es', label: 'Spanish', nativeLabel: 'Español', htmlLang: 'es', languageLabel: 'Idioma', changeLanguageLabel: 'Cambiar idioma', selectLanguageLabel: 'Seleccionar idioma' },
   { value: 'it', label: 'Italian', nativeLabel: 'Italiano', htmlLang: 'it', languageLabel: 'Lingua', changeLanguageLabel: 'Cambia lingua', selectLanguageLabel: 'Seleziona lingua' },
+  { value: 'ru', label: 'Russian', nativeLabel: 'Русский', htmlLang: 'ru', languageLabel: 'Язык', changeLanguageLabel: 'Сменить язык', selectLanguageLabel: 'Выбрать язык' },
+  { value: 'pt', label: 'Portuguese', nativeLabel: 'Português', htmlLang: 'pt', languageLabel: 'Idioma', changeLanguageLabel: 'Mudar idioma', selectLanguageLabel: 'Selecionar idioma' },
+  { value: 'vi', label: 'Vietnamese', nativeLabel: 'Tiếng Việt', htmlLang: 'vi', languageLabel: 'Ngôn ngữ', changeLanguageLabel: 'Đổi ngôn ngữ', selectLanguageLabel: 'Chọn ngôn ngữ' },
 ];
 
 const APP_LOCALE_IDS = new Set<AppLocaleId>(APP_LOCALE_OPTIONS.map((locale) => locale.value));

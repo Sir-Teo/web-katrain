@@ -334,7 +334,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { onScanBoard(); closeViewMenu(); }}
         >
-          <span className="flex items-center gap-2"><FaCamera /> Photo Board</span><span className="text-xs ui-text-faint">—</span>
+          <span className="flex items-center gap-2"><FaCamera /> Photo Board</span>
         </button>
         <div className="h-px bg-[var(--ui-border)] w-full" />
         <button type="button"
@@ -514,10 +514,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <span className="text-sm font-medium">Rotate board</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['rotate-board']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { onScanBoard(); closeViewMenu(); }}>
-            <FaCamera size={18} className="text-[var(--ui-text-muted)]" />
-            <span className="text-sm font-medium">Photo Board</span>
-          </button>
+          {/* No Photo Board tile: the mobile sheet appends desktopViewMenu below,
+              which already lists it beside Copy/Paste SGF where importing a game
+              belongs — two tiles for one action in a single open menu. */}
           <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeViewMenu(); }}>
             <FaRobot size={18} className={isTeachMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Teach mode</span>
