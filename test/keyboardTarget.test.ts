@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   DIALOG_TARGET_SELECTOR,
   isDialogTarget,
-  isEditableKeyboardTarget,
   isTextEntryTarget,
   shouldIgnoreGlobalPasteTarget,
-  shouldIgnoreKeyboardShortcutTarget,
+  shouldIgnoreShortcutForKey,
   TEXT_ENTRY_TARGET_SELECTOR,
 } from '../src/utils/keyboardTarget';
 
@@ -31,40 +30,10 @@ describe('isTextEntryTarget', () => {
   });
 });
 
-describe('isEditableKeyboardTarget', () => {
-  it('detects form and contenteditable keyboard targets', () => {
-    expect(isEditableKeyboardTarget({ tagName: 'INPUT' } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({ tagName: 'textarea' } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({ tagName: 'SELECT' } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({ tagName: 'DIV', isContentEditable: true } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({
-      tagName: 'DIV',
-      getAttribute: (name: string) => (name === 'role' ? 'textbox' : null),
-    } as unknown as EventTarget)).toBe(true);
-  });
-
-  it('detects focused interactive controls', () => {
-    expect(isEditableKeyboardTarget({ tagName: 'BUTTON' } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({ tagName: 'a' } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({
-      tagName: 'DIV',
-      getAttribute: (name: string) => (name === 'role' ? 'tab' : null),
-    } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({
-      tagName: 'DIV',
-      getAttribute: (name: string) => (name === 'role' ? 'slider' : null),
-    } as unknown as EventTarget)).toBe(true);
-    expect(isEditableKeyboardTarget({
-      tagName: 'DIV',
-      getAttribute: (name: string) => (name === 'role' ? 'treeitem' : null),
-    } as unknown as EventTarget)).toBe(true);
-  });
-
-  it('ignores ordinary targets and missing targets', () => {
-    expect(isEditableKeyboardTarget({} as EventTarget)).toBe(false);
-    expect(isEditableKeyboardTarget(null)).toBe(false);
-  });
-});
+const roleTarget = (role: string) => ({
+  tagName: 'DIV',
+  getAttribute: (name: string) => (name === 'role' ? role : null),
+} as unknown as EventTarget);
 
 describe('isDialogTarget', () => {
   it('detects dialog roots and descendants', () => {
@@ -96,10 +65,46 @@ describe('shouldIgnoreGlobalPasteTarget', () => {
   });
 });
 
-describe('shouldIgnoreKeyboardShortcutTarget', () => {
-  it('blocks shortcuts from either the event target or active element', () => {
-    expect(shouldIgnoreKeyboardShortcutTarget({ tagName: 'BUTTON' } as unknown as EventTarget, null)).toBe(true);
-    expect(shouldIgnoreKeyboardShortcutTarget({} as EventTarget, { tagName: 'INPUT' } as unknown as EventTarget)).toBe(true);
-    expect(shouldIgnoreKeyboardShortcutTarget({} as EventTarget, {} as EventTarget)).toBe(false);
+describe('shouldIgnoreShortcutForKey', () => {
+  const button = { tagName: 'BUTTON' } as unknown as EventTarget;
+
+  it('lets navigation keys through while a button holds focus', () => {
+    // Clicking a button leaves it focused. Blocking every key here silently
+    // killed arrow-key move navigation until the user clicked elsewhere.
+    for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'z', 'x', 'p']) {
+      expect(shouldIgnoreShortcutForKey(key, button, null), key).toBe(false);
+      expect(shouldIgnoreShortcutForKey(key, {} as EventTarget, button), key).toBe(false);
+    }
+  });
+
+  it('still withholds the keys a focused button activates with', () => {
+    for (const key of ['Enter', ' ', 'Spacebar']) {
+      expect(shouldIgnoreShortcutForKey(key, button, null), key).toBe(true);
+    }
+    expect(shouldIgnoreShortcutForKey('Enter', {} as EventTarget, { tagName: 'A' } as unknown as EventTarget)).toBe(true);
+    expect(shouldIgnoreShortcutForKey(' ', roleTarget('checkbox'), null)).toBe(true);
+    expect(shouldIgnoreShortcutForKey(' ', roleTarget('switch'), null)).toBe(true);
+  });
+
+  it('withholds every key while text entry has focus', () => {
+    for (const key of ['ArrowLeft', 'Enter', ' ', 'z', 'Escape']) {
+      expect(shouldIgnoreShortcutForKey(key, { tagName: 'INPUT' } as unknown as EventTarget, null), key).toBe(true);
+      expect(shouldIgnoreShortcutForKey(key, { tagName: 'DIV', isContentEditable: true } as unknown as EventTarget, null), key).toBe(true);
+    }
+    expect(shouldIgnoreShortcutForKey('ArrowLeft', {} as EventTarget, { tagName: 'TEXTAREA' } as unknown as EventTarget)).toBe(true);
+  });
+
+  it('withholds arrow keys from widgets that navigate within themselves', () => {
+    for (const role of ['slider', 'tab', 'radio', 'option', 'treeitem', 'menuitem']) {
+      expect(shouldIgnoreShortcutForKey('ArrowLeft', roleTarget(role), null), role).toBe(true);
+      expect(shouldIgnoreShortcutForKey('Enter', roleTarget(role), null), role).toBe(true);
+      // a plain letter shortcut is not part of those widgets' key contract
+      expect(shouldIgnoreShortcutForKey('p', roleTarget(role), null), role).toBe(false);
+    }
+  });
+
+  it('leaves shortcuts alone when nothing relevant has focus', () => {
+    expect(shouldIgnoreShortcutForKey('ArrowLeft', {} as EventTarget, {} as EventTarget)).toBe(false);
+    expect(shouldIgnoreShortcutForKey('Enter', null, null)).toBe(false);
   });
 });

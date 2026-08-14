@@ -44,7 +44,7 @@ import {
   isPhotoBoardImageFile,
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
-import { isEditableKeyboardTarget, shouldIgnoreGlobalPasteTarget } from '../utils/keyboardTarget';
+import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
   createUploadedModelUrl,
@@ -234,6 +234,7 @@ export const Layout: React.FC = () => {
     engineError,
     engineBackend,
     engineModelName,
+    isAiThinking,
     isGameAnalysisRunning,
     gameAnalysisType,
     gameAnalysisDone,
@@ -310,6 +311,7 @@ export const Layout: React.FC = () => {
       engineError: state.engineError,
       engineBackend: state.engineBackend,
       engineModelName: state.engineModelName,
+      isAiThinking: state.isAiThinking,
       isGameAnalysisRunning: state.isGameAnalysisRunning,
       gameAnalysisType: state.gameAnalysisType,
       gameAnalysisDone: state.gameAnalysisDone,
@@ -698,7 +700,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (!scoringMode) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) return;
+      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (event.key === 'Escape') setScoringMode(false);
     };
     window.addEventListener('keydown', onKeyDown);
@@ -709,7 +711,7 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) return;
+      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (eventMatchesShortcut(event, 'toggle-focus-mode')) {
         event.preventDefault();
         toggleFocusMode();
@@ -1317,7 +1319,9 @@ export const Layout: React.FC = () => {
           ? notification.message
           : isInsertMode
             ? 'Insert mode (I to finish)'
-            : isGameAnalysisRunning
+            : isAiThinking
+              ? 'AI thinking…'
+              : isGameAnalysisRunning
               ? `Analyzing game (${gameAnalysisType ?? '…'})… ${gameAnalysisDone}/${gameAnalysisTotal}`
               : isContinuousAnalysis
                 ? 'Pondering… (Space)'
@@ -3315,7 +3319,7 @@ export const Layout: React.FC = () => {
                 ? 'error'
                 : engineStatus === 'loading'
                   ? 'loading'
-                  : isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
+                  : isAiThinking || isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
                     ? 'running'
                     : 'ready'
             }
@@ -3324,9 +3328,13 @@ export const Layout: React.FC = () => {
                 ? 'Engine error'
                 : engineStatus === 'loading'
                   ? 'Loading model'
-                  : isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
-                    ? 'Analyzing…'
-                    : 'KataGo ready'
+                  : // An AI move can run for many seconds; name it so the wait is
+                    // legible rather than looking like a hang.
+                    isAiThinking
+                    ? 'AI thinking…'
+                    : isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
+                      ? 'Analyzing…'
+                      : 'KataGo ready'
             }
             engineMeta={engineMeta}
             engineMetaTitle={engineMetaTitle}
