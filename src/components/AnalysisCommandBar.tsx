@@ -50,6 +50,8 @@ import { getFastReviewButtonState } from '../utils/fastReviewButtonState';
 interface AnalysisCommandBarProps {
   mode: UiMode;
   isAnalysisMode: boolean;
+  /** The top bar carries its own Analyze toggle; only show ours when it is hidden. */
+  showLiveToggle?: boolean;
   statusText: string;
   engineDot: string;
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
@@ -130,6 +132,7 @@ function useHorizontalScrollEdges(enabled: boolean) {
 export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   mode,
   isAnalysisMode,
+  showLiveToggle = true,
   statusText,
   engineDot,
   engineStatus,
@@ -576,17 +579,19 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         aria-label="Analysis controls"
         data-analysis-actions-overflow={horizontalOverflowLabel(actionScrollEdges)}
       >
-        <button
-          type="button"
-          className={['analysis-command-bar__button', isAnalysisMode ? 'active' : ''].join(' ')}
-          onClick={toggleAnalysisMode}
-          aria-pressed={isAnalysisMode}
-          title={liveAnalysisLabel}
-          aria-label={liveAnalysisLabel}
-        >
-          <FaPlay size={12} aria-hidden="true" />
-          <span>{liveButtonLabel}</span>
-        </button>
+        {showLiveToggle && (
+          <button
+            type="button"
+            className={['analysis-command-bar__button', isAnalysisMode ? 'active' : ''].join(' ')}
+            onClick={toggleAnalysisMode}
+            aria-pressed={isAnalysisMode}
+            title={liveAnalysisLabel}
+            aria-label={liveAnalysisLabel}
+          >
+            <FaPlay size={12} aria-hidden="true" />
+            <span>{liveButtonLabel}</span>
+          </button>
+        )}
         <button
           type="button"
           className={[

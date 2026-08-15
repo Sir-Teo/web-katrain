@@ -46,11 +46,19 @@ describe('desktop dashboard layout', () => {
 
   it('surfaces build metadata from the dashboard view menu', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const menuStart = source.indexOf('const ViewMenu');
+    const viewMenu = source.slice(menuStart);
 
-    expect(source).toContain('APP_BUILD_LABEL');
-    expect(source).toContain('APP_COMMIT_URL');
-    expect(source).toContain('data-dashboard-build-link="true"');
-    expect(source).toContain('Open build commit');
+    expect(viewMenu).toContain("item('Coordinates'");
+    expect(viewMenu).toContain("item('Library panel'");
+    expect(viewMenu).toContain("item('Analysis panel'");
+    // Settings and About each already have a dedicated home (the header icon
+    // cluster and the Help popover), so the menu does not repeat them.
+    expect(viewMenu).not.toContain("item('Settings'");
+    expect(viewMenu).not.toContain("item('About'");
+    // The build link does belong here: it is the only place build metadata
+    // lives now that the header no longer carries a version chip.
+    expect(viewMenu).toContain('data-dashboard-build-link');
   });
 
   it('keeps build identity out of the primary header and in the dashboard menu', () => {
@@ -79,8 +87,8 @@ describe('desktop dashboard layout', () => {
   it('compacts play actions before the standard desktop command bar wraps', () => {
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
 
-    expect(css).toContain('@container boardcol (max-width: 960px)');
-    expect(css).toContain('.wk-dashboard .playactions .tbtn { padding: 0 8px; }');
+    expect(css).toContain('@container boardcol (max-width: 919px)');
+    expect(css).toContain('.wk-dashboard .playactions .tbtn { padding: 0 9px; }');
   });
 
   it('mounts the full library manager inside the desktop dashboard library column', () => {

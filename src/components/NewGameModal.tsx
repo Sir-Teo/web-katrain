@@ -4,6 +4,7 @@ import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { BotPersonaPicker } from './BotPersonaPicker';
 import { botPersonaAiPatch, type BotPersona } from '../data/botPersonas';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 export type GameInfoValues = {
   blackName: string;
@@ -102,6 +103,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   defaultTimerConfig,
 }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const [komi, setKomi] = React.useState(() => defaultKomi);
   const [rules, setRules] = React.useState<GameRules>(() => defaultRules);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(() => defaultBoardSize);
@@ -142,6 +144,8 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div
         className="ui-panel rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border flex flex-col"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-game-title"
@@ -212,7 +216,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                         }))
                       }
                       className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                      placeholder="Rank"
+                      placeholder="e.g. 3d"
                     />
                   </div>
                 </div>
@@ -240,23 +244,28 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="new-game-black-rank" className="text-[var(--ui-text-muted)] text-sm">Black Rank</label>
+                  {/* "Rank" alone reads fine under the Black/White column heads (and
+                      matches GameInfoPanel's edit form); aria-label keeps the two
+                      fields distinguishable out of visual context. */}
+                  <label htmlFor="new-game-black-rank" className="text-[var(--ui-text-muted)] text-sm">Rank</label>
                   <input
                     id="new-game-black-rank"
+                    aria-label="Black rank"
                     value={gameInfo.blackRank}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, blackRank: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                    placeholder="Rank"
+                    placeholder="e.g. 3d"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="new-game-white-rank" className="text-[var(--ui-text-muted)] text-sm">White Rank</label>
+                  <label htmlFor="new-game-white-rank" className="text-[var(--ui-text-muted)] text-sm">Rank</label>
                   <input
                     id="new-game-white-rank"
+                    aria-label="White rank"
                     value={gameInfo.whiteRank}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, whiteRank: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                    placeholder="Rank"
+                    placeholder="e.g. 3d"
                   />
                 </div>
               </div>
@@ -273,7 +282,6 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     value={gameInfo.event}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, event: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                    placeholder="Event"
                   />
                 </div>
                 <div className="space-y-1">
@@ -303,7 +311,6 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     value={gameInfo.gameName}
                     onChange={(e) => setGameInfo((prev) => ({ ...prev, gameName: e.target.value }))}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
-                    placeholder="Game name"
                   />
                 </div>
               </div>
@@ -338,7 +345,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Both hold 1–3 characters, so they pair up even on a phone — matching
+              the name and rank rows above instead of taking a full row each. */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="new-game-komi" className="text-[var(--ui-text-muted)] text-sm">Komi</label>
               <input
@@ -434,12 +443,18 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     <input
                       id="new-game-ai-rank-target"
                       type="number"
+                      min={-5}
+                      max={20}
                       step={0.5}
                       value={aiConfig.aiRankKyu}
-                      onChange={(e) => updateAiConfig({ aiRankKyu: parseFloat(e.target.value || '0') })}
+                      onChange={(e) => {
+                        const raw = parseFloat(e.target.value || '0');
+                        const clamped = Number.isNaN(raw) ? 0 : Math.min(20, Math.max(-5, raw));
+                        updateAiConfig({ aiRankKyu: clamped });
+                      }}
                       className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
                     />
-                    <div className="text-xs ui-text-faint">Higher = weaker. Example: 4 ≈ 4k, 0 ≈ 1d.</div>
+                    <div className="text-xs ui-text-faint">Calibrated 20k → 6d. Higher = weaker. Example: 20 ≈ 20k, 4 ≈ 4k, 0 ≈ 1d, −5 ≈ 6d.</div>
                   </div>
                 )}
                 {aiConfig.aiStrategy === 'scoreloss' && (

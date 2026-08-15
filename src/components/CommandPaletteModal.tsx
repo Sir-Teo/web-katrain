@@ -8,6 +8,7 @@ import {
 } from '../utils/shortcuts';
 import { normalizeCommandQuery, scoreCommandMatch } from '../utils/commandPalette';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 export type CommandPaletteCommand = {
   id: string;
@@ -29,6 +30,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const inputRef = React.useRef<HTMLInputElement>(null);
+  // The search field is the right landing spot here, so only the Tab wrap and the
+  // focus restore are wanted from the dialog focus hook.
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
 
   React.useEffect(() => {
     inputRef.current?.focus();
@@ -87,6 +91,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12vh] mobile-safe-inset mobile-safe-area-bottom">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="ui-panel w-[94vw] max-w-2xl overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"

@@ -555,7 +555,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           tone={engineSummary.tone}
           variant="inline"
           showErrorTag={!!engineError}
-          className="lg:hidden"
           maxWidthClassName="max-w-[180px]"
         />
         {compact ? (
@@ -571,7 +570,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             <FaInfoCircle size={12} aria-hidden="true" />
           </button>
         ) : (
-          <span className="ml-auto">{statusText}</span>
+          // Activity, not engine state — only rendered when something is
+          // happening, so the row never reads "Ready" twice.
+          statusText && <span className="ml-auto">{statusText}</span>
         )}
       </div>
       {isGameAnalysisRunning && gameAnalysisTotal > 0 && (
@@ -590,19 +591,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       <div className="panel-section-content border-b border-[var(--ui-border)]">
         {(!compact || engineDetailsOpen) && (
           <div id="analysis-engine-details" data-analysis-engine-details="true">
+            {/* State and backend are the badge above (its label is exactly
+                "state · backend"), so this grid only carries what the badge omits. */}
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-              <div>
-                <div className="ui-text-faint">State</div>
-                <div className={engineStatus === 'error' ? 'text-[var(--ui-danger)] font-semibold' : 'text-[var(--ui-text)] font-semibold'}>
-                  {engineSummary.stateLabel}
-                </div>
-              </div>
-              <div>
-                <div className="ui-text-faint">Backend</div>
-                <div className="text-[var(--ui-text)] font-semibold">
-                  {engineSummary.activeBackendLabel}{engineSummary.isFallback ? ' fallback' : ''}
-                </div>
-              </div>
               <div>
                 <div className="ui-text-faint">Model</div>
                 <div className="text-[var(--ui-text)] truncate" title={engineModelLabel ?? modelUrl}>

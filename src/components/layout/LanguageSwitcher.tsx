@@ -94,8 +94,8 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
         type="button"
         className="h-8 min-w-[88px] px-2 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
         onClick={() => setOpen((value) => !value)}
-        title={`Document language metadata: ${activeLocale.label} (${activeLocale.nativeLabel})`}
-        aria-label={`Change document language metadata: ${activeLocale.label}`}
+        title={`${activeLocale.languageLabel}: ${activeLocale.label}${activeLocale.label === activeLocale.nativeLabel ? '' : ` (${activeLocale.nativeLabel})`}`}
+        aria-label={`${activeLocale.changeLanguageLabel}: ${activeLocale.label}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={menuId}
@@ -145,7 +145,11 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
                 <span className="w-8 shrink-0 text-xs font-semibold text-[var(--ui-text-faint)]">{getAppLocaleShortLabel(locale.value)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{locale.nativeLabel}</span>
-                  <span className="block truncate text-[11px] text-[var(--ui-text-faint)]">{locale.label}</span>
+                  {/* The English name only earns a line when it differs from the
+                      native one — for English itself the two are identical. */}
+                  {locale.label !== locale.nativeLabel && (
+                    <span className="block truncate text-[11px] text-[var(--ui-text-faint)]">{locale.label}</span>
+                  )}
                 </span>
                 {active && <FaCheck aria-hidden="true" className="shrink-0 text-[var(--ui-accent)]" size={12} />}
               </button>

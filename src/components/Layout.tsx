@@ -1327,7 +1327,10 @@ export const Layout: React.FC = () => {
                 ? 'Pondering… (Space)'
                 : isAnalysisMode
                   ? 'Analysis mode on (Tab toggles)'
-                  : 'Ready';
+                  // Nothing notable is happening: stay empty rather than echo the
+                  // engine badge's own "Ready" next to it. Consumers skip the row
+                  // when this is blank.
+                  : '';
 
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
@@ -2615,10 +2618,10 @@ export const Layout: React.FC = () => {
       },
       {
         id: 'pro-games',
-        label: 'Browse pro game library',
+        label: 'Browse pro game database',
         category: 'Study',
         run: () => openSimpleModal(() => setIsProGamesOpen(true)),
-        keywords: ['professional', 'database', 'famous', 'kifu', 'player', 'event'],
+        keywords: ['professional', 'database', 'famous', 'kifu', 'player', 'event', 'opening', 'joseki'],
       },
       {
         id: 'lessons',
@@ -3461,11 +3464,16 @@ export const Layout: React.FC = () => {
           />
         )}
 
-        {/* Main board column */}
-        <div
+        {/* Main board column — a <main> landmark so assistive tech can skip
+            straight here. This layout previously exposed no main/header at all,
+            leaving the tab bar as its only landmark. */}
+        <main
           className={['flex flex-col flex-1 min-w-0 min-h-0 w-full max-w-full relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
           style={isMobile ? { paddingBottom: 'calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))' } : undefined}
         >
+          {/* The mobile shell has no visible app title to promote, so the page's
+              top-level heading is screen-reader only. */}
+          <h1 className="sr-only">Web KaTrain</h1>
           {topBarOpen && !focusMode && (
             <TopControlBar
               settings={settings}
@@ -3584,6 +3592,7 @@ export const Layout: React.FC = () => {
               {!mobileContextToolActive && <AnalysisCommandBar
                 mode={mode}
                 isAnalysisMode={isAnalysisMode}
+                showLiveToggle={!topBarOpen}
                 statusText={statusText}
                 engineDot={engineDot}
                 engineStatus={engineStatus}
@@ -3627,7 +3636,7 @@ export const Layout: React.FC = () => {
                 // squash/clip the board.
                 // Bias the board to the top in portrait: vertical centering left all
                 // the slack as a dead gap under the command bar while the floating
-                // Edit launcher occupied the bottom slack anyway.
+                // launchers occupied the bottom slack anyway.
                 !isMobile
                   ? 'items-center'
                   : isEditMode
@@ -3701,7 +3710,7 @@ export const Layout: React.FC = () => {
               />
             </div>
           )}
-        </div>
+        </main>
 
         {isDesktop && showSidebar && (
           <div

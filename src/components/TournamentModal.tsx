@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaTimes, FaTrophy, FaPlay, FaFlag, FaBolt } from 'react-icons/fa';
 import { KOMI, type BoardSize, type Player } from '../types';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { useTournamentStore } from '../store/tournamentStore';
 import { formatKyuRank, type LadderState } from '../utils/tournament';
 import {
@@ -24,7 +25,8 @@ interface TournamentModalProps {
 type Mode = 'ladder' | 'gauntlet';
 
 const BOARD_OPTIONS: BoardSize[] = [9, 13, 19];
-const RANK_OPTIONS = [18, 15, 12, 10, 8, 5, 3, 1, 0, -2, -4];
+// Calibrated kyu rungs spanning 20k → 6d (KaTrain rank convention: 0 = 1d, -5 = 6d).
+const RANK_OPTIONS = [20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 0, -2, -4, -5];
 
 const statClass = 'rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-3 py-2 text-center';
 const boardButtonClass = (active: boolean) =>
@@ -36,6 +38,7 @@ const boardButtonClass = (active: boolean) =>
 
 export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPlayGame, onPlayGauntletGame }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   const ladder = useTournamentStore((s) => s.ladder);
   const startLadder = useTournamentStore((s) => s.startLadder);
@@ -72,6 +75,8 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
     >
       <div
         className="ui-panel flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tournament-title"
