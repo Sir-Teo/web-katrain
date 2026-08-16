@@ -116,7 +116,7 @@ export type BoardThemeId =
 export type ResolvedUiThemeId = 'noir' | 'kaya' | 'studio' | 'light';
 export type UiThemeId = ResolvedUiThemeId | 'system';
 export type UiDensityId = 'compact' | 'comfortable' | 'large';
-export type AppLocaleId = 'en' | 'zh' | 'zh-TW' | 'ko' | 'ja' | 'fr' | 'de' | 'es' | 'it' | 'uk' | 'ru';
+export type AppLocaleId = 'en' | 'zh' | 'zh-TW' | 'ko' | 'ja' | 'fr' | 'de' | 'es' | 'it' | 'uk' | 'ru' | 'pt' | 'vi';
 
 export interface GameSettings {
   appLocale: AppLocaleId;

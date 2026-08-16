@@ -417,29 +417,6 @@
 .wk-dashboard .gs-save.dirty { color: var(--amber); background: var(--amber-bg); }
 .wk-dashboard .gs-save svg { width: 11px; height: 11px; }
 
-/* The board column owns its own responsive budget: when the library or
-   sidebar squeeze it, toolbar labels collapse to icons (titles keep the
-   names) so the nav bar stays a single row instead of wrapping. */
-.wk-dashboard .board-col { container-type: inline-size; }
-@container (max-width: 1180px) {
-  .wk-dashboard .bc-label { display: none; }
-  .wk-dashboard .board-chip { padding: 0 8px; }
-}
-@container (max-width: 1080px) {
-  .wk-dashboard .playactions .tbtn-label { display: none; }
-  .wk-dashboard .playactions .tbtn.primary .tbtn-label { display: inline; }
-}
-@container (max-width: 760px) {
-  .wk-dashboard .playactions .tbtn.primary .tbtn-label { display: none; }
-}
-/* When the library and sidebar squeeze the column, the game strip sheds its
-   low-value facts (komi, rules) before it would wrap the save status onto a
-   second row; players, board size, file name and save state stay. */
-@container (max-width: 1000px) {
-  .wk-dashboard .gamestrip .gs-fact:not(.gs-fact-primary) { display: none; }
-  .wk-dashboard .gs-file { max-width: 140px; }
-}
-
 /* Board stage */
 .wk-dashboard .board-stage {
   flex: 1 1 0; min-height: 0; min-width: 0;
@@ -732,14 +709,32 @@
 
 .wk-dashboard .playactions { display: flex; align-items: center; gap: 6px; }
 
-/* Keep the nav bar on a single row as the board column narrows: first drop the
-   play-action labels (tooltips keep them discoverable), then tighten paddings.
-   Wrapping stays as the last-resort fallback. */
-@container boardcol (max-width: 960px) {
+/* The board column owns its own responsive budget: as the library and sidebar
+   squeeze it, the toolbars shed labels and tighten paddings so the game strip
+   and nav bar each stay a single row (titles keep every control discoverable);
+   wrapping is the last-resort fallback. Tiers run widest → narrowest and live
+   here, after the component rules above, so the overrides actually win. */
+@container boardcol (max-width: 1180px) {
+  .wk-dashboard .bc-label { display: none; }
+  .wk-dashboard .board-chip { padding: 0 8px; }
+}
+@container boardcol (max-width: 1080px) {
+  .wk-dashboard .playactions .tbtn-label { display: none; }
+  /* Shedding the labels alone leaves the play actions a few pixels short of
+     fitting, so tighten the row's own rhythm at the same tier. */
+  .wk-dashboard .navbar { gap: 6px; }
+  .wk-dashboard .nav-divider { margin: 0 1px; }
+}
+/* The game strip sheds its low-value facts (komi, rules) before it would wrap
+   the save status onto a second row; players, board size, file name stay. */
+@container boardcol (max-width: 1000px) {
+  .wk-dashboard .gamestrip .gs-fact:not(.gs-fact-primary) { display: none; }
+  .wk-dashboard .gs-file { max-width: 140px; }
+}
+@container boardcol (max-width: 919px) {
   .wk-dashboard .navbar { gap: 4px; }
   .wk-dashboard .playactions { gap: 4px; }
-  .wk-dashboard .playactions .tbtn { padding: 0 8px; }
-  .wk-dashboard .playactions .tbtn-label { display: none; }
+  .wk-dashboard .playactions .tbtn { padding: 0 9px; }
 }
 @container boardcol (max-width: 699px) {
   /* Jump-10 remains available from keyboard shortcuts; shed those secondary
@@ -829,21 +824,6 @@
   padding: 9px 14px; background: var(--panel-soft);
   border-bottom: 1px solid var(--line);
 }
-
-/* Game info card */
-.wk-dashboard .info-card {
-  border: 1px solid var(--line); border-radius: var(--r-md);
-  padding: 12px; background: var(--panel-softer);
-}
-.wk-dashboard .info-title { font-size: 13px; font-weight: 600; }
-.wk-dashboard .info-sub { font-size: 11px; color: var(--faint); margin-top: 1px; }
-.wk-dashboard .info-row { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel); margin-top: 8px; }
-.wk-dashboard .info-row .stone-mini { width: 13px; height: 13px; border-radius: 50%; flex: none; }
-.wk-dashboard .info-row .ir-k { font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
-.wk-dashboard .info-row .ir-v { font-size: 12.5px; }
-.wk-dashboard .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-.wk-dashboard .info-grid dt { font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
-.wk-dashboard .info-grid dd { margin: 1px 0 0; font-size: 12.5px; font-family: var(--mono); }
 
 /* Stones (shared) */
 /* Both stones carry a border so the black stone stays visible on dark themes

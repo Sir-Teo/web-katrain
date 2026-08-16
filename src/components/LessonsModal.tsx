@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { FaTimes, FaGraduationCap, FaChevronLeft, FaChevronRight, FaCheckCircle } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { LESSONS, boardFromRows } from '../data/lessons';
 
@@ -10,6 +11,7 @@ interface LessonsModalProps {
 
 export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
@@ -73,6 +75,8 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
     >
       <div
         className="ui-panel flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="lessons-title"

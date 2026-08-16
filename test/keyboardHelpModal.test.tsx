@@ -9,8 +9,10 @@ describe('KeyboardHelpModal', () => {
 
     expect(html).toContain('data-keyboard-help-gamepad="true"');
     expect(html).toContain('Gamepad');
-    expect(html).toContain('D-pad / left stick');
-    expect(html).toContain('Right stick');
+    // The D-pad and both sticks share one row: getGamepadNavigationInput maps all
+    // three to the same back/forward/branchPrev/branchNext commands.
+    expect(html).toContain('D-pad / either stick');
+    expect(html).not.toContain('Right stick');
     expect(html).toContain('Back/forward 10 moves');
     expect(html).toContain('Select / Start');
   });

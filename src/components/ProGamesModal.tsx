@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { FaTimes, FaSearch, FaDownload, FaDice } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { PRO_GAMES, buildFinalBoard, filterProGames, type ProGameMeta } from '../utils/proGames';
 import { tagsFromResult, narrativeTagToneClass } from '../utils/narrativeTags';
@@ -17,6 +18,7 @@ const FEATURED_PRO_GAMES = PRO_GAMES.slice(0, Math.min(4, PRO_GAMES.length));
 
 export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGame }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);
@@ -49,6 +51,8 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="ui-panel flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"

@@ -44,7 +44,7 @@ import {
   isPhotoBoardImageFile,
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
-import { isEditableKeyboardTarget, shouldIgnoreGlobalPasteTarget } from '../utils/keyboardTarget';
+import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
   createUploadedModelUrl,
@@ -234,6 +234,7 @@ export const Layout: React.FC = () => {
     engineError,
     engineBackend,
     engineModelName,
+    isAiThinking,
     isGameAnalysisRunning,
     gameAnalysisType,
     gameAnalysisDone,
@@ -310,6 +311,7 @@ export const Layout: React.FC = () => {
       engineError: state.engineError,
       engineBackend: state.engineBackend,
       engineModelName: state.engineModelName,
+      isAiThinking: state.isAiThinking,
       isGameAnalysisRunning: state.isGameAnalysisRunning,
       gameAnalysisType: state.gameAnalysisType,
       gameAnalysisDone: state.gameAnalysisDone,
@@ -698,7 +700,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (!scoringMode) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) return;
+      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (event.key === 'Escape') setScoringMode(false);
     };
     window.addEventListener('keydown', onKeyDown);
@@ -709,7 +711,7 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) return;
+      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (eventMatchesShortcut(event, 'toggle-focus-mode')) {
         event.preventDefault();
         toggleFocusMode();
@@ -1317,13 +1319,18 @@ export const Layout: React.FC = () => {
           ? notification.message
           : isInsertMode
             ? 'Insert mode (I to finish)'
-            : isGameAnalysisRunning
+            : isAiThinking
+              ? 'AI thinking…'
+              : isGameAnalysisRunning
               ? `Analyzing game (${gameAnalysisType ?? '…'})… ${gameAnalysisDone}/${gameAnalysisTotal}`
               : isContinuousAnalysis
                 ? 'Pondering… (Space)'
                 : isAnalysisMode
                   ? 'Analysis mode on (Tab toggles)'
-                  : 'Ready';
+                  // Nothing notable is happening: stay empty rather than echo the
+                  // engine badge's own "Ready" next to it. Consumers skip the row
+                  // when this is blank.
+                  : '';
 
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
@@ -2611,10 +2618,10 @@ export const Layout: React.FC = () => {
       },
       {
         id: 'pro-games',
-        label: 'Browse pro game library',
+        label: 'Browse pro game database',
         category: 'Study',
         run: () => openSimpleModal(() => setIsProGamesOpen(true)),
-        keywords: ['professional', 'database', 'famous', 'kifu', 'player', 'event'],
+        keywords: ['professional', 'database', 'famous', 'kifu', 'player', 'event', 'opening', 'joseki'],
       },
       {
         id: 'lessons',
@@ -3315,7 +3322,7 @@ export const Layout: React.FC = () => {
                 ? 'error'
                 : engineStatus === 'loading'
                   ? 'loading'
-                  : isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
+                  : isAiThinking || isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
                     ? 'running'
                     : 'ready'
             }
@@ -3324,9 +3331,13 @@ export const Layout: React.FC = () => {
                 ? 'Engine error'
                 : engineStatus === 'loading'
                   ? 'Loading model'
-                  : isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
-                    ? 'Analyzing…'
-                    : 'KataGo ready'
+                  : // An AI move can run for many seconds; name it so the wait is
+                    // legible rather than looking like a hang.
+                    isAiThinking
+                    ? 'AI thinking…'
+                    : isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
+                      ? 'Analyzing…'
+                      : 'KataGo ready'
             }
             engineMeta={engineMeta}
             engineMetaTitle={engineMetaTitle}
@@ -3453,11 +3464,16 @@ export const Layout: React.FC = () => {
           />
         )}
 
-        {/* Main board column */}
-        <div
+        {/* Main board column — a <main> landmark so assistive tech can skip
+            straight here. This layout previously exposed no main/header at all,
+            leaving the tab bar as its only landmark. */}
+        <main
           className={['flex flex-col flex-1 min-w-0 min-h-0 w-full max-w-full relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
           style={isMobile ? { paddingBottom: 'calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))' } : undefined}
         >
+          {/* The mobile shell has no visible app title to promote, so the page's
+              top-level heading is screen-reader only. */}
+          <h1 className="sr-only">Web KaTrain</h1>
           {topBarOpen && !focusMode && (
             <TopControlBar
               settings={settings}
@@ -3576,6 +3592,7 @@ export const Layout: React.FC = () => {
               {!mobileContextToolActive && <AnalysisCommandBar
                 mode={mode}
                 isAnalysisMode={isAnalysisMode}
+                showLiveToggle={!topBarOpen}
                 statusText={statusText}
                 engineDot={engineDot}
                 engineStatus={engineStatus}
@@ -3619,7 +3636,7 @@ export const Layout: React.FC = () => {
                 // squash/clip the board.
                 // Bias the board to the top in portrait: vertical centering left all
                 // the slack as a dead gap under the command bar while the floating
-                // Edit launcher occupied the bottom slack anyway.
+                // launchers occupied the bottom slack anyway.
                 !isMobile
                   ? 'items-center'
                   : isEditMode
@@ -3693,7 +3710,7 @@ export const Layout: React.FC = () => {
               />
             </div>
           )}
-        </div>
+        </main>
 
         {isDesktop && showSidebar && (
           <div

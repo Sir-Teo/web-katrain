@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { FaTimes, FaDice, FaCheck } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { evaluateNode } from '../utils/positionEval';
 import { collectQuizPositions, selectQuizJumpCandidates } from '../utils/scoreQuizPositions';
@@ -28,6 +29,7 @@ const ratingFor = (error: number): { label: string; tone: string } => {
 
 export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   const currentNode = useGameStore((s) => s.currentNode);
   const rootNode = useGameStore((s) => s.rootNode);
@@ -113,6 +115,8 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
     >
       <div
         className="ui-panel flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="score-quiz-title"

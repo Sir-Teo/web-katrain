@@ -234,7 +234,8 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   // most of the board. Use a short horizontal-scrolling strip instead; desktop keeps
   // the wrapping multi-row layout.
   const toolAreaClass = isMobile
-    ? 'flex items-stretch gap-2 p-2 overflow-x-auto'
+    // py/pl only: scroll-strip-x owns padding-right to clear its trailing fade.
+    ? 'flex items-stretch gap-2 py-2 pl-2 scroll-strip-x'
     : 'flex flex-wrap items-stretch gap-2 p-2 max-h-[40vh] overflow-y-auto';
   const groupClass = isMobile
     ? 'flex items-center gap-1.5 pr-2 border-r border-[var(--ui-border)] shrink-0'

@@ -85,6 +85,8 @@ interface GameStore extends GameState {
   engineError: string | null;
   engineBackend: string | null;
   engineModelName: string | null;
+  /** True while an AI move request is in flight, so the UI can say so. */
+  isAiThinking: boolean;
 
   // Timer (KaTrain-like)
   timerPaused: boolean;
@@ -1180,6 +1182,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   engineError: null,
   engineBackend: null,
   engineModelName: null,
+  isAiThinking: false,
 
   timerPaused: true,
   timerMainTimeUsedSeconds: 0,
@@ -3158,6 +3161,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const positionKey = nodeAnalysisPositionKey(node, rules);
         const parentPositionKeyValue = parentAnalysisPositionKey(node, rules);
 
+      // An AI move can take many seconds. Without this the engine pill kept
+      // reading "KataGo ready" the whole time, so a thinking AI was
+      // indistinguishable from a hung one.
+      set({ isAiThinking: true });
+      // The canceled branch below reschedules itself; keep the indicator lit
+      // across that hand-off instead of flickering off for 100ms.
+      let retryScheduled = false;
+
       void analysisQueue
         .enqueue<KataGoAnalysisPayload>({
           id: `ai-move:${nodeId}`,
@@ -3834,10 +3845,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (latest.currentNode.id !== nodeId) return;
             if (latest.currentPlayer !== playerAtStart) return;
             if (!force && (!latest.isAiPlaying || latest.aiColor !== playerAtStart)) return;
+            retryScheduled = true;
             setTimeout(() => latest.makeAiMove(force ? { force: true } : undefined), 100);
             return;
           }
           makeHeuristicMove(get());
+        })
+        .finally(() => {
+          if (!retryScheduled) set({ isAiThinking: false });
         });
   },
 
@@ -4405,6 +4420,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       editTool: 'setup-black',
       isSelfplayToEnd: false,
       isAiPlaying: false,
+      isAiThinking: false,
       aiColor: null,
       analysisData: null,
       analysisCacheSize: 0,
@@ -4458,6 +4474,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       editTool: 'setup-black',
       isSelfplayToEnd: false,
       isAiPlaying: false,
+      isAiThinking: false,
       aiColor: null,
       analysisData: null,
       analysisCacheSize: 0,
@@ -4839,6 +4856,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set((s) => ({
       isAiPlaying: false,
+      isAiThinking: false,
       aiColor: null,
       treeVersion: s.treeVersion + 1,
     }));

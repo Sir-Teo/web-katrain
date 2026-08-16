@@ -91,7 +91,10 @@ describe('TopControlBar', () => {
     expect(html).toContain('data-language-switcher="desktop"');
     expect(html).toContain('data-language-switcher-button="true"');
     expect(html).toContain('data-current-locale="en"');
-    expect(html).toContain('Change document language metadata: English');
+    // Labels come from the active locale, and the native name is only appended
+    // when it differs — English would otherwise read "English (English)".
+    expect(html).toContain('Change language: English');
+    expect(html).not.toContain('English (English)');
     expect(html).toContain('SGF · EN');
   });
 
