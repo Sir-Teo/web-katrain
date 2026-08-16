@@ -2135,8 +2135,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 </div>
               </div>
               <div className="px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
-                <span>Folder: {currentFolderName}</span>
-                {!isSearching &&
+                {/* The trail already ends at the current folder, so naming it
+                    in the label too printed it twice ("Folder: X  X"). */}
+                <span>Folder:</span>
+                {isSearching || breadcrumbs.length === 0 ? (
+                  <span>{currentFolderName}</span>
+                ) : (
                   breadcrumbs.map((crumb, index) => (
                     <button
                       key={crumb.id}
@@ -2147,7 +2151,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     >
                       {index === 0 ? crumb.name : `/${crumb.name}`}
                     </button>
-                  ))}
+                  ))
+                )}
                 {isDragging && (
                   <span className="ml-auto ui-accent-soft border rounded px-2 py-0.5">
                     Drop SGF, OGS URL, ZIP, or board images to import

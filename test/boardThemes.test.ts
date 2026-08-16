@@ -51,3 +51,40 @@ describe('board theme assets', () => {
     expect(resolveBoardThemeAsset('baduktv', 'stone-black.png#preview')).toBeUndefined();
   });
 });
+
+/** WCAG relative luminance of an #rrggbb colour. */
+function relativeLuminance(hex: string): number {
+  const value = hex.replace('#', '');
+  const channels = [0, 2, 4]
+    .map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
+}
+
+function contrastRatio(a: string, b: string): number {
+  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (lighter! + 0.05) / (darker! + 0.05);
+}
+
+describe('board coordinate legibility', () => {
+  // Coordinates were once unreadable in 7 of 9 themes because each theme's
+  // coordColor alpha was multiplied a second time by an opacity-80 class,
+  // bottoming out at 1.8:1 on the wood. Keep every theme above WCAG AA.
+  it('keeps every theme’s coordinates at 4.5:1 against its board', () => {
+    for (const option of BOARD_THEME_OPTIONS) {
+      const theme = getBoardTheme(option.value);
+      const coordColor = theme.coordColor;
+      if (!coordColor) continue;
+      const ratio = contrastRatio(theme.board.backgroundColor, coordColor);
+      expect(ratio, `${theme.name} coordinates on board (${ratio.toFixed(2)}:1)`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('does not dim the coordinate colour a second time in the board markup', () => {
+    const source = fs.readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'components', 'GoBoard.tsx'),
+      'utf8'
+    );
+    expect(source).not.toContain('font-bold tracking-tight opacity-80');
+  });
+});
