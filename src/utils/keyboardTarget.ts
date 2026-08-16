@@ -51,6 +51,19 @@ export function shouldIgnoreGlobalPasteTarget(target: EventTarget | null): boole
   return isTextEntryTarget(target) || isDialogTarget(target);
 }
 
+type DocumentLike = { querySelector?: (selector: string) => unknown } | null | undefined;
+
+/**
+ * Whether a dialog is open anywhere in `doc`.
+ *
+ * Where focus sits is not a reliable proxy for this: only some dialogs move
+ * focus into themselves on open, and the rest leave it on the trigger button or
+ * on `<body>`, where a per-element check finds nothing to block.
+ */
+export function isDialogOpen(doc: DocumentLike): boolean {
+  return Boolean(doc?.querySelector?.(DIALOG_TARGET_SELECTOR));
+}
+
 /** Keys a focused control activates with, so a shortcut must not steal them. */
 const ACTIVATION_KEYS = new Set(['Enter', ' ', 'Spacebar']);
 
@@ -110,6 +123,12 @@ function isActivationTarget(target: EventTarget | null): boolean {
 
 function targetBlocksKey(target: EventTarget | null, key: string): boolean {
   if (!target || typeof target !== 'object') return false;
+  // An open dialog owns the keyboard. Without this, focus resting on a dialog
+  // container — which is where dialogs put it on open — matches none of the
+  // interactive cases below, so board shortcuts fire behind the modal: arrow
+  // keys walk the game, "n" starts a new one. Dialogs close through their own
+  // Escape handler, so withholding Escape here is safe too.
+  if (isDialogTarget(target)) return true;
   // Typing must never trigger a shortcut, so text fields swallow every key.
   if (isTextEntryTarget(target)) return true;
   if (isSelfNavigatingTarget(target)) {
@@ -130,7 +149,10 @@ function targetBlocksKey(target: EventTarget | null, key: string): boolean {
 export function shouldIgnoreShortcutForKey(
   key: string,
   eventTarget: EventTarget | null,
-  activeElement: EventTarget | null
+  activeElement: EventTarget | null,
+  doc: DocumentLike = typeof document === 'undefined' ? null : document
 ): boolean {
+  // An open dialog owns the keyboard, wherever focus happens to be.
+  if (isDialogOpen(doc)) return true;
   return targetBlocksKey(eventTarget, key) || targetBlocksKey(activeElement, key);
 }

@@ -3,6 +3,7 @@ import {
   DIALOG_TARGET_SELECTOR,
   isDialogTarget,
   isTextEntryTarget,
+  isDialogOpen,
   shouldIgnoreGlobalPasteTarget,
   shouldIgnoreShortcutForKey,
   TEXT_ENTRY_TARGET_SELECTOR,
@@ -65,6 +66,9 @@ describe('shouldIgnoreGlobalPasteTarget', () => {
   });
 });
 
+const noDialog = { querySelector: () => null };
+const dialogOpen = { querySelector: (selector: string) => (selector === DIALOG_TARGET_SELECTOR ? ({} as Element) : null) };
+
 describe('shouldIgnoreShortcutForKey', () => {
   const button = { tagName: 'BUTTON' } as unknown as EventTarget;
 
@@ -72,39 +76,80 @@ describe('shouldIgnoreShortcutForKey', () => {
     // Clicking a button leaves it focused. Blocking every key here silently
     // killed arrow-key move navigation until the user clicked elsewhere.
     for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'z', 'x', 'p']) {
-      expect(shouldIgnoreShortcutForKey(key, button, null), key).toBe(false);
-      expect(shouldIgnoreShortcutForKey(key, {} as EventTarget, button), key).toBe(false);
+      expect(shouldIgnoreShortcutForKey(key, button, null, noDialog), key).toBe(false);
+      expect(shouldIgnoreShortcutForKey(key, {} as EventTarget, button, noDialog), key).toBe(false);
     }
   });
 
   it('still withholds the keys a focused button activates with', () => {
     for (const key of ['Enter', ' ', 'Spacebar']) {
-      expect(shouldIgnoreShortcutForKey(key, button, null), key).toBe(true);
+      expect(shouldIgnoreShortcutForKey(key, button, null, noDialog), key).toBe(true);
     }
-    expect(shouldIgnoreShortcutForKey('Enter', {} as EventTarget, { tagName: 'A' } as unknown as EventTarget)).toBe(true);
-    expect(shouldIgnoreShortcutForKey(' ', roleTarget('checkbox'), null)).toBe(true);
-    expect(shouldIgnoreShortcutForKey(' ', roleTarget('switch'), null)).toBe(true);
+    expect(shouldIgnoreShortcutForKey('Enter', {} as EventTarget, { tagName: 'A' } as unknown as EventTarget, noDialog)).toBe(true);
+    expect(shouldIgnoreShortcutForKey(' ', roleTarget('checkbox'), null, noDialog)).toBe(true);
+    expect(shouldIgnoreShortcutForKey(' ', roleTarget('switch'), null, noDialog)).toBe(true);
   });
 
   it('withholds every key while text entry has focus', () => {
     for (const key of ['ArrowLeft', 'Enter', ' ', 'z', 'Escape']) {
-      expect(shouldIgnoreShortcutForKey(key, { tagName: 'INPUT' } as unknown as EventTarget, null), key).toBe(true);
-      expect(shouldIgnoreShortcutForKey(key, { tagName: 'DIV', isContentEditable: true } as unknown as EventTarget, null), key).toBe(true);
+      expect(shouldIgnoreShortcutForKey(key, { tagName: 'INPUT' } as unknown as EventTarget, null, noDialog), key).toBe(true);
+      expect(shouldIgnoreShortcutForKey(key, { tagName: 'DIV', isContentEditable: true } as unknown as EventTarget, null, noDialog), key).toBe(true);
     }
-    expect(shouldIgnoreShortcutForKey('ArrowLeft', {} as EventTarget, { tagName: 'TEXTAREA' } as unknown as EventTarget)).toBe(true);
+    expect(shouldIgnoreShortcutForKey('ArrowLeft', {} as EventTarget, { tagName: 'TEXTAREA' } as unknown as EventTarget, noDialog)).toBe(true);
   });
 
   it('withholds arrow keys from widgets that navigate within themselves', () => {
     for (const role of ['slider', 'tab', 'radio', 'option', 'treeitem', 'menuitem']) {
-      expect(shouldIgnoreShortcutForKey('ArrowLeft', roleTarget(role), null), role).toBe(true);
-      expect(shouldIgnoreShortcutForKey('Enter', roleTarget(role), null), role).toBe(true);
+      expect(shouldIgnoreShortcutForKey('ArrowLeft', roleTarget(role), null, noDialog), role).toBe(true);
+      expect(shouldIgnoreShortcutForKey('Enter', roleTarget(role), null, noDialog), role).toBe(true);
       // a plain letter shortcut is not part of those widgets' key contract
-      expect(shouldIgnoreShortcutForKey('p', roleTarget(role), null), role).toBe(false);
+      expect(shouldIgnoreShortcutForKey('p', roleTarget(role), null, noDialog), role).toBe(false);
+    }
+  });
+
+  it('withholds every key while an open dialog holds focus', () => {
+    // Dialogs that move focus inward land it on their container, which matches
+    // none of the interactive cases above — so board shortcuts used to fire
+    // behind the modal (arrow keys walked the game, "n" started a new one).
+    const dialogContainer = {
+      tagName: 'DIV',
+      getAttribute: (name: string) => (name === 'role' ? 'dialog' : null),
+    } as unknown as EventTarget;
+    const insideDialog = {
+      tagName: 'DIV',
+      closest: (selector: string) => (selector === DIALOG_TARGET_SELECTOR ? ({} as Element) : null),
+    } as unknown as EventTarget;
+
+    for (const key of ['ArrowLeft', 'ArrowRight', 'n', 'p', 'Enter', ' ', 'Escape']) {
+      expect(shouldIgnoreShortcutForKey(key, dialogContainer, null, noDialog), key).toBe(true);
+      expect(shouldIgnoreShortcutForKey(key, insideDialog, null, noDialog), key).toBe(true);
+      expect(shouldIgnoreShortcutForKey(key, {} as EventTarget, dialogContainer, noDialog), key).toBe(true);
+    }
+  });
+
+  it('withholds every key while a dialog is open but focus stayed outside it', () => {
+    // Only some dialogs move focus inward; the rest leave it on the trigger
+    // button or on <body>, where the per-target checks find nothing to block.
+    for (const key of ['ArrowLeft', 'n', 'Escape']) {
+      expect(shouldIgnoreShortcutForKey(key, null, null, dialogOpen), key).toBe(true);
+      expect(
+        shouldIgnoreShortcutForKey(key, { tagName: 'BODY' } as unknown as EventTarget, null, dialogOpen),
+        key
+      ).toBe(true);
     }
   });
 
   it('leaves shortcuts alone when nothing relevant has focus', () => {
-    expect(shouldIgnoreShortcutForKey('ArrowLeft', {} as EventTarget, {} as EventTarget)).toBe(false);
-    expect(shouldIgnoreShortcutForKey('Enter', null, null)).toBe(false);
+    expect(shouldIgnoreShortcutForKey('ArrowLeft', {} as EventTarget, {} as EventTarget, noDialog)).toBe(false);
+    expect(shouldIgnoreShortcutForKey('Enter', null, null, noDialog)).toBe(false);
+  });
+});
+
+describe('isDialogOpen', () => {
+  it('reports an open dialog anywhere in the document', () => {
+    expect(isDialogOpen(dialogOpen)).toBe(true);
+    expect(isDialogOpen(noDialog)).toBe(false);
+    expect(isDialogOpen(null)).toBe(false);
+    expect(isDialogOpen(undefined)).toBe(false);
   });
 });

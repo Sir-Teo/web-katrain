@@ -45,8 +45,8 @@ PWA. There is no analysis server to run.
 - Responsive desktop and mobile layouts.
 - Board themes, UI themes, keyboard shortcuts, command palette, gamepad
   navigation, sound, and haptics.
-- UI language options for English, Chinese, Korean, Japanese, French, German,
-  Spanish, and Italian.
+- Document language metadata for 13 languages, which tags the page and the SGF
+  you export. The interface itself is English only.
 - Offline app shell, default model, TensorFlow.js WASM files, and board assets
   are cached by the production service worker.
 
