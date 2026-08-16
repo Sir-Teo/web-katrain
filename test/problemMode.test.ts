@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   classifyProblemNode,
@@ -112,5 +113,24 @@ describe('findSolutionPath', () => {
     const root = build({ stones: true, children: [{ move: { x: 1, y: 1, player: 'black' }, children: [{ move: { x: 2, y: 2, player: 'white' } }] }] });
     const path = findSolutionPath(root);
     expect(path).toHaveLength(3);
+  });
+});
+
+describe('ProblemModal reply handling', () => {
+  it('locks solver input while the recorded opponent reply is pending', () => {
+    const source = readFileSync('src/components/ProblemModal.tsx', 'utf8');
+
+    expect(source).toContain("type Status = 'solving' | 'replying'");
+    expect(source).toContain("setStatus('replying')");
+    expect(source).toContain("if (!settleAt(reply)) setStatus('solving')");
+    expect(source).toContain("status === 'replying'");
+    expect(source).toContain("onPointClick={status === 'solving' ? handlePoint : undefined}");
+  });
+
+  it('does not update the selected problem during render', () => {
+    const source = readFileSync('src/components/ProblemModal.tsx', 'utf8');
+
+    expect(source).not.toContain('if (problemIndex !== safeIndex) setProblemIndex(safeIndex);\n\n  const node');
+    expect(source).toContain('}, [problemIndex, safeIndex]);');
   });
 });

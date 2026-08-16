@@ -16,7 +16,7 @@ interface ProblemModalProps {
   onClose: () => void;
 }
 
-type Status = 'solving' | 'correct' | 'wrong' | 'end';
+type Status = 'solving' | 'replying' | 'correct' | 'wrong' | 'end';
 
 const OPPONENT_REPLY_DELAY_MS = 420;
 
@@ -66,7 +66,9 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start?.id]);
 
-  if (problemIndex !== safeIndex) setProblemIndex(safeIndex);
+  useEffect(() => {
+    if (problemIndex !== safeIndex) setProblemIndex(safeIndex);
+  }, [problemIndex, safeIndex]);
 
   const node = cursor ?? start;
   const hasMoves = !!start && start.children.length > 0;
@@ -110,11 +112,12 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose }) => {
     // Otherwise the opponent answers along the recorded main continuation,
     // and we re-evaluate; an unresolved position hands play back to the user.
     clearReplyTimer();
+    setStatus('replying');
     replyTimer.current = setTimeout(() => {
       replyTimer.current = null;
       const reply = child.children[0]!;
       setCursor(reply);
-      settleAt(reply);
+      if (!settleAt(reply)) setStatus('solving');
     }, OPPONENT_REPLY_DELAY_MS);
   };
 
@@ -187,7 +190,11 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose }) => {
             <div className="flex-1 space-y-4 overflow-y-auto p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-[var(--ui-text)]" data-problem-prompt="true">
-                  {status === 'solving' ? `${playerLabel(sideToMove)} to play` : 'Result'}
+                  {status === 'solving'
+                    ? `${playerLabel(sideToMove)} to play`
+                    : status === 'replying'
+                      ? 'Opponent replying…'
+                      : 'Result'}
                 </p>
                 {problems.length > 1 && (
                   <span className="text-xs text-[var(--ui-text-muted)]">Problem {safeIndex + 1} / {problems.length}</span>
