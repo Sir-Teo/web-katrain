@@ -98,6 +98,36 @@ describe('SGF Parser', () => {
       expect(result.tree?.props.N?.[0]).toBe('line1\nline2');
   });
 
+  it('round-trips a markdown table note with escapes through export and parse', async () => {
+      const { useGameStore } = await import('../src/store/gameStore');
+      const { generateSgfFromTree, extractKaTrainUserNoteFromSgfComment } = await import('../src/utils/sgf');
+
+      const note = [
+          '# Joseki review',
+          '',
+          '| Move | Score | Link |',
+          '| - | :-: | -: |',
+          '| Attach | **0.5** | +1.5 |',
+          '| Tenuki | x \\| y | [wiki](https://en.wikipedia.org/wiki/Go_(game)) |',
+          '',
+          'After text.',
+      ].join('\n');
+
+      const store = useGameStore.getState();
+      store.startNewGame({ komi: 6.5, rules: 'japanese', boardSize: 19, handicap: 0 });
+      useGameStore.getState().setCurrentNodeNote(note);
+      const sgf = generateSgfFromTree(useGameStore.getState().rootNode);
+
+      expect(sgf).toContain('\\]');
+      expect(sgf).toContain('\\\\|');
+
+      const parsed = parseSgf(sgf);
+      const userNote = extractKaTrainUserNoteFromSgfComment(parsed.tree?.props.C);
+      expect(userNote.trim()).toBe(note);
+
+      useGameStore.getState().resetGame();
+  });
+
   it('builds SGF download filenames from game metadata', () => {
       const nodeWithProps = (properties: GameNode['properties']) => ({ properties }) as unknown as GameNode;
 
