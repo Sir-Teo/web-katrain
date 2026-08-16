@@ -327,7 +327,6 @@ async function buildRootEval(args: {
   model: KataGoModelV8Tf;
   ownershipMode: OwnershipMode;
   rules: GameRules;
-  nnRandomize: boolean;
   rootSymmetrySamples?: number;
   komi: number;
   currentPlayer: Player;
@@ -360,10 +359,10 @@ async function buildRootEval(args: {
     model: args.model,
     includeOwnership,
     rules: args.rules,
-    nnRandomize: args.nnRandomize,
     rootSymmetrySamples: args.rootSymmetrySamples,
     policyOptimism: ROOT_POLICY_OPTIMISM,
     komi: args.komi,
+    outputScaleMultiplier: args.outputScaleMultiplier,
     state: {
       stones: args.rootStones,
       koPoint: args.rootKoPoint,
@@ -387,7 +386,7 @@ async function buildRootEval(args: {
     const symPosMap = rootSym === 0 ? null : getSymPosMap();
     for (let i = 0; i < BOARD_AREA; i++) {
       const symPos = rootSym === 0 ? i : symPosMap![rootSymOff + i]!;
-      rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[symPos]! * args.outputScaleMultiplier);
+      rootOwnership[i] = rootOwnershipSign * activatedOwnership(rootEval, symPos, args.outputScaleMultiplier);
     }
   }
 
@@ -1091,7 +1090,23 @@ function clampRootSymmetrySamples(samples?: number): number {
   return Math.max(1, Math.min(NUM_SYMMETRIES, Math.floor(samples)));
 }
 
-function averageRootEvals(evals: NeuralEval[]): NeuralEval {
+/**
+ * How many symmetries to average at the root.
+ *
+ * The net is only approximately symmetry-equivariant, so a single view of a position
+ * carries real noise -- on the shipped 6-block net that is worth up to ~0.25 of ownership
+ * on a point. Averaging several views cancels most of it. It costs one extra batched
+ * evaluation per position, which is small next to the hundreds a search does, so it is
+ * only skipped on the pure-JS 'cpu' fallback where a single forward pass already
+ * dominates.
+ */
+export function rootSymmetrySamplesForBackend(backend: string): number {
+  if (backend === 'webgpu') return NUM_SYMMETRIES;
+  if (backend === 'wasm') return 4;
+  return 1;
+}
+
+function averageRootEvals(evals: NeuralEval[], outputScaleMultiplier: number): NeuralEval {
   const first = evals[0];
   if (!first) throw new Error('No root evaluations to average');
   if (evals.length === 1) return first;
@@ -1126,7 +1141,8 @@ function averageRootEvals(evals: NeuralEval[]): NeuralEval {
       policyProbSums[p] += Math.exp(ev.policy[symPos]! - maxLogit) * probScale;
       if (ownershipSums) {
         if (!ev.ownership) throw new Error('Missing ownership output');
-        ownershipSums[p] += ev.ownership[symPos]! * inv;
+        // KataGo averages ownership after the tanh, not before, so do the same here.
+        ownershipSums[p] += activatedOwnership(ev, symPos, outputScaleMultiplier) * inv;
       }
     }
 
@@ -1159,17 +1175,24 @@ function averageRootEvals(evals: NeuralEval[]): NeuralEval {
     libertyMap: new Uint8Array(first.libertyMap),
     areaMap: new Uint8Array(first.areaMap),
     ownership,
+    ownershipIsActivated: ownership ? true : undefined,
   };
 }
 
+/**
+ * Evaluates the root position. Unlike leaf evaluations this never randomizes the
+ * symmetry: either one fixed view, or a fixed set of views averaged together. The root
+ * is evaluated once and its numbers are what the user reads, so randomizing it would
+ * only add noise to the reported win rate, score and ownership map.
+ */
 async function evaluateRootEval(args: {
   model: KataGoModelV8Tf;
   includeOwnership?: boolean;
   rules: GameRules;
-  nnRandomize: boolean;
   rootSymmetrySamples?: number;
   policyOptimism: number;
   komi: number;
+  outputScaleMultiplier: number;
   state: EvalState;
 }): Promise<NeuralEval> {
   const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples);
@@ -1179,10 +1202,10 @@ async function evaluateRootEval(args: {
         model: args.model,
         includeOwnership: args.includeOwnership,
         rules: args.rules,
-        nnRandomize: args.nnRandomize,
+        nnRandomize: false,
         policyOptimism: args.policyOptimism,
         komi: args.komi,
-        states: [args.state],
+        states: [{ ...args.state, symmetry: 0 }],
       })
     )[0]!;
   }
@@ -1201,7 +1224,8 @@ async function evaluateRootEval(args: {
       policyOptimism: args.policyOptimism,
       komi: args.komi,
       states,
-    })
+    }),
+    args.outputScaleMultiplier
   );
 }
 
@@ -1304,7 +1328,16 @@ type NeuralEval = {
   libertyMap: Uint8Array;
   areaMap: Uint8Array;
   ownership?: Float32Array; // len 361, raw logits (player-to-move perspective, symmetry space if symmetry != 0)
+  // Set when `ownership` already holds tanh-activated values rather than raw logits,
+  // which is the case once several symmetries have been averaged together.
+  ownershipIsActivated?: boolean;
 };
+
+/** Ownership as tanh-activated values, whatever form the eval carries it in. */
+function activatedOwnership(ev: NeuralEval, pos: number, outputScaleMultiplier: number): number {
+  const raw = ev.ownership![pos]!;
+  return ev.ownershipIsActivated ? raw : Math.tanh(raw * outputScaleMultiplier);
+}
 
 async function evaluateBatch(args: {
   model: KataGoModelV8Tf;
@@ -1681,7 +1714,6 @@ export class MctsSearch {
       model: args.model,
       ownershipMode: args.ownershipMode,
       rules: args.rules,
-      nnRandomize: args.nnRandomize,
       rootSymmetrySamples,
       komi: args.komi,
       currentPlayer: args.currentPlayer,
@@ -1792,7 +1824,6 @@ export class MctsSearch {
       model: this.model,
       ownershipMode: this.ownershipMode,
       rules: args.rules,
-      nnRandomize: this.nnRandomize,
       rootSymmetrySamples: this.rootSymmetrySamples,
       komi: args.komi,
       currentPlayer: args.currentPlayer,
@@ -2401,7 +2432,9 @@ export async function analyzeMcts(args: {
   const wideRootNoise = Math.max(0, Math.min(args.wideRootNoise ?? 0.04, 5));
   const rules: GameRules = args.rules ?? 'japanese';
   const nnRandomize = args.nnRandomize !== false;
-  const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples ?? (tf.getBackend() === 'webgpu' && nnRandomize ? NUM_SYMMETRIES : 1));
+  const rootSymmetrySamples = clampRootSymmetrySamples(
+    args.rootSymmetrySamples ?? rootSymmetrySamplesForBackend(tf.getBackend())
+  );
   const pvDepth = 1 + analysisPvLen;
   const rand = new Rand();
 
@@ -2428,10 +2461,10 @@ export async function analyzeMcts(args: {
     model: args.model,
     includeOwnership: true,
     rules,
-    nnRandomize,
     rootSymmetrySamples,
     policyOptimism: ROOT_POLICY_OPTIMISM,
     komi: args.komi,
+    outputScaleMultiplier,
     state: {
       stones: rootPos.stones,
       koPoint: rootPos.koPoint,
@@ -2452,7 +2485,7 @@ export async function analyzeMcts(args: {
   const symPosMap = rootSym === 0 ? null : getSymPosMap();
   for (let i = 0; i < BOARD_AREA; i++) {
     const symPos = rootSym === 0 ? i : symPosMap![rootSymOff + i]!;
-    rootOwnership[i] = rootOwnershipSign * Math.tanh(rootEval.ownership[symPos]! * outputScaleMultiplier);
+    rootOwnership[i] = rootOwnershipSign * activatedOwnership(rootEval, symPos, outputScaleMultiplier);
   }
 
   const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);

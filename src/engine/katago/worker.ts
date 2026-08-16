@@ -13,7 +13,7 @@ import { getAnimationNow } from '../../utils/animationFrame';
 import { parseKataGoModelV8 } from './loadModelV8';
 import { KataGoModelV8Tf } from './modelV8';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
-import { MctsSearch, type OwnershipMode } from './analyzeMcts';
+import { MctsSearch, rootSymmetrySamplesForBackend, type OwnershipMode } from './analyzeMcts';
 import { fillInputsV7FastForPosition } from './positionInputsV7';
 import {
   getKataGoWarmupFallbackBackend,
@@ -456,7 +456,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
     const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
-    const rootSymmetrySamples = tf.getBackend() === 'webgpu' && nnRandomize ? 8 : 1;
+    const rootSymmetrySamples = rootSymmetrySamplesForBackend(tf.getBackend());
     const conservativePass = msg.conservativePass !== false;
     const roiKey = regionKey(msg.regionOfInterest);
     const reportEveryMsRaw = msg.reportDuringSearchEveryMs;
