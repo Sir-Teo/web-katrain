@@ -4,7 +4,6 @@ import { ScoreQuizModal } from '../src/components/ScoreQuizModal';
 import { TournamentModal } from '../src/components/TournamentModal';
 import { ProGamesModal } from '../src/components/ProGamesModal';
 import { LessonsModal } from '../src/components/LessonsModal';
-import { VideoBoardModal } from '../src/components/VideoBoardModal';
 import { StaticBoard } from '../src/components/StaticBoard';
 import { boardFromRows } from '../src/data/lessons';
 
@@ -44,11 +43,5 @@ describe('study tool components render without crashing', () => {
     const html = renderToString(<LessonsModal onClose={noop} />);
     expect(html).toContain('Capturing a stone');
     expect(html).toContain('Two eyes mean life');
-  });
-
-  it('VideoBoardModal renders the import UI', () => {
-    const html = renderToString(<VideoBoardModal onClose={noop} onImportSgf={noop} />);
-    expect(html).toContain('Video to SGF');
-    expect(html).toContain('Process video');
   });
 });

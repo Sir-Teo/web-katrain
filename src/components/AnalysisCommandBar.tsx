@@ -231,7 +231,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       error: engineError,
     }));
     setEngineErrorCopied(ok);
-    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error', 1800);
+    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error');
   }, [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
 
   const toggleOverlay = (key: keyof AnalysisControlsState) => {

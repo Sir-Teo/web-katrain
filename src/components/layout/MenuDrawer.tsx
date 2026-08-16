@@ -16,7 +16,6 @@ import {
   FaSearch,
   FaTrophy,
   FaGraduationCap,
-  FaVideo,
   FaBalanceScale,
   FaBullseye,
   FaPuzzlePiece,
@@ -46,7 +45,6 @@ interface MenuDrawerProps {
   onSaveToLibrary: () => void;
   onLoad: () => void;
   onScanBoard: () => void;
-  onVideoBoard?: () => void;
   onScoreQuiz?: () => void;
   onRankLadder?: () => void;
   onProGames?: () => void;
@@ -78,7 +76,6 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onSaveToLibrary,
   onLoad,
   onScanBoard,
-  onVideoBoard,
   onScoreQuiz,
   onRankLadder,
   onProGames,
@@ -371,7 +368,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               </button>
             </div>
           </div>
-          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem || onVideoBoard) && (
+          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem) && (
             <div>
               <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Study &amp; Practice</div>
               <div className={menuActionGrid} data-menu-action-grid="study">
@@ -445,18 +442,6 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                     }}
                   >
                     <FaBook aria-hidden="true" /> Pro Game Library
-                  </button>
-                )}
-                {onVideoBoard && (
-                  <button
-                    type="button"
-                    className={menuAction}
-                    onClick={() => {
-                      onVideoBoard();
-                      onClose();
-                    }}
-                  >
-                    <FaVideo aria-hidden="true" /> Video to SGF
                   </button>
                 )}
               </div>

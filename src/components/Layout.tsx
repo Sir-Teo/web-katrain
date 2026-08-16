@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { useGameStore } from '../store/gameStore';
+import { setNotificationHeld, useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { AnalysisCommandBar } from './AnalysisCommandBar';
 import { CandidatePvTiles } from './CandidatePvTiles';
@@ -126,7 +126,6 @@ const ProGamesModal = lazy(() => import('./ProGamesModal').then((module) => ({ d
 const LessonsModal = lazy(() => import('./LessonsModal').then((module) => ({ default: module.LessonsModal })));
 const GuessMoveModal = lazy(() => import('./GuessMoveModal').then((module) => ({ default: module.GuessMoveModal })));
 const ProblemModal = lazy(() => import('./ProblemModal').then((module) => ({ default: module.ProblemModal })));
-const VideoBoardModal = lazy(() => import('./VideoBoardModal').then((module) => ({ default: module.VideoBoardModal })));
 const KifuPrintModal = lazy(() => import('./KifuPrintModal').then((module) => ({ default: module.KifuPrintModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
@@ -352,7 +351,6 @@ export const Layout: React.FC = () => {
   const [isLessonsOpen, setIsLessonsOpen] = useState(false);
   const [isGuessMoveOpen, setIsGuessMoveOpen] = useState(false);
   const [isProblemOpen, setIsProblemOpen] = useState(false);
-  const [isVideoBoardOpen, setIsVideoBoardOpen] = useState(false);
   const [isKifuPrintOpen, setIsKifuPrintOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
@@ -627,13 +625,20 @@ export const Layout: React.FC = () => {
     byoPeriods: settings.timerByoPeriods,
   };
 
-  // Toast helper
+  // Toast helper. Dismissal is the store's job — it holds errors until they are
+  // read and promotes anything queued behind them; the flat 2500ms timer that
+  // used to live here cut errors short while their "Copy details" button was
+  // still the reason they were shown.
   const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info', copyText?: string) => {
-    const notification = { message, type, ...(copyText ? { copyText } : {}) };
-    useGameStore.setState({ notification });
-    window.setTimeout(() => {
-      useGameStore.setState((state) => (state.notification === notification ? { notification: null } : {}));
-    }, 2500);
+    useGameStore.setState({ notification: { message, type, ...(copyText ? { copyText } : {}) } });
+  }, []);
+
+  // Board edits fire from a single click and are easy to make by accident, so
+  // the toast reporting one offers to take it straight back. Undoing replaces
+  // the toast with the store's own "Undid edit." confirmation, which is why
+  // this does not also dismiss it.
+  const undoEditFromToast = useCallback(() => {
+    useGameStore.getState().undoEdit();
   }, []);
 
   useEffect(() => {
@@ -2213,13 +2218,6 @@ export const Layout: React.FC = () => {
         keywords: ['scan', 'camera', 'image'],
       },
       {
-        id: 'video-board',
-        label: 'Import game from video',
-        category: 'File',
-        run: () => openSimpleModal(() => setIsVideoBoardOpen(true)),
-        keywords: ['video', 'record', 'capture', 'movie', 'clip', 'sgf'],
-      },
-      {
         id: 'print-kifu',
         label: 'Print kifu (PDF)',
         category: 'File',
@@ -2906,7 +2904,6 @@ export const Layout: React.FC = () => {
       !isLessonsOpen &&
       !isGuessMoveOpen &&
       !isProblemOpen &&
-      !isVideoBoardOpen &&
       !pendingResignPlayer,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
@@ -3006,13 +3003,6 @@ export const Layout: React.FC = () => {
         )}
         {isProblemOpen && (
           <ProblemModal onClose={() => setIsProblemOpen(false)} />
-        )}
-        {isVideoBoardOpen && (
-          <VideoBoardModal
-            onClose={() => setIsVideoBoardOpen(false)}
-            onImportSgf={async (sgf) => { await handlePhotoBoardImport(sgf); setIsVideoBoardOpen(false); }}
-            defaultBoardSize={boardSize}
-          />
         )}
         {isPhotoBoardOpen && (
           <PhotoBoardModal
@@ -3168,7 +3158,6 @@ export const Layout: React.FC = () => {
         onSaveToLibrary={handleOpenSaveToLibraryDialog}
         onLoad={handleLoadClick}
         onScanBoard={() => openPhotoBoard()}
-        onVideoBoard={() => setIsVideoBoardOpen(true)}
         onScoreQuiz={() => setIsScoreQuizOpen(true)}
         onRankLadder={() => setIsTournamentOpen(true)}
         onProGames={() => setIsProGamesOpen(true)}
@@ -3427,6 +3416,8 @@ export const Layout: React.FC = () => {
             <NotificationToast
               notification={notification}
               onClose={clearNotification}
+              onHoldChange={setNotificationHeld}
+              onUndo={undoEditFromToast}
               commandBarVisible={false}
               placement="desktop-dashboard"
             />
@@ -3554,6 +3545,8 @@ export const Layout: React.FC = () => {
               <NotificationToast
                 notification={notification}
                 onClose={clearNotification}
+                onHoldChange={setNotificationHeld}
+                onUndo={undoEditFromToast}
                 commandBarVisible={showBoardAnalysisCommandBar}
               />
             )}

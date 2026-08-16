@@ -1,5 +1,58 @@
+import { readLocalStorage, writeLocalStorage } from './storage';
+
 export const normalizeCommandQuery = (value: string): string =>
   value.trim().toLowerCase();
+
+export const RECENT_COMMANDS_STORAGE_KEY = 'web-katrain:recent_commands:v1';
+/**
+ * Enough to cover the handful of commands anyone reaches for repeatedly,
+ * without pushing the rest of the list below the fold on an empty query.
+ */
+export const MAX_RECENT_COMMANDS = 5;
+
+export function readRecentCommandIds(): string[] {
+  const stored = readLocalStorage(RECENT_COMMANDS_STORAGE_KEY);
+  if (!stored) return [];
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === 'string').slice(0, MAX_RECENT_COMMANDS);
+  } catch {
+    return [];
+  }
+}
+
+/** Most recent first, no duplicates, capped. */
+export function addRecentCommandId(id: string, existing: readonly string[] = readRecentCommandIds()): string[] {
+  return [id, ...existing.filter((entry) => entry !== id)].slice(0, MAX_RECENT_COMMANDS);
+}
+
+export function writeRecentCommandIds(ids: readonly string[]): void {
+  writeLocalStorage(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(ids.slice(0, MAX_RECENT_COMMANDS)));
+}
+
+/**
+ * Lift recently used commands to the front of the unfiltered list.
+ *
+ * Only for the empty query: once someone types, what they typed is a much
+ * better signal than what they ran yesterday, and reordering by recency there
+ * would fight the match scoring. Recent ids that no longer exist (a command
+ * removed since) are skipped rather than dropped from storage, so a command
+ * that is merely unavailable right now keeps its place in the history.
+ */
+export function orderCommandsByRecency<T extends { id: string }>(
+  commands: readonly T[],
+  recentIds: readonly string[]
+): T[] {
+  if (recentIds.length === 0) return [...commands];
+  const byId = new Map(commands.map((command) => [command.id, command]));
+  const recent = recentIds.flatMap((id) => {
+    const command = byId.get(id);
+    return command ? [command] : [];
+  });
+  const recentSet = new Set(recent.map((command) => command.id));
+  return [...recent, ...commands.filter((command) => !recentSet.has(command.id))];
+}
 
 const compactCommandQuery = (value: string): string =>
   normalizeCommandQuery(value).replace(/[^a-z0-9]/g, '');

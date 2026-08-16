@@ -213,6 +213,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   // entirely while analysis is off — engine state, captures and the "analysis is
   // off" prompt already live in the header pill, the gamestrip and the sidebar.
   const commandbarVisible = commandbarOpen && showAnalysis;
+  // Three states, not two, because the stage reads this to decide whether to
+  // hold the bar's footprint: "reserved" means the bar is hidden only because
+  // analysis is off, so the board keeps its size across a Tab. "closed" means
+  // the user collapsed the bar and wants that space for the board.
+  const commandbarState = commandbarVisible ? 'open' : commandbarOpen ? 'reserved' : 'closed';
   const [legend, setLegend] = useState({ winrate: true, score: true });
   const [legendOpen, setLegendOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -442,7 +447,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       data-sidebar={sidebarOpen ? 'open' : 'closed'}
       data-focus={focusMode ? 'on' : 'off'}
       data-gamestrip={gamestripOpen ? 'open' : 'closed'}
-      data-commandbar={commandbarVisible ? 'open' : 'closed'}
+      data-commandbar={commandbarState}
       style={dashboardStyle}
     >
       {/* ============ Header ============ */}

@@ -457,6 +457,74 @@
     border-color: var(--ui-border);
   }
 
+  .settings-modal .settings-search-input {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+  }
+
+  .settings-modal .settings-search-input::placeholder {
+    color: var(--ui-text-faint);
+  }
+
+  .settings-modal .settings-search-input:focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 1px;
+  }
+
+  /* Floats over the panel rather than pushing the tabs down, so the content
+     below does not jump with every keystroke. */
+  .settings-modal .settings-search-results {
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    max-height: 15rem;
+    overflow-y: auto;
+    border: 1px solid var(--ui-border-strong);
+    border-radius: 0.5rem;
+    background: var(--ui-panel);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.18);
+  }
+
+  .settings-modal .settings-search-result {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-size: 0.875rem;
+    color: var(--ui-text);
+  }
+
+  .settings-modal .settings-search-result:hover,
+  .settings-modal .settings-search-result:focus-visible {
+    background: var(--ui-surface);
+  }
+
+  .settings-modal .settings-search-result-tab {
+    flex: none;
+    font-size: 0.75rem;
+    color: var(--ui-text-faint);
+  }
+
+  .settings-modal .settings-search-empty {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--ui-text-muted);
+  }
+
+  /* Brief marker on the control a search result landed on — a long panel
+     otherwise gives no clue which row was the answer. */
+  .settings-modal [data-settings-found='true'] {
+    border-radius: 0.375rem;
+    box-shadow: 0 0 0 2px var(--ui-accent);
+    transition: box-shadow 200ms ease-out;
+  }
+
   .settings-modal .settings-tabs {
     border-color: var(--ui-border);
   }
@@ -722,6 +790,34 @@
     color: var(--ui-success);
     background: var(--ui-success-soft);
     border-color: var(--ui-success);
+  }
+
+  /* Text rather than an icon: "Undo" reverses real work, so it should not be
+     guessed at from a glyph. Sized to the same 2.875rem touch target height as
+     the icon buttons beside it. */
+  .notification-toast-undo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    height: 2.875rem;
+    padding-inline: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+    border: 1px solid var(--ui-accent);
+    border-radius: 6px;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .notification-toast-undo:hover,
+  .notification-toast-undo:focus-visible {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
   }
 
   .notification-toast-action:hover,
@@ -3673,6 +3769,22 @@
       scroll-padding-inline: 4px 24px;
       scroll-snap-type: x proximity;
       scrollbar-width: none;
+    }
+
+    /* In portrait a 19x19 board is width-limited, so the column has leftover
+       height that collected as a dead gap below the board — the board is
+       already biased to the top of its flex-1 slot on purpose. Move the
+       continuation tiles under the board there: the gap gets a use, and the tap
+       targets land in the thumb zone instead of above the board. The strip
+       occupies the same height either way, so this costs the board nothing.
+       Portrait only because landscape centres the board with no gap under it to
+       fill, and below ~520px tall the strip is hidden outright. Ordered rather
+       than moved in the JSX so it stays a direct child of .mobile-board-shell,
+       which that hide rule selects on. */
+    @media (orientation: portrait) {
+      .mobile-board-shell > .candidate-pv-strip {
+        order: 1;
+      }
     }
 
     .candidate-pv-strip.has-overflow-right:not(.has-overflow-left) {

@@ -659,7 +659,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       setPdfSnapshots(snapshots);
       await afterAnimationFrames(2);
       if (!printWindow()) {
-        setTimedNotification('Print dialog unavailable in this browser.', 'error', 2500);
+        setTimedNotification('Print dialog unavailable in this browser.', 'error');
       }
     } finally {
       setIsPreparingPdf(false);
@@ -692,7 +692,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   const startPractice = (entry: MoveReportEntry) => {
     if (isInsertMode) {
-      setTimedNotification('Finish insert mode before starting mistake practice.', 'error', 2500);
+      setTimedNotification('Finish insert mode before starting mistake practice.', 'error');
       return;
     }
 
@@ -703,7 +703,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       if (!latest.isInsertMode && latest.currentNode.children.length > 0) {
         latest.toggleInsertMode();
       }
-      setTimedNotification(`Practice move ${entry.moveNumber}: try a correction for ${playerNames[entry.player]}.`, 'info', 2500);
+      setTimedNotification(`Practice move ${entry.moveNumber}: try a correction for ${playerNames[entry.player]}.`, 'info');
     }, 0);
     setReportHoverMove(null);
     onClose();

@@ -6,7 +6,14 @@ import {
   SHORTCUTS_UPDATED_EVENT,
   shortcutDisplay,
 } from '../utils/shortcuts';
-import { normalizeCommandQuery, scoreCommandMatch } from '../utils/commandPalette';
+import {
+  addRecentCommandId,
+  normalizeCommandQuery,
+  orderCommandsByRecency,
+  readRecentCommandIds,
+  scoreCommandMatch,
+  writeRecentCommandIds,
+} from '../utils/commandPalette';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
@@ -53,9 +60,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
     return labels;
   }, [commands, overrides]);
 
+  // Read once per open: the palette closes on every run, so the list never has
+  // to react to its own writes.
+  const [recentIds] = React.useState(readRecentCommandIds);
+
   const filteredCommands = React.useMemo(() => {
     const normalizedQuery = normalizeCommandQuery(query);
-    if (!normalizedQuery) return commands;
+    if (!normalizedQuery) return orderCommandsByRecency(commands, recentIds);
     return commands.flatMap((command, index) => {
       const shortcut = command.shortcutId ? shortcutLabels.get(command.shortcutId) : '';
       const score = scoreCommandMatch({
@@ -69,7 +80,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
     })
       .sort((a, b) => a.score - b.score || a.index - b.index)
       .map((entry) => entry.command);
-  }, [commands, query, shortcutLabels]);
+  }, [commands, query, recentIds, shortcutLabels]);
+
+  // Only labelled as recent on the unfiltered list; once a query narrows things
+  // down, the badge would just be noise next to a match.
+  const recentSet = React.useMemo(
+    () => (normalizeCommandQuery(query) ? new Set<string>() : new Set(recentIds)),
+    [query, recentIds]
+  );
 
   React.useEffect(() => {
     setActiveIndex(0);
@@ -82,6 +100,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   }, [activeIndex, filteredCommands.length]);
 
   const runCommand = React.useCallback((command: CommandPaletteCommand) => {
+    writeRecentCommandIds(addRecentCommandId(command.id));
     onClose();
     command.run();
   }, [onClose]);
@@ -177,7 +196,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                     key={command.id}
                     type="button"
                     role="option"
-                    aria-label={[command.label, command.category, shortcut].filter(Boolean).join(', ')}
+                    aria-label={[command.label, recentSet.has(command.id) ? 'Recent' : '', command.category, shortcut].filter(Boolean).join(', ')}
                     aria-selected={selected}
                     className={[
                       'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
@@ -191,7 +210,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-[var(--ui-text)]">{command.label}</span>
-                      <span className="mt-0.5 block truncate text-xs ui-text-faint">{command.category}</span>
+                      <span className="mt-0.5 block truncate text-xs ui-text-faint">
+                        {recentSet.has(command.id) ? `Recent · ${command.category}` : command.category}
+                      </span>
                     </span>
                     {shortcut && (
                       <kbd className="command-palette-shortcut shrink-0 rounded ui-surface-2 px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]" aria-hidden="true">

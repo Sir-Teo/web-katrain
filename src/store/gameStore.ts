@@ -31,6 +31,12 @@ import {
 } from '../utils/branchNavigation';
 import { ensurePinGameId, getNodePath, getPinGameId, resolveNodePath, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
 import { getResignResult } from '../utils/resign';
+import {
+  admitNotification,
+  autoDismissDelay,
+  dismissNotification,
+  emptyNotificationQueue,
+} from '../utils/notificationQueue';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getAnimationNow } from '../utils/animationFrame';
 
@@ -77,7 +83,12 @@ interface GameStore extends GameState {
   isAnalysisMode: boolean;
   isContinuousAnalysis: boolean;
   isTeachMode: boolean;
-  notification: { message: string, type: 'info' | 'error' | 'success', copyText?: string } | null;
+  /**
+   * `undoable` is set by the edit actions that push onto the edit history, so
+   * the toast can offer to take the change straight back — these fire from a
+   * single click on the board and are easy to trigger by accident.
+   */
+  notification: { message: string, type: 'info' | 'error' | 'success', copyText?: string, undoable?: boolean } | null;
   analysisData: AnalysisResult | null;
   analysisCacheSize: number;
   settings: GameSettings;
@@ -182,12 +193,6 @@ interface GameStore extends GameState {
 }
 
 type StoreNotification = NonNullable<GameStore['notification']>;
-
-const NOTIFICATION_AUTO_DISMISS_MS: Record<StoreNotification['type'], number> = {
-  info: 2500,
-  success: 2500,
-  error: 3500,
-};
 
 const createEmptyTerritory = (boardSize: number): number[][] =>
   Array.from({ length: boardSize }, () => Array.from({ length: boardSize }, () => 0));
@@ -1237,7 +1242,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!quiet) {
           const notification = { message: next ? 'Continuous analysis on' : 'Continuous analysis off', type: 'info' as const };
           set({ notification });
-          setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 1200);
       }
       if (!next) {
           continuousToken++;
@@ -1313,7 +1317,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           notification,
         };
       });
-      setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 1800);
   },
 
   toggleTeachMode: () => set((state) => {
@@ -1377,7 +1380,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const toast = (message: string) => {
       const notification = { message, type: 'info' as const };
       set({ notification });
-      setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 1600);
     };
 
     if (mode === 'extra') {
@@ -1439,14 +1441,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (s.currentNode.children.length === 0) {
         const notification = { message: 'Insert mode: no continuation to insert into.', type: 'error' as const };
         set({ notification });
-        setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 2000);
         return;
       }
       const insertAfter = getActiveChild(s.currentNode, s.activeBranchChildIds);
       if (!insertAfter) {
         const notification = { message: 'Insert mode: no continuation to insert into.', type: 'error' as const };
         set({ notification });
-        setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 2000);
         return;
       }
       set((state) => ({
@@ -1569,9 +1569,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       treeVersion: state.treeVersion + 1,
       notification: notification ?? state.notification,
     }));
-    if (notification) {
-      setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 1800);
-    }
   },
 
   toggleEditMode: () =>
@@ -1601,7 +1598,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return {
         ...history,
         treeVersion: state.treeVersion + 1,
-        notification: { message: 'Cleared markers, labels and drawings on this node.', type: 'info' },
+        notification: { message: 'Cleared markers, labels and drawings on this node.', type: 'info', undoable: true },
       };
     }),
 
@@ -1636,7 +1633,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       node.drawings = [];
       return {
         treeVersion: state.treeVersion + 1,
-        notification: { message: 'Cleared drawings on this node.', type: 'info' },
+        notification: { message: 'Cleared drawings on this node.', type: 'info', undoable: true },
       };
     }),
 
@@ -1660,7 +1657,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           return {
             ...history,
             treeVersion: state.treeVersion + 1,
-            notification: { message: `Removed ${markerProp} marker.`, type: 'info' },
+            notification: { message: `Removed ${markerProp} marker.`, type: 'info', undoable: true },
           };
         }
 
@@ -1670,7 +1667,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return {
           ...history,
           treeVersion: state.treeVersion + 1,
-          notification: { message: `Added ${markerProp} marker.`, type: 'info' },
+          notification: { message: `Added ${markerProp} marker.`, type: 'info', undoable: true },
         };
       }
 
@@ -1682,7 +1679,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return {
           ...history,
           treeVersion: state.treeVersion + 1,
-          notification: { message: `Added label ${label}.`, type: 'info' },
+          notification: { message: `Added label ${label}.`, type: 'info', undoable: true },
         };
       }
 
@@ -1693,7 +1690,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return {
           ...history,
           treeVersion: state.treeVersion + 1,
-          notification: { message: 'Removed marker or label.', type: 'info' },
+          notification: { message: 'Removed marker or label.', type: 'info', undoable: true },
         };
       }
 
@@ -1737,7 +1734,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         capturedWhite: node.gameState.capturedWhite,
         analysisData: null,
         treeVersion: state.treeVersion + 1,
-        notification: { message: `Edited ${setupWord}.${summary}`, type: pruned > 0 ? 'success' : 'info' },
+        notification: { message: `Edited ${setupWord}.${summary}`, type: pruned > 0 ? 'success' : 'info', undoable: true },
       };
     }),
 
@@ -1757,7 +1754,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           return {
             ...history,
             treeVersion: state.treeVersion + 1,
-            notification: { message: 'Removed marker or label.', type: 'info' },
+            notification: { message: 'Removed marker or label.', type: 'info', undoable: true },
           };
         }
 
@@ -1785,7 +1782,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           capturedWhite: node.gameState.capturedWhite,
           analysisData: null,
           treeVersion: state.treeVersion + 1,
-          notification: { message: `Removed setup stone.${summary}`, type: pruned > 0 ? 'success' : 'info' },
+          notification: { message: `Removed setup stone.${summary}`, type: pruned > 0 ? 'success' : 'info', undoable: true },
         };
       }
 
@@ -1796,7 +1793,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return {
           ...history,
           treeVersion: state.treeVersion + 1,
-          notification: { message: 'Removed cross marker.', type: 'info' },
+          notification: { message: 'Removed cross marker.', type: 'info', undoable: true },
         };
       }
 
@@ -1806,7 +1803,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return {
         ...history,
         treeVersion: state.treeVersion + 1,
-        notification: { message: 'Added cross marker.', type: 'info' },
+        notification: { message: 'Added cross marker.', type: 'info', undoable: true },
       };
     }),
 
@@ -1848,7 +1845,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         capturedWhite: node.gameState.capturedWhite,
         analysisData: null,
         treeVersion: state.treeVersion + 1,
-        notification: { message: `Cleared ${removed} setup stone${removed === 1 ? '' : 's'}.${summary}`, type: pruned > 0 ? 'success' : 'info' },
+        notification: { message: `Cleared ${removed} setup stone${removed === 1 ? '' : 's'}.${summary}`, type: pruned > 0 ? 'success' : 'info', undoable: true },
       };
     }),
 
@@ -1927,7 +1924,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (safety++ > 2000) {
           const notification = { message: 'Selfplay stopped (move limit).', type: 'error' as const };
           set({ isSelfplayToEnd: false, notification });
-          setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 2000);
           return;
         }
 
@@ -2747,7 +2743,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
               type: 'info' as const,
             };
             set({ notification });
-            setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 3000);
             latestState.navigateBack();
           };
 
@@ -2762,7 +2757,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
             engineError: msg,
             notification,
           });
-          setTimeout(() => set((state) => (state.notification === notification ? { notification: null } : {})), 3000);
         });
   },
 
@@ -4869,21 +4863,61 @@ export const useGameStore = create<GameStore>((set, get) => ({
 }));
 
 let notificationAutoDismissTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+// The store field is the single visible slot; this holds what is waiting behind
+// it. Call sites keep writing `notification` directly and this subscriber acts
+// as the funnel, so an error is never pushed off screen by the next "Added
+// label" confirmation before it can be read or copied.
+let notificationState = emptyNotificationQueue<StoreNotification>();
 
-useGameStore.subscribe((state, previousState) => {
-  if (state.notification === previousState.notification) return;
+const showNotification = (next: StoreNotification | null) => {
+  // Marks the write as ours so the subscriber does not treat it as an arrival.
+  notificationState = { ...notificationState, displayed: next };
+  useGameStore.setState({ notification: next });
+};
+
+// Set while the toast is hovered or focused. A message that someone is reading
+// — or reaching across to copy — should not time out under the pointer.
+let notificationHeld = false;
+
+const scheduleNotificationDismiss = () => {
   if (notificationAutoDismissTimer) {
     globalThis.clearTimeout(notificationAutoDismissTimer);
     notificationAutoDismissTimer = null;
   }
-  const notification = state.notification;
-  if (!notification) return;
+  if (notificationHeld) return;
+  const notification = notificationState.displayed;
+  const delay = autoDismissDelay(notification);
+  if (!notification || delay === null) return;
   notificationAutoDismissTimer = globalThis.setTimeout(() => {
-    useGameStore.setState((latestState) => (
-      latestState.notification === notification ? { notification: null } : {}
-    ));
-  }, NOTIFICATION_AUTO_DISMISS_MS[notification.type]);
+    if (notificationState.displayed !== notification) return;
+    notificationState = dismissNotification(notificationState);
+    showNotification(notificationState.displayed);
+    scheduleNotificationDismiss();
+  }, delay);
+};
+
+useGameStore.subscribe((state, previousState) => {
+  if (state.notification === previousState.notification) return;
+  if (state.notification === notificationState.displayed) return; // our own write
+
+  if (state.notification === null) {
+    // Dismissed from the UI — promote whatever was waiting behind it.
+    notificationState = dismissNotification(notificationState);
+    if (notificationState.displayed) showNotification(notificationState.displayed);
+  } else {
+    notificationState = admitNotification(notificationState, state.notification);
+    // An arrival behind an error must not be left showing in the slot.
+    if (state.notification !== notificationState.displayed) showNotification(notificationState.displayed);
+  }
+  scheduleNotificationDismiss();
 });
+
+/** Hold or release the visible toast's dismissal timer (hover and focus). */
+export const setNotificationHeld = (held: boolean) => {
+  if (notificationHeld === held) return;
+  notificationHeld = held;
+  scheduleNotificationDismiss();
+};
 
 analysisQueue.subscribeCacheSize((queueCacheSize) => {
   useGameStore.setState((state) => ({

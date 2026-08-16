@@ -18,6 +18,7 @@ import { UI_THEME_OPTIONS } from '../utils/uiThemes';
 import { APP_LOCALE_OPTIONS } from '../utils/locales';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
+import { SETTINGS_TAB_LABELS, searchSettings, type SettingsSearchEntry } from '../utils/settingsSearch';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
@@ -172,6 +173,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         }
         saveSettingsActiveTab(activeTab);
     }, [activeTab]);
+    const [settingsQuery, setSettingsQuery] = React.useState('');
+    const settingsResults = React.useMemo(() => searchSettings(settingsQuery), [settingsQuery]);
+
+    // Set by a search result, cleared once the control has been revealed. The
+    // target panel only mounts when the tab changes, so the reveal has to wait
+    // for that render rather than guess at a frame or two.
+    const [pendingReveal, setPendingReveal] = React.useState<string | null>(null);
+    const revealTimerRef = React.useRef<number | null>(null);
+
+    const goToSetting = (entry: SettingsSearchEntry) => {
+        setActiveTab(entry.tab);
+        setSettingsQuery('');
+        setPendingReveal(entry.id);
+    };
+
+    React.useEffect(() => {
+        if (!pendingReveal) return;
+        const label = document.querySelector<HTMLElement>(`label[for="${pendingReveal}"]`);
+        const control = document.getElementById(pendingReveal);
+        if (!label && !control) return;
+        setPendingReveal(null);
+
+        (label ?? control)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        // Focused, not just scrolled to, so keyboard users land on the control
+        // and can change it straight away.
+        control?.focus({ preventScroll: true });
+        const row = label?.closest<HTMLElement>('div') ?? control;
+        if (!row) return;
+        // A brief marker: in a panel this long, scrolling alone leaves it
+        // unclear which row was the answer.
+        row.dataset.settingsFound = 'true';
+        // The timer is held in a ref rather than cleaned up by this effect:
+        // clearing pendingReveal above re-runs it, and an effect cleanup would
+        // cancel the timer it had just set, leaving the marker on for good.
+        if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = window.setTimeout(() => {
+            delete row.dataset.settingsFound;
+            revealTimerRef.current = null;
+        }, 1600);
+    }, [pendingReveal, activeTab]);
+
+    React.useEffect(() => () => {
+        if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
+    }, []);
+
     const focusSettingsTab = (tabId: SettingsTabId) => {
         window.requestAnimationFrame(() => {
             document.getElementById(`tab-${tabId}`)?.focus();
@@ -394,8 +440,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         <FaTimes />
                     </button>
                 </div>
-                <div className="px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">  
-                    {/* Tab Navigation */}  
+                <div className="px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">
+                    {/* Search. Four tabs and 80-odd controls is more than anyone
+                        should have to hunt through by eye; typing a word jumps
+                        straight to the control, switching tabs on the way. */}
+                    <div className="settings-search relative mb-4">
+                        <input
+                            type="search"
+                            id="settings-search-input"
+                            className="settings-search-input w-full rounded-lg border px-3 py-2 text-sm"
+                            placeholder="Search settings"
+                            aria-label="Search settings"
+                            autoComplete="off"
+                            value={settingsQuery}
+                            onChange={(e) => setSettingsQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Escape' && settingsQuery) {
+                                    // Clear the query first; a second Escape closes the modal.
+                                    e.stopPropagation();
+                                    setSettingsQuery('');
+                                } else if (e.key === 'Enter' && settingsResults[0]) {
+                                    e.preventDefault();
+                                    goToSetting(settingsResults[0]);
+                                }
+                            }}
+                        />
+                        {settingsQuery.trim() !== '' && (
+                            <ul className="settings-search-results" role="listbox" aria-label="Search results">
+                                {settingsResults.length === 0 ? (
+                                    <li className="settings-search-empty">No setting matches “{settingsQuery.trim()}”</li>
+                                ) : (
+                                    settingsResults.map((entry) => (
+                                        <li key={entry.id}>
+                                            <button
+                                                type="button"
+                                                role="option"
+                                                aria-selected={false}
+                                                className="settings-search-result"
+                                                onClick={() => goToSetting(entry)}
+                                            >
+                                                <span className="settings-search-result-label">{entry.label}</span>
+                                                <span className="settings-search-result-tab">{SETTINGS_TAB_LABELS[entry.tab]}</span>
+                                            </button>
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+                        )}
+                    </div>
+
+                    {/* Tab Navigation */}
                     <div className="settings-tabs flex w-full min-w-0 border-b mb-5"
                         role="tablist"
                         aria-orientation="horizontal"
