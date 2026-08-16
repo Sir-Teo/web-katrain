@@ -20,7 +20,8 @@ export type NoteBlock =
 const INLINE_TOKEN_RE = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s<]+)/g;
 const TRAILING_URL_PUNCTUATION_RE = /[),.;:!?]$/;
 const FENCED_CODE_RE = /^\s*```([\w-]+)?\s*$/;
-const TABLE_SEPARATOR_RE = /^:?-{3,}:?$/;
+const TABLE_SEPARATOR_RE = /^:?-+:?$/;
+const ESCAPED_TABLE_PIPE = '\u0000';
 
 function pushText(segments: NoteInlineSegment[], text: string): void {
   if (!text) return;
@@ -99,12 +100,13 @@ export function parseNoteBlockLine(line: string): NoteBlock {
   return { type: 'paragraph', text: normalized.trimEnd() };
 }
 
-function splitTableRow(line: string): string[] | null {
+function splitTableRow(line: string, minCells: number): string[] | null {
   const normalized = line.trim();
   if (!normalized.includes('|')) return null;
-  const inner = normalized.replace(/^\|/, '').replace(/\|$/, '');
-  const cells = inner.split('|').map((cell) => cell.trim());
-  return cells.length >= 2 ? cells : null;
+  const hidden = normalized.replace(/\\\|/g, ESCAPED_TABLE_PIPE);
+  const inner = hidden.replace(/^\|/, '').replace(/\|$/, '');
+  const cells = inner.split('|').map((cell) => cell.trim().replace(new RegExp(ESCAPED_TABLE_PIPE, 'g'), '|'));
+  return cells.length >= minCells ? cells : null;
 }
 
 function parseTableAlignment(cell: string): NoteTableAlignment | null {
@@ -121,19 +123,27 @@ function normalizeTableCells<T>(cells: T[], length: number, fill: T): T[] {
   return [...cells, ...Array.from({ length: length - cells.length }, () => fill)];
 }
 
+function isTableParagraphLine(line: string): boolean {
+  return parseNoteBlockLine(line).type === 'paragraph';
+}
+
 function parseTableAt(lines: string[], index: number): { block: NoteBlock; nextIndex: number } | null {
-  const headers = splitTableRow(lines[index] ?? '');
-  const separator = splitTableRow(lines[index + 1] ?? '');
-  if (!headers || !separator || headers.length < 2) return null;
+  const headerLine = lines[index] ?? '';
+  if (!isTableParagraphLine(headerLine)) return null;
+  const headers = splitTableRow(headerLine, 1);
+  const separator = splitTableRow(lines[index + 1] ?? '', 1);
+  if (!headers || !separator) return null;
 
   const alignments = separator.map(parseTableAlignment);
   if (alignments.some((alignment) => alignment === null)) return null;
 
-  const width = headers.length;
+  const width = Math.max(headers.length, 1);
   const rows: string[][] = [];
   let cursor = index + 2;
   while (cursor < lines.length) {
-    const row = splitTableRow(lines[cursor] ?? '');
+    const rowLine = lines[cursor] ?? '';
+    if (!isTableParagraphLine(rowLine)) break;
+    const row = splitTableRow(rowLine, 1);
     if (!row) break;
     rows.push(normalizeTableCells(row, width, ''));
     cursor += 1;

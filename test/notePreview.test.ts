@@ -62,4 +62,52 @@ describe('note preview helpers', () => {
       },
     ]);
   });
+
+  it('accepts GFM delimiter rows with one or more dashes per cell', () => {
+    expect(parseNoteBlocks('| A | B |\n| - | - |\n| 1 | 2 |')).toEqual([
+      { type: 'table', headers: ['A', 'B'], alignments: ['left', 'left'], rows: [['1', '2']] },
+    ]);
+    expect(parseNoteBlocks('A | B\n-- | --\n1 | 2')).toEqual([
+      { type: 'table', headers: ['A', 'B'], alignments: ['left', 'left'], rows: [['1', '2']] },
+    ]);
+    expect(parseNoteBlocks('| A | B |\n| :-: | -: |\n| 1 | 2 |')).toEqual([
+      { type: 'table', headers: ['A', 'B'], alignments: ['center', 'right'], rows: [['1', '2']] },
+    ]);
+  });
+
+  it('keeps escaped pipes inside table cells', () => {
+    expect(parseNoteBlocks('| A \\| B | C |\n| --- | --- |\n| x \\| y | z |')).toEqual([
+      { type: 'table', headers: ['A | B', 'C'], alignments: ['left', 'left'], rows: [['x | y', 'z']] },
+    ]);
+  });
+
+  it('pads short body rows instead of breaking out of the table', () => {
+    expect(parseNoteBlocks('| A | B | C |\n| --- | --- | --- |\n| 1 |\n| 2 | 3 | 4 |')).toEqual([
+      { type: 'table', headers: ['A', 'B', 'C'], alignments: ['left', 'left', 'left'], rows: [['1', '', ''], ['2', '3', '4']] },
+    ]);
+  });
+
+  it('does not let other block types become table headers or body rows', () => {
+    expect(parseNoteBlocks('# Title | X\n| --- | --- |\n| 1 | 2 |')).toEqual([
+      { type: 'heading', level: 1, text: 'Title | X' },
+      { type: 'paragraph', text: '| --- | --- |' },
+      { type: 'paragraph', text: '| 1 | 2 |' },
+    ]);
+    expect(parseNoteBlocks('| A | B |\n| --- | --- |\n- bullet | x\n| 1 | 2 |')).toEqual([
+      { type: 'table', headers: ['A', 'B'], alignments: ['left', 'left'], rows: [] },
+      { type: 'bullet', text: 'bullet | x' },
+      { type: 'paragraph', text: '| 1 | 2 |' },
+    ]);
+  });
+
+  it('parses single-column tables and blank-line-separated adjacent tables', () => {
+    expect(parseNoteBlocks('| A |\n| --- |\n| 1 |')).toEqual([
+      { type: 'table', headers: ['A'], alignments: ['left'], rows: [['1']] },
+    ]);
+    expect(parseNoteBlocks('| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| C | D |\n| --- | --- |\n| 3 | 4 |')).toEqual([
+      { type: 'table', headers: ['A', 'B'], alignments: ['left', 'left'], rows: [['1', '2']] },
+      { type: 'blank' },
+      { type: 'table', headers: ['C', 'D'], alignments: ['left', 'left'], rows: [['3', '4']] },
+    ]);
+  });
 });

@@ -162,6 +162,7 @@ function NotePreview({ note }: { note: string }) {
                     {block.headers.map((header, cellIndex) => (
                       <th
                         key={`head-${cellIndex}`}
+                        scope="col"
                         className={[
                           'border-b border-[var(--ui-border)] px-2 py-1 font-semibold',
                           noteTableAlignClass(block.alignments[cellIndex] ?? 'left'),
