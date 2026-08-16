@@ -7,34 +7,20 @@ import { setThreadsCount, setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import pako from 'pako';
 
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
-import type { BoardState, GameRules, KataGoBackendPreference, Move, Player, RegionOfInterest } from '../../types';
+import type { GameRules, KataGoBackendPreference, RegionOfInterest } from '../../types';
 import { publicUrl } from '../../utils/publicUrl';
 import { getAnimationNow } from '../../utils/animationFrame';
 import { parseKataGoModelV8 } from './loadModelV8';
 import { KataGoModelV8Tf } from './modelV8';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
 import { MctsSearch, type OwnershipMode } from './analyzeMcts';
-import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
+import { fillInputsV7FastForPosition } from './positionInputsV7';
 import {
   getKataGoWarmupFallbackBackend,
   normalizeKataGoBackendPreference,
   shouldCacheKataGoFallbackForRequest,
 } from './backendFallback';
-import {
-  BLACK,
-  BOARD_AREA,
-  BOARD_SIZE,
-  PASS_MOVE,
-  WHITE,
-  computeAreaMapV7KataGoInto,
-  computeLadderFeaturesV7KataGoInto,
-  computeLadderedStonesV7KataGoInto,
-  computeLibertyMapInto,
-  playMove,
-  setBoardSize,
-  type SimPosition,
-  type StoneColor,
-} from './fastBoard';
+import { BOARD_AREA, BOARD_SIZE, PASS_MOVE, setBoardSize } from './fastBoard';
 import { postprocessKataGoV8 } from './evalV8';
 
 let model: KataGoModelV8Tf | null = null;
@@ -50,22 +36,6 @@ const V7_GLOBAL_STRIDE = 19;
 
 let evalSpatialV7 = new Float32Array(V7_SPATIAL_STRIDE);
 let evalGlobalV7 = new Float32Array(V7_GLOBAL_STRIDE);
-
-let stonesScratch = new Uint8Array(BOARD_AREA);
-let prevStonesScratch = new Uint8Array(BOARD_AREA);
-let prevPrevStonesScratch = new Uint8Array(BOARD_AREA);
-
-let koSimStonesScratch = new Uint8Array(BOARD_AREA);
-let koSimPosScratch: SimPosition = { stones: koSimStonesScratch, koPoint: -1 };
-const koCaptureStackScratch: number[] = [];
-
-let libertyMapScratch = new Uint8Array(BOARD_AREA);
-let areaMapScratch = new Uint8Array(BOARD_AREA);
-
-let ladderedStonesScratch = new Uint8Array(BOARD_AREA);
-let ladderWorkingMovesScratch = new Uint8Array(BOARD_AREA);
-let prevLadderedStonesScratch = new Uint8Array(BOARD_AREA);
-let prevPrevLadderedStonesScratch = new Uint8Array(BOARD_AREA);
 
 let evalBatchCapacity = 0;
 let evalBatchSpatialV7 = new Float32Array(0);
@@ -97,148 +67,6 @@ function getEvalBatchBuffersV7(batch: number): { spatial: Float32Array; global: 
   };
 }
 
-function playerToColor(p: Player): StoneColor {
-  return p === 'black' ? BLACK : WHITE;
-}
-
-function boardStateToStonesInto(board: BoardState, out: Uint8Array): void {
-  out.fill(0);
-  for (let y = 0; y < BOARD_SIZE; y++) {
-    const row = board[y];
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      const v = row?.[x] ?? null;
-      if (!v) continue;
-      out[y * BOARD_SIZE + x] = v === 'black' ? BLACK : WHITE;
-    }
-  }
-}
-
-function movesToRecentMoves(moves: Move[]): RecentMove[] {
-  const out = new Array<RecentMove>(moves.length);
-  for (let i = 0; i < moves.length; i++) {
-    const m = moves[i]!;
-    out[i] = {
-      move: m.x < 0 || m.y < 0 ? PASS_MOVE : m.y * BOARD_SIZE + m.x,
-      player: m.player,
-    };
-  }
-  return out;
-}
-
-function countHistoryTurnsIncluded(args: { recentMoves: RecentMove[]; currentPlayer: Player; conservativePassAndIsRoot: boolean }): number {
-  const lastMove = args.recentMoves.length > 0 ? args.recentMoves[args.recentMoves.length - 1] : null;
-  const passWouldEndGame = lastMove?.move === PASS_MOVE;
-  if (args.conservativePassAndIsRoot && passWouldEndGame) return 0;
-
-  const pla = args.currentPlayer;
-  const opp = pla === 'black' ? 'white' : 'black';
-  const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
-
-  let included = 0;
-  for (let i = 0; i < 5; i++) {
-    const m = args.recentMoves[args.recentMoves.length - 1 - i];
-    if (!m) break;
-    if (m.player !== expectedPlayers[i]) break;
-    included++;
-  }
-  return included;
-}
-
-function computeKoPointAfterMove(previousStones: Uint8Array, move: Move | null): number {
-  if (!move || move.x < 0 || move.y < 0) return -1;
-
-  koSimStonesScratch.set(previousStones);
-  koSimPosScratch.koPoint = -1;
-  koCaptureStackScratch.length = 0;
-
-  try {
-    playMove(koSimPosScratch, move.y * BOARD_SIZE + move.x, playerToColor(move.player), koCaptureStackScratch);
-    return koSimPosScratch.koPoint;
-  } catch {
-    return -1;
-  }
-}
-
-function fillInputsV7FastForPosition(args: {
-  board: BoardState;
-  previousBoard?: BoardState;
-  previousPreviousBoard?: BoardState;
-  currentPlayer: Player;
-  moveHistory: Move[];
-  komi: number;
-  rules: GameRules;
-  conservativePassAndIsRoot: boolean;
-  outSpatial: Float32Array;
-  outGlobal: Float32Array;
-}): void {
-  boardStateToStonesInto(args.board, stonesScratch);
-
-  if (args.previousBoard) boardStateToStonesInto(args.previousBoard, prevStonesScratch);
-  else prevStonesScratch.set(stonesScratch);
-
-  if (args.previousPreviousBoard) boardStateToStonesInto(args.previousPreviousBoard, prevPrevStonesScratch);
-  else prevPrevStonesScratch.set(prevStonesScratch);
-
-  const lastMove = args.moveHistory.length > 0 ? args.moveHistory[args.moveHistory.length - 1]! : null;
-  const prevMove = args.moveHistory.length >= 2 ? args.moveHistory[args.moveHistory.length - 2]! : null;
-
-  const koPoint = args.previousBoard ? computeKoPointAfterMove(prevStonesScratch, lastMove) : -1;
-  const prevKoPoint = args.previousPreviousBoard ? computeKoPointAfterMove(prevPrevStonesScratch, prevMove) : -1;
-  const prevPrevKoPoint = -1;
-
-  const recentMoves = movesToRecentMoves(args.moveHistory);
-  const numTurnsOfHistoryIncluded = countHistoryTurnsIncluded({
-    recentMoves,
-    currentPlayer: args.currentPlayer,
-    conservativePassAndIsRoot: args.conservativePassAndIsRoot,
-  });
-
-  const prevLadderStones = numTurnsOfHistoryIncluded < 1 ? stonesScratch : prevStonesScratch;
-  const prevLadderKoPoint = numTurnsOfHistoryIncluded < 1 ? koPoint : prevKoPoint;
-
-  const prevPrevLadderStones = numTurnsOfHistoryIncluded < 2 ? prevLadderStones : prevPrevStonesScratch;
-  const prevPrevLadderKoPoint = numTurnsOfHistoryIncluded < 2 ? prevLadderKoPoint : prevPrevKoPoint;
-
-  computeLibertyMapInto(stonesScratch, libertyMapScratch);
-  if (args.rules === 'chinese') computeAreaMapV7KataGoInto(stonesScratch, areaMapScratch);
-
-  computeLadderFeaturesV7KataGoInto({
-    stones: stonesScratch,
-    koPoint,
-    currentPlayer: playerToColor(args.currentPlayer),
-    outLadderedStones: ladderedStonesScratch,
-    outLadderWorkingMoves: ladderWorkingMovesScratch,
-  });
-  computeLadderedStonesV7KataGoInto({
-    stones: prevLadderStones,
-    koPoint: prevLadderKoPoint,
-    outLadderedStones: prevLadderedStonesScratch,
-  });
-  computeLadderedStonesV7KataGoInto({
-    stones: prevPrevLadderStones,
-    koPoint: prevPrevLadderKoPoint,
-    outLadderedStones: prevPrevLadderedStonesScratch,
-  });
-
-  fillInputsV7Fast({
-    stones: stonesScratch,
-    koPoint,
-    currentPlayer: args.currentPlayer,
-    recentMoves,
-    komi: args.komi,
-    rules: args.rules,
-    conservativePassAndIsRoot: args.conservativePassAndIsRoot,
-    libertyMap: libertyMapScratch,
-    areaMap: args.rules === 'chinese' ? areaMapScratch : undefined,
-    ladderedStones: ladderedStonesScratch,
-    prevLadderedStones: prevLadderedStonesScratch,
-    prevPrevLadderedStones: prevPrevLadderedStonesScratch,
-    ladderWorkingMoves: ladderWorkingMovesScratch,
-    outSpatial: args.outSpatial,
-    outGlobal: args.outGlobal,
-  });
-}
-
 let search: MctsSearch | null = null;
 let searchKey: {
   positionId: string;
@@ -267,17 +95,6 @@ function ensureBoardSizeForWorker(boardSize: number): void {
   V7_SPATIAL_STRIDE = BOARD_AREA * 22;
   evalSpatialV7 = new Float32Array(V7_SPATIAL_STRIDE);
   evalGlobalV7 = new Float32Array(V7_GLOBAL_STRIDE);
-  stonesScratch = new Uint8Array(BOARD_AREA);
-  prevStonesScratch = new Uint8Array(BOARD_AREA);
-  prevPrevStonesScratch = new Uint8Array(BOARD_AREA);
-  koSimStonesScratch = new Uint8Array(BOARD_AREA);
-  koSimPosScratch = { stones: koSimStonesScratch, koPoint: -1 };
-  libertyMapScratch = new Uint8Array(BOARD_AREA);
-  areaMapScratch = new Uint8Array(BOARD_AREA);
-  ladderedStonesScratch = new Uint8Array(BOARD_AREA);
-  ladderWorkingMovesScratch = new Uint8Array(BOARD_AREA);
-  prevLadderedStonesScratch = new Uint8Array(BOARD_AREA);
-  prevPrevLadderedStonesScratch = new Uint8Array(BOARD_AREA);
   evalBatchCapacity = 0;
   evalBatchSpatialV7 = new Float32Array(0);
   evalBatchGlobalV7 = new Float32Array(0);
