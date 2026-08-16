@@ -105,7 +105,10 @@ describe('AnalysisCommandBar', () => {
     expect(html).toContain('analysis-command-bar__label-full">Fast review');
     expect(html).toContain('analysis-command-bar__label-compact">Review');
     expect(styles).toContain('.analysis-command-bar__metric:nth-child(-n + 2)');
-    expect(styles).toContain('flex: 0 0 3.5rem;');
+    // Narrow floor, content-sized lane: a fixed basis ellipsised readouts like
+    // "50.9%" and "B+10.5" inside the (scrollable) metric strip.
+    expect(styles).toContain('flex: 0 0 auto;\n      min-width: 3.5rem;');
+    expect(styles).not.toContain('flex: 0 0 3.5rem;');
   });
 
   it('reclaims the duplicate ready-status column on phones while preserving errors', () => {

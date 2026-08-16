@@ -9,6 +9,7 @@ import { formatMoveLabel } from '../layout/ui-utils';
 import { MoveTree } from '../MoveTree';
 import { ScoreWinrateGraph } from '../ScoreWinrateGraph';
 import { NotesPanel } from '../NotesPanel';
+import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
@@ -632,6 +633,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 <span className={`gs-save ${dirty ? 'dirty' : 'saved'}`}>
                   <Icon name={dirty ? 'alert' : 'check'} size={11} />{dirty ? 'Unsaved' : 'Saved'}
                 </span>
+                {/* The clock belongs with the game facts; it renders nothing
+                    when no time control is configured. */}
+                <Timer variant="status" />
               </>
             )}
           </div>

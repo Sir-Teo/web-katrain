@@ -4,7 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { StaticBoard } from './StaticBoard';
 import { evaluateNode } from '../utils/positionEval';
-import type { GameNode } from '../types';
+import { collectQuizPositions, selectQuizJumpCandidates } from '../utils/scoreQuizPositions';
 
 interface ScoreQuizModalProps {
   onClose: () => void;
@@ -18,16 +18,6 @@ interface QuizStats {
   sumError: number;
   leaderHits: number;
 }
-
-const collectMainLine = (root: GameNode): GameNode[] => {
-  const line: GameNode[] = [];
-  let node: GameNode | null = root;
-  while (node) {
-    line.push(node);
-    node = node.children[0] ?? null;
-  }
-  return line;
-};
 
 const ratingFor = (error: number): { label: string; tone: string } => {
   if (error <= 1.5) return { label: 'Perfect read', tone: 'var(--ui-success, #38a169)' };
@@ -90,20 +80,20 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
     }
   }, [currentNode, settings, winner, margin]);
 
+  const quizPositions = useMemo(() => collectQuizPositions(rootNode), [rootNode]);
+
   const handleRandom = useCallback(() => {
-    const line = collectMainLine(rootNode);
-    // Prefer mid/late-game positions where score judgement is meaningful.
-    const candidates = line.filter((n) => n.gameState.moveHistory.length >= Math.min(20, line.length - 1));
-    const pool = candidates.length > 0 ? candidates : line;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    if (quizPositions.length === 0) return;
+    const pickFrom = selectQuizJumpCandidates(quizPositions, nodeId);
+    const pick = pickFrom[Math.floor(Math.random() * pickFrom.length)];
     if (pick && pick.id !== nodeId) {
       jumpToNode(pick);
-    } else {
-      // Same node picked: reset round anyway.
-      setPhase('guess');
-      setActual(null);
+      return;
     }
-  }, [rootNode, jumpToNode, nodeId]);
+    // Only one position to quiz: reset the round anyway.
+    setPhase('guess');
+    setActual(null);
+  }, [quizPositions, jumpToNode, nodeId]);
 
   const signedGuess = (winner === 'black' ? 1 : -1) * Math.abs(Number(margin) || 0);
   const roundError = actual !== null ? Math.abs(signedGuess - actual) : 0;
@@ -144,7 +134,9 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
 
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
           <p className="text-sm text-[var(--ui-text-muted)]">
-            Read the position, then estimate who is ahead and by how many points. Move {moveNumber}.
+            {quizPositions.length === 0
+              ? 'Play some moves or open a game first — there is no position to read yet.'
+              : `Read the position, then estimate who is ahead and by how many points. Move ${moveNumber}.`}
           </p>
 
           <div className="mx-auto w-full max-w-[340px]">
@@ -224,7 +216,9 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={handleRandom}
-            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+            disabled={quizPositions.length === 0}
+            title={quizPositions.length === 0 ? 'This game has no positions to jump to yet' : 'Jump to another position in this game'}
+            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-2"><FaDice aria-hidden="true" /> Random position</span>
           </button>

@@ -1196,7 +1196,7 @@ export const Layout: React.FC = () => {
 
   // PV animation
   const activeHoverMove = reportHoverMove ?? hoveredMove;
-  const boardAnalysisOverlaysActive = isAnalysisMode && isContinuousAnalysis;
+  const boardAnalysisOverlaysActive = isAnalysisMode;
   const pvOverlayEnabled = boardAnalysisOverlaysActive || !!reportHoverMove;
   const pvKey = useMemo(() => {
     const pv = activeHoverMove?.pv;
@@ -3728,9 +3728,6 @@ export const Layout: React.FC = () => {
           onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
           onOpenGameReport={() => setIsGameReportOpen(true)}
           currentPlayer={currentPlayer}
-          onUndo={handleUndo}
-          onResign={handleResign}
-          onAiMove={requestAiMove}
           navigateStart={navigateStart}
           navigateEnd={navigateEnd}
           switchBranch={switchBranch}

@@ -98,6 +98,9 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
       : 'text-[var(--ui-text)]';
 
   if (variant === 'status') {
+    // A status chip reading "Off" is noise next to the game facts — a game
+    // with no time control simply has no clock.
+    if (isTimerDisabled) return null;
     return (
       <div className="status-bar-timer">
         <div
@@ -105,18 +108,16 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
           title={effectiveDisplay.isAiTurn ? 'AI to play' : undefined}
         >
           {timeText}
-          {!isTimerDisabled && effectiveDisplay.periodsRemaining !== null ? ` ×${effectiveDisplay.periodsRemaining}` : ''}
+          {effectiveDisplay.periodsRemaining !== null ? ` ×${effectiveDisplay.periodsRemaining}` : ''}
         </div>
-        {!isTimerDisabled && (
-          <button
-            type="button"
-            className="status-bar-button"
-            onClick={() => toggleTimerPaused()}
-            title={timerPaused ? 'Resume timer' : 'Pause timer'}
-          >
-            {timerPaused ? <FaPlay size={10} /> : <FaPause size={10} />}
-          </button>
-        )}
+        <button
+          type="button"
+          className="status-bar-button"
+          onClick={() => toggleTimerPaused()}
+          title={timerPaused ? 'Resume timer' : 'Pause timer'}
+        >
+          {timerPaused ? <FaPlay size={10} /> : <FaPause size={10} />}
+        </button>
       </div>
     );
   }

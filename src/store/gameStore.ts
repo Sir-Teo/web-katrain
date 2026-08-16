@@ -1219,13 +1219,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const next = !get().isContinuousAnalysis;
       set((state) => ({ isContinuousAnalysis: next, isAnalysisMode: next ? true : state.isAnalysisMode }));
       if (next) {
-          get().updateSettings({
-            analysisShowChildren: false,
-            analysisShowEval: false,
-            analysisShowHints: true,
-            analysisShowPolicy: false,
-            analysisShowOwnership: false,
-          });
+          // Live analysis should never run with a blank board, but an overlay
+          // setup the user already chose is theirs to keep — only fill in top
+          // move hints when nothing at all would be drawn.
+          const s = get().settings;
+          const anyOverlayVisible =
+            s.analysisShowChildren ||
+            s.analysisShowEval ||
+            s.analysisShowHints ||
+            s.analysisShowPolicy ||
+            s.analysisShowOwnership;
+          if (!anyOverlayVisible) get().updateSettings({ analysisShowHints: true });
       }
       if (!quiet) {
           const notification = { message: next ? 'Continuous analysis on' : 'Continuous analysis off', type: 'info' as const };

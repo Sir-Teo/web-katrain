@@ -86,9 +86,20 @@ describe('getProblemStarts', () => {
     expect(getProblemStarts(root)).toHaveLength(2);
   });
 
-  it('treats a normal single-line game as one problem', () => {
+  it('offers no problem for a plain game record, which would just be a blank board', () => {
     const root = build({ children: [{ move: { x: 3, y: 3, player: 'black' } }] });
+    expect(getProblemStarts(root)).toEqual([]);
+  });
+
+  it('accepts an empty-board tree that still records a verdict', () => {
+    const root = build({
+      children: [{ move: { x: 3, y: 3, player: 'black' }, note: 'Correct' }],
+    });
     expect(getProblemStarts(root)).toEqual([root]);
+  });
+
+  it('offers no problem for a start with no continuations', () => {
+    expect(getProblemStarts(build({ stones: true }))).toEqual([]);
   });
 });
 

@@ -95,9 +95,6 @@ interface RightPanelProps {
   onOpenGameReport: () => void;
   // Player info
   currentPlayer: Player;
-  onUndo: () => void;
-  onResign: () => void;
-  onAiMove: () => void;
   // Navigation
   navigateStart: () => void;
   navigateEnd: () => void;
@@ -160,9 +157,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onOpenGameAnalysis,
   onOpenGameReport,
   currentPlayer,
-  onUndo,
-  onResign,
-  onAiMove,
   navigateStart,
   navigateEnd,
   switchBranch,
@@ -439,38 +433,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             </div>
           )}
           {isMobile && activeMobileTab === 'tree' ? treeViewControls : null}
-        </div>
-        {mode === 'play' && !isMobile && (
-          <div className="panel-toolbar">
-            <button
-              type="button"
-              className="panel-action-button"
-              onClick={onUndo}
-              title={withShortcut('Undo', 'nav-back')}
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              className="panel-action-button danger"
-              onClick={onResign}
-            >
-              Resign
-            </button>
-            <button
-              type="button"
-              className="panel-action-button"
-              onClick={onAiMove}
-              title={withShortcut('AI move', 'ai-move')}
-              aria-label="Make AI move"
-            >
-              AI Move
-            </button>
-            <div className="ml-auto">
+          {/* Undo / Resign / AI move live in the board control bar on this
+              layout; the clock has no other home, so it rides in the header. */}
+          {mode === 'play' && (
+            <div className="ml-auto shrink-0">
               <Timer variant="status" />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-3">
           <div className={['flex flex-col min-h-0', isMobile && activeMobileTab === 'tree' ? 'h-full' : ''].join(' ')}>

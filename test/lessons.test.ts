@@ -17,6 +17,21 @@ describe('lesson diagrams', () => {
     expect(board[2]).toEqual(['white', null, 'black']);
   });
 
+  it('only names labels the same step actually draws', () => {
+    for (const lesson of LESSONS) {
+      lesson.steps.forEach((step, index) => {
+        const drawn = new Set((step.markers ?? []).flatMap((m) => (m.text ? [m.text] : [])));
+        const named = [...step.text.matchAll(/\bpoint ([A-Z])\b/g)].map((m) => m[1]!);
+        for (const label of named) {
+          expect(
+            drawn.has(label),
+            `${lesson.id} step ${index + 1} tells the reader about point ${label} but never labels it`
+          ).toBe(true);
+        }
+      });
+    }
+  });
+
   it('answers are always on empty intersections', () => {
     for (const lesson of LESSONS) {
       for (const step of lesson.steps) {

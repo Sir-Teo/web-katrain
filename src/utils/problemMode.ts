@@ -50,10 +50,37 @@ export const problemSideToMove = (node: GameNode): Player => node.gameState.curr
 const boardHasStones = (node: GameNode): boolean =>
   node.gameState.board.some((row) => row.some((cell) => cell !== null));
 
+const MAX_VERDICT_SCAN_NODES = 4000;
+
+/** True when any node in the subtree carries an explicit correct/wrong verdict. */
+const subtreeHasVerdict = (start: GameNode): boolean => {
+  const stack: GameNode[] = [start];
+  let visited = 0;
+  while (stack.length > 0 && visited < MAX_VERDICT_SCAN_NODES) {
+    const node = stack.pop()!;
+    visited++;
+    if (node !== start && classifyProblemNode(node) !== 'unknown') return true;
+    for (const child of node.children) stack.push(child);
+  }
+  return false;
+};
+
+/**
+ * Whether a node can be practised as a problem at all. Problems either open
+ * from a set-up position (the tsumego case) or record correct/wrong verdicts
+ * that the modal can grade against. An ordinary game — empty board, no
+ * verdicts — is a game record, not a problem, and offering its opening as one
+ * just shows the solver a blank board.
+ */
+export const isProblemStart = (node: GameNode): boolean =>
+  node.children.length > 0 && (boardHasStones(node) || subtreeHasVerdict(node));
+
 /**
  * Splits a loaded tree into individual problem starts. A synthetic empty root
  * with several stone-bearing children is treated as a problem collection;
- * otherwise the whole tree is a single problem rooted at `root`.
+ * otherwise the whole tree is a single problem rooted at `root`. Starts that
+ * are not practisable as problems are dropped so the modal can explain itself
+ * instead of posing an empty board.
  */
 export const getProblemStarts = (root: GameNode): GameNode[] => {
   const looksLikeCollection =
@@ -61,7 +88,8 @@ export const getProblemStarts = (root: GameNode): GameNode[] => {
     !boardHasStones(root) &&
     root.children.length > 1 &&
     root.children.every((child) => boardHasStones(child) || child.children.length > 0);
-  return looksLikeCollection ? root.children : [root];
+  const starts = looksLikeCollection ? root.children : [root];
+  return starts.filter(isProblemStart);
 };
 
 /**

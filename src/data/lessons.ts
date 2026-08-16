@@ -72,7 +72,7 @@ export const LESSONS: Lesson[] = [
         ],
       },
       {
-        text: 'Black to play. Capture the white stone by filling its last liberty (point A).',
+        text: 'Black to play. Capture the white stone by filling its last liberty.',
         rows: [
           '.........',
           '.........',

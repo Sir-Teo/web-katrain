@@ -177,7 +177,6 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     moveHistory,
     analysisData,
     isAnalysisMode,
-    isContinuousAnalysis,
     currentPlayer,
     settings,
     currentNode,
@@ -207,7 +206,6 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       moveHistory: state.moveHistory,
       analysisData: state.analysisData,
       isAnalysisMode: state.isAnalysisMode,
-      isContinuousAnalysis: state.isContinuousAnalysis,
       currentPlayer: state.currentPlayer,
       settings: state.settings,
       currentNode: state.currentNode,
@@ -311,7 +309,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   );
 
   const visibleAnalysis = analysisData ?? currentNode.analysis ?? null;
-  const hasAnalysisOverlay = isAnalysisMode && isContinuousAnalysis;
+  // Analysis mode alone drives the board overlays: the individual overlay
+  // toggles (hints, dots, children, territory) are the user's control, and the
+  // stats bar, graph and report already read the same cached analysis without
+  // requiring a live continuous search. Turning analysis mode off clears them.
+  const hasAnalysisOverlay = isAnalysisMode;
   const pvOverlayEnabled = hasAnalysisOverlay || forcePvOverlay;
   const boardSize = normalizeBoardSize(board.length, DEFAULT_BOARD_SIZE);
   const hoshiPoints = useMemo(() => getHoshiPoints(boardSize), [boardSize]);

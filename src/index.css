@@ -1846,8 +1846,11 @@
       gap: 0.125rem;
     }
 
+    /* The metric strip scrolls horizontally here, so the leading stats only
+       need a narrow floor — sizing them to content keeps readouts like
+       "50.9%" or "B+10.5" from being ellipsised inside a fixed-width lane. */
     .analysis-command-bar-slot .analysis-command-bar__metric:nth-child(-n + 2) {
-      flex: 0 0 3.5rem;
+      flex: 0 0 auto;
       min-width: 3.5rem;
       padding-inline: 0.25rem;
     }
@@ -1855,7 +1858,7 @@
     .analysis-command-bar-slot
       .analysis-command-bar:has(> .analysis-command-bar__status--header-duplicate)
       .analysis-command-bar__metric:nth-child(-n + 2) {
-      flex-basis: 3rem;
+      flex-basis: auto;
       min-width: 3rem;
       padding-inline: 0.25rem;
     }
@@ -1863,7 +1866,7 @@
     .analysis-command-bar-slot
       .analysis-command-bar:has(> .analysis-command-bar__status--header-duplicate)
       .analysis-command-bar__metric:nth-child(3) {
-      flex-basis: 3.5rem;
+      flex-basis: auto;
       min-width: 3.5rem;
       padding-inline: 0.25rem;
     }
