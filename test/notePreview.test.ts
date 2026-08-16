@@ -25,6 +25,32 @@ describe('note preview helpers', () => {
     expect(isNoteBulletLine('plain note')).toBeNull();
   });
 
+  it('keeps balanced parentheses inside plain and labeled URLs', () => {
+    expect(parseNoteInlinePreview('see https://en.wikipedia.org/wiki/Go_(game) end')).toEqual([
+      { type: 'text', text: 'see ' },
+      { type: 'link', text: 'https://en.wikipedia.org/wiki/Go_(game)', href: 'https://en.wikipedia.org/wiki/Go_(game)' },
+      { type: 'text', text: ' end' },
+    ]);
+    expect(parseNoteInlinePreview('read [wiki](https://en.wikipedia.org/wiki/Go_(game)) now')).toEqual([
+      { type: 'text', text: 'read ' },
+      { type: 'link', text: 'wiki', href: 'https://en.wikipedia.org/wiki/Go_(game)' },
+      { type: 'text', text: ' now' },
+    ]);
+  });
+
+  it('strips unbalanced trailing parentheses from URLs', () => {
+    expect(parseNoteInlinePreview('(see https://example.com/a) end')).toEqual([
+      { type: 'text', text: '(see ' },
+      { type: 'link', text: 'https://example.com/a', href: 'https://example.com/a' },
+      { type: 'text', text: ') end' },
+    ]);
+    expect(parseNoteInlinePreview('go to https://example.com/x).')).toEqual([
+      { type: 'text', text: 'go to ' },
+      { type: 'link', text: 'https://example.com/x', href: 'https://example.com/x' },
+      { type: 'text', text: ').' },
+    ]);
+  });
+
   it('parses markdown-style block notes', () => {
     expect(parseNoteBlockLine('# Attack shape')).toEqual({ type: 'heading', level: 1, text: 'Attack shape' });
     expect(parseNoteBlockLine('> White is thin')).toEqual({ type: 'quote', text: 'White is thin' });

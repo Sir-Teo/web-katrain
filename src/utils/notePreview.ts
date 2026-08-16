@@ -17,7 +17,8 @@ export type NoteBlock =
   | { type: 'ordered'; number: string; text: string }
   | { type: 'paragraph'; text: string };
 
-const INLINE_TOKEN_RE = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s<]+)/g;
+const INLINE_TOKEN_RE = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\(https?:\/\/(?:[^\s()]|\([^()\s]*\))+\)|https?:\/\/[^\s<]+)/g;
+const MARKDOWN_LINK_RE = /^\[([^\]\n]+)\]\((https?:\/\/(?:[^\s()]|\([^()\s]*\))+)\)$/;
 const TRAILING_URL_PUNCTUATION_RE = /[),.;:!?]$/;
 const FENCED_CODE_RE = /^\s*```([\w-]+)?\s*$/;
 const TABLE_SEPARATOR_RE = /^:?-+:?$/;
@@ -34,7 +35,14 @@ function splitPlainUrl(url: string): { href: string; trailing: string } {
   let href = url;
   let trailing = '';
   while (TRAILING_URL_PUNCTUATION_RE.test(href)) {
-    trailing = href.slice(-1) + trailing;
+    const last = href.slice(-1);
+    if (last === ')') {
+      const opens = (href.match(/\(/g) ?? []).length;
+      const closes = (href.match(/\)/g) ?? []).length;
+      // Keep balanced parentheses as part of the URL (GFM autolink rule).
+      if (closes <= opens) break;
+    }
+    trailing = last + trailing;
     href = href.slice(0, -1);
   }
   return { href, trailing };
@@ -49,7 +57,7 @@ export function parseNoteInlinePreview(line: string): NoteInlineSegment[] {
     const index = match.index ?? 0;
     pushText(segments, line.slice(cursor, index));
 
-    const markdownLink = token.match(/^\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
+    const markdownLink = token.match(MARKDOWN_LINK_RE);
     if (markdownLink) {
       segments.push({ type: 'link', text: markdownLink[1]!, href: markdownLink[2]! });
     } else if (token.startsWith('http://') || token.startsWith('https://')) {
