@@ -16,6 +16,7 @@ binary and does not require a backend server.
 | `src/engine/katago/fastBoard.ts` | Compact board representation, legal move checks, ko, captures, ladders, and board-size setup. |
 | `src/engine/katago/analyzeMcts.ts` | PUCT/MCTS search, expansion, rollout evaluation, PVs, and ownership aggregation. |
 | `src/engine/katago/evalV8.ts` | Post-processing of network value and score outputs. |
+| `src/engine/katago/positionInputsV7.ts` | Board position to v7 input planes, including ko, ladder, and area features. |
 | `src/engine/katago/backendFallback.ts` | TensorFlow.js backend preference and fallback helpers. |
 
 ## Model Loading
@@ -130,3 +131,54 @@ The strategy list mirrors KaTrain concepts: `default`, `rank`, `scoreloss`,
 Most strategies choose among candidate moves using visits, policy, score loss,
 or shape/territory heuristics. `simple` and `settle` need per-move ownership,
 so they request slower analysis with move ownership enabled.
+
+## Verifying Evaluation Accuracy
+
+The engine is a from-scratch reimplementation, so "is it strong?" and "is it
+telling the truth?" are separate questions. Two test files answer the second.
+
+`test/engineGolden.test.ts` pins the raw network against KataGo itself. KataGo's
+repository records the output of its own binary running
+`g170-b6c96-s175395328-d26788732` -- the model this repo ships -- on a 5x5
+position, in `cpp/tests/results/runNNOnTinyBoardTest.txt` (white to play,
+Tromp-Taylor, komi 7.5, default symmetry 3). The test rebuilds that position,
+runs it through the shipped parser, graph, input planes, and post-processing,
+and compares win rate, score mean, score mean squared, lead, the full policy,
+and the full ownership map. Everything matches to within a permille, so a
+failure means one of those layers changed meaning.
+
+`test/engineAccuracy.test.ts` checks properties that must hold regardless of
+what the network says:
+
+- **Colour-swap antisymmetry.** Swapping every stone, swapping who is to move,
+  and negating komi produces a bit-identical input tensor, because the net only
+  sees "me" and "them". Any asymmetry in the reported black-perspective numbers
+  is a sign-convention bug. This is checked exactly, not approximately.
+- **Komi direction and magnitude.** Raising komi must lower black's score lead
+  and win rate, and a point of komi must be worth roughly a point of lead.
+- **Ownership against score.** Under area scoring the ownership map sums to
+  black's area minus white's, so the sum minus the reported score should recover
+  komi. This ties the two heads together and catches a transposed board.
+- **Rotation independence.** The net is only approximately equivariant, so this
+  bounds the noise rather than asserting equality; a spread far beyond that
+  bound means an indexing bug in the planes or the ownership readout.
+- **Reproducibility.** The same position analysed twice must give the same
+  territory estimate, or the ownership overlay flickers and a user cannot tell a
+  real change from noise. See root symmetry handling below.
+- **Frame consistency in search.** Per-move win rate and score lead must sit in
+  the same black-perspective frame as the root, and `pointsLost` must be
+  measured from the mover's point of view for both colours.
+
+Both files skip themselves when `public/models/katago-small.bin.gz` is absent,
+so `npm test` still works before `npm run fetch:model`.
+
+### Root Symmetry
+
+Leaf evaluations inside the search use randomized symmetries, which decorrelates
+their errors and is what KataGo does. The root is different: it is evaluated
+once and its numbers are what the user reads. Randomizing it there adds noise
+without averaging anything away, so the root always uses a fixed symmetry, and
+averages several of them when the backend is fast enough
+(`rootSymmetrySamplesForBackend`). On the shipped 6x96 network a single view can
+be off by as much as 0.25 of ownership on a point compared to another view of
+the same position.
