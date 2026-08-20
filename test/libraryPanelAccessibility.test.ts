@@ -92,4 +92,13 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain('No valid SGF games were imported.');
     expect(source).toContain('invalid SGF file');
   });
+
+  it('states the full scope of irreversible Library deletions', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    expect(source).toContain('const descendantCount = isFolderItem');
+    expect(source).toContain('const affectedCount = items.filter');
+    expect(source).toContain('This cannot be undone.');
+    expect(source).not.toContain('Delete ${visibleSelectedIds.size} item(s) from Library?');
+  });
 });
