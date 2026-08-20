@@ -51,6 +51,8 @@ describe('ManualScorePanel', () => {
     expect(html).toContain('data-manual-score-status-item="neutral"');
     expect(html).toContain('data-manual-score-help="true"');
     expect(html).toContain('Click board stones to toggle dead chains - 1 marked dead stone');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-pressed="true"');
   });
 
   it('marks ownership estimates as approximate', () => {
@@ -97,7 +99,7 @@ describe('ManualScorePanel', () => {
       />,
     );
 
-    expect(html).toContain('<button type="button" class="" disabled=""');
+    expect(html).toContain('<button type="button" class="" aria-pressed="false" disabled=""');
   });
 
   it('explains black leads and even scores in beginner-friendly language', () => {

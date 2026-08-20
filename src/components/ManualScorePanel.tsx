@@ -152,6 +152,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         <button
           type="button"
           className={scoreMode === 'estimate' ? 'active' : ''}
+          aria-pressed={scoreMode === 'estimate'}
           onClick={onAutoEstimate}
           disabled={!onAutoEstimate || !canAutoEstimate}
           title={estimateTitle}
@@ -163,6 +164,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         <button
           type="button"
           className={scoreMode === 'manual' ? 'active' : ''}
+          aria-pressed={scoreMode === 'manual'}
           onClick={onUseManualScore}
           disabled={!onUseManualScore || scoreMode === 'manual'}
           title="Use current dead-stone marks as the final manual score"
