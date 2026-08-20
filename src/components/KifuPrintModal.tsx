@@ -109,6 +109,7 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
           <div className="min-w-0 pr-12 sm:pr-0">
             <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">Print kifu</div>
             <h2 id="kifu-print-title" className="text-lg font-semibold text-[var(--ui-text)]">
+              <span className="sr-only">Print Kifu: </span>
               {playerNames.black} vs {playerNames.white}
             </h2>
           </div>

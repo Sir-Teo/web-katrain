@@ -72,6 +72,7 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain('<span className="hidden lg:inline">Print / PDF</span>');
     expect(source).toContain('<span className="sm:hidden">All</span>');
     expect(source).toContain('<span className="hidden sm:inline">{opt.label}</span>');
+    expect(source).toContain('<span className="sr-only">Print Kifu: </span>');
   });
 
   it('moves focus into dialogs that use the shared focus hook and wraps Tab inside them', () => {
