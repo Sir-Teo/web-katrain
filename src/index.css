@@ -681,6 +681,13 @@
       min-height: 44px;
     }
 
+    /* App navigation and import/export already live in the mobile Menu, while
+       Sound has a dedicated header toggle. Keep Tools focused on board and
+       analysis work instead of repeating those destinations in a long sheet. */
+    [data-mobile-tools-dialog='true'] .mobile-tools-redundant {
+      display: none !important;
+    }
+
     .settings-modal .settings-tab {
       min-height: 44px;
       padding-top: 0.625rem;
