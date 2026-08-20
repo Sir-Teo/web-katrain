@@ -2136,7 +2136,7 @@ export const Layout: React.FC = () => {
     };
     const setLiveAnalysisDepth = (visits: number) => {
       if (isGameAnalysisRunning) {
-        toast('Stop game review before changing live MCTS depth.', 'error');
+        toast('Stop game review before changing live analysis depth.', 'error');
         return;
       }
       updateSettings({ katagoVisits: visits });
@@ -2145,7 +2145,7 @@ export const Layout: React.FC = () => {
           void useGameStore.getState().runAnalysis({ force: true, visits });
         }, 0);
       }
-      toast(`Live MCTS depth: ${formatVisitCount(visits)} visits (${visitPresetLabel(visits)}).`, 'info');
+      toast(`Live analysis depth: ${formatVisitCount(visits)} visits (${visitPresetLabel(visits)}).`, 'info');
     };
     const toggleTopMoveHints = () => {
       if (settings.analysisShowPolicy) {
@@ -2571,7 +2571,7 @@ export const Layout: React.FC = () => {
         const label = visitPresetLabel(visits);
         return {
           id: `set-live-mcts-depth-${visits}`,
-          label: `Set live MCTS depth: ${label}`,
+          label: `Set live analysis depth: ${label}`,
           category: 'Analysis',
           run: () => setLiveAnalysisDepth(visits),
           keywords: [

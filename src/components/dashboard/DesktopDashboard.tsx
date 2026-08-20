@@ -1189,7 +1189,7 @@ const EnginePopover: React.FC<{
         </dl>
         <div className="ed-row ed-row-depth" data-analysis-live-visit-presets="true">
           <div className="ed-depth-heading">
-            <span>MCTS depth</span>
+            <span>Analysis depth</span>
             <span>{clampAnalysisVisits(visits)} visits</span>
           </div>
           <div className="depth-presets">

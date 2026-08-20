@@ -22,7 +22,8 @@ describe('GameAnalysisModal', () => {
     expect(html).not.toContain('>Stop</button>');
     expect(html).not.toContain('role="status"');
     expect(html).toContain('grid gap-3 grid-cols-1');
-    expect(html).not.toContain('<label class="text-[var(--ui-text-muted)] text-sm">MCTS depth presets</label>');
+    expect(html).toContain('Analysis depth presets');
+    expect(html).not.toContain('MCTS depth presets');
     expect(html).toContain('id="game-analysis-depth-presets-label"');
     expect(html).toContain('aria-labelledby="game-analysis-depth-presets-label"');
   });

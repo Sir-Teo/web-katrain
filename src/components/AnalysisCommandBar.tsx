@@ -398,7 +398,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     >
       <div className="analysis-command-bar__depth-header">
         <div>
-          <div id={depthPopoverTitleId} className="analysis-command-bar__depth-title">Live MCTS depth</div>
+          <div id={depthPopoverTitleId} className="analysis-command-bar__depth-title">Live analysis depth</div>
           <div className="analysis-command-bar__depth-subtitle">{liveVisits} visits - {liveVisitLabel}</div>
         </div>
         <button

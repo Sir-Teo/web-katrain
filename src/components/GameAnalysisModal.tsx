@@ -150,7 +150,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
             data-game-analysis-visit-presets="true"
           >
             <div className="flex items-center justify-between gap-2">
-              <div id={DEPTH_PRESETS_LABEL_ID} className="text-[var(--ui-text-muted)] text-sm">MCTS depth presets</div>
+              <div id={DEPTH_PRESETS_LABEL_ID} className="text-[var(--ui-text-muted)] text-sm">Analysis depth presets</div>
               <span className="text-xs ui-text-faint">Kaya-style</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

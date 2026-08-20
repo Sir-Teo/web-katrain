@@ -512,7 +512,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
-          MCTS depth
+          Analysis depth
         </div>
         <div className="text-[11px] ui-text-faint">Kaya-style</div>
       </div>

@@ -49,7 +49,7 @@ describe('command palette search', () => {
     }, 'shape');
     const fastDepth = scoreCommandMatch({
       id: 'set-live-mcts-depth-16',
-      label: 'Set live MCTS depth: Fast',
+      label: 'Set live analysis depth: Fast',
       category: 'Analysis',
       keywords: ['Quick shape checks with minimal waiting.'],
     }, 'shape');
