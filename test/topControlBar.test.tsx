@@ -110,6 +110,16 @@ describe('TopControlBar', () => {
     expect(readFileSync('src/index.css', 'utf8')).toContain('.app-language-switcher');
   });
 
+  it('returns focus to the language trigger after keyboard dismissal or selection', () => {
+    const source = readFileSync('src/components/layout/LanguageSwitcher.tsx', 'utf8');
+
+    expect(source).toContain('const triggerRef = React.useRef<HTMLButtonElement>(null)');
+    expect(source).toContain('triggerRef.current?.focus({ preventScroll: true })');
+    expect(source).toContain("event.key === 'Escape' && !event.defaultPrevented");
+    expect(source).toContain('closeWithFocus();');
+    expect(source).toContain('ref={triggerRef}');
+  });
+
   it('explains that quick new game uses defaults and checks unsaved changes', () => {
     const html = renderToStaticMarkup(<TopControlBar {...baseProps} isMobile={false} />);
 
