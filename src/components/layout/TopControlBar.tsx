@@ -374,6 +374,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { toggleFullscreen(); closeViewMenuIfMobile(); }}
+          aria-pressed={isFullscreen}
         >
           <span>Fullscreen</span><span className="text-xs ui-text-faint">{isFullscreen ? 'on' : 'off'} · {shortcutLabels.fullscreen}</span>
         </button>
@@ -425,6 +426,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showCoordinates: !settings.showCoordinates }); closeViewMenuIfMobile(); }}
           aria-label={`Coordinates ${settings.showCoordinates ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-coordinates']}`}
+          aria-pressed={settings.showCoordinates}
         >
           <span>Coordinates</span><span className="text-xs ui-text-faint">{settings.showCoordinates ? 'on' : 'off'} · {shortcutLabels['toggle-coordinates']}</span>
         </button>
@@ -432,6 +434,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showNextMovePreview: !settings.showNextMovePreview }); closeViewMenuIfMobile(); }}
           aria-label={`Next move preview ${settings.showNextMovePreview ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-next-move-preview']}`}
+          aria-pressed={settings.showNextMovePreview}
         >
           <span>Next move preview</span><span className="text-xs ui-text-faint">{settings.showNextMovePreview ? 'on' : 'off'} · {shortcutLabels['toggle-next-move-preview']}</span>
         </button>
@@ -439,12 +442,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showMoveNumbers: !settings.showMoveNumbers }); closeViewMenuIfMobile(); }}
           aria-label={`Move numbers ${settings.showMoveNumbers ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-move-numbers']}`}
+          aria-pressed={settings.showMoveNumbers}
         >
           <span>Move numbers</span><span className="text-xs ui-text-faint">{settings.showMoveNumbers ? 'on' : 'off'} · {shortcutLabels['toggle-move-numbers']}</span>
         </button>
         <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showBoardControls: !settings.showBoardControls }); closeViewMenuIfMobile(); }}
+          aria-pressed={settings.showBoardControls}
         >
           <span>Board controls</span><span className="text-xs ui-text-faint">{settings.showBoardControls ? 'on' : 'off'}</span>
         </button>
@@ -452,6 +457,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ showAnalysisBar: !settings.showAnalysisBar }); closeViewMenuIfMobile(); }}
           aria-label={`Analysis bar ${settings.showAnalysisBar ? 'on' : 'off'}`}
+          aria-pressed={settings.showAnalysisBar}
         >
           <span>Analysis bar</span><span className="text-xs ui-text-faint">{settings.showAnalysisBar ? 'on' : 'off'}</span>
         </button>
@@ -459,6 +465,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           className="mobile-tools-redundant w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateSettings({ soundEnabled: !settings.soundEnabled }); closeViewMenuIfMobile(); }}
           aria-label={`Sound ${settings.soundEnabled ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-sound']}`}
+          aria-pressed={settings.soundEnabled}
         >
           <span className="flex items-center gap-2">{settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />} Sound</span>
           <span className="text-xs ui-text-faint">{settings.soundEnabled ? 'on' : 'off'} · {shortcutLabels['toggle-sound']}</span>
@@ -471,12 +478,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowChildren: !settings.analysisShowChildren }); closeViewMenuIfMobile(); }}
+          aria-pressed={settings.analysisShowChildren}
         >
           <span>Children</span><span className="text-xs ui-text-faint">{settings.analysisShowChildren ? 'on' : 'off'} · {shortcutLabels['toggle-children']}</span>
         </button>
         <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowEval: !settings.analysisShowEval }); closeViewMenuIfMobile(); }}
+          aria-pressed={settings.analysisShowEval}
         >
           <span>Dots</span><span className="text-xs ui-text-faint">{settings.analysisShowEval ? 'on' : 'off'} · {shortcutLabels['toggle-eval']}</span>
         </button>
@@ -484,18 +493,21 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           className={['w-full px-3 py-2 text-left flex items-center justify-between', settings.analysisShowPolicy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)]'].join(' ')}
           disabled={settings.analysisShowPolicy}
           onClick={() => { updateControls({ analysisShowHints: !settings.analysisShowHints }); closeViewMenuIfMobile(); }}
+          aria-pressed={settings.analysisShowHints}
         >
           <span>Top moves</span><span className="text-xs ui-text-faint">{settings.analysisShowHints ? 'on' : 'off'} · {shortcutLabels['toggle-hints']}</span>
         </button>
         <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowPolicy: !settings.analysisShowPolicy }); closeViewMenuIfMobile(); }}
+          aria-pressed={settings.analysisShowPolicy}
         >
           <span>Heatmap</span><span className="text-xs ui-text-faint">{settings.analysisShowPolicy ? 'on' : 'off'} · {shortcutLabels['toggle-policy']}</span>
         </button>
         <button type="button"
           className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }); closeViewMenuIfMobile(); }}
+          aria-pressed={settings.analysisShowOwnership}
         >
           <span>Territory</span><span className="text-xs ui-text-faint">{settings.analysisShowOwnership ? 'on' : 'off'} · {shortcutLabels['toggle-territory']}</span>
         </button>
@@ -575,7 +587,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <div className="border-t border-[var(--ui-border)]">
         <div className={mobileToolsSectionLabel}>Game Control</div>
         <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true">
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeMobileToolsAfterAction(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeMobileToolsAfterAction(); }} aria-pressed={isAnalysisMode}>
             <FaChartLine size={18} className={isAnalysisMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Cont. analysis</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
@@ -585,7 +597,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <span className="text-sm font-medium">AI move</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['ai-move']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeMobileToolsAfterAction(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeMobileToolsAfterAction(); }} aria-pressed={isInsertMode}>
             <FaLayerGroup size={18} className={isInsertMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Insert mode</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['toggle-insert']}</span>
@@ -603,7 +615,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           {/* No Photo Board tile: the mobile sheet appends desktopViewMenu below,
               which already lists it beside Copy/Paste SGF where importing a game
               belongs — two tiles for one action in a single open menu. */}
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeMobileToolsAfterAction(); }}>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeMobileToolsAfterAction(); }} aria-pressed={isTeachMode}>
             <FaGraduationCap size={18} className={isTeachMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Teach mode</span>
           </button>
@@ -1045,6 +1057,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { toggleContinuousAnalysis(); setAnalysisMenuOpen(false); }}
+                    aria-pressed={isAnalysisMode}
                   >
                     <span className="flex items-center gap-2"><FaChartLine /> Continuous analysis</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
@@ -1073,6 +1086,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { toggleTeachMode(); setAnalysisMenuOpen(false); }}
+                    aria-pressed={isTeachMode}
                   >
                     <span className="flex items-center gap-2"><FaGraduationCap /> Teach mode</span>
                     <span className="text-xs ui-text-faint">{isTeachMode ? 'on' : 'off'}</span>
@@ -1107,6 +1121,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                   <button type="button"
                     className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
                     onClick={() => { toggleInsertMode(); setAnalysisMenuOpen(false); }}
+                    aria-pressed={isInsertMode}
                   >
                     <span className="flex items-center gap-2"><FaLayerGroup /> Insert mode</span>
                     <span className="text-xs ui-text-faint">{shortcutLabels['toggle-insert']} · {isInsertMode ? 'on' : 'off'}</span>

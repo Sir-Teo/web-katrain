@@ -132,6 +132,31 @@ describe('TopControlBar', () => {
     expect(html).toContain('>Heatmap</span>');
   });
 
+  it('exposes boolean menu actions as pressed buttons', () => {
+    const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+    const toggleStates = [
+      'isFullscreen',
+      'settings.showCoordinates',
+      'settings.showNextMovePreview',
+      'settings.showMoveNumbers',
+      'settings.showBoardControls',
+      'settings.showAnalysisBar',
+      'settings.soundEnabled',
+      'settings.analysisShowChildren',
+      'settings.analysisShowEval',
+      'settings.analysisShowHints',
+      'settings.analysisShowPolicy',
+      'settings.analysisShowOwnership',
+    ];
+
+    for (const state of toggleStates) {
+      expect(source, state).toContain(`aria-pressed={${state}}`);
+    }
+    expect(source.match(/aria-pressed=\{isAnalysisMode\}/g) ?? []).toHaveLength(2);
+    expect(source.match(/aria-pressed=\{isInsertMode\}/g) ?? []).toHaveLength(2);
+    expect(source.match(/aria-pressed=\{isTeachMode\}/g) ?? []).toHaveLength(2);
+  });
+
   it('exposes desktop analysis actions as a labelled popover dialog', () => {
     const html = renderToStaticMarkup(<TopControlBar {...baseProps} analysisMenuOpen={true} isMobile={false} />);
 
