@@ -100,6 +100,12 @@ describe('modal accessibility semantics', () => {
     expect(hook).toContain('previouslyFocused?.isConnected');
   });
 
+  it('keeps programmatically focused dialog containers visually quiet', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\[role='dialog'\]\[tabindex='-1'\]:focus\s*\{[^}]*outline: none/);
+  });
+
   it('lets nested modal controls own Escape when they already consumed it', () => {
     const source = readFileSync('src/hooks/useEscapeToClose.ts', 'utf8');
 

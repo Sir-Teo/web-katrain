@@ -457,6 +457,13 @@
     border-color: var(--ui-border);
   }
 
+  /* Dialog containers receive programmatic focus so screen readers announce
+     them and the shared focus trap can start inside. They are not controls, so
+     avoid painting the browser's unrelated blue focus ring around the panel. */
+  [role='dialog'][tabindex='-1']:focus {
+    outline: none;
+  }
+
   .settings-modal .settings-search-input {
     background: var(--ui-surface);
     border-color: var(--ui-border);
