@@ -95,7 +95,7 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="kifu-print-title">
-      <div className="kifu-print ui-panel flex max-h-[92vh] w-[92vw] max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl">
+      <div className="kifu-print ui-panel flex max-h-[92dvh] w-[92vw] max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl">
         <div className="kifu-controls flex items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4 ui-bar">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">Print kifu</div>

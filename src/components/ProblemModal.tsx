@@ -157,7 +157,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose }) => {
       onClick={onClose}
     >
       <div
-        className="ui-panel flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="problem-title"

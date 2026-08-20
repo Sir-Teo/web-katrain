@@ -651,7 +651,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 <img
                   src={photoUrl}
                   alt={photoName || 'Board photo'}
-                  className="h-auto max-h-[42vh] w-full object-contain"
+                  className="h-auto max-h-[42dvh] w-full object-contain"
                 />
               ) : (
                 <div

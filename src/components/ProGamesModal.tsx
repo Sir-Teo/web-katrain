@@ -53,7 +53,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="ui-panel flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="pro-games-title"

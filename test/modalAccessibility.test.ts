@@ -43,6 +43,25 @@ describe('modal accessibility semantics', () => {
     }
   });
 
+  it('sizes mobile modal surfaces against the dynamic viewport', () => {
+    const responsiveSurfaces = [
+      'src/components/CommandPaletteModal.tsx',
+      'src/components/GuessMoveModal.tsx',
+      'src/components/KifuPrintModal.tsx',
+      'src/components/LessonsModal.tsx',
+      'src/components/NewGameModal.tsx',
+      'src/components/PhotoBoardModal.tsx',
+      'src/components/ProGamesModal.tsx',
+      'src/components/ProblemModal.tsx',
+      'src/components/ScoreQuizModal.tsx',
+      'src/components/TournamentModal.tsx',
+    ];
+
+    for (const path of responsiveSurfaces) {
+      expect(readFileSync(path, 'utf8'), path).toContain('dvh]');
+    }
+  });
+
   it('moves focus into dialogs that use the shared focus hook and wraps Tab inside them', () => {
     // aria-modal="true" only marks the rest of the page inert for assistive tech;
     // it does not stop Tab reaching background controls, so the hook enforces the

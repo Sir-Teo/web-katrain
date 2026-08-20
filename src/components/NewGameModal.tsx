@@ -143,7 +143,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div
-        className="ui-panel rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border flex flex-col"
+        className="ui-panel rounded-lg shadow-xl w-full max-w-2xl max-h-[90dvh] overflow-hidden border flex flex-col"
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"

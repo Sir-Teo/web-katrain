@@ -633,7 +633,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 aria-modal="true"
                 aria-labelledby={moreSheetTitleId}
                 data-bottom-more-sheet="true"
-                className="fixed bottom-[var(--mobile-tabbar-height,60px)] left-0 right-0 max-h-[70vh] ui-panel border-t rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] overflow-y-auto z-50 overscroll-contain pb-safe animate-slide-up select-none touch-manipulation"
+                className="fixed bottom-[var(--mobile-tabbar-height,60px)] left-0 right-0 max-h-[70dvh] ui-panel border-t rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] overflow-y-auto z-50 overscroll-contain pb-safe animate-slide-up select-none touch-manipulation"
               >
                 <div className="sticky top-0 bg-[var(--ui-surface)]/95 backdrop-blur-md border-b border-[var(--ui-border)] px-4 py-2 flex items-center justify-between z-10">
                   <div id={moreSheetTitleId} className="text-sm font-semibold">More Controls</div>

@@ -108,7 +108,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const activeCommand = filteredCommands[activeIndex] ?? null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12vh] mobile-safe-inset mobile-safe-area-bottom">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12dvh] mobile-safe-inset mobile-safe-area-bottom">
       <div
         ref={dialogRef}
         tabIndex={-1}
