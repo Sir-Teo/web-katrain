@@ -3893,7 +3893,9 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       max-height: min(13rem, calc(100vh - 7rem));
-      overflow: visible;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       background: var(--ui-panel);
       box-shadow: 0 -8px 24px rgb(0 0 0 / 18%);
       backdrop-filter: none;
@@ -3928,7 +3930,11 @@
     }
 
     .manual-score-panel.manual-score-compact .manual-score-actions {
+      position: sticky;
+      z-index: 2;
+      bottom: 0;
       padding: 6px 8px 8px;
+      background: var(--ui-panel);
     }
 
     .manual-score-panel.manual-score-compact .manual-score-actions button {
