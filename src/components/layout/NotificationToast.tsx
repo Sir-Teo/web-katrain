@@ -89,7 +89,7 @@ export function NotificationToast({
         <span className="notification-toast-icon" aria-hidden="true">
           <Icon size={16} />
         </span>
-        <span className="notification-toast-message">
+        <span className="notification-toast-message" title={notification.message}>
           <span className="sr-only">{meta.label}: </span>
           {notification.message}
         </span>

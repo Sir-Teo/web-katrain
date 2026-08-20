@@ -617,7 +617,7 @@
 }
 .wk-dashboard .board-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 32px; padding: 0 10px;
+  min-width: 32px; height: 32px; padding: 0 10px;
   border: 1px solid var(--line); border-radius: var(--r-pill);
   background: var(--panel);
   font-size: 11.5px; font-weight: 600; color: var(--muted);
