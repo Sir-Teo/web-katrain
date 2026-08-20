@@ -479,6 +479,11 @@
     appearance: none;
   }
 
+  [data-keyboard-help-search='true']::-webkit-search-cancel-button {
+    display: none;
+    appearance: none;
+  }
+
   /* Floats over the panel rather than pushing the tabs down, so the content
      below does not jump with every keystroke. */
   .settings-modal .settings-search-results {

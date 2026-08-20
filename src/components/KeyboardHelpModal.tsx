@@ -31,6 +31,18 @@ const POINTER_HELP = [
   { control: 'Shift + wheel', action: 'Previous/next mistake over the board or move tree' },
 ] as const;
 
+export function filterKeyboardReferenceItems<T extends { control: string; action: string }>(
+  items: readonly T[],
+  query: string,
+): T[] {
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return [...items];
+  return items.filter((item) => {
+    const haystack = `${item.control} ${item.action}`.toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
@@ -50,6 +62,15 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
     [groups, normalizedQuery]
   );
   const visibleShortcutCount = visibleGroups.reduce((count, group) => count + group.shortcuts.length, 0);
+  const visibleGamepadHelp = React.useMemo(
+    () => filterKeyboardReferenceItems(GAMEPAD_HELP, normalizedQuery),
+    [normalizedQuery]
+  );
+  const visiblePointerHelp = React.useMemo(
+    () => filterKeyboardReferenceItems(POINTER_HELP, normalizedQuery),
+    [normalizedQuery]
+  );
+  const visibleResultCount = visibleShortcutCount + visibleGamepadHelp.length + visiblePointerHelp.length;
   const helpShortcutLabel = shortcutDisplay(getShortcutBindings('keyboard-help', overrides));
   const closeShortcutLabel = shortcutDisplay(getShortcutBindings('escape', overrides));
 
@@ -69,7 +90,9 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               Keyboard Shortcuts
             </h2>
             <div className="mt-0.5 text-xs ui-text-faint" aria-live="polite" data-keyboard-help-count="true">
-              {visibleShortcutCount} command{visibleShortcutCount === 1 ? '' : 's'}
+              {normalizedQuery
+                ? `${visibleResultCount} result${visibleResultCount === 1 ? '' : 's'}`
+                : `${visibleShortcutCount} command${visibleShortcutCount === 1 ? '' : 's'}`}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -122,14 +145,16 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               </button>
             )}
           </label>
+          {(visibleGamepadHelp.length > 0 || visiblePointerHelp.length > 0) && (
           <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {visibleGamepadHelp.length > 0 && (
             <section className="ui-surface rounded-lg border p-3" data-keyboard-help-gamepad="true">
               <div className="mb-2 flex items-center gap-2 border-b border-[var(--ui-border)] pb-2">
                 <FaGamepad aria-hidden="true" className="text-[var(--ui-accent)]" />
                 <h3 className="text-sm font-semibold text-[var(--ui-text)]">Gamepad</h3>
               </div>
               <div className="grid grid-cols-1 gap-1">
-                {GAMEPAD_HELP.map((item) => (
+                {visibleGamepadHelp.map((item) => (
                   <div key={item.control} className="flex items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
                     <span className="ui-text-faint">{item.action}</span>
                     <kbd className="shrink-0 rounded bg-[var(--ui-panel)] px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
@@ -139,13 +164,15 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
                 ))}
               </div>
             </section>
+            )}
+            {visiblePointerHelp.length > 0 && (
             <section className="ui-surface rounded-lg border p-3" data-keyboard-help-pointer="true">
               <div className="mb-2 flex items-center gap-2 border-b border-[var(--ui-border)] pb-2">
                 <FaMouse aria-hidden="true" className="text-[var(--ui-accent)]" />
                 <h3 className="text-sm font-semibold text-[var(--ui-text)]">Touch / Trackpad / Mouse</h3>
               </div>
               <div className="grid grid-cols-1 gap-1">
-                {POINTER_HELP.map((item) => (
+                {visiblePointerHelp.map((item) => (
                   <div key={item.control} className="flex items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
                     <span className="ui-text-faint">{item.action}</span>
                     <kbd className="shrink-0 rounded bg-[var(--ui-panel)] px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
@@ -155,7 +182,9 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
                 ))}
               </div>
             </section>
+            )}
           </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleGroups.map((category) => (
               <div key={category.title} className="ui-surface rounded-lg p-3 border">
@@ -175,7 +204,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               </div>
             ))}
           </div>
-          {normalizedQuery && visibleGroups.length === 0 && (
+          {normalizedQuery && visibleResultCount === 0 && (
             <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-keyboard-help-empty="true">
               No shortcuts match "{query.trim()}".
             </div>
