@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { filterKeyboardReferenceItems, KeyboardHelpModal } from '../src/components/KeyboardHelpModal';
+import { KeyboardHelpModal } from '../src/components/KeyboardHelpModal';
+import { filterKeyboardReferenceItems } from '../src/utils/keyboardHelp';
 
 describe('KeyboardHelpModal', () => {
   it('includes gamepad controls alongside keyboard shortcuts', () => {
@@ -42,7 +43,7 @@ describe('KeyboardHelpModal', () => {
   it('uses one explicit clear action for shortcut search', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
-    expect(css).toMatch(/\[data-keyboard-help-search='true'\]::\-webkit-search-cancel-button\s*\{[^}]*display: none/);
+    expect(css).toMatch(/\[data-keyboard-help-search='true'\]::-webkit-search-cancel-button\s*\{[^}]*display: none/);
   });
 
   it('keeps the narrow-screen customize action compact and accessible', () => {

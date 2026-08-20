@@ -10,6 +10,7 @@ import {
 } from '../utils/shortcuts';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { filterKeyboardReferenceItems } from '../utils/keyboardHelp';
 
 interface KeyboardHelpModalProps {
   onClose: () => void;
@@ -30,18 +31,6 @@ const POINTER_HELP = [
   { control: 'Wheel', action: 'Previous/next move over the board or move tree' },
   { control: 'Shift + wheel', action: 'Previous/next mistake over the board or move tree' },
 ] as const;
-
-export function filterKeyboardReferenceItems<T extends { control: string; action: string }>(
-  items: readonly T[],
-  query: string,
-): T[] {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return [...items];
-  return items.filter((item) => {
-    const haystack = `${item.control} ${item.action}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
-  });
-}
 
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings }) => {
   useEscapeToClose(onClose);

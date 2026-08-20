@@ -36,6 +36,6 @@ describe('CommandPaletteModal', () => {
   it('uses one explicit clear action instead of a duplicate native search control', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
-    expect(css).toMatch(/\[data-command-palette-search='true'\]::\-webkit-search-cancel-button\s*\{[^}]*display: none/);
+    expect(css).toMatch(/\[data-command-palette-search='true'\]::-webkit-search-cancel-button\s*\{[^}]*display: none/);
   });
 });
