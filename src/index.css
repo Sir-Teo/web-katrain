@@ -525,7 +525,8 @@
   }
 
   .settings-modal .settings-search-result:hover,
-  .settings-modal .settings-search-result:focus-visible {
+  .settings-modal .settings-search-result:focus-visible,
+  .settings-modal .settings-search-result[aria-selected='true'] {
     background: var(--ui-surface);
   }
 

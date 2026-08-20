@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { SETTINGS_SEARCH_INDEX, searchSettings } from '../src/utils/settingsSearch';
+import { SETTINGS_SEARCH_INDEX, searchAvailableSettings, searchSettings } from '../src/utils/settingsSearch';
 
 /**
  * Re-derives the index from the modal's markup. The index exists because only
@@ -81,5 +81,21 @@ describe('settings search', () => {
 
   it('caps how many results it offers', () => {
     expect(searchSettings('a', SETTINGS_SEARCH_INDEX, 3).length).toBeLessThanOrEqual(3);
+  });
+
+  it('only offers strategy-specific controls that are currently available', () => {
+    expect(searchAvailableSettings('max pt lost', 'rank')).toEqual([]);
+    expect(searchAvailableSettings('max pt lost', 'simple')[0]?.id).toBe('settings-ai-ownership-max-points-lost');
+    expect(searchAvailableSettings('kyu rank', 'rank')[0]?.id).toBe('settings-ai-rank-kyu');
+    expect(searchAvailableSettings('kyu rank', 'simple')).toEqual([]);
+  });
+
+  it('supports active-descendant keyboard navigation in the modal', () => {
+    const source = readFileSync(fileURLToPath(new URL('../src/components/SettingsModal.tsx', import.meta.url)), 'utf8');
+
+    expect(source).toContain("e.key === 'ArrowDown'");
+    expect(source).toContain("e.key === 'ArrowUp'");
+    expect(source).toContain('aria-activedescendant={activeSettingsResult');
+    expect(source).toContain('aria-selected={index === activeSettingsResult}');
   });
 });

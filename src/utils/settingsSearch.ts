@@ -1,4 +1,5 @@
 import { type SettingsTabId } from './settingsTabs';
+import type { GameSettings } from '../types';
 
 export interface SettingsSearchEntry {
   /** DOM id of the control's label target, used to scroll and focus it. */
@@ -111,6 +112,25 @@ export const SETTINGS_TAB_LABELS: Record<SettingsTabId, string> = {
   shortcuts: 'Shortcuts',
 };
 
+const STRATEGY_SPECIFIC_SETTING_GROUPS: ReadonlyArray<readonly [string, readonly GameSettings['aiStrategy'][]]> = [
+  ['settings-ai-rank-', ['rank']],
+  ['settings-ai-scoreloss-', ['scoreloss']],
+  ['settings-ai-jigo-', ['jigo']],
+  ['settings-ai-ownership-', ['simple', 'settle']],
+  ['settings-ai-policy-', ['policy']],
+  ['settings-ai-weighted-', ['weighted']],
+  ['settings-ai-pick-', ['pick']],
+  ['settings-ai-local-', ['local']],
+  ['settings-ai-tenuki-', ['tenuki']],
+  ['settings-ai-edge-', ['influence', 'territory']],
+];
+
+/** Keep search results actionable without silently changing the selected AI strategy. */
+export function isSettingAvailable(entry: SettingsSearchEntry, aiStrategy: GameSettings['aiStrategy']): boolean {
+  const group = STRATEGY_SPECIFIC_SETTING_GROUPS.find(([prefix]) => entry.id.startsWith(prefix));
+  return !group || group[1].includes(aiStrategy);
+}
+
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /**
@@ -143,4 +163,13 @@ export function searchSettings(
     .sort((a, b) => a.score - b.score || a.entry.label.localeCompare(b.entry.label))
     .slice(0, limit)
     .map((item) => item.entry);
+}
+
+export function searchAvailableSettings(
+  query: string,
+  aiStrategy: GameSettings['aiStrategy'],
+  index: readonly SettingsSearchEntry[] = SETTINGS_SEARCH_INDEX,
+  limit = 8
+): SettingsSearchEntry[] {
+  return searchSettings(query, index.filter((entry) => isSettingAvailable(entry, aiStrategy)), limit);
 }

@@ -18,7 +18,7 @@ import { UI_THEME_OPTIONS } from '../utils/uiThemes';
 import { APP_LOCALE_OPTIONS } from '../utils/locales';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
-import { SETTINGS_TAB_LABELS, searchSettings, type SettingsSearchEntry } from '../utils/settingsSearch';
+import { SETTINGS_TAB_LABELS, searchAvailableSettings, type SettingsSearchEntry } from '../utils/settingsSearch';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
@@ -187,7 +187,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         saveSettingsActiveTab(activeTab);
     }, [activeTab]);
     const [settingsQuery, setSettingsQuery] = React.useState('');
-    const settingsResults = React.useMemo(() => searchSettings(settingsQuery), [settingsQuery]);
+    const settingsResults = React.useMemo(
+        () => searchAvailableSettings(settingsQuery, settings.aiStrategy),
+        [settingsQuery, settings.aiStrategy]
+    );
+    const [activeSettingsResult, setActiveSettingsResult] = React.useState(-1);
     const [officialModelsOpen, setOfficialModelsOpen] = React.useState(false);
     const [advancedEngineOpen, setAdvancedEngineOpen] = React.useState(false);
 
@@ -469,32 +473,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                             className="settings-search-input w-full rounded-lg border px-3 py-2 text-sm"
                             placeholder="Search settings"
                             aria-label="Search settings"
+                            aria-controls={settingsQuery.trim() ? 'settings-search-results' : undefined}
+                            aria-expanded={settingsQuery.trim() !== ''}
+                            aria-activedescendant={activeSettingsResult >= 0 ? `settings-search-result-${activeSettingsResult}` : undefined}
                             autoComplete="off"
                             value={settingsQuery}
-                            onChange={(e) => setSettingsQuery(e.target.value)}
+                            onChange={(e) => {
+                                setSettingsQuery(e.target.value);
+                                setActiveSettingsResult(-1);
+                            }}
                             onKeyDown={(e) => {
                                 if (e.key === 'Escape' && settingsQuery) {
                                     // Clear the query first; a second Escape closes the modal.
                                     e.stopPropagation();
                                     setSettingsQuery('');
-                                } else if (e.key === 'Enter' && settingsResults[0]) {
+                                    setActiveSettingsResult(-1);
+                                } else if (e.key === 'ArrowDown' && settingsResults.length > 0) {
                                     e.preventDefault();
-                                    goToSetting(settingsResults[0]);
+                                    setActiveSettingsResult((current) => (current + 1) % settingsResults.length);
+                                } else if (e.key === 'ArrowUp' && settingsResults.length > 0) {
+                                    e.preventDefault();
+                                    setActiveSettingsResult((current) => current <= 0 ? settingsResults.length - 1 : current - 1);
+                                } else if (e.key === 'Enter' && settingsResults[activeSettingsResult >= 0 ? activeSettingsResult : 0]) {
+                                    e.preventDefault();
+                                    goToSetting(settingsResults[activeSettingsResult >= 0 ? activeSettingsResult : 0]);
                                 }
                             }}
                         />
                         {settingsQuery.trim() !== '' && (
-                            <ul className="settings-search-results" role="listbox" aria-label="Search results">
+                            <ul id="settings-search-results" className="settings-search-results" role="listbox" aria-label="Search results">
                                 {settingsResults.length === 0 ? (
                                     <li className="settings-search-empty">No setting matches “{settingsQuery.trim()}”</li>
                                 ) : (
-                                    settingsResults.map((entry) => (
+                                    settingsResults.map((entry, index) => (
                                         <li key={entry.id}>
                                             <button
+                                                id={`settings-search-result-${index}`}
                                                 type="button"
                                                 role="option"
-                                                aria-selected={false}
+                                                aria-selected={index === activeSettingsResult}
                                                 className="settings-search-result"
+                                                onMouseEnter={() => setActiveSettingsResult(index)}
                                                 onClick={() => goToSetting(entry)}
                                             >
                                                 <span className="settings-search-result-label">{entry.label}</span>
