@@ -720,6 +720,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 <button
                   key={player}
                   type="button"
+                  aria-pressed={nextPlayer === player}
                   className={toolButtonClass(nextPlayer === player)}
                   onClick={() => setNextPlayer(player)}
                 >

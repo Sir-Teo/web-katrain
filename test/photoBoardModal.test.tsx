@@ -115,6 +115,21 @@ describe('PhotoBoardModal', () => {
     expect(html).toContain('No board photo selected');
   });
 
+  it('exposes the selected next player as pressed', () => {
+    const html = renderToStaticMarkup(
+      <PhotoBoardModal
+        onClose={() => undefined}
+        onImportSgf={() => undefined}
+        defaultBoardSize={9}
+        defaultKomi={6.5}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Next player"');
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Black next/);
+    expect(html).toMatch(/aria-pressed="false"[^>]*>White next/);
+  });
+
   it('explains unavailable footer actions before stones are traced', () => {
     const html = renderToStaticMarkup(
       <PhotoBoardModal
