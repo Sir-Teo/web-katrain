@@ -100,5 +100,6 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain('const affectedCount = items.filter');
     expect(source).toContain('This cannot be undone.');
     expect(source).not.toContain('Delete ${visibleSelectedIds.size} item(s) from Library?');
+    expect(source).toMatch(/LibraryConfirmDialog[\s\S]*onClick=\{onClose\} autoFocus/);
   });
 });

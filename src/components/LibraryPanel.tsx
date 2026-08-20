@@ -257,7 +257,7 @@ const LibraryConfirmDialog: React.FC<{
         <div className="p-4 space-y-4">
           <p className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" className="panel-action-button" onClick={onClose}>
+            <button type="button" className="panel-action-button" onClick={onClose} autoFocus>
               Cancel
             </button>
             <button
