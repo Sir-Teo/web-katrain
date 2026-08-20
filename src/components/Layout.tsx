@@ -1807,7 +1807,10 @@ export const Layout: React.FC = () => {
     }
   }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, navigateEnd, toast]);
 
-  const handleOpenSgfFromText = useCallback(async (text: string): Promise<PasteSgfSubmitResult> => {
+  const handleOpenSgfFromText = useCallback(async (
+    text: string,
+    options: { notifyFailure?: boolean } = {}
+  ): Promise<PasteSgfSubmitResult> => {
     try {
       const result = await loadSgfOrOgs(text);
       if (!result.sgf.trim()) return 'failed';
@@ -1831,7 +1834,7 @@ export const Layout: React.FC = () => {
       );
       return 'loaded';
     } catch {
-      toast('Failed to load SGF or OGS URL.', 'error');
+      if (options.notifyFailure !== false) toast('Failed to load SGF or OGS URL.', 'error');
       return 'failed';
     }
   }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, toast]);
@@ -3020,7 +3023,7 @@ export const Layout: React.FC = () => {
         {isPasteSgfOpen && (
           <PasteSgfModal
             onClose={() => setIsPasteSgfOpen(false)}
-            onSubmit={handleOpenSgfFromText}
+            onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}
             onOpenPhotoBoard={() => {
               setIsPasteSgfOpen(false);
               openPhotoBoard();
