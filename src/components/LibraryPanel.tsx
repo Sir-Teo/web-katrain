@@ -2054,12 +2054,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <div className="relative flex-1 min-w-[160px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
+                    type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search library"
                     placeholder="Search library…"
-                    className="w-full ui-input border rounded pl-8 pr-3 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
+                    data-library-search="true"
+                    className="w-full ui-input border rounded pl-8 pr-9 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
                   />
+                  {query && (
+                    <button
+                      type="button"
+                      className="absolute right-0 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+                      onClick={() => setQuery('')}
+                      aria-label="Clear library search"
+                    >
+                      <FaTimes aria-hidden="true" size={11} />
+                    </button>
+                  )}
                 </div>
                 <select
                   value={sortKey}

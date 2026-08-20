@@ -6,6 +6,8 @@ describe('LibraryPanel accessibility', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
     expect(source).toContain('aria-label="Search library"');
+    expect(source).toContain('aria-label="Clear library search"');
+    expect(source).toContain('data-library-search="true"');
     expect(source).toContain('aria-label="Sort library"');
     expect(source).toContain('aria-label="Move selected to folder"');
   });
