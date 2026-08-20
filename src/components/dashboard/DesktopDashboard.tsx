@@ -626,13 +626,13 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 <div className="gs-players">
                   <div className={`gs-player${currentPlayer === 'black' ? ' to-move' : ''}`}>
                     <span className="stone-mini b" />
-                    <span className="nm">{blackName || 'Black'}</span>
+                    <span className="nm" title={blackName || 'Black'}>{blackName || 'Black'}</span>
                     {blackRank ? <span className="rk">{blackRank}</span> : null}
                     {capturedWhite > 0 ? <span className="cap">{capturedWhite} captured</span> : null}
                   </div>
                   <div className={`gs-player${currentPlayer === 'white' ? ' to-move' : ''}`}>
                     <span className="stone-mini w" />
-                    <span className="nm">{whiteName || 'White'}</span>
+                    <span className="nm" title={whiteName || 'White'}>{whiteName || 'White'}</span>
                     {whiteRank ? <span className="rk">{whiteRank}</span> : null}
                     {capturedBlack > 0 ? <span className="cap">{capturedBlack} captured</span> : null}
                   </div>
@@ -643,10 +643,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 {handicap > 0 ? <span className="gs-fact">H{handicap}</span> : null}
                 <span className="gs-fact">{rulesLabel}</span>
                 {result ? <span className="gs-result">{result}</span> : null}
-                <span className="gs-sep" />
+                <span className="gs-sep gs-sep-file" />
                 <div className="gs-file">
                   <Icon name="book" size={13} />
-                  <span className="fn">{loadedFileName || 'Untitled'}</span>
+                  <span className="fn" title={loadedFileName || 'Untitled'}>{loadedFileName || 'Untitled'}</span>
                 </div>
                 <span className={`gs-save ${dirty ? 'dirty' : 'saved'}`}>
                   <Icon name={dirty ? 'alert' : 'check'} size={11} />{dirty ? 'Unsaved' : 'Saved'}

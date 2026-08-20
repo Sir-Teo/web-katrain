@@ -274,6 +274,9 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.dashboardBoardActionSmallTargets.length} desktop board action target(s) below 32px: ${summary}`);
     }
+    if (result.dashboardGameStripWrapped) {
+      failures.push('desktop game status strip wrapped onto multiple rows');
+    }
     if (['1280x800', '1024x768'].includes(result.viewport) && result.dashboardNavbarWrapped) {
       failures.push('desktop command bar wraps primary play actions onto a second row');
     }
@@ -643,6 +646,17 @@ async function main() {
               (dashboardPlayActions.getBoundingClientRect().top + dashboardPlayActions.getBoundingClientRect().height / 2)
             ) > 2
           : false;
+        const dashboardGameStrip = dashboard?.querySelector('.gamestrip');
+        const dashboardGameStripCenters = dashboardGameStrip
+          ? Array.from(dashboardGameStrip.children)
+            .filter(isVisibleBox)
+            .map((element) => {
+              const bounds = element.getBoundingClientRect();
+              return bounds.top + bounds.height / 2;
+            })
+          : [];
+        const dashboardGameStripWrapped = dashboardGameStripCenters.length > 1 &&
+          Math.max(...dashboardGameStripCenters) - Math.min(...dashboardGameStripCenters) > 2;
         const mobileTurnIndicatorElement = document.querySelector('.mobile-bottom-stone');
         const mobileTurnIndicatorBounds = mobileTurnIndicatorElement?.getBoundingClientRect() ?? null;
         const mobileTurnIndicatorStyle = mobileTurnIndicatorElement ? getComputedStyle(mobileTurnIndicatorElement) : null;
@@ -2442,6 +2456,7 @@ async function main() {
           dashboardHeaderSmallTargets,
           dashboardBoardActionSmallTargets,
           dashboardNavbarWrapped,
+          dashboardGameStripWrapped,
           dashboardCommandbarHeight: rect(dashboard?.querySelector('.commandbar'))?.height ?? 0,
           dashboardMetricClipping,
           mobileTurnIndicator,
