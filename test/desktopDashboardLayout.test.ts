@@ -193,4 +193,16 @@ describe('desktop dashboard layout', () => {
     expect(analysisBlock).toContain('aria-label={dashboardFastMctsLabel}');
     expect(analysisBlock).toContain('aria-label="Open game report"');
   });
+
+  it('keeps section actions outside the disclosure button', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const helperStart = dashboardSource.indexOf('const sectionHead =');
+    const helperEnd = dashboardSource.indexOf('// ---- overlay toggle helper ----', helperStart);
+    const helper = dashboardSource.slice(helperStart, helperEnd);
+
+    expect(helper).toContain('className="section-head-toggle"');
+    expect(helper).toContain('aria-expanded={sections[key]}');
+    expect(helper).toContain('<div className="saction">{actions}</div>');
+    expect(helper).not.toContain('role="button"');
+  });
 });

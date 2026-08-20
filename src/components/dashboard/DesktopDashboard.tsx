@@ -362,25 +362,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     iconName: IconName,
     actions?: React.ReactNode
   ) => (
-    <div
-      role="button"
-      tabIndex={0}
-      className="section-head"
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('.saction')) return;
+    <div className="section-head">
+      <button
+        type="button"
+        className="section-head-toggle"
+        aria-expanded={sections[key]}
+        onClick={() => {
         setSections((s) => ({ ...s, [key]: !s[key] }));
       }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          setSections((s) => ({ ...s, [key]: !s[key] }));
-        }
-      }}
-    >
-      <span className="chev"><Icon name="chevR" size={13} /></span>
-      <span style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name={iconName} size={13} /></span>
-      <span className="stitle"><span className="seyebrow">{title}</span></span>
-      {actions ? <span className="saction">{actions}</span> : null}
+      >
+        <span className="chev"><Icon name="chevR" size={13} /></span>
+        <span style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name={iconName} size={13} /></span>
+        <span className="stitle"><span className="seyebrow">{title}</span></span>
+      </button>
+      {actions ? <div className="saction">{actions}</div> : null}
     </div>
   );
 
@@ -916,7 +911,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   aria-label={legendOpen ? 'Hide move-quality legend' : 'Show move-quality legend'}
                   aria-expanded={legendOpen}
                   aria-controls="dashboard-analysis-quality-legend"
-                  onClick={(e) => { e.stopPropagation(); setLegendOpen((v) => !v); }}
+                  onClick={() => setLegendOpen((v) => !v)}
                 ><Icon name="info" size={12} /></button>
               ))}
               <div className="section-body flush">

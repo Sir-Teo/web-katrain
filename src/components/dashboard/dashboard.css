@@ -816,12 +816,18 @@
 /* collapsible section */
 .wk-dashboard .section { border-bottom: 1px solid var(--line); }
 .wk-dashboard .section-head {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%; padding: 10px 14px;
+  display: flex; align-items: center;
+  width: 100%;
   background: transparent; border: none;
   transition: background .12s ease;
 }
-.wk-dashboard .section-head:hover { background: var(--panel-soft); }
+.wk-dashboard .section-head-toggle {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0; padding: 10px 14px;
+  background: transparent; border: none;
+  transition: background .12s ease;
+}
+.wk-dashboard .section-head-toggle:hover { background: var(--panel-soft); }
 .wk-dashboard .section-head .chev { color: var(--faint); transition: transform .15s ease; display: inline-flex; }
 .wk-dashboard .section.open .section-head .chev { transform: rotate(90deg); }
 .wk-dashboard .section-head .stitle { flex: 1; text-align: left; }
@@ -830,7 +836,7 @@
      stat captions, not navigation. */
   font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
 }
-.wk-dashboard .section-head .saction { display: flex; align-items: center; gap: 4px; }
+.wk-dashboard .section-head .saction { display: flex; align-items: center; gap: 4px; margin-right: 10px; }
 .wk-dashboard .section-body { display: none; padding: 0 14px 14px; }
 .wk-dashboard .section.open .section-body { display: block; }
 .wk-dashboard .section-body.flush { padding: 0; }
