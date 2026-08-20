@@ -14,7 +14,7 @@ import {
   FaTimes,
   FaThLarge,
 } from 'react-icons/fa';
-import { formatLibrarySize, type LibraryFile } from '../utils/library';
+import { formatLibrarySize, formatLibraryTimestamp, type LibraryFile } from '../utils/library';
 import { formatGamepadLabel } from '../utils/gamepadLabel';
 import { getQuickNewGameWarning } from '../utils/quickNewGame';
 import type { BoardSize } from '../types';
@@ -234,7 +234,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="px-2 py-2">
                 <div className="text-[11px] uppercase tracking-wide ui-text-faint">Board</div>
-                <div className="mt-1 text-sm font-semibold">{boardSize}x{boardSize}</div>
+                <div className="mt-1 text-sm font-semibold">{boardSize}×{boardSize}</div>
               </div>
               <div className="border-x border-[var(--ui-border)] px-2 py-2">
                 <div className="text-[11px] uppercase tracking-wide ui-text-faint">Move</div>
@@ -279,7 +279,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                   >
                     <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{item.name}</div>
                     <div className="mt-1 truncate text-xs ui-text-faint">
-                      {item.moveCount} moves · {formatLibrarySize(item.size)} · {new Date(item.updatedAt).toLocaleString()}
+                      {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
                     </div>
                   </button>
                 ))}
