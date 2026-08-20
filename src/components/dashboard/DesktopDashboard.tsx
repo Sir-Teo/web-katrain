@@ -119,10 +119,10 @@ export interface DesktopDashboardProps {
   onNewGame: () => void;
   onSaveSgf: () => void;
   onCopySgf: () => void;
-  onSaveToLibrary: () => void;
+  onSaveToLibrary: (returnFocus?: HTMLElement | null) => void;
   onLoadSgf: () => void;
-  onPasteSgf: () => void;
-  onScanBoard: () => void;
+  onPasteSgf: (returnFocus?: HTMLElement | null) => void;
+  onScanBoard: (returnFocus?: HTMLElement | null) => void;
   onSettings: () => void;
   onCommandPalette: () => void;
   onKeyboardHelp: (returnFocus?: HTMLElement | null) => void;
@@ -1080,15 +1080,15 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <button type="button" className="menu-item" onClick={() => { closePop(); onCopySgf(); }}>
             <Icon name="copy" size={14} /><span className="mi-label">Copy SGF</span>
           </button>
-          <button type="button" className="menu-item" onClick={() => { closePop(); onSaveToLibrary(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onSaveToLibrary(trigger); }}>
             <Icon name="book" size={14} /><span className="mi-label">Save to library</span>
           </button>
           <div className="menu-divider" />
           <div className="menu-section-label">Import</div>
-          <button type="button" className="menu-item" onClick={() => { closePop(); onPasteSgf(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onPasteSgf(trigger); }}>
             <Icon name="clipboard" size={14} /><span className="mi-label">Paste SGF / OGS</span>
           </button>
-          <button type="button" className="menu-item" aria-label="Photo Board" onClick={() => { closePop(); onScanBoard(); }}>
+          <button type="button" className="menu-item" aria-label="Photo Board" onClick={() => { const trigger = popTriggerRef.current; closePop(); onScanBoard(trigger); }}>
             <Icon name="camera" size={14} /><span className="mi-label">Board from photo</span>
           </button>
         </div>

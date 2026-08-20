@@ -335,7 +335,7 @@ export const Layout: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const boardShellRef = useRef<HTMLDivElement>(null);
   const analysisCommandBarRef = useRef<HTMLDivElement>(null);
-  const auxiliaryModalReturnFocusRef = useRef<HTMLElement | null>(null);
+  const modalReturnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
   const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number } | null>(null);
@@ -369,11 +369,11 @@ export const Layout: React.FC = () => {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const openKeyboardHelp = useCallback((returnFocus?: HTMLElement | null) => {
-    auxiliaryModalReturnFocusRef.current = returnFocus ?? null;
+    modalReturnFocusRef.current = returnFocus ?? null;
     setIsKeyboardHelpOpen(true);
   }, []);
   const openAbout = useCallback((returnFocus?: HTMLElement | null) => {
-    auxiliaryModalReturnFocusRef.current = returnFocus ?? null;
+    modalReturnFocusRef.current = returnFocus ?? null;
     setIsAboutOpen(true);
   }, []);
   const [mobileTab, setMobileTab] = useState<MobileTab>('board');
@@ -987,7 +987,8 @@ export const Layout: React.FC = () => {
     }
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveLoadedLibraryFile, sgfExportOptions, toast]);
 
-  const openSaveToLibraryDialog = useCallback(async () => {
+  const openSaveToLibraryDialog = useCallback(async (returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
     const sgf = generateCurrentSgf();
     try {
       const items = await loadLibrary();
@@ -1006,11 +1007,12 @@ export const Layout: React.FC = () => {
       });
     } catch {
       toast('Failed to open Library save dialog.', 'error');
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     }
   }, [generateCurrentSgf, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
 
-  const handleOpenSaveToLibraryDialog = useCallback(() => {
-    void openSaveToLibraryDialog();
+  const handleOpenSaveToLibraryDialog = useCallback((returnFocus?: HTMLElement | null) => {
+    void openSaveToLibraryDialog(returnFocus);
   }, [openSaveToLibraryDialog]);
 
   const handleSaveCopyToLibrary = useCallback(async (name: string, folderId: string | null): Promise<boolean> => {
@@ -1782,14 +1784,16 @@ export const Layout: React.FC = () => {
     }
   };
 
-  const handlePasteSgf = () => {
+  const handlePasteSgf = (returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
     setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
     setIsPasteSgfOpen(true);
   };
 
-  const openPhotoBoard = useCallback((file: File | null = null) => {
+  const openPhotoBoard = useCallback((file: File | null = null, returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
     setPhotoBoardInitialFile(file);
     setIsPhotoBoardOpen(true);
   }, []);
@@ -2957,7 +2961,7 @@ export const Layout: React.FC = () => {
         {isAboutOpen && (
           <AboutDialog
             onClose={() => setIsAboutOpen(false)}
-            returnFocus={auxiliaryModalReturnFocusRef.current}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {autoSaveRecovery && (
@@ -2994,7 +2998,7 @@ export const Layout: React.FC = () => {
           <KeyboardHelpModal
             onClose={() => setIsKeyboardHelpOpen(false)}
             onOpenShortcutSettings={openShortcutSettings}
-            returnFocus={auxiliaryModalReturnFocusRef.current}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {isScoreQuizOpen && (
@@ -3033,6 +3037,7 @@ export const Layout: React.FC = () => {
             currentBoard={board}
             currentPlayer={currentPlayer}
             initialPhotoFile={photoBoardInitialFile}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {isPasteSgfOpen && (
@@ -3040,9 +3045,11 @@ export const Layout: React.FC = () => {
             onClose={() => setIsPasteSgfOpen(false)}
             onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}
             onOpenPhotoBoard={() => {
+              const returnFocus = modalReturnFocusRef.current;
               setIsPasteSgfOpen(false);
-              openPhotoBoard();
+              openPhotoBoard(null, returnFocus);
             }}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {saveToLibraryDialog && (
@@ -3053,6 +3060,7 @@ export const Layout: React.FC = () => {
             initialFolderId={saveToLibraryDialog.initialFolderId}
             onClose={() => setSaveToLibraryDialog(null)}
             onSave={handleSaveCopyToLibrary}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {isNewGameOpen && (
@@ -3420,7 +3428,7 @@ export const Layout: React.FC = () => {
             onSaveToLibrary={handleOpenSaveToLibraryDialog}
             onLoadSgf={handleLoadClick}
             onPasteSgf={handlePasteSgf}
-            onScanBoard={() => openPhotoBoard()}
+            onScanBoard={(returnFocus) => openPhotoBoard(null, returnFocus)}
             onSettings={() => setIsSettingsOpen(true)}
             onCommandPalette={() => setIsCommandPaletteOpen(true)}
             onKeyboardHelp={openKeyboardHelp}

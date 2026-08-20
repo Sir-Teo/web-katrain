@@ -74,7 +74,10 @@ describe('modal accessibility semantics', () => {
       'src/components/KeyboardHelpModal.tsx',
       'src/components/LessonsModal.tsx',
       'src/components/NewGameModal.tsx',
+      'src/components/PasteSgfModal.tsx',
+      'src/components/PhotoBoardModal.tsx',
       'src/components/ProGamesModal.tsx',
+      'src/components/SaveToLibraryDialog.tsx',
       'src/components/ScoreQuizModal.tsx',
       'src/components/SettingsModal.tsx',
       'src/components/TournamentModal.tsx',
@@ -107,7 +110,17 @@ describe('modal accessibility semantics', () => {
 
     expect(dashboard).toContain('onKeyboardHelp(trigger)');
     expect(dashboard).toContain('onAbout(trigger)');
-    expect(layout).toContain('returnFocus={auxiliaryModalReturnFocusRef.current}');
+    expect(layout).toContain('returnFocus={modalReturnFocusRef.current}');
+  });
+
+  it('returns file-action dialogs to their durable desktop trigger', () => {
+    const dashboard = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(dashboard).toContain('onSaveToLibrary(trigger)');
+    expect(dashboard).toContain('onPasteSgf(trigger)');
+    expect(dashboard).toContain('onScanBoard(trigger)');
+    expect(layout).toContain('onScanBoard={(returnFocus) => openPhotoBoard(null, returnFocus)}');
   });
 
   it('keeps programmatically focused dialog containers visually quiet', () => {
