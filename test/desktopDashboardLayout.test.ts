@@ -207,4 +207,12 @@ describe('desktop dashboard layout', () => {
     expect(helper).toContain('<div className="saction">{actions}</div>');
     expect(helper).not.toContain('role="button"');
   });
+
+  it('exposes View menu toggle state without adding visual clutter', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const viewMenuStart = dashboardSource.indexOf('const ViewMenu:');
+    const viewMenu = dashboardSource.slice(viewMenuStart);
+
+    expect(viewMenu).toContain("aria-pressed={typeof on === 'boolean' ? on : undefined}");
+  });
 });

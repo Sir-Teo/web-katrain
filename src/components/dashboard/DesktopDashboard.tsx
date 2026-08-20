@@ -1229,7 +1229,12 @@ const ViewMenu: React.FC<{
   onToggleSidebar: () => void;
 }> = ({ rect, showCoords, onToggleCoords, libraryOpen, sidebarOpen, onToggleLibrary, onToggleSidebar }) => {
   const item = (label: string, on: boolean | null, kbd: string, onClick: () => void, iconName?: IconName) => (
-    <button type="button" className={`menu-item${on ? ' on' : ''}`} onClick={onClick}>
+    <button
+      type="button"
+      className={`menu-item${on ? ' on' : ''}`}
+      aria-pressed={typeof on === 'boolean' ? on : undefined}
+      onClick={onClick}
+    >
       {iconName ? <Icon name={iconName} size={14} /> : null}
       <span className="mi-label">{label}</span>
       {typeof on === 'boolean' ? <span className="mi-state">{on ? 'on' : 'off'}</span> : null}
