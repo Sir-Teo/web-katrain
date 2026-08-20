@@ -1,7 +1,7 @@
 import React from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { FaBolt, FaCheck, FaGlobe, FaMicrochip, FaTimes } from 'react-icons/fa';
+import { FaBolt, FaCheck, FaChevronDown, FaGlobe, FaMicrochip, FaTimes } from 'react-icons/fa';
 import type { GameSettings } from '../types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import {
@@ -138,6 +138,19 @@ const ANALYSIS_OVERLAY_SHORTCUT_IDS = [
     'toggle-territory',
 ] as const;
 
+const ADVANCED_ENGINE_SETTING_IDS = new Set([
+    'settings-katago-max-time',
+    'settings-katago-batch-size',
+    'settings-katago-max-children',
+    'settings-katago-top-moves',
+    'settings-katago-wide-root-noise',
+    'settings-katago-pv-len',
+    'settings-katago-ownership',
+    'settings-katago-reuse-tree',
+    'settings-katago-randomize-symmetry',
+    'settings-katago-conservative-pass',
+]);
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     useEscapeToClose(onClose);
     const dialogRef = useInitialDialogFocus<HTMLDivElement>();
@@ -175,6 +188,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     }, [activeTab]);
     const [settingsQuery, setSettingsQuery] = React.useState('');
     const settingsResults = React.useMemo(() => searchSettings(settingsQuery), [settingsQuery]);
+    const [officialModelsOpen, setOfficialModelsOpen] = React.useState(false);
+    const [advancedEngineOpen, setAdvancedEngineOpen] = React.useState(false);
 
     // Set by a search result, cleared once the control has been revealed. The
     // target panel only mounts when the tab changes, so the reveal has to wait
@@ -183,6 +198,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const revealTimerRef = React.useRef<number | null>(null);
 
     const goToSetting = (entry: SettingsSearchEntry) => {
+        if (ADVANCED_ENGINE_SETTING_IDS.has(entry.id)) {
+            setAdvancedEngineOpen(true);
+        }
         setActiveTab(entry.tab);
         setSettingsQuery('');
         setPendingReveal(entry.id);
@@ -1947,7 +1965,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </p>
                                         </div>
                                         <div className="space-y-2">
-                                            <div className="text-xs text-[var(--ui-text-faint)]">Official KataGo models (download links)</div>
+                                            <button
+                                                type="button"
+                                                className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left transition-colors hover:bg-[var(--ui-surface-2)]"
+                                                aria-expanded={officialModelsOpen}
+                                                aria-controls="settings-official-models"
+                                                onClick={() => setOfficialModelsOpen((open) => !open)}
+                                            >
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block text-sm font-medium text-[var(--ui-text)]">Official model downloads</span>
+                                                    <span className="block text-xs text-[var(--ui-text-faint)]">{OFFICIAL_MODELS.length} optional KataGo networks</span>
+                                                </span>
+                                                <FaChevronDown
+                                                    aria-hidden="true"
+                                                    className={`shrink-0 text-[var(--ui-text-muted)] transition-transform ${officialModelsOpen ? 'rotate-180' : ''}`}
+                                                />
+                                            </button>
+                                            {officialModelsOpen ? (
+                                            <div id="settings-official-models" className="space-y-2">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 {OFFICIAL_MODELS.map((model) => (
                                                     <div
@@ -2067,6 +2102,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <p className={subtextClass}>
                                                 Download only browser-sized weights, then use "Upload Weights" above. Saved browser uploads use IndexedDB; large b28/b40 weights are for native KataGo, not this browser engine.
                                             </p>
+                                            </div>
+                                            ) : null}
                                         </div>
                                         <div className="space-y-2">
                                             <label id="settings-katago-backend-label" htmlFor="settings-katago-backend" className="text-[var(--ui-text-muted)] block text-sm">Backend</label>
@@ -2203,6 +2240,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </div>
                                             <p className={subtextClass}>Used by Fast review and load-time SGF analysis.</p>
                                         </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="mt-4 flex min-h-11 w-full items-center gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left transition-colors hover:bg-[var(--ui-surface-2)]"
+                                        aria-expanded={advancedEngineOpen}
+                                        aria-controls="settings-advanced-engine"
+                                        onClick={() => setAdvancedEngineOpen((open) => !open)}
+                                    >
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-sm font-medium text-[var(--ui-text)]">Advanced engine tuning</span>
+                                            <span className="block text-xs text-[var(--ui-text-faint)]">Limits, search behavior, and analysis output</span>
+                                        </span>
+                                        <FaChevronDown
+                                            aria-hidden="true"
+                                            className={`shrink-0 text-[var(--ui-text-muted)] transition-transform ${advancedEngineOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+
+                                    {advancedEngineOpen ? (
+                                    <div id="settings-advanced-engine">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                                         <div className="space-y-1">
                                             <label htmlFor="settings-katago-max-time" className="text-[var(--ui-text-muted)] block text-sm">Max Time (ms)</label>
                                             <input
@@ -2351,6 +2410,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             KaTrain default: suppresses “pass ends game” features at the root.
                                         </p>
                                     </div>
+                                    </div>
+                                    ) : null}
                                 </div>  
                             </div>  
                         )}  
