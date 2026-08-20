@@ -36,6 +36,16 @@ describe('RightPanel layout', () => {
     expect(source).toMatch(/type="number"[\s\S]{0,420}aria-label="Branch number"/);
   });
 
+  it('does not present dead tree navigation actions', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+
+    expect(source).toContain('disabled={isInsertMode || !currentNode.parent}');
+    expect(source).toContain('disabled={isInsertMode || currentNode.children.length === 0}');
+    expect(source).toContain('{treeListNodes.length > 1 && (');
+    expect(source).toContain("const branchToolbarActionClass = branchInfo.hasBranches ? 'panel-icon-button' : 'hidden';");
+    expect(source).toContain("branchInfo.hasBranches && branchInfo.currentIndex > 1 ? 'panel-icon-button' : 'hidden'");
+  });
+
   it('uses current-line step numbers for setup-only positions', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
     const notesSource = readFileSync('src/components/NotesPanel.tsx', 'utf8');

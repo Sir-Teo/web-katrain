@@ -217,6 +217,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     void treeVersion;
     return getBranchInfo(currentNode);
   }, [currentNode, treeVersion]);
+  const branchToolbarActionClass = branchInfo.hasBranches ? 'panel-icon-button' : 'hidden';
+  const promoteBranchActionClass = branchInfo.hasBranches && branchInfo.currentIndex > 1 ? 'panel-icon-button' : 'hidden';
   const [isBranchIndexEditing, setIsBranchIndexEditing] = React.useState(false);
   const [branchIndexDraft, setBranchIndexDraft] = React.useState('');
   const skipBranchIndexBlurCommit = React.useRef(false);
@@ -476,13 +478,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               contentClassName: ['panel-section-content flex flex-col min-h-0 p-0', isMobile ? 'flex-1' : ''].join(' '),
               children: (
                 <>
+                  {treeListNodes.length > 1 && (
                   <div className="panel-toolbar">
                     <button
                       type="button"
                       className="panel-icon-button"
                       title={withShortcut('To start', 'nav-start')}
                       onClick={() => guardInsertMode(navigateStart)}
-                      disabled={isInsertMode}
+                      disabled={isInsertMode || !currentNode.parent}
                     >
                       <FaFastBackward size={12} />
                     </button>
@@ -491,26 +494,26 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       className="panel-icon-button"
                       title={withShortcut('To end', 'nav-end')}
                       onClick={() => guardInsertMode(navigateEnd)}
-                      disabled={isInsertMode}
+                      disabled={isInsertMode || currentNode.children.length === 0}
                     >
                       <FaFastForward size={12} />
                     </button>
-                    <div className={treeToolbarSeparatorClass} />
+                    <div className={branchInfo.hasBranches ? treeToolbarSeparatorClass : 'hidden'} />
                     <button
                       type="button"
-                      className="panel-icon-button"
+                      className={branchToolbarActionClass}
                       title={withShortcut('Previous branch', 'branch-prev')}
                       onClick={() => guardInsertMode(() => switchBranch(-1))}
-                      disabled={isInsertMode}
+                      disabled={isInsertMode || !branchInfo.hasBranches}
                     >
                       <FaArrowUp size={12} />
                     </button>
                     <button
                       type="button"
-                      className="panel-icon-button"
+                      className={branchToolbarActionClass}
                       title={withShortcut('Next branch', 'branch-next')}
                       onClick={() => guardInsertMode(() => switchBranch(1))}
-                      disabled={isInsertMode}
+                      disabled={isInsertMode || !branchInfo.hasBranches}
                     >
                       <FaArrowDown size={12} />
                     </button>
@@ -573,36 +576,37 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                         </button>
                       )
                     )}
-                    <div className={treeToolbarSeparatorClass} />
+                    <div className={branchInfo.hasBranches ? treeToolbarSeparatorClass : 'hidden'} />
                     <button
                       type="button"
-                      className="panel-icon-button"
+                      className={branchToolbarActionClass}
                       title={withShortcut('Back to branch point', 'undo-branch-point')}
                       onClick={() => guardInsertMode(undoToBranchPoint)}
-                      disabled={isInsertMode}
+                      disabled={isInsertMode || !branchInfo.hasBranches}
                     >
                       <FaLevelUpAlt size={12} />
                     </button>
                     <button
                       type="button"
-                      className="panel-icon-button"
+                      className={branchToolbarActionClass}
                       title={withShortcut('Back to main branch', 'undo-main-branch')}
                       onClick={() => guardInsertMode(undoToMainBranch)}
-                      disabled={isInsertMode}
+                      disabled={isInsertMode || !branchInfo.hasBranches}
                     >
                       <FaSitemap size={12} />
                     </button>
                     <div className={isMobile ? 'hidden' : 'flex-1'} />
                     <button
                       type="button"
-                      className="panel-icon-button"
+                      className={promoteBranchActionClass}
                       title={withShortcut('Make main branch', 'make-main-branch')}
                       onClick={() => guardInsertMode(makeCurrentNodeMainBranch)}
-                      disabled={isInsertMode || !currentNode.parent}
+                      disabled={isInsertMode || !branchInfo.hasBranches || branchInfo.currentIndex <= 1}
                     >
                       <FaStar size={12} />
                     </button>
                   </div>
+                  )}
                   <div
                     className={[
                       'panel-scroll-region',
