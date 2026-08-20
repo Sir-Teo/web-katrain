@@ -95,9 +95,19 @@ describe('modal accessibility semantics', () => {
     // Runs on the open/close transition only; depending on onClose identity would
     // re-run every render and yank focus back out of the dialog. focusContainer is
     // a plain boolean, so it is stable across renders.
-    expect(hook).toContain('}, [active, focusContainer]);');
+    expect(hook).toContain('}, [active, focusContainer, returnFocus]);');
     expect(hook).toContain("event.key !== 'Tab' || event.defaultPrevented");
-    expect(hook).toContain('previouslyFocused?.isConnected');
+    expect(hook).toContain('focusTarget?.isConnected');
+    expect(hook).toContain('returnFocus?.isConnected ? returnFocus : previouslyFocused');
+  });
+
+  it('returns help dialogs to the durable desktop Help trigger', () => {
+    const dashboard = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(dashboard).toContain('onKeyboardHelp(trigger)');
+    expect(dashboard).toContain('onAbout(trigger)');
+    expect(layout).toContain('returnFocus={auxiliaryModalReturnFocusRef.current}');
   });
 
   it('keeps programmatically focused dialog containers visually quiet', () => {

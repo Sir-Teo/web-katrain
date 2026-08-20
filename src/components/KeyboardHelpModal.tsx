@@ -15,6 +15,7 @@ import { filterKeyboardReferenceItems } from '../utils/keyboardHelp';
 interface KeyboardHelpModalProps {
   onClose: () => void;
   onOpenShortcutSettings?: () => void;
+  returnFocus?: HTMLElement | null;
 }
 
 const GAMEPAD_HELP = [
@@ -32,9 +33,9 @@ const POINTER_HELP = [
   { control: 'Shift + wheel', action: 'Previous/next mistake over the board or move tree' },
 ] as const;
 
-export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings }) => {
+export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings, returnFocus }) => {
   useEscapeToClose(onClose);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [query, setQuery] = React.useState('');
 

@@ -125,8 +125,8 @@ export interface DesktopDashboardProps {
   onScanBoard: () => void;
   onSettings: () => void;
   onCommandPalette: () => void;
-  onKeyboardHelp: () => void;
-  onAbout: () => void;
+  onKeyboardHelp: (returnFocus?: HTMLElement | null) => void;
+  onAbout: (returnFocus?: HTMLElement | null) => void;
 
   // ---- library ----
   recentItems: LibraryFile[];
@@ -1104,10 +1104,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           tabIndex={-1}
           data-dashboard-popover="true"
         >
-          <button type="button" className="menu-item" onClick={() => { closePop(); onKeyboardHelp(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onKeyboardHelp(trigger); }}>
             <Icon name="keyboard" size={14} /><span className="mi-label">Keyboard shortcuts</span>
           </button>
-          <button type="button" className="menu-item" onClick={() => { closePop(); onAbout(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onAbout(trigger); }}>
             <Icon name="info" size={14} /><span className="mi-label">About Web KaTrain</span>
           </button>
           <div className="menu-divider" />

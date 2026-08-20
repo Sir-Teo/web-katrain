@@ -335,6 +335,7 @@ export const Layout: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const boardShellRef = useRef<HTMLDivElement>(null);
   const analysisCommandBarRef = useRef<HTMLDivElement>(null);
+  const auxiliaryModalReturnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
   const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number } | null>(null);
@@ -367,6 +368,14 @@ export const Layout: React.FC = () => {
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const openKeyboardHelp = useCallback((returnFocus?: HTMLElement | null) => {
+    auxiliaryModalReturnFocusRef.current = returnFocus ?? null;
+    setIsKeyboardHelpOpen(true);
+  }, []);
+  const openAbout = useCallback((returnFocus?: HTMLElement | null) => {
+    auxiliaryModalReturnFocusRef.current = returnFocus ?? null;
+    setIsAboutOpen(true);
+  }, []);
   const [mobileTab, setMobileTab] = useState<MobileTab>('board');
   const [lastRightTab, setLastRightTab] = useState<MobileTab>('tree');
   const [uiState, setUiState] = useState<UiState>(() => loadUiState());
@@ -2945,7 +2954,12 @@ export const Layout: React.FC = () => {
     >
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
-        {isAboutOpen && <AboutDialog onClose={() => setIsAboutOpen(false)} />}
+        {isAboutOpen && (
+          <AboutDialog
+            onClose={() => setIsAboutOpen(false)}
+            returnFocus={auxiliaryModalReturnFocusRef.current}
+          />
+        )}
         {autoSaveRecovery && (
           <AutoSaveRecoveryModal
             snapshot={autoSaveRecovery}
@@ -2980,6 +2994,7 @@ export const Layout: React.FC = () => {
           <KeyboardHelpModal
             onClose={() => setIsKeyboardHelpOpen(false)}
             onOpenShortcutSettings={openShortcutSettings}
+            returnFocus={auxiliaryModalReturnFocusRef.current}
           />
         )}
         {isScoreQuizOpen && (
@@ -3171,8 +3186,8 @@ export const Layout: React.FC = () => {
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
         onCommandPalette={() => setIsCommandPaletteOpen(true)}
-        onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-        onAbout={() => setIsAboutOpen(true)}
+        onKeyboardHelp={openKeyboardHelp}
+        onAbout={openAbout}
         appLocale={settings.appLocale}
         onLocaleChange={(appLocale) => updateSettings({ appLocale })}
         quickNewGameBoardSize={settings.defaultBoardSize}
@@ -3408,8 +3423,8 @@ export const Layout: React.FC = () => {
             onScanBoard={() => openPhotoBoard()}
             onSettings={() => setIsSettingsOpen(true)}
             onCommandPalette={() => setIsCommandPaletteOpen(true)}
-            onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-            onAbout={() => setIsAboutOpen(true)}
+            onKeyboardHelp={openKeyboardHelp}
+            onAbout={openAbout}
             recentItems={recentLibraryItems}
             loadedFileId={loadedLibraryFileId}
             onOpenRecent={handleOpenRecent}
@@ -3521,8 +3536,8 @@ export const Layout: React.FC = () => {
               onScanBoard={() => openPhotoBoard()}
               onSettings={() => setIsSettingsOpen(true)}
               onCommandPalette={() => setIsCommandPaletteOpen(true)}
-              onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-              onAbout={() => setIsAboutOpen(true)}
+              onKeyboardHelp={openKeyboardHelp}
+              onAbout={openAbout}
               winRateLabel={winRateLabel}
               scoreLeadLabel={scoreLeadLabel}
               pointsLostLabel={pointsLostLabel}
