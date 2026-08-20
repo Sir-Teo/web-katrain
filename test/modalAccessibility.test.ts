@@ -62,6 +62,18 @@ describe('modal accessibility semantics', () => {
     }
   });
 
+  it('keeps the Print Kifu header actions reachable on narrow screens', () => {
+    const source = readFileSync('src/components/KifuPrintModal.tsx', 'utf8');
+
+    expect(source).toContain('flex flex-col items-stretch gap-3');
+    expect(source).toContain('sm:flex-row sm:items-center sm:justify-between');
+    expect(source).toContain('absolute right-3 top-3');
+    expect(source).toContain('aria-label="Print kifu or save as PDF"');
+    expect(source).toContain('<span className="hidden lg:inline">Print / PDF</span>');
+    expect(source).toContain('<span className="sm:hidden">All</span>');
+    expect(source).toContain('<span className="hidden sm:inline">{opt.label}</span>');
+  });
+
   it('moves focus into dialogs that use the shared focus hook and wraps Tab inside them', () => {
     // aria-modal="true" only marks the rest of the page inert for assistive tech;
     // it does not stop Tab reaching background controls, so the hook enforces the

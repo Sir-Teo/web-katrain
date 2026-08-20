@@ -105,15 +105,15 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
       aria-labelledby="kifu-print-title"
     >
       <div className="kifu-print ui-panel flex max-h-[92dvh] w-[92vw] max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl">
-        <div className="kifu-controls flex items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4 ui-bar">
-          <div>
+        <div className="kifu-controls relative flex flex-col items-stretch gap-3 border-b border-[var(--ui-border)] px-4 py-3 ui-bar sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+          <div className="min-w-0 pr-12 sm:pr-0">
             <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">Print kifu</div>
             <h2 id="kifu-print-title" className="text-lg font-semibold text-[var(--ui-text)]">
               {playerNames.black} vs {playerNames.white}
             </h2>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center overflow-hidden rounded-lg border border-[var(--ui-border)]" role="group" aria-label="Moves per diagram">
+          <div className="flex min-w-0 w-full items-center gap-2 sm:w-auto">
+            <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-lg border border-[var(--ui-border)] sm:flex-none" role="group" aria-label="Moves per diagram">
               {MOVES_PER_DIAGRAM_OPTIONS.map((opt) => {
                 const active = movesPerDiagram === opt.value;
                 return (
@@ -123,11 +123,16 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
                     onClick={() => setMovesPerDiagram(opt.value)}
                     aria-pressed={active}
                     className={[
-                      'px-3 py-2 text-sm font-semibold',
+                      'min-w-0 flex-1 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-3',
                       active ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]',
                     ].join(' ')}
                   >
-                    {opt.label}
+                    {opt.value === 'all' ? (
+                      <>
+                        <span className="sm:hidden">All</span>
+                        <span className="hidden sm:inline">{opt.label}</span>
+                      </>
+                    ) : opt.label}
                   </button>
                 );
               })}
@@ -135,14 +140,15 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
             <button
               type="button"
               onClick={() => printWindow()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg ui-accent-bg px-3 py-2 text-sm font-semibold hover:brightness-110"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-lg ui-accent-bg px-3 py-2 text-sm font-semibold hover:brightness-110"
+              aria-label="Print kifu or save as PDF"
             >
-              <FaPrint aria-hidden="true" /> Print / PDF
+              <FaPrint aria-hidden="true" /> <span className="hidden lg:inline">Print / PDF</span>
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+              className="ui-control absolute right-3 top-3 grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] sm:static"
               aria-label="Close kifu print"
             >
               <FaTimes aria-hidden="true" />
