@@ -738,6 +738,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <div className="grid grid-cols-3 gap-2" role="group" aria-label="Trace tool">
               <button
                 type="button"
+                aria-pressed={tool === 'black'}
                 className={toolButtonClass(tool === 'black')}
                 onClick={() => setTraceTool('black')}
                 title={`Trace black stones (${TRACE_TOOL_KEY_HINTS.black})`}
@@ -749,6 +750,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               </button>
               <button
                 type="button"
+                aria-pressed={tool === 'white'}
                 className={toolButtonClass(tool === 'white')}
                 onClick={() => setTraceTool('white')}
                 title={`Trace white stones (${TRACE_TOOL_KEY_HINTS.white})`}
@@ -760,6 +762,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               </button>
               <button
                 type="button"
+                aria-pressed={tool === 'erase'}
                 className={toolButtonClass(tool === 'erase')}
                 onClick={() => setTraceTool('erase')}
                 title={`Erase traced stones (${TRACE_TOOL_KEY_HINTS.erase})`}

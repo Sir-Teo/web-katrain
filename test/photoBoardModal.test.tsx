@@ -162,6 +162,9 @@ describe('PhotoBoardModal', () => {
     expect(html).toContain('aria-keyshortcuts="2 W"');
     expect(html).toContain('title="Erase traced stones (3, E)"');
     expect(html).toContain('aria-keyshortcuts="3 E"');
+    expect(html).toMatch(/aria-pressed="true"[^>]*title="Trace black stones \(1, B\)"/);
+    expect(html).toMatch(/aria-pressed="false"[^>]*title="Trace white stones \(2, W\)"/);
+    expect(html).toMatch(/aria-pressed="false"[^>]*title="Erase traced stones \(3, E\)"/);
   });
 
   it('renders trace board transform controls for orientation correction', () => {
