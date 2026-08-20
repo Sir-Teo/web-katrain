@@ -204,7 +204,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                         ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
                         : 'border-transparent hover:border-[var(--ui-border)] hover:bg-[var(--ui-surface-2)]',
                     ].join(' ')}
-                    onMouseEnter={() => setActiveIndex(index)}
+                    // Opening the palette from the mobile menu can place its new
+                    // list underneath the stationary pointer. Mouse enter would
+                    // then silently replace the keyboard selection before the
+                    // user moved at all; only deliberate pointer movement should.
+                    onPointerMove={(event) => {
+                      if (event.pointerType !== 'touch') setActiveIndex(index);
+                    }}
                     onClick={() => runCommand(command)}
                     data-command-palette-item={command.id}
                   >

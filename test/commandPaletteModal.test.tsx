@@ -24,4 +24,12 @@ describe('CommandPaletteModal', () => {
     expect(html).toContain('aria-hidden="true"');
     expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.command-palette-shortcut[\s\S]*display: none/);
   });
+
+  it('does not let a stationary launch pointer replace the initial selection', () => {
+    const source = readFileSync('src/components/CommandPaletteModal.tsx', 'utf8');
+
+    expect(source).not.toContain('onMouseEnter={() => setActiveIndex(index)}');
+    expect(source).toContain('onPointerMove={(event) => {');
+    expect(source).toContain("event.pointerType !== 'touch'");
+  });
 });
