@@ -18,6 +18,15 @@ describe('RightPanel layout', () => {
     expect(source).toContain("isMobile ? 'hidden' : 'flex-1'");
   });
 
+  it('centers the current move and keeps list rows tappable on mobile', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+
+    expect(source).toContain("activeMobileTab !== 'tree' || treeView !== 'list'");
+    expect(source).toContain("scrollIntoView({ block: 'center' })");
+    expect(source).toContain('ref={isCurrent ? currentTreeListItemRef : undefined}');
+    expect(source).toContain("isMobile ? 'min-h-11 px-3 py-2' : 'px-2 py-1'");
+  });
+
   it('uses strict integer draft parsing for branch number edits', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 

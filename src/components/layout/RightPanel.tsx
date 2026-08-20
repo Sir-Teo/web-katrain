@@ -341,6 +341,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const [notesListOpen, setNotesListOpen] = React.useState(() => {
     return readLocalStorage('web-katrain:notes_list_open:v1') === 'true';
   });
+  const currentTreeListItemRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (!isMobile || activeMobileTab !== 'tree' || treeView !== 'list') return;
+    const frame = window.requestAnimationFrame(() => {
+      currentTreeListItemRef.current?.scrollIntoView({ block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeMobileTab, currentNode.id, isMobile, treeVersion, treeView]);
 
   React.useEffect(() => {
     writeLocalStorage('web-katrain:tree_view:v1', treeView);
@@ -621,9 +630,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                           return (
                             <button
                               key={node.id}
+                              ref={isCurrent ? currentTreeListItemRef : undefined}
                               type="button"
                               className={[
-                                'w-full px-2 py-1 flex items-center gap-2 text-left text-xs',
+                                'w-full flex items-center gap-2 text-left text-xs',
+                                isMobile ? 'min-h-11 px-3 py-2' : 'px-2 py-1',
                                 isCurrent ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',
                               ].join(' ')}
                               onClick={() =>
