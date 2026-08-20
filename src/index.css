@@ -472,6 +472,13 @@
     outline-offset: 1px;
   }
 
+  /* The command palette supplies its own labelled clear button. Leaving the
+     browser decoration in place creates two adjacent, indistinguishable Xs. */
+  [data-command-palette-search='true']::-webkit-search-cancel-button {
+    display: none;
+    appearance: none;
+  }
+
   /* Floats over the panel rather than pushing the tabs down, so the content
      below does not jump with every keystroke. */
   .settings-modal .settings-search-results {

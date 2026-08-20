@@ -32,4 +32,10 @@ describe('CommandPaletteModal', () => {
     expect(source).toContain('onPointerMove={(event) => {');
     expect(source).toContain("event.pointerType !== 'touch'");
   });
+
+  it('uses one explicit clear action instead of a duplicate native search control', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\[data-command-palette-search='true'\]::\-webkit-search-cancel-button\s*\{[^}]*display: none/);
+  });
 });
