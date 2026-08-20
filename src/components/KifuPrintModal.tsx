@@ -3,6 +3,7 @@ import { FaTimes, FaPrint } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { buildKifuDiagrams, type MovesPerDiagram } from '../utils/kifuDiagrams';
@@ -50,6 +51,7 @@ const KIFU_PRINT_STYLE = `
 
 export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const [movesPerDiagram, setMovesPerDiagram] = useState<MovesPerDiagram>(50);
   const { currentNode, activeBranchChildIds, treeVersion } = useGameStore(
     (state) => ({
@@ -94,7 +96,14 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
     }));
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="kifu-print-title">
+    <div
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="kifu-print-title"
+    >
       <div className="kifu-print ui-panel flex max-h-[92dvh] w-[92vw] max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl">
         <div className="kifu-controls flex items-center justify-between gap-3 border-b border-[var(--ui-border)] px-5 py-4 ui-bar">
           <div>

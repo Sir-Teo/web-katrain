@@ -69,13 +69,18 @@ describe('modal accessibility semantics', () => {
     // container can receive the initial focus.
     const consumers = [
       'src/components/AboutDialog.tsx',
+      'src/components/CameraCaptureModal.tsx',
       'src/components/CommandPaletteModal.tsx',
+      'src/components/GameAnalysisModal.tsx',
       'src/components/GameReportModal.tsx',
+      'src/components/GuessMoveModal.tsx',
       'src/components/KeyboardHelpModal.tsx',
+      'src/components/KifuPrintModal.tsx',
       'src/components/LessonsModal.tsx',
       'src/components/NewGameModal.tsx',
       'src/components/PasteSgfModal.tsx',
       'src/components/PhotoBoardModal.tsx',
+      'src/components/ProblemModal.tsx',
       'src/components/ProGamesModal.tsx',
       'src/components/SaveToLibraryDialog.tsx',
       'src/components/ScoreQuizModal.tsx',

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { FaTimes, FaEye, FaArrowRight } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import {
   buildGuessPositions,
@@ -36,6 +37,7 @@ const toneColor = (tone: 'success' | 'warning' | 'danger'): string =>
 
 export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   const rootNode = useGameStore((s) => s.rootNode);
   const treeVersion = useGameStore((s) => s.treeVersion);
@@ -125,6 +127,8 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="ui-panel flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
