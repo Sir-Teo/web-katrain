@@ -43,6 +43,7 @@ import {
 } from '../utils/photoBoardRecognition';
 import { createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { isTextEntryTarget } from '../utils/keyboardTarget';
 import { detectCameraAvailability, type CameraAvailability } from '../utils/cameraAvailability';
 import { CameraCaptureModal } from './CameraCaptureModal';
@@ -57,6 +58,7 @@ interface PhotoBoardModalProps {
   currentBoard?: BoardState;
   currentPlayer?: Player;
   initialPhotoFile?: File | null;
+  returnFocus?: HTMLElement | null;
 }
 
 type TraceTool = PhotoBoardTraceTool;
@@ -91,6 +93,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   currentBoard,
   currentPlayer,
   initialPhotoFile = null,
+  returnFocus,
 }) => {
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
@@ -126,6 +129,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [autoTraceStatus, setAutoTraceStatus] = React.useState<string | null>(null);
   const [autoTraceSensitivity, setAutoTraceSensitivity] = React.useState(DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY);
   useEscapeToClose(onClose, !cameraCaptureOpen);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
 
   const currentBoardSize = React.useMemo<BoardSize | null>(() => {
     const size = currentBoard?.length;
@@ -545,6 +549,8 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
         />
       )}
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="ui-panel flex h-full max-h-none w-full max-w-5xl flex-col overflow-hidden rounded-none border shadow-xl md:max-h-[94vh] md:rounded-lg"
         role="dialog"
         aria-modal="true"
@@ -651,7 +657,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 <img
                   src={photoUrl}
                   alt={photoName || 'Board photo'}
-                  className="h-auto max-h-[42vh] w-full object-contain"
+                  className="h-auto max-h-[42dvh] w-full object-contain"
                 />
               ) : (
                 <div
@@ -720,6 +726,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 <button
                   key={player}
                   type="button"
+                  aria-pressed={nextPlayer === player}
                   className={toolButtonClass(nextPlayer === player)}
                   onClick={() => setNextPlayer(player)}
                 >
@@ -737,6 +744,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <div className="grid grid-cols-3 gap-2" role="group" aria-label="Trace tool">
               <button
                 type="button"
+                aria-pressed={tool === 'black'}
                 className={toolButtonClass(tool === 'black')}
                 onClick={() => setTraceTool('black')}
                 title={`Trace black stones (${TRACE_TOOL_KEY_HINTS.black})`}
@@ -748,6 +756,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               </button>
               <button
                 type="button"
+                aria-pressed={tool === 'white'}
                 className={toolButtonClass(tool === 'white')}
                 onClick={() => setTraceTool('white')}
                 title={`Trace white stones (${TRACE_TOOL_KEY_HINTS.white})`}
@@ -759,6 +768,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               </button>
               <button
                 type="button"
+                aria-pressed={tool === 'erase'}
                 className={toolButtonClass(tool === 'erase')}
                 onClick={() => setTraceTool('erase')}
                 title={`Erase traced stones (${TRACE_TOOL_KEY_HINTS.erase})`}

@@ -4,7 +4,6 @@ import { ScoreQuizModal } from '../src/components/ScoreQuizModal';
 import { TournamentModal } from '../src/components/TournamentModal';
 import { ProGamesModal } from '../src/components/ProGamesModal';
 import { LessonsModal } from '../src/components/LessonsModal';
-import { VideoBoardModal } from '../src/components/VideoBoardModal';
 import { StaticBoard } from '../src/components/StaticBoard';
 import { boardFromRows } from '../src/data/lessons';
 
@@ -21,6 +20,10 @@ describe('study tool components render without crashing', () => {
     const html = renderToString(<ScoreQuizModal onClose={noop} />);
     expect(html).toContain('Score Estimation Quiz');
     expect(html).toContain('Who is ahead');
+    expect(html).toContain('aria-label="Predicted leader"');
+    expect(html).toMatch(/aria-pressed="true"[^>]*>black</);
+    expect(html).toMatch(/aria-pressed="false"[^>]*>white</);
+    expect(html).toContain('This is the starting position.');
     expect(html).toContain('<svg');
   });
 
@@ -29,6 +32,8 @@ describe('study tool components render without crashing', () => {
     expect(html).toContain('Rank ladder');
     expect(html).toContain('Gauntlet');
     expect(html).toContain('Start ladder');
+    expect(html).toMatch(/aria-pressed="true"[^>]*>9<!-- -->×/);
+    expect(html).toMatch(/aria-pressed="true"[^>]*>black</);
   });
 
   it('ProGamesModal parses and lists the bundled pro games', () => {
@@ -36,6 +41,8 @@ describe('study tool components render without crashing', () => {
     // Player names parsed from the bundled SGF headers.
     expect(html).toContain('Lee Sedol');
     expect(html).toContain('Search by player');
+    expect(html).toContain('aria-current="true"');
+    expect(html).toContain('aria-pressed="true"');
     // Final-position preview board replayed from real SGF moves.
     expect(html).toContain('<svg');
   });
@@ -44,11 +51,5 @@ describe('study tool components render without crashing', () => {
     const html = renderToString(<LessonsModal onClose={noop} />);
     expect(html).toContain('Capturing a stone');
     expect(html).toContain('Two eyes mean life');
-  });
-
-  it('VideoBoardModal renders the import UI', () => {
-    const html = renderToString(<VideoBoardModal onClose={noop} onImportSgf={noop} />);
-    expect(html).toContain('Video to SGF');
-    expect(html).toContain('Process video');
   });
 });

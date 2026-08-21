@@ -16,7 +16,6 @@ import {
   FaSearch,
   FaTrophy,
   FaGraduationCap,
-  FaVideo,
   FaBalanceScale,
   FaBullseye,
   FaPuzzlePiece,
@@ -24,7 +23,7 @@ import {
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
-import { formatLibrarySize, type LibraryFile } from '../../utils/library';
+import { formatLibrarySize, formatLibraryTimestamp, type LibraryFile } from '../../utils/library';
 import { getQuickNewGameWarning } from '../../utils/quickNewGame';
 import { APP_LOCALE_OPTIONS, getAppLocaleOption } from '../../utils/locales';
 import type { AppLocaleId, BoardSize } from '../../types';
@@ -46,7 +45,6 @@ interface MenuDrawerProps {
   onSaveToLibrary: () => void;
   onLoad: () => void;
   onScanBoard: () => void;
-  onVideoBoard?: () => void;
   onScoreQuiz?: () => void;
   onRankLadder?: () => void;
   onProGames?: () => void;
@@ -78,7 +76,6 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onSaveToLibrary,
   onLoad,
   onScanBoard,
-  onVideoBoard,
   onScoreQuiz,
   onRankLadder,
   onProGames,
@@ -371,7 +368,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               </button>
             </div>
           </div>
-          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem || onVideoBoard) && (
+          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem) && (
             <div>
               <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Study &amp; Practice</div>
               <div className={menuActionGrid} data-menu-action-grid="study">
@@ -445,18 +442,6 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                     }}
                   >
                     <FaBook aria-hidden="true" /> Pro Game Library
-                  </button>
-                )}
-                {onVideoBoard && (
-                  <button
-                    type="button"
-                    className={menuAction}
-                    onClick={() => {
-                      onVideoBoard();
-                      onClose();
-                    }}
-                  >
-                    <FaVideo aria-hidden="true" /> Video to SGF
                   </button>
                 )}
               </div>
@@ -560,7 +545,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 >
                   <div className="truncate">{item.name}</div>
                   <div className="text-[11px] ui-text-faint">
-                    {item.moveCount} moves · {formatLibrarySize(item.size)} · {new Date(item.updatedAt).toLocaleString()}
+                    {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
                   </div>
                 </button>
               ))}

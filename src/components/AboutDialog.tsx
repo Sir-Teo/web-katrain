@@ -6,6 +6,7 @@ import { APP_COMMIT_URL, APP_INFO, APP_ISSUE_REPORT_URL, APP_REPOSITORY_URL } fr
 
 interface AboutDialogProps {
   onClose: () => void;
+  returnFocus?: HTMLElement | null;
 }
 
 const AboutRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -34,10 +35,10 @@ const AboutLink: React.FC<{ href: string; children: React.ReactNode; className?:
   </a>
 );
 
-export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose }) => {
+export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose, returnFocus }) => {
   const buildDate = APP_INFO.commitDate || 'unknown';
   useEscapeToClose(onClose);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
 
   return (
     <div

@@ -119,14 +119,14 @@ export interface DesktopDashboardProps {
   onNewGame: () => void;
   onSaveSgf: () => void;
   onCopySgf: () => void;
-  onSaveToLibrary: () => void;
+  onSaveToLibrary: (returnFocus?: HTMLElement | null) => void;
   onLoadSgf: () => void;
-  onPasteSgf: () => void;
-  onScanBoard: () => void;
+  onPasteSgf: (returnFocus?: HTMLElement | null) => void;
+  onScanBoard: (returnFocus?: HTMLElement | null) => void;
   onSettings: () => void;
   onCommandPalette: () => void;
-  onKeyboardHelp: () => void;
-  onAbout: () => void;
+  onKeyboardHelp: (returnFocus?: HTMLElement | null) => void;
+  onAbout: (returnFocus?: HTMLElement | null) => void;
 
   // ---- library ----
   recentItems: LibraryFile[];
@@ -213,6 +213,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   // entirely while analysis is off — engine state, captures and the "analysis is
   // off" prompt already live in the header pill, the gamestrip and the sidebar.
   const commandbarVisible = commandbarOpen && showAnalysis;
+  // Three states, not two, because the stage reads this to decide whether to
+  // hold the bar's footprint: "reserved" means the bar is hidden only because
+  // analysis is off, so the board keeps its size across a Tab. "closed" means
+  // the user collapsed the bar and wants that space for the board.
+  const commandbarState = commandbarVisible ? 'open' : commandbarOpen ? 'reserved' : 'closed';
   const [legend, setLegend] = useState({ winrate: true, score: true });
   const [legendOpen, setLegendOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -357,25 +362,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     iconName: IconName,
     actions?: React.ReactNode
   ) => (
-    <div
-      role="button"
-      tabIndex={0}
-      className="section-head"
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('.saction')) return;
+    <div className="section-head">
+      <button
+        type="button"
+        className="section-head-toggle"
+        aria-expanded={sections[key]}
+        onClick={() => {
         setSections((s) => ({ ...s, [key]: !s[key] }));
       }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          setSections((s) => ({ ...s, [key]: !s[key] }));
-        }
-      }}
-    >
-      <span className="chev"><Icon name="chevR" size={13} /></span>
-      <span style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name={iconName} size={13} /></span>
-      <span className="stitle"><span className="seyebrow">{title}</span></span>
-      {actions ? <span className="saction">{actions}</span> : null}
+      >
+        <span className="chev"><Icon name="chevR" size={13} /></span>
+        <span style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name={iconName} size={13} /></span>
+        <span className="stitle"><span className="seyebrow">{title}</span></span>
+      </button>
+      {actions ? <div className="saction">{actions}</div> : null}
     </div>
   );
 
@@ -442,7 +442,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
       data-sidebar={sidebarOpen ? 'open' : 'closed'}
       data-focus={focusMode ? 'on' : 'off'}
       data-gamestrip={gamestripOpen ? 'open' : 'closed'}
-      data-commandbar={commandbarVisible ? 'open' : 'closed'}
+      data-commandbar={commandbarState}
       style={dashboardStyle}
     >
       {/* ============ Header ============ */}
@@ -621,13 +621,13 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 <div className="gs-players">
                   <div className={`gs-player${currentPlayer === 'black' ? ' to-move' : ''}`}>
                     <span className="stone-mini b" />
-                    <span className="nm">{blackName || 'Black'}</span>
+                    <span className="nm" title={blackName || 'Black'}>{blackName || 'Black'}</span>
                     {blackRank ? <span className="rk">{blackRank}</span> : null}
                     {capturedWhite > 0 ? <span className="cap">{capturedWhite} captured</span> : null}
                   </div>
                   <div className={`gs-player${currentPlayer === 'white' ? ' to-move' : ''}`}>
                     <span className="stone-mini w" />
-                    <span className="nm">{whiteName || 'White'}</span>
+                    <span className="nm" title={whiteName || 'White'}>{whiteName || 'White'}</span>
                     {whiteRank ? <span className="rk">{whiteRank}</span> : null}
                     {capturedBlack > 0 ? <span className="cap">{capturedBlack} captured</span> : null}
                   </div>
@@ -638,10 +638,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 {handicap > 0 ? <span className="gs-fact">H{handicap}</span> : null}
                 <span className="gs-fact">{rulesLabel}</span>
                 {result ? <span className="gs-result">{result}</span> : null}
-                <span className="gs-sep" />
+                <span className="gs-sep gs-sep-file" />
                 <div className="gs-file">
                   <Icon name="book" size={13} />
-                  <span className="fn">{loadedFileName || 'Untitled'}</span>
+                  <span className="fn" title={loadedFileName || 'Untitled'}>{loadedFileName || 'Untitled'}</span>
                 </div>
                 <span className={`gs-save ${dirty ? 'dirty' : 'saved'}`}>
                   <Icon name={dirty ? 'alert' : 'check'} size={11} />{dirty ? 'Unsaved' : 'Saved'}
@@ -890,8 +890,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                       </span>
                     </>
                   )}
-                  <button type="button" className="pbtn pico" title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
-                  {currentNode.parent ? (
+                  <button type="button" className={branchInfo.hasBranches ? 'pbtn pico' : 'hidden'} disabled={!branchInfo.hasBranches} title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
+                  {branchInfo.hasBranches && branchInfo.currentIndex > 1 ? (
                     <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
                   ) : null}
                 </div>
@@ -911,7 +911,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   aria-label={legendOpen ? 'Hide move-quality legend' : 'Show move-quality legend'}
                   aria-expanded={legendOpen}
                   aria-controls="dashboard-analysis-quality-legend"
-                  onClick={(e) => { e.stopPropagation(); setLegendOpen((v) => !v); }}
+                  onClick={() => setLegendOpen((v) => !v)}
                 ><Icon name="info" size={12} /></button>
               ))}
               <div className="section-body flush">
@@ -1080,15 +1080,15 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <button type="button" className="menu-item" onClick={() => { closePop(); onCopySgf(); }}>
             <Icon name="copy" size={14} /><span className="mi-label">Copy SGF</span>
           </button>
-          <button type="button" className="menu-item" onClick={() => { closePop(); onSaveToLibrary(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onSaveToLibrary(trigger); }}>
             <Icon name="book" size={14} /><span className="mi-label">Save to library</span>
           </button>
           <div className="menu-divider" />
           <div className="menu-section-label">Import</div>
-          <button type="button" className="menu-item" onClick={() => { closePop(); onPasteSgf(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onPasteSgf(trigger); }}>
             <Icon name="clipboard" size={14} /><span className="mi-label">Paste SGF / OGS</span>
           </button>
-          <button type="button" className="menu-item" aria-label="Photo Board" onClick={() => { closePop(); onScanBoard(); }}>
+          <button type="button" className="menu-item" aria-label="Photo Board" onClick={() => { const trigger = popTriggerRef.current; closePop(); onScanBoard(trigger); }}>
             <Icon name="camera" size={14} /><span className="mi-label">Board from photo</span>
           </button>
         </div>
@@ -1104,10 +1104,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           tabIndex={-1}
           data-dashboard-popover="true"
         >
-          <button type="button" className="menu-item" onClick={() => { closePop(); onKeyboardHelp(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onKeyboardHelp(trigger); }}>
             <Icon name="keyboard" size={14} /><span className="mi-label">Keyboard shortcuts</span>
           </button>
-          <button type="button" className="menu-item" onClick={() => { closePop(); onAbout(); }}>
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onAbout(trigger); }}>
             <Icon name="info" size={14} /><span className="mi-label">About Web KaTrain</span>
           </button>
           <div className="menu-divider" />
@@ -1189,7 +1189,7 @@ const EnginePopover: React.FC<{
         </dl>
         <div className="ed-row ed-row-depth" data-analysis-live-visit-presets="true">
           <div className="ed-depth-heading">
-            <span>MCTS depth</span>
+            <span>Analysis depth</span>
             <span>{clampAnalysisVisits(visits)} visits</span>
           </div>
           <div className="depth-presets">
@@ -1229,7 +1229,12 @@ const ViewMenu: React.FC<{
   onToggleSidebar: () => void;
 }> = ({ rect, showCoords, onToggleCoords, libraryOpen, sidebarOpen, onToggleLibrary, onToggleSidebar }) => {
   const item = (label: string, on: boolean | null, kbd: string, onClick: () => void, iconName?: IconName) => (
-    <button type="button" className={`menu-item${on ? ' on' : ''}`} onClick={onClick}>
+    <button
+      type="button"
+      className={`menu-item${on ? ' on' : ''}`}
+      aria-pressed={typeof on === 'boolean' ? on : undefined}
+      onClick={onClick}
+    >
       {iconName ? <Icon name={iconName} size={14} /> : null}
       <span className="mi-label">{label}</span>
       {typeof on === 'boolean' ? <span className="mi-state">{on ? 'on' : 'off'}</span> : null}

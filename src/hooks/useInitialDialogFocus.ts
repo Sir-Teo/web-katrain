@@ -46,10 +46,11 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
  */
 export function useInitialDialogFocus<T extends HTMLElement>(
   active = true,
-  options?: { focusContainer?: boolean },
+  options?: { focusContainer?: boolean; returnFocus?: HTMLElement | null },
 ) {
   const ref = useRef<T>(null);
   const focusContainer = options?.focusContainer ?? true;
+  const returnFocus = options?.returnFocus ?? null;
 
   useEffect(() => {
     if (!active) return;
@@ -84,12 +85,13 @@ export function useInitialDialogFocus<T extends HTMLElement>(
       node?.removeEventListener('keydown', handleKeyDown);
       // isConnected guards the case where the dialog's own action removed the
       // trigger from the DOM.
-      if (previouslyFocused?.isConnected) previouslyFocused.focus?.();
+      const focusTarget = returnFocus?.isConnected ? returnFocus : previouslyFocused;
+      if (focusTarget?.isConnected) focusTarget.focus?.();
     };
     // focusContainer is a plain boolean, so listing it keeps the lint rule happy
     // without making the effect re-run on every render the way an unstable
     // onClose dependency would.
-  }, [active, focusContainer]);
+  }, [active, focusContainer, returnFocus]);
 
   return ref;
 }

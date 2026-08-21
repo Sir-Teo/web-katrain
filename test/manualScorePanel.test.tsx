@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ManualScorePanel } from '../src/components/ManualScorePanel';
 import type { ManualScoreEstimate } from '../src/utils/scoring';
@@ -35,6 +36,17 @@ const baseProps = {
 };
 
 describe('ManualScorePanel', () => {
+  it('keeps compact expanded details scrollable without losing the actions', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const compactRules = css.match(/\.manual-score-panel\.manual-score-compact \{\s+display: grid;[\s\S]{0,2400}/)?.[0] ?? '';
+
+    expect(compactRules).toContain('overflow-y: auto');
+    expect(compactRules).toMatch(/\.manual-score-panel\.manual-score-compact \.manual-score-actions \{[\s\S]*position: sticky;[\s\S]*bottom: 0;/);
+
+    const componentSource = readFileSync('src/components/ManualScorePanel.tsx', 'utf8');
+    expect(componentSource).toContain('panel.scrollTop = showDetails ? details.offsetTop : 0;');
+  });
+
   it('renders neutral points in the score breakdown', () => {
     const html = renderToStaticMarkup(<ManualScorePanel {...baseProps} />);
 
@@ -51,6 +63,8 @@ describe('ManualScorePanel', () => {
     expect(html).toContain('data-manual-score-status-item="neutral"');
     expect(html).toContain('data-manual-score-help="true"');
     expect(html).toContain('Click board stones to toggle dead chains - 1 marked dead stone');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-pressed="true"');
   });
 
   it('marks ownership estimates as approximate', () => {
@@ -97,7 +111,7 @@ describe('ManualScorePanel', () => {
       />,
     );
 
-    expect(html).toContain('<button type="button" class="" disabled=""');
+    expect(html).toContain('<button type="button" class="" aria-pressed="false" disabled=""');
   });
 
   it('explains black leads and even scores in beginner-friendly language', () => {

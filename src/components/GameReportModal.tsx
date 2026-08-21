@@ -659,7 +659,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       setPdfSnapshots(snapshots);
       await afterAnimationFrames(2);
       if (!printWindow()) {
-        setTimedNotification('Print dialog unavailable in this browser.', 'error', 2500);
+        setTimedNotification('Print dialog unavailable in this browser.', 'error');
       }
     } finally {
       setIsPreparingPdf(false);
@@ -692,7 +692,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   const startPractice = (entry: MoveReportEntry) => {
     if (isInsertMode) {
-      setTimedNotification('Finish insert mode before starting mistake practice.', 'error', 2500);
+      setTimedNotification('Finish insert mode before starting mistake practice.', 'error');
       return;
     }
 
@@ -703,7 +703,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       if (!latest.isInsertMode && latest.currentNode.children.length > 0) {
         latest.toggleInsertMode();
       }
-      setTimedNotification(`Practice move ${entry.moveNumber}: try a correction for ${playerNames[entry.player]}.`, 'info', 2500);
+      setTimedNotification(`Practice move ${entry.moveNumber}: try a correction for ${playerNames[entry.player]}.`, 'info');
     }, 0);
     setReportHoverMove(null);
     onClose();
@@ -959,7 +959,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         <div className="px-5 py-4 space-y-4 overflow-y-auto overscroll-contain report-scroll">
           {totalMoves === 0 ? (
             <div
-              className="print-hide flex min-h-[17rem] items-center justify-center py-6 text-center sm:min-h-[20rem]"
+              className="print-hide flex min-h-[12rem] items-center justify-center px-5 py-8 text-center sm:min-h-[14rem]"
               data-game-report-empty="true"
             >
               <div className="max-w-md">

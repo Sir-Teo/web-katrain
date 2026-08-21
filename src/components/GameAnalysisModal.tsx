@@ -17,6 +17,7 @@ import {
   visitSliderFillPercent,
 } from '../utils/visitPresets';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 interface GameAnalysisModalProps {
   onClose: () => void;
@@ -32,6 +33,7 @@ const DEPTH_PRESETS_LABEL_ID = 'game-analysis-depth-presets-label';
 
 export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const {
     currentNode,
     isGameAnalysisRunning,
@@ -86,6 +88,8 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="ui-panel rounded-lg shadow-xl w-[92vw] max-w-[28rem] max-h-[90dvh] overflow-hidden flex flex-col border"
         role="dialog"
         aria-modal="true"
@@ -150,7 +154,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
             data-game-analysis-visit-presets="true"
           >
             <div className="flex items-center justify-between gap-2">
-              <div id={DEPTH_PRESETS_LABEL_ID} className="text-[var(--ui-text-muted)] text-sm">MCTS depth presets</div>
+              <div id={DEPTH_PRESETS_LABEL_ID} className="text-[var(--ui-text-muted)] text-sm">Analysis depth presets</div>
               <span className="text-xs ui-text-faint">Kaya-style</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

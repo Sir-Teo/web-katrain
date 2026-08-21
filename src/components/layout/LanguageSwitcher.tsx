@@ -16,10 +16,16 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
     Math.max(0, APP_LOCALE_OPTIONS.findIndex((locale) => locale.value === appLocale))
   );
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const activeLocale = getAppLocaleOption(appLocale);
   const menuId = React.useId();
   const activeOptionId = `${menuId}-option-${APP_LOCALE_OPTIONS[activeOptionIndex]?.value ?? activeLocale.value}`;
+
+  const closeWithFocus = React.useCallback(() => {
+    setOpen(false);
+    window.setTimeout(() => triggerRef.current?.focus({ preventScroll: true }), 0);
+  }, []);
 
   React.useEffect(() => {
     if (!open || typeof document === 'undefined') return;
@@ -27,7 +33,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
       if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape' && !event.defaultPrevented) closeWithFocus();
     };
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
@@ -35,7 +41,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [open]);
+  }, [closeWithFocus, open]);
 
   React.useEffect(() => {
     const index = APP_LOCALE_OPTIONS.findIndex((locale) => locale.value === appLocale);
@@ -57,7 +63,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
 
   const selectLocale = (locale: AppLocaleId) => {
     onLocaleChange(locale);
-    setOpen(false);
+    closeWithFocus();
   };
 
   const handleButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -70,7 +76,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
   const handleOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
-      setOpen(false);
+      closeWithFocus();
       return;
     }
 
@@ -91,6 +97,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
   return (
     <div className={['app-language-switcher relative', className ?? ''].join(' ')} ref={containerRef} data-language-switcher="desktop">
       <button
+        ref={triggerRef}
         type="button"
         className="h-8 min-w-[88px] px-2 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
         onClick={() => setOpen((value) => !value)}

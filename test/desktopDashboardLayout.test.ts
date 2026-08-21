@@ -184,6 +184,8 @@ describe('desktop dashboard layout', () => {
     expect(gameTreeBlock).toContain('aria-label="Next branch"');
     expect(gameTreeBlock).toContain('aria-label="Back to branch point"');
     expect(gameTreeBlock).toContain('aria-label="Make current move the main branch"');
+    expect(gameTreeBlock).toContain("className={branchInfo.hasBranches ? 'pbtn pico' : 'hidden'}");
+    expect(gameTreeBlock).toContain('branchInfo.hasBranches && branchInfo.currentIndex > 1');
     expect(analysisBlock).toContain('aria-label={legend.winrate ? \'Hide win rate graph\' : \'Show win rate graph\'}');
     expect(analysisBlock).toContain('aria-label={legend.score ? \'Hide score graph\' : \'Show score graph\'}');
     expect(analysisBlock).toContain('aria-label={legendOpen ? \'Hide move-quality legend\' : \'Show move-quality legend\'}');
@@ -192,5 +194,25 @@ describe('desktop dashboard layout', () => {
     expect(analysisBlock).toContain('aria-label="Run quick graph analysis"');
     expect(analysisBlock).toContain('aria-label={dashboardFastMctsLabel}');
     expect(analysisBlock).toContain('aria-label="Open game report"');
+  });
+
+  it('keeps section actions outside the disclosure button', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const helperStart = dashboardSource.indexOf('const sectionHead =');
+    const helperEnd = dashboardSource.indexOf('// ---- overlay toggle helper ----', helperStart);
+    const helper = dashboardSource.slice(helperStart, helperEnd);
+
+    expect(helper).toContain('className="section-head-toggle"');
+    expect(helper).toContain('aria-expanded={sections[key]}');
+    expect(helper).toContain('<div className="saction">{actions}</div>');
+    expect(helper).not.toContain('role="button"');
+  });
+
+  it('exposes View menu toggle state without adding visual clutter', () => {
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const viewMenuStart = dashboardSource.indexOf('const ViewMenu:');
+    const viewMenu = dashboardSource.slice(viewMenuStart);
+
+    expect(viewMenu).toContain("aria-pressed={typeof on === 'boolean' ? on : undefined}");
   });
 });

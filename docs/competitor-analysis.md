@@ -90,7 +90,7 @@ We also read/write Kaya's `KA` SGF analysis blobs already (`kayaSgfAnalysis.ts`)
 
 For perspective — we are ahead in several areas: KaTrain-style teach mode with undo
 prompts, 13 AI play strategies, region-of-interest analysis, extra/equalize/sweep/
-alternative analysis commands, guess-the-pro-move quiz, video→SGF (beta), command
+alternative analysis commands, guess-the-pro-move quiz, command
 palette, board rotate/flip, byo-yomi clocks, share-by-URL, haptics, KaTrain `KT` **and**
 Kaya `KA` SGF analysis interop, and a fully in-browser TS/TFJS KataGo engine (no install,
 no server, private by construction).

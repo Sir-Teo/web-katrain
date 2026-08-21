@@ -53,7 +53,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="ui-panel flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="pro-games-title"
@@ -106,6 +106,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                       key={g.id}
                       type="button"
                       onClick={() => setSelectedId(g.id)}
+                      aria-pressed={selected?.id === g.id}
                       className={[
                         'rounded-full border px-2 py-0.5 text-[11px] transition-colors',
                         selected?.id === g.id
@@ -131,6 +132,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                     <button
                       type="button"
                       onClick={() => setSelectedId(g.id)}
+                      aria-current={active ? 'true' : undefined}
                       className={`w-full border-b border-[var(--ui-border)] px-4 py-3 text-left text-sm hover:bg-[var(--ui-surface-2)] ${
                         active ? 'bg-[var(--ui-accent-soft,var(--ui-surface-2))]' : ''
                       }`}

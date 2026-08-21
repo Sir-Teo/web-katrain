@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { useGameStore } from '../store/gameStore';
+import { setNotificationHeld, useGameStore } from '../store/gameStore';
 import { GoBoard } from './GoBoard';
 import { AnalysisCommandBar } from './AnalysisCommandBar';
 import { CandidatePvTiles } from './CandidatePvTiles';
@@ -126,7 +126,6 @@ const ProGamesModal = lazy(() => import('./ProGamesModal').then((module) => ({ d
 const LessonsModal = lazy(() => import('./LessonsModal').then((module) => ({ default: module.LessonsModal })));
 const GuessMoveModal = lazy(() => import('./GuessMoveModal').then((module) => ({ default: module.GuessMoveModal })));
 const ProblemModal = lazy(() => import('./ProblemModal').then((module) => ({ default: module.ProblemModal })));
-const VideoBoardModal = lazy(() => import('./VideoBoardModal').then((module) => ({ default: module.VideoBoardModal })));
 const KifuPrintModal = lazy(() => import('./KifuPrintModal').then((module) => ({ default: module.KifuPrintModal })));
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
@@ -336,6 +335,7 @@ export const Layout: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const boardShellRef = useRef<HTMLDivElement>(null);
   const analysisCommandBarRef = useRef<HTMLDivElement>(null);
+  const modalReturnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
   const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number } | null>(null);
@@ -352,7 +352,6 @@ export const Layout: React.FC = () => {
   const [isLessonsOpen, setIsLessonsOpen] = useState(false);
   const [isGuessMoveOpen, setIsGuessMoveOpen] = useState(false);
   const [isProblemOpen, setIsProblemOpen] = useState(false);
-  const [isVideoBoardOpen, setIsVideoBoardOpen] = useState(false);
   const [isKifuPrintOpen, setIsKifuPrintOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
@@ -369,6 +368,14 @@ export const Layout: React.FC = () => {
   const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const openKeyboardHelp = useCallback((returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
+    setIsKeyboardHelpOpen(true);
+  }, []);
+  const openAbout = useCallback((returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
+    setIsAboutOpen(true);
+  }, []);
   const [mobileTab, setMobileTab] = useState<MobileTab>('board');
   const [lastRightTab, setLastRightTab] = useState<MobileTab>('tree');
   const [uiState, setUiState] = useState<UiState>(() => loadUiState());
@@ -627,13 +634,20 @@ export const Layout: React.FC = () => {
     byoPeriods: settings.timerByoPeriods,
   };
 
-  // Toast helper
+  // Toast helper. Dismissal is the store's job — it holds errors until they are
+  // read and promotes anything queued behind them; the flat 2500ms timer that
+  // used to live here cut errors short while their "Copy details" button was
+  // still the reason they were shown.
   const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info', copyText?: string) => {
-    const notification = { message, type, ...(copyText ? { copyText } : {}) };
-    useGameStore.setState({ notification });
-    window.setTimeout(() => {
-      useGameStore.setState((state) => (state.notification === notification ? { notification: null } : {}));
-    }, 2500);
+    useGameStore.setState({ notification: { message, type, ...(copyText ? { copyText } : {}) } });
+  }, []);
+
+  // Board edits fire from a single click and are easy to make by accident, so
+  // the toast reporting one offers to take it straight back. Undoing replaces
+  // the toast with the store's own "Undid edit." confirmation, which is why
+  // this does not also dismiss it.
+  const undoEditFromToast = useCallback(() => {
+    useGameStore.getState().undoEdit();
   }, []);
 
   useEffect(() => {
@@ -973,7 +987,8 @@ export const Layout: React.FC = () => {
     }
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveLoadedLibraryFile, sgfExportOptions, toast]);
 
-  const openSaveToLibraryDialog = useCallback(async () => {
+  const openSaveToLibraryDialog = useCallback(async (returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
     const sgf = generateCurrentSgf();
     try {
       const items = await loadLibrary();
@@ -992,11 +1007,12 @@ export const Layout: React.FC = () => {
       });
     } catch {
       toast('Failed to open Library save dialog.', 'error');
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     }
   }, [generateCurrentSgf, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
 
-  const handleOpenSaveToLibraryDialog = useCallback(() => {
-    void openSaveToLibraryDialog();
+  const handleOpenSaveToLibraryDialog = useCallback((returnFocus?: HTMLElement | null) => {
+    void openSaveToLibraryDialog(returnFocus);
   }, [openSaveToLibraryDialog]);
 
   const handleSaveCopyToLibrary = useCallback(async (name: string, folderId: string | null): Promise<boolean> => {
@@ -1768,14 +1784,16 @@ export const Layout: React.FC = () => {
     }
   };
 
-  const handlePasteSgf = () => {
+  const handlePasteSgf = (returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
     setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
     setIsPasteSgfOpen(true);
   };
 
-  const openPhotoBoard = useCallback((file: File | null = null) => {
+  const openPhotoBoard = useCallback((file: File | null = null, returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? null;
     setPhotoBoardInitialFile(file);
     setIsPhotoBoardOpen(true);
   }, []);
@@ -1802,7 +1820,10 @@ export const Layout: React.FC = () => {
     }
   }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, navigateEnd, toast]);
 
-  const handleOpenSgfFromText = useCallback(async (text: string): Promise<PasteSgfSubmitResult> => {
+  const handleOpenSgfFromText = useCallback(async (
+    text: string,
+    options: { notifyFailure?: boolean } = {}
+  ): Promise<PasteSgfSubmitResult> => {
     try {
       const result = await loadSgfOrOgs(text);
       if (!result.sgf.trim()) return 'failed';
@@ -1826,7 +1847,7 @@ export const Layout: React.FC = () => {
       );
       return 'loaded';
     } catch {
-      toast('Failed to load SGF or OGS URL.', 'error');
+      if (options.notifyFailure !== false) toast('Failed to load SGF or OGS URL.', 'error');
       return 'failed';
     }
   }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, toast]);
@@ -2131,7 +2152,7 @@ export const Layout: React.FC = () => {
     };
     const setLiveAnalysisDepth = (visits: number) => {
       if (isGameAnalysisRunning) {
-        toast('Stop game review before changing live MCTS depth.', 'error');
+        toast('Stop game review before changing live analysis depth.', 'error');
         return;
       }
       updateSettings({ katagoVisits: visits });
@@ -2140,7 +2161,7 @@ export const Layout: React.FC = () => {
           void useGameStore.getState().runAnalysis({ force: true, visits });
         }, 0);
       }
-      toast(`Live MCTS depth: ${formatVisitCount(visits)} visits (${visitPresetLabel(visits)}).`, 'info');
+      toast(`Live analysis depth: ${formatVisitCount(visits)} visits (${visitPresetLabel(visits)}).`, 'info');
     };
     const toggleTopMoveHints = () => {
       if (settings.analysisShowPolicy) {
@@ -2211,13 +2232,6 @@ export const Layout: React.FC = () => {
         category: 'File',
         run: () => openPhotoBoard(),
         keywords: ['scan', 'camera', 'image'],
-      },
-      {
-        id: 'video-board',
-        label: 'Import game from video',
-        category: 'File',
-        run: () => openSimpleModal(() => setIsVideoBoardOpen(true)),
-        keywords: ['video', 'record', 'capture', 'movie', 'clip', 'sgf'],
       },
       {
         id: 'print-kifu',
@@ -2573,7 +2587,7 @@ export const Layout: React.FC = () => {
         const label = visitPresetLabel(visits);
         return {
           id: `set-live-mcts-depth-${visits}`,
-          label: `Set live MCTS depth: ${label}`,
+          label: `Set live analysis depth: ${label}`,
           category: 'Analysis',
           run: () => setLiveAnalysisDepth(visits),
           keywords: [
@@ -2906,7 +2920,6 @@ export const Layout: React.FC = () => {
       !isLessonsOpen &&
       !isGuessMoveOpen &&
       !isProblemOpen &&
-      !isVideoBoardOpen &&
       !pendingResignPlayer,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
@@ -2945,7 +2958,12 @@ export const Layout: React.FC = () => {
     >
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
-        {isAboutOpen && <AboutDialog onClose={() => setIsAboutOpen(false)} />}
+        {isAboutOpen && (
+          <AboutDialog
+            onClose={() => setIsAboutOpen(false)}
+            returnFocus={modalReturnFocusRef.current}
+          />
+        )}
         {autoSaveRecovery && (
           <AutoSaveRecoveryModal
             snapshot={autoSaveRecovery}
@@ -2980,6 +2998,7 @@ export const Layout: React.FC = () => {
           <KeyboardHelpModal
             onClose={() => setIsKeyboardHelpOpen(false)}
             onOpenShortcutSettings={openShortcutSettings}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {isScoreQuizOpen && (
@@ -3007,13 +3026,6 @@ export const Layout: React.FC = () => {
         {isProblemOpen && (
           <ProblemModal onClose={() => setIsProblemOpen(false)} />
         )}
-        {isVideoBoardOpen && (
-          <VideoBoardModal
-            onClose={() => setIsVideoBoardOpen(false)}
-            onImportSgf={async (sgf) => { await handlePhotoBoardImport(sgf); setIsVideoBoardOpen(false); }}
-            defaultBoardSize={boardSize}
-          />
-        )}
         {isPhotoBoardOpen && (
           <PhotoBoardModal
             onClose={closePhotoBoard}
@@ -3025,16 +3037,19 @@ export const Layout: React.FC = () => {
             currentBoard={board}
             currentPlayer={currentPlayer}
             initialPhotoFile={photoBoardInitialFile}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {isPasteSgfOpen && (
           <PasteSgfModal
             onClose={() => setIsPasteSgfOpen(false)}
-            onSubmit={handleOpenSgfFromText}
+            onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}
             onOpenPhotoBoard={() => {
+              const returnFocus = modalReturnFocusRef.current;
               setIsPasteSgfOpen(false);
-              openPhotoBoard();
+              openPhotoBoard(null, returnFocus);
             }}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {saveToLibraryDialog && (
@@ -3045,6 +3060,7 @@ export const Layout: React.FC = () => {
             initialFolderId={saveToLibraryDialog.initialFolderId}
             onClose={() => setSaveToLibraryDialog(null)}
             onSave={handleSaveCopyToLibrary}
+            returnFocus={modalReturnFocusRef.current}
           />
         )}
         {isNewGameOpen && (
@@ -3168,7 +3184,6 @@ export const Layout: React.FC = () => {
         onSaveToLibrary={handleOpenSaveToLibraryDialog}
         onLoad={handleLoadClick}
         onScanBoard={() => openPhotoBoard()}
-        onVideoBoard={() => setIsVideoBoardOpen(true)}
         onScoreQuiz={() => setIsScoreQuizOpen(true)}
         onRankLadder={() => setIsTournamentOpen(true)}
         onProGames={() => setIsProGamesOpen(true)}
@@ -3179,8 +3194,8 @@ export const Layout: React.FC = () => {
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
         onCommandPalette={() => setIsCommandPaletteOpen(true)}
-        onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-        onAbout={() => setIsAboutOpen(true)}
+        onKeyboardHelp={openKeyboardHelp}
+        onAbout={openAbout}
         appLocale={settings.appLocale}
         onLocaleChange={(appLocale) => updateSettings({ appLocale })}
         quickNewGameBoardSize={settings.defaultBoardSize}
@@ -3413,11 +3428,11 @@ export const Layout: React.FC = () => {
             onSaveToLibrary={handleOpenSaveToLibraryDialog}
             onLoadSgf={handleLoadClick}
             onPasteSgf={handlePasteSgf}
-            onScanBoard={() => openPhotoBoard()}
+            onScanBoard={(returnFocus) => openPhotoBoard(null, returnFocus)}
             onSettings={() => setIsSettingsOpen(true)}
             onCommandPalette={() => setIsCommandPaletteOpen(true)}
-            onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-            onAbout={() => setIsAboutOpen(true)}
+            onKeyboardHelp={openKeyboardHelp}
+            onAbout={openAbout}
             recentItems={recentLibraryItems}
             loadedFileId={loadedLibraryFileId}
             onOpenRecent={handleOpenRecent}
@@ -3427,6 +3442,8 @@ export const Layout: React.FC = () => {
             <NotificationToast
               notification={notification}
               onClose={clearNotification}
+              onHoldChange={setNotificationHeld}
+              onUndo={undoEditFromToast}
               commandBarVisible={false}
               placement="desktop-dashboard"
             />
@@ -3527,8 +3544,8 @@ export const Layout: React.FC = () => {
               onScanBoard={() => openPhotoBoard()}
               onSettings={() => setIsSettingsOpen(true)}
               onCommandPalette={() => setIsCommandPaletteOpen(true)}
-              onKeyboardHelp={() => setIsKeyboardHelpOpen(true)}
-              onAbout={() => setIsAboutOpen(true)}
+              onKeyboardHelp={openKeyboardHelp}
+              onAbout={openAbout}
               winRateLabel={winRateLabel}
               scoreLeadLabel={scoreLeadLabel}
               pointsLostLabel={pointsLostLabel}
@@ -3554,6 +3571,8 @@ export const Layout: React.FC = () => {
               <NotificationToast
                 notification={notification}
                 onClose={clearNotification}
+                onHoldChange={setNotificationHeld}
+                onUndo={undoEditFromToast}
                 commandBarVisible={showBoardAnalysisCommandBar}
               />
             )}

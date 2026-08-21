@@ -257,7 +257,7 @@ const LibraryConfirmDialog: React.FC<{
         <div className="p-4 space-y-4">
           <p className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" className="panel-action-button" onClick={onClose}>
+            <button type="button" className="panel-action-button" onClick={onClose} autoFocus>
               Cancel
             </button>
             <button
@@ -963,9 +963,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleClearLibrary = () => {
+    const itemLabel = `${items.length} library item${items.length === 1 ? '' : 's'}`;
     setConfirmDialog({
       title: 'Clear Library',
-      message: 'Clear the entire library?',
+      message: `Clear all ${itemLabel}? This cannot be undone.`,
       confirmLabel: 'Clear',
       danger: true,
       onConfirm: () => {
@@ -986,9 +987,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleDelete = (item: LibraryItem) => {
     const isFolderItem = isFolder(item);
+    const descendantCount = isFolderItem
+      ? items.filter((candidate) => isDescendantOf(candidate.id, item.id)).length
+      : 0;
+    const contentsLabel = descendantCount > 0
+      ? ` and its ${descendantCount} item${descendantCount === 1 ? '' : 's'}`
+      : '';
     const message = isFolderItem
-      ? `Delete folder "${item.name}" and its contents?`
-      : `Delete "${item.name}" from Library?`;
+      ? `Delete folder "${item.name}"${contentsLabel}? This cannot be undone.`
+      : `Delete "${item.name}" from Library? This cannot be undone.`;
     setConfirmDialog({
       title: isFolderItem ? 'Delete Folder' : 'Delete Game',
       message,
@@ -1113,9 +1120,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleBulkDelete = () => {
     if (visibleSelectedIds.size === 0) return;
+    const affectedCount = items.filter((item) => (
+      visibleSelectedIds.has(item.id)
+      || Array.from(visibleSelectedIds).some((selectedId) => isDescendantOf(item.id, selectedId))
+    )).length;
     setConfirmDialog({
       title: 'Delete Selected',
-      message: `Delete ${visibleSelectedIds.size} item(s) from Library?`,
+      message: `Delete ${affectedCount} library item${affectedCount === 1 ? '' : 's'}? This cannot be undone.`,
       confirmLabel: 'Delete',
       danger: true,
       onConfirm: () => {
@@ -2054,12 +2065,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <div className="relative flex-1 min-w-[160px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
+                    type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search library"
                     placeholder="Search library…"
-                    className="w-full ui-input border rounded pl-8 pr-3 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
+                    data-library-search="true"
+                    className="w-full ui-input border rounded pl-8 pr-9 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
                   />
+                  {query && (
+                    <button
+                      type="button"
+                      className="absolute right-0 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+                      onClick={() => setQuery('')}
+                      aria-label="Clear library search"
+                    >
+                      <FaTimes aria-hidden="true" size={11} />
+                    </button>
+                  )}
                 </div>
                 <select
                   value={sortKey}

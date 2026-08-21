@@ -14,7 +14,13 @@ import {
 } from '../utils/boardDrawing';
 import { parseGtpMove } from '../lib/gtp';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
-import { selectAnalysisHintMoves, usesCompactAnalysisHints } from '../utils/analysisHints';
+import {
+  hasAdjacentHintLabel,
+  policyHeatmapFontSize,
+  selectAnalysisHintMoves,
+  shouldCollapseHintLabel,
+  usesCompactAnalysisHints,
+} from '../utils/analysisHints';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
@@ -417,7 +423,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   }, [aiColor, isAiPlaying, settings.trainerEvalShowAi]);
 
   const toast = useCallback((message: string, type: TimedNotificationType = 'info') => {
-    setTimedNotification(message, type, 2500);
+    setTimedNotification(message, type);
   }, []);
 
   const clearPendingTap = useCallback(() => {
@@ -670,6 +676,35 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     null
   );
   const [cursorPt, setCursorPt] = useState<BoardKeyboardPoint | null>(null);
+  // Hover affordances are for pointers that can hover. A touch "hover" is just
+  // the moment before a tap, so showing them there flashes a tooltip over the
+  // stone the player is trying to place.
+  const [hoverFromMouse, setHoverFromMouse] = useState(false);
+
+  /**
+   * The move number of the stone under the cursor, when hovering one is
+   * meaningful. Modifier-click-to-jump has worked on stones for a while with
+   * nothing on screen to say so; this is what advertises it. Suppressed in edit
+   * and scoring mode, where that click does something else entirely.
+   */
+  /**
+   * Display-space row and column under the cursor, so their coordinate labels
+   * can light up. Reading "is that R16 or Q16?" by eye across nineteen lines is
+   * the kind of small friction that never quite goes away; this answers it
+   * without the reader having to count. Not gated on a mouse: keyboard board
+   * navigation sets the same cursor and benefits just as much.
+   */
+  const cursorCoordinate = useMemo(
+    () => (cursorPt ? toDisplay(cursorPt.x, cursorPt.y) : null),
+    [cursorPt, toDisplay]
+  );
+
+  const hoveredStoneMoveNumber = useMemo(() => {
+    if (!hoverFromMouse || !cursorPt || isEditMode || scoringMode) return null;
+    if (!board[cursorPt.y]?.[cursorPt.x]) return null;
+    const placedAt = placementGrid[cursorPt.y]?.[cursorPt.x];
+    return placedAt != null && placedAt > 0 ? placedAt : null;
+  }, [board, cursorPt, hoverFromMouse, isEditMode, placementGrid, scoringMode]);
 
   useEffect(() => {
     if (!canHoverAnalysisMove && hoveredMove) onHoverMove(null);
@@ -1788,6 +1823,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    setHoverFromMouse(e.pointerType === 'mouse');
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
     const localY = e.clientY - rect.top;
@@ -2160,11 +2196,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const textLb = 0.01 * 0.01;
     const stoneRadius = cellSize * STONE_SIZE;
     const bgRadius = stoneRadius * HINT_SCALE * 0.98;
-    const fontSize = cellSize / 4;
+    const policyFont = (size: number) =>
+      `${size}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font =
-      `${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
     const moveMap = new Map<string, CandidateMove>();
     for (const move of visibleAnalysis.moves) {
       if (move.x >= 0 && move.y >= 0) moveMap.set(`${move.x},${move.y}`, move);
@@ -2185,6 +2220,26 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       return `${(100 * p).toFixed(2)}`.slice(0, 4) + '%';
     };
 
+    // Size the numbers against the longest label this metric actually produces,
+    // so they never run into the next cell's. Labels are collected up front
+    // because the font depends on all of them.
+    const labels = new Map<number, string>();
+    let longestLabel = '';
+    for (let y = 0; y < boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        const idx = y * boardSize + x;
+        const p = policy[idx] ?? -1;
+        if (p <= textLb) continue;
+        const label = getPolicyLabel(x, y, p);
+        if (!label) continue;
+        labels.set(idx, label);
+        if (label.length > longestLabel.length) longestLabel = label;
+      }
+    }
+    ctx.font = policyFont(1);
+    const fontSize = longestLabel ? policyHeatmapFontSize(cellSize, ctx.measureText(longestLabel).width) : null;
+    ctx.font = policyFont(fontSize ?? 1);
+
     for (let y = 0; y < boardSize; y++) {
       for (let x = 0; x < boardSize; x++) {
         const p = policy[y * boardSize + x] ?? -1;
@@ -2192,9 +2247,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         const d = toDisplay(x, y);
         const polOrder = Math.max(0, 5 + Math.trunc(Math.log10(Math.max(1e-9, p - 1e-9))));
         const col = evalColors[Math.min(evalColors.length - 1, polOrder)]!;
-        const labelRaw = getPolicyLabel(x, y, p);
-        const showText = p > textLb && labelRaw.length > 0;
-        const scale = showText ? 0.95 : 0.5;
+        const labelRaw = labels.get(y * boardSize + x) ?? '';
+        // A point worth labelling still gets the full-size swatch even when the
+        // cell is too small to print the number — the swatch size carries the
+        // probability, so shrinking it would misreport the position.
+        const hasLabel = labelRaw.length > 0;
+        const showText = hasLabel && fontSize !== null;
+        const scale = hasLabel ? 0.95 : 0.5;
         const coloredRadius = stoneRadius * HINT_SCALE * scale;
         const isBest = best > 0 && p === best;
         const cx = originX + d.x * cellSize;
@@ -2288,6 +2347,23 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    // Which points end up carrying text, so a crowded candidate can tell.
+    // Labels use a fixed 10/9px, so on a normal 19x19 board a two-line label is
+    // taller and wider than the cell it sits in. Spilling onto empty wood is
+    // fine; spilling into the neighbour's label is not, and joseki candidates
+    // cluster on adjacent points — the two labels overlapped into an
+    // unreadable blob. Those pairs drop to the primary metric only.
+    const labelledPoints = new Set<string>();
+    if (showText) {
+      for (const move of moves) {
+        const isBest = move.order === 0;
+        const uncertain =
+          !altHeld && move.visits < lowVisitsThreshold && !isBest && !childMoveCoords.has(`${move.x},${move.y}`);
+        if (uncertain) continue;
+        const d = toDisplay(move.x, move.y);
+        labelledPoints.add(`${d.x},${d.y}`);
+      }
+    }
     for (const move of moves) {
       const d = toDisplay(move.x, move.y);
       const isBest = move.order === 0;
@@ -2348,16 +2424,31 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           ctx.strokeText(label, cx, cy);
           ctx.fillText(label, cx, cy);
         } else {
-          ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
           const primaryLabel = getLabel(move, show[0] as typeof primary);
-          ctx.strokeText(primaryLabel, cx, cy - baseFontSize * 0.35);
-          ctx.fillText(primaryLabel, cx, cy - baseFontSize * 0.35);
-          ctx.font = `700 ${subFontSize}px ${fontFamily}`;
-          ctx.globalAlpha = 0.9;
           const secondaryLabel = getLabel(move, show[1] as typeof primary);
-          ctx.strokeText(secondaryLabel, cx, cy + subFontSize * 0.55);
-          ctx.fillText(secondaryLabel, cx, cy + subFontSize * 0.55);
-          ctx.globalAlpha = 1;
+          ctx.font = `700 ${subFontSize}px ${fontFamily}`;
+          const secondaryWidth = ctx.measureText(secondaryLabel).width;
+          ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
+          const primaryWidth = ctx.measureText(primaryLabel).width;
+          const collapse = shouldCollapseHintLabel(
+            Math.max(primaryWidth, secondaryWidth),
+            baseFontSize + subFontSize,
+            cellSize,
+            hasAdjacentHintLabel(labelledPoints, d.x, d.y)
+          );
+
+          if (collapse) {
+            ctx.strokeText(primaryLabel, cx, cy);
+            ctx.fillText(primaryLabel, cx, cy);
+          } else {
+            ctx.strokeText(primaryLabel, cx, cy - baseFontSize * 0.35);
+            ctx.fillText(primaryLabel, cx, cy - baseFontSize * 0.35);
+            ctx.font = `700 ${subFontSize}px ${fontFamily}`;
+            ctx.globalAlpha = 0.9;
+            ctx.strokeText(secondaryLabel, cx, cy + subFontSize * 0.55);
+            ctx.fillText(secondaryLabel, cx, cy + subFontSize * 0.55);
+            ctx.globalAlpha = 1;
+          }
         }
       }
     }
@@ -2685,12 +2776,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 style={{
                   left: originX + i * cellSize,
                   top: originY + (boardSize - 1) * cellSize + coordOffset,
-                  transform: 'translate(-50%, -50%)',
+                  transform:
+                    cursorCoordinate?.x === i ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%)',
                   fontSize: cellSize > 20 ? cellSize / 1.5 : cellSize / 1.2,
-                  color: labelColor,
+                  color: cursorCoordinate?.x === i ? 'var(--ui-accent)' : labelColor,
                   textAlign: 'center',
                   zIndex: 4,
                 }}
+                data-coordinate-active={cursorCoordinate?.x === i ? 'true' : undefined}
               >
                 {getXCoordinateText(i)}
               </div>
@@ -2706,12 +2799,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 style={{
                   left: originX - coordOffset,
                   top: originY + i * cellSize,
-                  transform: 'translate(-50%, -50%)',
+                  transform:
+                    cursorCoordinate?.y === i ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%)',
                   fontSize: cellSize > 20 ? cellSize / 1.5 : cellSize / 1.2,
-                  color: labelColor,
+                  color: cursorCoordinate?.y === i ? 'var(--ui-accent)' : labelColor,
                   textAlign: 'center',
                   zIndex: 4,
                 }}
+                data-coordinate-active={cursorCoordinate?.y === i ? 'true' : undefined}
               >
                 {getYCoordinateText(i)}
               </div>
@@ -2922,6 +3017,35 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             zIndex: 16,
           }}
         />
+
+        {/* Played-stone tooltip. Yields to the candidate tooltip below, which
+            says more about the same point. */}
+        {hoveredStoneMoveNumber !== null && !(hasAnalysisOverlay && hoveredMove) && cursorPt && (
+          (() => {
+            const d = toDisplay(cursorPt.x, cursorPt.y);
+            const placement = getBoardTooltipPlacement({
+              anchorX: originX + d.x * cellSize,
+              anchorY: originY + d.y * cellSize,
+              boardWidth,
+              boardHeight,
+              cellSize,
+            });
+            return (
+              <div
+                className="absolute z-20 bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs px-2 py-1 rounded-lg shadow-xl pointer-events-none border border-[var(--ui-border-strong)] whitespace-nowrap"
+                style={{
+                  left: placement.left,
+                  top: placement.top,
+                  transform: placement.transform,
+                }}
+                data-stone-move-tooltip={hoveredStoneMoveNumber}
+              >
+                <span className="font-semibold">Move {hoveredStoneMoveNumber}</span>
+                <span className="ui-text-faint"> · Alt-click to jump</span>
+              </div>
+            );
+          })()
+        )}
 
         {/* Tooltip */}
         {hasAnalysisOverlay && hoveredMove && hoveredMove.x >= 0 && hoveredMove.y >= 0 && (

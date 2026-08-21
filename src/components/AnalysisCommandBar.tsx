@@ -231,7 +231,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       error: engineError,
     }));
     setEngineErrorCopied(ok);
-    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error', 1800);
+    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error');
   }, [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
 
   const toggleOverlay = (key: keyof AnalysisControlsState) => {
@@ -398,7 +398,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     >
       <div className="analysis-command-bar__depth-header">
         <div>
-          <div id={depthPopoverTitleId} className="analysis-command-bar__depth-title">Live MCTS depth</div>
+          <div id={depthPopoverTitleId} className="analysis-command-bar__depth-title">Live analysis depth</div>
           <div className="analysis-command-bar__depth-subtitle">{liveVisits} visits - {liveVisitLabel}</div>
         </div>
         <button

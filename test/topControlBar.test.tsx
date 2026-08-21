@@ -110,6 +110,16 @@ describe('TopControlBar', () => {
     expect(readFileSync('src/index.css', 'utf8')).toContain('.app-language-switcher');
   });
 
+  it('returns focus to the language trigger after keyboard dismissal or selection', () => {
+    const source = readFileSync('src/components/layout/LanguageSwitcher.tsx', 'utf8');
+
+    expect(source).toContain('const triggerRef = React.useRef<HTMLButtonElement>(null)');
+    expect(source).toContain('triggerRef.current?.focus({ preventScroll: true })');
+    expect(source).toContain("event.key === 'Escape' && !event.defaultPrevented");
+    expect(source).toContain('closeWithFocus();');
+    expect(source).toContain('ref={triggerRef}');
+  });
+
   it('explains that quick new game uses defaults and checks unsaved changes', () => {
     const html = renderToStaticMarkup(<TopControlBar {...baseProps} isMobile={false} />);
 
@@ -130,6 +140,31 @@ describe('TopControlBar', () => {
       expect(html).toContain(`id="${id}"`);
     }
     expect(html).toContain('>Heatmap</span>');
+  });
+
+  it('exposes boolean menu actions as pressed buttons', () => {
+    const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+    const toggleStates = [
+      'isFullscreen',
+      'settings.showCoordinates',
+      'settings.showNextMovePreview',
+      'settings.showMoveNumbers',
+      'settings.showBoardControls',
+      'settings.showAnalysisBar',
+      'settings.soundEnabled',
+      'settings.analysisShowChildren',
+      'settings.analysisShowEval',
+      'settings.analysisShowHints',
+      'settings.analysisShowPolicy',
+      'settings.analysisShowOwnership',
+    ];
+
+    for (const state of toggleStates) {
+      expect(source, state).toContain(`aria-pressed={${state}}`);
+    }
+    expect(source.match(/aria-pressed=\{isAnalysisMode\}/g) ?? []).toHaveLength(2);
+    expect(source.match(/aria-pressed=\{isInsertMode\}/g) ?? []).toHaveLength(2);
+    expect(source.match(/aria-pressed=\{isTeachMode\}/g) ?? []).toHaveLength(2);
   });
 
   it('exposes desktop analysis actions as a labelled popover dialog', () => {

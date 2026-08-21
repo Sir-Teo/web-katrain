@@ -3,6 +3,7 @@ import { FaCamera, FaClipboard, FaTimes } from 'react-icons/fa';
 import { readClipboardText } from '../utils/clipboard';
 import { getPasteSgfInputInfo, type PasteSgfSubmitResult } from '../utils/pasteSgfInput';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 type PasteSgfStatusTone = 'info' | 'error';
 
@@ -15,15 +16,17 @@ interface PasteSgfModalProps {
   onClose: () => void;
   onSubmit: (text: string) => Promise<PasteSgfSubmitResult>;
   onOpenPhotoBoard?: () => void;
+  returnFocus?: HTMLElement | null;
 }
 
-export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit, onOpenPhotoBoard }) => {
+export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit, onOpenPhotoBoard, returnFocus }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const [text, setText] = React.useState('');
   const [status, setStatus] = React.useState<PasteSgfStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const inputInfo = React.useMemo(() => getPasteSgfInputInfo(text), [text]);
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false, returnFocus });
 
   React.useEffect(() => {
     window.setTimeout(() => textareaRef.current?.focus(), 0);
@@ -71,6 +74,8 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="ui-panel flex w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"

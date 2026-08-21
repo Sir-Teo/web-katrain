@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import type { LibraryFolderOption } from '../utils/library';
 
 interface SaveToLibraryDialogProps {
@@ -10,6 +11,7 @@ interface SaveToLibraryDialogProps {
   initialFolderId: string | null;
   onClose: () => void;
   onSave: (name: string, folderId: string | null) => boolean | Promise<boolean>;
+  returnFocus?: HTMLElement | null;
 }
 
 const NAME_INPUT_ID = 'save-to-library-name';
@@ -22,6 +24,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
   initialFolderId,
   onClose,
   onSave,
+  returnFocus,
 }) => {
   const [name, setName] = useState(initialName);
   const [folderId, setFolderId] = useState<string | null>(initialFolderId);
@@ -29,6 +32,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const trimmedName = name.trim();
   useEscapeToClose(onClose, open && !saving);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(open, { focusContainer: false, returnFocus });
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +55,8 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="save-to-library-title"

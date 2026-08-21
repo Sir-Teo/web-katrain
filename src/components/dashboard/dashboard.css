@@ -67,6 +67,12 @@
   --sidebar-w: 360px;
   --library-w: 232px;
 
+  /* Metrics bar footprint (its own height plus its bottom margin), held as
+     board-stage padding while analysis is off so the board never resizes on a
+     Tab. Keep in step with .commandbar's height and margin. */
+  --commandbar-reserve: 44px;
+  --stage-pad: 12px;
+
   /* Embedded app components (MoveTree, graph, notes) inherit the global
      --ui-* tokens directly, so they always match the active theme. */
 
@@ -346,7 +352,8 @@
   padding: 7px 16px;
   border-bottom: 1px solid var(--line);
   font-size: 12.5px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
   min-height: 42px;
 }
 .wk-dashboard .gamestrip.start-strip {
@@ -380,8 +387,8 @@
   width: 32px;
   height: 32px;
 }
-.wk-dashboard .gs-players { display: flex; align-items: center; gap: 14px; }
-.wk-dashboard .gs-player { display: flex; align-items: center; gap: 7px; }
+.wk-dashboard .gs-players { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.wk-dashboard .gs-player { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .wk-dashboard .gs-player .stone-mini { width: 14px; height: 14px; border-radius: 50%; flex: none; }
 .wk-dashboard .gs-player.to-move { position: relative; }
 .wk-dashboard .gs-player.to-move .stone-mini {
@@ -393,7 +400,7 @@
   color: var(--ui-accent); background: var(--ui-accent-soft); border: 1px solid color-mix(in srgb, var(--ui-accent) 35%, var(--line));
   padding: 1px 5px; border-radius: var(--r-pill); margin-left: 2px;
 }
-.wk-dashboard .gs-player .nm { font-weight: 600; white-space: nowrap; }
+.wk-dashboard .gs-player .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; white-space: nowrap; }
 .wk-dashboard .gs-player .rk { color: var(--faint); font-family: var(--mono); font-size: 11px; }
 .wk-dashboard .gs-player .cap { color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .wk-dashboard .gs-sep { width: 1px; height: 18px; background: var(--line); }
@@ -405,6 +412,7 @@
 }
 .wk-dashboard .gs-file {
   display: inline-flex; align-items: center; gap: 6px;
+  flex: 0 1 220px; min-width: 0;
   color: var(--muted); font-size: 11.5px; max-width: 220px;
 }
 .wk-dashboard .gs-file .fn { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -421,9 +429,23 @@
 .wk-dashboard .board-stage {
   flex: 1 1 0; min-height: 0; min-width: 0;
   display: grid; place-items: center;
-  padding: 12px;
+  padding: var(--stage-pad);
   position: relative;
   overflow: hidden;
+}
+
+/* Analysis toggles constantly (Tab), and .board-stage is flex:1, so every
+   toggle resized the board mid-game and slid the stones out from under the
+   cursor. When the metrics bar is hidden only because analysis is off, hold its
+   footprint as bottom padding instead: the board keeps one size and one
+   position for the whole session. Padding rather than a max-height on
+   .board-wrap because the stage centers its content — shrinking the wrap alone
+   would keep the size but drop the board half the reserve lower.
+   data-commandbar="closed" (the user collapsed the bar to get more board) and
+   focus mode both still hand the space back, since there the bigger board is
+   exactly what was asked for. */
+.wk-dashboard[data-commandbar="reserved"]:not([data-focus="on"]) .board-stage {
+  padding-bottom: calc(var(--stage-pad) + var(--commandbar-reserve));
 }
 .wk-dashboard .board-wrap {
   position: relative; aspect-ratio: 1;
@@ -597,7 +619,7 @@
 }
 .wk-dashboard .board-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 32px; padding: 0 10px;
+  min-width: 32px; height: 32px; padding: 0 10px;
   border: 1px solid var(--line); border-radius: var(--r-pill);
   background: var(--panel);
   font-size: 11.5px; font-weight: 600; color: var(--muted);
@@ -729,7 +751,20 @@
    the save status onto a second row; players, board size, file name stay. */
 @container boardcol (max-width: 1000px) {
   .wk-dashboard .gamestrip .gs-fact:not(.gs-fact-primary) { display: none; }
-  .wk-dashboard .gs-file { max-width: 140px; }
+  .wk-dashboard .gs-file { flex-basis: 140px; max-width: 140px; }
+}
+@container boardcol (max-width: 960px) {
+  /* Names and turn state identify the players faster than capture totals. Hide
+     the secondary counts before letting the strip wrap or truncating both
+     names beyond recognition. */
+  .wk-dashboard .gs-player .cap { display: none; }
+}
+@container boardcol (max-width: 760px) {
+  /* The loaded file remains visible in Library and in save/export surfaces.
+     On the narrowest desktop column, trade it for an invariant one-line game
+     strip that preserves players, result, save state and the clock. */
+  .wk-dashboard .gs-sep-file,
+  .wk-dashboard .gs-file { display: none; }
 }
 @container boardcol (max-width: 919px) {
   .wk-dashboard .navbar { gap: 4px; }
@@ -781,12 +816,18 @@
 /* collapsible section */
 .wk-dashboard .section { border-bottom: 1px solid var(--line); }
 .wk-dashboard .section-head {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%; padding: 10px 14px;
+  display: flex; align-items: center;
+  width: 100%;
   background: transparent; border: none;
   transition: background .12s ease;
 }
-.wk-dashboard .section-head:hover { background: var(--panel-soft); }
+.wk-dashboard .section-head-toggle {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0; padding: 10px 14px;
+  background: transparent; border: none;
+  transition: background .12s ease;
+}
+.wk-dashboard .section-head-toggle:hover { background: var(--panel-soft); }
 .wk-dashboard .section-head .chev { color: var(--faint); transition: transform .15s ease; display: inline-flex; }
 .wk-dashboard .section.open .section-head .chev { transform: rotate(90deg); }
 .wk-dashboard .section-head .stitle { flex: 1; text-align: left; }
@@ -795,7 +836,7 @@
      stat captions, not navigation. */
   font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
 }
-.wk-dashboard .section-head .saction { display: flex; align-items: center; gap: 4px; }
+.wk-dashboard .section-head .saction { display: flex; align-items: center; gap: 4px; margin-right: 10px; }
 .wk-dashboard .section-body { display: none; padding: 0 14px 14px; }
 .wk-dashboard .section.open .section-body { display: block; }
 .wk-dashboard .section-body.flush { padding: 0; }
@@ -1088,7 +1129,7 @@
 .wk-dashboard[data-layout="narrow"] .brand-name { display: none; }
 .wk-dashboard[data-layout="narrow"] #wk-view-menu-btn { padding: 0; width: 32px; }
 .wk-dashboard[data-layout="narrow"] #wk-view-menu-btn .vlabel { display: none; }
-.wk-dashboard[data-layout="narrow"] .board-stage { padding: 10px; }
+.wk-dashboard[data-layout="narrow"] { --stage-pad: 10px; }
 .wk-dashboard[data-layout="narrow"] .gamestrip { padding: 7px 12px; gap: 8px; }
 .wk-dashboard[data-layout="narrow"] .commandbar { margin: 0 12px 8px; }
 .wk-dashboard[data-layout="narrow"] .navbar { padding: 8px 12px 12px; }

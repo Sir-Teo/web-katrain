@@ -18,6 +18,15 @@ describe('RightPanel layout', () => {
     expect(source).toContain("isMobile ? 'hidden' : 'flex-1'");
   });
 
+  it('centers the current move and keeps list rows tappable on mobile', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+
+    expect(source).toContain("activeMobileTab !== 'tree' || treeView !== 'list'");
+    expect(source).toContain("scrollIntoView({ block: 'center' })");
+    expect(source).toContain('ref={isCurrent ? currentTreeListItemRef : undefined}');
+    expect(source).toContain("isMobile ? 'min-h-11 px-3 py-2' : 'px-2 py-1'");
+  });
+
   it('uses strict integer draft parsing for branch number edits', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 
@@ -25,6 +34,16 @@ describe('RightPanel layout', () => {
     expect(source).toContain('const parsed = parseIntegerDraft(branchIndexDraft)');
     expect(source).not.toContain('Number.parseInt(branchIndexDraft.trim()');
     expect(source).toMatch(/type="number"[\s\S]{0,420}aria-label="Branch number"/);
+  });
+
+  it('does not present dead tree navigation actions', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+
+    expect(source).toContain('disabled={isInsertMode || !currentNode.parent}');
+    expect(source).toContain('disabled={isInsertMode || currentNode.children.length === 0}');
+    expect(source).toContain('{treeListNodes.length > 1 && (');
+    expect(source).toContain("const branchToolbarActionClass = branchInfo.hasBranches ? 'panel-icon-button' : 'hidden';");
+    expect(source).toContain("branchInfo.hasBranches && branchInfo.currentIndex > 1 ? 'panel-icon-button' : 'hidden'");
   });
 
   it('uses current-line step numbers for setup-only positions', () => {

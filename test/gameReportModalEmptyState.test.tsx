@@ -12,6 +12,9 @@ describe('GameReportModal empty state', () => {
     );
 
     expect(html).toContain('data-game-report-empty="true"');
+    expect(html).toContain('min-h-[12rem]');
+    expect(html).toContain('sm:min-h-[14rem]');
+    expect(html).not.toContain('sm:min-h-[20rem]');
     expect(html).toContain('Play a game on the board or open an SGF with moves.');
     expect(html).not.toContain('Print / Save PDF');
     expect(html).not.toContain('aria-label="Report analysis coverage"');

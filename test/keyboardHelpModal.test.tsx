@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { KeyboardHelpModal } from '../src/components/KeyboardHelpModal';
+import { filterKeyboardReferenceItems } from '../src/utils/keyboardHelp';
 
 describe('KeyboardHelpModal', () => {
   it('includes gamepad controls alongside keyboard shortcuts', () => {
@@ -27,6 +28,22 @@ describe('KeyboardHelpModal', () => {
     expect(html).toContain('Previous/next move over the board or move tree');
     expect(html).toContain('Shift + wheel');
     expect(html).toContain('Previous/next mistake over the board or move tree');
+  });
+
+  it('filters pointer and gamepad references with the shortcut query', () => {
+    const references = [
+      { control: 'Pinch', action: 'Zoom the board on touch screens' },
+      { control: 'Wheel', action: 'Previous/next move over the board' },
+    ];
+
+    expect(filterKeyboardReferenceItems(references, 'wheel move')).toEqual([references[1]]);
+    expect(filterKeyboardReferenceItems(references, 'save')).toEqual([]);
+  });
+
+  it('uses one explicit clear action for shortcut search', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\[data-keyboard-help-search='true'\]::-webkit-search-cancel-button\s*\{[^}]*display: none/);
   });
 
   it('keeps the narrow-screen customize action compact and accessible', () => {

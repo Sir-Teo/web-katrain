@@ -328,7 +328,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     if (nextVisits === liveVisits) return;
 
     updateSettings({ katagoVisits: nextVisits });
-    setTimedNotification(`Live analysis depth: ${nextVisits} visits`, 'info', 1800);
+    setTimedNotification(`Live analysis depth: ${nextVisits} visits`, 'info');
     if (isAnalysisMode) {
       window.setTimeout(() => {
         void useGameStore.getState().runAnalysis({ force: true, visits: nextVisits });
@@ -346,7 +346,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       error: engineError,
     }));
     setEngineErrorCopied(ok);
-    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error', 1800);
+    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error');
   }, [activeBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
   const overlayToggle = (
     control: AnalysisOverlayControl,
@@ -512,7 +512,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
-          MCTS depth
+          Analysis depth
         </div>
         <div className="text-[11px] ui-text-faint">Kaya-style</div>
       </div>

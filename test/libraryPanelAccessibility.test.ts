@@ -6,6 +6,8 @@ describe('LibraryPanel accessibility', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
     expect(source).toContain('aria-label="Search library"');
+    expect(source).toContain('aria-label="Clear library search"');
+    expect(source).toContain('data-library-search="true"');
     expect(source).toContain('aria-label="Sort library"');
     expect(source).toContain('aria-label="Move selected to folder"');
   });
@@ -89,5 +91,15 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain('assertValidLibrarySgfImport(text);');
     expect(source).toContain('No valid SGF games were imported.');
     expect(source).toContain('invalid SGF file');
+  });
+
+  it('states the full scope of irreversible Library deletions', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    expect(source).toContain('const descendantCount = isFolderItem');
+    expect(source).toContain('const affectedCount = items.filter');
+    expect(source).toContain('This cannot be undone.');
+    expect(source).not.toContain('Delete ${visibleSelectedIds.size} item(s) from Library?');
+    expect(source).toMatch(/LibraryConfirmDialog[\s\S]*onClick=\{onClose\} autoFocus/);
   });
 });

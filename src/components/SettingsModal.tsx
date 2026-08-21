@@ -1,7 +1,7 @@
 import React from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { FaBolt, FaCheck, FaGlobe, FaMicrochip, FaTimes } from 'react-icons/fa';
+import { FaBolt, FaCheck, FaChevronDown, FaGlobe, FaMicrochip, FaTimes } from 'react-icons/fa';
 import type { GameSettings } from '../types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import {
@@ -18,6 +18,7 @@ import { UI_THEME_OPTIONS } from '../utils/uiThemes';
 import { APP_LOCALE_OPTIONS } from '../utils/locales';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
+import { SETTINGS_TAB_LABELS, searchAvailableSettings, type SettingsSearchEntry } from '../utils/settingsSearch';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
@@ -137,6 +138,19 @@ const ANALYSIS_OVERLAY_SHORTCUT_IDS = [
     'toggle-territory',
 ] as const;
 
+const ADVANCED_ENGINE_SETTING_IDS = new Set([
+    'settings-katago-max-time',
+    'settings-katago-batch-size',
+    'settings-katago-max-children',
+    'settings-katago-top-moves',
+    'settings-katago-wide-root-noise',
+    'settings-katago-pv-len',
+    'settings-katago-ownership',
+    'settings-katago-reuse-tree',
+    'settings-katago-randomize-symmetry',
+    'settings-katago-conservative-pass',
+]);
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     useEscapeToClose(onClose);
     const dialogRef = useInitialDialogFocus<HTMLDivElement>();
@@ -172,6 +186,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         }
         saveSettingsActiveTab(activeTab);
     }, [activeTab]);
+    const [settingsQuery, setSettingsQuery] = React.useState('');
+    const settingsResults = React.useMemo(
+        () => searchAvailableSettings(settingsQuery, settings.aiStrategy),
+        [settingsQuery, settings.aiStrategy]
+    );
+    const [activeSettingsResult, setActiveSettingsResult] = React.useState(-1);
+    const [officialModelsOpen, setOfficialModelsOpen] = React.useState(false);
+    const [advancedEngineOpen, setAdvancedEngineOpen] = React.useState(false);
+
+    // Set by a search result, cleared once the control has been revealed. The
+    // target panel only mounts when the tab changes, so the reveal has to wait
+    // for that render rather than guess at a frame or two.
+    const [pendingReveal, setPendingReveal] = React.useState<string | null>(null);
+    const revealTimerRef = React.useRef<number | null>(null);
+
+    const goToSetting = (entry: SettingsSearchEntry) => {
+        if (ADVANCED_ENGINE_SETTING_IDS.has(entry.id)) {
+            setAdvancedEngineOpen(true);
+        }
+        setActiveTab(entry.tab);
+        setSettingsQuery('');
+        setPendingReveal(entry.id);
+    };
+
+    React.useEffect(() => {
+        if (!pendingReveal) return;
+        const label = document.querySelector<HTMLElement>(`label[for="${pendingReveal}"]`);
+        const control = document.getElementById(pendingReveal);
+        if (!label && !control) return;
+        setPendingReveal(null);
+
+        (label ?? control)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        // Focused, not just scrolled to, so keyboard users land on the control
+        // and can change it straight away.
+        control?.focus({ preventScroll: true });
+        const row = label?.closest<HTMLElement>('div') ?? control;
+        if (!row) return;
+        // A brief marker: in a panel this long, scrolling alone leaves it
+        // unclear which row was the answer.
+        row.dataset.settingsFound = 'true';
+        // The timer is held in a ref rather than cleaned up by this effect:
+        // clearing pendingReveal above re-runs it, and an effect cleanup would
+        // cancel the timer it had just set, leaving the marker on for good.
+        if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = window.setTimeout(() => {
+            delete row.dataset.settingsFound;
+            revealTimerRef.current = null;
+        }, 1600);
+    }, [pendingReveal, activeTab]);
+
+    React.useEffect(() => () => {
+        if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
+    }, []);
+
     const focusSettingsTab = (tabId: SettingsTabId) => {
         window.requestAnimationFrame(() => {
             document.getElementById(`tab-${tabId}`)?.focus();
@@ -394,8 +462,71 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         <FaTimes />
                     </button>
                 </div>
-                <div className="px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">  
-                    {/* Tab Navigation */}  
+                <div className="px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">
+                    {/* Search. Four tabs and 80-odd controls is more than anyone
+                        should have to hunt through by eye; typing a word jumps
+                        straight to the control, switching tabs on the way. */}
+                    <div className="settings-search relative mb-4">
+                        <input
+                            type="search"
+                            id="settings-search-input"
+                            className="settings-search-input w-full rounded-lg border px-3 py-2 text-sm"
+                            placeholder="Search settings"
+                            aria-label="Search settings"
+                            aria-controls={settingsQuery.trim() ? 'settings-search-results' : undefined}
+                            aria-expanded={settingsQuery.trim() !== ''}
+                            aria-activedescendant={activeSettingsResult >= 0 ? `settings-search-result-${activeSettingsResult}` : undefined}
+                            autoComplete="off"
+                            value={settingsQuery}
+                            onChange={(e) => {
+                                setSettingsQuery(e.target.value);
+                                setActiveSettingsResult(-1);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Escape' && settingsQuery) {
+                                    // Clear the query first; a second Escape closes the modal.
+                                    e.stopPropagation();
+                                    setSettingsQuery('');
+                                    setActiveSettingsResult(-1);
+                                } else if (e.key === 'ArrowDown' && settingsResults.length > 0) {
+                                    e.preventDefault();
+                                    setActiveSettingsResult((current) => (current + 1) % settingsResults.length);
+                                } else if (e.key === 'ArrowUp' && settingsResults.length > 0) {
+                                    e.preventDefault();
+                                    setActiveSettingsResult((current) => current <= 0 ? settingsResults.length - 1 : current - 1);
+                                } else if (e.key === 'Enter' && settingsResults[activeSettingsResult >= 0 ? activeSettingsResult : 0]) {
+                                    e.preventDefault();
+                                    goToSetting(settingsResults[activeSettingsResult >= 0 ? activeSettingsResult : 0]);
+                                }
+                            }}
+                        />
+                        {settingsQuery.trim() !== '' && (
+                            <ul id="settings-search-results" className="settings-search-results" role="listbox" aria-label="Search results">
+                                {settingsResults.length === 0 ? (
+                                    <li className="settings-search-empty">No setting matches “{settingsQuery.trim()}”</li>
+                                ) : (
+                                    settingsResults.map((entry, index) => (
+                                        <li key={entry.id}>
+                                            <button
+                                                id={`settings-search-result-${index}`}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={index === activeSettingsResult}
+                                                className="settings-search-result"
+                                                onMouseEnter={() => setActiveSettingsResult(index)}
+                                                onClick={() => goToSetting(entry)}
+                                            >
+                                                <span className="settings-search-result-label">{entry.label}</span>
+                                                <span className="settings-search-result-tab">{SETTINGS_TAB_LABELS[entry.tab]}</span>
+                                            </button>
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+                        )}
+                    </div>
+
+                    {/* Tab Navigation */}
                     <div className="settings-tabs flex w-full min-w-0 border-b mb-5"
                         role="tablist"
                         aria-orientation="horizontal"
@@ -1853,7 +1984,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </p>
                                         </div>
                                         <div className="space-y-2">
-                                            <div className="text-xs text-[var(--ui-text-faint)]">Official KataGo models (download links)</div>
+                                            <button
+                                                type="button"
+                                                className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left transition-colors hover:bg-[var(--ui-surface-2)]"
+                                                aria-expanded={officialModelsOpen}
+                                                aria-controls="settings-official-models"
+                                                onClick={() => setOfficialModelsOpen((open) => !open)}
+                                            >
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block text-sm font-medium text-[var(--ui-text)]">Official model downloads</span>
+                                                    <span className="block text-xs text-[var(--ui-text-faint)]">{OFFICIAL_MODELS.length} optional KataGo networks</span>
+                                                </span>
+                                                <FaChevronDown
+                                                    aria-hidden="true"
+                                                    className={`shrink-0 text-[var(--ui-text-muted)] transition-transform ${officialModelsOpen ? 'rotate-180' : ''}`}
+                                                />
+                                            </button>
+                                            {officialModelsOpen ? (
+                                            <div id="settings-official-models" className="space-y-2">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 {OFFICIAL_MODELS.map((model) => (
                                                     <div
@@ -1973,6 +2121,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <p className={subtextClass}>
                                                 Download only browser-sized weights, then use "Upload Weights" above. Saved browser uploads use IndexedDB; large b28/b40 weights are for native KataGo, not this browser engine.
                                             </p>
+                                            </div>
+                                            ) : null}
                                         </div>
                                         <div className="space-y-2">
                                             <label id="settings-katago-backend-label" htmlFor="settings-katago-backend" className="text-[var(--ui-text-muted)] block text-sm">Backend</label>
@@ -2109,6 +2259,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </div>
                                             <p className={subtextClass}>Used by Fast review and load-time SGF analysis.</p>
                                         </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="mt-4 flex min-h-11 w-full items-center gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left transition-colors hover:bg-[var(--ui-surface-2)]"
+                                        aria-expanded={advancedEngineOpen}
+                                        aria-controls="settings-advanced-engine"
+                                        onClick={() => setAdvancedEngineOpen((open) => !open)}
+                                    >
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-sm font-medium text-[var(--ui-text)]">Advanced engine tuning</span>
+                                            <span className="block text-xs text-[var(--ui-text-faint)]">Limits, search behavior, and analysis output</span>
+                                        </span>
+                                        <FaChevronDown
+                                            aria-hidden="true"
+                                            className={`shrink-0 text-[var(--ui-text-muted)] transition-transform ${advancedEngineOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+
+                                    {advancedEngineOpen ? (
+                                    <div id="settings-advanced-engine">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                                         <div className="space-y-1">
                                             <label htmlFor="settings-katago-max-time" className="text-[var(--ui-text-muted)] block text-sm">Max Time (ms)</label>
                                             <input
@@ -2257,6 +2429,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             KaTrain default: suppresses “pass ends game” features at the root.
                                         </p>
                                     </div>
+                                    </div>
+                                    ) : null}
                                 </div>  
                             </div>  
                         )}  

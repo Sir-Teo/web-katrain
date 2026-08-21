@@ -70,6 +70,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   onDone,
 }) => {
   const detailsId = React.useId();
+  const detailsRef = React.useRef<HTMLDivElement>(null);
   // Docked (dashboard strip) and compact (mobile bottom bar) variants keep the
   // breakdown behind the Details toggle so the bar stays slim and the board keeps
   // its space; only the floating desktop panel opens expanded.
@@ -84,6 +85,17 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   React.useEffect(() => {
     if (active) setShowDetails(!isCompact && !docked);
   }, [active, isCompact, docked]);
+
+  React.useEffect(() => {
+    if (!active || !isCompact || docked) return;
+    const frame = window.requestAnimationFrame(() => {
+      const details = detailsRef.current;
+      const panel = details?.closest<HTMLElement>('.manual-score-panel');
+      if (!details || !panel) return;
+      panel.scrollTop = showDetails ? details.offsetTop : 0;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [active, docked, isCompact, showDetails]);
 
   if (!active) {
     // When the launcher lives elsewhere (e.g. the mobile bottom bar), render
@@ -152,6 +164,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         <button
           type="button"
           className={scoreMode === 'estimate' ? 'active' : ''}
+          aria-pressed={scoreMode === 'estimate'}
           onClick={onAutoEstimate}
           disabled={!onAutoEstimate || !canAutoEstimate}
           title={estimateTitle}
@@ -163,6 +176,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         <button
           type="button"
           className={scoreMode === 'manual' ? 'active' : ''}
+          aria-pressed={scoreMode === 'manual'}
           onClick={onUseManualScore}
           disabled={!onUseManualScore || scoreMode === 'manual'}
           title="Use current dead-stone marks as the final manual score"
@@ -207,7 +221,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
         </div>
       </div>
 
-      <div className="manual-score-details">
+      <div ref={detailsRef} className="manual-score-details">
         <button
           type="button"
           className="manual-score-details-toggle"

@@ -74,7 +74,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
       onClick={onClose}
     >
       <div
-        className="ui-panel flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"
@@ -284,6 +284,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                       key={p.value}
                       type="button"
                       onClick={() => setPreset(p.value)}
+                      aria-pressed={preset === p.value}
                       className={[
                         'rounded-lg border px-3 py-2 text-left',
                         preset === p.value
@@ -400,7 +401,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
           <div className="mb-1 text-sm font-semibold text-[var(--ui-text)]">Board size</div>
           <div className="grid grid-cols-3 gap-2">
             {BOARD_OPTIONS.map((sz) => (
-              <button key={sz} type="button" onClick={() => setBoardSize(sz)} className={boardButtonClass(boardSize === sz)}>
+              <button key={sz} type="button" onClick={() => setBoardSize(sz)} aria-pressed={boardSize === sz} className={boardButtonClass(boardSize === sz)}>
                 {sz}×{sz}
               </button>
             ))}
@@ -411,7 +412,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
           <div className="mb-1 text-sm font-semibold text-[var(--ui-text)]">Your color</div>
           <div className="grid grid-cols-2 gap-2">
             {(['black', 'white'] as Player[]).map((c) => (
-              <button key={c} type="button" onClick={() => setUserColor(c)} className={`${boardButtonClass(userColor === c)} capitalize`}>
+              <button key={c} type="button" onClick={() => setUserColor(c)} aria-pressed={userColor === c} className={`${boardButtonClass(userColor === c)} capitalize`}>
                 {c}
               </button>
             ))}

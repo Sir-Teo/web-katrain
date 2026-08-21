@@ -43,6 +43,38 @@ describe('modal accessibility semantics', () => {
     }
   });
 
+  it('sizes mobile modal surfaces against the dynamic viewport', () => {
+    const responsiveSurfaces = [
+      'src/components/CommandPaletteModal.tsx',
+      'src/components/GuessMoveModal.tsx',
+      'src/components/KifuPrintModal.tsx',
+      'src/components/LessonsModal.tsx',
+      'src/components/NewGameModal.tsx',
+      'src/components/PhotoBoardModal.tsx',
+      'src/components/ProGamesModal.tsx',
+      'src/components/ProblemModal.tsx',
+      'src/components/ScoreQuizModal.tsx',
+      'src/components/TournamentModal.tsx',
+    ];
+
+    for (const path of responsiveSurfaces) {
+      expect(readFileSync(path, 'utf8'), path).toContain('dvh]');
+    }
+  });
+
+  it('keeps the Print Kifu header actions reachable on narrow screens', () => {
+    const source = readFileSync('src/components/KifuPrintModal.tsx', 'utf8');
+
+    expect(source).toContain('flex flex-col items-stretch gap-3');
+    expect(source).toContain('sm:flex-row sm:items-center sm:justify-between');
+    expect(source).toContain('absolute right-3 top-3');
+    expect(source).toContain('aria-label="Print kifu or save as PDF"');
+    expect(source).toContain('<span className="hidden lg:inline">Print / PDF</span>');
+    expect(source).toContain('<span className="sm:hidden">All</span>');
+    expect(source).toContain('<span className="hidden sm:inline">{opt.label}</span>');
+    expect(source).toContain('<span className="sr-only">Print Kifu: </span>');
+  });
+
   it('moves focus into dialogs that use the shared focus hook and wraps Tab inside them', () => {
     // aria-modal="true" only marks the rest of the page inert for assistive tech;
     // it does not stop Tab reaching background controls, so the hook enforces the
@@ -50,12 +82,20 @@ describe('modal accessibility semantics', () => {
     // container can receive the initial focus.
     const consumers = [
       'src/components/AboutDialog.tsx',
+      'src/components/CameraCaptureModal.tsx',
       'src/components/CommandPaletteModal.tsx',
+      'src/components/GameAnalysisModal.tsx',
       'src/components/GameReportModal.tsx',
+      'src/components/GuessMoveModal.tsx',
       'src/components/KeyboardHelpModal.tsx',
+      'src/components/KifuPrintModal.tsx',
       'src/components/LessonsModal.tsx',
       'src/components/NewGameModal.tsx',
+      'src/components/PasteSgfModal.tsx',
+      'src/components/PhotoBoardModal.tsx',
+      'src/components/ProblemModal.tsx',
       'src/components/ProGamesModal.tsx',
+      'src/components/SaveToLibraryDialog.tsx',
       'src/components/ScoreQuizModal.tsx',
       'src/components/SettingsModal.tsx',
       'src/components/TournamentModal.tsx',
@@ -76,9 +116,35 @@ describe('modal accessibility semantics', () => {
     // Runs on the open/close transition only; depending on onClose identity would
     // re-run every render and yank focus back out of the dialog. focusContainer is
     // a plain boolean, so it is stable across renders.
-    expect(hook).toContain('}, [active, focusContainer]);');
+    expect(hook).toContain('}, [active, focusContainer, returnFocus]);');
     expect(hook).toContain("event.key !== 'Tab' || event.defaultPrevented");
-    expect(hook).toContain('previouslyFocused?.isConnected');
+    expect(hook).toContain('focusTarget?.isConnected');
+    expect(hook).toContain('returnFocus?.isConnected ? returnFocus : previouslyFocused');
+  });
+
+  it('returns help dialogs to the durable desktop Help trigger', () => {
+    const dashboard = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(dashboard).toContain('onKeyboardHelp(trigger)');
+    expect(dashboard).toContain('onAbout(trigger)');
+    expect(layout).toContain('returnFocus={modalReturnFocusRef.current}');
+  });
+
+  it('returns file-action dialogs to their durable desktop trigger', () => {
+    const dashboard = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(dashboard).toContain('onSaveToLibrary(trigger)');
+    expect(dashboard).toContain('onPasteSgf(trigger)');
+    expect(dashboard).toContain('onScanBoard(trigger)');
+    expect(layout).toContain('onScanBoard={(returnFocus) => openPhotoBoard(null, returnFocus)}');
+  });
+
+  it('keeps programmatically focused dialog containers visually quiet', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\[role='dialog'\]\[tabindex='-1'\]:focus\s*\{[^}]*outline: none/);
   });
 
   it('lets nested modal controls own Escape when they already consumed it', () => {

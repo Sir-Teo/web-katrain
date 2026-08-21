@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaCamera, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 interface CameraCaptureModalProps {
   onCapture: (file: File) => void;
@@ -69,6 +70,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCaptur
     onClose();
   }, [onClose, stopCamera]);
   useEscapeToClose(handleClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   const handleCapture = React.useCallback(() => {
     const video = videoRef.current;
@@ -109,6 +111,8 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCaptur
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-3 mobile-safe-inset mobile-safe-area-bottom"
       role="dialog"
       aria-modal="true"

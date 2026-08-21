@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PasteSgfModal } from '../src/components/PasteSgfModal';
 import { getDirectGameImportText, getPasteSgfInputInfo } from '../src/utils/pasteSgfInput';
 
 describe('PasteSgfModal', () => {
+  it('keeps modal-owned failures local instead of announcing a duplicate toast', () => {
+    const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(layoutSource).toContain('onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}');
+    expect(layoutSource).toContain("if (options.notifyFailure !== false) toast('Failed to load SGF or OGS URL.', 'error');");
+  });
+
   it('explains supported SGF and OGS inputs in the empty state', () => {
     const html = renderToStaticMarkup(
       <PasteSgfModal
