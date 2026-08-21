@@ -139,7 +139,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
           <p className="text-sm text-[var(--ui-text-muted)]">
             {quizPositions.length === 0
-              ? 'Play some moves or open a game first — there is no position to read yet.'
+              ? 'This is the starting position. Play some moves or open a game for a more meaningful score estimate.'
               : `Read the position, then estimate who is ahead and by how many points. Move ${moveNumber}.`}
           </p>
 
@@ -150,12 +150,13 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           {phase !== 'reveal' ? (
             <div className="space-y-3">
               <div className="text-sm font-semibold text-[var(--ui-text)]">Who is ahead?</div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Predicted leader">
                 {(['black', 'white'] as Winner[]).map((w) => (
                   <button
                     key={w}
                     type="button"
                     onClick={() => setWinner(w)}
+                    aria-pressed={winner === w}
                     className={`min-h-11 rounded-lg border px-4 py-2 text-sm font-semibold capitalize ${
                       winner === w
                         ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-text)]'
