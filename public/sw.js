@@ -71,8 +71,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(APP_SHELL_CACHE).then((cache) => cache.put('./', copy));
+          // Only cache successful navigations; a transient 404/500 must not
+          // become the offline shell.
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(APP_SHELL_CACHE).then((cache) => cache.put('./', copy));
+          }
           return response;
         })
         .catch(async () => {

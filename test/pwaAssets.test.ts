@@ -83,6 +83,20 @@ describe('PWA assets', () => {
     expect(sw).toContain('./pwa/screenshot-mobile.png');
   });
 
+  it('never caches failed navigations as the offline shell', () => {
+    const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
+    const navigateStart = sw.indexOf("request.mode === 'navigate'");
+    const assetStart = sw.indexOf('isCacheFirstAsset(url)');
+    expect(navigateStart).toBeGreaterThan(-1);
+    expect(assetStart).toBeGreaterThan(navigateStart);
+    // The navigate handler must check response.ok before overwriting './',
+    // or a transient 404/500 permanently poisons offline navigation.
+    const navigateHandler = sw.slice(navigateStart, assetStart);
+    expect(navigateHandler).toContain("cache.put('./'");
+    expect(navigateHandler.indexOf('if (response.ok)')).toBeGreaterThan(-1);
+    expect(navigateHandler.indexOf('if (response.ok)')).toBeLessThan(navigateHandler.indexOf("cache.put('./'"));
+  });
+
   it('publishes crawl metadata for the public web deployment', () => {
     const robots = fs.readFileSync(path.join(publicDir, 'robots.txt'), 'utf8');
     const sitemap = fs.readFileSync(path.join(publicDir, 'sitemap.xml'), 'utf8');
