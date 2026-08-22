@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaPause, FaPlay } from 'react-icons/fa';
+import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { formatKaTrainClockSeconds, stepKaTrainTimer, type KaTrainTimerDisplay } from '../utils/katrainTimer';
 import { getAnimationNow } from '../utils/animationFrame';
@@ -7,11 +8,14 @@ import { getAnimationNow } from '../utils/animationFrame';
 export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 'default' }) => {
   const timerPaused = useGameStore((s) => s.timerPaused);
   const toggleTimerPaused = useGameStore((s) => s.toggleTimerPaused);
-  const timerSettings = useGameStore((s) => ({
-    mainTimeMinutes: s.settings.timerMainTimeMinutes,
-    byoLengthSeconds: s.settings.timerByoLengthSeconds,
-    byoPeriods: s.settings.timerByoPeriods,
-  }));
+  const timerSettings = useGameStore(
+    (s) => ({
+      mainTimeMinutes: s.settings.timerMainTimeMinutes,
+      byoLengthSeconds: s.settings.timerByoLengthSeconds,
+      byoPeriods: s.settings.timerByoPeriods,
+    }),
+    shallow
+  );
 
   const [display, setDisplay] = useState<KaTrainTimerDisplay>(() => ({
     timeSeconds: 0,
