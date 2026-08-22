@@ -8,6 +8,8 @@ type EvalBatchResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago
 
 const takeLastMoves = (moves: Move[]): Move[] => (moves.length <= 5 ? moves : moves.slice(moves.length - 5));
 
+type WorkerErrorEventLike = { error?: unknown; message?: string };
+
 export class KataGoCanceledError extends Error {
   readonly canceled = true;
 
@@ -36,6 +38,7 @@ class KataGoEngineClient {
   private backend: string | null = null;
   private modelName: string | null = null;
   private lastLoggedEngineLabel: string | null = null;
+  private crashed: Error | null = null;
 
   constructor() {
     if (!getWorkerConstructor()) {
@@ -49,6 +52,8 @@ class KataGoEngineClient {
     }
 
     this.worker.onmessage = (ev: MessageEvent<KataGoWorkerResponse>) => {
+      // The worker is clearly alive again, so future requests are allowed through.
+      this.crashed = null;
       const msg = ev.data;
       if (msg.type === 'katago:init_result') {
         const pendingInit = this.pendingInit;
@@ -101,9 +106,52 @@ class KataGoEngineClient {
         else pending.resolve(msg.evals);
       }
     };
+
+    // Without these handlers a worker that dies mid-request (script load
+    // failure, throw during module evaluation, browser reclaiming the worker)
+    // would leave every pending promise unsettled forever, wedging the
+    // analysis queue behind it.
+    this.worker.onerror = (ev: WorkerErrorEventLike) => {
+      const cause =
+        ev.error instanceof Error
+          ? ev.error
+          : new Error(ev.message || 'unknown error');
+      this.handleWorkerCrash(formatWorkerError(cause, 'KataGo worker crashed'));
+    };
+    this.worker.onmessageerror = () => {
+      this.handleWorkerCrash(new Error('KataGo worker posted an undecodable message'));
+    };
+  }
+
+  private handleWorkerCrash(error: Error): void {
+    this.crashed = error;
+    this.failAllPending(error);
+  }
+
+  private failAllPending(error: Error): void {
+    if (this.pendingInit) {
+      const { reject } = this.pendingInit;
+      this.pendingInit = null;
+      reject(error);
+    }
+    const pendingAnalyze = [...this.pending.values()];
+    this.pending.clear();
+    const pendingEval = [...this.pendingEval.values()];
+    this.pendingEval.clear();
+    const pendingEvalBatch = [...this.pendingEvalBatch.values()];
+    this.pendingEvalBatch.clear();
+    for (const entry of pendingAnalyze) entry.reject(error);
+    for (const entry of pendingEval) entry.reject(error);
+    for (const entry of pendingEvalBatch) entry.reject(error);
+  }
+
+  private rejectIfCrashed(): void {
+    if (!this.crashed) return;
+    throw this.crashed;
   }
 
   dispose(): void {
+    this.failAllPending(new Error('KataGo engine client was disposed'));
     this.worker.terminate();
   }
 
@@ -186,6 +234,7 @@ class KataGoEngineClient {
     ownershipMode?: 'none' | 'root' | 'tree';
     onProgress?: (analysis: Analysis) => void;
   }): Promise<Analysis> {
+    this.rejectIfCrashed();
     const id = this.nextId++;
     const req: KataGoWorkerRequest = {
       type: 'katago:analyze',
@@ -244,6 +293,7 @@ class KataGoEngineClient {
     rules?: GameRules;
     conservativePass?: boolean;
   }): Promise<EvalResult> {
+    this.rejectIfCrashed();
     const id = this.nextId++;
     const req: KataGoWorkerRequest = {
       type: 'katago:eval',
@@ -285,6 +335,7 @@ class KataGoEngineClient {
     rules?: GameRules;
     conservativePass?: boolean;
   }): Promise<EvalBatchResult> {
+    this.rejectIfCrashed();
     const id = this.nextId++;
     const req: KataGoWorkerRequest = {
       type: 'katago:eval_batch',
