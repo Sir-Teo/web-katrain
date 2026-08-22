@@ -2027,6 +2027,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let lastFailure: string | null = null;
       let lastUiUpdate = getAnimationNow();
       let metaSynced = false;
+      const stillOwnsRun = () =>
+        token === gameAnalysisToken && get().isGameAnalysisRunning && get().gameAnalysisType === 'quick';
 
       const evalBatchSize = Math.max(1, Math.min(get().settings.katagoBatchSize, 8));
 
@@ -2098,7 +2100,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
               node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, 1);
             }
           } catch (err) {
-            if (isAnalysisCanceled(err)) return;
+            if (isAnalysisCanceled(err)) {
+              // Queue-level preemption (e.g. live analysis while the user
+              // navigates) aborts the active job without bumping the token.
+              // Skip the chunk and keep reviewing instead of silently dying
+              // with the progress UI stuck on "running".
+              if (stillOwnsRun()) continue;
+              return;
+            }
             failed += toEval.length;
             lastFailure = errorMessage(err);
           }
@@ -2172,6 +2181,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let lastFailure: string | null = null;
       let lastUiUpdate = getAnimationNow();
       let metaSynced = false;
+      const stillOwnsRun = () =>
+        token === gameAnalysisToken && get().isGameAnalysisRunning && get().gameAnalysisType === 'fast';
 
       for (const node of nodes) {
         if (token !== gameAnalysisToken) return;
@@ -2259,7 +2270,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
             };
             node.analysisVisitsRequested = fastVisits;
           } catch (err) {
-            if (isAnalysisCanceled(err)) return;
+            if (isAnalysisCanceled(err)) {
+              // Queue-level preemption (e.g. live analysis while the user
+              // navigates) aborts the active job without bumping the token.
+              // Skip the node and keep reviewing instead of silently dying
+              // with the progress UI stuck on "running".
+              if (stillOwnsRun()) continue;
+              return;
+            }
             failed++;
             lastFailure = errorMessage(err);
           }
@@ -2332,6 +2350,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let lastFailure: string | null = null;
       let lastUiUpdate = getAnimationNow();
       let metaSynced = false;
+      const stillOwnsRun = () =>
+        token === gameAnalysisToken && get().isGameAnalysisRunning && get().gameAnalysisType === 'full';
 
       for (const node of nodes) {
         if (token !== gameAnalysisToken) return;
@@ -2429,7 +2449,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
             };
             node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, visits);
           } catch (err) {
-            if (isAnalysisCanceled(err)) return;
+            if (isAnalysisCanceled(err)) {
+              // Queue-level preemption (e.g. live analysis while the user
+              // navigates) aborts the active job without bumping the token.
+              // Skip the node and keep reviewing instead of silently dying
+              // with the progress UI stuck on "running".
+              if (stillOwnsRun()) continue;
+              return;
+            }
             failed++;
             lastFailure = errorMessage(err);
           }
