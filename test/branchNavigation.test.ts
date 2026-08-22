@@ -4,6 +4,7 @@ import {
   findBranchRoot,
   findBranchTargetByIndex,
   findCurrentLineMoveTarget,
+  findCurrentLineNodeByPlayedMoves,
   findSiblingBranchTarget,
   getBranchInfo,
   getCurrentLineNodes,
@@ -30,6 +31,11 @@ const makeNode = (id: string, parent: GameNode | null, move: Move | null = null)
     gameState: makeState(),
   };
   parent?.children.push(node);
+  return node;
+};
+
+const withPlayedMoves = (node: GameNode, playedMoves: number): GameNode => {
+  node.gameState.moveHistory = Array.from({ length: playedMoves }, () => ({ x: 0, y: 0, player: 'black' }));
   return node;
 };
 
@@ -165,6 +171,25 @@ describe('branch navigation', () => {
 
     expect(getCurrentLineNodes(root).map((node) => node.id)).toEqual(['root', 'a', 'a1']);
     expect(getCurrentLineNodes(root, { [root.id]: b.id, [b.id]: b1.id }).map((node) => node.id)).toEqual(['root', 'b', 'b1', 'b2']);
+  });
+
+  it('resolves nodes by played-move count, treating setup nodes as transparent', () => {
+    // Typical handicap SGF shape: setup stones precede the first move, so
+    // step-based numbering (which counts them) diverges from move-history
+    // indices. Click-to-jump must resolve against played moves.
+    const root = withPlayedMoves(makeNode('root', null), 0);
+    const setup = makeNode('setup', root);
+    setup.properties = { AB: ['aa'], PL: ['W'] };
+    withPlayedMoves(setup, 0);
+    const move = withPlayedMoves(makeNode('move', setup, { x: 0, y: 0, player: 'black' }), 1);
+    const reply = withPlayedMoves(makeNode('reply', move, { x: 1, y: 1, player: 'white' }), 2);
+
+    expect(findCurrentLineNodeByPlayedMoves(reply, 1)?.id).toBe('move');
+    expect(findCurrentLineNodeByPlayedMoves(reply, 2)?.id).toBe('reply');
+    expect(findCurrentLineNodeByPlayedMoves(reply, 0)?.id).toBe('root');
+    expect(findCurrentLineNodeByPlayedMoves(reply, 99)?.id).toBe('reply');
+    expect(findCurrentLineNodeByPlayedMoves(reply, -1)).toBeNull();
+    expect(findCurrentLineNodeByPlayedMoves(reply, 1.5)).toBeNull();
   });
 
   it('returns null when the current path has no sibling branch', () => {

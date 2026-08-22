@@ -33,7 +33,7 @@ import {
   getWheelNavigationAction,
   WHEEL_NAVIGATION_THROTTLE_MS,
 } from '../utils/wheelNavigation';
-import { getActiveChild } from '../utils/branchNavigation';
+import { getActiveChild, findCurrentLineNodeByPlayedMoves } from '../utils/branchNavigation';
 import { fuzzyStoneOffset } from '../utils/fuzzyPlacement';
 import { formatBoardMoveLabel } from '../utils/playedMoveQuality';
 import { setTimedNotification, type TimedNotificationType } from '../utils/timedNotification';
@@ -198,7 +198,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     navigateForward,
     navigateNextMistake,
     navigatePrevMistake,
-    navigateToMove,
+    jumpToNode,
   } = useGameStore(
     (state) => ({
       board: state.board,
@@ -227,7 +227,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       navigateForward: state.navigateForward,
       navigateNextMistake: state.navigateNextMistake,
       navigatePrevMistake: state.navigatePrevMistake,
-      navigateToMove: state.navigateToMove,
+      jumpToNode: state.jumpToNode,
     }),
     shallow
   );
@@ -1696,11 +1696,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const pt = eventToInternal(e);
     if (!pt) return;
 
-    // Cmd/Alt-click a stone to jump to the move that placed it.
+    // Cmd/Alt-click a stone to jump to the move that placed it. The placement
+    // grid numbers real moves only, so resolve the node by played-move count —
+    // step-based navigation would misjump when setup stones precede the move.
     if ((e.metaKey || e.altKey) && !isEditMode && !scoringMode) {
       const placedAt = placementGrid[pt.y]?.[pt.x];
       if (placedAt != null && placedAt > 0) {
-        navigateToMove(placedAt);
+        const target = findCurrentLineNodeByPlayedMoves(currentNode, placedAt, activeBranchChildIds);
+        if (target && target.id !== currentNode.id) jumpToNode(target);
         return;
       }
     }

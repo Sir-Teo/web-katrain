@@ -187,3 +187,26 @@ export function findCurrentLineMoveTarget(
 
   return lastNode;
 }
+
+/**
+ * Resolves a node by its count of actually played moves (moveHistory length),
+ * ignoring setup nodes. Use this when a move number comes from move history
+ * data (e.g. the stone placement grid) rather than from step-based UI labels.
+ */
+export function findCurrentLineNodeByPlayedMoves(
+  currentNode: GameNode,
+  playedMoves: number,
+  activeBranches: ActiveBranchMap = {}
+): GameNode | null {
+  if (!Number.isInteger(playedMoves) || playedMoves < 0) return null;
+  let best: GameNode | null = null;
+
+  for (const node of getCurrentLineNodes(currentNode, activeBranches)) {
+    const count = node.gameState.moveHistory.length;
+    if (count === playedMoves) return node;
+    if (count > playedMoves) break;
+    best = node;
+  }
+
+  return best;
+}
