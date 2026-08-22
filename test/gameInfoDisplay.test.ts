@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   formatGameInfoPlayer,
   formatGameInfoTitle,
@@ -38,6 +39,14 @@ describe('game info display helpers', () => {
     expect(formatGameInfoTitle({ PB: ['Gu Li'] })).toBe('Gu Li vs White');
     expect(formatGameInfoTitle({ EV: ['Club league'] })).toBe('Club league');
     expect(formatGameInfoTitle({})).toBe('Untitled game');
+  });
+
+  it('keeps the mobile edit completion action available while the long form scrolls', () => {
+    const component = readFileSync('src/components/GameInfoPanel.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(component).toContain("isEditingInfo ? 'game-info-edit-header' : ''");
+    expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.game-info-edit-header \{[^}]*position: sticky;[^}]*top: 0;/);
   });
 
   it('detects meaningful metadata beyond default rules', () => {

@@ -279,7 +279,7 @@ export const GameInfoPanel: React.FC = () => {
 
   return (
     <div className="space-y-3" data-game-info-panel="true">
-      <div className="flex items-center justify-between gap-2">
+      <div className={['flex items-center justify-between gap-2', isEditingInfo ? 'game-info-edit-header' : ''].join(' ')}>
         {/* Display mode needs no heading: the enclosing section is already
             labelled and the game title is the next line. Edit mode keeps one
             because "Editing…" is state the reader has to see. */}

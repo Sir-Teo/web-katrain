@@ -3791,6 +3791,17 @@
 
   /* Mobile workspaces keep the board as the primary interaction surface. */
   @media (max-width: 1023px) {
+    .game-info-edit-header {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      margin-inline: -0.25rem;
+      padding: 0.25rem;
+      background: color-mix(in srgb, var(--ui-panel) 96%, transparent);
+      border-bottom: 1px solid var(--ui-border);
+      backdrop-filter: blur(8px);
+    }
+
     .notification-toast-region,
     .notification-toast-region--below-command-bar {
       position: absolute;
