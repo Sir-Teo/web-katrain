@@ -718,6 +718,28 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
         initialBoard = createEmptyBoard(boardSize);
     }
 
+    const validateMoveCoordinates = (node: SgfNode): void => {
+        for (const key of ['B', 'W'] as const) {
+            for (const coord of node.props[key] ?? []) {
+                if (coord === '' || coord === 'tt') continue;
+                const point = sgfCoordToXy(coord);
+                if (
+                    coord.length !== 2 ||
+                    !/^[a-z]{2}$/.test(coord) ||
+                    point.x < 0 ||
+                    point.y < 0 ||
+                    point.x >= boardSize ||
+                    point.y >= boardSize
+                ) {
+                    throw new Error(`Invalid SGF: ${key} move "${coord}" is outside the ${boardSize}x${boardSize} board`);
+                }
+            }
+        }
+        for (const child of node.children) validateMoveCoordinates(child);
+    };
+
+    validateMoveCoordinates(root);
+
     expandPointListPropertiesInTree(root, boardSize);
 
     const applyPlacement = (player: Player, coords: string[]) => {

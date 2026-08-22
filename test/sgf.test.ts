@@ -50,6 +50,14 @@ describe('SGF Parser', () => {
       expect(result.moves[1]).toEqual({ x: -1, y: -1, player: 'white' });
   });
 
+  it('rejects malformed and out-of-board moves instead of importing them as passes', () => {
+      expect(() => parseSgf('(;GM[1]SZ[9];B[jj])')).toThrow('outside the 9x9 board');
+      expect(() => parseSgf('(;GM[1]SZ[19];B[pd](;W[dd])(;W[zz]))')).toThrow(
+          'outside the 19x19 board'
+      );
+      expect(() => parseSgf('(;GM[1]SZ[19];B[pdd])')).toThrow('Invalid SGF');
+  });
+
   it('ignores metadata', () => {
       const sgf = '(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]\nRU[Japanese]SZ[19]KM[6.50]\nPW[White]PB[Black]\n;B[pd])';
       const result = parseSgf(sgf);
