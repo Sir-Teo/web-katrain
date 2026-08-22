@@ -1,6 +1,7 @@
 import type { CandidateMove, GameNode, Player } from '../types';
 import { isReportReadyAnalysis } from './analysisCoverage';
 import { getCurrentLineNodes, type ActiveBranchMap } from './branchNavigation';
+import { getEvaluationClass } from './nodeAnalysis';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
 const KAYA_PHASE_THRESHOLDS: Record<number, { openingEnd: number; middleEnd: number }> = {
@@ -82,15 +83,9 @@ export function getPhaseAnalysisMoveRange(boardSize: number, phase: GameReportPh
   return [start, end];
 }
 
-function evaluationClass(pointsLost: number, thresholds: number[]): number {
-  let i = 0;
-  while (i < thresholds.length - 1 && pointsLost < thresholds[i]!) i++;
-  return i;
-}
-
 export function getPointLossBucket(pointsLost: number, thresholds: number[]): number {
   const safeThresholds = thresholds.length ? thresholds : [12, 6, 3, 1.5, 0.5, 0];
-  return evaluationClass(Math.max(0, pointsLost), safeThresholds);
+  return getEvaluationClass(Math.max(0, pointsLost), safeThresholds, safeThresholds.length);
 }
 
 function computePointsLostStrict(node: GameNode): number | null {

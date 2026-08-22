@@ -21,7 +21,7 @@ export function computeNodePointsLost(node: GameNode): number | null {
 export function getEvaluationClass(
   pointsLost: number,
   thresholds: readonly number[] = DEFAULT_EVAL_THRESHOLDS,
-  colorsLen = DEFAULT_EVAL_THRESHOLDS.length
+  colorsLen: number = DEFAULT_EVAL_THRESHOLDS.length
 ): number {
   const safeThresholds = thresholds.length ? thresholds : DEFAULT_EVAL_THRESHOLDS;
   const loss = Number.isFinite(pointsLost) ? pointsLost : 0;

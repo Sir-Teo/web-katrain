@@ -3,6 +3,7 @@ import { DEFAULT_BOARD_SIZE } from "../types";
 import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './katrainSgfAnalysis';
 import { encodeKayaKaFromAnalysis } from './kayaSgfAnalysis';
 import { createEmptyBoard, normalizeBoardSize } from './boardSize';
+import { getEvaluationClass } from './nodeAnalysis';
 import { downloadBlob } from './objectUrl';
 import { stripUnsafeFilenameControls } from './filename';
 
@@ -101,12 +102,6 @@ function formatWinrate(winrateBlack: number): string {
 function bestMoveFromCandidates(moves: CandidateMove[] | undefined): CandidateMove | null {
     if (!moves || moves.length === 0) return null;
     return moves.find((m) => m.order === 0) ?? moves[0] ?? null;
-}
-
-function evaluationClass(pointsLost: number, thresholds: number[]): number {
-    let i = 0;
-    while (i < thresholds.length - 1 && pointsLost < thresholds[i]!) i++;
-    return Math.max(0, Math.min(i, thresholds.length - 1));
 }
 
 function computePointsLost(node: GameNode): number | null {
@@ -466,7 +461,9 @@ function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
     const parent = node.parent;
     if (move && parent?.analysis && node.analysis) {
         const pointsLost = computePointsLost(node);
-        const cls = typeof pointsLost === 'number' ? evaluationClass(pointsLost, trainer.evalThresholds) : null;
+        const cls = typeof pointsLost === 'number'
+            ? getEvaluationClass(pointsLost, trainer.evalThresholds, trainer.evalThresholds.length)
+            : null;
         const showClass = cls === null ? false : !!trainer.saveFeedback?.[cls];
         const showPlayer = !!trainer.saveCommentsPlayer?.[move.player];
         const shouldSaveAutoComment = noteTrim.length > 0 || (showPlayer && showClass);

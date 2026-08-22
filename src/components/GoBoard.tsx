@@ -23,6 +23,7 @@ import {
 } from '../utils/analysisHints';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
+import { getEvaluationClass } from '../utils/nodeAnalysis';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
 import { expandSgfPointList, sgfCoordToXy } from '../utils/sgf';
 import { getHorizontalSwipeNavigationAction } from '../utils/swipeNavigation';
@@ -100,12 +101,6 @@ const parseEm = (value: string | undefined, base: number): number => {
   if (!Number.isFinite(num)) return 0;
   return num * base;
 };
-
-function evaluationClass(pointsLost: number, thresholds: readonly number[] = KATRAN_EVAL_THRESHOLDS, colorsLen = 6): number {
-  let i = 0;
-  while (i < thresholds.length - 1 && pointsLost < thresholds[i]!) i++;
-  return Math.max(0, Math.min(i, colorsLen - 1));
-}
 
 function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
   const a = typeof alphaOverride === 'number' ? alphaOverride : color[3];
@@ -2116,7 +2111,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
 
       if (pointsLost !== null) {
-        const cls = evaluationClass(pointsLost, evalThresholds, evalColors.length);
+        const cls = getEvaluationClass(pointsLost, evalThresholds, evalColors.length);
         if (settings.trainerShowDots?.[cls] === false) {
           realizedPointsLost = parentRealizedPointsLost(node);
           node = node.parent;
@@ -2378,7 +2373,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       const alpha = uncertain ? HINTS_LO_ALPHA : HINTS_ALPHA;
       if (scale <= 0) continue;
 
-      const cls = evaluationClass(move.pointsLost, evalThresholds, evalColors.length);
+      const cls = getEvaluationClass(move.pointsLost, evalThresholds, evalColors.length);
       const col = evalColors[cls]!;
       const bg = rgba(col, alpha);
 
