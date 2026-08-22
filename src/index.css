@@ -769,7 +769,9 @@
     top: 0.75rem;
     left: auto;
     right: 0.75rem;
-    z-index: 50;
+    /* Modal overlays begin at 50. Notifications remain above workspace chrome
+       without covering the title or controls of the task the user just opened. */
+    z-index: 44;
     display: flex;
     justify-content: flex-end;
     pointer-events: none;

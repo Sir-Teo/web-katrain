@@ -50,4 +50,10 @@ describe('NotificationToast undo action', () => {
     expect(css).toMatch(/notification-toast-region--desktop-dashboard:has\(\.notification-toast-success\) \.notification-toast-message \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/);
     expect(css).toMatch(/\.notification-toast-success \.notification-toast-message \{[^}]*-webkit-line-clamp: 2;/);
   });
+
+  it('keeps modal tasks visually above global notifications', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\.notification-toast-region \{[^}]*z-index: 44;/);
+  });
 });
