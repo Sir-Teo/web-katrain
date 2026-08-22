@@ -77,11 +77,12 @@ describe('BottomControlBar', () => {
   it('prioritizes the move jump target when the mobile control bar gets narrow', () => {
     const html = renderToStaticMarkup(<BottomControlBar {...baseProps} isMobile={true} />);
     const css = readFileSync('src/index.css', 'utf8');
+    const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
 
     expect(html).toContain('mobile-bottom-controls');
     expect(html).toContain('data-mobile-turn-chip="true"');
     expect(html).toContain('mobile-bottom-move-button');
-    expect(readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8')).toContain('mobile-bottom-move-total');
+    expect(componentSource).toContain('mobile-bottom-move-total');
     expect(html).toContain('aria-label="Move 1 of 12. Tap to jump to a move."');
     expect(css).toMatch(/@media \(max-width: 430px\)[\s\S]*\.mobile-bottom-board-size[\s\S]*display: none/);
     expect(css).toContain(".mobile-bottom-meta [data-bottom-branch-chip='true']");
@@ -90,6 +91,9 @@ describe('BottomControlBar', () => {
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.mobile-bottom-dock \.mobile-bottom-current-player,[\s\S]*display: none/);
     expect(css).toContain(".mobile-bottom-dock .mobile-bottom-meta [data-bottom-branch-chip='true']");
     expect(css).toMatch(/\.mobile-bottom-move-editor \{[^}]*min-width: 72px;[^}]*white-space: nowrap;/);
+    expect(componentSource).toContain('mobile-bottom-overflow-mode-actions');
+    expect(componentSource).toContain('Score position</div>');
+    expect(css).toMatch(/@media \(max-width: 340px\)[\s\S]*\.mobile-bottom-mode-actions \{[^}]*display: none !important;[\s\S]*\.mobile-bottom-overflow-mode-actions \{[^}]*display: grid;/);
   });
 
   it('keeps the compact turn stone large and outlined enough to read on dark bars', () => {
@@ -111,7 +115,7 @@ describe('BottomControlBar', () => {
     expect(componentSource).toMatch(/data-bottom-more-close="true"[\s\S]{0,220}min-h-11 min-w-11/);
     expect(componentSource).toContain("closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer')");
     expect(componentSource).toContain('const closeMoreControlsFromAction = React.useCallback');
-    expect(componentSource.match(/closeMoreControlsFromAction\(event\)/g) ?? []).toHaveLength(12);
+    expect(componentSource.match(/closeMoreControlsFromAction\(event\)/g) ?? []).toHaveLength(14);
     expect(componentSource.match(/setMoreOpen\(false\)/g) ?? []).toHaveLength(1);
     expect(componentSource).toContain("data-bottom-more-focus-origin={suppressMoreTriggerFocusRing ? 'pointer' : 'keyboard'}");
     expect(css).toMatch(/\.mobile-more-trigger-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);

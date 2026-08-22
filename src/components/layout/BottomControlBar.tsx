@@ -821,6 +821,44 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                     <div className="flex-1 font-medium">Rotate board</div>
                   </button>
 
+                  {(onToggleEdit || onToggleScore) && (
+                    <div className="mobile-bottom-overflow-mode-actions col-span-2 grid-cols-2 gap-1.5">
+                      {onToggleEdit && (
+                        <button type="button"
+                          className={mobileMoreActionClass}
+                          onClick={(event) => {
+                            onToggleEdit();
+                            closeMoreControlsFromAction(event);
+                          }}
+                          disabled={editDisabled}
+                          aria-pressed={isEditMode}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                            <FaEdit size={14} />
+                          </div>
+                          <div className="flex-1 font-medium">Edit position</div>
+                        </button>
+                      )}
+
+                      {onToggleScore && (
+                        <button type="button"
+                          className={mobileMoreActionClass}
+                          onClick={(event) => {
+                            onToggleScore();
+                            closeMoreControlsFromAction(event);
+                          }}
+                          disabled={scoreDisabled}
+                          aria-pressed={scoringMode}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
+                            <FaCalculator size={14} />
+                          </div>
+                          <div className="flex-1 font-medium">Score position</div>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div className="col-span-2 h-px bg-[var(--ui-border)] mx-2 my-1" />
 
                   <button type="button"

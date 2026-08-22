@@ -250,6 +250,10 @@
     border: 1px solid rgba(15, 23, 42, 0.45);
   }
 
+  .mobile-bottom-overflow-mode-actions {
+    display: none;
+  }
+
   @media (max-width: 430px) {
     .mobile-bottom-controls {
       gap: 0.25rem !important;
@@ -345,6 +349,17 @@
   @media (max-width: 340px) {
     .mobile-bottom-save-label {
       display: none;
+    }
+
+    /* Six full-size controls leave no room for a useful move count on 320px
+       screens. Keep the review path legible and move the two board modes into
+       the existing overflow sheet, where their 44px targets remain intact. */
+    .mobile-bottom-mode-actions {
+      display: none !important;
+    }
+
+    .mobile-bottom-overflow-mode-actions {
+      display: grid;
     }
   }
 
