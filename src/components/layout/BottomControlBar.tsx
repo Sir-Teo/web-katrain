@@ -507,9 +507,12 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                   inputMode="numeric"
                   min={0}
                   max={totalMovesInCurrentLine}
-                  className="w-6 bg-transparent p-0 text-right text-[var(--ui-text)] outline-none"
+                  className="w-8 border-b border-[var(--ui-border-strong)] bg-transparent p-0 text-right text-[var(--ui-text)] outline-none focus:border-[var(--ui-accent)]"
                   autoFocus
                 />
+                <span className="mobile-bottom-move-total ui-text-faint" aria-hidden="true">
+                  /{totalMovesInCurrentLine}
+                </span>
               </span>
             ) : (
               <button

@@ -295,9 +295,10 @@
     }
 
     .mobile-bottom-move-editor {
-      min-width: 44px;
+      min-width: 72px;
       min-height: 44px;
       justify-content: center;
+      white-space: nowrap;
     }
 
     .mobile-bottom-meta [data-mobile-save-status='true'] {

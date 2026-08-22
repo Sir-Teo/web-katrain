@@ -81,6 +81,7 @@ describe('BottomControlBar', () => {
     expect(html).toContain('mobile-bottom-controls');
     expect(html).toContain('data-mobile-turn-chip="true"');
     expect(html).toContain('mobile-bottom-move-button');
+    expect(readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8')).toContain('mobile-bottom-move-total');
     expect(html).toContain('aria-label="Move 1 of 12. Tap to jump to a move."');
     expect(css).toMatch(/@media \(max-width: 430px\)[\s\S]*\.mobile-bottom-board-size[\s\S]*display: none/);
     expect(css).toContain(".mobile-bottom-meta [data-bottom-branch-chip='true']");
@@ -88,6 +89,7 @@ describe('BottomControlBar', () => {
     expect(css).toMatch(/@media \(max-width: 380px\)[\s\S]*\.mobile-bottom-meta \[data-mobile-save-status='true'\][\s\S]*display: none/);
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.mobile-bottom-dock \.mobile-bottom-current-player,[\s\S]*display: none/);
     expect(css).toContain(".mobile-bottom-dock .mobile-bottom-meta [data-bottom-branch-chip='true']");
+    expect(css).toMatch(/\.mobile-bottom-move-editor \{[^}]*min-width: 72px;[^}]*white-space: nowrap;/);
   });
 
   it('keeps the compact turn stone large and outlined enough to read on dark bars', () => {
