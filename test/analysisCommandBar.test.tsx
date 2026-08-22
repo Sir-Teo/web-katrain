@@ -82,7 +82,8 @@ describe('AnalysisCommandBar', () => {
     expect(source).toContain("!actionScrollEdges.atEnd ? 'has-overflow-right' : ''");
     expect(source).toContain("!metricScrollEdges.atEnd ? 'has-overflow-right' : ''");
     expect(source).toContain('data-analysis-metrics-overflow={horizontalOverflowLabel(metricScrollEdges)}');
-    expect(source).toContain('[currentNode, currentNode.analysis]');
+    expect(source).toContain('void treeVersion');
+    expect(source).toContain('[currentNode, treeVersion]');
     expect(styles).toContain('.analysis-command-bar__actions.has-overflow-left.has-overflow-right');
     expect(styles).toContain('.analysis-command-bar__metrics.has-overflow-left.has-overflow-right');
     expect(styles).toContain('overscroll-behavior-x: contain;');
