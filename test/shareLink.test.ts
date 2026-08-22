@@ -22,6 +22,11 @@ describe('shareLink', () => {
     expect(decodeSgfFromFragment(fragment)).toBe(SGF.repeat(20));
   });
 
+  it('round-trips valid SGF with whitespace before its first node', () => {
+    const formatted = '(\n  ;GM[1]FF[4]SZ[19]\n  ;B[pd]\n)';
+    expect(decodeSgfFromFragment(encodeSgfToFragment(formatted))).toBe(formatted);
+  });
+
   it('returns null for missing, malformed, or non-SGF fragments', () => {
     expect(decodeSgfFromFragment(null)).toBeNull();
     expect(decodeSgfFromFragment('')).toBeNull();

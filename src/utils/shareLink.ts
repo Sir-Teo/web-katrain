@@ -1,4 +1,5 @@
 import pako from 'pako';
+import { parseSgf } from './sgf';
 
 const FRAGMENT_KEY = 'sgf';
 
@@ -46,7 +47,9 @@ export const decodeSgfFromFragment = (fragment: string | null | undefined): stri
   if (!bytes) return null;
   try {
     const sgf = pako.inflate(bytes, { to: 'string' });
-    return sgf && sgf.includes('(;') ? sgf : null;
+    if (!sgf) return null;
+    parseSgf(sgf);
+    return sgf;
   } catch {
     return null;
   }
