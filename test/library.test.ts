@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createLibraryBackup,
   createLibraryFolder,
@@ -254,6 +254,34 @@ describe('library storage helpers', () => {
     const restored = parseLibraryBackup(backup);
     expect(restored).toHaveLength(1);
     expect(restored[0]?.name).toBe('Backup Game');
+  });
+
+  it('does not overwrite IndexedDB with fallback data after a failed load', async () => {
+    // Transient IDB failure: loading falls back, and the session must then
+    // refuse to persist that fallback snapshot over the real stored library.
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true,
+      value: { open: () => { throw new Error('db unavailable'); } },
+    });
+    const loaded = await loadLibrary();
+    expect(loaded.length).toBeGreaterThan(0);
+    expect(loaded.some((item) => item.name === 'Guard Game')).toBe(false);
+
+    // IDB "recovers", but this session holds only fallback data.
+    const reopenSpy = vi.fn(() => {
+      throw new Error('should not reopen IndexedDB for saves after a failed load');
+    });
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true,
+      value: { open: reopenSpy },
+    });
+
+    await saveLibrary([createLibraryItem('Guard Game', sgf)]);
+    expect(reopenSpy).not.toHaveBeenCalled();
+
+    // Session changes stay in the fallback store instead of clobbering IDB.
+    const reloaded = await loadLibrary();
+    expect(reloaded.some((item) => item.name === 'Guard Game')).toBe(true);
   });
 
   it('deletes folders with all descendants', () => {

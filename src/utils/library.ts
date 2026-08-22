@@ -557,6 +557,11 @@ const saveFallbackLibrary = (items: LibraryItem[]): void => {
   writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems));
 };
 
+// Set when reading IndexedDB failed while IndexedDB itself is available.
+// A failed load leaves us holding a fallback snapshot (preloaded games or
+// stale legacy data), so persisting it back would wipe the real library.
+let idbLoadFailed = false;
+
 export const loadLibrary = async (): Promise<LibraryItem[]> => {
   if (!getIndexedDB()) {
     return loadFallbackLibrary();
@@ -564,6 +569,7 @@ export const loadLibrary = async (): Promise<LibraryItem[]> => {
 
   try {
     let items = await loadFromIndexedDb();
+    idbLoadFailed = false;
     const legacyRaw = readLocalStorage(LEGACY_STORAGE_KEY);
     const hasMigrated = readLocalStorage(MIGRATION_FLAG_KEY) === 'true';
 
@@ -590,13 +596,14 @@ export const loadLibrary = async (): Promise<LibraryItem[]> => {
     }
     return items;
   } catch {
+    idbLoadFailed = true;
     return loadFallbackLibrary();
   }
 };
 
 export const saveLibrary = async (items: LibraryItem[]): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
-  if (!getIndexedDB()) {
+  if (!getIndexedDB() || idbLoadFailed) {
     saveFallbackLibrary(normalized);
     return;
   }
