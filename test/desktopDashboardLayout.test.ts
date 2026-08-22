@@ -144,6 +144,14 @@ describe('desktop dashboard layout', () => {
     expect(dashboardControlsSlot).toContain('docked');
   });
 
+  it('keeps the empty metric rail quiet until analysis has content', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+
+    expect(source).toContain('const commandbarHasContent = hasAnalysisMetrics || isContinuousAnalysis || isGameAnalysisRunning');
+    expect(source).toContain('const commandbarVisible = commandbarOpen && showAnalysis && commandbarHasContent');
+    expect(source).toContain('{showAnalysis && commandbarHasContent && (');
+  });
+
   it('keeps desktop move-number editing keyboard-local and bounded', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const moveCounterStart = dashboardSource.indexOf('<div className="move-counter">');

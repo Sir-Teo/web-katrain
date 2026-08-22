@@ -212,7 +212,13 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   // The command bar only holds live analysis metrics, so it stays out of the way
   // entirely while analysis is off — engine state, captures and the "analysis is
   // off" prompt already live in the header pill, the gamestrip and the sidebar.
-  const commandbarVisible = commandbarOpen && showAnalysis;
+  const hasAnalysisMetrics =
+    winRate != null ||
+    scoreLead != null ||
+    pointsLost != null ||
+    !!currentNode.analysis?.moves?.[0];
+  const commandbarHasContent = hasAnalysisMetrics || isContinuousAnalysis || isGameAnalysisRunning;
+  const commandbarVisible = commandbarOpen && showAnalysis && commandbarHasContent;
   // Three states, not two, because the stage reads this to decide whether to
   // hold the bar's footprint: "reserved" means the bar is hidden only because
   // analysis is off, so the board keeps its size across a Tab. "closed" means
@@ -704,7 +710,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             >
               <Icon name={sidebarOpen ? 'chevR' : 'chevL'} size={13} />
             </button>
-            {showAnalysis && (
+            {showAnalysis && commandbarHasContent && (
               <button
                 type="button"
                 className={`edge-toggle bottom${commandbarOpen ? ' open' : ''}`}
