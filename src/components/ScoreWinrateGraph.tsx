@@ -191,6 +191,7 @@ export const ScoreWinrateGraph: React.FC<{
         if (trainerShowDots?.[cls] === false) return null;
         return {
           index,
+          moveNumber: node.gameState.moveHistory.length,
           x: index * xScale,
           y: height - 7,
           pointsLost,
@@ -218,7 +219,14 @@ export const ScoreWinrateGraph: React.FC<{
   const clampedHighlighted = Math.min(Math.max(0, highlighted), Math.max(0, count - 1));
   const currentX = clampedHighlighted * xScale;
   const activeGraphIndex = hoverIndex ?? clampedHighlighted;
-  const activeMoveIndex = activeGraphIndex + (range?.start ?? 0);
+  // Slider value stays positional, but every human-readable "Move N" label is
+  // derived from the node's played-move count so it matches the stone grid,
+  // game report, and stone-click jumps even when setup or annotation nodes
+  // occupy line positions.
+  const nodeMoveNumber = (node?: (typeof displayNodes)[number]): number =>
+    node ? node.gameState.moveHistory.length : 0;
+  const activeSliderValue = activeGraphIndex + (range?.start ?? 0);
+  const activeMoveLabel = `Move ${nodeMoveNumber(displayNodes[activeGraphIndex])}`;
 
   const handleFocus = () => {
     if (hasGraphData && count > 0) setHoverIndex((index) => index ?? clampedHighlighted);
@@ -267,16 +275,16 @@ export const ScoreWinrateGraph: React.FC<{
   const hoverScoreY = yScore(hoverScore);
   const hoverWinY = yWin(hoverWin);
 
-  const hoverMoveIndex = hoverIndex !== null ? hoverIndex + (range?.start ?? 0) : null;
-  const hoverPointsLost = hoverIndex !== null && displayNodes[hoverIndex] ? computeNodePointsLost(displayNodes[hoverIndex]!) : null;
+  const hoverNode = hoverIndex !== null && displayNodes[hoverIndex] ? displayNodes[hoverIndex]! : undefined;
+  const hoverPointsLost = hoverNode ? computeNodePointsLost(hoverNode) : null;
   const hoverLossText =
     typeof hoverPointsLost === 'number' && Number.isFinite(hoverPointsLost) && Math.abs(hoverPointsLost) > 0.05
       ? formatPointLoss(hoverPointsLost)
       : '';
   const hoverMetricsText = `${showWinrate ? `${(50 + hoverWin).toFixed(1)}%` : ''}${showScore && showWinrate ? ' - ' : ''}${showScore ? `${hoverScore >= 0 ? 'B' : 'W'}+${Math.abs(hoverScore).toFixed(1)}` : ''}`;
   const hoverTooltip =
-    hoverMoveIndex !== null
-      ? [`Move ${hoverMoveIndex}`, hoverMetricsText, hoverLossText].filter(Boolean).join(' · ')
+    hoverIndex !== null
+      ? [`Move ${nodeMoveNumber(hoverNode)}`, hoverMetricsText, hoverLossText].filter(Boolean).join(' · ')
       : '';
 
   return (
@@ -294,8 +302,8 @@ export const ScoreWinrateGraph: React.FC<{
       }
       aria-valuemin={range?.start ?? 0}
       aria-valuemax={(range?.start ?? 0) + Math.max(0, count - 1)}
-      aria-valuenow={activeMoveIndex}
-      aria-valuetext={hasGraphData ? (hoverTooltip || `Move ${activeMoveIndex}`) : 'No analyzed moves yet'}
+      aria-valuenow={activeSliderValue}
+      aria-valuetext={hasGraphData ? (hoverTooltip || activeMoveLabel) : 'No analyzed moves yet'}
       aria-disabled={!hasGraphData}
       aria-describedby={hasGraphData ? undefined : emptyStateId}
       data-analysis-score-winrate-graph="true"
@@ -344,7 +352,7 @@ export const ScoreWinrateGraph: React.FC<{
                 vectorEffect="non-scaling-stroke"
                 data-move-quality="true"
               >
-                <title>{`Move ${marker.index + (range?.start ?? 0)}: ${formatPointLoss(marker.pointsLost)}`}</title>
+                <title>{`Move ${marker.moveNumber}: ${formatPointLoss(marker.pointsLost)}`}</title>
               </circle>
             ))}
           </g>
