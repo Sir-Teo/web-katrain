@@ -21,22 +21,24 @@ function xyToGtp(x: number, y: number, boardSize: number): string {
   return `${letter}${boardSize - y}`;
 }
 
-function gtpToXy(move: string, boardSize: number): { x: number; y: number } {
+function gtpToXy(move: unknown, boardSize: number): { x: number; y: number; valid: boolean } {
+  if (typeof move !== 'string') return { x: -1, y: -1, valid: false };
   const t = move.trim().toUpperCase();
-  if (!t || t === 'PASS') return { x: -1, y: -1 };
+  if (t === 'PASS') return { x: -1, y: -1, valid: true };
+  if (!t) return { x: -1, y: -1, valid: false };
 
   const m = /^([A-T])([1-9]|1[0-9])$/.exec(t);
-  if (!m) return { x: -1, y: -1 };
+  if (!m) return { x: -1, y: -1, valid: false };
 
   const colChar = m[1]!;
-  if (colChar === 'I') return { x: -1, y: -1 };
+  if (colChar === 'I') return { x: -1, y: -1, valid: false };
   const rawCol = colChar.charCodeAt(0) - 65;
   const x = rawCol >= 9 ? rawCol - 1 : rawCol;
 
   const row = parseInt(m[2]!, 10);
   const y = boardSize - row;
-  if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return { x: -1, y: -1 };
-  return { x, y };
+  if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return { x: -1, y: -1, valid: false };
+  return { x, y, valid: true };
 }
 
 function encodeBase64(bytes: Uint8Array): string {
@@ -274,27 +276,28 @@ export function kaTrainAnalysisToAnalysisResult(args: {
     pv?: string[];
   }>;
 
-  const moves: CandidateMove[] = moveRows
-    .map((m) => {
-      const move = typeof m.move === 'string' ? m.move : 'pass';
-      const { x, y } = gtpToXy(move, boardSize);
-      return {
-        x,
-        y,
-        order: typeof m.order === 'number' ? m.order : 999,
-        visits: typeof m.visits === 'number' ? m.visits : 0,
-        winRate: typeof m.winrate === 'number' ? m.winrate : rootWinRate,
-        winRateLost: 0,
-        scoreLead: typeof m.scoreLead === 'number' ? m.scoreLead : rootScoreLead,
-        scoreSelfplay: typeof m.scoreSelfplay === 'number' ? m.scoreSelfplay : rootScoreSelfplay,
-        scoreStdev: typeof m.scoreStdev === 'number' ? m.scoreStdev : rootScoreStdev,
-        pointsLost: 0,
-        relativePointsLost: 0,
-        prior: typeof m.prior === 'number' ? m.prior : undefined,
-        pv: Array.isArray(m.pv) ? m.pv : undefined,
-      };
-    })
-    .filter((m) => m.x === -1 || (m.x >= 0 && m.x < boardSize && m.y >= 0 && m.y < boardSize));
+  const moves: CandidateMove[] = [];
+  for (const m of moveRows) {
+    // Unparseable coordinates are corrupt data, not passes; keep genuine
+    // pass rows only so ranking and policy stats stay meaningful.
+    const { x, y, valid } = gtpToXy(m.move, boardSize);
+    if (!valid) continue;
+    moves.push({
+      x,
+      y,
+      order: typeof m.order === 'number' ? m.order : 999,
+      visits: typeof m.visits === 'number' ? m.visits : 0,
+      winRate: typeof m.winrate === 'number' ? m.winrate : rootWinRate,
+      winRateLost: 0,
+      scoreLead: typeof m.scoreLead === 'number' ? m.scoreLead : rootScoreLead,
+      scoreSelfplay: typeof m.scoreSelfplay === 'number' ? m.scoreSelfplay : rootScoreSelfplay,
+      scoreStdev: typeof m.scoreStdev === 'number' ? m.scoreStdev : rootScoreStdev,
+      pointsLost: 0,
+      relativePointsLost: 0,
+      prior: typeof m.prior === 'number' ? m.prior : undefined,
+      pv: Array.isArray(m.pv) ? m.pv : undefined,
+    });
+  }
 
   const sign = args.currentPlayer === 'black' ? 1 : -1;
   const topMove = moves.find((m) => m.order === 0) ?? null;
