@@ -104,4 +104,17 @@ describe('MobileHome', () => {
     expect(html).toContain('Teaching Game');
     expect(html).toContain('42 moves · 1.5 KB');
   });
+
+  it('caps recent games so management actions stay near the first screen', () => {
+    const recentItems = Array.from({ length: 4 }, (_, index) => ({
+      ...recentFile,
+      id: `recent-${index + 1}`,
+      name: `Teaching Game ${index + 1}`,
+    }));
+    const html = renderToStaticMarkup(<MobileHome {...baseProps} recentItems={recentItems} />);
+
+    expect(html).toContain('Teaching Game 3');
+    expect(html).not.toContain('Teaching Game 4');
+    expect(html).toContain('Save Copy to Library');
+  });
 });

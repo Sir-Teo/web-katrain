@@ -270,7 +270,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             <section className="mobile-home-recent mt-4">
               <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide ui-text-faint">Recent</div>
               <div className="space-y-2">
-                {recentItems.slice(0, 4).map((item) => (
+                {recentItems.slice(0, 3).map((item) => (
                   <button
                     type="button"
                     key={item.id}
