@@ -966,6 +966,16 @@
       font-size: 0.8125rem;
     }
 
+    /* Routine confirmations sit in the desktop header. Keep them to its single
+       line while retaining the full message in the DOM and title tooltip.
+       Errors remain multiline so diagnostics are never hidden. */
+    .notification-toast-region--desktop-dashboard:has(.notification-toast-info) .notification-toast-message,
+    .notification-toast-region--desktop-dashboard:has(.notification-toast-success) .notification-toast-message {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .notification-toast-action,
     .notification-toast-close {
       width: 2rem;
@@ -3811,6 +3821,17 @@
     .notification-toast-close {
       width: 45px;
       height: 45px;
+    }
+
+    /* Long game names can otherwise turn a routine confirmation into a tall
+       board-covering card. Two lines keep enough identifying context on phones;
+       the complete message remains available to assistive tech and via title. */
+    .notification-toast-info .notification-toast-message,
+    .notification-toast-success .notification-toast-message {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
 
     .analysis-command-bar {

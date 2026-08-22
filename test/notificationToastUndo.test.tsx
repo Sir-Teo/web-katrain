@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
 import { NotificationToast, type NotificationToastMessage } from '../src/components/layout/NotificationToast';
 
 const noop = () => undefined;
@@ -38,5 +39,15 @@ describe('NotificationToast undo action', () => {
 
     expect(html).toContain('data-notification-copy="true"');
     expect(html).not.toContain('data-notification-undo="true"');
+  });
+
+  it('keeps routine confirmations compact without discarding their full message', () => {
+    const message = 'Loaded "A representative game title that is intentionally long".';
+    const html = render({ message, type: 'success' });
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain(`title="${message.replaceAll('"', '&quot;')}"`);
+    expect(css).toMatch(/notification-toast-region--desktop-dashboard:has\(\.notification-toast-success\) \.notification-toast-message \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/);
+    expect(css).toMatch(/\.notification-toast-success \.notification-toast-message \{[^}]*-webkit-line-clamp: 2;/);
   });
 });
