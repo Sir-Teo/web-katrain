@@ -6,6 +6,7 @@ import { DEFAULT_BOARD_SIZE, type GameSettings } from '../types';
 import { getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import {
   formatGameInfoPlayer,
+  formatGameInfoTitle,
   formatKomiLabel,
   getFirstGameInfoLink,
   formatRulesLabel,
@@ -67,7 +68,7 @@ export const GameInfoPanel: React.FC = () => {
   const [handicapInput, setHandicapInput] = React.useState(() => String(handicap));
   const [isEditingHandicap, setIsEditingHandicap] = React.useState(false);
   const [isEditingInfo, setIsEditingInfo] = React.useState(false);
-  const title = readRootInfoValue(rootProps, 'GN') || 'Untitled game';
+  const title = formatGameInfoTitle(rootProps);
   const blackName = readRootInfoValue(rootProps, 'PB');
   const blackRank = readRootInfoValue(rootProps, 'BR');
   const whiteName = readRootInfoValue(rootProps, 'PW');

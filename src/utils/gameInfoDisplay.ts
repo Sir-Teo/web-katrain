@@ -34,6 +34,17 @@ export const formatGameInfoPlayer = (name: string, rank: string, fallback: strin
   return displayRank ? `${displayName} (${displayRank})` : displayName;
 };
 
+export const formatGameInfoTitle = (rootProps: SgfRootProperties): string => {
+  const gameName = readRootInfoValue(rootProps, 'GN');
+  if (gameName) return gameName;
+
+  const blackName = readRootInfoValue(rootProps, 'PB');
+  const whiteName = readRootInfoValue(rootProps, 'PW');
+  if (blackName || whiteName) return `${blackName || 'Black'} vs ${whiteName || 'White'}`;
+
+  return readRootInfoValue(rootProps, 'EV') || 'Untitled game';
+};
+
 export const formatRulesLabel = (rules: GameRules): string => {
   switch (rules) {
     case 'chinese':

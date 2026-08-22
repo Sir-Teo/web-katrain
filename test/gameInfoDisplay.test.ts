@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatGameInfoPlayer,
+  formatGameInfoTitle,
   formatKomiLabel,
   getFirstGameInfoLink,
   getVisibleGameInfoDetails,
@@ -29,6 +30,14 @@ describe('game info display helpers', () => {
     expect(formatGameInfoPlayer(' Lee Sedol ', ' 9p ', 'Black')).toBe('Lee Sedol (9p)');
     expect(formatGameInfoPlayer('', '1d', 'White')).toBe('White (1d)');
     expect(formatGameInfoPlayer('', '', 'Black')).toBe('Black');
+  });
+
+  it('derives a useful title when the SGF has no explicit game name', () => {
+    expect(formatGameInfoTitle({ GN: ['  Teaching game  '], PB: ['Black'], PW: ['White'] })).toBe('Teaching game');
+    expect(formatGameInfoTitle({ PB: ['Gu Li'], PW: ['Lee Sedol'], EV: ['LG Cup'] })).toBe('Gu Li vs Lee Sedol');
+    expect(formatGameInfoTitle({ PB: ['Gu Li'] })).toBe('Gu Li vs White');
+    expect(formatGameInfoTitle({ EV: ['Club league'] })).toBe('Club league');
+    expect(formatGameInfoTitle({})).toBe('Untitled game');
   });
 
   it('detects meaningful metadata beyond default rules', () => {
