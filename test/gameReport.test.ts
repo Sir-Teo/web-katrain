@@ -5,6 +5,7 @@ import {
   classifyMoveByRankAndPolicy,
   computeGameReport,
   describeReportSwing,
+  GAME_REPORT_PHASES,
   getPhaseAnalysisMoveRange,
   getMovePhase,
   getPhaseThresholds,
@@ -162,6 +163,15 @@ function reportForFocus(args: {
 describe('computeGameReport', () => {
   afterEach(() => {
     useGameStore.getState().startNewGame({ komi: 6.5, rules: 'japanese', boardSize: 19, handicap: 0 });
+  });
+
+  it('provides deliberate compact phase labels for narrow report controls', () => {
+    expect(GAME_REPORT_PHASES.map(({ label, compactLabel }) => [label, compactLabel])).toEqual([
+      ['Entire Game', 'All'],
+      ['Opening', 'Opening'],
+      ['Middle Game', 'Middle'],
+      ['Endgame', 'Endgame'],
+    ]);
   });
 
   it('computes KaTrain-style stats and histogram from analyzed moves', () => {

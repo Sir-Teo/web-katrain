@@ -35,11 +35,11 @@ export type GameReportPhase = 'opening' | 'middleGame' | 'endgame';
 export type GameReportPhaseFilter = 'all' | GameReportPhase;
 export type GameReportMistakeSort = 'loss' | 'policy';
 
-export const GAME_REPORT_PHASES: Array<{ key: GameReportPhaseFilter; label: string }> = [
-  { key: 'all', label: 'Entire Game' },
-  { key: 'opening', label: 'Opening' },
-  { key: 'middleGame', label: 'Middle Game' },
-  { key: 'endgame', label: 'Endgame' },
+export const GAME_REPORT_PHASES: Array<{ key: GameReportPhaseFilter; label: string; compactLabel: string }> = [
+  { key: 'all', label: 'Entire Game', compactLabel: 'All' },
+  { key: 'opening', label: 'Opening', compactLabel: 'Opening' },
+  { key: 'middleGame', label: 'Middle Game', compactLabel: 'Middle' },
+  { key: 'endgame', label: 'Endgame', compactLabel: 'Endgame' },
 ];
 
 export function getPhaseThresholds(boardSize: number): { openingEnd: number; middleEnd: number } {

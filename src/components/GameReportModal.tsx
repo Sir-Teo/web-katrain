@@ -998,7 +998,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         : `${counts.analyzed}/${counts.total} analyzed ${moveWord} in ${b.label}`
                     }
                     className={[
-                      'min-h-11 min-w-0 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors',
+                      'min-h-11 min-w-0 inline-flex items-center justify-center gap-1 px-2 py-2 rounded-lg border text-sm font-semibold transition-colors sm:gap-2 sm:px-3',
                       active
                         ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent)] text-[var(--ui-accent)]'
                         : disabled
@@ -1006,7 +1006,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                           : 'bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
                     ].join(' ')}
                   >
-                    <span className="min-w-0 truncate">{b.label}</span>
+                    <span className="min-w-0 sm:hidden">{b.compactLabel}</span>
+                    <span className="hidden min-w-0 sm:inline">{b.label}</span>
                     <span className="shrink-0 rounded-full border border-current/20 px-1.5 py-0.5 font-mono text-[11px] leading-none opacity-80">
                       {counts.analyzed}/{counts.total}
                     </span>
