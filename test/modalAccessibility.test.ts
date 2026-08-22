@@ -168,6 +168,7 @@ describe('modal accessibility semantics', () => {
 
   it('moves focus into the mobile menu, traps it there, and restores it on close', () => {
     const source = readFileSync('src/components/layout/MenuDrawer.tsx', 'utf8');
+    const controls = readFileSync('src/components/layout/ui.tsx', 'utf8');
     const css = readFileSync('src/index.css', 'utf8');
 
     expect(source).toContain('closeButtonRef.current?.focus({ preventScroll: true })');
@@ -178,6 +179,7 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain('updateFocusInputMode(initialFocusInputMode)');
     expect(source).toContain("data-menu-focus-origin={focusInputMode}");
     expect(source).toContain("previouslyFocused.setAttribute('data-menu-restored-focus-origin', restoredMode)");
+    expect(controls).toContain("event.currentTarget.dataset.menuRestoredFocusOrigin !== 'pointer'");
     expect(css).toMatch(/\.menu-drawer-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
     expect(source).toContain('ref={drawerRef}');
     expect(source).toContain('ref={closeButtonRef}');

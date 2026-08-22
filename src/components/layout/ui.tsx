@@ -83,7 +83,9 @@ export const IconButton: React.FC<{
         disabled={disabled}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        onFocus={() => setShowTooltip(true)}
+        onFocus={(event) => {
+          setShowTooltip(event.currentTarget.dataset.menuRestoredFocusOrigin !== 'pointer');
+        }}
         onBlur={() => setShowTooltip(false)}
         className={[
           'ui-control flex items-center justify-center rounded-lg transition-colors touch-manipulation',
