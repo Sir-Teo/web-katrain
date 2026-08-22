@@ -256,6 +256,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
   const isAnalysisMode = useGameStore((state) => state.isAnalysisMode);
   const currentNode = useGameStore((state) => state.currentNode);
+  const treeVersion = useGameStore((state) => state.treeVersion);
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
   const [legendOpen, setLegendOpen] = React.useState(false);
@@ -311,10 +312,11 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   React.useEffect(() => {
     setEngineErrorCopied(false);
   }, [engineError]);
-  const bestMoveSummary = React.useMemo(
-    () => getCurrentNodeBestMoveSummary(currentNode),
-    [currentNode, currentNode.analysis]
-  );
+  const bestMoveSummary = React.useMemo(() => {
+    // Node analysis mutates in place; treeVersion bumps whenever it changes.
+    void treeVersion;
+    return getCurrentNodeBestMoveSummary(currentNode);
+  }, [currentNode, treeVersion]);
   const playedMoveQuality = React.useMemo(
     () => getPlayedMoveQuality(currentNode, pointsLost),
     [currentNode, pointsLost]

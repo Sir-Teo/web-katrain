@@ -160,6 +160,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
   const showAnalysisBar = useGameStore((state) => state.settings.showAnalysisBar);
   const currentNode = useGameStore((state) => state.currentNode);
+  const treeVersion = useGameStore((state) => state.treeVersion);
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
   const depthButtonRef = React.useRef<HTMLButtonElement>(null);
@@ -273,10 +274,11 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     () => getNextMoveQuality(currentNode, activeBranchChildIds),
     [activeBranchChildIds, currentNode]
   );
-  const bestMoveSummary = React.useMemo(
-    () => getCurrentNodeBestMoveSummary(currentNode),
-    [currentNode, currentNode.analysis]
-  );
+  const bestMoveSummary = React.useMemo(() => {
+    // Node analysis mutates in place; treeVersion bumps whenever it changes.
+    void treeVersion;
+    return getCurrentNodeBestMoveSummary(currentNode);
+  }, [currentNode, treeVersion]);
   const displayedMoveQuality = playedMoveQuality ?? nextMoveQuality;
   const moveQualityKind = playedMoveQuality ? 'played' : nextMoveQuality ? 'next' : 'quality';
   const moveQualityTone = displayedMoveQuality?.tone ?? pointsSummary.tone;
