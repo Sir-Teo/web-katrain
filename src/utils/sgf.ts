@@ -94,6 +94,7 @@ function formatScoreLead(scoreLead: number): string {
 }
 
 function formatWinrate(winrateBlack: number): string {
+    if (winrateBlack === 0.5) return 'Draw';
     const lead = winrateBlack > 0.5 ? 'B' : 'W';
     const pct = Math.max(winrateBlack, 1 - winrateBlack) * 100;
     return `${lead} ${pct.toFixed(1)}%`;

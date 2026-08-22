@@ -226,4 +226,35 @@ describe('SGF export trainer options', () => {
     expect(sgfWithNote).toContain('User note');
     expect(sgfWithNote).toContain('Move 1:');
   });
+
+  it('reports an exact 50% win rate as a draw in auto-comments', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+
+    store.playMove(3, 3); // B
+    const root = useGameStore.getState().rootNode;
+    const n1 = root.children[0]!;
+
+    root.analysis = analysis({ rootScoreLead: 0, rootWinRate: 0.5 });
+    n1.analysis = analysis({ rootScoreLead: 0, rootWinRate: 0.5 });
+    n1.note = 'Balanced';
+
+    const sgfJigo = generateSgfFromTree(root, {
+      trainer: {
+        saveAnalysis: false,
+        saveMarks: false,
+      },
+    });
+    expect(sgfJigo).toContain('Win rate: Draw');
+    expect(sgfJigo).not.toContain('W 50.0%');
+
+    n1.analysis = analysis({ rootScoreLead: -2, rootWinRate: 0.368 });
+    const sgfWhite = generateSgfFromTree(root, {
+      trainer: {
+        saveAnalysis: false,
+        saveMarks: false,
+      },
+    });
+    expect(sgfWhite).toContain('Win rate: W 63.2%');
+  });
 });
