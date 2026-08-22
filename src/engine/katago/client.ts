@@ -28,7 +28,7 @@ export const isKataGoCanceledError = (err: unknown): err is KataGoCanceledError 
 class KataGoEngineClient {
   private readonly worker: Worker;
   private nextId = 1;
-  private pendingInit: { resolve: () => void; reject: (e: Error) => void } | null = null;
+  private pendingInit: { promise: Promise<void>; resolve: () => void; reject: (e: Error) => void } | null = null;
   private pending = new Map<
     number,
     { resolve: (a: Analysis) => void; reject: (e: Error) => void; onProgress?: (a: Analysis) => void }
@@ -189,17 +189,23 @@ class KataGoEngineClient {
   }
 
   init(modelUrl: string, backend?: KataGoBackendPreference): Promise<void> {
-    if (this.pendingInit) return Promise.reject(new Error('Init already in progress'));
-    return new Promise<void>((resolve, reject) => {
-      this.pendingInit = { resolve, reject };
-      const initMsg: KataGoWorkerRequest = { type: 'katago:init', modelUrl, backend };
-      try {
-        this.postToWorker(initMsg);
-      } catch (err) {
-        this.pendingInit = null;
-        reject(err);
-      }
+    if (this.pendingInit) return this.pendingInit.promise;
+    if (this.crashed) return Promise.reject(this.crashed);
+    let resolve!: () => void;
+    let reject!: (e: Error) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
     });
+    this.pendingInit = { promise, resolve, reject };
+    const initMsg: KataGoWorkerRequest = { type: 'katago:init', modelUrl, backend };
+    try {
+      this.postToWorker(initMsg);
+    } catch (err) {
+      this.pendingInit = null;
+      reject(err instanceof Error ? err : new Error(String(err)));
+    }
+    return promise;
   }
 
   async analyze(args: {

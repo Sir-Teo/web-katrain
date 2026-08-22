@@ -136,6 +136,7 @@ describe('KataGo engine client', () => {
         komi: 6.5,
       })
     ).rejects.toThrow(/KataGo worker crashed: gone/);
+    await expect(client.init('/models/katago-small.bin.gz')).rejects.toThrow(/KataGo worker crashed: gone/);
 
     // A live message from the worker proves it recovered: new requests are
     // posted again instead of failing with the stale crash error.
@@ -178,5 +179,44 @@ describe('KataGo engine client', () => {
 
     await expect(pending).rejects.toThrow(/KataGo engine client was disposed/);
     expect(createdFakeWorkers[0]!.terminate).toHaveBeenCalled();
+  });
+
+  it('shares a single in-flight init across concurrent callers', async () => {
+    installFakeWorker();
+    const client = getKataGoEngineClient();
+    const worker = createdFakeWorkers[0]!;
+
+    const first = client.init('/models/katago-small.bin.gz');
+    const second = client.init('/models/katago-small.bin.gz');
+    expect(worker.postMessage).toHaveBeenCalledTimes(1);
+
+    worker.onmessage?.({
+      data: { type: 'katago:init_result', ok: true, backend: 'wasm', modelName: 'katago-small' },
+    });
+
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
+
+    // Once settled, a fresh init posts a new message instead of resolving instantly.
+    const third = client.init('/models/katago-small.bin.gz');
+    expect(worker.postMessage).toHaveBeenCalledTimes(2);
+    worker.onmessage?.({
+      data: { type: 'katago:init_result', ok: true, backend: 'wasm', modelName: 'katago-small' },
+    });
+    await expect(third).resolves.toBeUndefined();
+  });
+
+  it('still reports init failure to every concurrent caller', async () => {
+    installFakeWorker();
+    const client = getKataGoEngineClient();
+    const worker = createdFakeWorkers[0]!;
+
+    const first = client.init('/models/katago-small.bin.gz');
+    const second = client.init('/models/katago-small.bin.gz');
+
+    worker.onmessage?.({ data: { type: 'katago:init_result', ok: false, error: 'model missing' } });
+
+    await expect(first).rejects.toThrow('model missing');
+    await expect(second).rejects.toThrow('model missing');
   });
 });
