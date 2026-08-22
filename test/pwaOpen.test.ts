@@ -27,6 +27,14 @@ describe('pickSharedImportText', () => {
       .toBe('https://online-go.com/game/1');
   });
 
+  it('does not let an unrelated source URL hide shared SGF text', () => {
+    expect(pickSharedImportText({
+      title: 'Shared game',
+      text: '(;GM[1]SZ[19];B[pd])',
+      url: 'https://example.com/article-about-go',
+    })).toBe('(;GM[1]SZ[19];B[pd])');
+  });
+
   it('falls back to text, then title', () => {
     expect(pickSharedImportText({ text: '(;GM[1])' })).toBe('(;GM[1])');
     expect(pickSharedImportText({ title: 'Only title' })).toBe('Only title');

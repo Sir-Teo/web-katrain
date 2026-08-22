@@ -1,3 +1,5 @@
+import { extractOgsGameId } from './ogs';
+
 export interface SharedTargetData {
   title?: string;
   text?: string;
@@ -30,11 +32,14 @@ export const readSharedFromQuery = (search: string | null | undefined): SharedTa
 };
 
 /**
- * Picks the most useful importable string from shared data. A shared URL (e.g.
- * an Online-Go game link) wins over free text, which itself wins over a title.
+ * Picks the most useful importable string from shared data. Supported Online-Go
+ * URLs win, but an unrelated source-page URL must not hide SGF shared as text.
  */
 export const pickSharedImportText = (shared: SharedTargetData): string | null => {
-  for (const candidate of [shared.url, shared.text, shared.title]) {
+  const url = shared.url?.trim();
+  if (url && extractOgsGameId(url)) return url;
+
+  for (const candidate of [shared.text, url, shared.title]) {
     const trimmed = candidate?.trim();
     if (trimmed) return trimmed;
   }
