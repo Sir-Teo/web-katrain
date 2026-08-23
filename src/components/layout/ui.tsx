@@ -68,6 +68,7 @@ export const IconButton: React.FC<{
   children,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [suppressRestoredFocusRing, setSuppressRestoredFocusRing] = useState(false);
   const isCoarsePointer = mediaQueryMatches('(pointer: coarse)');
   const { label, shortcut } = parseTitle(title);
 
@@ -88,12 +89,20 @@ export const IconButton: React.FC<{
         }}
         onMouseLeave={() => setShowTooltip(false)}
         onFocus={(event) => {
-          setShowTooltip(!suppressFocusTooltip && event.currentTarget.dataset.menuRestoredFocusOrigin !== 'pointer');
+          const suppressRestoredFocus = suppressFocusTooltip
+            || event.currentTarget.dataset.menuRestoredFocusOrigin === 'pointer';
+          setSuppressRestoredFocusRing(suppressRestoredFocus);
+          setShowTooltip(!suppressRestoredFocus);
         }}
-        onBlur={() => setShowTooltip(false)}
+        onKeyDown={() => setSuppressRestoredFocusRing(false)}
+        onBlur={() => {
+          setSuppressRestoredFocusRing(false);
+          setShowTooltip(false);
+        }}
         className={[
           'ui-control flex items-center justify-center rounded-lg transition-colors touch-manipulation',
           disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] active:bg-[var(--ui-surface-2)]',
+          suppressRestoredFocusRing ? 'menu-drawer-pointer-focus' : '',
           className ?? '',
         ].join(' ')}
       >

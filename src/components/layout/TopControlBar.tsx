@@ -246,6 +246,13 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     return isFullscreenActive();
   });
 
+  React.useEffect(() => {
+    if (mobileMenuInputMode !== 'pointer') return;
+    const restoreKeyboardFocusStyles = () => setMobileMenuInputMode('keyboard');
+    document.addEventListener('keydown', restoreKeyboardFocusStyles, { capture: true, once: true });
+    return () => document.removeEventListener('keydown', restoreKeyboardFocusStyles, true);
+  }, [mobileMenuInputMode]);
+
   const updateMobileToolsInputMode = React.useCallback((mode: 'pointer' | 'keyboard') => {
     mobileToolsInputModeRef.current = mode;
     setMobileToolsInputMode(mode);
