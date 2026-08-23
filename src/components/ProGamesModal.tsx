@@ -86,14 +86,14 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search pro games"
                     placeholder="Search by player, event, date…"
-                    className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)]"
+                    className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)] lg:min-h-0"
                     autoFocus
                   />
                 </div>
                 <button
                   type="button"
                   onClick={surpriseMe}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] lg:min-h-0 lg:min-w-0"
                   title="Jump to a random pro game"
                 >
                   <FaDice aria-hidden="true" /> <span className="hidden sm:inline">Surprise me</span>
