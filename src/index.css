@@ -727,6 +727,13 @@
       border-top: 1px solid var(--ui-border);
     }
 
+    /* A final unpaired action should read as a deliberate full-width row,
+       rather than leaving a bordered ghost cell beside it. */
+    [data-menu-action-grid='game'] > button:last-child:nth-child(7) {
+      grid-column: 1 / -1;
+      border-right: 0;
+    }
+
     .settings-modal button,
     .settings-modal a[href],
     .settings-modal
@@ -4507,6 +4514,29 @@
     }
 
     [data-menu-action-grid] > button:nth-child(n + 4) {
+      border-top: 1px solid var(--ui-border);
+    }
+
+    /* Three columns suit the seven game actions and six study actions, but
+       create empty cells in the two-action Edit and four-action Settings
+       groups. Keep those naturally balanced as two equal columns. */
+    [data-menu-action-grid='edit'],
+    [data-menu-action-grid='settings'] {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    [data-menu-action-grid='edit'] > button,
+    [data-menu-action-grid='settings'] > button {
+      border-top: 0;
+      border-right: 0;
+    }
+
+    [data-menu-action-grid='edit'] > button:nth-child(odd),
+    [data-menu-action-grid='settings'] > button:nth-child(odd) {
+      border-right: 1px solid var(--ui-border);
+    }
+
+    [data-menu-action-grid='settings'] > button:nth-child(n + 3) {
       border-top: 1px solid var(--ui-border);
     }
 

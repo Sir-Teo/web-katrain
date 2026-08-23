@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { MenuDrawer } from '../src/components/layout/MenuDrawer';
@@ -174,5 +175,13 @@ describe('MenuDrawer', () => {
     expect(html).toContain('data-menu-action-grid="study"');
     expect(html).toContain('data-menu-action-grid="settings"');
     expect(html).toContain('grid-cols-2');
+  });
+
+  it('balances incomplete action rows instead of rendering ghost cells', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(css).toMatch(/\[data-menu-action-grid='game'\] > button:last-child:nth-child\(7\) \{[^}]*grid-column: 1 \/ -1;/);
+    expect(css).toMatch(/\[data-menu-action-grid='edit'\],[\s\S]{0,120}\[data-menu-action-grid='settings'\] \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/);
+    expect(css).toMatch(/\[data-menu-action-grid='settings'\] > button:nth-child\(n \+ 3\) \{[^}]*border-top: 1px solid var\(--ui-border\);/);
   });
 });
