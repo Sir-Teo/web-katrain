@@ -1941,7 +1941,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           <div className="flex flex-wrap items-center gap-1 ml-auto">
             <button
               type="button"
-              className={headerActionClass}
+              className={`${headerActionClass} library-header-collapsible-action`}
               onClick={() => handleCreateFolder()}
               title="Create new folder"
               aria-label="Create new folder"
@@ -1960,7 +1960,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             </button>
             <button
               type="button"
-              className={headerActionClass}
+              className={`${headerActionClass} library-header-collapsible-action`}
               onClick={() => fileInputRef.current?.click()}
               title="Import SGF, ZIP, or board image files"
               aria-label="Import SGF, ZIP, or board image files"
@@ -2006,6 +2006,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             onKeyDown={handleHeaderMenuKeyDown}
             onPointerDown={(event) => event.stopPropagation()}
           >
+              <button
+                type="button"
+                role="menuitem"
+                className="library-context-menu-item"
+                onClick={() => runHeaderAction(() => handleCreateFolder())}
+              >
+                <FaPlus size={12} /> Create new folder
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="library-context-menu-item"
+                onClick={() => runHeaderAction(() => fileInputRef.current?.click())}
+              >
+                <FaFolderOpen size={12} /> Import files
+              </button>
+              <div className="library-context-menu-separator" />
               <button
                 type="button"
                 role="menuitem"
@@ -2061,7 +2078,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
               children: (
                 <>
-              <div className="panel-toolbar">
+              <div className="panel-toolbar" data-library-toolbar="true">
                 <div className="relative flex-1 min-w-[160px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
@@ -2076,7 +2093,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   {query && (
                     <button
                       type="button"
-                      className="absolute right-0 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+                      className="library-search-clear absolute right-0 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                       onClick={() => setQuery('')}
                       aria-label="Clear library search"
                     >
@@ -2147,7 +2164,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   {sortedItems.length > 0 && (
                     <button
                       type="button"
-                      className="h-6 w-6 rounded hover:bg-[var(--ui-surface-2)] flex items-center justify-center"
+                      className="library-select-all h-6 w-6 rounded hover:bg-[var(--ui-surface-2)] flex items-center justify-center"
                       onClick={handleSelectAll}
                       title="Select all"
                       aria-label="Select all"
@@ -2157,7 +2174,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   )}
                 </div>
               </div>
-              <div className="px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
+              <div className="library-breadcrumbs px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
                 {/* The trail already ends at the current folder, so naming it
                     in the label too printed it twice ("Folder: X  X"). */}
                 <span>Folder:</span>
@@ -2168,7 +2185,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     <button
                       key={crumb.id}
                       type="button"
-                      className="px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                      className="library-breadcrumb-button px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
                       onClick={() => setCurrentFolderId(crumb.id)}
                       aria-label={`Open folder ${crumb.name}`}
                     >

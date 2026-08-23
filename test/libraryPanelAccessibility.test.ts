@@ -62,11 +62,20 @@ describe('LibraryPanel accessibility', () => {
   });
 
   it('provides true touch-sized mobile library controls', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
     const styles = readFileSync('src/index.css', 'utf8');
 
+    expect(source).toContain('data-library-toolbar="true"');
+    expect(source).toContain('className="library-select-all h-6 w-6');
+    expect(source).toContain('className="library-breadcrumb-button');
+    expect(source.match(/library-header-collapsible-action/g) ?? []).toHaveLength(2);
+    expect(source).toContain('<FaPlus size={12} /> Create new folder');
+    expect(source).toContain('<FaFolderOpen size={12} /> Import files');
     expect(styles).toContain(".library-tree-node[data-library-row='folder'] .library-tree-node-more");
     expect(styles).toContain('grid-template-columns: 44px 44px 16px minmax(0, 1fr) auto 44px;');
-    expect(styles).toContain('min-height: 44px;');
+    expect(styles).toMatch(/@media \(max-width: 1023px\)[\s\S]*\[data-library-toolbar='true'\] input\[type='search'\],[\s\S]*\.library-breadcrumb-button \{[\s\S]*min-height: 44px;/);
+    expect(styles).toMatch(/\[data-library-toolbar='true'\] \.library-select-all \{[\s\S]*min-width: 44px;[\s\S]*width: 44px;[\s\S]*height: 44px;/);
+    expect(styles).toMatch(/@media \(max-width: 430px\)[\s\S]*\.library-header-collapsible-action \{[\s\S]*display: none;/);
   });
 
   it('keeps the standalone mobile library open without repeating its workspace title', () => {

@@ -1328,6 +1328,27 @@
       height: 44px;
       border-radius: 6px;
     }
+
+    [data-library-toolbar='true'] input[type='search'],
+    [data-library-toolbar='true'] select,
+    [data-library-toolbar='true'] .library-search-clear,
+    [data-library-toolbar='true'] .library-select-all,
+    .library-breadcrumb-button {
+      min-height: 44px;
+    }
+
+    [data-library-toolbar='true'] .library-search-clear,
+    [data-library-toolbar='true'] .library-select-all {
+      min-width: 44px;
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  @media (max-width: 430px) {
+    .library-header-collapsible-action {
+      display: none;
+    }
   }
 
   .edit-toolbar--analysis-offset {
