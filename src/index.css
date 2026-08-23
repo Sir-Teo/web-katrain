@@ -338,6 +338,20 @@
   }
 
   @media (max-width: 380px) {
+    .mobile-panel-header {
+      gap: 4px !important;
+      padding-left: 6px !important;
+      padding-right: 6px !important;
+    }
+
+    .mobile-panel-title {
+      display: none;
+    }
+
+    .mobile-tree-view-controls {
+      gap: 2px !important;
+    }
+
     .mobile-bottom-controls {
       gap: 2px !important;
       padding-left: 6px !important;

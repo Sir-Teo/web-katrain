@@ -362,7 +362,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   }, [notesListOpen]);
 
   const treeViewControls = (
-    <div className="flex items-center gap-2" role="group" aria-label="Game tree view">
+    <div className="mobile-tree-view-controls flex items-center gap-2" role="group" aria-label="Game tree view">
       <button
         type="button"
         className={treeViewTabClass(treeView === 'tree')}
@@ -411,11 +411,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         style={width ? { width } : undefined}
       >
         {/* Play / Analyze tabs */}
-        <div className="ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2">
+        <div className="mobile-panel-header ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2">
           {isMobile && (
             <button
               type="button"
-              className="lg:hidden h-11 min-h-11 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
+              className="mobile-panel-back lg:hidden h-11 min-h-11 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
               onClick={onClose}
               title="Back to board"
             >
@@ -424,7 +424,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             </button>
           )}
           {isMobile ? (
-            <div className="flex-1 text-sm font-semibold text-[var(--ui-text)]">
+            <div className="mobile-panel-title flex-1 text-sm font-semibold text-[var(--ui-text)]">
               {activeMobileTab === 'tree' ? 'Game Tree' : 'Review'}
             </div>
           ) : (
@@ -447,7 +447,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           {/* Undo / Resign / AI move live in the board control bar on this
               layout; the clock has no other home, so it rides in the header. */}
           {mode === 'play' && (
-            <div className="ml-auto shrink-0">
+            <div className="mobile-panel-timer ml-auto shrink-0">
               <Timer variant="status" />
             </div>
           )}
