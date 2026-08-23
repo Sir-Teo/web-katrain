@@ -203,8 +203,11 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
           </div>
 
           <div className="pt-2 border-t border-[var(--ui-border)] space-y-3">
-            <div className="flex items-center justify-between">
-              <label htmlFor={LIMIT_MOVES_ID} className="text-[var(--ui-text-muted)]">Limit to moves</label>
+            <label
+              htmlFor={LIMIT_MOVES_ID}
+              className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] lg:min-h-0"
+            >
+              <span>Limit to moves</span>
               <input
                 id={LIMIT_MOVES_ID}
                 type="checkbox"
@@ -212,7 +215,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
                 onChange={(e) => setUseMoveRange(e.target.checked)}
                 className="toggle"
               />
-            </div>
+            </label>
 
             <div className={['grid grid-cols-2 gap-3', useMoveRange ? '' : 'opacity-40'].join(' ')}>
               <div className="space-y-1">
@@ -248,8 +251,11 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
           </div>
 
           <div className="pt-2 border-t border-[var(--ui-border)]">
-            <div className="flex items-center justify-between">
-              <label htmlFor={MISTAKES_ONLY_ID} className="text-[var(--ui-text-muted)]">Re-analyze mistakes only</label>
+            <label
+              htmlFor={MISTAKES_ONLY_ID}
+              className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] lg:min-h-0"
+            >
+              <span>Re-analyze mistakes only</span>
               <input
                 id={MISTAKES_ONLY_ID}
                 type="checkbox"
@@ -257,7 +263,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
                 onChange={(e) => setMistakesOnly(e.target.checked)}
                 className="toggle"
               />
-            </div>
+            </label>
             <p className="text-xs ui-text-faint mt-2">
               Uses KaTrain’s default mistake threshold (from trainer thresholds). Requires existing analysis to detect mistakes.
             </p>
