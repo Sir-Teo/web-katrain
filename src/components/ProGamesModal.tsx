@@ -59,7 +59,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
         aria-labelledby="pro-games-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
+        <div className="pro-games-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="pro-games-title" className="text-lg font-semibold text-[var(--ui-text)]">
             Pro Game Library
           </h2>
@@ -73,10 +73,10 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <div className="pro-games-layout flex min-h-0 flex-1 flex-col md:flex-row">
           {/* List */}
-          <div className="flex min-h-0 flex-1 flex-col border-b border-[var(--ui-border)] md:max-w-[55%] md:border-b-0 md:border-r">
-            <div className="space-y-2 border-b border-[var(--ui-border)] p-3">
+          <div className="pro-games-list flex min-h-0 flex-1 flex-col border-b border-[var(--ui-border)] md:max-w-[55%] md:border-b-0 md:border-r">
+            <div className="pro-games-filters space-y-2 border-b border-[var(--ui-border)] p-3">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <FaSearch aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-muted)]" />
@@ -122,7 +122,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                 </div>
               )}
             </div>
-            <ul className="min-h-0 flex-1 overflow-y-auto">
+            <ul className="pro-games-results min-h-0 flex-1 overflow-y-auto">
               {filtered.length === 0 && (
                 <li className="p-4 text-sm text-[var(--ui-text-muted)]">No games match “{query}”.</li>
               )}
@@ -169,17 +169,17 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
           </div>
 
           {/* Detail / preview */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+          <div className="pro-games-detail flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
             {selected ? (
               <>
-                <div className="mx-auto w-full max-w-[280px]">
+                <div className="pro-games-preview mx-auto w-full max-w-[280px]">
                   {preview ? (
                     <StaticBoard board={preview.board} ariaLabel="Final position preview" maxPx={280} />
                   ) : (
                     <div className="aspect-square w-full rounded bg-[var(--ui-surface-2)]" />
                   )}
                 </div>
-                <div className="mt-3 space-y-1 text-sm">
+                <div className="pro-games-metadata mt-3 space-y-1 text-sm">
                   <div className="font-semibold text-[var(--ui-text)]">
                     {playerLine(selected.black, selected.blackRank)} vs {playerLine(selected.white, selected.whiteRank)}
                   </div>
@@ -203,7 +203,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                 <button
                   type="button"
                   onClick={() => void onLoadGame(selected.sgf, selected.name)}
-                  className="mt-4 min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                  className="pro-games-load mt-4 min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
                 >
                   <span className="inline-flex items-center gap-2"><FaDownload aria-hidden="true" /> Load &amp; study this game</span>
                 </button>

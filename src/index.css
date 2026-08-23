@@ -4760,6 +4760,57 @@
       align-self: center;
       max-width: 10rem !important;
     }
+
+    .pro-games-header {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
+    .pro-games-layout {
+      flex-direction: row !important;
+    }
+
+    .pro-games-list {
+      max-width: 55%;
+      border-right: 1px solid var(--ui-border);
+      border-bottom: 0 !important;
+    }
+
+    .pro-games-filters {
+      padding: 8px !important;
+    }
+
+    .pro-games-detail {
+      display: grid !important;
+      grid-template-columns: 6.5rem minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 8px;
+      padding: 8px !important;
+    }
+
+    .pro-games-preview {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: center;
+      max-width: 6.5rem !important;
+    }
+
+    .pro-games-metadata {
+      grid-column: 2;
+      grid-row: 1;
+      margin-top: 0 !important;
+    }
+
+    .pro-games-detail [data-pro-game-editorial] {
+      display: none;
+    }
+
+    .pro-games-load {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      margin-top: 0 !important;
+    }
   }
 }
 
