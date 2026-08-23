@@ -122,7 +122,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
         aria-labelledby="score-quiz-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
+        <div className="score-quiz-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="score-quiz-title" className="text-lg font-semibold text-[var(--ui-text)]">
             Score Estimation Quiz
           </h2>
@@ -217,7 +217,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           )}
         </div>
 
-        <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+        <div className="score-quiz-footer ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
             type="button"
             onClick={handleRandom}

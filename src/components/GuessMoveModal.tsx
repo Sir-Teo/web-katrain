@@ -136,7 +136,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
         data-guess-move-modal="true"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
+        <div className="guess-move-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="guess-move-title" className="text-lg font-semibold text-[var(--ui-text)]">
             Guess the Move
           </h2>
@@ -234,7 +234,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
               </div>
             </div>
 
-            <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+            <div className="guess-move-footer ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
               {phase === 'guess' ? (
                 <button
                   type="button"

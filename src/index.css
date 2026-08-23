@@ -4243,6 +4243,14 @@
       padding: 8px 16px !important;
     }
 
+    .score-quiz-header,
+    .score-quiz-footer,
+    .guess-move-header,
+    .guess-move-footer {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
     .score-quiz-body > * {
       margin-top: 0 !important;
     }
@@ -4255,7 +4263,7 @@
       grid-column: 1;
       grid-row: 1 / -1;
       align-self: center;
-      max-width: 10rem !important;
+      max-width: 11.25rem !important;
     }
 
     .score-quiz-response {
@@ -4296,7 +4304,7 @@
       grid-column: 1;
       grid-row: 1 / -1;
       align-self: center;
-      max-width: 10rem !important;
+      max-width: 11.25rem !important;
     }
 
     [data-guess-move-result='true'] {
