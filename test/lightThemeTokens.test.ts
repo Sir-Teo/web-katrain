@@ -93,7 +93,7 @@ describe('light theme shell tokens', () => {
     const interactiveReport = [
       between('const renderMistakeRows', 'const renderPvTree'),
       between('<div className="print-hide space-y-4"', '<div className="hidden print-only'),
-      between('<div className="px-5 py-4 ui-bar', '{showReportGuide &&'),
+      between('<div className="game-report-modal-footer', '{showReportGuide &&'),
     ].join('\n');
     const hardDarkTokens = [
       'bg-slate-900/70',

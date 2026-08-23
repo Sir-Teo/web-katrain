@@ -4859,6 +4859,25 @@
       min-height: 112px !important;
     }
 
+    .game-report-modal {
+      max-height: calc(100dvh - 16px) !important;
+    }
+
+    .game-report-modal-header,
+    .game-report-modal-footer {
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+    }
+
+    .game-report-modal-body {
+      padding: 12px !important;
+    }
+
+    .game-report-modal-empty {
+      min-height: 0 !important;
+      padding: 8px !important;
+    }
+
     .notification-toast-region,
     .notification-toast-region--below-command-bar {
       top: 0.5rem;

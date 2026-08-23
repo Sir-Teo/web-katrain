@@ -901,14 +901,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
       <div
-        className="ui-panel rounded-2xl shadow-2xl w-[92vw] max-w-[56rem] max-h-[90dvh] overflow-hidden flex flex-col report-print border"
+        className="game-report-modal ui-panel rounded-2xl shadow-2xl w-[92vw] max-w-[56rem] max-h-[90dvh] overflow-hidden flex flex-col report-print border"
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="game-report-title"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--ui-border)] ui-bar">
+        <div className="game-report-modal-header flex items-center justify-between px-5 py-4 border-b border-[var(--ui-border)] ui-bar">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">KaTrain Report</div>
             <h2 id="game-report-title" className="text-lg font-semibold text-[var(--ui-text)]">
@@ -956,10 +956,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           </div>
         </div>
 
-        <div className="px-5 py-4 space-y-4 overflow-y-auto overscroll-contain report-scroll">
+        <div className="game-report-modal-body px-5 py-4 space-y-4 overflow-y-auto overscroll-contain report-scroll">
           {totalMoves === 0 ? (
             <div
-              className="print-hide flex min-h-[12rem] items-center justify-center px-5 py-8 text-center sm:min-h-[14rem]"
+              className="game-report-modal-empty print-hide flex min-h-[12rem] items-center justify-center px-5 py-8 text-center sm:min-h-[14rem]"
               data-game-report-empty="true"
             >
               <div className="max-w-md">
@@ -2028,7 +2028,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           </div>
         </div>
 
-        <div className="px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex flex-wrap items-center justify-between gap-3 print-hide">
+        <div className="game-report-modal-footer px-5 py-4 ui-bar border-t border-[var(--ui-border)] flex flex-wrap items-center justify-between gap-3 print-hide">
           {/* The review button lives in the status card above, next to the text
               explaining why you'd run it and the bar it advances — repeating it
               here rendered the same button twice on one screen. */}
