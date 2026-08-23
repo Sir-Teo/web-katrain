@@ -2620,7 +2620,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   return (
     <div
       ref={containerRef}
-      className="go-board-container w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center portrait:items-start lg:portrait:items-center"
+      className="go-board-container w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center"
       data-board-container="true"
     >
       <div

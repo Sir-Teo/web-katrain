@@ -313,11 +313,17 @@ function assertViewport(result) {
       failures.push(`edit-mode board touch-action should be none (${result.editModeBoardTouchAction})`);
     }
     if (result.innerHeight > result.innerWidth) {
-      if (result.defaultBoardContainerAlign !== 'flex-start') {
-        failures.push(`portrait board wrapper should top-align (${result.defaultBoardContainerAlign || 'missing'})`);
+      if (result.defaultBoardContainerAlign !== 'center') {
+        failures.push(`portrait board wrapper should center the board (${result.defaultBoardContainerAlign || 'missing'})`);
       }
-      if (result.defaultBoardCanvasTopInset == null || result.defaultBoardCanvasTopInset > 32) {
-        failures.push(`portrait board starts too far below its canvas (${Math.round(result.defaultBoardCanvasTopInset ?? -1)}px)`);
+      if (
+        result.defaultBoardCanvasTopInset == null ||
+        result.defaultBoardCanvasBottomInset == null ||
+        Math.abs(result.defaultBoardCanvasTopInset - result.defaultBoardCanvasBottomInset) > 2
+      ) {
+        failures.push(
+          `portrait board is not vertically balanced (${Math.round(result.defaultBoardCanvasTopInset ?? -1)}px top, ${Math.round(result.defaultBoardCanvasBottomInset ?? -1)}px bottom)`
+        );
       }
       if (result.defaultIdleAnalysisSlotHeight > 1) {
         failures.push(`idle analysis slot reserves ${Math.round(result.defaultIdleAnalysisSlotHeight)}px above the mobile board`);
@@ -524,6 +530,7 @@ async function main() {
         return {
           board: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height },
           boardCanvasTopInset: boardCanvasRect ? r.top - boardCanvasRect.top : null,
+          boardCanvasBottomInset: boardCanvasRect ? boardCanvasRect.bottom - r.bottom : null,
           boardContainerAlign: boardContainer ? getComputedStyle(boardContainer).alignItems : null,
           idleAnalysisSlotHeight: analysisSlotRect && !analysisCommandBar ? analysisSlotRect.height : 0,
           documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
@@ -2520,6 +2527,7 @@ async function main() {
       })()`);
       result.defaultBoard = defaultLayout.board;
       result.defaultBoardCanvasTopInset = defaultLayout.boardCanvasTopInset;
+      result.defaultBoardCanvasBottomInset = defaultLayout.boardCanvasBottomInset;
       result.defaultBoardContainerAlign = defaultLayout.boardContainerAlign;
       result.defaultIdleAnalysisSlotHeight = defaultLayout.idleAnalysisSlotHeight;
       result.defaultDocumentOverflow = defaultLayout.documentOverflow;
