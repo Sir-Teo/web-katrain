@@ -82,7 +82,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
         aria-labelledby="lessons-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
+        <div className="lessons-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="lessons-title" className="inline-flex items-center gap-2 text-lg font-semibold text-[var(--ui-text)]">
             <FaGraduationCap aria-hidden="true" /> {lesson ? lesson.title : 'Lessons'}
           </h2>
@@ -96,13 +96,13 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="lessons-body flex-1 space-y-4 overflow-y-auto p-4" data-lessons-active={lesson ? 'true' : 'false'}>
           {!lesson ? (
             <>
-              <p className="text-sm text-[var(--ui-text-muted)]">
+              <p className="lessons-intro text-sm text-[var(--ui-text-muted)]">
                 Short, interactive lessons on the fundamentals. Read each step, then click the board when asked.
               </p>
-              <ul className="space-y-2">
+              <ul className="lessons-list space-y-2">
                 {LESSONS.map((l) => (
                   <li key={l.id}>
                     <button
@@ -122,10 +122,10 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
             </>
           ) : (
             <>
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-text-muted)]">
+              <div className="lessons-step text-xs font-semibold uppercase tracking-wide text-[var(--ui-text-muted)]">
                 Step {stepIndex + 1} of {lesson.steps.length}
               </div>
-              <div className="mx-auto w-full max-w-[320px]">
+              <div className="lessons-board mx-auto w-full max-w-[320px]">
                 {board && (
                   <StaticBoard
                     board={board}
@@ -136,13 +136,13 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
                   />
                 )}
               </div>
-              <p className="text-sm leading-6 text-[var(--ui-text)]">{step?.text}</p>
+              <p className="lessons-copy text-sm leading-6 text-[var(--ui-text)]">{step?.text}</p>
               {isInteractive && !solved && !feedback && (
-                <p className="text-xs italic text-[var(--ui-text-muted)]">Click a point on the board.</p>
+                <p className="lessons-hint text-xs italic text-[var(--ui-text-muted)]">Click a point on the board.</p>
               )}
               {feedback && (
                 <div
-                  className="rounded-lg border px-3 py-2 text-sm font-medium"
+                  className="lessons-feedback rounded-lg border px-3 py-2 text-sm font-medium"
                   style={{ borderColor: feedback.tone, color: feedback.tone }}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -155,7 +155,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
         </div>
 
         {lesson && (
-          <div className="ui-bar flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+          <div className="lessons-footer ui-bar flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ui-border)] px-4 py-3">
             <button
               type="button"
               onClick={() => (stepIndex > 0 ? setStepIndex((i) => i - 1) : setActiveId(null))}
