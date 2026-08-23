@@ -63,11 +63,11 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
           </div>
         </div>
 
-        <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+        <div className="ui-bar grid gap-2 border-t border-[var(--ui-border)] px-4 py-3 sm:flex sm:flex-wrap sm:justify-end">
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+            className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] sm:w-auto"
             autoFocus
           >
             Cancel
@@ -75,7 +75,7 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
           <button
             type="button"
             onClick={onConfirm}
-            className="min-h-11 rounded-lg border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] px-4 py-2 text-sm font-semibold text-[var(--ui-danger)] hover:bg-[var(--ui-surface-2)]"
+            className="min-h-11 w-full rounded-lg border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] px-4 py-2 text-sm font-semibold text-[var(--ui-danger)] hover:bg-[var(--ui-surface-2)] sm:w-auto"
           >
             <span className="inline-flex items-center gap-2"><FaTrash aria-hidden="true" /> Clear {label}</span>
           </button>
