@@ -3784,6 +3784,15 @@
     display: none;
   }
 
+  .pro-games-featured {
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .pro-games-featured::-webkit-scrollbar {
+    display: none;
+  }
+
   .ui-border {
     border-color: var(--ui-border);
   }

@@ -84,22 +84,23 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
+                    aria-label="Search pro games"
                     placeholder="Search by player, event, date…"
-                    className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)]"
+                    className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)]"
                     autoFocus
                   />
                 </div>
                 <button
                   type="button"
                   onClick={surpriseMe}
-                  className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
                   title="Jump to a random pro game"
                 >
                   <FaDice aria-hidden="true" /> <span className="hidden sm:inline">Surprise me</span>
                 </button>
               </div>
               {FEATURED_PRO_GAMES.length > 0 && !query && (
-                <div className="flex flex-wrap items-center gap-1.5" aria-label="Featured games">
+                <div className="pro-games-featured flex flex-nowrap items-center gap-1.5 overflow-x-auto lg:flex-wrap lg:overflow-visible" aria-label="Featured games">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Featured</span>
                   {FEATURED_PRO_GAMES.map((g) => (
                     <button
@@ -108,7 +109,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                       onClick={() => setSelectedId(g.id)}
                       aria-pressed={selected?.id === g.id}
                       className={[
-                        'rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                        'min-h-11 shrink-0 rounded-full border px-2 py-0.5 text-[11px] transition-colors lg:min-h-0',
                         selected?.id === g.id
                           ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-text)]'
                           : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
