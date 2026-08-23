@@ -172,7 +172,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
                       type="button"
                       onClick={() => changeFilter(f.id)}
                       aria-pressed={filter === f.id}
-                      className={`min-h-9 px-3 py-1 text-xs font-semibold ${
+                      className={`min-h-11 px-3 py-1 text-xs font-semibold ${
                         filter === f.id
                           ? 'bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-text)]'
                           : 'bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]'

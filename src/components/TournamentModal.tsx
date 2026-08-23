@@ -104,7 +104,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
               onClick={() => setMode(m)}
               aria-pressed={mode === m}
               className={[
-                'rounded-t-lg px-3 py-2 text-sm font-semibold capitalize',
+                'min-h-11 rounded-t-lg px-3 py-2 text-sm font-semibold capitalize',
                 mode === m
                   ? 'bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-accent)]'
                   : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]',
@@ -173,7 +173,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                     <button
                       type="button"
                       onClick={onClose}
-                      className="mt-1 w-full text-center text-xs text-[var(--ui-text-muted)] underline hover:text-[var(--ui-text)]"
+                      className="mt-1 min-h-11 w-full text-center text-xs text-[var(--ui-text-muted)] underline hover:text-[var(--ui-text)]"
                     >
                       Resume game
                     </button>
@@ -250,7 +250,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                   <button
                     type="button"
                     onClick={onClose}
-                    className="mt-1 w-full text-center text-xs text-[var(--ui-text-muted)] underline hover:text-[var(--ui-text)]"
+                    className="mt-1 min-h-11 w-full text-center text-xs text-[var(--ui-text-muted)] underline hover:text-[var(--ui-text)]"
                   >
                     Resume game
                   </button>
@@ -426,7 +426,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
           <select
             value={startKyu}
             onChange={(e) => setStartKyu(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-text)]"
+            className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-text)]"
           >
             {RANK_OPTIONS.map((kyu) => (
               <option key={kyu} value={kyu}>{formatKyuRank(kyu)}</option>

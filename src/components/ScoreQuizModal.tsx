@@ -177,7 +177,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
                   value={margin}
                   onChange={(e) => setMargin(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') void handleReveal(); }}
-                  className="w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-right text-[var(--ui-text)]"
+                  className="min-h-11 w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-right text-[var(--ui-text)]"
                 />
               </label>
               {errorMsg && (
