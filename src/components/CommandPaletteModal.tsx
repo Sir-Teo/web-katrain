@@ -112,7 +112,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="ui-panel w-[94vw] max-w-2xl overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-[84dvh] w-[94vw] max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="command-palette-title"
@@ -134,7 +134,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         }}
         data-command-palette="true"
       >
-        <div className="ui-bar flex items-center justify-between gap-3 border-b border-[var(--ui-border)] p-4">
+        <div className="ui-bar flex shrink-0 items-center justify-between gap-3 border-b border-[var(--ui-border)] p-4">
           <div className="min-w-0">
             <h2 id="command-palette-title" className="text-lg font-semibold text-[var(--ui-text)]">
               Command Palette
@@ -152,7 +152,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             <FaTimes aria-hidden="true" />
           </button>
         </div>
-        <div className="p-3">
+        <div className="shrink-0 p-3">
           <label className="relative block">
             <FaSearch
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-faint)]"
@@ -164,7 +164,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               type="search"
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
-              className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-9 text-sm text-[var(--ui-text)]"
+              className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-12 text-sm text-[var(--ui-text)]"
               placeholder="Search commands"
               aria-label="Search commands"
               data-command-palette-search="true"
@@ -172,7 +172,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             {query && (
               <button
                 type="button"
-                className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+                className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                 onClick={() => setQuery('')}
                 aria-label="Clear command search"
               >
@@ -181,7 +181,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             )}
           </label>
         </div>
-        <div className="max-h-[56dvh] overflow-y-auto overscroll-contain px-3 pb-3" role="listbox" aria-label="Commands">
+        <div className="min-h-0 max-h-[56dvh] flex-1 overflow-y-auto overscroll-contain px-3 pb-3" role="listbox" aria-label="Commands">
           {filteredCommands.length === 0 ? (
             <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true">
               No commands match "{query.trim()}".
