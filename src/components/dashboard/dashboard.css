@@ -555,7 +555,7 @@
   top: 60px;
   right: auto;
   bottom: 60px;
-  left: 16px;
+  left: calc(var(--library-w) + 16px);
   display: flex;
   width: 176px;
   max-width: 176px;
