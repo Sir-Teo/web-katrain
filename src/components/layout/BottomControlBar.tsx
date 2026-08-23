@@ -50,6 +50,8 @@ interface BottomControlBarProps {
   passTurn: () => void;
   navigateBack: () => void;
   navigateForward: () => void;
+  canNavigateBack?: boolean;
+  canNavigateForward?: boolean;
   navigateToMove: (moveNumber: number) => void;
   navigateStart: () => void;
   navigateEnd: () => void;
@@ -96,6 +98,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   passTurn,
   navigateBack,
   navigateForward,
+  canNavigateBack = true,
+  canNavigateForward = true,
   navigateToMove,
   navigateStart,
   navigateEnd,
@@ -468,7 +472,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         </div>
 
         <div className="mobile-bottom-navigation flex-1 min-w-0 flex items-center justify-center gap-1">
-          <IconButton title={withShortcut('Back', 'nav-back')} onClick={navigateBack} disabled={isInsertMode}>
+          <IconButton title={withShortcut('Back', 'nav-back')} onClick={navigateBack} disabled={isInsertMode || !canNavigateBack}>
             <FaChevronLeft />
           </IconButton>
           <div
@@ -555,7 +559,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
               </>
             )}
           </div>
-          <IconButton title={withShortcut('Forward', 'nav-forward')} onClick={navigateForward} disabled={isInsertMode}>
+          <IconButton title={withShortcut('Forward', 'nav-forward')} onClick={navigateForward} disabled={isInsertMode || !canNavigateForward}>
             <FaChevronRight />
           </IconButton>
         </div>
@@ -665,7 +669,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       navigateStart();
                       closeMoreControlsFromAction(event);
                     }}
-                    disabled={isInsertMode}
+                    disabled={isInsertMode || !canNavigateBack}
                   >
                     <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
                       <FaStepBackward size={14} />
@@ -679,7 +683,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       jumpBack(10);
                       closeMoreControlsFromAction(event);
                     }}
-                    disabled={isInsertMode}
+                    disabled={isInsertMode || !canNavigateBack}
                   >
                     <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
                       <FaFastBackward size={14} />
@@ -693,7 +697,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       jumpForward(10);
                       closeMoreControlsFromAction(event);
                     }}
-                    disabled={isInsertMode}
+                    disabled={isInsertMode || !canNavigateForward}
                   >
                     <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
                       <FaFastForward size={14} />
@@ -707,7 +711,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       navigateEnd();
                       closeMoreControlsFromAction(event);
                     }}
-                    disabled={isInsertMode}
+                    disabled={isInsertMode || !canNavigateForward}
                   >
                     <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
                       <FaStepForward size={14} />
@@ -980,13 +984,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
         <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
 
-        <IconButton title={withShortcut('Start', 'nav-start')} onClick={navigateStart} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Start', 'nav-start')} onClick={navigateStart} disabled={isInsertMode || !canNavigateBack}>
           <FaStepBackward />
         </IconButton>
-        <IconButton title={withShortcut('Back 10', 'nav-back-10')} onClick={() => jumpBack(10)} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Back 10', 'nav-back-10')} onClick={() => jumpBack(10)} disabled={isInsertMode || !canNavigateBack}>
           <FaFastBackward />
         </IconButton>
-        <IconButton title={withShortcut('Back', 'nav-back')} onClick={navigateBack}>
+        <IconButton title={withShortcut('Back', 'nav-back')} onClick={navigateBack} disabled={!canNavigateBack}>
           <FaChevronLeft />
         </IconButton>
 
@@ -1063,13 +1067,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           </div>
         )}
 
-        <IconButton title={withShortcut('Forward', 'nav-forward')} onClick={navigateForward} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Forward', 'nav-forward')} onClick={navigateForward} disabled={isInsertMode || !canNavigateForward}>
           <FaChevronRight />
         </IconButton>
-        <IconButton title={withShortcut('Forward 10', 'nav-forward-10')} onClick={() => jumpForward(10)} disabled={isInsertMode}>
+        <IconButton title={withShortcut('Forward 10', 'nav-forward-10')} onClick={() => jumpForward(10)} disabled={isInsertMode || !canNavigateForward}>
           <FaFastForward />
         </IconButton>
-        <IconButton title={withShortcut('End', 'nav-end')} onClick={navigateEnd} disabled={isInsertMode}>
+        <IconButton title={withShortcut('End', 'nav-end')} onClick={navigateEnd} disabled={isInsertMode || !canNavigateForward}>
           <FaStepForward />
         </IconButton>
 

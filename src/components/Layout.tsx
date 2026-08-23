@@ -90,7 +90,7 @@ import { useTournamentStore } from '../store/tournamentStore';
 import { formatKyuRank, type LadderState } from '../utils/tournament';
 import { currentGauntletOpponentKyu, type GauntletState } from '../utils/gauntlet';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
-import { getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber } from '../utils/branchNavigation';
+import { getActiveChild, getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber } from '../utils/branchNavigation';
 import { getMistakeNavigationAvailability } from '../utils/mistakeNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
 import { AnalysisCacheClearConfirmModal } from './AnalysisCacheClearConfirmModal';
@@ -1425,6 +1425,13 @@ export const Layout: React.FC = () => {
     void treeVersion;
     return getBranchInfo(currentNode);
   }, [currentNode, treeVersion]);
+  const historyNavigation = useMemo(() => {
+    void treeVersion;
+    return {
+      back: currentNode.parent !== null,
+      forward: getActiveChild(currentNode, activeBranchChildIds) !== null,
+    };
+  }, [activeBranchChildIds, currentNode, treeVersion]);
   const mistakeNavigation = useMemo(() => {
     void treeVersion;
     return getMistakeNavigationAvailability({
@@ -3416,6 +3423,8 @@ export const Layout: React.FC = () => {
             onOpenGameReport={() => setIsGameReportOpen(true)}
             navigateBack={navigateBack}
             navigateForward={navigateForward}
+            canNavigateBack={historyNavigation.back}
+            canNavigateForward={historyNavigation.forward}
             navigateStart={navigateStart}
             navigateEnd={navigateEnd}
             navigateToMove={navigateToMove}
@@ -3695,6 +3704,8 @@ export const Layout: React.FC = () => {
               passTurn={passTurn}
               navigateBack={navigateBack}
               navigateForward={navigateForward}
+              canNavigateBack={historyNavigation.back}
+              canNavigateForward={historyNavigation.forward}
               navigateToMove={navigateToMove}
               navigateStart={navigateStart}
               navigateEnd={navigateEnd}
@@ -3872,6 +3883,8 @@ export const Layout: React.FC = () => {
                     passTurn={passTurn}
                     navigateBack={navigateBack}
                     navigateForward={navigateForward}
+                    canNavigateBack={historyNavigation.back}
+                    canNavigateForward={historyNavigation.forward}
                     navigateToMove={navigateToMove}
                     navigateStart={navigateStart}
                     navigateEnd={navigateEnd}

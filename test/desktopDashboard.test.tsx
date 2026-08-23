@@ -83,4 +83,15 @@ describe('DesktopDashboard', () => {
     expect(css).toMatch(/\.wk-dashboard \.gamestrip\.start-strip \{[^}]*flex-wrap: nowrap;[^}]*padding: 4px 8px;/);
     expect(css).toMatch(/\.wk-dashboard \.compact-start \{[^}]*display: flex;[^}]*width: 100%;/);
   });
+
+  it('reflects current-line boundaries in the desktop navigation rail', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+
+    for (const control of ['navigateStart', 'jumpBack', 'navigateBack']) {
+      expect(source).toMatch(new RegExp(`onClick=\\{${control}\\} disabled=\\{!canNavigateBack\\}`));
+    }
+    for (const control of ['navigateForward', 'jumpForward', 'navigateEnd']) {
+      expect(source).toMatch(new RegExp(`onClick=\\{${control}\\} disabled=\\{!canNavigateForward\\}`));
+    }
+  });
 });

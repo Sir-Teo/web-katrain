@@ -99,6 +99,8 @@ export interface DesktopDashboardProps {
   // ---- navigation / play ----
   navigateBack: () => void;
   navigateForward: () => void;
+  canNavigateBack: boolean;
+  canNavigateForward: boolean;
   navigateStart: () => void;
   navigateEnd: () => void;
   navigateToMove: (n: number) => void;
@@ -186,7 +188,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, focusMode = false,
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
-    navigateBack, navigateForward, navigateStart, navigateEnd, navigateToMove,
+    navigateBack, navigateForward, canNavigateBack, canNavigateForward, navigateStart, navigateEnd, navigateToMove,
     jumpBack, jumpForward, findMistake, canFindPreviousMistake, canFindNextMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
     passTurn, onUndo, onAiMove, onResign, onPlayBest,
     onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
@@ -779,9 +781,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
-              <button type="button" className="navbtn" title="To start" onClick={navigateStart}><Icon name="skipBack" size={15} /></button>
-              <button type="button" className="navbtn navbtn-skip" title="Back 10" onClick={jumpBack}><Icon name="fastBack" size={15} /></button>
-              <button type="button" className="navbtn" title="Back" onClick={navigateBack}><Icon name="chevL" size={15} /></button>
+              <button type="button" className="navbtn" title="To start" onClick={navigateStart} disabled={!canNavigateBack}><Icon name="skipBack" size={15} /></button>
+              <button type="button" className="navbtn navbtn-skip" title="Back 10" onClick={jumpBack} disabled={!canNavigateBack}><Icon name="fastBack" size={15} /></button>
+              <button type="button" className="navbtn" title="Back" onClick={navigateBack} disabled={!canNavigateBack}><Icon name="chevL" size={15} /></button>
             </div>
             <div className="move-counter">
               <span className="mc-label">Move</span>
@@ -818,9 +820,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <span>/ {totalMoves}</span>
             </div>
             <div className="navgroup">
-              <button type="button" className="navbtn" title="Forward" onClick={navigateForward}><Icon name="chevR" size={15} /></button>
-              <button type="button" className="navbtn navbtn-skip" title="Forward 10" onClick={jumpForward}><Icon name="fastFwd" size={15} /></button>
-              <button type="button" className="navbtn" title="To end" onClick={navigateEnd}><Icon name="skipFwd" size={15} /></button>
+              <button type="button" className="navbtn" title="Forward" onClick={navigateForward} disabled={!canNavigateForward}><Icon name="chevR" size={15} /></button>
+              <button type="button" className="navbtn navbtn-skip" title="Forward 10" onClick={jumpForward} disabled={!canNavigateForward}><Icon name="fastFwd" size={15} /></button>
+              <button type="button" className="navbtn" title="To end" onClick={navigateEnd} disabled={!canNavigateForward}><Icon name="skipFwd" size={15} /></button>
             </div>
             <span className="nav-divider" />
             <div className="navgroup">

@@ -149,6 +149,21 @@ describe('BottomControlBar', () => {
     expect(html.match(/disabled=""/g) ?? []).toHaveLength(2);
   });
 
+  it('disables history controls at the current-line boundaries', () => {
+    const html = renderToStaticMarkup(
+      <BottomControlBar
+        {...baseProps}
+        isMobile={false}
+        canNavigateBack={false}
+        canNavigateForward={false}
+      />,
+    );
+
+    for (const label of ['Start', 'Back 10', 'Back', 'Forward', 'Forward 10', 'End']) {
+      expect(html).toContain(`aria-label="${label}" disabled=""`);
+    }
+  });
+
   it('uses compact recovery save status on mobile', () => {
     const html = renderToStaticMarkup(
       <BottomControlBar
