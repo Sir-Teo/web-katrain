@@ -25,6 +25,17 @@ describe('SettingsModal', () => {
     expect(html).not.toContain('bg-slate-800/70');
   });
 
+  it('keeps settings content scrollable in short landscape dialogs', () => {
+    const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(source).toContain('settings-modal-body min-h-0');
+    expect(source).toContain('settings-modal-content min-h-0 flex-1 overflow-y-auto');
+    expect(source).toContain('settings-modal-header sticky');
+    expect(source).toContain('settings-modal-footer sticky');
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.settings-modal \.settings-modal-header,[\s\S]*padding-top: 8px !important;[\s\S]*\.settings-modal \.settings-modal-body[\s\S]*padding-bottom: 8px !important;[\s\S]*\.settings-modal \.settings-tabs[\s\S]*margin-bottom: 8px !important;/);
+  });
+
   it('keeps deep settings labels on theme tokens', () => {
     const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
 

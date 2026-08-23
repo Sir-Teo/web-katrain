@@ -451,7 +451,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 aria-modal="true"
                 aria-labelledby="settings-title"
             >
-                <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b ui-bar backdrop-blur">
+                <div className="settings-modal-header sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b ui-bar backdrop-blur">
                     <h2 id="settings-title" className="text-lg sm:text-xl font-semibold text-[var(--ui-text)]">Settings</h2>
                     <button
                         type="button"
@@ -462,7 +462,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         <FaTimes />
                     </button>
                 </div>
-                <div className="px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">
+                <div className="settings-modal-body min-h-0 px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">
                     {/* Search. Four tabs and 80-odd controls is more than anyone
                         should have to hunt through by eye; typing a word jumps
                         straight to the control, switching tabs on the way. */}
@@ -565,7 +565,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     </div>  
                 
                     {/* Tab Content */}  
-                    <div className="flex-1 overflow-y-auto space-y-6">  
+                    <div className="settings-modal-content min-h-0 flex-1 overflow-y-auto space-y-6">
                         {activeTab === 'general' && (  
                             <div
                                 id="panel-general"
@@ -2447,7 +2447,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         )}
                     </div>  
                 </div>
-                <div className="sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t backdrop-blur">
+                <div className="settings-modal-footer sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t backdrop-blur">
                     <button type="button"
                         onClick={onClose}
                         className="px-5 py-2.5 rounded-lg ui-accent-bg hover:brightness-110 font-semibold shadow-lg shadow-black/20 transition-colors"

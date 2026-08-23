@@ -4215,6 +4215,22 @@
       justify-content: flex-end;
     }
 
+    .settings-modal .settings-modal-header,
+    .settings-modal .settings-modal-footer {
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+    }
+
+    .settings-modal .settings-modal-body {
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+    }
+
+    .settings-modal .settings-search,
+    .settings-modal .settings-tabs {
+      margin-bottom: 8px !important;
+    }
+
     .notification-toast {
       max-width: min(18rem, calc(100% - 1rem));
     }
