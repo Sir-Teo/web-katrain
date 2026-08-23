@@ -3384,6 +3384,22 @@
   }
 
   @media (max-height: 520px) and (orientation: landscape) {
+    [data-menu-header='true'] {
+      align-items: center !important;
+      margin-bottom: 8px !important;
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
+    [data-menu-build-link='true'],
+    [data-menu-recent='true'] {
+      display: none !important;
+    }
+
+    [data-menu-nav='true'] > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 8px !important;
+    }
+
     .mobile-home-actions > button {
       min-height: 48px;
       justify-content: center;

@@ -230,7 +230,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           </button>
         </div>
 
-        <nav className="space-y-4" aria-label="Main menu">
+        <nav className="space-y-4" aria-label="Main menu" data-menu-nav="true">
           <div>
             <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Game</div>
             <div className={menuActionGrid} data-menu-action-grid="game">
@@ -530,7 +530,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
         </nav>
 
         {recentItems.length > 0 && onOpenRecent && (
-          <div className="mt-2 border-t border-[var(--ui-border)] pt-2 space-y-2">
+          <div className="mt-2 border-t border-[var(--ui-border)] pt-2 space-y-2" data-menu-recent="true">
             <div className="text-xs ui-text-faint px-3 uppercase tracking-wide">Recent</div>
             <div className="space-y-1">
               {recentItems.map((item) => (
