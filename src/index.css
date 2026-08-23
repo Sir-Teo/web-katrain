@@ -4600,6 +4600,16 @@
   }
 
   @media (max-width: 419px) and (max-height: 520px) and (orientation: landscape) {
+    .settings-modal .settings-modal-body {
+      grid-template-columns: 7rem minmax(0, 1fr);
+    }
+
+    .settings-modal .settings-tabs [role='tab'] {
+      overflow: hidden;
+      padding-inline: 2px !important;
+      font-size: 10.5px !important;
+    }
+
     .score-quiz-response {
       align-self: start;
     }
