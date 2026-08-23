@@ -4621,6 +4621,54 @@
       min-width: 0;
       margin-top: 0 !important;
     }
+
+    .ogs-sync-header,
+    .ogs-sync-footer {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
+    .ogs-sync-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-auto-rows: auto;
+      align-content: start;
+      gap: 4px 12px;
+      padding: 12px 16px !important;
+    }
+
+    .ogs-sync-body > * {
+      margin-top: 0 !important;
+    }
+
+    .ogs-sync-intro {
+      display: none;
+    }
+
+    .ogs-sync-body label[for='ogs-sync-username'] {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .ogs-sync-body #ogs-sync-username {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .ogs-sync-body label[for='ogs-sync-limit'] {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .ogs-sync-body #ogs-sync-limit {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .ogs-sync-body [role='status'],
+    .ogs-sync-body [role='alert'] {
+      grid-column: 1 / -1;
+    }
   }
 }
 

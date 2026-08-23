@@ -105,7 +105,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
         aria-modal="true"
         aria-labelledby="ogs-sync-title"
       >
-        <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
+        <div className="ogs-sync-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="ogs-sync-title" className="text-lg font-semibold text-[var(--ui-text)]">
             Sync OGS Games
           </h2>
@@ -119,8 +119,8 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-          <div className="text-sm text-[var(--ui-text-muted)]">
+        <div className="ogs-sync-body min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+          <div className="ogs-sync-intro text-sm text-[var(--ui-text-muted)]">
             Downloads your latest finished games from online-go.com into an{' '}
             <span className="font-semibold">OGS - username</span> library folder. Games already
             synced are skipped, so it is safe to run again after playing more.
@@ -191,7 +191,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
           )}
         </div>
 
-        <div className="ui-bar flex items-center justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+        <div className="ogs-sync-footer ui-bar flex items-center justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
             type="button"
             onClick={onClose}
