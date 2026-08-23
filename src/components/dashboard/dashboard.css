@@ -564,6 +564,12 @@
   overflow: hidden;
 }
 
+.wk-dashboard[data-layout="compact"]
+  .edit-toolbar-docked--active
+  .edit-toolbar-panel--docked {
+  left: 16px;
+}
+
 .wk-dashboard .edit-toolbar-panel--docked > :last-child {
   display: flex;
   flex: 1 1 auto;
