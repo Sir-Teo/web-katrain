@@ -158,8 +158,8 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
           </div>
         ) : (
           <>
-            <div className="flex-1 space-y-4 overflow-y-auto p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="guess-move-body flex-1 space-y-4 overflow-y-auto p-4">
+              <div className="guess-move-toolbar flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm text-[var(--ui-text-muted)]" data-guess-move-prompt="true">
                   {phase === 'guess' && current
                     ? `Where does ${playerLabel(current.expected.player)} play at move ${current.moveNumber}?`
@@ -184,7 +184,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
                 </div>
               </div>
 
-              <div className="mx-auto w-full max-w-[340px]">
+              <div className="guess-move-board mx-auto w-full max-w-[340px]">
                 {current && (
                   <StaticBoard
                     board={current.board}

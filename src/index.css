@@ -4270,6 +4270,47 @@
       gap: 8px;
     }
 
+    .guess-move-body {
+      display: grid;
+      grid-template-columns: minmax(8rem, 0.72fr) minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 8px 16px;
+      padding: 8px 16px !important;
+    }
+
+    .guess-move-body > * {
+      margin-top: 0 !important;
+    }
+
+    .guess-move-toolbar {
+      grid-column: 2;
+      grid-row: 1;
+      flex-wrap: nowrap;
+    }
+
+    .guess-move-toolbar [data-guess-move-prompt='true'] {
+      min-width: 0;
+    }
+
+    .guess-move-board {
+      grid-column: 1;
+      grid-row: 1 / -1;
+      align-self: center;
+      max-width: 10rem !important;
+    }
+
+    [data-guess-move-result='true'] {
+      grid-column: 2;
+      grid-row: 2;
+      align-self: center;
+    }
+
+    [data-guess-move-stats='true'] {
+      grid-column: 2;
+      grid-row: 3;
+      gap: 8px;
+    }
+
     .settings-modal .settings-modal-header,
     .settings-modal .settings-modal-footer {
       padding-top: 8px !important;
