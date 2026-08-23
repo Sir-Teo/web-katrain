@@ -1345,8 +1345,12 @@
     }
   }
 
-  @media (max-width: 430px) {
-    .library-header-collapsible-action {
+  .library-panel {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 430px) {
+    .library-panel .library-header-collapsible-action {
       display: none;
     }
   }

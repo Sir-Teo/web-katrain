@@ -75,7 +75,9 @@ describe('LibraryPanel accessibility', () => {
     expect(styles).toContain('grid-template-columns: 44px 44px 16px minmax(0, 1fr) auto 44px;');
     expect(styles).toMatch(/@media \(max-width: 1023px\)[\s\S]*\[data-library-toolbar='true'\] input\[type='search'\],[\s\S]*\.library-breadcrumb-button \{[\s\S]*min-height: 44px;/);
     expect(styles).toMatch(/\[data-library-toolbar='true'\] \.library-select-all \{[\s\S]*min-width: 44px;[\s\S]*width: 44px;[\s\S]*height: 44px;/);
-    expect(styles).toMatch(/@media \(max-width: 430px\)[\s\S]*\.library-header-collapsible-action \{[\s\S]*display: none;/);
+    expect(source).toContain("'library-panel ui-panel border-r flex flex-col overflow-x-hidden relative'");
+    expect(styles).toMatch(/\.library-panel \{[\s\S]*container-type: inline-size;/);
+    expect(styles).toMatch(/@container \(max-width: 430px\)[\s\S]*\.library-panel \.library-header-collapsible-action \{[\s\S]*display: none;/);
   });
 
   it('keeps the standalone mobile library open without repeating its workspace title', () => {

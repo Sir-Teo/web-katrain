@@ -1896,7 +1896,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         data-dropzone="library"
         data-layout-panel="library"
         className={[
-          'ui-panel border-r flex flex-col overflow-x-hidden relative',
+          'library-panel ui-panel border-r flex flex-col overflow-x-hidden relative',
           'fixed inset-y-0 left-0 z-40 w-full max-w-none sm:max-w-sm',
           'lg:static lg:z-auto',
           docked ? 'lg:max-w-none' : 'lg:w-80',
