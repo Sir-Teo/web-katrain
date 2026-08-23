@@ -136,19 +136,19 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <p className="text-sm text-[var(--ui-text-muted)]">
+        <div className="score-quiz-body flex-1 space-y-4 overflow-y-auto p-4">
+          <p className="score-quiz-intro text-sm text-[var(--ui-text-muted)]">
             {quizPositions.length === 0
               ? 'This is the starting position. Play some moves or open a game for a more meaningful score estimate.'
               : `Read the position, then estimate who is ahead and by how many points. Move ${moveNumber}.`}
           </p>
 
-          <div className="mx-auto w-full max-w-[340px]">
+          <div className="score-quiz-board mx-auto w-full max-w-[340px]">
             <StaticBoard board={board} lastMove={lastMove} ariaLabel={`Quiz position at move ${moveNumber}`} />
           </div>
 
           {phase !== 'reveal' ? (
-            <div className="space-y-3">
+            <div className="score-quiz-response space-y-3">
               <div className="text-sm font-semibold text-[var(--ui-text)]">Who is ahead?</div>
               <div className="grid grid-cols-2 gap-2" role="group" aria-label="Predicted leader">
                 {(['black', 'white'] as Winner[]).map((w) => (
@@ -187,7 +187,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
               )}
             </div>
           ) : (
-            <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
+            <div className="score-quiz-response space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
               <div className="text-base font-semibold" style={{ color: rating.tone }}>{rating.label}</div>
               <div className="flex justify-between text-[var(--ui-text)]">
                 <span>Actual</span>
@@ -209,7 +209,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           )}
 
           {stats.rounds > 0 && (
-            <div className="flex justify-between text-xs text-[var(--ui-text-muted)]">
+            <div className="score-quiz-stats flex justify-between text-xs text-[var(--ui-text-muted)]">
               <span>Rounds: {stats.rounds}</span>
               <span>Leader correct: {stats.leaderHits}/{stats.rounds}</span>
               <span>Avg error: {avgError.toFixed(1)} pts</span>
