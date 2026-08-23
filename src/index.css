@@ -4256,6 +4256,16 @@
       padding: 8px !important;
     }
 
+    [data-photo-board-footer='true'] {
+      grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) !important;
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+    }
+
+    [data-photo-board-footer='true'] .col-span-2 {
+      grid-column: auto !important;
+    }
+
     .notification-toast {
       max-width: min(18rem, calc(100% - 1rem));
     }

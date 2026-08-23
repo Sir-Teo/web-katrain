@@ -661,7 +661,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 />
               ) : (
                 <div
-                  className="grid aspect-[4/3] place-items-center bg-[var(--ui-surface)] text-sm ui-text-muted"
+                  className="grid aspect-video place-items-center bg-[var(--ui-surface)] text-sm ui-text-muted md:aspect-[4/3]"
                   data-photo-board-empty-source="true"
                 >
                   <div className="grid place-items-center gap-2 text-center">
@@ -1251,7 +1251,10 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
           </section>
         </div>
 
-        <div className="ui-bar flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ui-border)] px-3 py-2 sm:px-4 sm:py-3">
+        <div
+          className="ui-bar grid grid-cols-2 gap-2 border-t border-[var(--ui-border)] px-3 py-2 sm:px-4 sm:py-3 md:flex md:flex-wrap md:items-center md:justify-between"
+          data-photo-board-footer="true"
+        >
           <button
             type="button"
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
@@ -1262,7 +1265,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
           >
             <span className="inline-flex items-center gap-2"><FaTrash /> Clear</span>
           </button>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="contents md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
             <button
               type="button"
               className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
@@ -1302,7 +1305,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             )}
             <button
               type="button"
-              className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="col-span-2 min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] disabled:cursor-not-allowed disabled:opacity-50 md:col-span-1"
               disabled={counts.total === 0}
               onClick={importBoard}
               title={importBoardTitle}
