@@ -49,7 +49,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
           </p>
         </div>
 
-        <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+        <div className="ui-bar grid grid-cols-2 gap-2 border-t border-[var(--ui-border)] px-4 py-3 sm:flex sm:flex-wrap sm:justify-end">
           <button
             type="button"
             onClick={() => onChoice('cancel')}
@@ -68,7 +68,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
           <button
             type="button"
             onClick={() => onChoice('save')}
-            className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)]"
+            className="col-span-2 min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] sm:col-span-1"
           >
             <span className="inline-flex items-center gap-2"><SaveIcon /> {savesToLibrary ? 'Save to Library' : 'Save SGF'}</span>
           </button>
