@@ -6,6 +6,7 @@ import { GameAnalysisModal } from '../src/components/GameAnalysisModal';
 describe('GameAnalysisModal', () => {
   it('uses explicit labels for re-analysis form controls', () => {
     const html = renderToStaticMarkup(<GameAnalysisModal onClose={() => undefined} />);
+    const css = readFileSync('src/index.css', 'utf8');
 
     for (const id of [
       'game-analysis-max-visits',
@@ -26,6 +27,8 @@ describe('GameAnalysisModal', () => {
     expect(html).not.toContain('MCTS depth presets');
     expect(html).toContain('id="game-analysis-depth-presets-label"');
     expect(html).toContain('aria-labelledby="game-analysis-depth-presets-label"');
+    expect(html).toContain('game-analysis-modal ui-panel');
+    expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.game-analysis-modal button,[\s\S]*\.game-analysis-modal input:not\(\[type='checkbox'\]\):not\(\[type='radio'\]\) \{[\s\S]*min-height: 44px;/);
   });
 
   it('shows live progress and a stop action while full re-analysis is running', () => {

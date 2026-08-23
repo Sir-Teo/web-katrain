@@ -97,7 +97,7 @@ describe('NewGameModal', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
     expect(html).toContain('new-game-modal ui-panel');
-    expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.new-game-modal button,[\s\S]*\.new-game-modal input:not\(\[type='checkbox'\]\):not\(\[type='radio'\]\) \{[\s\S]*min-height: 44px;/);
+    expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.new-game-modal button,[\s\S]*\.new-game-modal input:not\(\[type='checkbox'\]\):not\(\[type='radio'\]\),[\s\S]*min-height: 44px;/);
   });
 
   it('keeps optional player and record metadata collapsed by default', () => {

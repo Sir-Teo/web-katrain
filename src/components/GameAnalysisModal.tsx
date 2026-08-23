@@ -90,7 +90,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="ui-panel rounded-lg shadow-xl w-[92vw] max-w-[28rem] max-h-[90dvh] overflow-hidden flex flex-col border"
+        className="game-analysis-modal ui-panel rounded-lg shadow-xl w-[92vw] max-w-[28rem] max-h-[90dvh] overflow-hidden flex flex-col border"
         role="dialog"
         aria-modal="true"
         aria-labelledby="game-analysis-title"
