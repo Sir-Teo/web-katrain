@@ -93,5 +93,6 @@ describe('DesktopDashboard', () => {
     for (const control of ['navigateForward', 'jumpForward', 'navigateEnd']) {
       expect(source).toMatch(new RegExp(`onClick=\\{${control}\\} disabled=\\{!canNavigateForward\\}`));
     }
+    expect(source).toMatch(/title=\{canNavigateBack \? 'Undo' : 'No move to undo'\}[\s\S]{0,80}disabled=\{!canNavigateBack\}/);
   });
 });

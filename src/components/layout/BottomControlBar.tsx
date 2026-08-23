@@ -778,6 +778,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                         onUndo();
                         closeMoreControlsFromAction(event);
                       }}
+                      disabled={!canNavigateBack}
+                      title={canNavigateBack ? 'Undo last move' : 'No move to undo'}
                     >
                       <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-text)]">
                         <FaUndo size={14} />

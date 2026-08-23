@@ -162,6 +162,9 @@ describe('BottomControlBar', () => {
     for (const label of ['Start', 'Back 10', 'Back', 'Forward', 'Forward 10', 'End']) {
       expect(html).toContain(`aria-label="${label}" disabled=""`);
     }
+
+    const source = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+    expect(source).toMatch(/onUndo\(\);[\s\S]{0,120}disabled=\{!canNavigateBack\}[\s\S]{0,120}No move to undo/);
   });
 
   it('uses compact recovery save status on mobile', () => {

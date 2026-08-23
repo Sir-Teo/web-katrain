@@ -853,7 +853,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <div className="playactions">
               {mode === 'play' ? (
                 <>
-                  <button type="button" className="tbtn" title="Undo" onClick={onUndo}><Icon name="undo" size={14} /><span className="tbtn-label">Undo</span></button>
+                  <button type="button" className="tbtn" title={canNavigateBack ? 'Undo' : 'No move to undo'} onClick={onUndo} disabled={!canNavigateBack}><Icon name="undo" size={14} /><span className="tbtn-label">Undo</span></button>
                   <button type="button" className="tbtn" title="AI move" onClick={onAiMove}><Icon name="bot" size={14} /><span className="tbtn-label">AI move</span></button>
                   <button type="button" className="tbtn" style={{ color: 'var(--red)', borderColor: '#f0c4c4' }} title="Resign" onClick={onResign}><Icon name="flag" size={14} /><span className="tbtn-label">Resign</span></button>
                 </>
