@@ -4255,6 +4255,13 @@
     [data-mobile-tools-action-grid='true'] > button:nth-child(odd) {
       border-right: 1px solid var(--ui-border);
     }
+
+    /* The default AI group has five actions. Let the final action finish the
+       row instead of leaving a button-sized hole on narrow phones. */
+    [data-mobile-tools-section='ai'] > button:last-child:nth-child(5) {
+      grid-column: 1 / -1;
+      border-right: 0;
+    }
   }
 
   @media (max-width: 480px) and (min-height: 700px) and (orientation: portrait) {
@@ -5027,6 +5034,78 @@
 
     .settings-modal .settings-tab-label-compact {
       display: inline;
+    }
+  }
+
+  @media (min-width: 600px) and (max-width: 1023px) {
+    /* Balance each tools group around its actual action count. A single global
+       column count produced large empty cells throughout the tablet sheet. */
+    [data-mobile-tools-section='ai'] {
+      grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    }
+
+    [data-mobile-tools-section='ai'] > button {
+      grid-column: span 2;
+      border-right: 0;
+    }
+
+    [data-mobile-tools-section='ai'] > button:nth-child(4):nth-last-child(2),
+    [data-mobile-tools-section='ai'] > button:nth-child(5):last-child {
+      grid-column: span 3;
+    }
+
+    [data-mobile-tools-section='game'] > button,
+    [data-mobile-tools-section='reports'] > button {
+      border-right: 0;
+    }
+
+    [data-mobile-tools-section='ai'] > button:nth-child(1),
+    [data-mobile-tools-section='ai'] > button:nth-child(2),
+    [data-mobile-tools-section='ai'] > button:nth-child(4):not(:last-child),
+    [data-mobile-tools-section='ai'] > button:nth-child(5):not(:last-child),
+    [data-mobile-tools-section='game'] > button:nth-child(1),
+    [data-mobile-tools-section='game'] > button:nth-child(2),
+    [data-mobile-tools-section='game'] > button:nth-child(4),
+    [data-mobile-tools-section='game'] > button:nth-child(5),
+    [data-mobile-tools-section='reports'] > button:not(:nth-child(4n)) {
+      border-right: 1px solid var(--ui-border);
+    }
+
+    [data-mobile-tools-section='game'] {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    [data-mobile-tools-section='reports'] {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+  }
+
+  @media (min-width: 760px) and (max-width: 1023px) and (max-height: 520px) and (orientation: landscape) {
+    /* On a wide, short phone or tablet every action still clears a 44px touch
+       target, so use one row per group and return that height to the tools
+       below the fold. */
+    [data-mobile-tools-section='ai']:not(:has(> button:nth-child(6))) {
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    }
+
+    [data-mobile-tools-section='ai']:has(> button:nth-child(6)) {
+      grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    }
+
+    [data-mobile-tools-section='ai'] > button,
+    [data-mobile-tools-section='game'] > button {
+      grid-column: auto !important;
+      border-right: 1px solid var(--ui-border);
+    }
+
+    [data-mobile-tools-section='ai'] > button:last-child,
+    [data-mobile-tools-section='game'] > button:last-child,
+    [data-mobile-tools-section='reports'] > button:last-child {
+      border-right: 0;
+    }
+
+    [data-mobile-tools-section='game'] {
+      grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
     }
   }
 

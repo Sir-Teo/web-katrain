@@ -557,7 +557,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     <div className="flex flex-col">
       <div className="border-t border-[var(--ui-border)]">
         <div className={mobileToolsSectionLabel}>AI Tools</div>
-        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true">
+        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true" data-mobile-tools-section="ai">
           <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeMobileToolsAfterAction(); }}>
             <FaSearchPlus size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Extra analysis</span>
@@ -594,7 +594,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
       <div className="border-t border-[var(--ui-border)]">
         <div className={mobileToolsSectionLabel}>Game Control</div>
-        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true">
+        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true" data-mobile-tools-section="game">
           <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeMobileToolsAfterAction(); }} aria-pressed={isAnalysisMode}>
             <FaChartLine size={18} className={isAnalysisMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Cont. analysis</span>
@@ -632,7 +632,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
       <div className="border-t border-[var(--ui-border)]">
         <div className={mobileToolsSectionLabel}>Reports</div>
-        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true">
+        <div className={mobileToolsActionGrid} data-mobile-tools-action-grid="true" data-mobile-tools-section="reports">
           <button type="button" className={mobileToolsGridBtn} onClick={() => { if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis(); else startQuickGameAnalysis(); closeMobileToolsAfterAction(); }}>
             <FaChartLine size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop' : 'Quick graph'}</span>

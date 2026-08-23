@@ -225,6 +225,9 @@ describe('TopControlBar', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
     expect(html.match(/data-mobile-tools-action-grid="true"/g) ?? []).toHaveLength(3);
+    expect(html).toContain('data-mobile-tools-section="ai"');
+    expect(html).toContain('data-mobile-tools-section="game"');
+    expect(html).toContain('data-mobile-tools-section="reports"');
     expect(html).toContain('data-mobile-tools-view-grid="true"');
     expect(source).toContain('const mobileToolsActionGrid = "grid grid-cols-2"');
     expect(source).toContain('const mobileToolsSectionLabel = "px-4 py-2');
@@ -232,6 +235,9 @@ describe('TopControlBar', () => {
     expect(css).toMatch(/\[data-mobile-tools-action-grid='true'\] > button \{[^}]*border-bottom: 1px solid var\(--ui-border\);/);
     expect(css).toMatch(/@media \(min-width: 600px\) and \(max-width: 1023px\)[\s\S]*\[data-mobile-tools-action-grid='true'\][\s\S]*repeat\(3, minmax\(0, 1fr\)\)/);
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\[data-mobile-tools-action-grid='true'\][\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/@media \(min-width: 600px\) and \(max-width: 1023px\)[\s\S]*\[data-mobile-tools-section='game'\] \{[^}]*repeat\(3, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/@media \(min-width: 760px\)[\s\S]*\[data-mobile-tools-section='ai'\]:not\(:has\(> button:nth-child\(6\)\)\)[^}]*repeat\(5, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/@media \(min-width: 760px\)[\s\S]*\[data-mobile-tools-section='game'\] \{[^}]*repeat\(6, minmax\(0, 1fr\)\)/);
   });
 
   it('keeps desktop toolbar menus mutually exclusive', () => {
