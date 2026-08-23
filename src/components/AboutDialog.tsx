@@ -26,7 +26,7 @@ const AboutLink: React.FC<{ href: string; children: React.ReactNode; className?:
     target="_blank"
     rel="noopener noreferrer"
     className={[
-      'inline-flex min-w-0 items-center gap-1.5 text-[var(--ui-accent)] hover:text-[var(--ui-text)]',
+      'inline-flex min-h-11 min-w-0 items-center gap-1.5 text-[var(--ui-accent)] hover:text-[var(--ui-text)]',
       className ?? '',
     ].join(' ')}
   >
@@ -51,10 +51,10 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose, returnFocus }
       onClick={onClose}
     >
       <div
-        className="ui-panel relative flex w-full max-w-md flex-col overflow-hidden rounded-xl border shadow-2xl"
+        className="about-dialog-panel ui-panel relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-xl border shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="ui-bar flex items-start justify-between gap-3 border-b border-[var(--ui-border)] px-4 py-4">
+        <div className="about-dialog-header ui-bar flex items-start justify-between gap-3 border-b border-[var(--ui-border)] px-4 py-4">
           <div className="min-w-0">
             <h2 id="about-title" className="text-lg font-semibold text-[var(--ui-text)]">
               Web KaTrain
@@ -71,7 +71,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose, returnFocus }
           </button>
         </div>
 
-        <div className="space-y-4 p-4">
+        <div className="about-dialog-body min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3">
             <AboutRow label="Version">v{APP_INFO.version}</AboutRow>
             <AboutRow label="Commit">

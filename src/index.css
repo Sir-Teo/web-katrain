@@ -4251,6 +4251,11 @@
       margin-bottom: 8px !important;
     }
 
+    .about-dialog-panel .about-dialog-header,
+    .about-dialog-panel .about-dialog-body {
+      padding: 8px !important;
+    }
+
     .notification-toast {
       max-width: min(18rem, calc(100% - 1rem));
     }
