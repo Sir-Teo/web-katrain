@@ -4634,6 +4634,25 @@
       font-size: 10.5px !important;
     }
 
+    [data-photo-board-footer='true'] {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 4px !important;
+      padding: 4px 8px !important;
+    }
+
+    [data-photo-board-footer='true'] button {
+      padding-inline: 8px !important;
+      font-size: 12px !important;
+    }
+
+    [data-photo-board-footer='true'] button span svg {
+      display: none;
+    }
+
+    [data-photo-board-footer='true'] [data-photo-board-import='true'] {
+      grid-column: span 2 / span 2 !important;
+    }
+
     .score-quiz-response {
       align-self: start;
     }
