@@ -4934,6 +4934,13 @@
       grid-column: 1 / -1 !important;
     }
 
+    /* The final mistake-navigation pair belongs together. Let it divide the
+       full landscape row instead of bunching into the left half of the sheet. */
+    [data-bottom-more-grid='true'] > button:nth-last-of-type(2),
+    [data-bottom-more-grid='true'] > button:last-of-type {
+      grid-column: span 2;
+    }
+
     [data-mobile-tools-action-grid='true'] {
       grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     }

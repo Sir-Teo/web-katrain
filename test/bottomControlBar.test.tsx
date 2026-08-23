@@ -133,6 +133,7 @@ describe('BottomControlBar', () => {
     expect(componentSource).toContain('<div className="flex-1 font-medium">Rotate board</div>');
     expect(componentSource).not.toContain('px-4 py-3.5 text-left');
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\[data-bottom-more-grid='true'\][\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/\[data-bottom-more-grid='true'\] > button:nth-last-of-type\(2\),[\s\S]{0,140}> button:last-of-type \{[^}]*grid-column: span 2;/);
   });
 
   it('disables mistake navigation when the current line has no target', () => {
