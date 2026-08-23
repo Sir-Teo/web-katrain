@@ -4398,6 +4398,20 @@
       display: none;
     }
 
+    .tournament-header,
+    .tournament-footer {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
+    .tournament-tabs {
+      padding-top: 4px !important;
+    }
+
+    .tournament-setup-intro {
+      display: none;
+    }
+
     [data-photo-board-footer='true'] {
       grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) !important;
       padding-top: 8px !important;
@@ -4685,22 +4699,8 @@
   }
 
   @media (min-width: 540px) and (max-height: 520px) and (orientation: landscape) {
-    .tournament-header,
-    .tournament-footer {
-      padding-top: 4px !important;
-      padding-bottom: 4px !important;
-    }
-
-    .tournament-tabs {
-      padding-top: 4px !important;
-    }
-
     .tournament-body {
       padding: 8px 16px !important;
-    }
-
-    .tournament-setup-intro {
-      display: none;
     }
 
     .tournament-setup {
