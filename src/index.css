@@ -4258,6 +4258,18 @@
     }
   }
 
+  @media (max-height: 440px) and (orientation: portrait) {
+    .mobile-board-canvas:not(.mobile-board-canvas--edit):not(.mobile-board-canvas--scoring) {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    .mobile-board-canvas:not(.mobile-board-canvas--edit):not(.mobile-board-canvas--scoring)
+      > .go-board-container {
+      overflow: visible !important;
+    }
+  }
+
   @media (min-width: 600px) and (max-width: 1023px) {
     [data-menu-drawer-panel='true'],
     [data-menu-scroll-hint='true'] {
