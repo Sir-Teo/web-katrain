@@ -3945,13 +3945,13 @@ export const Layout: React.FC = () => {
           role="toolbar"
           aria-label="Focus mode controls"
         >
-          <button type="button" onClick={navigateStart} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="First move" aria-label="First move">⏮</button>
-          <button type="button" onClick={navigateBack} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="Previous move" aria-label="Previous move">◀</button>
+          <button type="button" onClick={navigateStart} disabled={!historyNavigation.back} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="First move" aria-label="First move">⏮</button>
+          <button type="button" onClick={navigateBack} disabled={!historyNavigation.back} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="Previous move" aria-label="Previous move">◀</button>
           <span className="min-w-12 px-1 text-center font-mono tabular-nums lg:min-w-[4.5rem]">
             {currentMoveNumber}/{totalMovesInCurrentLine}
           </span>
-          <button type="button" onClick={navigateForward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="Next move" aria-label="Next move">▶</button>
-          <button type="button" onClick={navigateEnd} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="Last move" aria-label="Last move">⏭</button>
+          <button type="button" onClick={navigateForward} disabled={!historyNavigation.forward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="Next move" aria-label="Next move">▶</button>
+          <button type="button" onClick={navigateEnd} disabled={!historyNavigation.forward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="Last move" aria-label="Last move">⏭</button>
           <button
             type="button"
             onClick={() => setFocusMode(false)}
