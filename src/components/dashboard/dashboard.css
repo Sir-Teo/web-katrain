@@ -1136,6 +1136,67 @@
 .wk-dashboard[data-layout="narrow"] .cb-metric { padding: 8px 10px; }
 .wk-dashboard[data-layout="narrow"] .header { gap: 6px; padding: 0 8px; }
 
+/* The dashboard has its own compact control vocabulary, but the global Large
+   density preference still needs to provide a meaningfully larger target and
+   type scale. Keep this scoped to Large so the default information density is
+   unchanged. */
+:root[data-ui-density='large'] .wk-dashboard {
+  --header-h: 56px;
+  font-size: 15px;
+}
+:root[data-ui-density='large'] .wk-dashboard .iconbtn {
+  width: 38px;
+  height: 38px;
+}
+:root[data-ui-density='large'] .wk-dashboard .tbtn,
+:root[data-ui-density='large'] .wk-dashboard .analyze-toggle,
+:root[data-ui-density='large'] .wk-dashboard .engine-pill,
+:root[data-ui-density='large'] .wk-dashboard .dashboard-language-switcher > button,
+:root[data-ui-density='large'] .wk-dashboard .board-chip {
+  min-height: 38px;
+  height: 38px;
+  font-size: 14px;
+}
+:root[data-ui-density='large'] .wk-dashboard .navbtn,
+:root[data-ui-density='large'] .wk-dashboard .pass-btn,
+:root[data-ui-density='large'] .wk-dashboard .move-counter {
+  height: 38px;
+}
+:root[data-ui-density='large'] .wk-dashboard .navbtn {
+  width: 38px;
+}
+:root[data-ui-density='large'] .wk-dashboard .navbtn-pair {
+  width: 48px;
+}
+:root[data-ui-density='large'] .wk-dashboard .pbtn {
+  min-height: 34px;
+  height: 34px;
+  font-size: 12.5px;
+}
+:root[data-ui-density='large'] .wk-dashboard .pico {
+  width: 34px;
+}
+:root[data-ui-density='large'] .wk-dashboard .graph-legend .lg {
+  min-height: 32px;
+}
+:root[data-ui-density='large'] .wk-dashboard .mode-tab {
+  padding-block: 14px;
+}
+:root[data-ui-density='large'] .wk-dashboard .section-head-toggle {
+  padding-block: 12px;
+}
+@container boardcol (max-width: 699px) {
+  :root[data-ui-density='large'] .wk-dashboard .navbtn {
+    width: 30px;
+  }
+  :root[data-ui-density='large'] .wk-dashboard .navbtn-pair {
+    width: 34px;
+  }
+  :root[data-ui-density='large'] .wk-dashboard .playactions .tbtn {
+    padding-inline: 8px;
+  }
+}
+
 @media (max-width: 560px) {
   .wk-dashboard[data-layout="narrow"] #wk-engine-pill-label { display: none; }
   .wk-dashboard[data-layout="narrow"] #wk-engine-pill { padding: 0 9px; }
