@@ -3941,24 +3941,26 @@ export const Layout: React.FC = () => {
       )}
       {focusMode && (
         <div
-          className="fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-1 rounded-full border border-[var(--ui-border)] bg-[var(--ui-bar)]/95 px-2 py-1 text-xs text-[var(--ui-text)] shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md mobile-safe-area-bottom"
+          className="fixed bottom-4 left-1/2 z-[60] flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-1 rounded-full border border-[var(--ui-border)] bg-[var(--ui-bar)]/95 px-2 py-1 text-xs text-[var(--ui-text)] shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md mobile-safe-area-bottom"
           role="toolbar"
           aria-label="Focus mode controls"
         >
-          <button type="button" onClick={navigateStart} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="First move" aria-label="First move">⏮</button>
-          <button type="button" onClick={navigateBack} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="Previous move" aria-label="Previous move">◀</button>
-          <span className="min-w-[4.5rem] px-1 text-center font-mono tabular-nums">
+          <button type="button" onClick={navigateStart} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="First move" aria-label="First move">⏮</button>
+          <button type="button" onClick={navigateBack} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="Previous move" aria-label="Previous move">◀</button>
+          <span className="min-w-12 px-1 text-center font-mono tabular-nums lg:min-w-[4.5rem]">
             {currentMoveNumber}/{totalMovesInCurrentLine}
           </span>
-          <button type="button" onClick={navigateForward} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="Next move" aria-label="Next move">▶</button>
-          <button type="button" onClick={navigateEnd} className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--ui-surface-2)]" title="Last move" aria-label="Last move">⏭</button>
+          <button type="button" onClick={navigateForward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="Next move" aria-label="Next move">▶</button>
+          <button type="button" onClick={navigateEnd} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] lg:h-8 lg:w-8" title="Last move" aria-label="Last move">⏭</button>
           <button
             type="button"
             onClick={() => setFocusMode(false)}
-            className="ml-1 rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-1.5 text-[11px] font-semibold hover:bg-[var(--ui-surface-2)]"
+            className="ml-1 min-h-11 min-w-11 shrink-0 rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[11px] font-semibold hover:bg-[var(--ui-surface-2)] lg:min-h-0 lg:min-w-0 lg:px-3"
             title="Exit focus mode (Esc)"
+            aria-label="Exit focus mode"
           >
-            Exit focus
+            <span className="lg:hidden">Exit</span>
+            <span className="hidden lg:inline">Exit focus</span>
           </button>
         </div>
       )}
