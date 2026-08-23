@@ -545,6 +545,75 @@
   overflow-y: auto;
 }
 
+/* Editing reserves a narrow left rail across desktop sizes. The board remains
+   centered in the space that is left instead of sitting underneath a popover. */
+.wk-dashboard:has(.edit-toolbar-docked--active) .board-stage {
+  padding-left: calc(var(--stage-pad) + 184px);
+}
+
+.wk-dashboard .edit-toolbar-docked--active .edit-toolbar-panel--docked {
+  top: 60px;
+  right: auto;
+  bottom: 60px;
+  left: 16px;
+  display: flex;
+  width: 176px;
+  max-width: 176px;
+  max-height: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wk-dashboard .edit-toolbar-panel--docked > :last-child {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 4px 6px;
+}
+
+.wk-dashboard .edit-toolbar-panel--docked > :first-child > :nth-child(2),
+.wk-dashboard
+  .edit-toolbar-panel--docked
+  > :first-child
+  > :first-child
+  > :nth-child(3) {
+  display: none;
+}
+
+.wk-dashboard .edit-toolbar-panel--docked > :last-child > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 0;
+  border-right: 0;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.wk-dashboard .edit-toolbar-panel--docked > :last-child > div:last-child {
+  border-bottom: 0;
+}
+
+.wk-dashboard .edit-toolbar-panel--docked > :last-child > div > div:first-child {
+  grid-column: 1 / -1;
+  width: auto;
+  padding: 0 2px;
+}
+
+.wk-dashboard .edit-toolbar-panel--docked > :last-child button {
+  min-width: 44px;
+  padding-inline: 4px;
+}
+
+.wk-dashboard .edit-toolbar-panel--docked > :last-child button kbd {
+  display: none;
+}
+
 /* Active scoring docks into the action strip as a slim horizontal bar so the
    board below keeps its space (a vertical card here crushes the board stage).
    Status/totals/help duplicate the result card and live behind Details, which
