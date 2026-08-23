@@ -4436,6 +4436,8 @@
 
     .manual-score-panel.manual-score-compact {
       grid-template-columns: repeat(4, minmax(0, 1fr));
+      height: 170px;
+      max-height: 170px;
     }
 
     .manual-score-panel.manual-score-compact .manual-score-header {
@@ -4460,8 +4462,18 @@
       grid-column: 1 / -1;
     }
 
-    .manual-score-panel.manual-score-compact .manual-score-details-toggle {
+    .manual-score-panel.manual-score-compact:has(.manual-score-breakdown:not([hidden]))
+      .manual-score-actions {
+      position: static;
+    }
+
+    .manual-score-panel.manual-score-compact
+      .manual-score-details:not(:has(.manual-score-breakdown:not([hidden])))
+      .manual-score-details-toggle {
       height: 100%;
+    }
+
+    .manual-score-panel.manual-score-compact .manual-score-details-toggle {
       padding-inline: 8px;
     }
 
