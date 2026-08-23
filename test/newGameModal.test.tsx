@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { NewGameModal, type AiConfigValues, type GameInfoValues, type TimerConfigValues } from '../src/components/NewGameModal';
@@ -91,6 +92,14 @@ function expectLabelPair(html: string, id: string, label: string): void {
 }
 
 describe('NewGameModal', () => {
+  it('uses full touch targets for mobile game setup controls', () => {
+    const html = renderModal();
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain('new-game-modal ui-panel');
+    expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.new-game-modal button,[\s\S]*\.new-game-modal input:not\(\[type='checkbox'\]\):not\(\[type='radio'\]\) \{[\s\S]*min-height: 44px;/);
+  });
+
   it('keeps optional player and record metadata collapsed by default', () => {
     const html = renderModal();
     const detailsTag = html.match(/<details[^>]*data-new-game-info-details="true"[^>]*>/)?.[0];
