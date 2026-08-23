@@ -4,12 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { ScoreWinrateGraph } from '../src/components/ScoreWinrateGraph';
 
 describe('ScoreWinrateGraph empty state', () => {
-  it('does not advertise interaction until graph data exists', () => {
+  it('uses an informational region until graph data exists', () => {
     const html = renderToStaticMarkup(<ScoreWinrateGraph showScore showWinrate />);
     const source = readFileSync('src/components/ScoreWinrateGraph.tsx', 'utf8');
 
     expect(html).toContain('data-analysis-graph-has-data="false"');
-    expect(html).toContain('aria-disabled="true"');
+    expect(html).toContain('role="region"');
+    expect(html).not.toContain('aria-disabled="true"');
+    expect(html).not.toContain('aria-valuemin=');
     expect(html).toContain('tabindex="-1"');
     expect(html).toContain('cursor-default');
     expect(html).not.toContain('cursor-crosshair');

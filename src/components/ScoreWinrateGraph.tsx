@@ -293,18 +293,17 @@ export const ScoreWinrateGraph: React.FC<{
         'w-full h-full relative border border-[var(--ui-border)] rounded overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]',
         hasGraphData ? 'cursor-crosshair' : 'cursor-default',
       ].join(' ')}
-      role="slider"
+      role={hasGraphData ? 'slider' : 'region'}
       tabIndex={hasGraphData ? 0 : -1}
       aria-label={
         hasGraphData
           ? 'Analysis graph move preview. Use arrow keys to preview moves, Enter to jump to the selected move.'
           : 'Analysis graph. No analyzed moves yet.'
       }
-      aria-valuemin={range?.start ?? 0}
-      aria-valuemax={(range?.start ?? 0) + Math.max(0, count - 1)}
-      aria-valuenow={activeSliderValue}
+      aria-valuemin={hasGraphData ? (range?.start ?? 0) : undefined}
+      aria-valuemax={hasGraphData ? (range?.start ?? 0) + Math.max(0, count - 1) : undefined}
+      aria-valuenow={hasGraphData ? activeSliderValue : undefined}
       aria-valuetext={hasGraphData ? (hoverTooltip || activeMoveLabel) : 'No analyzed moves yet'}
-      aria-disabled={!hasGraphData}
       aria-describedby={hasGraphData ? undefined : emptyStateId}
       data-analysis-score-winrate-graph="true"
       data-analysis-graph-has-data={hasGraphData ? 'true' : 'false'}
