@@ -4599,6 +4599,28 @@
     }
   }
 
+  @media (max-width: 419px) and (max-height: 520px) and (orientation: landscape) {
+    .score-quiz-response {
+      align-self: start;
+    }
+
+    .score-quiz-response > * {
+      margin-top: 0 !important;
+    }
+
+    .score-quiz-response > :not(:last-child) {
+      margin-bottom: 6px !important;
+    }
+
+    .score-quiz-response input[type='number'] {
+      width: 4rem !important;
+    }
+
+    .score-quiz-response label {
+      gap: 8px !important;
+    }
+  }
+
   @media (min-width: 540px) and (max-height: 520px) and (orientation: landscape) {
     .tournament-header,
     .tournament-footer {
