@@ -105,6 +105,8 @@ export interface DesktopDashboardProps {
   jumpBack: () => void;
   jumpForward: () => void;
   findMistake: (dir: 1 | -1) => void;
+  canFindPreviousMistake: boolean;
+  canFindNextMistake: boolean;
   rotateBoard: () => void;
   switchBranch: (dir: 1 | -1) => void;
   undoToBranchPoint: () => void;
@@ -185,7 +187,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
     navigateBack, navigateForward, navigateStart, navigateEnd, navigateToMove,
-    jumpBack, jumpForward, findMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
+    jumpBack, jumpForward, findMistake, canFindPreviousMistake, canFindNextMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
     passTurn, onUndo, onAiMove, onResign, onPlayBest,
     onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
@@ -773,7 +775,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <div className="navbar">
             <button type="button" className="pass-btn" title="Pass (P)" onClick={passTurn}>Pass</button>
             <div className="navgroup">
-              <button type="button" className="navbtn navbtn-pair" title="Previous mistake" aria-label="Previous mistake" onClick={() => findMistake(-1)}><Icon name="chevL" size={11} /><span className="mistake-dot" /></button>
+              <button type="button" className="navbtn navbtn-pair" title={canFindPreviousMistake ? 'Previous mistake' : 'No previous analyzed mistake'} aria-label="Previous mistake" onClick={() => findMistake(-1)} disabled={!canFindPreviousMistake}><Icon name="chevL" size={11} /><span className="mistake-dot" /></button>
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
@@ -822,7 +824,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
-              <button type="button" className="navbtn navbtn-pair" title="Next mistake" aria-label="Next mistake" onClick={() => findMistake(1)}><span className="mistake-dot" /><Icon name="chevR" size={11} /></button>
+              <button type="button" className="navbtn navbtn-pair" title={canFindNextMistake ? 'Next mistake' : 'No next analyzed mistake'} aria-label="Next mistake" onClick={() => findMistake(1)} disabled={!canFindNextMistake}><span className="mistake-dot" /><Icon name="chevR" size={11} /></button>
               <button type="button" className="navbtn" title="Rotate board" onClick={rotateBoard}><Icon name="rotate" size={15} /></button>
             </div>
             <span className="nav-divider" />

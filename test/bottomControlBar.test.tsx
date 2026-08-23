@@ -134,6 +134,21 @@ describe('BottomControlBar', () => {
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\[data-bottom-more-grid='true'\][\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   });
 
+  it('disables mistake navigation when the current line has no target', () => {
+    const html = renderToStaticMarkup(
+      <BottomControlBar
+        {...baseProps}
+        isMobile={false}
+        canFindPreviousMistake={false}
+        canFindNextMistake={false}
+      />,
+    );
+
+    expect(html).toContain('aria-label="No previous analyzed mistake"');
+    expect(html).toContain('aria-label="No next analyzed mistake"');
+    expect(html.match(/disabled=""/g) ?? []).toHaveLength(2);
+  });
+
   it('uses compact recovery save status on mobile', () => {
     const html = renderToStaticMarkup(
       <BottomControlBar

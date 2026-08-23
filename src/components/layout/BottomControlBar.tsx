@@ -57,6 +57,8 @@ interface BottomControlBarProps {
   switchBranch?: (direction: 1 | -1) => void;
   switchToBranchIndex?: (index: number) => void;
   findMistake: (dir: 'undo' | 'redo') => void;
+  canFindPreviousMistake?: boolean;
+  canFindNextMistake?: boolean;
   rotateBoard: () => void;
   currentPlayer: Player;
   currentMoveNumber: number;
@@ -101,6 +103,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   switchBranch,
   switchToBranchIndex,
   findMistake,
+  canFindPreviousMistake = true,
+  canFindNextMistake = true,
   rotateBoard,
   currentPlayer,
   currentMoveNumber,
@@ -867,7 +871,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       findMistake('undo');
                       closeMoreControlsFromAction(event);
                     }}
-                    disabled={isInsertMode}
+                    disabled={isInsertMode || !canFindPreviousMistake}
+                    title={canFindPreviousMistake ? 'Previous mistake' : 'No previous analyzed mistake'}
                   >
                     <div className="w-8 h-8 rounded-full bg-[var(--ui-surface)] flex items-center justify-center">
                       <span className="inline-flex items-center gap-1" aria-hidden="true">
@@ -884,7 +889,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                       findMistake('redo');
                       closeMoreControlsFromAction(event);
                     }}
-                    disabled={isInsertMode}
+                    disabled={isInsertMode || !canFindNextMistake}
+                    title={canFindNextMistake ? 'Next mistake' : 'No next analyzed mistake'}
                   >
                     <div className="w-8 h-8 rounded-full bg-[var(--ui-surface)] flex items-center justify-center">
                       <span className="inline-flex items-center gap-1" aria-hidden="true">
@@ -962,9 +968,9 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
       {/* Navigation controls */}
       <div className="flex-1 flex items-center justify-center gap-1">
         <IconButton
-          title={withShortcut('Previous mistake', 'prev-mistake')}
+          title={canFindPreviousMistake ? withShortcut('Previous mistake', 'prev-mistake') : 'No previous analyzed mistake'}
           onClick={() => findMistake('undo')}
-          disabled={isInsertMode}
+          disabled={isInsertMode || !canFindPreviousMistake}
         >
           <span className="inline-flex items-center gap-1" aria-hidden="true">
             <FaChevronLeft size={9} />
@@ -1070,9 +1076,9 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         <div className="h-6 w-px bg-[var(--ui-border)] mx-0.5" />
 
         <IconButton
-          title={withShortcut('Next mistake', 'next-mistake')}
+          title={canFindNextMistake ? withShortcut('Next mistake', 'next-mistake') : 'No next analyzed mistake'}
           onClick={() => findMistake('redo')}
-          disabled={isInsertMode}
+          disabled={isInsertMode || !canFindNextMistake}
         >
           <span className="inline-flex items-center gap-1" aria-hidden="true">
             <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--eval-mistake)]" />

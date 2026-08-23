@@ -91,6 +91,7 @@ import { formatKyuRank, type LadderState } from '../utils/tournament';
 import { currentGauntletOpponentKyu, type GauntletState } from '../utils/gauntlet';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
 import { getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber } from '../utils/branchNavigation';
+import { getMistakeNavigationAvailability } from '../utils/mistakeNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
 import { AnalysisCacheClearConfirmModal } from './AnalysisCacheClearConfirmModal';
 import { getResignResult } from '../utils/resign';
@@ -1424,6 +1425,14 @@ export const Layout: React.FC = () => {
     void treeVersion;
     return getBranchInfo(currentNode);
   }, [currentNode, treeVersion]);
+  const mistakeNavigation = useMemo(() => {
+    void treeVersion;
+    return getMistakeNavigationAvailability({
+      currentNode,
+      activeBranchChildIds,
+      threshold: settings.mistakeThreshold,
+    });
+  }, [activeBranchChildIds, currentNode, settings.mistakeThreshold, treeVersion]);
   const passPolicyColor = useMemo(() => {
     if (!boardAnalysisOverlaysActive) return null;
     if (!settings.analysisShowPolicy) return null;
@@ -3413,6 +3422,8 @@ export const Layout: React.FC = () => {
             jumpBack={() => jumpBack(10)}
             jumpForward={() => jumpForward(10)}
             findMistake={(dir) => findMistake(dir > 0 ? 'redo' : 'undo')}
+            canFindPreviousMistake={mistakeNavigation.previous}
+            canFindNextMistake={mistakeNavigation.next}
             rotateBoard={rotateBoard}
             switchBranch={switchBranch}
             undoToBranchPoint={undoToBranchPoint}
@@ -3691,6 +3702,8 @@ export const Layout: React.FC = () => {
               switchBranch={switchBranch}
               switchToBranchIndex={switchToBranchIndex}
               findMistake={findMistake}
+              canFindPreviousMistake={mistakeNavigation.previous}
+              canFindNextMistake={mistakeNavigation.next}
               rotateBoard={rotateBoard}
               currentPlayer={currentPlayer}
               currentMoveNumber={currentMoveNumber}
@@ -3866,6 +3879,8 @@ export const Layout: React.FC = () => {
                     switchBranch={switchBranch}
                     switchToBranchIndex={switchToBranchIndex}
                     findMistake={findMistake}
+                    canFindPreviousMistake={mistakeNavigation.previous}
+                    canFindNextMistake={mistakeNavigation.next}
                     rotateBoard={rotateBoard}
                     currentPlayer={currentPlayer}
                     currentMoveNumber={currentMoveNumber}

@@ -1,5 +1,6 @@
 import { createWithEqualityFn as create } from 'zustand/traditional';
 import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type BoardDrawing, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
+import { findMistakeNavigationTarget } from '../utils/mistakeNavigation';
 import { applyCapturesInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import { coordinateToSgf, expandSgfPointList, extractKaTrainUserNoteFromSgfComment, formatSgfDate, type ParsedSgf } from '../utils/sgf';
@@ -4120,35 +4121,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }),
 
   findMistake: (direction) => set((state) => {
-      const threshold = state.settings.mistakeThreshold; // KaTrain default: eval_thresholds[-4] == 3.0
-      const isMistake = (node: GameNode): boolean => {
-          const move = node.move;
-          const parentAnalysis = node.parent?.analysis;
-          if (!move || !parentAnalysis || move.x < 0 || move.y < 0) return false;
-          const candidate = parentAnalysis.moves.find((m) => m.x === move.x && m.y === move.y);
-          const pointsLost = candidate ? candidate.pointsLost : 5.0;
-          return pointsLost >= threshold;
-      };
-
-      let node: GameNode | null = state.currentNode;
-      if (direction === 'redo') {
-          while (node && node.children.length > 0) {
-              const next = getActiveChild(node, state.activeBranchChildIds);
-              if (!next) break;
-              if (isMistake(next)) break; // stop one move before the mistake
-              node = next;
-          }
-      } else {
-          while (node && node.parent) {
-              if (isMistake(node)) {
-                  node = node.parent;
-                  break;
-              }
-              node = node.parent;
-          }
-      }
-
-      if (!node || node.id === state.currentNode.id) return {};
+      const node = findMistakeNavigationTarget({
+          currentNode: state.currentNode,
+          direction,
+          activeBranchChildIds: state.activeBranchChildIds,
+          threshold: state.settings.mistakeThreshold,
+      });
+      if (!node) return {};
       return {
           currentNode: node,
           board: node.gameState.board,
