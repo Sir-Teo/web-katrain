@@ -76,7 +76,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="ui-panel flex w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="paste-sgf-title"
@@ -93,12 +93,12 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
           </button>
         </div>
 
-        <div className="space-y-3 p-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <textarea
             ref={textareaRef}
             value={text}
             onChange={(event) => updateText(event.target.value)}
-            className="min-h-[220px] w-full resize-y rounded-lg border ui-input px-3 py-2 font-mono text-sm text-[var(--ui-text)]"
+            className="min-h-40 w-full resize-y rounded-lg border ui-input px-3 py-2 font-mono text-sm text-[var(--ui-text)] sm:min-h-[220px]"
             placeholder="(;GM[1]...) or https://online-go.com/game/12345"
             aria-label="SGF text or OGS game URL"
             aria-describedby="paste-sgf-helper paste-sgf-detection"
@@ -124,8 +124,8 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
           )}
         </div>
 
-        <div className="ui-bar flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ui-border)] px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="ui-bar grid grid-cols-2 gap-2 border-t border-[var(--ui-border)] px-4 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2">
             <button
               type="button"
               onClick={readClipboard}
@@ -145,7 +145,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="contents sm:flex sm:items-center sm:gap-2">
             <button
               type="button"
               onClick={onClose}
