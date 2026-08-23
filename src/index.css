@@ -4412,6 +4412,11 @@
       display: none;
     }
 
+    .pro-games-header {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
     [data-photo-board-footer='true'] {
       grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) !important;
       padding-top: 8px !important;
@@ -4698,6 +4703,32 @@
     }
   }
 
+  @media (max-width: 539px) and (max-height: 520px) and (orientation: landscape) {
+    .pro-games-featured,
+    .pro-games-preview,
+    .pro-games-metadata,
+    .pro-games-detail [data-pro-game-editorial] {
+      display: none !important;
+    }
+
+    .pro-games-filters {
+      padding: 8px !important;
+    }
+
+    .pro-games-detail {
+      display: block !important;
+      flex: none !important;
+      min-height: 52px;
+      padding: 4px 8px !important;
+      overflow: visible;
+    }
+
+    .pro-games-load {
+      width: 100%;
+      margin-top: 0 !important;
+    }
+  }
+
   @media (min-width: 540px) and (max-height: 520px) and (orientation: landscape) {
     .tournament-body {
       padding: 8px 16px !important;
@@ -4842,11 +4873,6 @@
       grid-row: 1 / -1;
       align-self: center;
       max-width: 10rem !important;
-    }
-
-    .pro-games-header {
-      padding-top: 4px !important;
-      padding-bottom: 4px !important;
     }
 
     .pro-games-layout {
