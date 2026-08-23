@@ -42,6 +42,7 @@ import { getTapConfirmAction, TAP_CONFIRM_TIMEOUT_MS, type TapConfirmPoint } fro
 import { playNavigationHaptic, playStoneHaptic } from '../utils/haptics';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { getBoardTooltipPlacement } from '../utils/boardTooltipPlacement';
+import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
 import {
   getInitialBoardKeyboardCursor,
   moveBoardKeyboardCursor,
@@ -402,6 +403,40 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         : null;
   const dismissPunishQuiz = () => setPunishQuizResponse({ nodeId: currentNode.id, phase: 'dismissed', text: '' });
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const resolvedUiTheme = useResolvedUiTheme(settings.uiTheme);
+  const [canvasThemeVersion, setCanvasThemeVersion] = useState(0);
+
+  useEffect(() => {
+    // Theme changes often happen under a blurred modal or tools sheet. Some
+    // accelerated canvas implementations clear their backing stores when that
+    // composited surface is removed, so repaint after the surface has closed.
+    let frame: number | null = null;
+    let observer: MutationObserver | null = null;
+    const repaint = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = window.requestAnimationFrame(() => {
+          setCanvasThemeVersion((version) => version + 1);
+        });
+      });
+    };
+    const repaintWhenClear = () => {
+      if (document.querySelector('[role="dialog"]')) return;
+      observer?.disconnect();
+      repaint();
+    };
+
+    repaintWhenClear();
+    if (frame === null) {
+      observer = new MutationObserver(repaintWhenClear);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    return () => {
+      observer?.disconnect();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, [resolvedUiTheme]);
   const [pendingTap, setPendingTap] = useState<TapConfirmPoint | null>(null);
   const [isKeyboardCursorActive, setIsKeyboardCursorActive] = useState(false);
   const boardPointerFocusRef = useRef(false);
@@ -541,6 +576,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
 
   const setupOverlayCanvas = useCallback(
     (canvas: HTMLCanvasElement): CanvasRenderingContext2D | null => {
+      void canvasThemeVersion;
       const ctx = canvas.getContext('2d');
       if (!ctx) return null;
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -558,7 +594,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       ctx.imageSmoothingEnabled = true;
       return ctx;
     },
-    [boardHeight, boardWidth]
+    [boardHeight, boardWidth, canvasThemeVersion]
   );
 
   // KaTrain-style coordinates and rotation behavior.
