@@ -4244,11 +4244,35 @@
     .settings-modal .settings-modal-body {
       padding-top: 8px !important;
       padding-bottom: 8px !important;
+      display: grid !important;
+      grid-template-columns: minmax(9rem, 0.42fr) minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      column-gap: 8px;
+      row-gap: 8px;
     }
 
     .settings-modal .settings-search,
     .settings-modal .settings-tabs {
-      margin-bottom: 8px !important;
+      margin-bottom: 0 !important;
+    }
+
+    .settings-modal .settings-search {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .settings-modal .settings-search-input::placeholder {
+      color: var(--ui-text-muted);
+    }
+
+    .settings-modal .settings-tabs {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .settings-modal .settings-modal-content {
+      grid-column: 1 / -1;
+      grid-row: 2;
     }
 
     .about-dialog-panel .about-dialog-header,
@@ -4478,6 +4502,16 @@
 
     .manual-score-panel.manual-score-compact .manual-score-actions button {
       min-height: 44px;
+    }
+  }
+
+  @media (max-width: 540px) and (max-height: 520px) and (orientation: landscape) {
+    .settings-modal .settings-tab-label-full {
+      display: none;
+    }
+
+    .settings-modal .settings-tab-label-compact {
+      display: inline;
     }
   }
 }

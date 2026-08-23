@@ -33,7 +33,10 @@ describe('SettingsModal', () => {
     expect(source).toContain('settings-modal-content min-h-0 flex-1 overflow-y-auto');
     expect(source).toContain('settings-modal-header sticky');
     expect(source).toContain('settings-modal-footer sticky');
-    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.settings-modal \.settings-modal-header,[\s\S]*padding-top: 8px !important;[\s\S]*\.settings-modal \.settings-modal-body[\s\S]*padding-bottom: 8px !important;[\s\S]*\.settings-modal \.settings-tabs[\s\S]*margin-bottom: 8px !important;/);
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.settings-modal \.settings-modal-header,[\s\S]*padding-top: 8px !important;/);
+    expect(css).toMatch(/\.settings-modal \.settings-modal-body[\s\S]*padding-bottom: 8px !important;[\s\S]*display: grid !important;[\s\S]*grid-template-columns: minmax\(9rem, 0\.42fr\) minmax\(0, 1fr\);/);
+    expect(css).toMatch(/\.settings-modal \.settings-search,[\s\S]*\.settings-modal \.settings-tabs[\s\S]*margin-bottom: 0 !important;/);
+    expect(css).toMatch(/\.settings-modal \.settings-modal-content[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;/);
   });
 
   it('keeps deep settings labels on theme tokens', () => {
