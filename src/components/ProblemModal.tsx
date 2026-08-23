@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaTimes, FaRedo, FaLightbulb, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaTimes, FaRedo, FaLightbulb, FaArrowLeft, FaArrowRight, FaFolderOpen } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
@@ -15,6 +15,7 @@ import type { GameNode } from '../types';
 
 interface ProblemModalProps {
   onClose: () => void;
+  onOpenSgf: () => void;
 }
 
 type Status = 'solving' | 'replying' | 'correct' | 'wrong' | 'end';
@@ -30,7 +31,7 @@ const statusTone = (status: Status): string =>
       ? 'var(--ui-danger, #e53e3e)'
       : 'var(--ui-text-muted)';
 
-export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose }) => {
+export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
@@ -183,11 +184,21 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose }) => {
         </div>
 
         {!hasMoves || !node ? (
-          <div className="flex-1 space-y-3 p-6 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
             <p className="text-sm text-[var(--ui-text-muted)]">
-              Load a Go problem (tsumego) SGF to practice. Problems are solved by playing the moves recorded in the
-              file; the opponent answers automatically, and correct or failing lines are detected from the SGF.
+              Open a tsumego SGF to play its recorded variations. Opponent replies and solution verdicts are handled
+              automatically.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenSgf();
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent)] hover:bg-[var(--ui-surface-2)]"
+            >
+              <FaFolderOpen aria-hidden="true" /> Open SGF
+            </button>
           </div>
         ) : (
           <>

@@ -3040,7 +3040,10 @@ export const Layout: React.FC = () => {
           <GuessMoveModal onClose={() => setIsGuessMoveOpen(false)} />
         )}
         {isProblemOpen && (
-          <ProblemModal onClose={() => setIsProblemOpen(false)} />
+          <ProblemModal
+            onClose={() => setIsProblemOpen(false)}
+            onOpenSgf={handleLoadClick}
+          />
         )}
         {isPhotoBoardOpen && (
           <PhotoBoardModal
