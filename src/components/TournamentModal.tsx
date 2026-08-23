@@ -82,7 +82,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
         aria-labelledby="tournament-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
+        <div className="tournament-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="tournament-title" className="inline-flex items-center gap-2 text-lg font-semibold text-[var(--ui-text)]">
             <FaTrophy aria-hidden="true" /> Play a series
           </h2>
@@ -96,7 +96,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
           </button>
         </div>
 
-        <div className="flex gap-1 border-b border-[var(--ui-border)] px-4 pt-3">
+        <div className="tournament-tabs flex gap-1 border-b border-[var(--ui-border)] px-4 pt-3">
           {(['ladder', 'gauntlet'] as Mode[]).map((m) => (
             <button
               key={m}
@@ -115,7 +115,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
           ))}
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="tournament-body flex-1 space-y-4 overflow-y-auto p-4">
           {mode === 'ladder' ? (
             isLadderActive && ladder ? (
               <>
@@ -191,7 +191,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                     </div>
                   </div>
                 )}
-                <p className="text-sm text-[var(--ui-text-muted)]">
+                <p className="tournament-setup-intro text-sm text-[var(--ui-text-muted)]">
                   Play a series of calibrated bots that get one rank stronger every time you win. How high can you climb?
                 </p>
                 {renderSetup()}
@@ -272,7 +272,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                   <div className="text-[var(--ui-text-muted)]">Won {gauntlet.wins} of {GAUNTLET_ROUNDS} games.</div>
                 </div>
               )}
-              <p className="text-sm text-[var(--ui-text-muted)]">
+              <p className="tournament-setup-intro text-sm text-[var(--ui-text-muted)]">
                 A four-game gauntlet. Pick a difficulty and try to run the table — one loss ends it.
               </p>
               {renderSetup()}
@@ -305,7 +305,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
           )}
         </div>
 
-        <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+        <div className="tournament-footer ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           {mode === 'ladder' ? (
             isLadderActive && ladder ? (
               <>
@@ -396,7 +396,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
 
   function renderSetup() {
     return (
-      <div className="space-y-3">
+      <div className="tournament-setup space-y-3">
         <div>
           <div className="mb-1 text-sm font-semibold text-[var(--ui-text)]">Board size</div>
           <div className="grid grid-cols-3 gap-2">
