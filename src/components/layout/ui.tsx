@@ -83,7 +83,9 @@ export const IconButton: React.FC<{
         onClick={onClick}
         onPointerDown={onPointerDown}
         disabled={disabled}
-        onMouseEnter={() => setShowTooltip(true)}
+        onMouseEnter={(event) => {
+          setShowTooltip(event.currentTarget.dataset.menuRestoredFocusOrigin !== 'pointer');
+        }}
         onMouseLeave={() => setShowTooltip(false)}
         onFocus={(event) => {
           setShowTooltip(!suppressFocusTooltip && event.currentTarget.dataset.menuRestoredFocusOrigin !== 'pointer');

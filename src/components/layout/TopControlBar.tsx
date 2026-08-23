@@ -235,6 +235,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const mobileToolsCloseRef = React.useRef<HTMLButtonElement>(null);
   const mobileToolsInputModeRef = React.useRef<'pointer' | 'keyboard'>('keyboard');
   const [mobileToolsInputMode, setMobileToolsInputMode] = React.useState<'pointer' | 'keyboard'>('keyboard');
+  const [mobileMenuInputMode, setMobileMenuInputMode] = React.useState<'pointer' | 'keyboard'>('keyboard');
   const viewPopoverId = React.useId();
   const viewPopoverTitleId = React.useId();
   const mobileToolsTitleId = React.useId();
@@ -661,8 +662,13 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <div className="lg:hidden shrink-0">
         <IconButton
           title="Menu"
-          onClick={(event) => onOpenMenu(event.detail === 0 ? 'keyboard' : 'pointer')}
+          onClick={(event) => {
+            const inputMode = event.detail === 0 ? 'keyboard' : 'pointer';
+            setMobileMenuInputMode(inputMode);
+            onOpenMenu(inputMode);
+          }}
           className={topIconClass}
+          suppressFocusTooltip={mobileMenuInputMode === 'pointer'}
         >
           <FaBars />
         </IconButton>
