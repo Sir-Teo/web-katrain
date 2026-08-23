@@ -95,7 +95,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
         aria-modal="true"
         aria-labelledby="game-analysis-title"
       >
-        <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
+        <div className="game-analysis-header flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
           <h2 id="game-analysis-title" className="text-lg font-semibold text-[var(--ui-text)]">Re-analyze Game (KaTrain)</h2>
           <button
             type="button"
@@ -108,8 +108,9 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
           </button>
         </div>
 
-        <div className="p-4 space-y-4 overflow-y-auto overscroll-contain">
-          <div className={['grid gap-3', isRunning ? 'grid-cols-2' : 'grid-cols-1'].join(' ')}>
+        <div className="game-analysis-body p-4 space-y-4 overflow-y-auto overscroll-contain">
+          <div className="game-analysis-column space-y-4">
+          <div className={['game-analysis-primary grid gap-3', isRunning ? 'grid-cols-2' : 'grid-cols-1'].join(' ')}>
             <div className="space-y-1">
               <label htmlFor={MAX_VISITS_ID} className="text-[var(--ui-text-muted)] block text-sm">Max Visits</label>
               <input
@@ -202,7 +203,10 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
             </div>
           </div>
 
-          <div className="pt-2 border-t border-[var(--ui-border)] space-y-3">
+          </div>
+          <div className="game-analysis-column space-y-4">
+
+          <div className="game-analysis-range pt-2 border-t border-[var(--ui-border)] space-y-3">
             <label
               htmlFor={LIMIT_MOVES_ID}
               className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] lg:min-h-0"
@@ -250,7 +254,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
             </p>
           </div>
 
-          <div className="pt-2 border-t border-[var(--ui-border)]">
+          <div className="game-analysis-mistakes pt-2 border-t border-[var(--ui-border)]">
             <label
               htmlFor={MISTAKES_ONLY_ID}
               className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] lg:min-h-0"
@@ -268,9 +272,10 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
               Uses KaTrain’s default mistake threshold (from trainer thresholds). Requires existing analysis to detect mistakes.
             </p>
           </div>
+          </div>
         </div>
 
-        <div className="p-4 ui-bar flex justify-end gap-2 border-t border-[var(--ui-border)]">
+        <div className="game-analysis-footer p-4 ui-bar flex justify-end gap-2 border-t border-[var(--ui-border)]">
           <button
             type="button"
             onClick={onClose}
