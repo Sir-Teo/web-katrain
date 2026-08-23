@@ -10,7 +10,7 @@ interface AboutDialogProps {
 }
 
 const AboutRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="flex items-center justify-between gap-3 border-b border-[var(--ui-border)] py-2 last:border-b-0">
+  <div className="about-dialog-row flex items-center justify-between gap-3 border-b border-[var(--ui-border)] py-2 last:border-b-0">
     <span className="text-xs font-semibold uppercase tracking-wide ui-text-faint">{label}</span>
     <div className="min-w-0 text-right text-sm font-medium text-[var(--ui-text)]">{children}</div>
   </div>
@@ -72,7 +72,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose, returnFocus }
         </div>
 
         <div className="about-dialog-body min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-          <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3">
+          <div className="about-dialog-meta rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3">
             <AboutRow label="Version">v{APP_INFO.version}</AboutRow>
             <AboutRow label="Commit">
               {APP_COMMIT_URL ? (
