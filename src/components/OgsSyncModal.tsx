@@ -100,7 +100,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom">
       <div
-        className="ui-panel flex w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="ogs-sync-title"
@@ -119,7 +119,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
           </button>
         </div>
 
-        <div className="space-y-3 p-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <div className="text-sm text-[var(--ui-text-muted)]">
             Downloads your latest finished games from online-go.com into an{' '}
             <span className="font-semibold">OGS - username</span> library folder. Games already
@@ -141,7 +141,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               if (event.key === 'Enter') void runSync();
             }}
             disabled={isRunning}
-            className="w-full rounded-lg border ui-input px-3 py-2 text-sm text-[var(--ui-text)]"
+            className="min-h-11 w-full rounded-lg border ui-input px-3 py-2 text-sm text-[var(--ui-text)] lg:min-h-0"
             placeholder="e.g. your OGS account name"
             autoComplete="off"
             spellCheck={false}
@@ -154,7 +154,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
             value={limit}
             onChange={(event) => setLimit(Number(event.target.value))}
             disabled={isRunning}
-            className="ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)]"
+            className="min-h-11 ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)] lg:min-h-0"
           >
             {LIMIT_OPTIONS.map((option) => (
               <option key={option} value={option}>
