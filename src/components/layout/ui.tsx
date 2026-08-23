@@ -214,7 +214,7 @@ export const PanelHeaderButton: React.FC<{
         aria-label={`${active ? 'Hide' : 'Show'} ${label}`}
         aria-pressed={active}
         className={[
-          'px-2 py-1 rounded text-xs font-semibold border touch-manipulation',
+          'min-h-11 rounded border px-2 py-1 text-xs font-semibold touch-manipulation lg:min-h-0',
           active ? `${colorClass} border-[var(--ui-border-strong)] text-white` : 'bg-[var(--ui-panel)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
         ].join(' ')}
       >

@@ -1351,7 +1351,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                                 : `Filter ${playerLabel} mistakes to ${categoryLabel}`
                             }
                             className={[
-                              'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors',
+                              'inline-flex min-h-11 items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors lg:min-h-0',
                               active
                                 ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] ring-1 ring-[var(--ui-accent)]'
                                 : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -1590,7 +1590,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         aria-pressed={active}
                         title={option.title}
                         className={[
-                          'px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors',
+                          'min-h-11 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors lg:min-h-0',
                           active
                             ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
                             : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
@@ -1769,29 +1769,34 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       <div className="col-span-5">
                         <button
                           type="button"
-                          className={[
-                            'h-2 w-full rounded-full bg-[var(--ui-surface-2)] overflow-hidden flex hover:brightness-125',
-                            bucketFilter === idx ? 'ring-2 ring-[var(--ui-accent)]' : '',
-                          ].join(' ')}
+                          className="grid h-11 w-full place-items-center rounded-full hover:brightness-125 lg:h-2"
                           onClick={() => setBucketFilter(bucketFilter === idx ? null : idx)}
                           aria-label={`Filter loss bucket ${label}`}
                         >
-                          {playerFilter === 'all' ? (
-                            <>
-                              <div className="h-full game-report-histogram-bar--black" style={{ width: blackWidth }} />
-                              <div className="h-full game-report-histogram-bar--white" style={{ width: whiteWidth }} />
-                            </>
-                          ) : (
-                            <div
-                              className={[
-                                'h-full',
-                                playerFilter === 'black'
-                                  ? 'game-report-histogram-bar--black'
-                                  : 'game-report-histogram-bar--white',
-                              ].join(' ')}
-                              style={{ width: singleWidth }}
-                            />
-                          )}
+                          <span
+                            className={[
+                              'flex h-2 w-full overflow-hidden rounded-full bg-[var(--ui-surface-2)]',
+                              bucketFilter === idx ? 'ring-2 ring-[var(--ui-accent)]' : '',
+                            ].join(' ')}
+                            aria-hidden="true"
+                          >
+                            {playerFilter === 'all' ? (
+                              <>
+                                <span className="h-full game-report-histogram-bar--black" style={{ width: blackWidth }} />
+                                <span className="h-full game-report-histogram-bar--white" style={{ width: whiteWidth }} />
+                              </>
+                            ) : (
+                              <span
+                                className={[
+                                  'h-full',
+                                  playerFilter === 'black'
+                                    ? 'game-report-histogram-bar--black'
+                                    : 'game-report-histogram-bar--white',
+                                ].join(' ')}
+                                style={{ width: singleWidth }}
+                              />
+                            )}
+                          </span>
                         </button>
                       </div>
                       {playerFilter === 'all' ? (
