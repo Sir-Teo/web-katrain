@@ -52,6 +52,7 @@ export const IconButton: React.FC<{
   ariaExpanded?: boolean;
   ariaHasPopup?: React.AriaAttributes['aria-haspopup'];
   buttonRef?: React.Ref<HTMLButtonElement>;
+  suppressFocusTooltip?: boolean;
   children: React.ReactNode;
 }> = ({
   title,
@@ -63,6 +64,7 @@ export const IconButton: React.FC<{
   ariaExpanded,
   ariaHasPopup,
   buttonRef,
+  suppressFocusTooltip = false,
   children,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -84,7 +86,7 @@ export const IconButton: React.FC<{
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
         onFocus={(event) => {
-          setShowTooltip(event.currentTarget.dataset.menuRestoredFocusOrigin !== 'pointer');
+          setShowTooltip(!suppressFocusTooltip && event.currentTarget.dataset.menuRestoredFocusOrigin !== 'pointer');
         }}
         onBlur={() => setShowTooltip(false)}
         className={[

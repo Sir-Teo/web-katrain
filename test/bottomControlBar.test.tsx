@@ -118,6 +118,7 @@ describe('BottomControlBar', () => {
     expect(componentSource.match(/closeMoreControlsFromAction\(event\)/g) ?? []).toHaveLength(14);
     expect(componentSource.match(/setMoreOpen\(false\)/g) ?? []).toHaveLength(1);
     expect(componentSource).toContain("data-bottom-more-focus-origin={suppressMoreTriggerFocusRing ? 'pointer' : 'keyboard'}");
+    expect(componentSource).toContain('suppressFocusTooltip={suppressMoreTriggerFocusRing}');
     expect(css).toMatch(/\.mobile-more-trigger-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
   });
 

@@ -207,6 +207,7 @@ describe('TopControlBar', () => {
     expect(source).toContain("updateMobileToolsInputMode(event.detail === 0 ? 'keyboard' : 'pointer')");
     expect(source).toContain("onPointerDown={() => updateMobileToolsInputMode('pointer')}");
     expect(source).toContain("mobileToolsInputMode === 'pointer' ? 'mobile-tools-pointer-focus' : ''");
+    expect(source).toContain("suppressFocusTooltip={mobileToolsInputMode === 'pointer'}");
     expect(source).toContain("closeViewMenuWithFocus(true, 'keyboard')");
     expect(source.match(/closeViewMenuWithFocus\(true, mobileToolsInputModeRef\.current\)/g) ?? []).toHaveLength(2);
     expect(source.match(/closeMobileToolsAfterAction\(\)/g) ?? []).toHaveLength(14);

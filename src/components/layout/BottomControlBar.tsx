@@ -623,6 +623,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             ariaControls={moreSheetId}
             ariaExpanded={moreOpen}
             ariaHasPopup="dialog"
+            suppressFocusTooltip={suppressMoreTriggerFocusRing}
             buttonRef={moreTriggerRef}
             className={suppressMoreTriggerFocusRing ? 'mobile-more-trigger-pointer-focus' : ''}
           >

@@ -862,6 +862,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               ariaControls={viewPopoverId}
               ariaExpanded={viewMenuOpen}
               ariaHasPopup="dialog"
+              suppressFocusTooltip={mobileToolsInputMode === 'pointer'}
               className={[
                 topIconClass,
                 'rounded-md bg-transparent border border-transparent',
