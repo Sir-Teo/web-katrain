@@ -94,7 +94,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
                 if (event.key === 'Escape') onClose();
               }}
               placeholder="Game name"
-              className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60"
+              className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60 lg:min-h-0"
             />
           </div>
           <div className="block space-y-1">
@@ -110,7 +110,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
                 event.stopPropagation();
                 if (event.key === 'Escape') onClose();
               }}
-              className="w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60"
+              className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60 lg:min-h-0"
             >
               <option value="">Root</option>
               {folderOptions.map((option) => (
