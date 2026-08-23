@@ -31,6 +31,24 @@ describe('PasteSgfModal', () => {
     expect(html).toContain('Use a board screenshot or camera photo');
   });
 
+  it('keeps format guidance visible beside the editor in short landscape', () => {
+    const html = renderToStaticMarkup(
+      <PasteSgfModal
+        onClose={() => undefined}
+        onSubmit={async () => 'loaded'}
+        onOpenPhotoBoard={() => undefined}
+      />,
+    );
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain('paste-sgf-modal-header');
+    expect(html).toContain('paste-sgf-modal-body');
+    expect(html).toContain('paste-sgf-modal-textarea');
+    expect(html).toContain('paste-sgf-modal-footer');
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.paste-sgf-modal-body \{[^}]*gap: 8px;[^}]*padding: 12px !important;/);
+    expect(css).toMatch(/\.paste-sgf-modal-textarea \{[^}]*min-height: 112px !important;/);
+  });
+
   it('detects OGS game links and shows the exact game being downloaded', () => {
     const info = getPasteSgfInputInfo('https://online-go.com/game/81344851');
 
