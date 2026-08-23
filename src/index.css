@@ -3384,6 +3384,25 @@
   }
 
   @media (max-height: 520px) and (orientation: landscape) {
+    .mobile-home-actions > button {
+      min-height: 48px;
+      justify-content: center;
+      gap: 0 !important;
+      padding: 6px 8px !important;
+      text-align: center;
+    }
+
+    .mobile-home-action-icon,
+    .mobile-home-action-label-full,
+    .mobile-home-action-hint {
+      display: none !important;
+    }
+
+    .mobile-home-action-copy,
+    .mobile-home-action-label-compact {
+      display: block !important;
+    }
+
     .mobile-home-main {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -3433,6 +3452,24 @@
     }
 
     .mobile-home-actions--secondary > button:not(:nth-child(3n + 1)) {
+      border-left: 1px solid var(--ui-border);
+    }
+  }
+
+  @media (min-width: 540px) and (max-height: 520px) and (orientation: landscape) {
+    .mobile-home-actions--primary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .mobile-home-actions--primary > button {
+      border-left: 0;
+    }
+
+    .mobile-home-actions--primary > button:nth-child(3) {
+      border-top: 0;
+    }
+
+    .mobile-home-actions--primary > button:not(:nth-child(3n + 1)) {
       border-left: 1px solid var(--ui-border);
     }
   }
