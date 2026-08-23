@@ -150,7 +150,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
         aria-modal="true"
         aria-labelledby="new-game-title"
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)] ui-bar">
+        <div className="new-game-modal-header flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)] ui-bar">
           <h2 id="new-game-title" className="text-lg font-semibold text-[var(--ui-text)]">New Game</h2>
           <button
             type="button"
@@ -161,7 +161,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
             ✕
           </button>
         </div>
-        <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
+        <div className="new-game-modal-body p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <details
             className="rounded-xl border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3"
             data-new-game-info-details="true"
@@ -1040,7 +1040,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
             Start a new {boardSize}×{boardSize} game with the selected rules and optional game info.
           </div>
         </div>
-        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2 ui-bar">
+        <div className="new-game-modal-footer px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2 ui-bar">
           <button type="button"
             className="px-3 py-2 rounded bg-[var(--ui-surface-2)] text-[var(--ui-text)] hover:brightness-110"
             onClick={onClose}

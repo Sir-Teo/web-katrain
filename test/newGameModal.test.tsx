@@ -100,6 +100,18 @@ describe('NewGameModal', () => {
     expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.new-game-modal button,[\s\S]*\.new-game-modal input:not\(\[type='checkbox'\]\):not\(\[type='radio'\]\),[\s\S]*min-height: 44px;/);
   });
 
+  it('fits complete setup rows above the footer in short landscape', () => {
+    const html = renderModal();
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain('new-game-modal-header');
+    expect(html).toContain('new-game-modal-body');
+    expect(html).toContain('new-game-modal-footer');
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.new-game-modal \{[^}]*max-height: calc\(100dvh - 16px\) !important;/);
+    expect(css).toMatch(/\.new-game-modal-header,[\s\S]{0,100}\.new-game-modal-footer \{[^}]*padding-top: 8px !important;[^}]*padding-bottom: 8px !important;/);
+    expect(css).toMatch(/\.new-game-modal-body \{[^}]*display: flex;[^}]*gap: 12px;[^}]*padding: 12px !important;/);
+  });
+
   it('keeps optional player and record metadata collapsed by default', () => {
     const html = renderModal();
     const detailsTag = html.match(/<details[^>]*data-new-game-info-details="true"[^>]*>/)?.[0];

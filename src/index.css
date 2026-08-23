@@ -4817,6 +4817,27 @@
       --mobile-bottom-controls-height: 0px !important;
     }
 
+    .new-game-modal {
+      max-height: calc(100dvh - 16px) !important;
+    }
+
+    .new-game-modal-header,
+    .new-game-modal-footer {
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+    }
+
+    .new-game-modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px !important;
+    }
+
+    .new-game-modal-body > * {
+      margin-block: 0 !important;
+    }
+
     .notification-toast-region,
     .notification-toast-region--below-command-bar {
       top: 0.5rem;
