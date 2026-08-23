@@ -519,7 +519,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const deltaCountLabel = (type: PhotoBoardDeltaStone['type'], player: Player, count: number) =>
     `${type === 'added' ? '+' : '-'}${player === 'black' ? 'B' : 'W'}: ${count}`;
   const deltaOverlayToggleClass = (active: boolean) => [
-    'min-h-8 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+    'min-h-11 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 lg:min-h-8',
     active
       ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
       : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -993,7 +993,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
             <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3">
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-[var(--ui-text)]">
+                <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-[var(--ui-text)] lg:min-h-0">
                   <input
                     type="checkbox"
                     checked={!!photoUrl && photoUnderlay}
@@ -1009,7 +1009,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                     value={photoFit}
                     onChange={(event) => setPhotoFit(event.target.value as PhotoFit)}
                     disabled={!photoUrl || !photoUnderlay}
-                    className="ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)] disabled:opacity-50"
+                    className="min-h-11 ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)] disabled:opacity-50 lg:min-h-0"
                     aria-label="Photo underlay fit"
                   >
                     <option value="cover">Cover</option>
@@ -1027,7 +1027,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                   value={photoOpacity}
                   disabled={!photoUrl || !photoUnderlay}
                   onChange={(event) => setPhotoOpacity(Number(event.target.value))}
-                  className="w-full accent-[var(--ui-accent)] disabled:opacity-50"
+                  className="h-11 w-full accent-[var(--ui-accent)] disabled:opacity-50 lg:h-auto"
                   aria-label="Photo underlay opacity"
                 />
                 <span className="text-right font-mono text-[var(--ui-text-muted)]">
@@ -1045,7 +1045,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                     value={photoZoom}
                     disabled={photoAlignmentDisabled}
                     onChange={(event) => setPhotoZoom(Number(event.target.value))}
-                    className="w-full accent-[var(--ui-accent)] disabled:opacity-50"
+                    className="h-11 w-full accent-[var(--ui-accent)] disabled:opacity-50 lg:h-auto"
                     aria-label="Photo underlay zoom"
                     data-photo-board-photo-zoom="true"
                   />
@@ -1064,7 +1064,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                       value={photoOffsetX}
                       disabled={photoAlignmentDisabled}
                       onChange={(event) => setPhotoOffsetX(Number(event.target.value))}
-                      className="w-full accent-[var(--ui-accent)] disabled:opacity-50"
+                      className="h-11 w-full accent-[var(--ui-accent)] disabled:opacity-50 lg:h-auto"
                       aria-label="Photo underlay horizontal position"
                       data-photo-board-photo-offset-x="true"
                     />
@@ -1082,7 +1082,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                       value={photoOffsetY}
                       disabled={photoAlignmentDisabled}
                       onChange={(event) => setPhotoOffsetY(Number(event.target.value))}
-                      className="w-full accent-[var(--ui-accent)] disabled:opacity-50"
+                      className="h-11 w-full accent-[var(--ui-accent)] disabled:opacity-50 lg:h-auto"
                       aria-label="Photo underlay vertical position"
                       data-photo-board-photo-offset-y="true"
                     />
