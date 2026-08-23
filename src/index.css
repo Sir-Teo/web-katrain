@@ -254,6 +254,17 @@
     display: none;
   }
 
+  /* Keep the primary review strip genuinely touch-sized even when the mobile
+     root font scale makes Tailwind's rem-based min-h-11 smaller than 44px. */
+  .mobile-bottom-controls button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .mobile-bottom-move-editor input {
+    min-height: 44px;
+  }
+
   @media (max-width: 430px) {
     .mobile-bottom-controls {
       gap: 0.25rem !important;
