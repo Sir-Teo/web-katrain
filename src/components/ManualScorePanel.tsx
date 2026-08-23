@@ -280,7 +280,12 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
           <FaMagic size={12} />
           <span>Auto</span>
         </button>
-        <button type="button" onClick={onClear} title="Clear dead stones">
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={deadStoneCount === 0}
+          title={deadStoneCount === 0 ? 'No dead stones to clear' : 'Clear dead stones'}
+        >
           <FaUndo size={12} />
           <span>Clear</span>
         </button>

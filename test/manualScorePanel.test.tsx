@@ -67,6 +67,15 @@ describe('ManualScorePanel', () => {
     expect(html).toContain('aria-pressed="true"');
   });
 
+  it('disables the clear action when no dead stones are marked', () => {
+    const html = renderToStaticMarkup(
+      <ManualScorePanel {...baseProps} deadStoneCount={0} />,
+    );
+
+    expect(html).toContain('title="No dead stones to clear"');
+    expect(html).toMatch(/disabled="" title="No dead stones to clear"/);
+  });
+
   it('marks ownership estimates as approximate', () => {
     const html = renderToStaticMarkup(
       <ManualScorePanel
