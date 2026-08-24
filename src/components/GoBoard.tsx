@@ -19,6 +19,7 @@ import {
   policyHeatmapFontSize,
   selectAnalysisHintMoves,
   shouldCollapseHintLabel,
+  shouldDropHintLabel,
   usesCompactAnalysisHints,
 } from '../utils/analysisHints';
 import { publicUrl } from '../utils/publicUrl';
@@ -2398,6 +2399,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         labelledPoints.add(`${d.x},${d.y}`);
       }
     }
+    // Single-metric labels have no secondary line to shed, so a crowded cluster
+    // is resolved by rank instead: the moves arrive best-first, and a label that
+    // outgrows its cell yields to one a neighbour already drew.
+    const singleMetric = show.length === 1;
+    const drawnHintLabels = new Set<string>();
+
     for (const move of moves) {
       const d = toDisplay(move.x, move.y);
       const isBest = move.order === 0;
@@ -2405,7 +2412,21 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       const uncertain =
         !altHeld && move.visits < lowVisitsThreshold && !isBest && !childMoveCoords.has(`${move.x},${move.y}`);
       const scale = isBest ? HINT_SCALE : uncertain ? UNCERTAIN_HINT_SCALE : ALTERNATIVE_HINT_SCALE;
-      const textOn = !uncertain && showText;
+      let singleLabel: string | null = null;
+      if (singleMetric && showText && !uncertain) {
+        ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
+        const candidate = getLabel(move, show[0] as typeof primary);
+        const drop = shouldDropHintLabel(
+          ctx.measureText(candidate).width,
+          cellSize,
+          hasAdjacentHintLabel(drawnHintLabels, d.x, d.y)
+        );
+        if (!drop) {
+          singleLabel = candidate;
+          drawnHintLabels.add(`${d.x},${d.y}`);
+        }
+      }
+      const textOn = singleMetric ? singleLabel !== null : !uncertain && showText;
       const alpha = uncertain ? HINTS_LO_ALPHA : HINTS_ALPHA;
       if (scale <= 0) continue;
 
@@ -2452,9 +2473,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
         ctx.lineWidth = 2.5;
         ctx.lineJoin = 'round';
-        if (show.length === 1) {
+        if (singleMetric) {
           ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
-          const label = getLabel(move, show[0] as typeof primary);
+          const label = singleLabel ?? '';
           ctx.strokeText(label, cx, cy);
           ctx.fillText(label, cx, cy);
         } else {

@@ -7,6 +7,7 @@ import {
   policyHeatmapFontSize,
   selectAnalysisHintMoves,
   shouldCollapseHintLabel,
+  shouldDropHintLabel,
   usesCompactAnalysisHints,
 } from '../src/utils/analysisHints';
 
@@ -108,5 +109,20 @@ describe('two-line hint label collapsing', () => {
 
   it('lets an isolated label overflow onto empty wood', () => {
     expect(shouldCollapseHintLabel(30.1, 19, 27, false)).toBe(false);
+  });
+
+  // A phone fits a 19x19 board into ~344px, so the cell drops to about 17px —
+  // narrower than every label the single-metric mode produces. Without a rule
+  // adjacent candidates printed through each other ("+0." over "-0.1").
+  it('drops a one-line label that a neighbour already crowded out', () => {
+    expect(shouldDropHintLabel(24.1, 17, true)).toBe(true);
+  });
+
+  it('keeps a one-line label that fits inside its own cell', () => {
+    expect(shouldDropHintLabel(24.1, 27, true)).toBe(false);
+  });
+
+  it('keeps an isolated one-line label however wide it is', () => {
+    expect(shouldDropHintLabel(30.1, 17, false)).toBe(false);
   });
 });

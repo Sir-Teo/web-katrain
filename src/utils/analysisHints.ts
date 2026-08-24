@@ -65,6 +65,27 @@ export function shouldCollapseHintLabel(
   return maxLabelWidth > cellSize - 2 || stackedHeight > cellSize - 2;
 }
 
+/**
+ * Whether a one-line hint label has to give way to a neighbour that already
+ * drew one.
+ *
+ * `shouldCollapseHintLabel` only rescues the two-line case by dropping the
+ * secondary metric; a single metric had no rule at all. At a phone's ~17px
+ * cell a 10px "+0.1" is about one and a half cells wide, so two candidates on
+ * adjacent points printed straight through each other. Ranked order decides:
+ * the first label in a cluster is drawn and later ones keep their marker
+ * alone, which is also the one a reader cares about most. The 2px slack keeps
+ * a label that only just fits from touching its neighbour's.
+ */
+export function shouldDropHintLabel(
+  labelWidth: number,
+  cellSize: number,
+  hasDrawnNeighbourLabel: boolean
+): boolean {
+  if (!hasDrawnNeighbourLabel) return false;
+  return labelWidth > cellSize - 2;
+}
+
 export function selectAnalysisHintMoves(
   moves: readonly CandidateMove[],
   compact: boolean,
