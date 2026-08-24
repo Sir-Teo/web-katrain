@@ -45,6 +45,7 @@ describe('study tool components render without crashing', () => {
 
   it('TournamentModal renders the ladder setup', () => {
     const html = renderToString(<TournamentModal onClose={noop} onPlayGame={noop} onPlayGauntletGame={noop} />);
+    const styles = readFileSync('src/index.css', 'utf8');
     expect(html).toContain('Rank ladder');
     expect(html).toContain('Gauntlet');
     expect(html).toContain('Start ladder');
@@ -52,6 +53,10 @@ describe('study tool components render without crashing', () => {
     expect(html).toMatch(/aria-pressed="true"[^>]*>black</);
     expect(html).toMatch(/aria-pressed="true" class="min-h-11 rounded-t-lg[^>]*>Rank ladder</);
     expect(html).toContain('class="min-h-11 w-full rounded-lg');
+    expect(html).toContain('tournament-board-sizes grid grid-cols-3');
+    expect(html).toContain('tournament-color-options grid grid-cols-2');
+    expect(styles).toMatch(/\.tournament-setup \{[\s\S]*grid-template-columns: minmax\(0, 1\.35fr\) minmax\(0, 0\.9fr\) minmax\(0, 1fr\);/);
+    expect(styles).toMatch(/\.tournament-board-sizes button,[\s\S]*\.tournament-color-options button \{[\s\S]*padding-inline: 8px;/);
   });
 
   it('ProGamesModal parses and lists the bundled pro games', () => {

@@ -399,7 +399,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
       <div className="tournament-setup space-y-3">
         <div>
           <div className="mb-1 text-sm font-semibold text-[var(--ui-text)]">Board size</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="tournament-board-sizes grid grid-cols-3 gap-2">
             {BOARD_OPTIONS.map((sz) => (
               <button key={sz} type="button" onClick={() => setBoardSize(sz)} aria-pressed={boardSize === sz} className={boardButtonClass(boardSize === sz)}>
                 {sz}×{sz}
@@ -410,7 +410,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
 
         <div>
           <div className="mb-1 text-sm font-semibold text-[var(--ui-text)]">Your color</div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="tournament-color-options grid grid-cols-2 gap-2">
             {(['black', 'white'] as Player[]).map((c) => (
               <button key={c} type="button" onClick={() => setUserColor(c)} aria-pressed={userColor === c} className={`${boardButtonClass(userColor === c)} capitalize`}>
                 {c}
