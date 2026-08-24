@@ -649,9 +649,11 @@
     }
   }
 
-  /* Themed switch for boolean settings on every viewport; the mobile media
-     query below only enlarges it to touch-target size. */
-  .settings-modal .toggle {
+  /* Themed switch for every boolean control, not just the ones in Settings:
+     scoping this to `.settings-modal` left the same `toggle` class rendering a
+     bare 13px native checkbox in New Game, Game analysis and the tsumego frame
+     — a third of the minimum touch target, and nothing like its 24 siblings. */
+  .toggle {
     appearance: none;
     position: relative;
     flex: 0 0 44px;
@@ -662,7 +664,7 @@
     cursor: pointer;
   }
 
-  .settings-modal .toggle::before {
+  .toggle::before {
     content: '';
     position: absolute;
     top: 50%;
@@ -678,7 +680,7 @@
       border-color 0.15s ease;
   }
 
-  .settings-modal .toggle::after {
+  .toggle::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -693,16 +695,16 @@
       transform 0.15s ease;
   }
 
-  .settings-modal .toggle:checked {
+  .toggle:checked {
     background: transparent;
   }
 
-  .settings-modal .toggle:checked::before {
+  .toggle:checked::before {
     background: var(--ui-accent-soft);
     border-color: var(--ui-accent);
   }
 
-  .settings-modal .toggle:checked::after {
+  .toggle:checked::after {
     background: var(--ui-accent);
     transform: translate(14px, -50%);
   }
@@ -767,8 +769,7 @@
       padding-bottom: 0.625rem;
     }
 
-    /* The base .toggle styles above apply; the generic 44px touch-target
-       minimums in this media query enlarge the hit area. */
+    /* The base .toggle styles above already size the switch to 44px. */
   }
 
   .ui-panel-pad {

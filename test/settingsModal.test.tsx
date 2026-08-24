@@ -227,4 +227,15 @@ describe('SettingsModal', () => {
     expect(source).toContain('role="progressbar"');
     expect(source).toContain('Active browser upload');
   });
+
+  it('shares the themed switch with every other boolean control', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    // Scoping these rules to `.settings-modal` left the identical `toggle`
+    // class rendering a bare 13px native checkbox in the other dialogs that
+    // use it — a third of the minimum touch target.
+    expect(css).not.toContain('.settings-modal .toggle');
+    expect(css).toMatch(/\n {2}\.toggle \{[^}]*width: 44px;[^}]*height: 44px;/);
+    expect(css).toMatch(/\n {2}\.toggle:checked::after \{[^}]*translate\(14px, -50%\)/);
+  });
 });
