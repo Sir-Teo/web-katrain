@@ -384,8 +384,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       </button>
     );
   };
-  const overlayToggles = (
-    <div className="flex flex-wrap items-center gap-1.5" data-analysis-overlay-controls="true">
+  const overlayToggleButtons = (
+    <>
       {overlayToggle('analysisShowChildren', 'Children', <FaSitemap size={11} aria-hidden="true" />)}
       {overlayToggle('analysisShowEval', 'Dots', <FaCircle size={9} aria-hidden="true" />)}
       {overlayToggle(
@@ -396,6 +396,11 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       )}
       {overlayToggle('analysisShowPolicy', 'Heatmap', <FaThLarge size={11} aria-hidden="true" />)}
       {overlayToggle('analysisShowOwnership', 'Territory', <FaMap size={11} aria-hidden="true" />)}
+    </>
+  );
+  const overlayToggles = (
+    <div className="flex flex-wrap items-center gap-1.5" data-analysis-overlay-controls="true">
+      {overlayToggleButtons}
     </div>
   );
   const cachedAnalysisCountLabel = `${analysisCacheSize} cached ${analysisCacheSize === 1 ? 'analysis' : 'analyses'}`;
@@ -481,8 +486,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           <div className={['truncate font-mono text-sm', toneClass].join(' ')}>
             {displayedMoveQuality.playerLabel} {displayedMoveQuality.moveLabel}
           </div>
+          {/* Value first: this line truncates in a quarter-width phone column,
+              and "UNRANKED…" hid the points-lost figure the reader came for. */}
           <div className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
-            {[displayedMoveQuality.rankLabel, displayedMoveQuality.valueLabel].filter((part) => part !== '-').join(' · ')}
+            {[displayedMoveQuality.valueLabel, displayedMoveQuality.rankLabel].filter((part) => part !== '-').join(' · ')}
           </div>
         </div>
       );
@@ -720,13 +727,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       <div className="panel-section-content">
         {compact ? (
           <div className="space-y-1.5">
-            <div className="flex items-center justify-end gap-2">
-              <div className="flex items-center gap-1.5">
+            {/* Cache and legend rode their own right-aligned row, which spent a
+                full band of a phone panel on two icons. They wrap with the
+                overlay toggles instead and settle at the end of the last line. */}
+            <div className="flex flex-wrap items-center gap-1.5" data-analysis-overlay-controls="true">
+              {overlayToggleButtons}
+              <div className="ml-auto flex items-center gap-1.5">
                 {analysisCacheControl}
                 {legendButton}
               </div>
             </div>
-            {overlayToggles}
             {qualityLegend}
             <div className="grid gap-1" style={readoutGridStyle}>
               {renderMoveReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}

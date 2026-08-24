@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AnalysisPanel, AnalysisQualityLegend } from '../src/components/AnalysisPanel';
 import { defaultUiState } from '../src/components/layout/types';
@@ -82,6 +83,26 @@ describe('AnalysisPanel', () => {
     expect(html).not.toContain('kata1-b18');
     expect(html).toContain('grid-cols-4');
     expect(html).toContain('min-h-11');
+  });
+
+  it('keeps cache and legend on the compact overlay row instead of their own band', () => {
+    const html = renderToStaticMarkup(<AnalysisPanel {...baseProps} compact />);
+
+    // Two icons had a full right-aligned row of a phone panel to themselves.
+    expect(html).not.toContain('flex items-center justify-end gap-2');
+    const controls = html.slice(html.indexOf('data-analysis-overlay-controls="true"'));
+    expect(controls.indexOf('Territory')).toBeLessThan(controls.indexOf('Show analysis legend'));
+  });
+
+  it('leads the played-move detail with the points figure', () => {
+    const source = readFileSync('src/components/AnalysisPanel.tsx', 'utf8');
+
+    // The line truncates inside a quarter-width phone column, where
+    // "Unranked · Lost 1.5" clipped to "UNRANKED…" and hid the only number
+    // the reader came for.
+    expect(source).toContain(
+      '[displayedMoveQuality.valueLabel, displayedMoveQuality.rankLabel]'
+    );
   });
 
   it('uses beginner-friendly heatmap wording in the overlay legend', () => {
