@@ -1325,6 +1325,10 @@
   }
 
   @media (max-width: 1023px) {
+    .game-analysis-modal {
+      max-height: calc(100dvh - 24px) !important;
+    }
+
     .panel-section-header {
       min-height: 44px;
       padding: 0 10px;
@@ -5391,6 +5395,11 @@
       grid-column: 1 / -1;
     }
 
+    .game-analysis-modal {
+      max-width: min(720px, calc(100vw - 32px)) !important;
+      max-height: calc(100dvh - 16px) !important;
+    }
+
     .game-analysis-header,
     .game-analysis-footer {
       padding-top: 4px !important;
@@ -5401,12 +5410,22 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       align-items: start;
-      gap: 12px;
-      padding: 12px 16px !important;
+      gap: 8px 12px;
+      padding: 8px 16px !important;
     }
 
     .game-analysis-body > * {
       min-width: 0;
+      margin-top: 0 !important;
+    }
+
+    .game-analysis-column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .game-analysis-column > * {
       margin-top: 0 !important;
     }
 
@@ -5459,6 +5478,24 @@
       grid-column: 1 / -1;
       grid-row: 2;
       margin-top: 0 !important;
+    }
+  }
+
+  @media (min-width: 700px) and (max-height: 520px) and (orientation: landscape) {
+    .game-analysis-body {
+      grid-template-columns: 1.2fr minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .game-analysis-body > .game-analysis-column:last-child {
+      display: contents;
+    }
+
+    .game-analysis-range {
+      grid-column: 2;
+    }
+
+    .game-analysis-mistakes {
+      grid-column: 3;
     }
   }
 }

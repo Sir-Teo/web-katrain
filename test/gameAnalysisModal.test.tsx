@@ -28,7 +28,13 @@ describe('GameAnalysisModal', () => {
     expect(html).toContain('id="game-analysis-depth-presets-label"');
     expect(html).toContain('aria-labelledby="game-analysis-depth-presets-label"');
     expect(html).toContain('game-analysis-modal ui-panel');
+    expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.game-analysis-modal \{[^}]*max-height: calc\(100dvh - 24px\) !important;/);
     expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.game-analysis-modal button,[\s\S]*\.game-analysis-modal input:not\(\[type='checkbox'\]\):not\(\[type='radio'\]\) \{[\s\S]*min-height: 44px;/);
+    expect(css).toMatch(/@media \(min-width: 540px\) and \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.game-analysis-modal \{[^}]*max-width: min\(720px, calc\(100vw - 32px\)\) !important;[^}]*max-height: calc\(100dvh - 16px\) !important;/);
+    expect(css).toMatch(/@media \(min-width: 700px\) and \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.game-analysis-body > \.game-analysis-column:last-child \{[^}]*display: contents;/);
+    expect(css).toMatch(/\.game-analysis-column \{[^}]*display: flex;[^}]*gap: 8px;/);
+    expect(css).toMatch(/\.game-analysis-range \{[^}]*grid-column: 2;/);
+    expect(css).toMatch(/\.game-analysis-mistakes \{[^}]*grid-column: 3;/);
   });
 
   it('shows live progress and a stop action while full re-analysis is running', () => {
