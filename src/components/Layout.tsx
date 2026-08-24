@@ -3878,7 +3878,7 @@ export const Layout: React.FC = () => {
         )}
 
         {isMobile && !focusMode && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col pointer-events-none">
+          <div className="fixed bottom-0 left-0 right-0 z-[44] flex flex-col pointer-events-none">
             <div className="mobile-bottom-dock pointer-events-auto bg-[var(--ui-bar)] border-t border-[var(--ui-border)] divide-y divide-[var(--ui-border)]">
               {settings.showBoardControls && bottomBarOpen && mobileTab === 'board' && (
                 <div className="[&>div]:border-t-0 [&>div]:bg-transparent">
