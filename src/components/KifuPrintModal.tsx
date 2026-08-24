@@ -94,6 +94,8 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
       color: m.player === 'black' ? '#0b0b0b' : '#f9fafb',
       textColor: m.player === 'black' ? '#f9fafb' : '#0b0b0b',
     }));
+  const canPrint = diagrams.length > 0;
+  const printActionLabel = canPrint ? 'Print kifu or save as PDF' : 'No moves to print';
 
   return (
     <div
@@ -141,8 +143,10 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
             <button
               type="button"
               onClick={() => printWindow()}
-              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-lg ui-accent-bg px-3 py-2 text-sm font-semibold hover:brightness-110"
-              aria-label="Print kifu or save as PDF"
+              disabled={!canPrint}
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-lg ui-accent-bg px-3 py-2 text-sm font-semibold hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100"
+              aria-label={printActionLabel}
+              title={printActionLabel}
             >
               <FaPrint aria-hidden="true" /> <span className="hidden lg:inline">Print / PDF</span>
             </button>
