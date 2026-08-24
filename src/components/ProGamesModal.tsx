@@ -192,6 +192,13 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                     <span>{selected.source}</span>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void onLoadGame(selected.sgf, selected.name)}
+                  className="pro-games-load mt-4 min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                >
+                  <span className="inline-flex items-center gap-2"><FaDownload aria-hidden="true" /> Load &amp; study this game</span>
+                </button>
                 {selected.editorial && (
                   <p
                     className="mt-3 rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3 text-xs leading-relaxed text-[var(--ui-text-muted)]"
@@ -200,13 +207,6 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                     {selected.editorial}
                   </p>
                 )}
-                <button
-                  type="button"
-                  onClick={() => void onLoadGame(selected.sgf, selected.name)}
-                  className="pro-games-load mt-4 min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
-                >
-                  <span className="inline-flex items-center gap-2"><FaDownload aria-hidden="true" /> Load &amp; study this game</span>
-                </button>
               </>
             ) : (
               <div className="grid flex-1 place-items-center text-sm text-[var(--ui-text-muted)]">Select a game</div>

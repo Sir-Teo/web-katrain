@@ -5243,6 +5243,24 @@
     }
   }
 
+  @media (max-width: 639px) {
+    .pro-games-detail {
+      padding: 12px !important;
+    }
+
+    .pro-games-preview {
+      max-width: 11rem !important;
+    }
+
+    .pro-games-metadata {
+      margin-top: 8px !important;
+    }
+
+    .pro-games-load {
+      margin-top: 12px !important;
+    }
+  }
+
   @media (max-width: 539px) and (max-height: 520px) and (orientation: landscape) {
     .pro-games-featured,
     .pro-games-preview,
