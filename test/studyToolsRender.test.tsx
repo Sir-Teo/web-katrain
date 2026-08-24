@@ -31,8 +31,16 @@ describe('study tool components render without crashing', () => {
 
   it('keeps compact study inputs and filters touch-sized', () => {
     const guessMoveSource = readFileSync('src/components/GuessMoveModal.tsx', 'utf8');
+    const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
 
     expect(guessMoveSource).toContain('className={`min-h-11 px-3 py-1 text-xs font-semibold');
+    expect(guessMoveSource).toContain('No moves to guess');
+    expect(guessMoveSource).toContain('Browse pro games');
+    expect(guessMoveSource).toContain('Open SGF');
+    expect(guessMoveSource).toContain('onClick={onBrowseProGames}');
+    expect(guessMoveSource).toContain('onClick={onOpenSgf}');
+    expect(layoutSource).toContain('setIsProGamesOpen(true);');
+    expect(layoutSource).toContain('handleLoadClick();');
   });
 
   it('TournamentModal renders the ladder setup', () => {

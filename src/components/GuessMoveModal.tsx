@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FaTimes, FaEye, FaArrowRight } from 'react-icons/fa';
+import { FaTimes, FaEye, FaArrowRight, FaBook, FaFolderOpen } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
@@ -15,6 +15,8 @@ import {
 
 interface GuessMoveModalProps {
   onClose: () => void;
+  onBrowseProGames: () => void;
+  onOpenSgf: () => void;
 }
 
 const COLUMN_LETTERS = 'ABCDEFGHJKLMNOPQRST';
@@ -35,7 +37,7 @@ const toneColor = (tone: 'success' | 'warning' | 'danger'): string =>
       ? 'var(--ui-warning, #d69e2e)'
       : 'var(--ui-danger, #e53e3e)';
 
-export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
+export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrowseProGames, onOpenSgf }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
@@ -151,10 +153,29 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose }) => {
         </div>
 
         {positions.length === 0 ? (
-          <div className="flex-1 space-y-3 p-6 text-center">
-            <p className="text-sm text-[var(--ui-text-muted)]">
-              Load a game with moves (a pro game, an SGF, or your own record) to practice predicting the next move.
-            </p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+            <div className="space-y-1.5">
+              <h3 className="font-semibold text-[var(--ui-text)]">No moves to guess</h3>
+              <p className="max-w-sm text-sm text-[var(--ui-text-muted)]">
+                Load a game with moves to practice predicting the next move.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={onBrowseProGames}
+                className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+              >
+                <span className="inline-flex items-center gap-2"><FaBook aria-hidden="true" /> Browse pro games</span>
+              </button>
+              <button
+                type="button"
+                onClick={onOpenSgf}
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+              >
+                <span className="inline-flex items-center gap-2"><FaFolderOpen aria-hidden="true" /> Open SGF</span>
+              </button>
+            </div>
           </div>
         ) : (
           <>

@@ -3037,7 +3037,17 @@ export const Layout: React.FC = () => {
           <LessonsModal onClose={() => setIsLessonsOpen(false)} />
         )}
         {isGuessMoveOpen && (
-          <GuessMoveModal onClose={() => setIsGuessMoveOpen(false)} />
+          <GuessMoveModal
+            onClose={() => setIsGuessMoveOpen(false)}
+            onBrowseProGames={() => {
+              setIsGuessMoveOpen(false);
+              setIsProGamesOpen(true);
+            }}
+            onOpenSgf={() => {
+              setIsGuessMoveOpen(false);
+              handleLoadClick();
+            }}
+          />
         )}
         {isProblemOpen && (
           <ProblemModal
