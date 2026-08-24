@@ -2179,7 +2179,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   <div>
                     {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
                   </div>
-                  {sortedItems.length > 0 && (
+                  {visibleSelectedIds.size > 0 ? (
+                    <button
+                      type="button"
+                      className="library-select-all h-6 w-6 rounded hover:bg-[var(--ui-surface-2)] flex items-center justify-center"
+                      onClick={handleClearSelection}
+                      title="Clear selection"
+                      aria-label="Clear selection"
+                    >
+                      <FaTimes size={12} />
+                    </button>
+                  ) : sortedItems.length > 0 ? (
                     <button
                       type="button"
                       className="library-select-all h-6 w-6 rounded hover:bg-[var(--ui-surface-2)] flex items-center justify-center"
@@ -2189,7 +2199,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     >
                       <FaCheckSquare size={12} />
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div className="library-breadcrumbs px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
@@ -2269,15 +2279,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     aria-label="Move selected items"
                   >
                     Move
-                  </button>
-                  <button
-                    type="button"
-                    className={`ml-auto ${bulkActionClass}`}
-                    onClick={handleClearSelection}
-                    title="Clear selection"
-                    aria-label="Clear selection"
-                  >
-                    <FaTimes size={12} />
                   </button>
                 </div>
               )}

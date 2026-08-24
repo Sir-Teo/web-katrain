@@ -92,6 +92,18 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain("isMobile ? 'h-11 min-h-11 w-11 min-w-11' : 'h-9 w-9'");
   });
 
+  it('keeps selection exit beside the selection count instead of adding a toolbar row', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+    const selectionSummaryIndex = source.indexOf('{sortedItems.length} items');
+    const clearSelectionIndex = source.indexOf('aria-label="Clear selection"');
+    const breadcrumbsIndex = source.indexOf('className="library-breadcrumbs');
+
+    expect(selectionSummaryIndex).toBeGreaterThan(-1);
+    expect(clearSelectionIndex).toBeGreaterThan(selectionSummaryIndex);
+    expect(clearSelectionIndex).toBeLessThan(breadcrumbsIndex);
+    expect(source.match(/aria-label="Clear selection"/g) ?? []).toHaveLength(1);
+  });
+
   it('sanitizes folder download names with the shared filename guard', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
