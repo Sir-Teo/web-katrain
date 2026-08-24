@@ -112,6 +112,7 @@
 /* ---------------- Header ---------------- */
 .wk-dashboard .header {
   display: flex;
+  grid-row: 1;
   align-items: center;
   gap: 10px;
   padding: 0 12px;
@@ -263,11 +264,20 @@
 .wk-dashboard[data-focus="on"] { --header-h: 0px; }
 .wk-dashboard[data-focus="on"] .header,
 .wk-dashboard[data-focus="on"] .commandbar,
-.wk-dashboard[data-focus="on"] .edge-toggle { display: none !important; }
+.wk-dashboard[data-focus="on"] .edge-toggle,
+.wk-dashboard[data-focus="on"] .gamestrip,
+.wk-dashboard[data-focus="on"] .hero-card,
+.wk-dashboard[data-focus="on"] .navbar,
+.wk-dashboard[data-focus="on"] .library,
+.wk-dashboard[data-focus="on"] .sidebar { display: none !important; }
+.wk-dashboard[data-focus="on"] .board-stage {
+  padding-bottom: 68px;
+}
 
 /* ---------------- Body grid: library | board | sidebar ---------------- */
 .wk-dashboard .body {
   display: grid;
+  grid-row: 2;
   grid-template-columns: var(--library-w) minmax(0, 1fr) var(--sidebar-w);
   min-height: 0;
   position: relative;

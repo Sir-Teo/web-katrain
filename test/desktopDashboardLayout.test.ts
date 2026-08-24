@@ -44,6 +44,17 @@ describe('desktop dashboard layout', () => {
     expect(css).toContain('flex-wrap: nowrap;');
   });
 
+  it('keeps desktop focus mode board-only, visible, and clear of its move ticker', () => {
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(css).toMatch(/\.wk-dashboard \.header \{[\s\S]*grid-row: 1;/);
+    expect(css).toMatch(/\.wk-dashboard \.body \{[\s\S]*grid-row: 2;/);
+    for (const surface of ['gamestrip', 'hero-card', 'navbar', 'library', 'sidebar']) {
+      expect(css).toContain(`.wk-dashboard[data-focus="on"] .${surface}`);
+    }
+    expect(css).toMatch(/\.wk-dashboard\[data-focus="on"\] \.board-stage \{\s*padding-bottom: 68px;/);
+  });
+
   it('surfaces build metadata from the dashboard view menu', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const menuStart = source.indexOf('const ViewMenu');
