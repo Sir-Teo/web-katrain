@@ -22,6 +22,7 @@ import {
   shouldDropHintLabel,
   usesCompactAnalysisHints,
 } from '../utils/analysisHints';
+import { gestureForPointer } from '../utils/pointerGesture';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
 import { getEvaluationClass } from '../utils/nodeAnalysis';
@@ -1872,8 +1873,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     }
     setCursorPt((prev) => (samePoint(prev, pt) ? prev : pt));
-    const activeStroke = drawStrokeRef.current;
-    if (activeStroke?.pointerId === e.pointerId) {
+    const activeStroke = gestureForPointer(drawStrokeRef.current, e.pointerId);
+    if (activeStroke) {
       const floatPt = eventToInternalFloat(e);
       if (floatPt && appendStrokePoint(activeStroke.drawing.points, floatPt)) {
         setLiveStroke({ kind: activeStroke.drawing.kind, points: [...activeStroke.drawing.points] });
@@ -1881,8 +1882,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       if (hoveredMove) onHoverMove(null);
       return;
     }
-    const activeRegionDrag = regionDragRef.current;
-    if (activeRegionDrag?.pointerId === e.pointerId) {
+    const activeRegionDrag = gestureForPointer(regionDragRef.current, e.pointerId);
+    if (activeRegionDrag) {
       if (pt && !samePoint(activeRegionDrag.end, pt)) {
         activeRegionDrag.end = pt;
         setRegionDrag({ start: activeRegionDrag.start, end: pt });
@@ -1894,8 +1895,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       if (hoveredMove) onHoverMove(null);
       return;
     }
-    const activeEditDrag = editDragRef.current;
-    if (activeEditDrag?.pointerId === e.pointerId && isEditMode && !isSelectingRegionOfInterest) {
+    const activeEditDrag = gestureForPointer(editDragRef.current, e.pointerId);
+    if (activeEditDrag && isEditMode && !isSelectingRegionOfInterest) {
       if (pt) {
         const key = editDragKey(pt);
         if (!activeEditDrag.painted.has(key)) {
@@ -1949,8 +1950,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (drawStrokeRef.current?.pointerId === e.pointerId) {
-      const { drawing } = drawStrokeRef.current;
+    const activeStroke = gestureForPointer(drawStrokeRef.current, e.pointerId);
+    if (activeStroke) {
+      const { drawing } = activeStroke;
       drawStrokeRef.current = null;
       suppressNextClickRef.current = true;
       try {
@@ -1965,8 +1967,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       return;
     }
 
-    if (regionDragRef.current?.pointerId === e.pointerId) {
-      const drag = regionDragRef.current;
+    const drag = gestureForPointer(regionDragRef.current, e.pointerId);
+    if (drag) {
       regionDragRef.current = null;
       suppressNextClickRef.current = true;
       try {
@@ -1992,7 +1994,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       return;
     }
 
-    if (editDragRef.current?.pointerId === e.pointerId) {
+    if (gestureForPointer(editDragRef.current, e.pointerId)) {
       editDragRef.current = null;
       suppressNextClickRef.current = true;
       try {
@@ -2021,14 +2023,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (editDragRef.current?.pointerId === e.pointerId) {
+    if (gestureForPointer(editDragRef.current, e.pointerId)) {
       editDragRef.current = null;
     }
-    if (drawStrokeRef.current?.pointerId === e.pointerId) {
+    if (gestureForPointer(drawStrokeRef.current, e.pointerId)) {
       drawStrokeRef.current = null;
       setLiveStroke(null);
     }
-    if (regionDragRef.current?.pointerId === e.pointerId) {
+    if (gestureForPointer(regionDragRef.current, e.pointerId)) {
       regionDragRef.current = null;
       setRegionDrag(null);
     }
