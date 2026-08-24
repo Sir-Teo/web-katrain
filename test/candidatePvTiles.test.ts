@@ -19,4 +19,15 @@ describe('CandidatePvTiles mobile affordances', () => {
     expect(styles).toContain('.candidate-pv-strip.has-overflow-left.has-overflow-right');
     expect(styles).toContain('mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);');
   });
+
+  it('really hides the strip on a short landscape phone', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    // The strip carries Tailwind's `flex` utility, and utilities outrank the
+    // components layer this file lives in — a bare `display: none` left the
+    // band on screen, stealing height from a board that is height-bound there.
+    expect(styles).toContain(
+      ".mobile-board-shell > [aria-label='Preview continuations'] {\n      display: none !important;"
+    );
+  });
 });

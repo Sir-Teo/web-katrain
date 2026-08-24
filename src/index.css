@@ -4971,9 +4971,16 @@
     }
 
     .analysis-command-bar-slot,
-    .analysis-command-bar-slot--reserve,
-    .mobile-board-shell > [aria-label='Preview continuations'] {
+    .analysis-command-bar-slot--reserve {
       display: none;
+    }
+
+    /* The strip carries Tailwind's `flex`, and utilities outrank this layer, so
+       the plain `display: none` above never reached it — a 52px band kept
+       stealing height from a board that is height-bound on a landscape phone
+       (203px instead of ~250px on an 844x390 screen). */
+    .mobile-board-shell > [aria-label='Preview continuations'] {
+      display: none !important;
     }
 
     [data-bottom-more-grid='true'] {
