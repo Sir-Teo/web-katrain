@@ -19,6 +19,7 @@ describe('MobileTabBar', () => {
     expect(source).toContain("setPointerFocusedTab(event.detail === 0 ? null : tab.id)");
     expect(source).toContain("pointerFocusedTab === tab.id ? 'mobile-tab-pointer-focus' : ''");
     expect(layout).toContain('fixed bottom-0 left-0 right-0 z-[44]');
+    expect(css).toMatch(/\.mobile-tabbar \{[\s\S]*position: relative;[\s\S]*isolation: isolate;[\s\S]*z-index: 1;/);
     expect(css).toMatch(/\.mobile-tab-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
     expect(css).toMatch(/button:focus-visible,[\s\S]*outline: 2px solid var\(--ui-accent\)/);
   });
