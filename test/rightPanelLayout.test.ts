@@ -13,7 +13,7 @@ describe('RightPanel layout', () => {
 
     expect(source).toContain('open: isMobile || modePanels.treeOpen');
     expect(source).toContain('hideHeader: isMobile');
-    expect(source).toContain("isMobile && activeMobileTab === 'tree' ? treeViewControls : null");
+    expect(source).toContain("isMobile && activeMobileTab === 'tree' ? (");
     expect(source).toContain('actions: isMobile ? undefined : treeViewControls');
     expect(source).toContain("isMobile ? 'hidden' : 'flex-1'");
   });
@@ -41,7 +41,11 @@ describe('RightPanel layout', () => {
 
     expect(source).toContain('disabled={isInsertMode || !currentNode.parent}');
     expect(source).toContain('disabled={isInsertMode || currentNode.children.length === 0}');
-    expect(source).toContain('{treeListNodes.length > 1 && (');
+    // The band only earns its 57px once it carries branch controls; the two
+    // move-navigation buttons ride in the phone header's spare width instead.
+    expect(source).toContain("{(isMobile ? branchInfo.hasBranches : treeListNodes.length > 1) && (");
+    expect(source).toContain('{!isMobile && treeNavButtons}');
+    expect(source).toContain('{treeListNodes.length > 1 ? (');
     expect(source).toContain("const branchToolbarActionClass = branchInfo.hasBranches ? 'panel-icon-button' : 'hidden';");
     expect(source).toContain("branchInfo.hasBranches && branchInfo.currentIndex > 1 ? 'panel-icon-button' : 'hidden'");
   });

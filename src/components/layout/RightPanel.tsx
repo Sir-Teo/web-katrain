@@ -385,6 +385,34 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       </button>
     </div>
   );
+  /* Two 44px buttons had a 57px band of their own under a header that runs out
+     of content at phone width (the title is hidden below 381px). They ride in
+     that empty header space instead, and the band only appears when branch
+     controls — which have no other home — are actually there. */
+  const treeNavButtons = (
+    <>
+      <button
+        type="button"
+        className="panel-icon-button"
+        title={withShortcut('To start', 'nav-start')}
+        aria-label={withShortcut('To start', 'nav-start')}
+        onClick={() => guardInsertMode(navigateStart)}
+        disabled={isInsertMode || !currentNode.parent}
+      >
+        <FaFastBackward size={12} />
+      </button>
+      <button
+        type="button"
+        className="panel-icon-button"
+        title={withShortcut('To end', 'nav-end')}
+        aria-label={withShortcut('To end', 'nav-end')}
+        onClick={() => guardInsertMode(navigateEnd)}
+        disabled={isInsertMode || currentNode.children.length === 0}
+      >
+        <FaFastForward size={12} />
+      </button>
+    </>
+  );
   const treeToolbarSeparatorClass = [
     'h-5 w-px bg-[var(--ui-border)] mx-1',
     isMobile ? 'hidden' : '',
@@ -443,7 +471,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               </button>
             </div>
           )}
-          {isMobile && activeMobileTab === 'tree' ? treeViewControls : null}
+          {isMobile && activeMobileTab === 'tree' ? (
+            <div className="flex items-center gap-3">
+              {treeListNodes.length > 1 ? (
+                <div className="flex items-center gap-1">{treeNavButtons}</div>
+              ) : null}
+              {treeViewControls}
+            </div>
+          ) : null}
           {/* Undo / Resign / AI move live in the board control bar on this
               layout; the clock has no other home, so it rides in the header. */}
           {mode === 'play' && (
@@ -478,26 +513,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               contentClassName: ['panel-section-content flex flex-col min-h-0 p-0', isMobile ? 'flex-1' : ''].join(' '),
               children: (
                 <>
-                  {treeListNodes.length > 1 && (
+                  {(isMobile ? branchInfo.hasBranches : treeListNodes.length > 1) && (
                   <div className="panel-toolbar">
-                    <button
-                      type="button"
-                      className="panel-icon-button"
-                      title={withShortcut('To start', 'nav-start')}
-                      onClick={() => guardInsertMode(navigateStart)}
-                      disabled={isInsertMode || !currentNode.parent}
-                    >
-                      <FaFastBackward size={12} />
-                    </button>
-                    <button
-                      type="button"
-                      className="panel-icon-button"
-                      title={withShortcut('To end', 'nav-end')}
-                      onClick={() => guardInsertMode(navigateEnd)}
-                      disabled={isInsertMode || currentNode.children.length === 0}
-                    >
-                      <FaFastForward size={12} />
-                    </button>
+                    {!isMobile && treeNavButtons}
                     <div className={branchInfo.hasBranches ? treeToolbarSeparatorClass : 'hidden'} />
                     <button
                       type="button"
