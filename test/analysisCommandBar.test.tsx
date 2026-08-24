@@ -122,6 +122,29 @@ describe('AnalysisCommandBar', () => {
     expect(styles).not.toContain('.analysis-command-bar-slot .analysis-command-bar__status--error {\n      display: none;');
   });
 
+  it('keeps the phone metric strip on one scrollable row', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    // A wrapping grid defeated the strip's own overflow affordances: three
+    // stats fell into a ragged 2 + 1 block that also stranded the bar's second
+    // column empty, costing ~37px of board column for nothing.
+    expect(styles).toContain('display: flex;\n      grid-column: 1 / -1;\n      scroll-padding-inline: 0 1rem;');
+    expect(styles).toContain(
+      '.analysis-command-bar__metrics > .analysis-command-bar__metric:first-child',
+    );
+    expect(styles).not.toContain('.analysis-command-bar__metrics:has(> :nth-child(4))');
+  });
+
+  it('marks active phone toggles with a fill rather than a detached underline', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    // 44px touch targets left `inset 0 -2px` floating ~20px under the label.
+    expect(styles).not.toContain('box-shadow: inset 0 -2px 0 var(--ui-accent);');
+    expect(styles).toContain(
+      '.analysis-command-bar__button.active {\n      background: var(--ui-accent-soft);',
+    );
+  });
+
   it('keeps fallback and error states visible in the status pill', () => {
     const html = renderToStaticMarkup(
       <AnalysisCommandBar
