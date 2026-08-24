@@ -71,6 +71,10 @@ describe('LibraryPanel accessibility', () => {
     expect(source.match(/library-header-collapsible-action/g) ?? []).toHaveLength(2);
     expect(source).toContain('<FaPlus size={12} /> Create new folder');
     expect(source).toContain('<FaFolderOpen size={12} /> Import files');
+    expect(source).toContain("maxHeight: isMobile");
+    expect(source).toContain("var(--mobile-tabbar-height)");
+    expect(source.match(/window\.addEventListener\('resize', close\)/g) ?? []).toHaveLength(2);
+    expect(styles).toMatch(/\.library-context-menu \{[\s\S]*overflow-y: auto;[\s\S]*overscroll-behavior: contain;/);
     expect(styles).toContain(".library-tree-node[data-library-row='folder'] .library-tree-node-more");
     expect(styles).toContain('grid-template-columns: 44px 44px 16px minmax(0, 1fr) auto 44px;');
     expect(styles).toMatch(/@media \(max-width: 1023px\)[\s\S]*\[data-library-toolbar='true'\] input\[type='search'\],[\s\S]*\.library-breadcrumb-button \{[\s\S]*min-height: 44px;/);

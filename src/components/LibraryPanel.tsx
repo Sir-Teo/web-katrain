@@ -496,10 +496,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
     window.addEventListener('pointerdown', close);
     window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       window.removeEventListener('pointerdown', close);
       window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [contextMenu]);
@@ -525,10 +527,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
 
     window.addEventListener('pointerdown', closeOnOutsidePointer);
+    window.addEventListener('resize', close);
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('pointerdown', closeOnOutsidePointer);
+      window.removeEventListener('resize', close);
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [headerMenuOpen]);
@@ -1726,7 +1730,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       <div
         ref={contextMenuRef}
         className="library-context-menu"
-        style={{ left: contextMenu.x, top: contextMenu.y }}
+        style={{
+          left: contextMenu.x,
+          top: contextMenu.y,
+          maxHeight: isMobile
+            ? `calc(100dvh - ${contextMenu.y + 8}px - var(--mobile-tabbar-height) - env(safe-area-inset-bottom))`
+            : `calc(100dvh - ${contextMenu.y + 8}px)`,
+        }}
         role="menu"
         aria-label="Library actions"
         onKeyDown={handleContextMenuKeyDown}
@@ -2000,7 +2010,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <div
               ref={headerMenuRef}
               className="library-context-menu"
-              style={{ position: 'absolute', right: 8, top: 'calc(100% - 4px)', left: 'auto' }}
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: 'calc(100% - 4px)',
+                left: 'auto',
+                maxHeight: isMobile
+                  ? 'calc(100dvh - var(--ui-bar-height) - var(--mobile-tabbar-height) - env(safe-area-inset-bottom) - 8px)'
+                  : 'calc(100dvh - var(--ui-bar-height) - 8px)',
+              }}
             role="menu"
             aria-label="More library actions"
             onKeyDown={handleHeaderMenuKeyDown}

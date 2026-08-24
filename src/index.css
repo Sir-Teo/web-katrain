@@ -2780,6 +2780,8 @@
     position: fixed;
     z-index: 90;
     min-width: 220px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 5px;
     border: 1px solid var(--ui-border);
     border-radius: 6px;
