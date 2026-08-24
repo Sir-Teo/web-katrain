@@ -34,4 +34,16 @@ describe('note editor keyboard actions', () => {
     expect(source).toContain('data-note-edit="true"');
     expect(source.match(/className="grid h-11 w-11[^\n]+lg:h-7 lg:w-7"/g)).toHaveLength(2);
   });
+
+  it('offers one way to start an empty note, not three', () => {
+    const source = readFileSync('src/components/NotesPanel.tsx', 'utf8');
+
+    // The empty state is already a labelled button naming the shortcut, so a
+    // header "Add" button beside it repeated the action and the hint, and the
+    // text-size steppers had nothing to size.
+    expect(source).toContain('    ) : noteHasContent ? (');
+    expect(source).toContain("<span>Edit</span>");
+    expect(source).not.toContain("<span>{noteHasContent ? 'Edit' : 'Add'}</span>");
+    expect(source).toContain('{(noteHasContent || isEditingNote) && (');
+  });
 });

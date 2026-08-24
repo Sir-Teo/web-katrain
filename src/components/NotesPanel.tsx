@@ -579,6 +579,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <div className="text-xs font-semibold ui-text-faint" title="Saved as an SGF comment (C property) with the game">Note</div>
+              {/* Nothing to size until there is text: the steppers only stood
+                  next to an empty placeholder. */}
+              {(noteHasContent || isEditingNote) && (
               <div className="flex items-center rounded border border-[var(--ui-border)] bg-[var(--ui-surface)]" role="group" aria-label="Note text size">
                 <button
                   type="button"
@@ -601,6 +604,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                   <FaPlus size={9} aria-hidden="true" />
                 </button>
               </div>
+              )}
             </div>
             {isEditingNote ? (
               <div className="flex items-center gap-1.5">
@@ -627,7 +631,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                   <span>Cancel</span>
                 </button>
               </div>
-            ) : (
+            ) : noteHasContent ? (
               <button
                 type="button"
                 className="panel-action-button"
@@ -641,12 +645,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                 data-note-edit="true"
               >
                 <FaEdit size={11} aria-hidden="true" />
-                <span>{noteHasContent ? 'Edit' : 'Add'}</span>
+                <span>Edit</span>
                 {noteShortcutLabel !== 'Disabled' && (
                   <kbd className="font-mono text-[10px] ui-text-faint">{noteShortcutLabel}</kbd>
                 )}
               </button>
-            )}
+            ) : null}
           </div>
           {isEditingNote ? (
             <textarea
