@@ -1578,7 +1578,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isSelectingRegionOfInterest: false,
       notification: !state.isEditMode
         ? { message: 'Edit mode: setup stones, labels, and markers are active.', type: 'info' }
-        : { message: 'Edit mode off.', type: 'info' },
+        : null,
     })),
 
   setEditTool: (tool) =>

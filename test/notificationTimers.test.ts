@@ -87,4 +87,14 @@ describe('notification auto-dismiss timers', () => {
     vi.advanceTimersByTime(1);
     expect(useGameStore.getState().notification).toBeNull();
   });
+
+  it('leaves the board clear when edit mode closes', () => {
+    const store = useGameStore.getState();
+    if (!store.isEditMode) store.toggleEditMode();
+
+    useGameStore.getState().toggleEditMode();
+
+    expect(useGameStore.getState().isEditMode).toBe(false);
+    expect(useGameStore.getState().notification).toBeNull();
+  });
 });

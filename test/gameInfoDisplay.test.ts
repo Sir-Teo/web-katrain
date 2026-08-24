@@ -45,7 +45,8 @@ describe('game info display helpers', () => {
     const component = readFileSync('src/components/GameInfoPanel.tsx', 'utf8');
     const css = readFileSync('src/index.css', 'utf8');
 
-    expect(component).toContain("isEditingInfo ? 'game-info-edit-header' : ''");
+    expect(component).toContain('data-game-info-display-actions={displayMode');
+    expect(component).toContain('<div className="game-info-edit-header');
     expect(css).toMatch(/@media \(max-width: 1023px\)[\s\S]*\.game-info-edit-header \{[^}]*position: sticky;[^}]*top: 0;/);
   });
 

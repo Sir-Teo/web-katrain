@@ -136,6 +136,38 @@ export const GameInfoPanel: React.FC = () => {
     }
   };
 
+  const renderPanelActions = (displayMode = false) => (
+    <div
+      className="ml-auto flex shrink-0 items-center gap-1"
+      data-game-info-display-actions={displayMode ? 'true' : undefined}
+    >
+      {!isEditingInfo && sourceLink ? (
+        <a
+          className="panel-action-button inline-flex items-center gap-1"
+          href={sourceLink.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Open link from ${sourceLink.sourceLabel}`}
+          aria-label={`Open link from ${sourceLink.sourceLabel}`}
+          data-game-info-source-link="true"
+        >
+          <FaExternalLinkAlt size={11} aria-hidden="true" />
+          Source
+        </a>
+      ) : null}
+      <button
+        type="button"
+        className="panel-action-button inline-flex items-center gap-1"
+        onClick={() => setIsEditingInfo((current) => !current)}
+        aria-pressed={isEditingInfo}
+        data-game-info-edit-toggle="true"
+      >
+        {isEditingInfo ? <FaCheck size={11} aria-hidden="true" /> : <FaEdit size={11} aria-hidden="true" />}
+        {isEditingInfo ? 'Done' : 'Edit'}
+      </button>
+    </div>
+  );
+
   const renderField = ({ key, label, placeholder, className }: GameInfoField) => (
     <label key={key} className={['min-w-0 space-y-1', className ?? ''].join(' ')}>
       <span className="block text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
@@ -160,11 +192,14 @@ export const GameInfoPanel: React.FC = () => {
       className="w-full text-left space-y-3 rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3"
       data-game-info-display="true"
     >
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{title}</div>
-        {/* Only worth a line when it explains an empty-looking card — otherwise
-            the players and details are right below. */}
-        {hasMetadata ? null : <div className="mt-1 text-[11px] ui-text-faint">No metadata yet</div>}
+      <div className="flex min-w-0 items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{title}</div>
+          {/* Only worth a line when it explains an empty-looking card — otherwise
+              the players and details are right below. */}
+          {hasMetadata ? null : <div className="mt-1 text-[11px] ui-text-faint">No metadata yet</div>}
+        </div>
+        {renderPanelActions(true)}
       </div>
 
       <div className="grid grid-cols-1 gap-2">
@@ -279,43 +314,18 @@ export const GameInfoPanel: React.FC = () => {
 
   return (
     <div className="space-y-3" data-game-info-panel="true">
-      <div className={['flex items-center justify-between gap-2', isEditingInfo ? 'game-info-edit-header' : ''].join(' ')}>
+      {isEditingInfo ? (
+      <div className="game-info-edit-header flex items-center justify-between gap-2">
         {/* Display mode needs no heading: the enclosing section is already
             labelled and the game title is the next line. Edit mode keeps one
             because "Editing…" is state the reader has to see. */}
-        {isEditingInfo ? (
-          <div className="min-w-0">
-            <div className="truncate text-xs font-semibold text-[var(--ui-text)]">Editing game info</div>
-            <div className="text-[10px] ui-text-faint">SGF root metadata</div>
-          </div>
-        ) : null}
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          {!isEditingInfo && sourceLink ? (
-            <a
-              className="panel-action-button inline-flex items-center gap-1"
-              href={sourceLink.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`Open link from ${sourceLink.sourceLabel}`}
-              aria-label={`Open link from ${sourceLink.sourceLabel}`}
-              data-game-info-source-link="true"
-            >
-              <FaExternalLinkAlt size={11} aria-hidden="true" />
-              Source
-            </a>
-          ) : null}
-          <button
-            type="button"
-            className="panel-action-button inline-flex items-center gap-1"
-            onClick={() => setIsEditingInfo((current) => !current)}
-            aria-pressed={isEditingInfo}
-            data-game-info-edit-toggle="true"
-          >
-            {isEditingInfo ? <FaCheck size={11} aria-hidden="true" /> : <FaEdit size={11} aria-hidden="true" />}
-            {isEditingInfo ? 'Done' : 'Edit'}
-          </button>
+        <div className="min-w-0">
+          <div className="truncate text-xs font-semibold text-[var(--ui-text)]">Editing game info</div>
+          <div className="text-[10px] ui-text-faint">SGF root metadata</div>
         </div>
+        {renderPanelActions()}
       </div>
+      ) : null}
       {isEditingInfo ? renderEditMode() : renderDisplayMode()}
     </div>
   );
