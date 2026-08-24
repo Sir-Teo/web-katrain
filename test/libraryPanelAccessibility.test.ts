@@ -96,12 +96,23 @@ describe('LibraryPanel accessibility', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
     const selectionSummaryIndex = source.indexOf('{sortedItems.length} items');
     const clearSelectionIndex = source.indexOf('aria-label="Clear selection"');
-    const breadcrumbsIndex = source.indexOf('className="library-breadcrumbs');
 
     expect(selectionSummaryIndex).toBeGreaterThan(-1);
     expect(clearSelectionIndex).toBeGreaterThan(selectionSummaryIndex);
-    expect(clearSelectionIndex).toBeLessThan(breadcrumbsIndex);
     expect(source.match(/aria-label="Clear selection"/g) ?? []).toHaveLength(1);
+  });
+
+  it('carries the folder trail on the toolbar row rather than a band of its own', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+    const toolbarIndex = source.indexOf('<div className="panel-toolbar">');
+    const breadcrumbsIndex = source.indexOf('className="library-breadcrumbs');
+    const summaryIndex = source.indexOf('{sortedItems.length} items');
+
+    // The trail sat under a toolbar row that was empty between the root button
+    // and the item count — 26px of phone panel for one short line.
+    expect(breadcrumbsIndex).toBeGreaterThan(toolbarIndex);
+    expect(breadcrumbsIndex).toBeLessThan(summaryIndex);
+    expect(source).not.toContain('library-breadcrumbs px-3 py-1');
   });
 
   it('sanitizes folder download names with the shared filename guard', () => {

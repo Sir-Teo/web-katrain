@@ -2175,6 +2175,34 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 >
                   <FaFolderOpen size={12} />
                 </button>
+                {/* The trail sat in a band of its own under a toolbar row that
+                    was empty between the root button and the item count. It
+                    reads as the same thing, so it shares the row. */}
+                <div className="library-breadcrumbs flex min-w-0 flex-wrap items-center gap-1 text-[11px] ui-text-faint">
+                  {/* The trail already ends at the current folder, so naming it
+                      in the label too printed it twice ("Folder: X  X"). */}
+                  <span>Folder:</span>
+                  {isSearching || breadcrumbs.length === 0 ? (
+                    <span>{currentFolderName}</span>
+                  ) : (
+                    breadcrumbs.map((crumb, index) => (
+                      <button
+                        key={crumb.id}
+                        type="button"
+                        className="library-breadcrumb-button px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                        onClick={() => setCurrentFolderId(crumb.id)}
+                        aria-label={`Open folder ${crumb.name}`}
+                      >
+                        {index === 0 ? crumb.name : `/${crumb.name}`}
+                      </button>
+                    ))
+                  )}
+                  {isDragging && (
+                    <span className="ui-accent-soft border rounded px-2 py-0.5">
+                      Drop SGF, OGS URL, ZIP, or board images to import
+                    </span>
+                  )}
+                </div>
                 <div className="ml-auto flex items-center gap-2 text-[11px] ui-text-faint">
                   <div>
                     {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
@@ -2201,31 +2229,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </button>
                   ) : null}
                 </div>
-              </div>
-              <div className="library-breadcrumbs px-3 py-1 text-[11px] ui-text-faint flex flex-wrap items-center gap-1 border-b border-[var(--ui-border)]">
-                {/* The trail already ends at the current folder, so naming it
-                    in the label too printed it twice ("Folder: X  X"). */}
-                <span>Folder:</span>
-                {isSearching || breadcrumbs.length === 0 ? (
-                  <span>{currentFolderName}</span>
-                ) : (
-                  breadcrumbs.map((crumb, index) => (
-                    <button
-                      key={crumb.id}
-                      type="button"
-                      className="library-breadcrumb-button px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
-                      onClick={() => setCurrentFolderId(crumb.id)}
-                      aria-label={`Open folder ${crumb.name}`}
-                    >
-                      {index === 0 ? crumb.name : `/${crumb.name}`}
-                    </button>
-                  ))
-                )}
-                {isDragging && (
-                  <span className="ml-auto ui-accent-soft border rounded px-2 py-0.5">
-                    Drop SGF, OGS URL, ZIP, or board images to import
-                  </span>
-                )}
               </div>
               {visibleSelectedIds.size > 0 && (
                 <div className="panel-toolbar border-b border-[var(--ui-border)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]">
