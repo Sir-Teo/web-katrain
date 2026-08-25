@@ -2062,7 +2062,13 @@ async function main() {
           reviewTab?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           reviewSmallTouchTargets = auditSmallTouchTargets();
-          document.querySelector('[data-note-edit="true"]')?.click();
+          // An empty note has no Edit button: the preview area is the affordance
+          // there, carrying role="button" and the "Add note" label. This mirrors
+          // openEditor() in the lifecycle smoke below, which already handles both.
+          (
+            document.querySelector('[data-note-edit="true"]') ||
+            document.querySelector('[data-note-preview="true"]')
+          )?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           const noteEditor = document.querySelector('[data-note-editor="true"]');
           noteEditorReachable = !!noteEditor;
