@@ -47,6 +47,12 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose, returnFocus }
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
+      // The visible heading is the product name, which is right for the panel
+      // but announces this dialog as "Web KaTrain" — indistinguishable from the
+      // app itself, where every sibling dialog says what it is. Name it after
+      // the command that opens it; the heading still reads as before, and the
+      // accessible name contains it.
+      aria-label="About Web KaTrain"
       aria-labelledby="about-title"
       onClick={onClose}
     >

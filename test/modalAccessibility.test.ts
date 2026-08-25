@@ -241,4 +241,18 @@ describe('modal accessibility semantics', () => {
     const sharedButton = readFileSync('src/components/layout/ui.tsx', 'utf8');
     expect(sharedButton).toContain('ariaExpanded === false ? undefined : ariaControls');
   });
+
+
+  it('names the About dialog after what it is, not after the app', () => {
+    const source = readFileSync('src/components/AboutDialog.tsx', 'utf8');
+
+    // Its visible heading is the product name, which suits the panel but made
+    // the dialog announce as "Web KaTrain" — indistinguishable from the app,
+    // where Settings, Keyboard Shortcuts, Photo Board and the rest all say
+    // what they are. aria-label wins over the labelledby heading, and still
+    // contains the visible text, so the visible name is preserved.
+    expect(source).toContain('aria-label="About Web KaTrain"');
+    expect(source).toContain('aria-labelledby="about-title"');
+    expect(source).toContain('>\n              Web KaTrain\n            </h2>');
+  });
 });
