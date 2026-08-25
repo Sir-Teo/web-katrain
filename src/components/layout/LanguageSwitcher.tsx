@@ -149,13 +149,18 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
                 onClick={() => selectLocale(locale.value)}
                 data-language-option={locale.value}
               >
-                <span className="w-8 shrink-0 text-xs font-semibold text-[var(--ui-text-faint)]">{getAppLocaleShortLabel(locale.value)}</span>
+                <span lang={locale.htmlLang} className="w-8 shrink-0 text-xs font-semibold text-[var(--ui-text-faint)]">{getAppLocaleShortLabel(locale.value)}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{locale.nativeLabel}</span>
+                  {/* Each part carries its own language: these options have no
+                      aria-label, so their accessible name is this visible text
+                      and a screen reader would otherwise read the native names
+                      with the page language's phonetics. The select in
+                      SettingsModal already marks its options this way. */}
+                  <span lang={locale.htmlLang} className="block truncate text-sm font-medium">{locale.nativeLabel}</span>
                   {/* The English name only earns a line when it differs from the
                       native one — for English itself the two are identical. */}
                   {locale.label !== locale.nativeLabel && (
-                    <span className="block truncate text-[11px] text-[var(--ui-text-faint)]">{locale.label}</span>
+                    <span lang="en" className="block truncate text-[11px] text-[var(--ui-text-faint)]">{locale.label}</span>
                   )}
                 </span>
                 {active && <FaCheck aria-hidden="true" className="shrink-0 text-[var(--ui-accent)]" size={12} />}
