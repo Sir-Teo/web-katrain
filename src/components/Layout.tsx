@@ -79,7 +79,7 @@ import {
   loadUiState,
   saveUiState,
 } from './layout/types';
-import { rgba } from './layout/ui-utils';
+import { formatBoardAnnouncement, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
@@ -1357,6 +1357,16 @@ export const Layout: React.FC = () => {
     void treeVersion;
     return getCurrentLineMoveNumber(currentNode);
   }, [currentNode, treeVersion]);
+  const boardAnnouncement = useMemo(() => {
+    void treeVersion;
+    return formatBoardAnnouncement({
+      move: currentNode.move,
+      moveNumber: currentMoveNumber,
+      totalMoves: totalMovesInCurrentLine,
+      boardSize,
+    });
+  }, [boardSize, currentMoveNumber, currentNode, totalMovesInCurrentLine, treeVersion]);
+
   const branchInfo = useMemo(() => {
     void treeVersion;
     return getBranchInfo(currentNode);
@@ -2937,6 +2947,9 @@ export const Layout: React.FC = () => {
       onDragOver={handleAppDragOver}
       onDrop={handleAppDrop}
     >
+      <div className="sr-only" aria-live="polite" aria-atomic="true" data-board-announcer="true">
+        {boardAnnouncement}
+      </div>
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
         {isAboutOpen && (

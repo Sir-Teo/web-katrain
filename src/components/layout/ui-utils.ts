@@ -10,6 +10,28 @@ export function formatMoveLabel(x: number, y: number, boardSize = 19): string {
   return `${col}${row}`;
 }
 
+/**
+ * What a screen reader hears when the board position changes.
+ *
+ * The board itself carries a static "Go board" label and the move counter is an
+ * input whose value changes silently, so navigating a game announced nothing.
+ * Keep this to the position — number, colour, point — which is what the move
+ * counter and the tree node labels already say in text.
+ */
+export function formatBoardAnnouncement(args: {
+  move: { x: number; y: number; player: 'black' | 'white' } | null;
+  moveNumber: number;
+  totalMoves: number;
+  boardSize?: number;
+}): string {
+  const { move, moveNumber, totalMoves, boardSize = 19 } = args;
+  if (!move) {
+    return totalMoves > 0 ? `Start of game, ${totalMoves} moves` : 'Empty board';
+  }
+  const player = move.player === 'black' ? 'Black' : 'White';
+  return `Move ${moveNumber} of ${totalMoves}, ${player} ${formatMoveLabel(move.x, move.y, boardSize)}`;
+}
+
 export function playerToShort(p: 'black' | 'white'): string {
   return p === 'black' ? 'B' : 'W';
 }
