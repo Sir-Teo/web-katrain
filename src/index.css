@@ -6,7 +6,7 @@
    Using `lg:` for shell decisions broke short, wide viewports: the mobile
    right panel went `lg:static` while the app was still in the mobile shell,
    so its `w-full` consumed the whole row and the board collapsed to 0px. */
-@custom-variant desktop-shell ((min-width: 1024px) and (min-height: 500px));
+@custom-variant desktop-shell (@media (min-width: 1024px) and (min-height: 500px));
 
 @layer base {
   :root,

@@ -271,8 +271,13 @@ describe('desktop dashboard layout', () => {
     expect(panel).toContain('desktop-shell:static');
     expect(panel).toContain("showOnDesktop ? 'desktop-shell:flex' : 'desktop-shell:hidden'");
 
-    // The variant must track the same thresholds the shell logic uses.
-    expect(css).toContain('@custom-variant desktop-shell ((min-width: 1024px) and (min-height: 500px))');
+    // The variant must track the same thresholds the shell logic uses, and it
+    // must be declared as a media variant: Tailwind v4 only treats the
+    // parentheses as a media query when they start with `@media`. Written
+    // without it the variant still parses, emits no CSS at all, and every
+    // `desktop-shell:` class across the app silently does nothing — which is
+    // how ~50 usages in 16 files sat inert while this assertion passed.
+    expect(css).toContain('@custom-variant desktop-shell (@media (min-width: 1024px) and (min-height: 500px));');
     expect(responsive).toContain('DESKTOP_LAYOUT_MIN_WIDTH = 1024');
     expect(responsive).toContain('DESKTOP_LAYOUT_MIN_HEIGHT = 500');
   });
