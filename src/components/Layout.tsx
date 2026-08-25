@@ -421,8 +421,6 @@ export const Layout: React.FC = () => {
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
     return Number.isFinite(parsed) ? parsed : 360;
   });
-  const [isResizingLeft, setIsResizingLeft] = useState(false);
-  const [isResizingRight, setIsResizingRight] = useState(false);
   const [libraryVersion, setLibraryVersion] = useState(0);
   const [recentLibraryItems, setRecentLibraryItems] = useState<LibraryFile[]>([]);
   const [loadedLibraryFileId, setLoadedLibraryFileId] = useState<string | null>(null);
@@ -1128,37 +1126,6 @@ export const Layout: React.FC = () => {
     );
     return { minLeft, minRight, maxLeft, maxRight };
   }, [isDesktop, libraryOpen, leftPanelWidth, rightPanelWidth, showSidebar, viewportWidth]);
-
-  useEffect(() => {
-    if (!isResizingLeft && !isResizingRight) return;
-    const { minLeft, minRight, maxLeft, maxRight } = getPanelLimits();
-    const onMove = (e: MouseEvent) => {
-      if (isResizingLeft) {
-        const next = Math.min(maxLeft, Math.max(minLeft, e.clientX));
-        setLeftPanelWidth(next);
-      }
-      if (isResizingRight) {
-        const next = Math.min(maxRight, Math.max(minRight, window.innerWidth - e.clientX));
-        setRightPanelWidth(next);
-      }
-    };
-    const onUp = () => {
-      setIsResizingLeft(false);
-      setIsResizingRight(false);
-    };
-    document.body.style.cursor = 'col-resize';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [
-    getPanelLimits,
-    isResizingLeft,
-    isResizingRight,
-  ]);
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -3503,14 +3470,6 @@ export const Layout: React.FC = () => {
           externalItemCreate={externalLibraryItemCreate}
         />
 
-        {isDesktop && libraryOpen && (
-          <div
-            className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
-            onMouseDown={() => setIsResizingLeft(true)}
-            onDoubleClick={handleToggleLibrary}
-          />
-        )}
-
         {/* Main board column — a <main> landmark so assistive tech can skip
             straight here. This layout previously exposed no main/header at all,
             leaving the tab bar as its only landmark. */}
@@ -3714,55 +3673,8 @@ export const Layout: React.FC = () => {
             </div>
           </div>
 
-          {!isMobile && settings.showBoardControls && bottomBarOpen && !focusMode && (
-            <BottomControlBar
-              passTurn={passTurn}
-              navigateBack={navigateBack}
-              navigateForward={navigateForward}
-              canNavigateBack={historyNavigation.back}
-              canNavigateForward={historyNavigation.forward}
-              navigateToMove={navigateToMove}
-              navigateStart={navigateStart}
-              navigateEnd={navigateEnd}
-              branchInfo={branchInfo}
-              switchBranch={switchBranch}
-              switchToBranchIndex={switchToBranchIndex}
-              findMistake={findMistake}
-              canFindPreviousMistake={mistakeNavigation.previous}
-              canFindNextMistake={mistakeNavigation.next}
-              rotateBoard={rotateBoard}
-              currentPlayer={currentPlayer}
-              currentMoveNumber={currentMoveNumber}
-              totalMovesInCurrentLine={totalMovesInCurrentLine}
-              boardSize={boardSize}
-              handicap={handicap}
-              blackName={blackName}
-              whiteName={whiteName}
-              blackRank={blackRank}
-              whiteRank={whiteRank}
-              capturedBlack={capturedBlack}
-              capturedWhite={capturedWhite}
-              isInsertMode={isInsertMode}
-              passPolicyColor={passPolicyColor}
-              passPv={passPv}
-              jumpBack={jumpBack}
-              jumpForward={jumpForward}
-              isMobile={false}
-              onUndo={handleUndo}
-              onAiMove={requestAiMove}
-              onResign={handleResign}
-            />
-          )}
 
         </main>
-
-        {isDesktop && showSidebar && (
-          <div
-            className="hidden lg:block w-1 cursor-col-resize bg-[var(--ui-border)] hover:bg-[var(--ui-border-strong)] transition-colors"
-            onMouseDown={() => setIsResizingRight(true)}
-            onDoubleClick={handleToggleSidebar}
-          />
-        )}
 
         <RightPanel
           open={rightPanelOpen}
