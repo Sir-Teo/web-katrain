@@ -963,7 +963,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 {/* Overlay toggles and review actions are analyst tooling; the
                     Play tab stays focused on the game itself. */}
                 {mode === 'analyze' && (
-                <div className="overlay-row">
+                <div className="overlay-row overlay-row--toggles">
                   {overlayBtn('analysisShowChildren', 'Children', 'sitemap')}
                   {overlayBtn('analysisShowEval', 'Dots', 'circle')}
                   {overlayBtn('analysisShowHints', 'Top moves', 'layers', settings.analysisShowPolicy)}
