@@ -211,6 +211,9 @@ function assertViewport(result) {
   if (result.boardInteractionFailures?.length > 0) {
     failures.push(...result.boardInteractionFailures);
   }
+  if (result.boardCoverageFailures?.length > 0) {
+    failures.push(...result.boardCoverageFailures);
+  }
   if (result.moveTreeEmptyStateFailures?.length > 0) {
     failures.push(...result.moveTreeEmptyStateFailures);
   }
@@ -779,6 +782,38 @@ async function main() {
           }
           control.dispatchEvent(new Event('input', { bubbles: true }));
         };
+        // Every intersection must actually be clickable. The smoke test above
+        // dispatches straight at the board element, so it cannot see UI painted
+        // on top of it — the failure mode that once put the edit palette over 76
+        // intersections and the tree controls over the last few moves.
+        const auditBoardCoverage = () => {
+          const boardEl = document.querySelector('[data-board-snapshot="true"]');
+          if (!boardEl) return [];
+          const size = Number(boardEl.getAttribute('data-board-size'));
+          const cellSize = Number(boardEl.getAttribute('data-board-cell-size'));
+          const originX = Number(boardEl.getAttribute('data-board-origin-x'));
+          const originY = Number(boardEl.getAttribute('data-board-origin-y'));
+          if (!Number.isFinite(size) || !Number.isFinite(cellSize) || !Number.isFinite(originX) || !Number.isFinite(originY)) return [];
+          const r = boardEl.getBoundingClientRect();
+          const blockers = new Map();
+          for (let y = 0; y < size; y += 1) {
+            for (let x = 0; x < size; x += 1) {
+              const px = r.left + originX + x * cellSize;
+              const py = r.top + originY + y * cellSize;
+              if (px < 0 || py < 0 || px > innerWidth || py > innerHeight) continue;
+              const hit = document.elementFromPoint(px, py);
+              if (!hit) continue;
+              // The board's own stack is fine, including transparent ancestors.
+              if (hit === boardEl || boardEl.contains(hit) || hit.contains(boardEl)) continue;
+              const label = (hit.getAttribute('aria-label') || hit.getAttribute('title') ||
+                (hit.className || '').toString() || hit.tagName || 'unknown').toString().trim().slice(0, 40);
+              blockers.set(label, (blockers.get(label) || 0) + 1);
+            }
+          }
+          return Array.from(blockers.entries()).map(([label, count]) =>
+            count + ' board intersection(s) covered by ' + label);
+        };
+
         const runBoardInteractionSmoke = async () => {
           const failures = [];
           const boardEl = document.querySelector('[data-board-snapshot="true"]');
@@ -2428,6 +2463,7 @@ async function main() {
         const navigationSmokeFailures = await runNavigationSmoke();
         const captureSmokeFailures = await runCaptureSmoke();
         const boardInteractionFailures = await runBoardInteractionSmoke();
+        const boardCoverageFailures = auditBoardCoverage();
         const postMoveMobileStatus = ${viewport.mobile}
           ? {
               turnVisible: isVisibleBox(document.querySelector('[data-mobile-turn-chip="true"]')),
@@ -2525,6 +2561,7 @@ async function main() {
           analysisDepthFailures,
           analysisDepthSmallTouchTargets,
           boardInteractionFailures,
+          boardCoverageFailures,
           moveTreeEmptyStateFailures,
           commandBarOverlaps,
           topToggleOverTopBar: intersects(rect(topToggle), topBarRect),
