@@ -23,7 +23,7 @@ interface QuizStats {
 const ratingFor = (error: number): { label: string; tone: string } => {
   if (error <= 1.5) return { label: 'Perfect read', tone: 'var(--ui-success, #38a169)' };
   if (error <= 4) return { label: 'Great estimate', tone: 'var(--ui-success, #38a169)' };
-  if (error <= 8) return { label: 'Close', tone: 'var(--ui-warn, #d69e2e)' };
+  if (error <= 8) return { label: 'Close', tone: 'var(--ui-warning, #d69e2e)' };
   return { label: 'Off the mark', tone: 'var(--ui-danger, #e53e3e)' };
 };
 

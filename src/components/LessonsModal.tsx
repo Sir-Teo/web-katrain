@@ -50,7 +50,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
       setSolved(true);
       setFeedback({ tone: 'var(--ui-success,#38a169)', text: step.successText ?? 'Correct!' });
     } else {
-      setFeedback({ tone: 'var(--ui-warn,#d69e2e)', text: step.hint ?? 'Not quite — try again.' });
+      setFeedback({ tone: 'var(--ui-warning,#d69e2e)', text: step.hint ?? 'Not quite — try again.' });
     }
   };
 
