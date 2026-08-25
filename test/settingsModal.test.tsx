@@ -241,6 +241,22 @@ describe('SettingsModal', () => {
     expect(css).toMatch(/\n {2}\.toggle:checked::after \{[^}]*translate\(14px, -50%\)/);
   });
 
+  it('shows a board theme description in full instead of clipping it', () => {
+    const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
+
+    const descIndex = source.indexOf('{theme.config.description}');
+    expect(descIndex).toBeGreaterThan(-1);
+    const spanStart = source.lastIndexOf('<span', descIndex);
+    const span = source.slice(spanStart, descIndex);
+    expect(span.length).toBeGreaterThan(60);
+
+    // The cards are 127px wide at phone width, which cut up to 109px off a
+    // description, and the title attribute holding the rest never opens on
+    // touch. The caption exists to explain the theme, so let it wrap.
+    expect(span).not.toContain('truncate');
+    expect(span).toContain('text-[0.625rem]');
+  });
+
   it('lets a backend option name and its badge share the row without crushing the name', () => {
     const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
 

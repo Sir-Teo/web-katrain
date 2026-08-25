@@ -720,7 +720,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             </span>
                                                             {theme.config.description ? (
                                                                 <span
-                                                                    className="mt-1 block truncate text-[0.625rem] leading-tight ui-text-faint"
+                                                                    // A single clipped line is the one thing this caption cannot
+                                                                    // be: at phone width the cards are 127px wide, so up to 109px
+                                                                    // of a description was cut, and the hover title carrying the
+                                                                    // rest is unreachable on touch. Let it wrap — the longest one
+                                                                    // we ship takes three lines there and one on desktop.
+                                                                    className="mt-1 block text-[0.625rem] leading-tight ui-text-faint"
                                                                     title={theme.config.description}
                                                                 >
                                                                     {theme.config.description}
