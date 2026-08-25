@@ -185,4 +185,15 @@ describe('BottomControlBar', () => {
     expect(html).toContain('Recovery copy saved at');
     expect(html).toContain('still unsaved until you save to Library or download SGF');
   });
+
+
+  it('puts the mobile control bar in a named landmark', () => {
+    const html = renderToStaticMarkup(<BottomControlBar {...baseProps} isMobile={true} />);
+
+    // The bar is fixed outside <main>, so without this it was the only cluster
+    // of controls on mobile sitting in no landmark at all — 7 of 25 controls
+    // unreachable by landmark navigation, where desktop had 0 of 51.
+    expect(html).toContain('role="region"');
+    expect(html).toContain('aria-label="Board controls"');
+  });
 });

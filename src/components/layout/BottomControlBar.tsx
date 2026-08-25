@@ -420,7 +420,15 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
   if (isMobile) {
     return (
-      <div className="mobile-bottom-controls ui-bar ui-bar-height ui-bar-pad border-t flex items-center gap-1.5 sm:gap-2 select-none">
+      // A landmark so the primary game controls are reachable without tabbing
+      // the whole page: this bar is fixed outside <main>, so on mobile it was
+      // the only control cluster sitting in no landmark at all. The label
+      // matches the "Board controls" toggle that shows and hides it.
+      <div
+        role="region"
+        aria-label="Board controls"
+        className="mobile-bottom-controls ui-bar ui-bar-height ui-bar-pad border-t flex items-center gap-1.5 sm:gap-2 select-none"
+      >
         <div className="relative">
           {passPolicyColor && (
             <div
