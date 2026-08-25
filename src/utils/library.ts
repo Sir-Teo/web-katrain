@@ -294,6 +294,23 @@ export const getLibraryFileMoveSummary = (item: LibraryFile): string => {
   return '0 moves';
 };
 
+/**
+ * True when a row's name already reads "<black> vs <white>", as imported game
+ * records almost always do. The meta line below repeats that pair, and since the
+ * name is what gets truncated at phone widths, the repetition costs the row the
+ * event or date that actually tells it apart from its neighbours.
+ */
+export const libraryNameRepeatsPlayers = (
+  name: string,
+  black: string | undefined,
+  white: string | undefined
+): boolean => {
+  const blackName = black?.trim();
+  const whiteName = white?.trim();
+  if (!blackName || !whiteName) return false;
+  return name.toLowerCase().includes(`${blackName} vs ${whiteName}`.toLowerCase());
+};
+
 const librarySearchTokens = (query: string): string[] =>
   query
     .trim()

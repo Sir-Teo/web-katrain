@@ -32,6 +32,7 @@ import {
   duplicateLibraryItem,
   duplicateLibraryItems,
   formatLibrarySize,
+  libraryNameRepeatsPlayers,
   getLibraryFileMoveSortCount,
   getLibraryFileMoveSummary,
   getLibraryFolderOptions,
@@ -1460,7 +1461,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </span>
         <div className="library-tree-node-name">{item.name}</div>
         <div className="library-tree-node-meta">
-          {item.metadata.black || item.metadata.white
+          {(item.metadata.black || item.metadata.white) &&
+          !libraryNameRepeatsPlayers(item.name, item.metadata.black, item.metadata.white)
             ? `${item.metadata.black ?? 'Black'} vs ${item.metadata.white ?? 'White'} · `
             : ''}
           {item.metadata.date ? `${item.metadata.date} · ` : ''}
