@@ -3519,6 +3519,11 @@ export const Layout: React.FC = () => {
             leaving the tab bar as its only landmark. */}
         <main
           className={['flex flex-col flex-1 min-w-0 min-h-0 w-full max-w-full relative', isMobile ? 'mobile-safe-bottom' : ''].join(' ')}
+          /* The Tree and Review tabs cover this screen with a full-viewport
+             panel and scrim, but nothing took it out of the tab order or the
+             accessibility tree, so eight controls a user cannot see stayed
+             reachable behind it. inert removes them until the panel closes. */
+          inert={rightPanelOpen}
           style={isMobile ? { paddingBottom: 'calc(var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom))' } : undefined}
         >
           {/* The mobile shell has no visible app title to promote, so the page's
