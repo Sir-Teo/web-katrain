@@ -863,6 +863,17 @@
   .wk-dashboard .gamestrip .gs-fact:not(.gs-fact-primary) { display: none; }
   .wk-dashboard .gs-file { flex-basis: 140px; max-width: 140px; }
 }
+
+/* Same tier, same reasoning, for the metric qualifiers under each readout:
+   "White favored", the best move's visit count. There is already a rule
+   dropping them at data-layout="compact", but layout mode reads the viewport,
+   not the column — so opening the library at 1440px squeezed the column to
+   802px and truncated "White favored" to "White f...". Measured: the
+   qualifiers fit down to a 960px column and clip by 893px. Shedding at 1000
+   leaves headroom for a longer visit count than the 1.1k in that sample. */
+@container boardcol (max-width: 1000px) {
+  .wk-dashboard .cb-metric .sub { display: none; }
+}
 @container boardcol (max-width: 960px) {
   /* Names and turn state identify the players faster than capture totals. Hide
      the secondary counts before letting the strip wrap or truncating both
