@@ -2,7 +2,6 @@ import React from 'react';
 import {
   FaBars,
   FaChevronDown,
-  FaChevronLeft,
   FaCopy,
   FaFolderOpen,
   FaVolumeUp,
@@ -40,7 +39,6 @@ import {
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
 import { EngineStatusBadge, IconButton } from './ui';
-import { LanguageSwitcher } from './LanguageSwitcher';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../../utils/boardThemes';
 import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 import { UI_THEME_OPTIONS } from '../../utils/uiThemes';
@@ -134,7 +132,6 @@ interface TopControlBarProps {
   saveTitle?: string;
   onSaveToLibrary: () => void;
   onLoadSgf: () => void;
-  onOpenSidePanel: () => void;
   onCopySgf: () => void;
   onPasteSgf: () => void;
   onScanBoard: () => void;
@@ -191,7 +188,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   saveTitle = 'Save SGF',
   onSaveToLibrary,
   onLoadSgf,
-  onOpenSidePanel,
   onCopySgf,
   onPasteSgf,
   onScanBoard,
@@ -792,6 +788,11 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
                 : 'border border-transparent text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
             ].join(' ')}
             title={withShortcut('Toggle analysis mode', 'toggle-analysis')}
+            /* The accent colour and underline say whether analysis is on; without
+               aria-pressed this reads as a plain "Analyze" button either way, and
+               it is the only analysis switch on a phone. The dot beside it is
+               engine status, a different signal. */
+            aria-pressed={isAnalysisMode}
             onClick={toggleAnalysisMode}
           >
             <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
@@ -846,15 +847,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             </button>
           </>
         )}
-        {!isMobile && (
-          <IconButton
-            title="Open side panel"
-            onClick={onOpenSidePanel}
-            className={[topIconClass, 'lg:hidden'].join(' ')}
-          >
-            <FaChevronLeft />
-          </IconButton>
-        )}
         <div className="hidden 2xl:flex items-center gap-1.5">
           <IconButton title={withShortcut('Command palette', 'command-palette')} onClick={onCommandPalette} className={topIconClass}>
             <FaSearch />
@@ -866,12 +858,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <FaKeyboard />
           </IconButton>
         </div>
-        {!isMobile && (
-          <LanguageSwitcher
-            appLocale={settings.appLocale}
-            onLocaleChange={(appLocale) => updateSettings({ appLocale })}
-          />
-        )}
         <div
           className="relative"
           data-menu-popover
@@ -978,22 +964,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             )
           )}
         </div>
-        {!isMobile && (
-          <button
-            type="button"
-            className={[
-              'px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap',
-              isAnalysisMode
-                ? 'bg-[var(--ui-accent-soft)] border border-[var(--ui-accent)] text-[var(--ui-accent)] shadow-sm shadow-black/20'
-                : 'bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
-            ].join(' ')}
-            title={withShortcut('Toggle analysis mode', 'toggle-analysis')}
-            onClick={toggleAnalysisMode}
-          >
-            <span className={['inline-block h-2 w-2 rounded-full', engineDot].join(' ')} />
-            Analyze
-          </button>
-        )}
 
       </div>
     </div>

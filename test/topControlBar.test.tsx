@@ -81,20 +81,6 @@ describe('TopControlBar', () => {
     expect(html).not.toContain('data-mobile-board-theme-cycle="true"');
   });
 
-  it('exposes the desktop language switcher', () => {
-    const html = renderToStaticMarkup(<TopControlBar {...baseProps} isMobile={false} />);
-
-    expect(html).toContain('app-language-switcher');
-    expect(html).toContain('data-language-switcher="desktop"');
-    expect(html).toContain('data-language-switcher-button="true"');
-    expect(html).toContain('data-current-locale="en"');
-    // Labels come from the active locale, and the native name is only appended
-    // when it differs — English would otherwise read "English (English)".
-    expect(html).toContain('Change language: English');
-    expect(html).not.toContain('English (English)');
-    expect(html).toContain('SGF · EN');
-  });
-
   it('lists all locale choices when the desktop language switcher is open', () => {
     const source = readFileSync('src/components/layout/LanguageSwitcher.tsx', 'utf8');
 
@@ -162,7 +148,9 @@ describe('TopControlBar', () => {
     // One occurrence each, in the tools sheet. These used to appear twice
     // because the analysis popover repeated them, and that popover could never
     // render: it was guarded by !isMobile inside a mobile-only component.
-    expect(source.match(/aria-pressed=\{isAnalysisMode\}/g) ?? []).toHaveLength(1);
+    // Two now: the tools sheet's Cont. analysis entry, and the top bar's Analyze
+    // toggle, which previously conveyed its state only as an accent colour.
+    expect(source.match(/aria-pressed=\{isAnalysisMode\}/g) ?? []).toHaveLength(2);
     expect(source.match(/aria-pressed=\{isInsertMode\}/g) ?? []).toHaveLength(1);
     expect(source.match(/aria-pressed=\{isTeachMode\}/g) ?? []).toHaveLength(1);
   });

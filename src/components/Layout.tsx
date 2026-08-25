@@ -1509,14 +1509,6 @@ export const Layout: React.FC = () => {
     setBottomBarOpen((prev) => !prev);
   };
 
-  const handleOpenSidePanel = () => {
-    if (isMobile) {
-      handleMobileTabChange(lastRightTab);
-      return;
-    }
-    setRightPanelOpen(true);
-  };
-
   const openCurrentNoteEditor = () => {
     setViewMenuOpen(false);
     setMenuOpen(false);
@@ -3532,7 +3524,6 @@ export const Layout: React.FC = () => {
               saveTitle={saveControlLabel}
               onSaveToLibrary={handleOpenSaveToLibraryDialog}
               onLoadSgf={handleLoadClick}
-              onOpenSidePanel={handleOpenSidePanel}
               onCopySgf={handleCopySgf}
               onPasteSgf={handlePasteSgf}
               onScanBoard={() => openPhotoBoard()}
