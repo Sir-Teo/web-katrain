@@ -23,15 +23,14 @@ const baseProps = {
   isAnalysisMode: false,
   toggleAnalysisMode: noop,
   engineDot: 'bg-[var(--ui-success)]',
-  analysisMenuOpen: false,
-  setAnalysisMenuOpen: noop,
   viewMenuOpen: false,
   setViewMenuOpen: noop,
   analyzeExtra: noop,
   startSelectRegionOfInterest: noop,
+  cancelSelectRegionOfInterest: noop,
+  isSelectingRegionOfInterest: false,
   resetCurrentAnalysis: noop,
   clearAnalysisCache: noop,
-  analysisCacheSize: 0,
   toggleInsertMode: noop,
   selfplayToEnd: noop,
   toggleContinuousAnalysis: noop,
@@ -41,8 +40,6 @@ const baseProps = {
   isTeachMode: false,
   isGameAnalysisRunning: false,
   gameAnalysisType: null,
-  gameAnalysisDone: 0,
-  gameAnalysisTotal: 0,
   startQuickGameAnalysis: noop,
   startFastGameAnalysis: noop,
   stopGameAnalysis: noop,
@@ -238,15 +235,16 @@ describe('TopControlBar', () => {
     expect(css).toMatch(/@media \(min-width: 760px\)[\s\S]*\[data-mobile-tools-section='game'\] \{[^}]*repeat\(6, minmax\(0, 1fr\)\)/);
   });
 
-  it('closes the other menu when the view menu opens', () => {
+  it('has one toolbar menu, so there is nothing to keep it exclusive with', () => {
     const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
 
-    expect(source).toContain(`onClick={() => {
-                setViewMenuOpen(!viewMenuOpen);
-                setAnalysisMenuOpen(false);
-              }}
-              title="View options"`);
-
+    // This used to assert the view menu closed the analysis popover. That
+    // popover was guarded by !isMobile inside a mobile-only component and never
+    // rendered, so the coordination it needed was imaginary. What remains is
+    // that the view trigger toggles its own menu and nothing else.
+    expect(source).toContain('setViewMenuOpen(!viewMenuOpen);');
+    expect(source).toContain('title="View options"');
+    expect(source).not.toContain('setAnalysisMenuOpen');
   });
 
   it('uses explicit button types in toolbar popovers and menus', () => {

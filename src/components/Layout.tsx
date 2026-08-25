@@ -365,9 +365,6 @@ export const Layout: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuFocusInputMode, setMenuFocusInputMode] = useState<'pointer' | 'keyboard'>('keyboard');
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-  // The analysis popover this state drove is gone; the setter survives because
-  // several close-everything paths still call it defensively.
-  const [, setAnalysisMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const openKeyboardHelp = useCallback((returnFocus?: HTMLElement | null) => {
@@ -1239,7 +1236,6 @@ export const Layout: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (target.closest('[data-menu-popover]')) return;
-      setAnalysisMenuOpen(false);
       setViewMenuOpen(false);
     };
     window.addEventListener('mousedown', onDown);
@@ -1452,7 +1448,6 @@ export const Layout: React.FC = () => {
   };
 
   const openMobileHome = () => {
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMobileHomeOpen(true);
   };
@@ -1469,7 +1464,6 @@ export const Layout: React.FC = () => {
   };
 
   const handleMobileTabChange = (tab: MobileTab) => {
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     if (tab === 'board') {
       setMobileTab('board');
@@ -1524,7 +1518,6 @@ export const Layout: React.FC = () => {
   };
 
   const openCurrentNoteEditor = () => {
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
     if (isMobile) {
@@ -1538,7 +1531,6 @@ export const Layout: React.FC = () => {
   };
 
   const selectEditTool = (tool: EditTool) => {
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
     if (!isEditMode) toggleEditMode();
@@ -1546,7 +1538,6 @@ export const Layout: React.FC = () => {
   };
 
   const runMoveTreeCommand = (command: MoveTreeCommand) => {
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
     if (isMobile) {
@@ -1569,7 +1560,6 @@ export const Layout: React.FC = () => {
   };
 
   const openShortcutSettings = useCallback(() => {
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
     setIsKeyboardHelpOpen(false);
@@ -1752,7 +1742,6 @@ export const Layout: React.FC = () => {
 
   const handlePasteSgf = (returnFocus?: HTMLElement | null) => {
     modalReturnFocusRef.current = returnFocus ?? null;
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
     setIsPasteSgfOpen(true);
@@ -1872,7 +1861,6 @@ export const Layout: React.FC = () => {
   }, [handleOpenSgfFromText, openPhotoBoard, toast]);
 
   const handlePasteSgfShortcut = useCallback(async () => {
-    setAnalysisMenuOpen(false);
     setViewMenuOpen(false);
     setMenuOpen(false);
 
@@ -2084,7 +2072,6 @@ export const Layout: React.FC = () => {
     setIsSettingsOpen,
     setIsGameAnalysisOpen,
     setIsGameReportOpen,
-    setAnalysisMenuOpen,
     setViewMenuOpen,
     setMenuOpen,
     setIsCommandPaletteOpen,
@@ -2104,7 +2091,6 @@ export const Layout: React.FC = () => {
 
   const commandPaletteCommands: CommandPaletteCommand[] = (() => {
     const closeFloatingMenus = () => {
-      setAnalysisMenuOpen(false);
       setViewMenuOpen(false);
       setMenuOpen(false);
     };
@@ -2837,7 +2823,6 @@ export const Layout: React.FC = () => {
   }, []);
 
   const requestClearAnalysisCache = useCallback(() => {
-    setAnalysisMenuOpen(false);
     if (isGameAnalysisRunning) return;
     if (analysisCacheSize <= 0) {
       clearAnalysisCache();
@@ -3513,7 +3498,6 @@ export const Layout: React.FC = () => {
               isAnalysisMode={isAnalysisMode}
               toggleAnalysisMode={toggleAnalysisMode}
               engineDot={engineDot}
-              setAnalysisMenuOpen={setAnalysisMenuOpen}
               viewMenuOpen={viewMenuOpen}
               setViewMenuOpen={setViewMenuOpen}
               analyzeExtra={analyzeExtra}

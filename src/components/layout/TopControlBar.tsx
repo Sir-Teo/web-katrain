@@ -102,7 +102,6 @@ interface TopControlBarProps {
   isAnalysisMode: boolean;
   toggleAnalysisMode: () => void;
   engineDot: string;
-  setAnalysisMenuOpen: (v: boolean) => void;
   viewMenuOpen: boolean;
   setViewMenuOpen: (v: boolean) => void;
   // Analysis actions
@@ -163,7 +162,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   isAnalysisMode,
   toggleAnalysisMode,
   engineDot,
-  setAnalysisMenuOpen,
   viewMenuOpen,
   setViewMenuOpen,
   analyzeExtra,
@@ -887,7 +885,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               onClick={(event) => {
                 updateMobileToolsInputMode(event.detail === 0 ? 'keyboard' : 'pointer');
                 setViewMenuOpen(!viewMenuOpen);
-                setAnalysisMenuOpen(false);
               }}
               ariaControls={viewPopoverId}
               ariaExpanded={viewMenuOpen}
@@ -908,7 +905,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap"
               onClick={() => {
                 setViewMenuOpen(!viewMenuOpen);
-                setAnalysisMenuOpen(false);
               }}
               title="View options"
               aria-haspopup="dialog"

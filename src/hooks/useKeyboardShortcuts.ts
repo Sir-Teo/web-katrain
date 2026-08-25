@@ -19,7 +19,6 @@ interface UseKeyboardShortcutsOptions {
   setIsSettingsOpen: (v: boolean) => void;
   setIsGameAnalysisOpen: (v: boolean) => void;
   setIsGameReportOpen: (v: boolean) => void;
-  setAnalysisMenuOpen: (v: boolean) => void;
   setViewMenuOpen: (v: boolean) => void;
   setMenuOpen: (v: boolean) => void;
   setIsCommandPaletteOpen: (v: boolean) => void;
@@ -46,7 +45,6 @@ export function useKeyboardShortcuts({
   setIsSettingsOpen,
   setIsGameAnalysisOpen,
   setIsGameReportOpen,
-  setAnalysisMenuOpen,
   setViewMenuOpen,
   setMenuOpen,
   setIsCommandPaletteOpen,
@@ -252,7 +250,6 @@ export function useKeyboardShortcuts({
         setIsSettingsOpen(false);
         setIsGameAnalysisOpen(false);
         setIsGameReportOpen(false);
-        setAnalysisMenuOpen(false);
         setViewMenuOpen(false);
         setMenuOpen(false);
         setIsCommandPaletteOpen(false);
@@ -265,7 +262,6 @@ export function useKeyboardShortcuts({
       if (matches('command-palette')) {
         e.preventDefault();
         setIsCommandPaletteOpen(true);
-        setAnalysisMenuOpen(false);
         setViewMenuOpen(false);
         setMenuOpen(false);
         return;
@@ -609,7 +605,6 @@ export function useKeyboardShortcuts({
     setIsSettingsOpen,
     setIsGameAnalysisOpen,
     setIsGameReportOpen,
-    setAnalysisMenuOpen,
     setViewMenuOpen,
     setMenuOpen,
     setIsCommandPaletteOpen,
