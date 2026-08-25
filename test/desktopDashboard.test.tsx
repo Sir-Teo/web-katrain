@@ -45,7 +45,9 @@ describe('DesktopDashboard', () => {
 
   it('keeps the compact desktop navigation rail on one row', () => {
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
-    const compactNavBlock = css.match(/@container boardcol \(max-width: 699px\) \{[\s\S]*?\n\}\n\n\/\*/)?.[0] ?? '';
+    // 880px, not 699: measured, the rail needs 865px once these rules stop
+    // applying, so the lower threshold wrapped every column in between.
+    const compactNavBlock = css.match(/@container boardcol \(max-width: 880px\) \{[\s\S]*?\n\}\n\n\/\*/)?.[0] ?? '';
 
     expect(compactNavBlock).toContain('.wk-dashboard .navbtn-skip { display: none; }');
     expect(compactNavBlock).toContain('.wk-dashboard .move-counter .mc-label { display: none; }');

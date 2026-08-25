@@ -10,6 +10,8 @@ describe('desktop dashboard large density', () => {
     expect(css).toContain("min-height: 38px;");
     expect(css).toContain("min-height: 34px;");
     expect(css).toContain("min-height: 32px;");
-    expect(css).toContain("@container boardcol (max-width: 699px)");
+    // Kept in step with the nav-rail tier, raised to 880px after measuring
+    // that the rail needs 865px once those rules stop applying.
+    expect(css).toContain("@container boardcol (max-width: 880px)");
   });
 });

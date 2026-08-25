@@ -846,7 +846,9 @@
    and nav bar each stay a single row (titles keep every control discoverable);
    wrapping is the last-resort fallback. Tiers run widest → narrowest and live
    here, after the component rules above, so the overrides actually win. */
-@container boardcol (max-width: 1180px) {
+/* Measured: with the chip labels shown the rail needs 1225px, so releasing
+   them at 1180px wrapped columns in between. */
+@container boardcol (max-width: 1240px) {
   .wk-dashboard .bc-label { display: none; }
   .wk-dashboard .board-chip { padding: 0 8px; }
 }
@@ -892,9 +894,12 @@
   .wk-dashboard .playactions { gap: 4px; }
   .wk-dashboard .playactions .tbtn { padding: 0 9px; }
 }
-@container boardcol (max-width: 699px) {
+@container boardcol (max-width: 880px) {
   /* Jump-10 remains available from keyboard shortcuts; shed those secondary
-     buttons before forcing the full navigation rail onto a second row. */
+     buttons before forcing the full navigation rail onto a second row.
+     Measured: without these rules the rail needs 865px, so releasing them at
+     699px wrapped every column between the two - the exact outcome they are
+     here to prevent. */
   .wk-dashboard .navbtn { width: 30px; }
   .wk-dashboard .navbtn-skip { display: none; }
   .wk-dashboard .move-counter .mc-label { display: none; }
@@ -1320,7 +1325,7 @@
 :root[data-ui-density='large'] .wk-dashboard .section-head-toggle {
   padding-block: 12px;
 }
-@container boardcol (max-width: 699px) {
+@container boardcol (max-width: 880px) {
   :root[data-ui-density='large'] .wk-dashboard .navbtn {
     width: 30px;
   }
