@@ -12,6 +12,7 @@ import { copyBoardImage, downloadBoardImage } from '../utils/boardImageExport';
 import { buildShareUrl, decodeSgfFromFragment, MAX_SHARE_URL_LENGTH } from '../utils/shareLink';
 import { pickSharedImportText, readSharedFromQuery } from '../utils/pwaOpen';
 import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
+import type { AutoSaveStatus } from '../utils/saveStatusDisplay';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
   createLibraryItem,
@@ -22,7 +23,6 @@ import {
   saveLibrary,
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
-  updateLibraryItem,
   type LibraryFile,
   type LibraryFolderOption,
 } from '../utils/library';
@@ -62,7 +62,6 @@ import { MenuDrawer } from './layout/MenuDrawer';
 import { TopControlBar } from './layout/TopControlBar';
 import { BottomControlBar } from './layout/BottomControlBar';
 import { RightPanel } from './layout/RightPanel';
-import { StatusBar, type AutoSaveStatus } from './layout/StatusBar';
 import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
 import { NotificationToast } from './layout/NotificationToast';
 import { LibraryPanel } from './LibraryPanel';
@@ -80,7 +79,7 @@ import {
   loadUiState,
   saveUiState,
 } from './layout/types';
-import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
+import { rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { useGamepadNavigation } from '../hooks/useGamepadNavigation';
@@ -429,11 +428,6 @@ export const Layout: React.FC = () => {
   const [externalLibraryFileUpdate, setExternalLibraryFileUpdate] = useState<{
     id: string;
     sgf: string;
-    updatedAt: number;
-  } | null>(null);
-  const [externalLibraryItemRename, setExternalLibraryItemRename] = useState<{
-    id: string;
-    name: string;
     updatedAt: number;
   } | null>(null);
   const [externalLibraryItemCreate, setExternalLibraryItemCreate] = useState<{
@@ -786,28 +780,6 @@ export const Layout: React.FC = () => {
     }
   }, [loadedLibraryFileId, markCurrentGameCleanAndClearAutoSave, setLoadedLibraryFile, toast]);
 
-  const renameLoadedLibraryFile = useCallback(async (name: string) => {
-    const nextName = name.trim();
-    if (!loadedLibraryFileId || !nextName || nextName === loadedLibraryFileName) return;
-    try {
-      const items = await loadLibrary();
-      const loadedItem = items.find((item) => item.id === loadedLibraryFileId);
-      if (!loadedItem || loadedItem.type !== 'file') {
-        setLoadedLibraryFile(null);
-        toast('Loaded library file was not found.', 'error');
-        return;
-      }
-      const updatedAt = Date.now();
-      const uniqueName = getUniqueLibraryItemName(nextName, items, loadedItem.parentId ?? null, loadedLibraryFileId);
-      await saveLibrary(updateLibraryItem(items, loadedLibraryFileId, { name: uniqueName }, updatedAt));
-      setLoadedLibraryFile(loadedLibraryFileId, uniqueName);
-      setExternalLibraryItemRename({ id: loadedLibraryFileId, name: uniqueName, updatedAt });
-      setLibraryVersion((prev) => prev + 1);
-      toast(`Renamed "${loadedItem.name}" to "${uniqueName}".`, 'success');
-    } catch {
-      toast('Failed to rename loaded library file.', 'error');
-    }
-  }, [loadedLibraryFileId, loadedLibraryFileName, setLoadedLibraryFile, toast]);
 
   useLayoutEffect(() => {
     if (cleanGameSgfRef.current === null) markCurrentGameClean();
@@ -2790,11 +2762,7 @@ export const Layout: React.FC = () => {
   const whiteName = getRootProp('PW') || 'White';
   const blackRank = getRootProp('BR');
   const whiteRank = getRootProp('WR');
-  const moveName = currentNode.move
-    ? `Move ${currentMoveNumber}: ${playerToShort(currentNode.move.player)} ${formatMoveLabel(currentNode.move.x, currentNode.move.y, boardSize)}`
-    : currentNode.parent && currentMoveNumber > 0
-      ? `Setup ${currentMoveNumber}`
-      : 'Root';
+
   const currentMoveInsight = getMoveInsight(currentNode.move, boardSize, currentNode.parent?.gameState.board ?? null);
 
   const handleUndo = () => {
@@ -3382,7 +3350,6 @@ export const Layout: React.FC = () => {
                 loadedFileDirty={currentGameDirty}
                 onLoadedFileChange={setLoadedLibraryFile}
                 externalFileUpdate={externalLibraryFileUpdate}
-                externalItemRename={externalLibraryItemRename}
                 externalItemCreate={externalLibraryItemCreate}
                 showCloseButtonOnDesktop
               />
@@ -3466,7 +3433,6 @@ export const Layout: React.FC = () => {
           loadedFileDirty={currentGameDirty}
           onLoadedFileChange={setLoadedLibraryFile}
           externalFileUpdate={externalLibraryFileUpdate}
-          externalItemRename={externalLibraryItemRename}
           externalItemCreate={externalLibraryItemCreate}
         />
 
@@ -3837,33 +3803,6 @@ export const Layout: React.FC = () => {
           count={analysisCacheSize}
           onCancel={cancelClearAnalysisCache}
           onConfirm={confirmClearAnalysisCache}
-        />
-      )}
-      {!isMobile && !isDesktop && (
-        <StatusBar
-          moveName={moveName}
-          moveInsight={currentMoveInsight}
-          shapeCoachEnabled={shapeCoachEnabled}
-          onToggleShapeCoach={toggleShapeCoach}
-          blackName={blackName}
-          whiteName={whiteName}
-          blackRank={blackRank}
-          whiteRank={whiteRank}
-          komi={komi}
-          boardSize={boardSize}
-          handicap={handicap}
-          moveCount={currentMoveNumber}
-          capturedBlack={capturedBlack}
-          capturedWhite={capturedWhite}
-          endResult={endResult}
-          gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
-          gamepadCount={gamepadStatus.count}
-          onGamepadNavigationDisable={handleDisableGamepadNavigation}
-          loadedFileKind={loadedLibraryFileName ? 'library' : loadedExternalFile?.kind}
-          loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
-          onLoadedFileRename={loadedLibraryFileName ? renameLoadedLibraryFile : undefined}
-          unsavedChanges={currentGameDirty}
-          autoSaveStatus={autoSaveStatus}
         />
       )}
     </div>

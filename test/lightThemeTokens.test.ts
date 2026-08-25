@@ -16,7 +16,6 @@ const themedShellFiles = [
   'src/components/layout/MenuDrawer.tsx',
   'src/components/layout/MobileTabBar.tsx',
   'src/components/layout/RightPanel.tsx',
-  'src/components/layout/StatusBar.tsx',
   'src/components/layout/TopControlBar.tsx',
   'src/components/layout/ui.tsx',
 ] as const;
@@ -58,7 +57,6 @@ describe('light theme shell tokens', () => {
     const navigationFiles = [
       'src/components/layout/BottomControlBar.tsx',
       'src/components/layout/RightPanel.tsx',
-      'src/components/layout/StatusBar.tsx',
     ];
 
     for (const file of navigationFiles) {
