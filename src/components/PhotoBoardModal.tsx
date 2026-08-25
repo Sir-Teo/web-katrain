@@ -507,7 +507,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       : 'border-transparent text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
   ].join(' ');
   const deltaChipClass = (tone: 'added' | 'removed' | 'matched' | 'move') => [
-    'rounded-full border px-2 py-1 text-[11px] font-semibold',
+    'rounded-full border px-2 py-1 text-[0.6875rem] font-semibold',
     tone === 'added'
       ? 'border-[var(--ui-success)] bg-[var(--ui-success-soft)] text-[var(--ui-success)]'
       : tone === 'removed'
@@ -528,13 +528,13 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     'min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] transition-colors hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--ui-surface)] disabled:hover:text-[var(--ui-text-muted)]',
   ].join(' ');
   const deltaMarkerClass = (type: PhotoBoardDeltaStone['type']) => [
-    'pointer-events-none absolute z-20 grid h-4 w-4 place-items-center rounded-full border text-[9px] font-black leading-none shadow',
+    'pointer-events-none absolute z-20 grid h-4 w-4 place-items-center rounded-full border text-[0.5625rem] font-black leading-none shadow',
     type === 'added'
       ? 'right-0.5 top-0.5 border-[var(--ui-success)] bg-[var(--ui-success)] text-white'
       : 'bottom-0.5 left-0.5 border-[var(--ui-danger)] bg-[var(--ui-danger)] text-white',
   ].join(' ');
   const deltaLegendMarkerClass = (type: PhotoBoardDeltaStone['type']) => [
-    'grid h-4 w-4 place-items-center rounded-full border text-[9px] font-black leading-none shadow-sm',
+    'grid h-4 w-4 place-items-center rounded-full border text-[0.5625rem] font-black leading-none shadow-sm',
     type === 'added'
       ? 'border-[var(--ui-success)] bg-[var(--ui-success)] text-white'
       : 'border-[var(--ui-danger)] bg-[var(--ui-danger)] text-white',
@@ -578,9 +578,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               aria-controls="photo-board-photo-panel"
               data-photo-board-mobile-tab="photo"
             >
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-[var(--ui-surface)] text-[11px]">1</span>
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-[var(--ui-surface)] text-[0.6875rem]">1</span>
               <span>Photo</span>
-              {photoUrl && <span className="rounded-full bg-[var(--ui-success-soft)] px-1.5 py-0.5 text-[10px] text-[var(--ui-success)]">set</span>}
+              {photoUrl && <span className="rounded-full bg-[var(--ui-success-soft)] px-1.5 py-0.5 text-[0.625rem] text-[var(--ui-success)]">set</span>}
             </button>
             <button
               type="button"
@@ -590,9 +590,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               aria-controls="photo-board-trace-panel"
               data-photo-board-mobile-tab="trace"
             >
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-[var(--ui-surface)] text-[11px]">2</span>
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-[var(--ui-surface)] text-[0.6875rem]">2</span>
               <span>Trace</span>
-              <span className="rounded-full bg-[var(--ui-surface)] px-1.5 py-0.5 text-[10px] text-[var(--ui-text-muted)]">{counts.total}</span>
+              <span className="rounded-full bg-[var(--ui-surface)] px-1.5 py-0.5 text-[0.625rem] text-[var(--ui-text-muted)]">{counts.total}</span>
             </button>
           </div>
         </div>
@@ -900,7 +900,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 data-photo-board-delta-summary="true"
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
+                  <div className="text-[0.6875rem] font-semibold uppercase tracking-wide ui-text-faint">
                     Current diff
                   </div>
                   <div className="flex items-center gap-2">
@@ -923,7 +923,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 {canCompareCurrentBoard ? (
                   <div className="grid gap-2">
                     <div
-                      className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-[var(--ui-text-muted)]"
+                      className="flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--ui-text-muted)]"
                       aria-label="Photo board diff legend"
                       data-photo-board-delta-legend="true"
                     >
@@ -1236,15 +1236,15 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-lg bg-[var(--ui-surface)] px-2 py-2">
-                <div className="text-[11px] uppercase tracking-wide ui-text-faint">Black</div>
+                <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">Black</div>
                 <div className="text-sm font-semibold">{counts.black}</div>
               </div>
               <div className="rounded-lg bg-[var(--ui-surface)] px-2 py-2">
-                <div className="text-[11px] uppercase tracking-wide ui-text-faint">White</div>
+                <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">White</div>
                 <div className="text-sm font-semibold">{counts.white}</div>
               </div>
               <div className="rounded-lg bg-[var(--ui-surface)] px-2 py-2">
-                <div className="text-[11px] uppercase tracking-wide ui-text-faint">Total</div>
+                <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">Total</div>
                 <div className="text-sm font-semibold">{counts.total}</div>
               </div>
             </div>

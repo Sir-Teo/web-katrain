@@ -82,7 +82,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
                 onTabChange(tab.id);
               }}
               className={[
-                'py-2.5 sm:py-3 px-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium leading-tight transition-all touch-manipulation',
+                'py-2.5 sm:py-3 px-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 text-[0.6875rem] sm:text-xs font-medium leading-tight transition-all touch-manipulation',
                 isActive
                   ? 'text-[var(--ui-accent)] border-t-2 border-[var(--ui-accent)]'
                   : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] border-t-2 border-transparent',
@@ -96,7 +96,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               <span className="relative">
                 {tab.icon}
                 {tab.id === 'info' && commentBadge != null && commentBadge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] px-1 h-4 rounded-full text-[10px] flex items-center justify-center bg-rose-500 text-white font-semibold shadow-sm">
+                  <span className="absolute -top-1.5 -right-2 min-w-[16px] px-1 h-4 rounded-full text-[0.625rem] flex items-center justify-center bg-rose-500 text-white font-semibold shadow-sm">
                     {commentBadge > 9 ? '9+' : commentBadge}
                   </span>
                 )}

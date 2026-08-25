@@ -374,7 +374,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 }}
                 className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
               />
-              <div className="text-[11px] ui-text-faint">Placed on star points; White plays first.</div>
+              <div className="text-[0.6875rem] ui-text-faint">Placed on star points; White plays first.</div>
             </div>
           </div>
           <div className="space-y-3">

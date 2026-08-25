@@ -119,7 +119,7 @@ function NotePreview({ note }: { note: string }) {
             block.level === 1
               ? 'text-sm font-semibold text-[var(--ui-text)]'
               : block.level === 2
-                ? 'text-[13px] font-semibold text-[var(--ui-text)]'
+                ? 'text-[0.8125rem] font-semibold text-[var(--ui-text)]'
                 : 'text-xs font-semibold uppercase tracking-wide text-[var(--ui-text-muted)]';
           return (
             <div key={`line-${index}`} className={headingClass} data-note-block="heading">
@@ -142,7 +142,7 @@ function NotePreview({ note }: { note: string }) {
           return (
             <pre
               key={`line-${index}`}
-              className="overflow-x-auto rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-2 font-mono text-[11px] leading-5 text-[var(--ui-text)]"
+              className="overflow-x-auto rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-2 font-mono text-[0.6875rem] leading-5 text-[var(--ui-text)]"
               data-note-block="code"
             >
               <code>{block.text || ' '}</code>
@@ -156,7 +156,7 @@ function NotePreview({ note }: { note: string }) {
               className="overflow-x-auto rounded border border-[var(--ui-border)] bg-[var(--ui-surface)]"
               data-note-block="table"
             >
-              <table className="min-w-full border-collapse text-[11px] leading-5">
+              <table className="min-w-full border-collapse text-[0.6875rem] leading-5">
                 <thead className="bg-[var(--ui-surface-2)] text-[var(--ui-text)]">
                   <tr>
                     {block.headers.map((header, cellIndex) => (
@@ -199,7 +199,7 @@ function NotePreview({ note }: { note: string }) {
             <div key={`line-${index}`} className="flex gap-2" data-note-block="task">
               <span
                 className={[
-                  'mt-[0.22em] grid h-3.5 w-3.5 flex-none place-items-center rounded-sm border text-[9px] font-bold leading-none',
+                  'mt-[0.22em] grid h-3.5 w-3.5 flex-none place-items-center rounded-sm border text-[0.5625rem] font-bold leading-none',
                   block.checked
                     ? 'border-[var(--ui-accent)] bg-[var(--ui-accent)] text-[var(--ui-accent-contrast)]'
                     : 'border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-transparent',
@@ -516,10 +516,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
         >
           <div className="mb-1.5 flex min-w-0 items-center justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Shape coach</div>
+              <div className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">Shape coach</div>
               <div className="truncate font-semibold text-[var(--ui-text)]">{moveInsight.label}</div>
             </div>
-            <span className="shrink-0 rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold capitalize text-[var(--ui-accent)]">
+            <span className="shrink-0 rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-1.5 py-0.5 text-[0.625rem] font-semibold capitalize text-[var(--ui-accent)]">
               {moveInsight.tone}
             </span>
           </div>
@@ -537,7 +537,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
             {moveInsightCoach.checks.map((check) => (
-              <span key={check} className="rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-1.5 py-0.5 text-[10px] ui-text-faint">
+              <span key={check} className="rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-1.5 py-0.5 text-[0.625rem] ui-text-faint">
                 {check}
               </span>
             ))}
@@ -559,7 +559,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                 href={moveInsight.learnMoreUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--ui-accent)] hover:bg-[var(--ui-surface-2)]"
+                className="inline-flex rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[0.625rem] font-semibold text-[var(--ui-accent)] hover:bg-[var(--ui-surface-2)]"
                 aria-label={`Learn more about ${moveInsight.label}`}
               >
                 Learn more
@@ -647,7 +647,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                 <FaEdit size={11} aria-hidden="true" />
                 <span>Edit</span>
                 {noteShortcutLabel !== 'Disabled' && (
-                  <kbd className="font-mono text-[10px] ui-text-faint">{noteShortcutLabel}</kbd>
+                  <kbd className="font-mono text-[0.625rem] ui-text-faint">{noteShortcutLabel}</kbd>
                 )}
               </button>
             ) : null}

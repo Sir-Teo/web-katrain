@@ -31,7 +31,7 @@ const AboutLink: React.FC<{ href: string; children: React.ReactNode; className?:
     ].join(' ')}
   >
     <span className="truncate">{children}</span>
-    <FaExternalLinkAlt className="shrink-0 text-[10px]" aria-hidden="true" />
+    <FaExternalLinkAlt className="shrink-0 text-[0.625rem]" aria-hidden="true" />
   </a>
 );
 

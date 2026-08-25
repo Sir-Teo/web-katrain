@@ -194,7 +194,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const boardSize = normalizeBoardSize(currentNode.gameState.board.length, DEFAULT_BOARD_SIZE);
   const sectionClass =
     'rounded-xl border ui-surface p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] print-surface';
-  const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] ui-text-faint';
+  const sectionTitleClass = 'text-[0.6875rem] font-semibold uppercase tracking-[0.2em] ui-text-faint';
   const labelClass = 'text-[var(--ui-text-muted)]';
   const valueClass = 'text-[var(--ui-text)]';
   const mutedClass = 'text-[var(--ui-text-muted)]';
@@ -764,7 +764,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <span className={mutedClass}>-</span>
             )}
           </div>
-          <div className={`col-span-12 text-[10px] font-mono print-muted ${faintClass}`}>
+          <div className={`col-span-12 text-[0.625rem] font-mono print-muted ${faintClass}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span title={policyTitle}>
                 Policy: <span className={[
@@ -804,7 +804,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             {idx + 1}. {move}
           </div>
         ))}
-        {line.length > max && <div className={`text-[10px] ${faintClass}`}>... {line.length - max} more</div>}
+        {line.length > max && <div className={`text-[0.625rem] ${faintClass}`}>... {line.length - max} more</div>}
       </div>
     );
   };
@@ -1009,7 +1009,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   >
                     <span className="min-w-0 sm:hidden">{b.compactLabel}</span>
                     <span className="hidden min-w-0 sm:inline">{b.label}</span>
-                    <span className="shrink-0 rounded-full border border-current/20 px-1.5 py-0.5 font-mono text-[11px] leading-none opacity-80">
+                    <span className="shrink-0 rounded-full border border-current/20 px-1.5 py-0.5 font-mono text-[0.6875rem] leading-none opacity-80">
                       {counts.analyzed}/{counts.total}
                     </span>
                   </button>
@@ -1154,11 +1154,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
               <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Beginner next step</div>
+                  <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Beginner next step</div>
                   <div className={`mt-1 ${mutedClass}`}>{studyFocus.beginnerTip}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Pro review</div>
+                  <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Pro review</div>
                   <div className={`mt-1 ${mutedClass}`}>{studyFocus.proTip}</div>
                 </div>
               </div>
@@ -1236,7 +1236,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       <div key={`phase-acc-${row.key}-${player}`} className="text-center font-mono">
                         <span className={toneClass}>{fmtNum(acc, 1)}</span>
                         {cell && cell.numMoves > 0 && (
-                          <span className={`ml-1 text-[10px] ${faintClass}`}>/{cell.numMoves}</span>
+                          <span className={`ml-1 text-[0.625rem] ${faintClass}`}>/{cell.numMoves}</span>
                         )}
                       </div>
                     );
@@ -1297,7 +1297,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         <span className="min-w-0 truncate" title={playerNames[player]}>{playerNames[player]}</span>
                       </div>
                       <div className="text-right">
-                        <div className={`text-[10px] uppercase tracking-wide ${faintClass}`}>Policy accuracy</div>
+                        <div className={`text-[0.625rem] uppercase tracking-wide ${faintClass}`}>Policy accuracy</div>
                         <div className={`font-mono text-sm ${valueClass}`}>{fmtNum(report.stats[player].policyAccuracy, 1)}</div>
                       </div>
                     </div>
@@ -1352,7 +1352,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                                 : `Filter ${playerLabel} mistakes to ${categoryLabel}`
                             }
                             className={[
-                              'inline-flex min-h-11 items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors desktop-shell:min-h-0',
+                              'inline-flex min-h-11 items-center gap-1 rounded-full border px-2 py-1 text-[0.625rem] transition-colors desktop-shell:min-h-0',
                               active
                                 ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] ring-1 ring-[var(--ui-accent)]'
                                 : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -1429,7 +1429,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className={sectionTitleClass}>Analysis Graph</div>
-                <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ui-accent-soft border print-hide">
+                <span className="text-[0.625rem] uppercase tracking-wide px-2 py-0.5 rounded-full ui-accent-soft border print-hide">
                   Live
                 </span>
               </div>
@@ -1470,7 +1470,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className={sectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className={sectionTitleClass}>Critical Swings</div>
-              <span className={`rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${mutedClass}`}>
+              <span className={`rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wide ${mutedClass}`}>
                 {turningPoints.length} over {CRITICAL_SWING_THRESHOLD} pts
               </span>
             </div>
@@ -1520,7 +1520,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className={sectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className={sectionTitleClass}>Best Recoveries</div>
-              <span className={`rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${mutedClass}`}>
+              <span className={`rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wide ${mutedClass}`}>
                 {recoveries.length} over {RECOVERY_THRESHOLD} pts
               </span>
             </div>
@@ -1591,7 +1591,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         aria-pressed={active}
                         title={option.title}
                         className={[
-                          'min-h-11 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors desktop-shell:min-h-0',
+                          'min-h-11 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold transition-colors desktop-shell:min-h-0',
                           active
                             ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
                             : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
@@ -1686,12 +1686,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <div className={`mt-2 text-sm ${faintClass}`}>No moves match these filters.</div>
             ) : (
               <div className={`mt-3 grid grid-cols-12 gap-2 text-xs ${mutedClass}`}>
-                <div className="col-span-2 uppercase tracking-wide text-[10px]">Move</div>
-                <div className="col-span-1 text-center uppercase tracking-wide text-[10px]">P</div>
-                <div className="col-span-2 uppercase tracking-wide text-[10px]">Played</div>
-                <div className="col-span-2 uppercase tracking-wide text-[10px]">Top</div>
-                <div className="col-span-2 text-right uppercase tracking-wide text-[10px]">Loss</div>
-                <div className="col-span-3 text-right uppercase tracking-wide text-[10px]">Action</div>
+                <div className="col-span-2 uppercase tracking-wide text-[0.625rem]">Move</div>
+                <div className="col-span-1 text-center uppercase tracking-wide text-[0.625rem]">P</div>
+                <div className="col-span-2 uppercase tracking-wide text-[0.625rem]">Played</div>
+                <div className="col-span-2 uppercase tracking-wide text-[0.625rem]">Top</div>
+                <div className="col-span-2 text-right uppercase tracking-wide text-[0.625rem]">Loss</div>
+                <div className="col-span-3 text-right uppercase tracking-wide text-[0.625rem]">Action</div>
                 {renderMistakeRows(topMistakes, true)}
               </div>
             )}
@@ -1700,7 +1700,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           <div className={sectionClass}>
             <div className="flex items-center justify-between">
               <div className={sectionTitleClass}>Point Loss Histogram</div>
-              <div className={`flex items-center gap-2 text-[10px] ${mutedClass}`}>
+              <div className={`flex items-center gap-2 text-[0.625rem] ${mutedClass}`}>
                 <span className="inline-flex items-center gap-1"><span className="game-report-histogram-swatch game-report-histogram-bar--black" />Black</span>
                 <span className="inline-flex items-center gap-1"><span className="game-report-histogram-swatch game-report-histogram-bar--white" />White</span>
               </div>
@@ -1708,7 +1708,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="mt-3 space-y-2">
               {playerDistributions.map(({ player, total, segments }) => (
                 <div key={player}>
-                  <div className={`mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide ${faintClass}`}>
+                  <div className={`mb-1 flex items-center justify-between text-[0.625rem] uppercase tracking-wide ${faintClass}`}>
                     <span>{player === 'black' ? 'Black distribution' : 'White distribution'}</span>
                     <span>{total} moves</span>
                   </div>
@@ -1741,15 +1741,15 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               ))}
             </div>
             <div className="mt-4 grid grid-cols-12 gap-2 text-xs">
-              <div className={`col-span-3 uppercase tracking-wide text-[10px] ${faintClass}`}>Threshold</div>
-              <div className={`col-span-5 uppercase tracking-wide text-[10px] ${faintClass}`}>Distribution</div>
+              <div className={`col-span-3 uppercase tracking-wide text-[0.625rem] ${faintClass}`}>Threshold</div>
+              <div className={`col-span-5 uppercase tracking-wide text-[0.625rem] ${faintClass}`}>Distribution</div>
               {playerFilter === 'all' ? (
                 <>
-                  <div className={`col-span-2 text-center uppercase tracking-wide text-[10px] ${faintClass}`}>B</div>
-                  <div className={`col-span-2 text-center uppercase tracking-wide text-[10px] ${faintClass}`}>W</div>
+                  <div className={`col-span-2 text-center uppercase tracking-wide text-[0.625rem] ${faintClass}`}>B</div>
+                  <div className={`col-span-2 text-center uppercase tracking-wide text-[0.625rem] ${faintClass}`}>W</div>
                 </>
               ) : (
-                <div className={`col-span-4 text-center uppercase tracking-wide text-[10px] ${faintClass}`}>
+                <div className={`col-span-4 text-center uppercase tracking-wide text-[0.625rem] ${faintClass}`}>
                   {playerNames[playerFilter]}
                 </div>
               )}
@@ -2016,7 +2016,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     {dataUrl ? (
                       <img src={dataUrl} alt={`Move ${entry.moveNumber} snapshot`} className="pdf-board" />
                     ) : (
-                      <div className="text-[10px] text-slate-500">Snapshot missing</div>
+                      <div className="text-[0.625rem] text-slate-500">Snapshot missing</div>
                     )}
                   </div>
                   <div className="mt-4">

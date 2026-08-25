@@ -3811,7 +3811,7 @@ export const Layout: React.FC = () => {
           <button
             type="button"
             onClick={() => setFocusMode(false)}
-            className="ml-1 min-h-11 min-w-11 shrink-0 rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[11px] font-semibold hover:bg-[var(--ui-surface-2)] desktop-shell:min-h-0 desktop-shell:min-w-0 lg:px-3"
+            className="ml-1 min-h-11 min-w-11 shrink-0 rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[0.6875rem] font-semibold hover:bg-[var(--ui-surface-2)] desktop-shell:min-h-0 desktop-shell:min-w-0 lg:px-3"
             title="Exit focus mode (Esc)"
             aria-label="Exit focus mode"
           >

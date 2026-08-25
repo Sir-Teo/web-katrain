@@ -170,7 +170,7 @@ export const GameInfoPanel: React.FC = () => {
 
   const renderField = ({ key, label, placeholder, className }: GameInfoField) => (
     <label key={key} className={['min-w-0 space-y-1', className ?? ''].join(' ')}>
-      <span className="block text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+      <span className="block text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
         {label}
       </span>
       <input
@@ -197,7 +197,7 @@ export const GameInfoPanel: React.FC = () => {
           <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{title}</div>
           {/* Only worth a line when it explains an empty-looking card — otherwise
               the players and details are right below. */}
-          {hasMetadata ? null : <div className="mt-1 text-[11px] ui-text-faint">No metadata yet</div>}
+          {hasMetadata ? null : <div className="mt-1 text-[0.6875rem] ui-text-faint">No metadata yet</div>}
         </div>
         {renderPanelActions(true)}
       </div>
@@ -206,14 +206,14 @@ export const GameInfoPanel: React.FC = () => {
         <div className="flex min-w-0 items-center gap-2 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-neutral-900 ring-1 ring-white/20" aria-hidden="true" />
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Black</div>
+            <div className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">Black</div>
             <div className="truncate text-xs text-[var(--ui-text)]">{blackDisplay}</div>
           </div>
         </div>
         <div className="flex min-w-0 items-center gap-2 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-white ring-1 ring-black/30" aria-hidden="true" />
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">White</div>
+            <div className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">White</div>
             <div className="truncate text-xs text-[var(--ui-text)]">{whiteDisplay}</div>
           </div>
         </div>
@@ -221,16 +221,16 @@ export const GameInfoPanel: React.FC = () => {
 
       <dl className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
-          <dt className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Komi</dt>
+          <dt className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">Komi</dt>
           <dd className="truncate text-xs text-[var(--ui-text)]">{formatKomiLabel(komi)}</dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Rules</dt>
+          <dt className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">Rules</dt>
           <dd className="truncate text-xs text-[var(--ui-text)]">{formatRulesLabel(gameRules)}</dd>
         </div>
         {handicap > 0 ? (
           <div className="min-w-0">
-            <dt className="text-[10px] font-semibold uppercase tracking-wide ui-text-faint">Handicap</dt>
+            <dt className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">Handicap</dt>
             <dd className="truncate text-xs text-[var(--ui-text)]">{handicap}</dd>
           </div>
         ) : null}
@@ -241,7 +241,7 @@ export const GameInfoPanel: React.FC = () => {
           {visibleDetails.map((detail) => (
             <span
               key={detail.key}
-              className="min-w-0 max-w-full rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1 text-[11px] text-[var(--ui-text-muted)]"
+              className="min-w-0 max-w-full rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1 text-[0.6875rem] text-[var(--ui-text-muted)]"
             >
               <span className="font-semibold text-[var(--ui-text)]">{detail.label}:</span>{' '}
               <span className="break-words">{detail.value}</span>
@@ -260,7 +260,7 @@ export const GameInfoPanel: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {detailFields.map(renderField)}
         <label className="min-w-0 space-y-1">
-          <span className="block text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+          <span className="block text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
             Komi
           </span>
           <input
@@ -276,7 +276,7 @@ export const GameInfoPanel: React.FC = () => {
           />
         </label>
         <label className="min-w-0 space-y-1">
-          <span className="block text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+          <span className="block text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
             Handicap
           </span>
           <input
@@ -294,7 +294,7 @@ export const GameInfoPanel: React.FC = () => {
           />
         </label>
         <label className="min-w-0 space-y-1">
-          <span className="block text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+          <span className="block text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
             Rules
           </span>
           <select
@@ -321,7 +321,7 @@ export const GameInfoPanel: React.FC = () => {
             because "Editing…" is state the reader has to see. */}
         <div className="min-w-0">
           <div className="truncate text-xs font-semibold text-[var(--ui-text)]">Editing game info</div>
-          <div className="text-[10px] ui-text-faint">SGF root metadata</div>
+          <div className="text-[0.625rem] ui-text-faint">SGF root metadata</div>
         </div>
         {renderPanelActions()}
       </div>

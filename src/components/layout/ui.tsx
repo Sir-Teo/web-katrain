@@ -205,7 +205,7 @@ export const EngineStatusBadge: React.FC<{
       <span className={['truncate', maxWidthClassName ?? ''].join(' ')}>
         {label}
       </span>
-      {showErrorTag && <span className="text-[10px] uppercase tracking-wide font-semibold">error</span>}
+      {showErrorTag && <span className="text-[0.625rem] uppercase tracking-wide font-semibold">error</span>}
     </div>
   );
 };

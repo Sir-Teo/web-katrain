@@ -198,7 +198,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             <h2 className="text-lg font-semibold" id="menu-title">
               Menu
             </h2>
-            <div className="mt-1 text-[11px] ui-text-faint">
+            <div className="mt-1 text-[0.6875rem] ui-text-faint">
               {APP_COMMIT_URL ? (
                 <a
                   href={APP_COMMIT_URL}
@@ -544,7 +544,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                   }}
                 >
                   <div className="truncate">{item.name}</div>
-                  <div className="text-[11px] ui-text-faint">
+                  <div className="text-[0.6875rem] ui-text-faint">
                     {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
                   </div>
                 </button>

@@ -16,7 +16,7 @@ const TRAIT_LABELS: Array<{ key: keyof BotPersonaTraits; label: string }> = [
 
 const TraitBar: React.FC<{ label: string; value: number }> = ({ label, value }) => (
   <div className="flex items-center gap-2">
-    <span className="w-16 shrink-0 text-[10px] uppercase tracking-wide text-[var(--ui-text-faint)]">{label}</span>
+    <span className="w-16 shrink-0 text-[0.625rem] uppercase tracking-wide text-[var(--ui-text-faint)]">{label}</span>
     <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--ui-surface-2)]">
       <span
         className="block h-full rounded-full bg-[var(--ui-accent)]"
@@ -47,13 +47,13 @@ export const BotPersonaPicker: React.FC<BotPersonaPickerProps> = ({ selectedId, 
           >
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-semibold text-[var(--ui-text)]">{persona.name}</span>
-              <span className="shrink-0 rounded-full border border-[var(--ui-border)] px-2 py-0.5 font-mono text-[11px] text-[var(--ui-text-muted)]">
+              <span className="shrink-0 rounded-full border border-[var(--ui-border)] px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--ui-text-muted)]">
                 {formatKyuRank(persona.rankKyu)}
               </span>
             </div>
             <div className="flex flex-wrap gap-1">
               {persona.styleTags.map((tag) => (
-                <span key={tag} className="rounded-full bg-[var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--ui-text-muted)]">
+                <span key={tag} className="rounded-full bg-[var(--ui-surface-2)] px-1.5 py-0.5 text-[0.625rem] uppercase tracking-wide text-[var(--ui-text-muted)]">
                   {tag}
                 </span>
               ))}

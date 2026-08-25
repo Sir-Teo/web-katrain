@@ -103,7 +103,7 @@ function pointsSummaryClass(tone: ReturnType<typeof summarizePointsLost>['tone']
 export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = ({ items }) => (
   <div
     id="analysis-quality-legend"
-    className="border-b border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[11px]"
+    className="border-b border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[0.6875rem]"
     data-analysis-quality-legend="true"
   >
     <div className="mb-1 flex items-center justify-between gap-2">
@@ -130,7 +130,7 @@ export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = (
       </div>
       <div className="grid grid-cols-3 gap-x-2 gap-y-1">
         <div className="min-w-0" data-analysis-overlay-legend-item="top-moves">
-          <span className="mb-1 flex h-5 w-full items-center justify-center rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] font-mono text-[10px] text-[var(--ui-accent)]">
+          <span className="mb-1 flex h-5 w-full items-center justify-center rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] font-mono text-[0.625rem] text-[var(--ui-accent)]">
             1
           </span>
           <span className="block truncate text-[var(--ui-text-muted)]">Top moves</span>
@@ -215,7 +215,7 @@ export const AnalysisCoverageReadout: React.FC<AnalysisCoverageReadoutProps> = (
     <div className={['font-mono text-sm', analysisCoverageValueClass(summary.tone)].join(' ')}>
       {summary.valueLabel}
     </div>
-    <div className="mt-0.5 text-[10px] font-semibold uppercase leading-tight tracking-wide ui-text-faint">
+    <div className="mt-0.5 text-[0.625rem] font-semibold uppercase leading-tight tracking-wide ui-text-faint">
       {summary.stateLabel}
     </div>
   </div>
@@ -464,7 +464,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         <div className="truncate font-mono text-sm text-[var(--ui-accent)]">
           {bestMoveSummary.moveLabel}
         </div>
-        <div className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+        <div className="mt-0.5 truncate text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
           {bestMoveSummary.detailLabel}
         </div>
       </div>
@@ -488,7 +488,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           </div>
           {/* Value first: this line truncates in a quarter-width phone column,
               and "UNRANKED…" hid the points-lost figure the reader came for. */}
-          <div className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide ui-text-faint">
+          <div className="mt-0.5 truncate text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
             {[displayedMoveQuality.valueLabel, displayedMoveQuality.rankLabel].filter((part) => part !== '-').join(' · ')}
           </div>
         </div>
@@ -520,10 +520,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       data-analysis-live-visit-presets="true"
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
+        <div className="text-[0.6875rem] font-semibold uppercase tracking-wide ui-text-faint">
           Analysis depth
         </div>
-        <div className="text-[11px] ui-text-faint">Kaya-style</div>
+        <div className="text-[0.6875rem] ui-text-faint">Kaya-style</div>
       </div>
       <div className={['grid gap-1', compact ? 'grid-cols-4' : 'grid-cols-2'].join(' ')}>
         {liveVisitPresets.map((preset) => {
@@ -544,7 +544,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               title={isGameAnalysisRunning ? 'Stop game analysis before changing live visits' : `Set live analysis to ${preset} visits`}
             >
               <span className="block font-mono text-xs">{preset}</span>
-              <span className="block text-[10px] font-semibold uppercase tracking-wide">
+              <span className="block text-[0.625rem] font-semibold uppercase tracking-wide">
                 {visitPresetLabel(preset)}
               </span>
             </button>
@@ -592,7 +592,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               style={{ width: `${Math.min(100, Math.round((gameAnalysisDone / gameAnalysisTotal) * 100))}%` }}
             />
           </div>
-          <div className="mt-1 text-[11px] ui-text-faint">
+          <div className="mt-1 text-[0.6875rem] ui-text-faint">
             {gameAnalysisDone}/{gameAnalysisTotal} analyzed
           </div>
         </div>
@@ -602,7 +602,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           <div id="analysis-engine-details" data-analysis-engine-details="true">
             {/* State and backend are the badge above (its label is exactly
                 "state · backend"), so this grid only carries what the badge omits. */}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[0.6875rem]">
               <div>
                 <div className="ui-text-faint">Model</div>
                 <div className="text-[var(--ui-text)] truncate" title={engineModelLabel ?? modelUrl}>
@@ -615,19 +615,19 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               </div>
             </div>
             {engineSummary.reasonLabel && (
-              <div className="mt-2 text-[11px] ui-text-faint" data-engine-reason="true">
+              <div className="mt-2 text-[0.6875rem] ui-text-faint" data-engine-reason="true">
                 {engineSummary.reasonLabel}
               </div>
             )}
           </div>
         )}
         {engineSummary.isFallback && (
-          <div className={[compact && !engineDetailsOpen ? '' : 'mt-2', 'text-[11px] text-[var(--ui-warning)]'].join(' ')}>
+          <div className={[compact && !engineDetailsOpen ? '' : 'mt-2', 'text-[0.6875rem] text-[var(--ui-warning)]'].join(' ')}>
             Requested {engineSummary.requestedBackendLabel}, running {engineSummary.activeBackendLabel}.
           </div>
         )}
         {engineError && (
-          <div className="mt-2 rounded border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] p-2 text-[11px] text-[var(--ui-danger)]">
+          <div className="mt-2 rounded border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] p-2 text-[0.6875rem] text-[var(--ui-danger)]">
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1 break-words">{engineError}</div>
               <button
@@ -739,17 +739,17 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             </div>
             {qualityLegend}
             <div className="grid gap-1" style={readoutGridStyle}>
-              {renderMoveReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
-              {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
-              {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
+              {renderMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
+              {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
+              {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
               <div className="px-2 py-1">
-                <div className="text-[11px] ui-text-faint">Winrate</div>
+                <div className="text-[0.6875rem] ui-text-faint">Winrate</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
                   {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
                 </div>
               </div>
               <div className="px-2 py-1">
-                <div className="text-[11px] ui-text-faint">Score</div>
+                <div className="text-[0.6875rem] ui-text-faint">Score</div>
                 <div className="font-mono text-sm text-[var(--ui-warning)]">
                   {scoreLeadLabel}
                 </div>
@@ -757,24 +757,24 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               <AnalysisCoverageReadout
                 summary={analysisCoverage}
                 className="px-2 py-1"
-                labelClassName="text-[11px] ui-text-faint"
+                labelClassName="text-[0.6875rem] ui-text-faint"
               />
               {statsActions}
             </div>
           </div>
         ) : (
           <div className="grid gap-1" style={readoutGridStyle}>
-            {renderMoveReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
-            {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
-            {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[11px] ui-text-faint')}
+            {renderMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
+            {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
+            {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
             <div className="px-2 py-1">
-              <div className="text-[11px] ui-text-faint">Winrate</div>
+              <div className="text-[0.6875rem] ui-text-faint">Winrate</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">
                 {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
               </div>
             </div>
             <div className="px-2 py-1">
-              <div className="text-[11px] ui-text-faint">Score</div>
+              <div className="text-[0.6875rem] ui-text-faint">Score</div>
               <div className="font-mono text-sm text-[var(--ui-warning)]">
                 {scoreLeadLabel}
               </div>
@@ -782,7 +782,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             <AnalysisCoverageReadout
               summary={analysisCoverage}
               className="px-2 py-1"
-              labelClassName="text-[11px] ui-text-faint"
+              labelClassName="text-[0.6875rem] ui-text-faint"
             />
             {statsActions}
           </div>

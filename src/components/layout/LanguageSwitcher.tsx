@@ -160,7 +160,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
                   {/* The English name only earns a line when it differs from the
                       native one — for English itself the two are identical. */}
                   {locale.label !== locale.nativeLabel && (
-                    <span lang="en" className="block truncate text-[11px] text-[var(--ui-text-faint)]">{locale.label}</span>
+                    <span lang="en" className="block truncate text-[0.6875rem] text-[var(--ui-text-faint)]">{locale.label}</span>
                   )}
                 </span>
                 {active && <FaCheck aria-hidden="true" className="shrink-0 text-[var(--ui-accent)]" size={12} />}

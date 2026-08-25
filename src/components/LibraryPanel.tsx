@@ -1923,7 +1923,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           <div className="text-sm font-semibold text-[var(--ui-text)]">Library</div>
           <div
             className={[
-              'hidden sm:inline-flex px-2 py-0.5 rounded border text-[10px] font-semibold uppercase tracking-wider',
+              'hidden sm:inline-flex px-2 py-0.5 rounded border text-[0.625rem] font-semibold uppercase tracking-wider',
               libraryStatus === 'error'
                 ? 'ui-danger-soft text-[var(--ui-danger)] border-[var(--ui-danger)]'
                 : libraryStatus === 'saving'
@@ -2167,7 +2167,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 {/* The trail sat in a band of its own under a toolbar row that
                     was empty between the root button and the item count. It
                     reads as the same thing, so it shares the row. */}
-                <div className="library-breadcrumbs flex min-w-0 flex-wrap items-center gap-1 text-[11px] ui-text-faint">
+                <div className="library-breadcrumbs flex min-w-0 flex-wrap items-center gap-1 text-[0.6875rem] ui-text-faint">
                   {/* The trail already ends at the current folder, so naming it
                       in the label too printed it twice ("Folder: X  X"). */}
                   <span>Folder:</span>
@@ -2192,7 +2192,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </span>
                   )}
                 </div>
-                <div className="ml-auto flex items-center gap-2 text-[11px] ui-text-faint">
+                <div className="ml-auto flex items-center gap-2 text-[0.6875rem] ui-text-faint">
                   <div>
                     {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
                   </div>

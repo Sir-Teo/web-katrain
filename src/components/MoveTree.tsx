@@ -369,7 +369,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   if (!layout || !visible) {
     return (
       <div ref={containerRef} className="relative w-full h-full min-h-28 overflow-auto ui-surface">
-        <div className="absolute inset-0 grid place-items-center text-[11px] uppercase tracking-wide ui-text-muted">
+        <div className="absolute inset-0 grid place-items-center text-[0.6875rem] uppercase tracking-wide ui-text-muted">
           Laying out move tree
         </div>
       </div>
@@ -564,7 +564,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
         </div>
       )}
       {layoutStatus === 'working' && (
-        <div className="pointer-events-none sticky bottom-1 left-1 inline-flex rounded bg-[var(--ui-surface)]/90 px-2 py-1 text-[10px] uppercase tracking-wide ui-text-muted">
+        <div className="pointer-events-none sticky bottom-1 left-1 inline-flex rounded bg-[var(--ui-surface)]/90 px-2 py-1 text-[0.625rem] uppercase tracking-wide ui-text-muted">
           Laying out {flatTree.length} nodes
         </div>
       )}

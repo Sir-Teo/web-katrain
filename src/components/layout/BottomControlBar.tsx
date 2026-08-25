@@ -438,7 +438,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           )}
           <button type="button"
             ref={passBtnRef}
-            className="relative min-h-11 min-w-11 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-transparent hover:bg-[var(--ui-surface-2)] rounded-md text-[11px] sm:text-xs font-medium text-[var(--ui-text)] transition-colors"
+            className="relative min-h-11 min-w-11 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-transparent hover:bg-[var(--ui-surface-2)] rounded-md text-[0.6875rem] sm:text-xs font-medium text-[var(--ui-text)] transition-colors"
             onClick={passTurn}
             aria-label="Pass turn"
             title={withShortcut('Pass', 'pass')}
@@ -485,7 +485,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             <FaChevronLeft />
           </IconButton>
           <div
-            className="mobile-bottom-meta min-w-0 max-w-full overflow-hidden px-2 py-1 text-[10px] sm:text-xs font-mono text-[var(--ui-text-muted)] flex items-center gap-1"
+            className="mobile-bottom-meta min-w-0 max-w-full overflow-hidden px-2 py-1 text-[0.625rem] sm:text-xs font-mono text-[var(--ui-text-muted)] flex items-center gap-1"
             title={matchupSummary}
             aria-label={matchupSummary}
           >
@@ -554,7 +554,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 <span className={metaDividerClass}>·</span>
                 <span
                   className={[
-                    'inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
+                    'inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-wide',
                     mobileSaveStatusClass,
                   ].join(' ')}
                   title={mobileSaveStatus.title}
@@ -733,7 +733,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                   {showBranchControl && branchInfo && switchBranch && (
                     <>
-                      <div className="col-span-2 px-3 pt-1 pb-0.5 text-[11px] font-semibold uppercase tracking-wide ui-text-faint">
+                      <div className="col-span-2 px-3 pt-1 pb-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide ui-text-faint">
                         Variation
                       </div>
                       <button type="button"

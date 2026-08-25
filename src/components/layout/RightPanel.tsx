@@ -538,7 +538,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     {branchInfo.hasBranches && (
                       isBranchIndexEditing ? (
                         <div
-                          className="flex min-w-[4.75rem] items-center rounded border border-[var(--ui-accent)] bg-[var(--ui-surface)] px-2 py-1 text-[10px] leading-none text-[var(--ui-text-muted)]"
+                          className="flex min-w-[4.75rem] items-center rounded border border-[var(--ui-accent)] bg-[var(--ui-surface)] px-2 py-1 text-[0.625rem] leading-none text-[var(--ui-text-muted)]"
                         >
                           <input
                             type="number"
@@ -565,7 +565,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       ) : (
                         <button
                           type="button"
-                          className="min-w-[4.75rem] rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-left text-[10px] leading-none text-[var(--ui-text-muted)] hover:border-[var(--ui-border-strong)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="min-w-[4.75rem] rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-left text-[0.625rem] leading-none text-[var(--ui-text-muted)] hover:border-[var(--ui-border-strong)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
                           title={
                             branchInfo.isAtFork
                               ? 'Set branch number'
@@ -676,12 +676,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               disabled={isInsertMode}
                               title={isInsertMode ? 'Finish inserting before navigating.' : 'Jump to move'}
                             >
-                              <span className="w-10 text-[10px] font-mono text-[var(--ui-text-faint)]">
+                              <span className="w-10 text-[0.625rem] font-mono text-[var(--ui-text-faint)]">
                                 {moveNumberLabel}
                               </span>
                               <span
                                 className={[
-                                  'text-[10px] font-mono px-1.5 py-0.5 rounded',
+                                  'text-[0.625rem] font-mono px-1.5 py-0.5 rounded',
                                   playerChipClass,
                                 ].join(' ')}
                               >
@@ -689,7 +689,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               </span>
                               <span className="text-xs font-medium">{label}</span>
                               {hasNote && (
-                                <span className="ml-auto text-[9px] uppercase tracking-wide text-[var(--ui-warning)]">note</span>
+                                <span className="ml-auto text-[0.5625rem] uppercase tracking-wide text-[var(--ui-warning)]">note</span>
                               )}
                             </button>
                           );
@@ -773,7 +773,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               contentClassName: 'panel-section-content p-0',
               children: (
                 <div className="flex flex-col min-h-0">
-                  <div className="panel-toolbar text-[11px] ui-text-faint">
+                  <div className="panel-toolbar text-[0.6875rem] ui-text-faint">
                     <div className="truncate text-xs text-[var(--ui-text)]" title={currentPositionSummary.title}>
                       <span className="font-mono">{currentPositionSummary.playerLabel}</span> ·{' '}
                       <span className="font-mono">{currentPositionSummary.moveNumberLabel}</span> ·{' '}
@@ -781,7 +781,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     </div>
                     {shapeCoachEnabled && currentMoveInsight && (
                       <div
-                        className="hidden sm:flex min-w-0 max-w-[14rem] items-center gap-1.5 rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2 py-1 text-[10px] text-[var(--ui-accent)]"
+                        className="hidden sm:flex min-w-0 max-w-[14rem] items-center gap-1.5 rounded border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2 py-1 text-[0.625rem] text-[var(--ui-accent)]"
                         title={currentMoveInsight.detail}
                         data-panel-move-insight={currentMoveInsight.tone}
                       >
@@ -844,7 +844,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     </div>
                   </div>
                   {(statusText || engineError) && (
-                    <div className="px-3 py-2 border-b border-[var(--ui-border)] text-[11px] ui-text-faint">
+                    <div className="px-3 py-2 border-b border-[var(--ui-border)] text-[0.6875rem] ui-text-faint">
                       {engineError ? <span className="text-[var(--ui-danger)]">{statusText}</span> : statusText}
                     </div>
                   )}

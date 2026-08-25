@@ -85,7 +85,7 @@ const HomeAction: React.FC<HomeActionProps> = ({ label, compactLabel, icon, onCl
       {compactLabel ? (
         <span className="mobile-home-action-label-compact hidden text-xs font-semibold">{compactLabel}</span>
       ) : null}
-      {hint ? <span className="mobile-home-action-hint mt-0.5 block truncate text-[11px] opacity-75">{hint}</span> : null}
+      {hint ? <span className="mobile-home-action-hint mt-0.5 block truncate text-[0.6875rem] opacity-75">{hint}</span> : null}
     </span>
   </button>
 );
@@ -207,7 +207,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                 >
                   <FaGamepad aria-hidden="true" />
                   {hasMultipleGamepads && (
-                    <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full border border-[var(--ui-panel)] bg-[var(--ui-accent)] px-1 text-[9px] font-bold leading-none text-[var(--ui-accent-contrast)]">
+                    <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full border border-[var(--ui-panel)] bg-[var(--ui-accent)] px-1 text-[0.5625rem] font-bold leading-none text-[var(--ui-accent-contrast)]">
                       {gamepadCount}
                     </span>
                   )}
@@ -237,15 +237,15 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           <section className="mobile-home-summary border-y border-[var(--ui-border)] py-3">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="px-2 py-2">
-                <div className="text-[11px] uppercase tracking-wide ui-text-faint">Board</div>
+                <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">Board</div>
                 <div className="mt-1 text-sm font-semibold">{boardSize}×{boardSize}</div>
               </div>
               <div className="border-x border-[var(--ui-border)] px-2 py-2">
-                <div className="text-[11px] uppercase tracking-wide ui-text-faint">Move</div>
+                <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">Move</div>
                 <div className="mt-1 text-sm font-semibold">#{moveCount}</div>
               </div>
               <div className="px-2 py-2">
-                <div className="text-[11px] uppercase tracking-wide ui-text-faint">Engine</div>
+                <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">Engine</div>
                 <div className="mt-1 truncate text-sm font-semibold">{engineMeta.split(' · ')[0] ?? 'Idle'}</div>
               </div>
             </div>

@@ -294,7 +294,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
             <FaEdit className="text-[var(--ui-accent)]" />
             Edit
             {!isMobile && (
-              <span className="ml-1 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--ui-text-muted)]">
+              <span className="ml-1 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-1.5 py-0.5 text-[0.625rem] font-mono text-[var(--ui-text-muted)]">
                 {shortcutLabels['toggle-edit-mode']}
               </span>
             )}
@@ -315,7 +315,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
                 Active: {TOOL_LABELS[editTool]} · {shortcutLabels['toggle-edit-mode']} closes
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider">
+            <div className="hidden md:flex items-center gap-1 text-[0.625rem] font-semibold uppercase tracking-wider">
               <span className="px-1.5 py-0.5 rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)]">
                 Setup {setupCount}
               </span>
@@ -343,7 +343,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
                 key={group.title}
                 className={groupClass}
               >
-                <div className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
+                <div className="w-12 shrink-0 text-[0.625rem] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
                   {group.title}
                 </div>
                 {group.items.map((item) => {
@@ -365,7 +365,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
                       </span>
                       <span className="hidden sm:inline">{item.label}</span>
                       {shortcutLabel !== 'Disabled' && (
-                        <kbd className="hidden md:inline font-mono text-[10px] ui-text-faint">{shortcutLabel}</kbd>
+                        <kbd className="hidden md:inline font-mono text-[0.625rem] ui-text-faint">{shortcutLabel}</kbd>
                       )}
                     </button>
                   );
@@ -411,7 +411,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
               </div>
             ))}
             <div className={groupClass}>
-              <div className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
+              <div className="w-12 shrink-0 text-[0.625rem] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
                 Branch
               </div>
               <button
@@ -493,7 +493,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
               </button>
             </div>
             <div className={groupClass}>
-              <div className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
+              <div className="w-12 shrink-0 text-[0.625rem] font-semibold uppercase tracking-wider text-[var(--ui-text-faint)] px-1">
                 History
               </div>
               <button

@@ -265,7 +265,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const modelCardClass =
         'w-full text-left rounded-lg border px-3 py-2 bg-[var(--ui-surface)] border-[var(--ui-border)] text-[var(--ui-text)]';
     const modelBadgeClass =
-        'text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] border border-[var(--ui-border)]';
+        'text-[0.625rem] uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] border border-[var(--ui-border)]';
     const modelActionClass =
         'px-2 py-1 text-xs rounded bg-[var(--ui-surface-2)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface)] hover:text-[var(--ui-text)]';
     const backendCardClass = (active: boolean, available: boolean) => [
@@ -714,11 +714,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             </span>
                                                             <span className="flex min-w-0 items-center justify-between gap-2">
                                                                 <span className="truncate text-xs font-semibold">{theme.label}</span>
-                                                                {selected ? <span className="text-[10px] font-mono text-[var(--ui-accent)]">On</span> : null}
+                                                                {selected ? <span className="text-[0.625rem] font-mono text-[var(--ui-accent)]">On</span> : null}
                                                             </span>
                                                             {theme.config.description ? (
                                                                 <span
-                                                                    className="mt-1 block truncate text-[10px] leading-tight ui-text-faint"
+                                                                    className="mt-1 block truncate text-[0.625rem] leading-tight ui-text-faint"
                                                                     title={theme.config.description}
                                                                 >
                                                                     {theme.config.description}
@@ -2026,12 +2026,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                     {model.badge}
                                                                 </span>
                                                             ) : null}
-                                                            <span className="ml-auto text-[10px] text-[var(--ui-text-muted)]">{model.size}</span>
+                                                            <span className="ml-auto text-[0.625rem] text-[var(--ui-text-muted)]">{model.size}</span>
                                                         </div>
-                                                        <div className="text-[11px] text-[var(--ui-text-muted)] font-mono truncate">
+                                                        <div className="text-[0.6875rem] text-[var(--ui-text-muted)] font-mono truncate">
                                                             {model.name}
                                                         </div>
-                                                        <div className="text-[10px] text-[var(--ui-text-faint)]">
+                                                        <div className="text-[0.625rem] text-[var(--ui-text-faint)]">
                                                             Uploaded {model.uploaded}
                                                         </div>
                                                         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -2070,7 +2070,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                                 </button>
                                                                                 {isDownloadingModel ? (
                                                                                     <span
-                                                                                        className="shrink-0 min-w-[5.5rem] overflow-hidden rounded-full border border-[var(--ui-accent)] bg-[var(--ui-surface)] text-[10px] text-[var(--ui-accent)]"
+                                                                                        className="shrink-0 min-w-[5.5rem] overflow-hidden rounded-full border border-[var(--ui-accent)] bg-[var(--ui-surface)] text-[0.625rem] text-[var(--ui-accent)]"
                                                                                         role="progressbar"
                                                                                         aria-label={`Downloading ${model.name}`}
                                                                                         aria-valuemin={downloadProgress === null ? undefined : 0}
@@ -2097,14 +2097,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                                         </span>
                                                                                     </span>
                                                                                 ) : (
-                                                                                    <span className="text-[10px] text-[var(--ui-accent)]">Saved in browser</span>
+                                                                                    <span className="text-[0.625rem] text-[var(--ui-accent)]">Saved in browser</span>
                                                                                 )}
                                                                             </>
                                                                         );
                                                                     })()}
                                                                 </div>
                                                             ) : model.browserLoadable === false ? (
-                                                                <span className="text-[10px] text-rose-400">
+                                                                <span className="text-[0.625rem] text-rose-400">
                                                                     Too large for browser upload
                                                                 </span>
                                                             ) : null}
@@ -2188,7 +2188,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                                                                     <span className="truncate text-sm font-semibold">{option.label}</span>
                                                                     {option.badge ? (
-                                                                        <span className="rounded-full border border-[var(--ui-accent)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-accent)]">
+                                                                        <span className="rounded-full border border-[var(--ui-accent)] px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-[var(--ui-accent)]">
                                                                             {option.badge}
                                                                         </span>
                                                                     ) : null}
@@ -2198,7 +2198,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                 </span>
                                                             </span>
                                                             {active ? (
-                                                                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--ui-accent)] text-[10px] text-[var(--ui-accent-contrast)]">
+                                                                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--ui-accent)] text-[0.625rem] text-[var(--ui-accent-contrast)]">
                                                                     <FaCheck aria-hidden="true" />
                                                                 </span>
                                                             ) : null}

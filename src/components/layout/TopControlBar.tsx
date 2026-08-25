@@ -539,22 +539,22 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('extra'); closeMobileToolsAfterAction(); }}>
             <FaSearchPlus size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Extra analysis</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-extra']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['analysis-extra']}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('equalize'); closeMobileToolsAfterAction(); }}>
             <FaBalanceScale size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Equalize</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-equalize']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['analysis-equalize']}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('sweep'); closeMobileToolsAfterAction(); }}>
             <FaBroom size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Sweep</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-sweep']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['analysis-sweep']}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('alternative'); closeMobileToolsAfterAction(); }}>
             <FaRandom size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Alternative</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-alternative']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['analysis-alternative']}</span>
           </button>
           {/* Once selecting starts there is no region yet, so the Clear entry
               below has not appeared — and cancelSelectRegionOfInterest was only
@@ -572,7 +572,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           >
             <FaCrosshairs size={18} className={isSelectingRegionOfInterest ? 'text-[var(--ui-accent)]' : 'text-[var(--ui-text-muted)]'} />
             <span className="text-sm font-medium">{isSelectingRegionOfInterest ? 'Cancel region select' : 'Select region'}</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['select-region']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['select-region']}</span>
           </button>
           {regionOfInterest && (
             <button type="button" className={`${mobileToolsGridBtn} text-[var(--ui-danger)]`} onClick={() => { setRegionOfInterest(null); closeMobileToolsAfterAction(); }}>
@@ -589,22 +589,22 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleContinuousAnalysis(); closeMobileToolsAfterAction(); }} aria-pressed={isAnalysisMode}>
             <FaChartLine size={18} className={isAnalysisMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Cont. analysis</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { makeAiMove(); closeMobileToolsAfterAction(); }}>
             <FaPlay size={18} className="text-[var(--ui-success)]" />
             <span className="text-sm font-medium">AI move</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['ai-move']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['ai-move']}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleInsertMode(); closeMobileToolsAfterAction(); }} aria-pressed={isInsertMode}>
             <FaLayerGroup size={18} className={isInsertMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Insert mode</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['toggle-insert']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['toggle-insert']}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { selfplayToEnd(); closeMobileToolsAfterAction(); }}>
             <FaFastForward size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Selfplay to end</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels.selfplay}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels.selfplay}</span>
           </button>
           {/* Stop had no touch route at all: its only caller was the analysis
               menu below, which never renders, so "Selfplay to end" ran with no
@@ -613,12 +613,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('stop'); closeMobileToolsAfterAction(); }}>
             <FaStop size={18} className="text-[var(--ui-danger)]" />
             <span className="text-sm font-medium">Stop analysis</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels.escape}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels.escape}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { resetCurrentAnalysis(); closeMobileToolsAfterAction(); }}>
             <FaRedoAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Reset analysis</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['reset-analysis']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['reset-analysis']}</span>
           </button>
           {/* Confirm-gated in Layout: it refuses while a game analysis is
               running, and skips the dialog outright when the cache is empty. */}
@@ -629,7 +629,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button type="button" className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeMobileToolsAfterAction(); }}>
             <FaSyncAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Rotate board</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['rotate-board']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['rotate-board']}</span>
           </button>
           {/* No Photo Board tile: the mobile sheet appends desktopViewMenu below,
               which already lists it beside Copy/Paste SGF where importing a game
@@ -655,12 +655,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button type="button" className={mobileToolsGridBtn} onClick={() => { setIsGameAnalysisOpen(true); closeViewMenu(); }}>
             <FaRedoAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Re-analyze</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['game-analysis-modal']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['game-analysis-modal']}</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { setIsGameReportOpen(true); closeViewMenu(); }}>
             <FaFileAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Game report</span>
-            <span className="text-[11px] ui-text-faint">{shortcutLabels['game-report-modal']}</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['game-report-modal']}</span>
           </button>
         </div>
       </div>

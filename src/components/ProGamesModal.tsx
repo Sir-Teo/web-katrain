@@ -101,7 +101,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
               </div>
               {FEATURED_PRO_GAMES.length > 0 && !query && (
                 <div className="pro-games-featured flex flex-nowrap items-center gap-1.5 overflow-x-auto lg:flex-wrap lg:overflow-visible" aria-label="Featured games">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Featured</span>
+                  <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-[var(--ui-text-faint)]">Featured</span>
                   {FEATURED_PRO_GAMES.map((g) => (
                     <button
                       key={g.id}
@@ -109,7 +109,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                       onClick={() => setSelectedId(g.id)}
                       aria-pressed={selected?.id === g.id}
                       className={[
-                        'min-h-11 shrink-0 rounded-full border px-2 py-0.5 text-[11px] transition-colors desktop-shell:min-h-0',
+                        'min-h-11 shrink-0 rounded-full border px-2 py-0.5 text-[0.6875rem] transition-colors desktop-shell:min-h-0',
                         selected?.id === g.id
                           ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-text)]'
                           : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -152,7 +152,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                             {tags.map((tag) => (
                               <span
                                 key={tag.id}
-                                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${narrativeTagToneClass(tag.tone)}`}
+                                className={`rounded-full border px-1.5 py-0.5 text-[0.625rem] font-semibold ${narrativeTagToneClass(tag.tone)}`}
                                 title={tag.title}
                               >
                                 {tag.label}

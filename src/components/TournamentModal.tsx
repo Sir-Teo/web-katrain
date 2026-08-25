@@ -218,7 +218,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                             : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)]',
                       ].join(' ')}
                     >
-                      <span className="text-[10px] uppercase">{done ? 'Won' : `G${i + 1}`}</span>
+                      <span className="text-[0.625rem] uppercase">{done ? 'Won' : `G${i + 1}`}</span>
                       <span>{formatKyuRank(kyu)}</span>
                     </div>
                   );

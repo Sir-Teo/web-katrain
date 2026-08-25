@@ -416,17 +416,17 @@ export const ScoreWinrateGraph: React.FC<{
       {showScore && hasGraphData && (
         <>
           <div
-            className="absolute top-1 right-1 text-[9px] pointer-events-none"
+            className="absolute top-1 right-1 text-[0.5625rem] pointer-events-none"
             style={{ color: graphTheme.scoreMarkerColor }}
           >{`B+${scoreScale}`}</div>
           <div
-            className="absolute top-1/2 right-1 -translate-y-1/2 text-[9px] pointer-events-none"
+            className="absolute top-1/2 right-1 -translate-y-1/2 text-[0.5625rem] pointer-events-none"
             style={{ color: graphTheme.scoreMarkerColor }}
           >
             Jigo
           </div>
           <div
-            className="absolute bottom-1 right-1 text-[9px] pointer-events-none"
+            className="absolute bottom-1 right-1 text-[0.5625rem] pointer-events-none"
             style={{ color: graphTheme.scoreMarkerColor }}
           >{`W+${scoreScale}`}</div>
         </>
@@ -436,11 +436,11 @@ export const ScoreWinrateGraph: React.FC<{
       {showWinrate && hasGraphData && (
         <>
           <div
-            className="absolute top-1 left-1 text-[9px] pointer-events-none"
+            className="absolute top-1 left-1 text-[0.5625rem] pointer-events-none"
             style={{ color: graphTheme.winrateMarkerColor }}
           >{`${50 + winrateScale}%`}</div>
           <div
-            className="absolute bottom-1 left-1 text-[9px] pointer-events-none"
+            className="absolute bottom-1 left-1 text-[0.5625rem] pointer-events-none"
             style={{ color: graphTheme.winrateMarkerColor }}
           >{`${50 - winrateScale}%`}</div>
         </>
