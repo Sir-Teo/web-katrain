@@ -52,6 +52,24 @@ describe('toast arrival policy', () => {
     expect(state.queued.map((n) => n.message)).toEqual(['two', 'three', 'four']);
   });
 
+  it('sacrifices waiting chatter before a waiting error', () => {
+    // A second engine error carries its own "Copy details"; routine markers
+    // must not be able to push it out of the queue before it is ever seen.
+    let state = admitNotification(emptyNotificationQueue<NotificationLike>(), error('First'));
+    state = admitNotification(state, error('Second'));
+    for (const message of ['one', 'two', 'three']) state = admitNotification(state, info(message));
+
+    expect(state.queued).toHaveLength(MAX_QUEUED_NOTIFICATIONS);
+    expect(state.queued.map((n) => n.message)).toEqual(['Second', 'two', 'three']);
+  });
+
+  it('drops the oldest error only once there is no chatter left to drop', () => {
+    let state = admitNotification(emptyNotificationQueue<NotificationLike>(), error('E0'));
+    for (const message of ['E1', 'E2', 'E3', 'E4']) state = admitNotification(state, error(message));
+
+    expect(state.queued.map((n) => n.message)).toEqual(['E2', 'E3', 'E4']);
+  });
+
   it('promotes the next waiting message when the error is dismissed', () => {
     let state = admitNotification(emptyNotificationQueue<NotificationLike>(), error('Analysis error'));
     state = admitNotification(state, info('Added label B'));

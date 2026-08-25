@@ -30,8 +30,24 @@ export const NOTIFICATION_AUTO_DISMISS_MS: Record<NotificationType, number | nul
   error: null,
 };
 
-/** Waiting messages beyond this are dropped oldest-first rather than hoarded. */
+/**
+ * Waiting messages beyond this are dropped oldest-first rather than hoarded.
+ * Errors are the exception: dropping one would lose the "Copy details" payload
+ * that the whole queue exists to protect, so a waiting error yields its place
+ * only once there is no chatter left to drop.
+ */
 export const MAX_QUEUED_NOTIFICATIONS = 3;
+
+/** Trim to `maxQueued`, sacrificing the oldest chatter before any error. */
+function trimQueue<T extends NotificationLike>(queued: readonly T[], maxQueued: number): T[] {
+  const limit = Math.max(0, maxQueued);
+  const kept = [...queued];
+  while (kept.length > limit) {
+    const chatterIndex = kept.findIndex((notification) => notification.type !== 'error');
+    kept.splice(chatterIndex >= 0 ? chatterIndex : 0, 1);
+  }
+  return kept;
+}
 
 export interface NotificationQueueState<T extends NotificationLike> {
   displayed: T | null;
@@ -51,8 +67,7 @@ export function admitNotification<T extends NotificationLike>(
   if (state.displayed?.type !== 'error') {
     return { displayed: incoming, queued: state.queued };
   }
-  const queued = [...state.queued, incoming];
-  return { displayed: state.displayed, queued: queued.slice(Math.max(0, queued.length - maxQueued)) };
+  return { displayed: state.displayed, queued: trimQueue([...state.queued, incoming], maxQueued) };
 }
 
 /** Dismiss the visible notification and promote whatever was waiting. */
