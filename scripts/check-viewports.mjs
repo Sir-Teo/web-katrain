@@ -270,6 +270,11 @@ function assertViewport(result) {
   if (result.localeSmokeFailures.length > 0) {
     failures.push(`locale smoke failures: ${result.localeSmokeFailures.join(', ')}`);
   }
+  if (result.duplicateIds?.length > 0) {
+    // getElementById and label/aria targeting resolve to the first match, so a
+    // duplicate id silently points half the references at the wrong element.
+    failures.push(`duplicate element ids: ${result.duplicateIds.slice(0, 6).join(', ')}`);
+  }
   if (result.pageErrors?.length > 0) {
     failures.push(`page errors: ${result.pageErrors.slice(0, 6).join(' | ')}`);
   }
@@ -2692,6 +2697,15 @@ async function main() {
           }
         }
         return out;
+      })()`);
+      result.duplicateIds = await evaluate(cdp, `(() => {
+        const seen = new Map();
+        for (const el of document.querySelectorAll('[id]')) {
+          const id = el.id;
+          if (!id) continue;
+          seen.set(id, (seen.get(id) || 0) + 1);
+        }
+        return [...seen].filter(([, n]) => n > 1).map(([id, n]) => id + ' x' + n);
       })()`);
       result.pageErrors = [...new Set(pageErrors)];
       assertViewport(result);
