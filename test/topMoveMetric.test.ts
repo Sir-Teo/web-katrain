@@ -41,6 +41,15 @@ describe('top move metric helpers', () => {
     expect(current).toBe(POLICY_HEATMAP_METRIC_OPTIONS[0]!.value);
   });
 
+  it('advances off the label an unset heatmap metric is already showing', () => {
+    // Settings that predate the metric leave it unset; the control still reads
+    // "Move probability", so cycling has to land on the next option, not on
+    // the one already displayed.
+    expect(getPolicyHeatmapMetricLabel(undefined)).toBe(getPolicyHeatmapMetricLabel('policy'));
+    expect(nextPolicyHeatmapMetric(undefined)).toBe(nextPolicyHeatmapMetric('policy'));
+    expect(nextPolicyHeatmapMetric(undefined)).not.toBe('policy');
+  });
+
   it('provides compact labels for the policy heatmap metric control', () => {
     expect(getPolicyHeatmapMetricLabel('policy', 'short')).toBe('Prob.');
     expect(getPolicyHeatmapMetricLabel('delta_score', 'short')).toBe('Score');

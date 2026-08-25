@@ -52,6 +52,9 @@ export function getPolicyHeatmapMetricLabel(
 }
 
 export function nextPolicyHeatmapMetric(metric: PolicyHeatmapMetric | undefined): PolicyHeatmapMetric {
-  const index = POLICY_HEATMAP_METRIC_OPTIONS.findIndex((item) => item.value === metric);
+  // An unset metric already reads as the first option everywhere else, so
+  // findIndex's -1 would advance it back onto itself and the control would
+  // look stuck. Treat "unset" as the option the label is showing.
+  const index = Math.max(0, POLICY_HEATMAP_METRIC_OPTIONS.findIndex((item) => item.value === metric));
   return POLICY_HEATMAP_METRIC_OPTIONS[(index + 1) % POLICY_HEATMAP_METRIC_OPTIONS.length]!.value;
 }
