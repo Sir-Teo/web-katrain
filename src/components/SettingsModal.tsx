@@ -637,9 +637,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between gap-3">
-                                                <div id="settings-board-theme-label" className="ui-text-muted">Board Theme</div>
+                                                {/* A label with htmlFor, matching the backend picker: the
+                                                    search index is derived from those, so a radiogroup
+                                                    labelled only by aria-labelledby cannot be found. */}
+                                                <label id="settings-board-theme-label" htmlFor="settings-board-theme" className="ui-text-muted">Board Theme</label>
                                                 <span className="text-xs ui-text-faint">Kaya-style previews</span>
                                             </div>
+                                            <input
+                                                id="settings-board-theme"
+                                                className="sr-only"
+                                                tabIndex={-1}
+                                                readOnly
+                                                aria-hidden="true"
+                                                value={settings.boardTheme}
+                                            />
                                             <div
                                                 className="grid grid-cols-2 gap-2 sm:grid-cols-3"
                                                 role="radiogroup"

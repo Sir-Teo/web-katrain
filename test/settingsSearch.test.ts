@@ -15,7 +15,10 @@ function labelledControlsInModal(): Array<{ id: string; tab: string }> {
   for (const line of source.split('\n')) {
     const tabMatch = line.match(/activeTab === '(general|analysis|ai|shortcuts)'/);
     if (tabMatch) tab = tabMatch[1]!;
-    const labelMatch = line.match(/<label htmlFor="(settings-[a-z0-9-]+)"/);
+    // Not /<label htmlFor=/: the backend control writes id= first, so a regex
+    // anchored to the first attribute skipped it and the index silently lost a
+    // setting the modal really has.
+    const labelMatch = line.match(/<label[^>]*htmlFor="(settings-[a-z0-9-]+)"/);
     if (labelMatch) found.push({ id: labelMatch[1]!, tab });
   }
   return found;
