@@ -1364,8 +1364,10 @@ export const Layout: React.FC = () => {
       moveNumber: currentMoveNumber,
       totalMoves: totalMovesInCurrentLine,
       boardSize,
+      winRate,
+      scoreLead,
     });
-  }, [boardSize, currentMoveNumber, currentNode, totalMovesInCurrentLine, treeVersion]);
+  }, [boardSize, currentMoveNumber, currentNode, scoreLead, totalMovesInCurrentLine, treeVersion, winRate]);
 
   const branchInfo = useMemo(() => {
     void treeVersion;

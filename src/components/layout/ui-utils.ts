@@ -1,3 +1,4 @@
+import { formatReadableScoreLead } from '../../utils/analysisSummary';
 export function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
   const a = typeof alphaOverride === 'number' ? alphaOverride : color[3];
   return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${a})`;
@@ -23,13 +24,28 @@ export function formatBoardAnnouncement(args: {
   moveNumber: number;
   totalMoves: number;
   boardSize?: number;
+  winRate?: number | null;
+  scoreLead?: number | null;
 }): string {
-  const { move, moveNumber, totalMoves, boardSize = 19 } = args;
-  if (!move) {
-    return totalMoves > 0 ? `Start of game, ${totalMoves} moves` : 'Empty board';
-  }
-  const player = move.player === 'black' ? 'Black' : 'White';
-  return `Move ${moveNumber} of ${totalMoves}, ${player} ${formatMoveLabel(move.x, move.y, boardSize)}`;
+  const { move, moveNumber, totalMoves, boardSize = 19, winRate, scoreLead } = args;
+  const position = move
+    ? `Move ${moveNumber} of ${totalMoves}, ${move.player === 'black' ? 'Black' : 'White'} ${formatMoveLabel(move.x, move.y, boardSize)}`
+    : totalMoves > 0
+      ? `Start of game, ${totalMoves} moves`
+      : 'Empty board';
+
+  // Evaluation only once it has arrived, and rounded coarser than the display.
+  // The engine keeps refining a position as it deepens — 38.1% became 38.3%,
+  // +5.7 became +5.5 — and every refinement that changes this string is another
+  // thing spoken aloud. Whole percent and half a point are as precise as speech
+  // needs, and they hold steady across those refinements.
+  if (typeof winRate !== 'number' || !Number.isFinite(winRate)) return position;
+  const spokenWinRate = `${Math.round(winRate * 100)}%`;
+  const score =
+    typeof scoreLead === 'number' && Number.isFinite(scoreLead)
+      ? `, ${formatReadableScoreLead(Math.round(scoreLead * 2) / 2)}`
+      : '';
+  return `${position}. Black win ${spokenWinRate}${score}`;
 }
 
 export function playerToShort(p: 'black' | 'white'): string {

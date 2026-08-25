@@ -40,6 +40,45 @@ describe('formatBoardAnnouncement', () => {
   });
 });
 
+describe('formatBoardAnnouncement evaluation', () => {
+  const at = (winRate?: number | null, scoreLead?: number | null) =>
+    formatBoardAnnouncement({
+      move: { x: 15, y: 3, player: 'white' },
+      moveNumber: 34,
+      totalMoves: 35,
+      winRate,
+      scoreLead,
+    });
+
+  it('adds the evaluation once it has arrived', () => {
+    expect(at(0.435, -2.9)).toBe('Move 34 of 35, White Q16. Black win 44%, White +3.0');
+  });
+
+  it('says nothing about evaluation before analysis returns', () => {
+    expect(at(null, null)).toBe('Move 34 of 35, White Q16');
+    expect(at(undefined, undefined)).toBe('Move 34 of 35, White Q16');
+  });
+
+  it('holds steady while the engine refines the same position', () => {
+    // The real refinement that prompted the rounding: 38.1% -> 38.3% and
+    // +5.7 -> +5.5 as the search deepened. Each change that reaches this string
+    // is another utterance, so speech is rounded coarser than the display.
+    expect(at(0.381, -5.7)).toBe(at(0.383, -5.5));
+  });
+
+  it('still distinguishes evaluations that differ meaningfully', () => {
+    expect(at(0.38, -5.5)).not.toBe(at(0.44, -3.0));
+  });
+
+  it('gives the win rate without a score when only that is known', () => {
+    expect(at(0.5, null)).toBe('Move 34 of 35, White Q16. Black win 50%');
+  });
+
+  it('reports a level game as even rather than a signed zero', () => {
+    expect(at(0.5, 0)).toContain('Even');
+  });
+});
+
 describe('board announcer element', () => {
   it('is a polite, atomic, visually hidden region at the shell root', () => {
     const layout = readFileSync('src/components/Layout.tsx', 'utf8');
