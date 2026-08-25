@@ -265,6 +265,15 @@ export function playMove(
 
   const selfGroup = collectGroupAndLiberties(pos.stones, move, player, 2);
   if (selfGroup.liberties === 0) {
+    // The guards above reject before touching the position, but suicide can
+    // only be judged once the stone is down. Roll the placement back so every
+    // rejected move leaves `pos` exactly as it found it — a caller that probes
+    // legality by catching would otherwise inherit a phantom stone.
+    pos.stones[move] = EMPTY;
+    for (let j = captureStack.length - 1; j >= captureStart; j--) {
+      pos.stones[captureStack[j]!] = opp;
+    }
+    captureStack.length = captureStart;
     throw new Error('Illegal suicide move');
   }
 
