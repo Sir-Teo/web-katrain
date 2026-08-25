@@ -262,6 +262,12 @@ function assertViewport(result) {
     failures.push(`locale smoke failures: ${result.localeSmokeFailures.join(', ')}`);
   }
   if (result.documentOverflow > 1) failures.push(`document overflows by ${result.documentOverflow}px`);
+  // The check above runs after the QA interactions have opened and closed
+  // things. This one is the pristine first load, which is what a reader
+  // actually sees before touching anything; it was measured but discarded.
+  if (result.defaultDocumentOverflow > 1) {
+    failures.push(`first load overflows horizontally by ${result.defaultDocumentOverflow}px`);
+  }
   if (!result.board) failures.push('board missing');
   if (result.board && result.board.left < -1) failures.push('board overflows left edge');
   if (result.board && result.board.right > result.innerWidth + 1) failures.push('board overflows right edge');
