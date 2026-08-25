@@ -121,7 +121,10 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
             </select>
           </div>
         </div>
-        <div className="ui-bar flex justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+        {/* Wrap rather than overflow: with justify-end and nowrap these two
+            buttons ran off the start edge once the reader enlarged their
+            text — at 200% Cancel sat at x=-32, partly off-screen. */}
+        <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
             type="button"
             className="min-h-11 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-4 text-sm font-semibold text-[var(--ui-text)] hover:brightness-110 disabled:cursor-wait disabled:opacity-50"

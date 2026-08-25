@@ -75,17 +75,22 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
         aria-labelledby="keyboard-help-title"
       >
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] ui-bar">
-          <div className="min-w-0">
-            <h2 id="keyboard-help-title" className="keyboard-help-title font-semibold text-[var(--ui-text)]">
+          {/* The header compacts below 360px, but a viewport threshold cannot
+              know the reader enlarged their text: at 200% on a 375px phone the
+              controls kept their full width and squeezed the title to 7px of
+              the 161px it needs. Claim the leftover space and ellipsize instead
+              of hard-clipping, so this degrades at any width and text size. */}
+          <div className="min-w-0 flex-1">
+            <h2 id="keyboard-help-title" className="keyboard-help-title truncate font-semibold text-[var(--ui-text)]">
               Keyboard Shortcuts
             </h2>
-            <div className="mt-0.5 text-xs ui-text-faint" aria-live="polite" data-keyboard-help-count="true">
+            <div className="mt-0.5 truncate text-xs ui-text-faint" aria-live="polite" data-keyboard-help-count="true">
               {normalizedQuery
                 ? `${visibleResultCount} result${visibleResultCount === 1 ? '' : 's'}`
                 : `${visibleShortcutCount} command${visibleShortcutCount === 1 ? '' : 's'}`}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {onOpenShortcutSettings && (
               <button
                 type="button"

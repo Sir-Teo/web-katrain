@@ -81,4 +81,16 @@ describe('KeyboardHelpModal', () => {
     expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.keyboard-help-customize-label[\s\S]*display: none/);
     expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.keyboard-help-title[\s\S]*font-size: 1rem/);
   });
+
+
+  it('keeps its title legible when the reader enlarges their text', () => {
+    const source = readFileSync('src/components/KeyboardHelpModal.tsx', 'utf8');
+
+    // The header compacts below 360px, but a viewport threshold cannot know the
+    // text is twice as large: at 200% on a 375px phone the controls held their
+    // full width and squeezed the title to 7px of the 161px it needed.
+    expect(source).toContain('<div className="min-w-0 flex-1">');
+    expect(source).toContain('keyboard-help-title truncate');
+    expect(source).toContain('<div className="flex shrink-0 items-center gap-2">');
+  });
 });

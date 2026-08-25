@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SaveToLibraryDialog } from '../src/components/SaveToLibraryDialog';
 
@@ -23,6 +24,15 @@ describe('SaveToLibraryDialog', () => {
     expect(html).toContain('aria-label="Close save to Library"');
     expect(html).toContain('min-h-11');
     expect(html).toContain('>Save copy</span>');
-    expect(html).toContain('ui-bar flex justify-end gap-2 border-t');
+    expect(html).toContain('ui-bar flex flex-wrap justify-end gap-2 border-t');
+  });
+
+
+  it('wraps its footer instead of pushing buttons off-screen', () => {
+    const source = readFileSync('src/components/SaveToLibraryDialog.tsx', 'utf8');
+
+    // justify-end with nowrap overflows the START edge, so at 200% text Cancel
+    // sat at x=-32 — partly outside the viewport and unreachable.
+    expect(source).toContain('flex flex-wrap justify-end gap-2');
   });
 });
