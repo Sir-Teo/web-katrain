@@ -636,7 +636,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                         if (isMobile) onClose();
                       }} />
                     ) : (
-                      <div className="relative min-h-full divide-y divide-[var(--ui-border)]">
+                      <div
+                        className={[
+                          'relative min-h-full',
+                          isMobile ? 'move-tree-list-split' : 'divide-y divide-[var(--ui-border)]',
+                        ].join(' ')}
+                      >
                         {treeListNodes.map((node) => {
                           const move = node.move;
                           const isCurrent = node.id === currentNode.id;
@@ -657,6 +662,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               className={[
                                 'w-full flex items-center gap-2 text-left text-xs',
                                 isMobile ? 'min-h-11 px-3 py-2' : 'px-2 py-1',
+                                // Nodes that carry no move (the root, setup-only nodes) break the
+                                // black-left/white-right rhythm of the split list, so let them span it.
+                                isMobile && !move ? 'move-tree-list-split-full' : '',
                                 isCurrent ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',
                               ].join(' ')}
                               onClick={() =>
@@ -687,7 +695,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                           );
                         })}
                         {treeListNodes.length === 1 && (
-                          <div className="move-tree-empty-state" data-move-tree-empty-state="true">
+                          <div className="move-tree-empty-state move-tree-list-split-full" data-move-tree-empty-state="true">
                             <div className="move-tree-empty-state-content">
                               <FaSitemap size={22} aria-hidden="true" />
                               <div className="move-tree-empty-state-title">No moves yet</div>

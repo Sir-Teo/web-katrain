@@ -27,6 +27,19 @@ describe('RightPanel layout', () => {
     expect(source).toContain("isMobile ? 'min-h-11 px-3 py-2' : 'px-2 py-1'");
   });
 
+  it('lays the mobile move list out two moves per row', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(source).toContain("isMobile ? 'move-tree-list-split' : 'divide-y divide-[var(--ui-border)]'");
+    // Move-less nodes would flip the black-left/white-right rhythm of the split.
+    expect(source).toContain("isMobile && !move ? 'move-tree-list-split-full' : ''");
+    expect(source).toContain('move-tree-empty-state move-tree-list-split-full');
+    expect(css).toContain('.move-tree-list-split {');
+    expect(css).toContain('grid-template-columns: 1fr 1fr;');
+    expect(css).toContain('.move-tree-list-split-full {');
+  });
+
   it('uses strict integer draft parsing for branch number edits', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 

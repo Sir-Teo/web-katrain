@@ -2298,6 +2298,30 @@
     border-color: var(--ui-accent);
   }
 
+  /* The mobile move list is one 44px row per move using about a third of the
+     phone's width, so a 250-move game ran to eighteen screens of scrolling.
+     Two moves per row halves that and spends the empty two thirds, while each
+     cell stays a comfortable half-width tap target. Moves alternate, so the
+     left column reads black and the right white, the way a kifu does. */
+  .move-tree-list-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .move-tree-list-split > button {
+    min-width: 0;
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .move-tree-list-split > button:nth-child(odd) {
+    border-right: 1px solid var(--ui-border);
+  }
+
+  .move-tree-list-split-full {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+
   .move-tree-empty-state {
     position: absolute;
     inset: 0;
