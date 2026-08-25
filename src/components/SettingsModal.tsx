@@ -2185,7 +2185,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                 {option.icon}
                                                             </span>
                                                             <span className="min-w-0 flex-1">
-                                                                <span className="flex min-w-0 items-center gap-2">
+                                                                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                                                                     <span className="truncate text-sm font-semibold">{option.label}</span>
                                                                     {option.badge ? (
                                                                         <span className="rounded-full border border-[var(--ui-accent)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ui-accent)]">

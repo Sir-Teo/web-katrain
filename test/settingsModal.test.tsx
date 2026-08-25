@@ -238,4 +238,24 @@ describe('SettingsModal', () => {
     expect(css).toMatch(/\n {2}\.toggle \{[^}]*width: 44px;[^}]*height: 44px;/);
     expect(css).toMatch(/\n {2}\.toggle:checked::after \{[^}]*translate\(14px, -50%\)/);
   });
+
+  it('lets a backend option name and its badge share the row without crushing the name', () => {
+    const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
+
+    const labelIndex = source.indexOf('{option.label}');
+    expect(labelIndex).toBeGreaterThan(-1);
+    const rowStart = source.lastIndexOf('<span className="flex', labelIndex);
+    const badgeIndex = source.indexOf('{option.badge}', labelIndex);
+    expect(rowStart).toBeGreaterThan(-1);
+    expect(badgeIndex).toBeGreaterThan(labelIndex);
+    // Guard the slice: an empty string would satisfy nothing below by accident.
+    const row = source.slice(rowStart, badgeIndex);
+    expect(row.length).toBeGreaterThan(80);
+
+    // "Recommended" is one unbreakable word, so on a single-line row it holds
+    // its ~85px while the truncating name shrinks: measured at 320px wide the
+    // name got 15px of the 60px it needs and read as "W...". Wrapping drops the
+    // badge to its own line there and stays inline at every wider width.
+    expect(row).toContain('flex-wrap');
+  });
 });
