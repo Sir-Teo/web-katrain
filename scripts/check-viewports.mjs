@@ -13,6 +13,9 @@ const VIEWPORTS = [
   { width: 844, height: 390, mobile: true },
   // Wide but short: still the mobile shell, and previously uncovered.
   { width: 1280, height: 460, mobile: true },
+  // Wide desktop with both panels open: the board column lands near 722px,
+  // where the nav rail used to wrap onto a second row.
+  { width: 1440, height: 900, mobile: false },
 ];
 
 const chromePath =
@@ -288,7 +291,7 @@ function assertViewport(result) {
     if (result.dashboardGameStripWrapped) {
       failures.push('desktop game status strip wrapped onto multiple rows');
     }
-    if (['1280x800', '1024x768'].includes(result.viewport) && result.dashboardNavbarWrapped) {
+    if (result.dashboardNavbarWrapped) {
       failures.push('desktop command bar wraps primary play actions onto a second row');
     }
     if (result.dashboardCommandbarHeight > 40) {
@@ -506,7 +509,10 @@ async function main() {
       });
       await cdp.send('Page.navigate', { url: appUrl });
       await waitForBoard(cdp);
-      if (viewport.width === 1024 && viewport.height === 768 && !viewport.mobile) {
+      const opensPanels = !viewport.mobile
+        && ((viewport.width === 1024 && viewport.height === 768)
+          || (viewport.width === 1440 && viewport.height === 900));
+      if (opensPanels) {
         await evaluate(cdp, `(() => {
           localStorage.setItem('web-katrain:library_open:v1', 'true');
           localStorage.setItem('web-katrain:sidebar_open:v1', 'true');
