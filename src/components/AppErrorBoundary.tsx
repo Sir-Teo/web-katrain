@@ -5,6 +5,7 @@ import {
   clearStoredErrorReport,
   createAppErrorReport,
   formatAppErrorReport,
+  isStaleBuildError,
   readStoredErrorReport,
   storeErrorReport,
   type AppErrorReport,
@@ -107,6 +108,7 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
 
   renderFallback(report: AppErrorReport) {
     const copyState = this.state.fallbackCopyState;
+    const staleBuild = isStaleBuildError(report.message);
     return (
       <main
         data-app-error-boundary="true"
@@ -118,9 +120,17 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
               <FaExclamationTriangle aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-semibold">Web KaTrain hit an unexpected error</h1>
+              {/* A tab open across a deploy asks for chunk names that no longer
+                  exist. It arrives here as a render error, but calling that an
+                  unexpected error misreads it: nothing is broken and reloading
+                  fixes it. */}
+              <h1 className="text-lg font-semibold">
+                {staleBuild ? 'Web KaTrain has been updated' : 'Web KaTrain hit an unexpected error'}
+              </h1>
               <p className="mt-2 text-sm text-[var(--ui-text-muted)]">
-                Your browser captured diagnostics so the problem can be inspected without losing the trail.
+                {staleBuild
+                  ? 'This tab was open while a new version shipped, so part of the app could no longer load. Reload to pick it up.'
+                  : 'Your browser captured diagnostics so the problem can be inspected without losing the trail.'}
               </p>
             </div>
           </div>

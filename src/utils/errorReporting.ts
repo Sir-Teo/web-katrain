@@ -55,6 +55,24 @@ function stackFromError(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
 
+/**
+ * A tab that was open when a new build shipped still asks for the chunk names
+ * it was built with, and those are gone. It surfaces as a render error, but it
+ * is not a crash: the app is fine and a reload picks up the new version.
+ * Browsers word it differently, hence the several phrasings.
+ */
+export function isStaleBuildError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  const text = message.toLowerCase();
+  return (
+    text.includes('failed to fetch dynamically imported module') // Chrome, Edge
+    || text.includes('error loading dynamically imported module') // Firefox
+    || text.includes('importing a module script failed') // Safari
+    || text.includes('chunkloaderror')
+    || /loading chunk \S+ failed/.test(text)
+  );
+}
+
 export function createAppErrorReport(
   type: AppErrorKind,
   error: unknown,
