@@ -7,6 +7,7 @@ import { setThreadsCount, setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import pako from 'pako';
 
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
+import { looksLikeMarkup, modelResponseError } from './modelResponse';
 import type { GameRules, KataGoBackendPreference, RegionOfInterest } from '../../types';
 import { publicUrl } from '../../utils/publicUrl';
 import { getAnimationNow } from '../../utils/animationFrame';
@@ -151,6 +152,7 @@ function maybeUngzip(data: Uint8Array): Uint8Array {
   return data;
 }
 
+
 async function ensureBackend(backend?: KataGoBackendPreference): Promise<void> {
   const preferredBackend = normalizeKataGoBackendPreference(backend);
   if (backendPromise && backendPreference === preferredBackend) {
@@ -239,6 +241,7 @@ async function ensureModel(modelUrl: string, backend?: KataGoBackendPreference):
   const res = await fetch(modelUrl);
   if (!res.ok) throw new Error(`Failed to fetch model: ${res.status} ${res.statusText}`);
   const buf = new Uint8Array(await res.arrayBuffer());
+  if (looksLikeMarkup(buf)) throw modelResponseError(modelUrl);
   const data = maybeUngzip(buf);
 
   const parsed = parseKataGoModelV8(data);
