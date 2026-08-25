@@ -61,11 +61,14 @@ describe('NotificationToast', () => {
     expect(html).toContain('notification-toast-region--desktop-dashboard');
     const css = readFileSync('src/index.css', 'utf8');
     expect(css).toContain('top: 3.25rem;');
-    expect(css).toContain('right: calc(360px + 1rem);');
+    // Offset from the sidebar's own width, not a copy of it: the sidebar became
+    // responsive and a hard-coded 360px left the toast sitting on top of it.
+    expect(css).toContain('right: calc(var(--sidebar-w) + 1rem);');
     expect(css).toContain('.notification-toast-region--desktop-dashboard .notification-toast');
     expect(css).toContain('min-height: 2.75rem;');
     expect(css).toContain('@media (min-width: 1024px) and (max-width: 1100px)');
-    expect(css).toContain('right: calc(360px + 0.5rem);');
+    expect(css).toContain('right: calc(var(--sidebar-w) + 0.5rem);');
+    expect(css).toContain('width: min(323px, calc(100vw - 387px - var(--sidebar-w) - 0.5rem));');
     expect(css).toContain('display: none;');
   });
 
