@@ -163,6 +163,24 @@ describe('AnalysisCommandBar', () => {
     );
   });
 
+  it('lets the engine line wrap in the landscape rail instead of ellipsising', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    // The status is one nowrap row sized for a full-width band; in the 136px
+    // rail it cut mid-word ("Ready fallbac…", "Loading · We…").
+    expect(styles).toMatch(
+      /\.analysis-command-bar-slot \.analysis-command-bar__status \{\s*align-items: flex-start;\s*gap: 0\.375rem;\s*white-space: normal;/,
+    );
+    // The text box clips its own overflow, which would defeat the wrap.
+    expect(styles).toMatch(
+      /\.analysis-command-bar-slot \.analysis-command-bar__status-text \{\s*overflow: visible;/,
+    );
+    // The dot has to hang at the first line rather than centre on the block.
+    expect(styles).toMatch(
+      /\.analysis-command-bar-slot \.analysis-command-bar__dot \{\s*margin-top: 0\.3125rem;/,
+    );
+  });
+
   it('marks active phone toggles with a fill rather than a detached underline', () => {
     const styles = readFileSync('src/index.css', 'utf8');
 
