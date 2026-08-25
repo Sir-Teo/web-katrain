@@ -444,7 +444,10 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           const isRoot = layoutNode.isRoot;
           const isSetupNode = !isRoot && !layoutNode.player;
           const isBlack = layoutNode.player === 'black';
-          const fill = isRoot ? 'none' : isSetupNode ? '#64748B' : isBlack ? '#0B0B0B' : '#F9FAFB';
+          // 'transparent' rather than 'none': both paint nothing, but a shape
+          // filled 'none' does not hit-test its interior, which left the root's
+          // whole disc dead and only its 1px ring able to jump back to move 0.
+          const fill = isRoot ? 'transparent' : isSetupNode ? '#64748B' : isBlack ? '#0B0B0B' : '#F9FAFB';
           const stroke = isRoot ? '#9CA3AF' : isSetupNode ? '#F9FAFB' : isBlack ? '#F9FAFB' : '#0B0B0B';
           const markers = getMoveTreeNodeMarkers(node, mistakeThreshold);
           const markerRadius = Math.max(2, Math.min(3.25, layout.radius * 0.22));
