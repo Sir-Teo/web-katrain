@@ -2779,7 +2779,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                   type="button"
                   className="min-h-11 shrink-0 rounded-md border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 font-semibold text-[var(--ui-accent)] hover:brightness-110 lg:min-h-8 lg:px-2.5"
                   onClick={() =>
-                    setPunishQuizResponse({ nodeId: currentNode.id, phase: 'armed', text: 'Click the move you would play (hints hidden).' })
+                    setPunishQuizResponse({ nodeId: currentNode.id, phase: 'armed', text: 'Choose the move you would play (hints hidden).' })
                   }
                 >
                   Try it

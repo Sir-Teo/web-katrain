@@ -100,7 +100,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
           {!lesson ? (
             <>
               <p className="lessons-intro text-sm text-[var(--ui-text-muted)]">
-                Short, interactive lessons on the fundamentals. Read each step, then click the board when asked.
+                Short, interactive lessons on the fundamentals. Read each step, then play on the board when asked.
               </p>
               <ul className="lessons-list space-y-2">
                 {LESSONS.map((l) => (
@@ -138,7 +138,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
               </div>
               <p className="lessons-copy text-sm leading-6 text-[var(--ui-text)]">{step?.text}</p>
               {isInteractive && !solved && !feedback && (
-                <p className="lessons-hint text-xs italic text-[var(--ui-text-muted)]">Click a point on the board.</p>
+                <p className="lessons-hint text-xs italic text-[var(--ui-text-muted)]">Choose a point on the board.</p>
               )}
               {feedback && (
                 <div

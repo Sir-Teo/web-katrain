@@ -75,8 +75,8 @@ const TOOL_GROUPS: Array<{ title: string; items: EditToolItem[] }> = [
   {
     title: 'Draw',
     items: [
-      { tool: 'markup-arrow', label: 'Arrow', title: 'Arrow — click a start point then an end point', icon: <FaLongArrowAltRight /> },
-      { tool: 'markup-line', label: 'Line', title: 'Line — click a start point then an end point', icon: <FaSlash /> },
+      { tool: 'markup-arrow', label: 'Arrow', title: 'Arrow — choose a start point, then an end point', icon: <FaLongArrowAltRight /> },
+      { tool: 'markup-line', label: 'Line', title: 'Line — choose a start point, then an end point', icon: <FaSlash /> },
       { tool: 'draw-pen', label: 'Pen', title: 'Freehand pen — drag to draw on the board (not saved to SGF)', icon: <FaPen /> },
       { tool: 'draw-highlight', label: 'Mark', title: 'Highlighter — drag to highlight an area (not saved to SGF)', icon: <FaHighlighter /> },
     ],
