@@ -470,6 +470,48 @@ function assertViewport(result) {
   }
 }
 
+/**
+ * The shell variant decides roughly fifty class usages across the app. A
+ * custom variant Tailwind cannot read as a media query still compiles without
+ * complaint and simply emits no rule at all, so every one of those classes
+ * silently stops applying while the source keeps looking correct.
+ *
+ * Check the rule by its effect on both sides of the threshold. Asserting the
+ * text of the declaration cannot catch this — that is exactly what the test
+ * guarding it used to do, while the variant sat inert.
+ */
+async function assertShellVariantApplies(cdp) {
+  const probe = `(() => {
+    const el = document.createElement('div');
+    el.className = 'desktop-shell:hidden';
+    document.body.appendChild(el);
+    const display = getComputedStyle(el).display;
+    el.remove();
+    return display;
+  })()`;
+  const failures = [];
+
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: 1280, height: 800, deviceScaleFactor: 1, mobile: false,
+  });
+  const desktop = await evaluate(cdp, probe);
+  if (desktop !== 'none') {
+    failures.push(`desktop-shell: emits no rule at 1280x800 (display was "${desktop}", expected "none")`);
+  }
+
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: 390, height: 844, deviceScaleFactor: 1, mobile: true,
+  });
+  const mobile = await evaluate(cdp, probe);
+  if (mobile === 'none') {
+    failures.push('desktop-shell: applies at 390x844, so it is not gated on the desktop shell');
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`shell variant: ${failures.join('; ')}`);
+  }
+}
+
 async function main() {
   fs.rmSync(screenshotDir, { recursive: true, force: true });
   fs.mkdirSync(screenshotDir, { recursive: true });
@@ -2605,6 +2647,7 @@ async function main() {
       );
       results.push(result);
     }
+    await assertShellVariantApplies(cdp);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {
