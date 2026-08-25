@@ -3731,6 +3731,34 @@
     gap: 6px;
   }
 
+  /* Below this the clock's own 44px pause target no longer fits the phone top
+     bar beside the menu, the analysis toggle and the three right-hand toggles.
+     Keep the reading — that is the whole point of the chip — and shed the
+     control, which is still one tap away in the Review tab's header. This has
+     to live in the components layer: `.status-bar-button` sets its display
+     here, and a layer outranks any specificity in an earlier one. */
+  /* Every other control in the phone top bar is a borderless icon, so the
+     status pill's outlined pause button read as the loudest thing up there. */
+  .mobile-top-timer .status-bar-button {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  @media (max-width: 380px) {
+    .mobile-top-timer .status-bar-button {
+      display: none;
+    }
+  }
+
+  /* Even the bare reading overruns the bar by 16px at 320px, and clipping the
+     menu or the analysis toggle would be the worse trade. The clock is still
+     in the Review tab's header on those screens. */
+  @media (max-width: 340px) {
+    .mobile-top-timer {
+      display: none;
+    }
+  }
+
   .panel-toggle {
     padding: 4px 6px;
     border: none;

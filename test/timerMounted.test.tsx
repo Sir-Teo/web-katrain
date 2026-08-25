@@ -21,6 +21,26 @@ describe('game clock is mounted', () => {
     expect(source).not.toContain("mode === 'play' && !isMobile");
   });
 
+  it('renders on the phone board tab, not only behind a panel that is closed there', () => {
+    const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    // The right panel's header was the clock's only mobile home, and that
+    // header is closed while you are on the board playing — so a timed game
+    // showed no clock at all until you navigated away from the board.
+    expect(source).toContain("import { Timer } from '../Timer';");
+    expect(source).toContain('data-mobile-top-timer="true"');
+    expect(source).toContain('<Timer variant="status" />');
+
+    // Progressive shedding: the pause target goes first, the reading last.
+    expect(css).toMatch(
+      /@media \(max-width: 380px\) \{\s*\.mobile-top-timer \.status-bar-button \{\s*display: none;/
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 340px\) \{\s*\.mobile-top-timer \{\s*display: none;/
+    );
+  });
+
   it('hides the status chip entirely when no time control is set', () => {
     const source = readFileSync('src/components/Timer.tsx', 'utf8');
 

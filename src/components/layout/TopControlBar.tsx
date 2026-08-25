@@ -39,6 +39,7 @@ import {
 import type { GameSettings, RegionOfInterest } from '../../types';
 import type { AnalysisControlsState } from './types';
 import { EngineStatusBadge, IconButton } from './ui';
+import { Timer } from '../Timer';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../../utils/boardThemes';
 import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 import { UI_THEME_OPTIONS } from '../../utils/uiThemes';
@@ -694,6 +695,17 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <FaBars />
         </IconButton>
       </div>
+
+      {/* Playing happens on the board tab, and the mobile panel header the
+          clock used to live in is closed there — so a timed game showed no
+          clock at all until you navigated away from the board. The left of
+          this bar is empty on a phone, and the chip removes itself when the
+          game has no time control, so it costs nothing the rest of the time. */}
+      {isMobile && (
+        <div className="mobile-top-timer shrink-0" data-mobile-top-timer="true">
+          <Timer variant="status" />
+        </div>
+      )}
 
       {/* Desktop file actions */}
       <div className="hidden desktop-shell:flex items-center gap-1 shrink-0">
