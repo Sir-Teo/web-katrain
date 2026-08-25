@@ -2619,6 +2619,39 @@ export const Layout: React.FC = () => {
         keywords: ['depth', 'range'],
       },
       {
+        id: 'pass',
+        label: 'Pass',
+        category: 'Game',
+        shortcutId: 'pass',
+        run: passTurn,
+        keywords: ['skip', 'tenuki', 'no move'],
+      },
+      {
+        id: 'ai-move',
+        label: 'AI move',
+        category: 'Game',
+        shortcutId: 'ai-move',
+        run: requestAiMove,
+        keywords: ['engine', 'play for me', 'computer'],
+      },
+      {
+        id: 'rotate-board',
+        label: 'Rotate board',
+        category: 'Game',
+        shortcutId: 'rotate-board',
+        run: rotateBoard,
+        keywords: ['orientation', 'flip', 'turn'],
+      },
+      {
+        id: 'resign',
+        label: 'Resign',
+        category: 'Game',
+        // handleResign is declared below this registry, so defer the reference
+        // to call time rather than reading it while the list is being built.
+        run: () => handleResign(),
+        keywords: ['give up', 'concede', 'forfeit', 'quit game'],
+      },
+      {
         id: 'toggle-scoring',
         label: scoringMode ? 'Exit scoring mode' : 'Score position',
         category: 'Game',
