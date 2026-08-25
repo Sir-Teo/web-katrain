@@ -51,8 +51,14 @@ describe('board announcer element', () => {
   it('sits outside the subtree that goes inert behind mobile panels', () => {
     const layout = readFileSync('src/components/Layout.tsx', 'utf8');
 
-    // <main> takes inert while a tab panel covers it; an announcer inside would
-    // stop being announced exactly when the user is navigating from the panel.
-    expect(layout.indexOf('data-board-announcer="true"')).toBeLessThan(layout.indexOf('inert={rightPanelOpen}'));
+    // <main> takes inert while a panel covers it; an announcer inside would stop
+    // being announced exactly when the user is navigating from that panel.
+    // Assert the position against <main> itself rather than the inert
+    // expression, which changes whenever another panel is added to it.
+    const announcer = layout.indexOf('data-board-announcer="true"');
+    const mainStart = layout.indexOf('<main');
+    expect(announcer).toBeGreaterThan(-1);
+    expect(mainStart).toBeGreaterThan(-1);
+    expect(announcer).toBeLessThan(mainStart);
   });
 });
