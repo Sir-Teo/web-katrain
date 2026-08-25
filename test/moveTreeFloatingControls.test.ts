@@ -15,16 +15,18 @@ const controlBlocks = (css: string): string[] => {
 };
 
 describe('move tree floating controls', () => {
-  it('takes its own band on phones instead of sitting on the tree', () => {
+  it('takes its own band on every viewport instead of sitting on the tree', () => {
     const blocks = controlBlocks(readFileSync('src/index.css', 'utf8'));
     expect(blocks.length).toBeGreaterThan(1);
 
     // A mainline game is one row of nodes across the top of the pane, so the
-    // zero-height bar covered about seven of its moves, with no hover on touch
-    // to reveal what was under them. The phone override has to take up flow.
-    const phone = blocks[blocks.length - 1]!;
-    expect(phone).toContain('height: auto;');
-    expect(phone).toContain('padding-bottom: 0.5rem;');
+    // zero-height bar covered a stretch of moves — five of thirty-four in the
+    // desktop sidebar, seven on a phone, where nothing hovers to reveal them.
+    // Both panes are content-sized under a cap, so the bar can take up flow.
+    const base = blocks[0]!;
+    expect(base).toContain('height: auto;');
+    expect(base).toContain('padding-bottom: 0.375rem;');
+    expect(blocks.every((block) => !block.includes('height: 0'))).toBe(true);
   });
 
   it('renders the controls ahead of the tree so the band sits above it', () => {
