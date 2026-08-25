@@ -180,7 +180,7 @@ const LibraryTextDialog: React.FC<{
                 if (e.key === 'Escape') onClose();
               }}
               placeholder={dialog.placeholder}
-              className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none lg:min-h-0"
+              className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none desktop-shell:min-h-0"
             />
           </label>
           {dialog.folderSelect && (
@@ -193,7 +193,7 @@ const LibraryTextDialog: React.FC<{
                   e.stopPropagation();
                   if (e.key === 'Escape') onClose();
                 }}
-                className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none lg:min-h-0"
+                className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none desktop-shell:min-h-0"
               >
                 <option value="">{dialog.folderSelect.rootLabel}</option>
                 {dialog.folderSelect.options.map((option) => (

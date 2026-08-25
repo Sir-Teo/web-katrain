@@ -2777,7 +2777,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
               {punishQuiz.phase === 'offer' && (
                 <button
                   type="button"
-                  className="min-h-11 shrink-0 rounded-md border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 font-semibold text-[var(--ui-accent)] hover:brightness-110 lg:min-h-8 lg:px-2.5"
+                  className="min-h-11 shrink-0 rounded-md border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 font-semibold text-[var(--ui-accent)] hover:brightness-110 desktop-shell:min-h-8 lg:px-2.5"
                   onClick={() =>
                     setPunishQuizResponse({ nodeId: currentNode.id, phase: 'armed', text: 'Choose the move you would play (hints hidden).' })
                   }
@@ -2788,7 +2788,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
               <button
                 type="button"
                 aria-label="Dismiss quiz"
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface)] hover:text-[var(--ui-text)] lg:h-8 lg:w-8"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface)] hover:text-[var(--ui-text)] desktop-shell:h-8 desktop-shell:w-8"
                 onClick={dismissPunishQuiz}
               >
                 <FaTimes size={11} />

@@ -209,7 +209,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
           <div className="game-analysis-range pt-2 border-t border-[var(--ui-border)] space-y-3">
             <label
               htmlFor={LIMIT_MOVES_ID}
-              className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] lg:min-h-0"
+              className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] desktop-shell:min-h-0"
             >
               <span>Limit to moves</span>
               <input
@@ -257,7 +257,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
           <div className="game-analysis-mistakes pt-2 border-t border-[var(--ui-border)]">
             <label
               htmlFor={MISTAKES_ONLY_ID}
-              className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] lg:min-h-0"
+              className="flex min-h-11 cursor-pointer items-center justify-between text-[var(--ui-text-muted)] desktop-shell:min-h-0"
             >
               <span>Re-analyze mistakes only</span>
               <input

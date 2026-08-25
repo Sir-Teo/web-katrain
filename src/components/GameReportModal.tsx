@@ -1352,7 +1352,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                                 : `Filter ${playerLabel} mistakes to ${categoryLabel}`
                             }
                             className={[
-                              'inline-flex min-h-11 items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors lg:min-h-0',
+                              'inline-flex min-h-11 items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors desktop-shell:min-h-0',
                               active
                                 ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] ring-1 ring-[var(--ui-accent)]'
                                 : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -1591,7 +1591,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         aria-pressed={active}
                         title={option.title}
                         className={[
-                          'min-h-11 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors lg:min-h-0',
+                          'min-h-11 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors desktop-shell:min-h-0',
                           active
                             ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
                             : 'text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',

@@ -66,9 +66,11 @@ describe('study tool components render without crashing', () => {
     expect(html).toContain('Search by player');
     expect(html).toContain('aria-label="Search pro games"');
     expect(html).toContain('class="min-h-11 w-full rounded-lg');
-    expect(html).toContain('lg:min-h-0');
+    // desktop-shell:, not lg: — the mobile shell also runs on wide-but-short
+    // windows, where a width-only variant dropped these below 44px.
+    expect(html).toContain('desktop-shell:min-h-0');
     expect(html).toContain('min-h-11 min-w-11 shrink-0');
-    expect(html).toContain('lg:min-h-0 lg:min-w-0');
+    expect(html).toContain('desktop-shell:min-h-0 desktop-shell:min-w-0');
     expect(html).toContain('pro-games-featured flex flex-nowrap');
     expect(html).toContain('min-h-11 shrink-0 rounded-full');
     expect(html).toContain('aria-current="true"');

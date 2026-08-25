@@ -141,7 +141,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               if (event.key === 'Enter') void runSync();
             }}
             disabled={isRunning}
-            className="min-h-11 w-full rounded-lg border ui-input px-3 py-2 text-sm text-[var(--ui-text)] lg:min-h-0"
+            className="min-h-11 w-full rounded-lg border ui-input px-3 py-2 text-sm text-[var(--ui-text)] desktop-shell:min-h-0"
             placeholder="e.g. your OGS account name"
             autoComplete="off"
             spellCheck={false}
@@ -154,7 +154,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
             value={limit}
             onChange={(event) => setLimit(Number(event.target.value))}
             disabled={isRunning}
-            className="min-h-11 ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)] lg:min-h-0"
+            className="min-h-11 ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)] desktop-shell:min-h-0"
           >
             {LIMIT_OPTIONS.map((option) => (
               <option key={option} value={option}>

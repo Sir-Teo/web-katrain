@@ -126,7 +126,7 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
                     onClick={() => setMovesPerDiagram(opt.value)}
                     aria-pressed={active}
                     className={[
-                      'min-h-11 min-w-11 flex-1 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-3 lg:min-h-0 lg:min-w-0',
+                      'min-h-11 min-w-11 flex-1 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-3 desktop-shell:min-h-0 desktop-shell:min-w-0',
                       active ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]',
                     ].join(' ')}
                   >

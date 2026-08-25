@@ -3801,17 +3801,17 @@ export const Layout: React.FC = () => {
           role="toolbar"
           aria-label="Focus mode controls"
         >
-          <button type="button" onClick={navigateStart} disabled={!historyNavigation.back} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="First move" aria-label="First move">⏮</button>
-          <button type="button" onClick={navigateBack} disabled={!historyNavigation.back} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="Previous move" aria-label="Previous move">◀</button>
+          <button type="button" onClick={navigateStart} disabled={!historyNavigation.back} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 desktop-shell:h-8 desktop-shell:w-8" title="First move" aria-label="First move">⏮</button>
+          <button type="button" onClick={navigateBack} disabled={!historyNavigation.back} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 desktop-shell:h-8 desktop-shell:w-8" title="Previous move" aria-label="Previous move">◀</button>
           <span className="min-w-12 px-1 text-center font-mono tabular-nums lg:min-w-[4.5rem]">
             {currentMoveNumber}/{totalMovesInCurrentLine}
           </span>
-          <button type="button" onClick={navigateForward} disabled={!historyNavigation.forward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="Next move" aria-label="Next move">▶</button>
-          <button type="button" onClick={navigateEnd} disabled={!historyNavigation.forward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 lg:h-8 lg:w-8" title="Last move" aria-label="Last move">⏭</button>
+          <button type="button" onClick={navigateForward} disabled={!historyNavigation.forward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 desktop-shell:h-8 desktop-shell:w-8" title="Next move" aria-label="Next move">▶</button>
+          <button type="button" onClick={navigateEnd} disabled={!historyNavigation.forward} className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40 desktop-shell:h-8 desktop-shell:w-8" title="Last move" aria-label="Last move">⏭</button>
           <button
             type="button"
             onClick={() => setFocusMode(false)}
-            className="ml-1 min-h-11 min-w-11 shrink-0 rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[11px] font-semibold hover:bg-[var(--ui-surface-2)] lg:min-h-0 lg:min-w-0 lg:px-3"
+            className="ml-1 min-h-11 min-w-11 shrink-0 rounded-full border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1.5 text-[11px] font-semibold hover:bg-[var(--ui-surface-2)] desktop-shell:min-h-0 desktop-shell:min-w-0 lg:px-3"
             title="Exit focus mode (Esc)"
             aria-label="Exit focus mode"
           >
