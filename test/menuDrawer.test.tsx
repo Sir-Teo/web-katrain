@@ -177,6 +177,18 @@ describe('MenuDrawer', () => {
     expect(html).toContain('grid-cols-2');
   });
 
+  it('keeps every drawer action on one line at phone width', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    // Seven of the nineteen two-per-row actions wrapped at 390px, and a
+    // wrapped cell stretches its whole grid row, so the drawer came out ragged
+    // and tall enough to push About below the fold.
+    expect(css).toMatch(
+      /\[data-menu-action-grid\] > button \{[^}]*padding-inline: 0\.5rem !important;[\s\S]*?font-size: 0\.8125rem;/
+    );
+    expect(css).toMatch(/\[data-menu-action-grid\] > button > span \{[^}]*gap: 0\.375rem !important;/);
+  });
+
   it('balances incomplete action rows instead of rendering ghost cells', () => {
     const css = readFileSync('src/index.css', 'utf8');
 

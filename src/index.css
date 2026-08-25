@@ -4334,6 +4334,24 @@
       display: none;
     }
 
+    /* The drawer's actions sit two to a row, so each label gets about 117px of
+       text width at 390px. Seven of the nineteen wrapped onto a second line
+       there, and a wrapped cell stretches its whole row, so the grid came out
+       ragged and ~100px taller than its content — enough to push About and
+       Keyboard Shortcuts below the fold. Trimming the side padding and the
+       icon gap and taking the label down one step clears every wrap at 390px
+       and wider while leaving the 44px touch target untouched. */
+    [data-menu-action-grid] > button {
+      /* px-3 and gap-2 are Tailwind utilities, which win over this layer on
+         cascade order rather than specificity, so these two need the flag. */
+      padding-inline: 0.5rem !important;
+      font-size: 0.8125rem;
+    }
+
+    [data-menu-action-grid] > button > span {
+      gap: 0.375rem !important;
+    }
+
     [data-mobile-tools-panel='true'] button,
     [data-mobile-tools-panel='true'] select {
       min-height: 44px !important;
