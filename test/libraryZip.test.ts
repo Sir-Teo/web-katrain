@@ -38,6 +38,26 @@ describe('library ZIP helpers', () => {
     expect(zip.file('Pro Games/2026/Nested Game.sgf')).toBeTruthy();
   });
 
+  it('carries empty folders through an export and back', async () => {
+    // A folder the reader made to organise studies is theirs whether or not a
+    // game has landed in it yet; a backup that quietly drops it loses work.
+    const studies = createLibraryFolder('Studies', null);
+    const nestedEmpty = createLibraryFolder('Nested Empty', studies.id);
+    const rootEmpty = createLibraryFolder('Empty Ideas', null);
+    const game = createLibraryItem('Game A', sgfA, studies.id);
+    const items: LibraryItem[] = [studies, nestedEmpty, rootEmpty, game];
+
+    const { blob } = await createLibraryZipBlob(items);
+    const imported = await importLibraryItemsFromZip(blob, null);
+    const folders = imported.filter((item) => item.type === 'folder');
+
+    expect(folders.map((folder) => folder.name).sort()).toEqual(['Empty Ideas', 'Nested Empty', 'Studies']);
+    const studiesBack = folders.find((folder) => folder.name === 'Studies')!;
+    expect(folders.find((folder) => folder.name === 'Nested Empty')?.parentId).toBe(studiesBack.id);
+    expect(folders.find((folder) => folder.name === 'Empty Ideas')?.parentId).toBeNull();
+    expect(imported.filter((item) => item.type === 'file')).toHaveLength(1);
+  });
+
   it('imports SGFs from ZIP paths into library folders', async () => {
     const zip = new JSZip();
     zip.file('Study/Openings/Game A.sgf', sgfA);

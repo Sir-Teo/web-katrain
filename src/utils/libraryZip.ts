@@ -145,6 +145,35 @@ export async function importLibraryItemsFromZip(
   };
 
   const entries = Object.values(zip.files).sort((a, b) => a.name.localeCompare(b.name));
+
+  const zipEntryParts = (entry: { name: string }): string[] =>
+    splitZipPath((entry as typeof entry & { unsafeOriginalName?: string }).unsafeOriginalName ?? entry.name);
+
+  // Directories that hold files of their own are rebuilt by the file pass
+  // below, and are left alone here so a directory whose every file was
+  // rejected does not come back as an empty folder.
+  const directoriesHoldingFiles = new Set<string>();
+  for (const entry of entries) {
+    if (entry.dir) continue;
+    const parts = zipEntryParts(entry);
+    parts.pop();
+    let key = '';
+    for (const part of parts) {
+      key = key ? `${key}/${part}` : part;
+      directoriesHoldingFiles.add(key);
+    }
+  }
+
+  // An empty folder is still part of the library's organisation, and the export
+  // writes an entry for it. Nothing in the file pass would ever recreate one,
+  // so it has to be rebuilt from the directory entry itself.
+  for (const entry of entries) {
+    if (!entry.dir) continue;
+    const parts = zipEntryParts(entry);
+    if (parts.length === 0 || directoriesHoldingFiles.has(parts.join('/'))) continue;
+    ensureFolder(parts);
+  }
+
   for (const entry of entries) {
     if (entry.dir) continue;
     if (!ZIP_SGF_EXT_RE.test(entry.name)) continue;
