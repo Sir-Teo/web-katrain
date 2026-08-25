@@ -439,7 +439,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         style={width ? { width } : undefined}
       >
         {/* Play / Analyze tabs */}
-        <div className="mobile-panel-header ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2">
+        <div
+          className="mobile-panel-header ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center gap-2"
+          data-mobile-panel-tab={isMobile ? activeMobileTab : undefined}
+        >
           {isMobile && (
             <button
               type="button"
@@ -448,7 +451,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               title="Back to board"
             >
               <FaChevronLeft size={12} />
-              <span className="text-sm font-medium">Board</span>
+              <span className="mobile-panel-back-label text-sm font-medium">Board</span>
             </button>
           )}
           {isMobile ? (
@@ -472,7 +475,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             </div>
           )}
           {isMobile && activeMobileTab === 'tree' ? (
-            <div className="flex items-center gap-3">
+            <div className="mobile-tree-header-controls flex items-center gap-3">
               {treeListNodes.length > 1 ? (
                 <div className="flex items-center gap-1">{treeNavButtons}</div>
               ) : null}

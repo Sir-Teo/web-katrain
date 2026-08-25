@@ -273,6 +273,25 @@
     min-height: 44px;
   }
 
+  /* The tree tab's header also carries first/last navigation, the tree/list
+     toggle and the clock, and those overflowed the bar at every phone width
+     once a game had moves — the clock was clipped off-screen at 360, 390 and
+     430px alike. Shed the two redundant labels there instead: the bottom tab
+     bar already names the view, and a bare chevron is the standard back
+     affordance. Other tabs keep both labels, since they have room. */
+  .mobile-panel-header[data-mobile-panel-tab='tree'] .mobile-panel-title,
+  .mobile-panel-header[data-mobile-panel-tab='tree'] .mobile-panel-back-label {
+    display: none;
+  }
+
+  .mobile-panel-header[data-mobile-panel-tab='tree'] .mobile-panel-back {
+    padding-inline: 0.5rem;
+  }
+
+  .mobile-tree-header-controls {
+    gap: 0.25rem;
+  }
+
   @media (max-width: 430px) {
     .mobile-bottom-controls {
       gap: 0.25rem !important;
@@ -2318,6 +2337,11 @@
   .move-tree-list-split {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    /* The list wrapper is min-h-full, so the grid default (align-content:
+       stretch) inflated every auto row to fill the scroll region: a six-move
+       game rendered 166px-tall rows instead of the 44px they collapse to once
+       the list is long enough to scroll. Pack the rows at the top instead. */
+    align-content: start;
   }
 
   .move-tree-list-split > button {

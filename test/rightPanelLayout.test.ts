@@ -40,6 +40,28 @@ describe('RightPanel layout', () => {
     expect(css).toContain('.move-tree-list-split-full {');
   });
 
+  it('packs the mobile move list at the top instead of stretching short games', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+
+    // The list wrapper is min-h-full, so the grid default (align-content:
+    // stretch) blew a six-move game's 44px rows up to 166px each.
+    expect(css).toMatch(/\.move-tree-list-split \{[^}]*align-content: start;/);
+  });
+
+  it('drops the redundant labels that pushed the tree clock off phone screens', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(source).toContain("data-mobile-panel-tab={isMobile ? activeMobileTab : undefined}");
+    expect(source).toContain('mobile-panel-back-label');
+    expect(source).toContain('mobile-tree-header-controls');
+    // Tree is the only tab whose header also carries navigation, the view
+    // toggle and the clock, so it is the only one that sheds the labels.
+    expect(css).toMatch(
+      /\.mobile-panel-header\[data-mobile-panel-tab='tree'\] \.mobile-panel-title,\s*\.mobile-panel-header\[data-mobile-panel-tab='tree'\] \.mobile-panel-back-label \{\s*display: none;/
+    );
+  });
+
   it('uses strict integer draft parsing for branch number edits', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 
