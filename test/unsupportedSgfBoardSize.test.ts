@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { unsupportedSgfBoardSize } from '../src/utils/boardSize';
 
@@ -34,5 +35,23 @@ describe('unsupported SGF board size', () => {
 
   it('does not mistake another property that ends in SZ', () => {
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]XSZ[5]SZ[19];B[cc])')).toBeNull();
+  });
+
+
+  it('reports the coercion on every path that loads a user-supplied SGF', () => {
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    // One helper, called after loadGame so it can report the size actually
+    // opened. Paste and file-open append it to their existing toast; the
+    // library load is silent on success, so it speaks only when there is
+    // something to say.
+    expect(layout).toContain('const boardSizeCoercionNotice = (sgfText: string): string =>');
+    // The definition reads `boardSizeCoercionNotice = (`, so only calls match.
+    const calls = layout.match(/boardSizeCoercionNotice\(/g) ?? [];
+    expect(calls).toHaveLength(3);
+
+    for (const source of ['result.sgf', 'text', 'sgfText']) {
+      expect(layout).toContain(`boardSizeCoercionNotice(${source})`);
+    }
   });
 });

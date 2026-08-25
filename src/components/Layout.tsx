@@ -1638,6 +1638,19 @@ export const Layout: React.FC = () => {
     toast,
   ]);
 
+  // Only 9, 13 and 19 are supported, so any other declared size quietly became
+  // a 19x19 board with the stones scattered across it. Call after loadGame:
+  // it reports what the file asked for and what it actually opened at.
+  const boardSizeCoercionNotice = (sgfText: string): string => {
+    const declared = unsupportedSgfBoardSize(sgfText);
+    if (!declared) return '';
+    const opened = normalizeBoardSize(
+      useGameStore.getState().currentNode.gameState.board.length,
+      DEFAULT_BOARD_SIZE
+    );
+    return `Board size ${declared} is not supported, so it opened as ${opened}×${opened}.`;
+  };
+
   const loadLocalSgfText = async (text: string, sourceName: string): Promise<boolean> => {
     const parsed = parseSgf(text);
     if (!(await prepareForGameReplacement())) return false;
@@ -1646,7 +1659,12 @@ export const Layout: React.FC = () => {
     setLoadedLibraryFile(null);
     setLoadedExternalFile({ kind: 'file', name: sourceName || getImportedSgfNameFromProperties(parsed.tree?.props, 'Loaded SGF') });
     markCurrentGameCleanAndClearAutoSave();
-    toast(appendRestoredAnalysisSummary(`Loaded "${sourceName || 'SGF'}".`, restoredAnalysisCount), 'success');
+    const sizeNotice = boardSizeCoercionNotice(text);
+    toast(
+      appendRestoredAnalysisSummary(`Loaded "${sourceName || 'SGF'}".`, restoredAnalysisCount)
+        + (sizeNotice ? ` ${sizeNotice}` : ''),
+      sizeNotice ? 'info' : 'success'
+    );
     return true;
   };
 
@@ -1686,6 +1704,8 @@ export const Layout: React.FC = () => {
       if (!(await prepareForGameReplacement())) return false;
       loadGame(parsed);
       markCurrentGameCleanAndClearAutoSave();
+      const sizeNotice = boardSizeCoercionNotice(sgfText);
+      if (sizeNotice) toast(sizeNotice, 'info');
       return true;
     } catch {
       toast('Failed to load SGF from library.', 'error');
@@ -1787,20 +1807,13 @@ export const Layout: React.FC = () => {
           : { kind: 'pasted', name: getImportedSgfNameFromProperties(parsed.tree?.props, 'Pasted SGF') }
       );
       markCurrentGameCleanAndClearAutoSave();
-      // Only 9, 13 and 19 are supported, so anything else silently became a
-      // 19x19 board. Saying just "Loaded SGF" leaves the reader staring at a
-      // shape that no longer matches the file they pasted.
-      const declaredSize = unsupportedSgfBoardSize(result.sgf);
-      const loadedSize = normalizeBoardSize(
-        useGameStore.getState().currentNode.gameState.board.length,
-        DEFAULT_BOARD_SIZE
-      );
+      const sizeNotice = boardSizeCoercionNotice(result.sgf);
       toast(
         appendRestoredAnalysisSummary(
           result.source === 'ogs' ? `Downloaded OGS game ${result.gameId ?? ''}.` : 'Loaded SGF.',
           restoredAnalysisCount
-        ) + (declaredSize ? ` Board size ${declaredSize} is not supported, so it opened as ${loadedSize}×${loadedSize}.` : ''),
-        declaredSize ? 'info' : 'success'
+        ) + (sizeNotice ? ` ${sizeNotice}` : ''),
+        sizeNotice ? 'info' : 'success'
       );
       return 'loaded';
     } catch {
