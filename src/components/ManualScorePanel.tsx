@@ -173,12 +173,17 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
           <FaMagic size={11} />
           <span>Estimate</span>
         </button>
+        {/* Selected is not the same as unavailable. Disabling this while it was
+            the active mode made the chosen half of the pair unfocusable and
+            announced as dimmed, so the only mode a keyboard or screen-reader
+            user could perceive was the one they had not picked. aria-pressed
+            already carries the selection, and re-applying is a no-op. */}
         <button
           type="button"
           className={scoreMode === 'manual' ? 'active' : ''}
           aria-pressed={scoreMode === 'manual'}
           onClick={onUseManualScore}
-          disabled={!onUseManualScore || scoreMode === 'manual'}
+          disabled={!onUseManualScore}
           title="Use current dead-stone marks as the final manual score"
         >
           <span>Final</span>
