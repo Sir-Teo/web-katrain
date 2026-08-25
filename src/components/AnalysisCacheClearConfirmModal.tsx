@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaTimes, FaTrash } from 'react-icons/fa';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 interface AnalysisCacheClearConfirmModalProps {
   count: number;
@@ -27,12 +28,15 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onCancel]);
 
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const label = formatAnalysisCount(count);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom">
       <div
         className="ui-panel flex w-full max-w-md flex-col overflow-hidden rounded-lg border shadow-xl"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="analysis-cache-clear-title"

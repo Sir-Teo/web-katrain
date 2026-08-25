@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaFlag, FaTimes } from 'react-icons/fa';
 import type { Player } from '../types';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { getPlayerLabel, getResignResult, getResignWinnerLabel } from '../utils/resign';
 
 interface ResignConfirmModalProps {
@@ -27,6 +28,7 @@ export const ResignConfirmModal: React.FC<ResignConfirmModalProps> = ({
   }, [onCancel]);
 
   const playerLabel = getPlayerLabel(player);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const winnerLabel = getResignWinnerLabel(player);
   const result = getResignResult(player);
 
@@ -37,6 +39,8 @@ export const ResignConfirmModal: React.FC<ResignConfirmModalProps> = ({
     >
       <div
         className="ui-panel flex w-full max-w-md flex-col overflow-hidden rounded-lg border shadow-xl"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="resign-confirm-title"

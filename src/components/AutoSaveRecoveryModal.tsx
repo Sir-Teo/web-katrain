@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { formatLibraryTimestamp } from '../utils/library';
 import type { AutoSavedGame } from '../utils/autoSave';
 
@@ -19,10 +20,13 @@ export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
   // the seconds a bare toLocaleString() was printing.
   const savedAtLabel = formatLibraryTimestamp(snapshot.savedAt) || 'an earlier session';
   useEscapeToClose(onDismiss);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="auto-save-recovery-title"

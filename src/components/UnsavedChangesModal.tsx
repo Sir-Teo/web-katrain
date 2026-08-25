@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaDownload, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 
 export type UnsavedChangesChoice = 'save' | 'discard' | 'cancel';
 
@@ -13,6 +14,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
   const savesToLibrary = saveTarget === 'library';
   const SaveIcon = savesToLibrary ? FaSave : FaDownload;
   useEscapeToClose(() => onChoice('cancel'));
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
   return (
     <div
@@ -21,6 +23,8 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
     >
       <div
         className="ui-panel flex w-full max-w-md flex-col overflow-hidden rounded-lg border shadow-xl"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="unsaved-changes-title"
