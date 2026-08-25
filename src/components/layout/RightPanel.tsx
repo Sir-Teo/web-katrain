@@ -659,6 +659,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               key={node.id}
                               ref={isCurrent ? currentTreeListItemRef : undefined}
                               type="button"
+                              // The highlight is colour only, so without this the
+                              // current move is invisible to assistive tech in a list
+                              // of identical-sounding buttons. MoveTree marks its own
+                              // current node the same way.
+                              aria-current={isCurrent ? 'true' : undefined}
                               className={[
                                 'w-full flex items-center gap-2 text-left text-xs',
                                 isMobile ? 'min-h-11 px-3 py-2' : 'px-2 py-1',
@@ -859,6 +864,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                             <button
                               key={node.id}
                               type="button"
+                              aria-current={isCurrent ? 'true' : undefined}
                               className={[
                                 'w-full px-2 py-1 text-left text-xs',
                                 isCurrent ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',

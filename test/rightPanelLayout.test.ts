@@ -74,4 +74,22 @@ describe('RightPanel layout', () => {
     expect(notesSource).toContain('const depth = getCurrentLineMoveNumber(currentNode)');
     expect(notesSource).not.toContain('const depth = currentNode.gameState.moveHistory.length');
   });
+
+
+  it('marks the current move for assistive tech, not just with colour', () => {
+    const panel = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+    const tree = readFileSync('src/components/MoveTree.tsx', 'utf8');
+
+    // Both move lists highlighted the current entry with background and text
+    // colour alone, so in a list of a few hundred identically-named buttons a
+    // screen reader had no way to say which one you were on. The SVG tree
+    // already marks its own current node this way.
+    expect(tree).toContain("aria-current={isCurrent ? 'true' : undefined}");
+    const marks = panel.match(/aria-current=\{isCurrent \? 'true' : undefined\}/g) ?? [];
+    expect(marks).toHaveLength(2);
+
+    // Each one sits on a button that also carries the colour highlight.
+    const highlights = panel.match(/isCurrent \? 'bg-\[var\(--ui-accent-soft\)\]/g) ?? [];
+    expect(highlights).toHaveLength(2);
+  });
 });
