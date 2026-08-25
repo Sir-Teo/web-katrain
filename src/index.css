@@ -166,7 +166,7 @@
     --ui-gap: 10px;
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     :root,
     :root[data-ui-density='compact'],
     :root[data-ui-density='comfortable'],
@@ -714,7 +714,7 @@
     transform: translate(14px, -50%);
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     [aria-labelledby='menu-title'] button,
     [aria-labelledby='menu-title'] a[href] {
       min-width: 44px;
@@ -1332,7 +1332,7 @@
     border-color: var(--ui-danger);
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     .game-analysis-modal {
       max-height: calc(100dvh - 24px) !important;
     }
@@ -2103,7 +2103,7 @@
     }
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     .analysis-command-bar__button,
     .analysis-command-bar__depth-close,
     .analysis-command-bar__depth-input {
@@ -2390,7 +2390,7 @@
     border-color: var(--ui-accent);
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     .move-tree-empty-state {
       padding: 4.5rem 1.5rem 1.5rem;
     }
@@ -2945,7 +2945,7 @@
     cursor: not-allowed;
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     /* Launchers share the bottom edge with the Edit button on mobile (compact
        bottom bars; the board stays fully visible), matching where the active
        score bar docks. Bottom anchoring also makes the command-bar top offset
@@ -3693,7 +3693,7 @@
     border-color: var(--ui-danger);
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     .status-bar-button {
       min-width: 44px;
       min-height: 44px;
@@ -3976,7 +3976,7 @@
   }
 
   /* Mobile workspaces keep the board as the primary interaction surface. */
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (max-height: 499px) {
     .game-info-edit-header {
       position: sticky;
       top: 0;
@@ -4625,7 +4625,7 @@
   /* Keep modal board tools beside the board throughout landscape tablet mode.
      A bottom sheet obscures intersections well before the short-height rules
      kick in (for example, 1023 × 600). */
-  @media (max-width: 1023px) and (orientation: landscape) {
+  @media (max-width: 1023px) and (orientation: landscape), (max-height: 499px) and (orientation: landscape) {
     .mobile-board-canvas--edit,
     .mobile-board-canvas--scoring {
       padding-right: min(39vw, 20rem);

@@ -23,8 +23,12 @@ describe('command palette shortcut chips', () => {
     // These were hidden only below 360px, so every phone wider than that showed
     // 62 Ctrl+... labels while the menu drawer and the shortcuts-modal footer
     // dropped theirs. Same rule now, so they cannot drift apart again.
-    expect(enclosingMediaQuery('.command-palette-shortcut,')).toBe('@media (max-width: 1023px)');
-    expect(enclosingMediaQuery('.mobile-shortcut-hint,')).toBe('@media (max-width: 1023px)');
+    const paletteQuery = enclosingMediaQuery('.command-palette-shortcut,');
+    const hintQuery = enclosingMediaQuery('.mobile-shortcut-hint,');
+    // The point is that they share one query, whatever it is.
+    expect(paletteQuery).toBe(hintQuery);
+    // ...and that it tracks the mobile shell, which also runs on short windows.
+    expect(paletteQuery).toBe('@media (max-width: 1023px), (max-height: 499px)');
   });
 
   it('keeps them in one rule with the other hints', () => {

@@ -519,7 +519,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const deltaCountLabel = (type: PhotoBoardDeltaStone['type'], player: Player, count: number) =>
     `${type === 'added' ? '+' : '-'}${player === 'black' ? 'B' : 'W'}: ${count}`;
   const deltaOverlayToggleClass = (active: boolean) => [
-    'min-h-11 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 lg:min-h-8',
+    'min-h-11 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 desktop-shell:min-h-8',
     active
       ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
       : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -993,7 +993,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
             <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3">
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-[var(--ui-text)] lg:min-h-0">
+                <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-[var(--ui-text)] desktop-shell:min-h-0">
                   <input
                     type="checkbox"
                     checked={!!photoUrl && photoUnderlay}
@@ -1009,7 +1009,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                     value={photoFit}
                     onChange={(event) => setPhotoFit(event.target.value as PhotoFit)}
                     disabled={!photoUrl || !photoUnderlay}
-                    className="min-h-11 ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)] disabled:opacity-50 lg:min-h-0"
+                    className="min-h-11 ui-input rounded border px-2 py-1 text-sm text-[var(--ui-text)] disabled:opacity-50 desktop-shell:min-h-0"
                     aria-label="Photo underlay fit"
                   >
                     <option value="cover">Cover</option>

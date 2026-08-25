@@ -11,6 +11,8 @@ const VIEWPORTS = [
   { width: 390, height: 844, mobile: true },
   { width: 360, height: 800, mobile: true },
   { width: 844, height: 390, mobile: true },
+  // Wide but short: still the mobile shell, and previously uncovered.
+  { width: 1280, height: 460, mobile: true },
 ];
 
 const chromePath =
@@ -2500,7 +2502,10 @@ async function main() {
         });
         return {
           viewport: '${viewport.width}x${viewport.height}',
-          desktop: ${viewport.width >= 1024},
+          // Mirrors isDesktopLayoutSize in src/utils/responsiveLayout.ts: the
+          // app needs width AND height, so a wide but short window is still the
+          // mobile shell. Checking width alone aimed desktop assertions at it.
+          desktop: ${viewport.width >= 1024 && viewport.height >= 500},
           expectDualDesktopPanels: ${viewport.width === 1024 && viewport.height === 768 && !viewport.mobile} && !dashboard,
           innerWidth,
           innerHeight,

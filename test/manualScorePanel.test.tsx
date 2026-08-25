@@ -159,11 +159,15 @@ describe('ManualScorePanel', () => {
     // height < 500). A width-only query left these at their 26-31px desktop
     // heights there while the app was in touch mode — measured 7 targets under
     // 44px at 1280x460, and none at 844x390.
-    const start = css.indexOf('@media (max-width: 1023px), (max-height: 499px)');
-    expect(start).toBeGreaterThan(-1);
-    const block = css.slice(start, css.indexOf('\n  }', start));
-    expect(block.length).toBeGreaterThan(200);
-    expect(block).toContain('.manual-score-method button');
+    // Anchor on the rule itself: several blocks share this query now.
+    const rule = css.indexOf('.manual-score-method button,');
+    expect(rule).toBeGreaterThan(-1);
+    const query = css.lastIndexOf('@media', rule);
+    expect(query).toBeGreaterThan(-1);
+    expect(css.slice(query, css.indexOf('{', query)).trim())
+      .toBe('@media (max-width: 1023px), (max-height: 499px)');
+    const block = css.slice(rule, css.indexOf('}', rule));
+    expect(block.length).toBeGreaterThan(40);
     expect(block).toContain('.manual-score-actions button');
     expect(block).toContain('min-height: 44px');
 

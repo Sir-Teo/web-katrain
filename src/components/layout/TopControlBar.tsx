@@ -677,7 +677,10 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   return (
     <div className="ui-bar ui-bar-height ui-bar-pad border-b flex flex-nowrap items-center gap-1 sm:gap-2 select-none overflow-visible min-w-0 w-full max-w-full">
       {/* Mobile menu */}
-      <div className="lg:hidden shrink-0">
+      {/* This component only renders inside the mobile shell, which also runs
+          on wide-but-short windows. Gating on Tailwind's width-only `lg:` hid
+          the only menu trigger there, leaving the drawer unreachable. */}
+      <div className="desktop-shell:hidden shrink-0">
         <IconButton
           title="Menu"
           onClick={(event) => {
@@ -693,7 +696,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       {/* Desktop file actions */}
-      <div className="hidden lg:flex items-center gap-1 shrink-0">
+      <div className="hidden desktop-shell:flex items-center gap-1 shrink-0">
         <IconButton title={quickNewGameTitle} onClick={onQuickNewGame} className={topIconClass}>
           <FaBolt />
         </IconButton>
@@ -718,9 +721,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       </div>
 
       {/* Divider */}
-      <div className="hidden lg:block h-6 w-px bg-[var(--ui-border)] shrink-0" />
+      <div className="hidden desktop-shell:block h-6 w-px bg-[var(--ui-border)] shrink-0" />
 
-      <div className="hidden lg:block flex-1 min-w-2" />
+      <div className="hidden desktop-shell:block flex-1 min-w-2" />
 
       {/* Engine status */}
       <EngineStatusBadge
