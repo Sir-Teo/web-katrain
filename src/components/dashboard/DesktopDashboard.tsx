@@ -872,9 +872,13 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           aria-label="Analysis panel"
           className={`sidebar${sideDrawer ? ' drawer' : ''}${sidebarOpen ? ' open' : ''}`}
         >
+          {/* aria-pressed, not just the active class: without it the pair reads
+              as two plain buttons, so which mode is on was visible only as an
+              underline. It also separates this "Analysis" from the collapsible
+              Analysis section below, which announces itself as a disclosure. */}
           <div className="mode-tabs">
-            <button type="button" className={`mode-tab${mode === 'play' ? ' active' : ''}`} onClick={() => setMode('play')}>Play</button>
-            <button type="button" className={`mode-tab${mode === 'analyze' ? ' active' : ''}`} onClick={() => setMode('analyze')}>Analysis</button>
+            <button type="button" className={`mode-tab${mode === 'play' ? ' active' : ''}`} aria-pressed={mode === 'play'} onClick={() => setMode('play')}>Play</button>
+            <button type="button" className={`mode-tab${mode === 'analyze' ? ' active' : ''}`} aria-pressed={mode === 'analyze'} onClick={() => setMode('analyze')}>Analysis</button>
             <button type="button" className="iconbtn drawer-close" title="Close" style={{ margin: '6px 6px 6px 0' }} onClick={() => setSidebarOpen(false)}><Icon name="x" size={14} /></button>
           </div>
           <div className="sidebar-scroll">
