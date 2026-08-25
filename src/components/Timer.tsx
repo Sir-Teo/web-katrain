@@ -119,6 +119,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
           className="status-bar-button"
           onClick={() => toggleTimerPaused()}
           title={timerPaused ? 'Resume timer' : 'Pause timer'}
+          aria-label={timerPaused ? 'Resume timer' : 'Pause timer'}
         >
           {timerPaused ? <FaPlay size={10} /> : <FaPause size={10} />}
         </button>
@@ -149,6 +150,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
             ].join(' ')}
             onClick={() => toggleTimerPaused()}
             title={timerPaused ? 'Resume timer' : 'Pause timer'}
+            aria-label={timerPaused ? 'Resume timer' : 'Pause timer'}
           >
             {timerPaused ? <FaPlay /> : <FaPause />}
           </button>

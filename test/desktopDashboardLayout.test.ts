@@ -236,4 +236,24 @@ describe('desktop dashboard layout', () => {
 
     expect(viewMenu).toContain("aria-pressed={typeof on === 'boolean' ? on : undefined}");
   });
+
+
+  it('names every icon-only nav button for more than a hover tooltip', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const timer = readFileSync('src/components/Timer.tsx', 'utf8');
+
+    // These buttons carry only an icon, so a bare `title` was their whole
+    // accessible name — and a tooltip never appears on a touchscreen laptop.
+    // Guard the class, not the seven instances: every navbtn must be labelled.
+    const navButtons = source.match(/<button[^>]*className="navbtn[^"]*"[^>]*>/g) ?? [];
+    expect(navButtons.length).toBeGreaterThanOrEqual(9);
+    for (const button of navButtons) {
+      expect(button).toMatch(/aria-label=/);
+    }
+
+    // Both timer layouts render a bare play/pause icon.
+    const timerButtons = timer.match(/title=\{timerPaused \? 'Resume timer' : 'Pause timer'\}/g) ?? [];
+    expect(timerButtons).toHaveLength(2);
+    expect(timer.match(/aria-label=\{timerPaused \? 'Resume timer' : 'Pause timer'\}/g)).toHaveLength(2);
+  });
 });

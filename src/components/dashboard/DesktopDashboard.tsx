@@ -781,9 +781,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
-              <button type="button" className="navbtn" title="To start" onClick={navigateStart} disabled={!canNavigateBack}><Icon name="skipBack" size={15} /></button>
-              <button type="button" className="navbtn navbtn-skip" title="Back 10" onClick={jumpBack} disabled={!canNavigateBack}><Icon name="fastBack" size={15} /></button>
-              <button type="button" className="navbtn" title="Back" onClick={navigateBack} disabled={!canNavigateBack}><Icon name="chevL" size={15} /></button>
+              <button type="button" className="navbtn" title="To start" aria-label="To start" onClick={navigateStart} disabled={!canNavigateBack}><Icon name="skipBack" size={15} /></button>
+              <button type="button" className="navbtn navbtn-skip" title="Back 10" aria-label="Back 10" onClick={jumpBack} disabled={!canNavigateBack}><Icon name="fastBack" size={15} /></button>
+              <button type="button" className="navbtn" title="Back" aria-label="Back" onClick={navigateBack} disabled={!canNavigateBack}><Icon name="chevL" size={15} /></button>
             </div>
             <div className="move-counter">
               <span className="mc-label">Move</span>
@@ -820,14 +820,14 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <span>/ {totalMoves}</span>
             </div>
             <div className="navgroup">
-              <button type="button" className="navbtn" title="Forward" onClick={navigateForward} disabled={!canNavigateForward}><Icon name="chevR" size={15} /></button>
-              <button type="button" className="navbtn navbtn-skip" title="Forward 10" onClick={jumpForward} disabled={!canNavigateForward}><Icon name="fastFwd" size={15} /></button>
-              <button type="button" className="navbtn" title="To end" onClick={navigateEnd} disabled={!canNavigateForward}><Icon name="skipFwd" size={15} /></button>
+              <button type="button" className="navbtn" title="Forward" aria-label="Forward" onClick={navigateForward} disabled={!canNavigateForward}><Icon name="chevR" size={15} /></button>
+              <button type="button" className="navbtn navbtn-skip" title="Forward 10" aria-label="Forward 10" onClick={jumpForward} disabled={!canNavigateForward}><Icon name="fastFwd" size={15} /></button>
+              <button type="button" className="navbtn" title="To end" aria-label="To end" onClick={navigateEnd} disabled={!canNavigateForward}><Icon name="skipFwd" size={15} /></button>
             </div>
             <span className="nav-divider" />
             <div className="navgroup">
               <button type="button" className="navbtn navbtn-pair" title={canFindNextMistake ? 'Next mistake' : 'No next analyzed mistake'} aria-label="Next mistake" onClick={() => findMistake(1)} disabled={!canFindNextMistake}><span className="mistake-dot" /><Icon name="chevR" size={11} /></button>
-              <button type="button" className="navbtn" title="Rotate board" onClick={rotateBoard}><Icon name="rotate" size={15} /></button>
+              <button type="button" className="navbtn" title="Rotate board" aria-label="Rotate board" onClick={rotateBoard}><Icon name="rotate" size={15} /></button>
             </div>
             <span className="nav-divider" />
             <div className="board-tools">
