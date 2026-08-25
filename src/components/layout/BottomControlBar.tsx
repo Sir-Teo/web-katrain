@@ -24,6 +24,7 @@ import { STONE_SIZE } from './types';
 import { publicUrl } from '../../utils/publicUrl';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { formatGameInfoPlayer } from '../../utils/gameInfoDisplay';
+import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 import { getResizeObserverConstructor } from '../../utils/resizeObserver';
 import { parseIntegerDraft } from '../../utils/numberDraft';
 import type { BranchInfo } from '../../utils/branchNavigation';
@@ -211,7 +212,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
     setMoreOpen(false);
     setSuppressMoreTriggerFocusRing(inputMode === 'pointer');
     if (typeof window !== 'undefined') {
-      window.setTimeout(() => moreTriggerRef.current?.focus({ preventScroll: true }), 0);
+      window.setTimeout(() => restoreFocusIfUnclaimed(moreTriggerRef.current), 0);
     }
   }, []);
 

@@ -42,6 +42,7 @@ import type { AnalysisControlsState } from './types';
 import { EngineStatusBadge, IconButton } from './ui';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../../utils/boardThemes';
+import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 import { UI_THEME_OPTIONS } from '../../utils/uiThemes';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { isFullscreenActive, subscribeFullscreenChange, toggleAppFullscreen } from '../../utils/fullscreen';
@@ -265,14 +266,14 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     if (inputMode) updateMobileToolsInputMode(inputMode);
     setViewMenuOpen(false);
     if (restoreFocus && typeof window !== 'undefined') {
-      window.setTimeout(() => viewMenuButtonRef.current?.focus({ preventScroll: true }), 0);
+      window.setTimeout(() => restoreFocusIfUnclaimed(viewMenuButtonRef.current), 0);
     }
   }, [setViewMenuOpen, updateMobileToolsInputMode]);
 
   const closeAnalysisMenuWithFocus = React.useCallback((restoreFocus = false) => {
     setAnalysisMenuOpen(false);
     if (restoreFocus && typeof window !== 'undefined') {
-      window.setTimeout(() => actionsMenuButtonRef.current?.focus({ preventScroll: true }), 0);
+      window.setTimeout(() => restoreFocusIfUnclaimed(actionsMenuButtonRef.current), 0);
     }
   }, [setAnalysisMenuOpen]);
 
