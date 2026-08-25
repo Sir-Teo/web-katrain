@@ -800,6 +800,23 @@
       display: none !important;
     }
 
+    /* The view menu is a two-column block built for a 512px popover, and the
+       sheet drops it into 390px. The rule above hides eight of the left
+       column's rows as redundant, so six rows sat beside thirteen with a
+       hairline down the ragged gap, each column's labels crammed into half the
+       width — "Next move preview" ran to within 17px of its own value. Stack it
+       into one column, the way every other section of the sheet already reads.
+       Both properties come from Tailwind utilities, which outrank this layer. */
+    [data-mobile-tools-dialog='true'] [data-mobile-tools-view-grid='true'] {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    [data-mobile-tools-dialog='true']
+      [data-mobile-tools-view-grid='true']
+      > :first-child {
+      border-right-width: 0 !important;
+    }
+
     .settings-modal .settings-tab {
       min-height: 44px;
       padding-top: 0.625rem;

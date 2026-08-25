@@ -221,6 +221,17 @@ describe('TopControlBar', () => {
     expect(css).toMatch(/@media \(min-width: 600px\) and \(max-width: 1023px\)[\s\S]*\[data-mobile-tools-section='game'\] \{[^}]*repeat\(3, minmax\(0, 1fr\)\)/);
     expect(css).toMatch(/@media \(min-width: 760px\)[\s\S]*\[data-mobile-tools-section='ai'\]:not\(:has\(> button:nth-child\(6\)\)\)[^}]*repeat\(5, minmax\(0, 1fr\)\)/);
     expect(css).toMatch(/@media \(min-width: 760px\)[\s\S]*\[data-mobile-tools-section='game'\] \{[^}]*repeat\(6, minmax\(0, 1fr\)\)/);
+
+    // The view menu's two columns are sized for a 512px popover, and the sheet
+    // hides eight of the left column's rows as redundant — six rows beside
+    // thirteen, with a hairline down the ragged gap. It stacks in the sheet.
+    // Both properties come from Tailwind utilities, which outrank this layer.
+    expect(css).toMatch(
+      /\[data-mobile-tools-dialog='true'\] \[data-mobile-tools-view-grid='true'\] \{\s*grid-template-columns: minmax\(0, 1fr\) !important;/,
+    );
+    expect(css).toMatch(
+      /\[data-mobile-tools-view-grid='true'\]\s*> :first-child \{\s*border-right-width: 0 !important;/,
+    );
   });
 
   it('has one toolbar menu, so there is nothing to keep it exclusive with', () => {
