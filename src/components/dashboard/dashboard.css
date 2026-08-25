@@ -5,6 +5,20 @@
    scoped under .wk-dashboard so they never touch the rest of the app.
    ============================================================ */
 
+/* Declared on :root, not on .wk-dashboard, because the desktop notification
+   toast is a sibling of the dashboard and positions itself clear of the
+   sidebar. Both need the same number.
+
+   The board is square and height-bound on any landscape desktop, so width past
+   that is dead margin either side of the board. Let the sidebar grow with the
+   viewport to claim some of it for the tree, graph and comments. The lower
+   bound is the historical fixed width, so no viewport ever gets a narrower
+   sidebar than before; the upper bound keeps the board column above the 1000px
+   tier at 1440px, where the game strip drops komi and ruleset. */
+:root {
+  --sidebar-w: clamp(360px, 29vw, 460px);
+}
+
 .wk-dashboard {
   /* Brand / ink — aliased onto the global --ui-* theme tokens so the desktop
      chrome follows the user's theme (noir/kaya/studio/light). The soft/faint
@@ -64,13 +78,6 @@
   --shadow-card: 0 2px 10px rgba(17, 24, 39, 0.07);
 
   --header-h: 50px;
-  /* The board is square and height-bound on any landscape desktop, so width
-     past that is dead margin either side of the board. Let the sidebar grow
-     with the viewport to claim some of it for the tree, graph and comments.
-     The lower bound is the historical fixed width, so no viewport ever gets a
-     narrower sidebar than before; the upper bound keeps the board column above
-     the 1000px tier at 1440px, where the game strip drops komi and ruleset. */
-  --sidebar-w: clamp(360px, 29vw, 460px);
   --library-w: 232px;
 
   /* Metrics bar footprint (its own height plus its bottom margin), held as
