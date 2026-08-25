@@ -78,7 +78,13 @@ export const IconButton: React.FC<{
         type="button"
         ref={buttonRef}
         aria-label={label}
-        aria-controls={ariaControls}
+        aria-controls={
+          // Only advertise the popup while it exists: both callers render
+          // their target conditionally, so a closed control would otherwise
+          // point at a missing id. `=== false` keeps the attribute for
+          // non-disclosure buttons, which pass no ariaExpanded at all.
+          ariaExpanded === false ? undefined : ariaControls
+        }
         aria-expanded={ariaExpanded}
         aria-haspopup={ariaHasPopup}
         onClick={onClick}

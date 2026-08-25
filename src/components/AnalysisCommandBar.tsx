@@ -623,7 +623,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           data-analysis-live-depth="true"
           aria-haspopup="dialog"
           aria-expanded={depthPopoverOpen}
-          aria-controls={depthPopoverId}
+          aria-controls={depthPopoverOpen && !isGameAnalysisRunning ? depthPopoverId : undefined}
           title={
             isGameAnalysisRunning
               ? 'Stop game analysis before changing live depth'

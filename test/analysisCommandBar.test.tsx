@@ -60,7 +60,10 @@ describe('AnalysisCommandBar', () => {
     expect(html).toContain('data-analysis-live-depth="true"');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toMatch(/aria-controls="[^"]+"/);
+    // Closed, so the depth popover is not in the DOM: the trigger must not
+    // point aria-controls at a missing id. The association appears with the
+    // popover itself (see modalAccessibility).
+    expect(html).not.toMatch(/aria-controls=/);
     expect(html).toContain('aria-label="Turn live analysis off"');
     expect(html).toContain('aria-label="Run a fast review of the game"');
     expect(html).toContain('aria-label="Hide top move hints"');

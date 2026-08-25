@@ -68,7 +68,8 @@ describe('BottomControlBar', () => {
     expect(html).toContain('aria-label="More controls"');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toMatch(/aria-controls="[^"]+"/);
+    // Closed, so the more-controls sheet is not in the DOM: no dangling IDREF.
+    expect(html).not.toMatch(/aria-controls=/);
     expect(html).toContain('Br');
     expect(html).toContain('2/3');
     expect(html).toContain('+1');

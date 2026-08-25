@@ -216,6 +216,14 @@ describe('modal accessibility semantics', () => {
         target: 'id="dashboard-analysis-quality-legend"',
         guard: '{legendOpen && (',
       },
+      {
+        // The popover needs both conditions, so the trigger must match both —
+        // aria-expanded alone would still dangle while analysis is running.
+        path: 'src/components/AnalysisCommandBar.tsx',
+        control: 'aria-controls={depthPopoverOpen && !isGameAnalysisRunning ? depthPopoverId : undefined}',
+        target: 'id={depthPopoverId}',
+        guard: 'depthPopoverOpen && !isGameAnalysisRunning ? (',
+      },
     ];
 
     for (const { path, control, target, guard } of conditional) {
@@ -226,5 +234,11 @@ describe('modal accessibility semantics', () => {
       expect(source).toContain(target);
       expect(source).toContain(control);
     }
+
+    // The shared control button gates centrally for its callers (the mobile
+    // Tools popover and the More-controls sheet), which both render their
+    // target only while open.
+    const sharedButton = readFileSync('src/components/layout/ui.tsx', 'utf8');
+    expect(sharedButton).toContain('ariaExpanded === false ? undefined : ariaControls');
   });
 });
