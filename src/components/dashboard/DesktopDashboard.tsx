@@ -834,6 +834,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <button
                 type="button"
                 className={`board-chip${isSelectingRegionOfInterest ? ' on' : ''}`}
+                // Both of these switch the board into a different interaction
+                // mode and said so only with a CSS class. Every other toggle
+                // here — the overlay chips, the legend, the depth presets —
+                // carries its state; these two were the outliers.
+                aria-pressed={isSelectingRegionOfInterest}
                 title="Select a board region to analyze"
                 onClick={startSelectRegionOfInterest}
               >
@@ -842,6 +847,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <button
                 type="button"
                 className={`board-chip${isInsertMode ? ' on' : ''}`}
+                aria-pressed={isInsertMode}
                 title="Insert moves into the game record"
                 onClick={toggleInsertMode}
               >

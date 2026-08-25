@@ -276,4 +276,27 @@ describe('desktop dashboard layout', () => {
     expect(responsive).toContain('DESKTOP_LAYOUT_MIN_WIDTH = 1024');
     expect(responsive).toContain('DESKTOP_LAYOUT_MIN_HEIGHT = 500');
   });
+
+
+  it('says when a board mode is engaged, not just colours the chip', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+
+    // Region and Insert switch the board into a different interaction mode and
+    // signalled it with a CSS class alone, so nothing but sight could tell the
+    // mode was on. Guard the pattern: every chip that toggles an `on` class
+    // must also carry its state.
+    // Split on the chip class rather than matching template-literal JSX with a
+    // regex: the escaping is easy to get subtly wrong, and a pattern that never
+    // matches passes vacuously.
+    const chips = source.split('className={`board-chip${').slice(1);
+    expect(chips.length).toBeGreaterThanOrEqual(2);
+    for (const chip of chips) {
+      const button = chip.slice(0, chip.indexOf('onClick='));
+      expect(button.length).toBeGreaterThan(20);
+      expect(button).toContain('aria-pressed={');
+    }
+
+    expect(source).toContain('aria-pressed={isSelectingRegionOfInterest}');
+    expect(source).toContain('aria-pressed={isInsertMode}');
+  });
 });
