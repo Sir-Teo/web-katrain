@@ -644,9 +644,6 @@
       line-height: 1.25rem;
     }
 
-    .command-palette-shortcut {
-      display: none;
-    }
   }
 
   /* Themed switch for every boolean control, not just the ones in Settings:
@@ -4287,7 +4284,12 @@
       padding-inline: 0;
     }
 
+    /* Keyboard hints on a device with no keyboard. This rule already covered
+       the menu drawer and the shortcuts-modal footer; the command palette hid
+       its chips only below 360px, so every phone wider than that still showed
+       62 Ctrl+... labels. Same rule, same breakpoint. */
     .mobile-shortcut-hint,
+    .command-palette-shortcut,
     [data-mobile-tools-dialog='true'] button > .text-\[11px\].ui-text-faint {
       display: none;
     }
