@@ -5,6 +5,27 @@ import { KeyboardHelpModal } from '../src/components/KeyboardHelpModal';
 import { filterKeyboardReferenceItems } from '../src/utils/keyboardHelp';
 
 describe('KeyboardHelpModal', () => {
+  it('leads with the input every user has, not the one almost none do', () => {
+    const html = renderToStaticMarkup(<KeyboardHelpModal onClose={() => undefined} />);
+
+    // These two stack on a phone, so ordering decided what a touch user saw
+    // first — and it was gamepad bindings. Everyone has a pointer or a touch
+    // screen; almost nobody has a controller plugged in.
+    expect(html.indexOf('data-keyboard-help-pointer="true"')).toBeGreaterThan(-1);
+    expect(html.indexOf('data-keyboard-help-pointer="true"')).toBeLessThan(
+      html.indexOf('data-keyboard-help-gamepad="true"')
+    );
+  });
+
+  it('hides the keys-only close hint where there are no keys', () => {
+    const html = renderToStaticMarkup(<KeyboardHelpModal onClose={() => undefined} />);
+
+    // The footer names two keys a touch device does not have; the X beside the
+    // title is the way out there. mobile-shortcut-hint is how the rest of the
+    // app already drops keyboard hints on mobile.
+    expect(html).toMatch(/class="mobile-shortcut-hint[^"]*"[^>]*>\s*<span[^>]*>\s*Press/);
+  });
+
   it('includes gamepad controls alongside keyboard shortcuts', () => {
     const html = renderToStaticMarkup(<KeyboardHelpModal onClose={() => undefined} />);
 

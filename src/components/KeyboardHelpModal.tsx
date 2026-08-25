@@ -137,14 +137,14 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
           </label>
           {(visibleGamepadHelp.length > 0 || visiblePointerHelp.length > 0) && (
           <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {visibleGamepadHelp.length > 0 && (
-            <section className="ui-surface rounded-lg border p-3" data-keyboard-help-gamepad="true">
+            {visiblePointerHelp.length > 0 && (
+            <section className="ui-surface rounded-lg border p-3" data-keyboard-help-pointer="true">
               <div className="mb-2 flex items-center gap-2 border-b border-[var(--ui-border)] pb-2">
-                <FaGamepad aria-hidden="true" className="text-[var(--ui-accent)]" />
-                <h3 className="text-sm font-semibold text-[var(--ui-text)]">Gamepad</h3>
+                <FaMouse aria-hidden="true" className="text-[var(--ui-accent)]" />
+                <h3 className="text-sm font-semibold text-[var(--ui-text)]">Touch / Trackpad / Mouse</h3>
               </div>
               <div className="grid grid-cols-1 gap-1">
-                {visibleGamepadHelp.map((item) => (
+                {visiblePointerHelp.map((item) => (
                   <div key={item.control} className="flex items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
                     <span className="ui-text-faint">{item.action}</span>
                     <kbd className="shrink-0 rounded bg-[var(--ui-panel)] px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
@@ -155,14 +155,14 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               </div>
             </section>
             )}
-            {visiblePointerHelp.length > 0 && (
-            <section className="ui-surface rounded-lg border p-3" data-keyboard-help-pointer="true">
+            {visibleGamepadHelp.length > 0 && (
+            <section className="ui-surface rounded-lg border p-3" data-keyboard-help-gamepad="true">
               <div className="mb-2 flex items-center gap-2 border-b border-[var(--ui-border)] pb-2">
-                <FaMouse aria-hidden="true" className="text-[var(--ui-accent)]" />
-                <h3 className="text-sm font-semibold text-[var(--ui-text)]">Touch / Trackpad / Mouse</h3>
+                <FaGamepad aria-hidden="true" className="text-[var(--ui-accent)]" />
+                <h3 className="text-sm font-semibold text-[var(--ui-text)]">Gamepad</h3>
               </div>
               <div className="grid grid-cols-1 gap-1">
-                {visiblePointerHelp.map((item) => (
+                {visibleGamepadHelp.map((item) => (
                   <div key={item.control} className="flex items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
                     <span className="ui-text-faint">{item.action}</span>
                     <kbd className="shrink-0 rounded bg-[var(--ui-panel)] px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
@@ -200,7 +200,9 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
             </div>
           )}
         </div>
-        <div className="p-3 border-t border-[var(--ui-border)] text-center">
+        {/* Keys the device may not have: on touch the X beside the title is the
+            way out, and the app hides keyboard hints elsewhere on mobile too. */}
+        <div className="mobile-shortcut-hint p-3 border-t border-[var(--ui-border)] text-center">
           <span className="text-xs ui-text-faint">
             Press{' '}
             <kbd className="px-1.5 py-0.5 ui-surface-2 rounded text-xs font-mono text-[var(--ui-text)]">
