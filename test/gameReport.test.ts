@@ -5,6 +5,7 @@ import {
   classifyMoveByRankAndPolicy,
   computeGameReport,
   describeReportSwing,
+  formatPolicyRank,
   GAME_REPORT_PHASES,
   getPhaseAnalysisMoveRange,
   getMovePhase,
@@ -631,5 +632,24 @@ describe('computeGameReport', () => {
 
     const middleMistakes = [...middle.moveEntries].sort((a, b) => b.pointsLost - a.pointsLost);
     expect(middleMistakes.slice(0, 3).map((entry) => entry.moveNumber)).toEqual([40, 39, 38]);
+  });
+});
+
+describe('formatPolicyRank', () => {
+  it('shows the rank when the engine gave the move one', () => {
+    expect(formatPolicyRank(1)).toBe('#1');
+    expect(formatPolicyRank(17)).toBe('#17');
+  });
+
+  it('says unranked rather than printing a bare question mark', () => {
+    // The critical-swing chips used to render `#${rank || '?'}`, so a move the
+    // engine never ranked read as "Blunder #?" — a rendering fault, not data —
+    // while the mistake rows described the same state as "unranked".
+    expect(formatPolicyRank(undefined)).toBe('unranked');
+    expect(formatPolicyRank(null)).toBe('unranked');
+  });
+
+  it('treats rank 0 as absent because policy ranks are 1-based', () => {
+    expect(formatPolicyRank(0)).toBe('unranked');
   });
 });

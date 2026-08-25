@@ -11,6 +11,7 @@ import {
   getPhaseLabel,
   getPhaseMoveRange,
   getReportStudyFocus,
+  formatPolicyRank,
   getPointLossBucket,
   getReportRecoveries,
   getReportTurningPoints,
@@ -719,7 +720,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     return entries.map((entry) => {
       const previewMove = entry.topCandidate ?? null;
       const policy = entry.policy;
-      const policyRank = policy?.rank ? `#${policy.rank}` : 'unranked';
+      const policyRank = formatPolicyRank(policy?.rank);
       const policyTitle = policy
         ? `Policy rank ${policyRank}; played prior ${fmtPolicyPct(policy.playedPrior)}; top prior ${fmtPolicyPct(policy.topPrior)}; ${fmtPolicyPct(policy.relativePrior)} of top move`
         : 'Policy data unavailable';
@@ -1500,7 +1501,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         'rounded-full border px-2 py-0.5 font-semibold',
                         policyCategoryClass(entry.policy.category),
                       ].join(' ')}>
-                        {policyCategoryLabel(entry.policy.category)} #{entry.policy.rank || '?'}
+                        {policyCategoryLabel(entry.policy.category)} {formatPolicyRank(entry.policy.rank)}
                       </span>
                     )}
                     <button

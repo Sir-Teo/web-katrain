@@ -43,6 +43,18 @@ export const GAME_REPORT_PHASES: Array<{ key: GameReportPhaseFilter; label: stri
   { key: 'endgame', label: 'Endgame', compactLabel: 'Endgame' },
 ];
 
+/**
+ * "#3", or "unranked" when the engine gave the move no policy rank.
+ *
+ * The report shows a rank in two places and they had drifted: the mistake rows
+ * said "unranked" while the critical-swing chips printed a literal "#?", which
+ * reads as a rendering fault rather than as missing data. Ranks are 1-based, so
+ * 0 counts as absent.
+ */
+export function formatPolicyRank(rank: number | null | undefined): string {
+  return rank ? `#${rank}` : 'unranked';
+}
+
 export function getPhaseThresholds(boardSize: number): { openingEnd: number; middleEnd: number } {
   const size = Math.max(1, Math.trunc(boardSize));
   const known = KAYA_PHASE_THRESHOLDS[size];
