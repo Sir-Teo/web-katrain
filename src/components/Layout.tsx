@@ -3613,16 +3613,18 @@ export const Layout: React.FC = () => {
                 // Portrait only: in landscape the board is height-limited and centered with
                 // the launchers in the side margins, so vertical padding there would just
                 // squash/clip the board.
-                // Bias the board to the top in portrait: vertical centering left all
-                // the slack as a dead gap under the command bar while the floating
-                // launchers occupied the bottom slack anyway.
+                // The padding is what places the board, not alignment: the board shell
+                // takes the canvas's content box exactly, so align-items has no free
+                // space to distribute and portrait:items-start moved nothing in any of
+                // the three states. Shrinking the box with pb-44 / pb-52 is what lifts
+                // the board clear of the edit and scoring strips.
                 !isMobile
                   ? 'items-center'
                   : isEditMode
-                    ? 'mobile-board-canvas--edit items-center portrait:items-start portrait:pt-2 portrait:pb-44'
+                    ? 'mobile-board-canvas--edit items-center portrait:pt-2 portrait:pb-44'
                     : scoringMode
-                      ? 'mobile-board-canvas--scoring items-center portrait:items-start portrait:pt-2 portrait:pb-52'
-                      : 'items-center portrait:items-start portrait:py-6',
+                      ? 'mobile-board-canvas--scoring items-center portrait:pt-2 portrait:pb-52'
+                      : 'items-center portrait:py-6',
               ].join(' ')}
             >
               <GoBoard
