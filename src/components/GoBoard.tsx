@@ -2009,6 +2009,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     if (!roiDrag) return;
     const pt = eventToInternal(e) ?? roiDrag.end;
     setRoiDrag(null);
+    // The browser still fires a click after a drag that starts and ends on the
+    // board, so without this, finishing a region selection also played a stone
+    // at the release point — leaving an unwanted move and an unsaved game. The
+    // edit and draw gestures above suppress it the same way.
+    suppressNextClickRef.current = true;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
