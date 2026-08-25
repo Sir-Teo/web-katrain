@@ -57,6 +57,7 @@ function connectDevtools(webSocketDebuggerUrl) {
   let buffer = Buffer.alloc(0);
   let fragments = [];
   const pending = new Map();
+  const listeners = new Set();
 
   const readyPromise = new Promise((resolve, reject) => {
     socket.once('error', reject);
@@ -97,6 +98,10 @@ function connectDevtools(webSocketDebuggerUrl) {
     if (message.id && pending.has(message.id)) {
       pending.get(message.id)(message);
       pending.delete(message.id);
+      return;
+    }
+    if (message.method) {
+      for (const listener of listeners) listener(message);
     }
   }
 
@@ -162,6 +167,10 @@ function connectDevtools(webSocketDebuggerUrl) {
 
   return {
     ready: readyPromise,
+    on(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     send(method, params = {}) {
       const message = { id: ++nextId, method, params };
       return new Promise((resolve) => {
@@ -260,6 +269,9 @@ function assertViewport(result) {
   }
   if (result.localeSmokeFailures.length > 0) {
     failures.push(`locale smoke failures: ${result.localeSmokeFailures.join(', ')}`);
+  }
+  if (result.pageErrors?.length > 0) {
+    failures.push(`page errors: ${result.pageErrors.slice(0, 6).join(' | ')}`);
   }
   if (result.deadAriaRefs?.length > 0) {
     // aria-controls/-labelledby naming an element that is not in the DOM is
@@ -552,9 +564,30 @@ async function main() {
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
 
+    // Console errors and uncaught exceptions are silent in a headless run: the
+    // layout assertions below still pass while the page is throwing on every
+    // interaction. Collect them so a broken handler fails the check.
+    let pageErrors = [];
+    cdp.on((message) => {
+      if (message.method === 'Runtime.exceptionThrown') {
+        const details = message.params?.exceptionDetails;
+        const text = details?.exception?.description ?? details?.text ?? 'unknown exception';
+        pageErrors.push(`uncaught: ${String(text).split('\n')[0]}`);
+        return;
+      }
+      if (message.method === 'Runtime.consoleAPICalled' && message.params?.type === 'error') {
+        const text = (message.params.args ?? [])
+          .map((arg) => arg.description ?? arg.value ?? arg.unserializableValue ?? '')
+          .join(' ')
+          .trim();
+        if (text) pageErrors.push(`console.error: ${text.split('\n')[0]}`);
+      }
+    });
+
     const results = [];
     for (const viewport of VIEWPORTS) {
       const appUrl = `http://127.0.0.1:${appPort}/`;
+      pageErrors = [];
       await cdp.send('Emulation.setDeviceMetricsOverride', {
         width: viewport.width,
         height: viewport.height,
@@ -2660,6 +2693,7 @@ async function main() {
         }
         return out;
       })()`);
+      result.pageErrors = [...new Set(pageErrors)];
       assertViewport(result);
       const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
       fs.writeFileSync(
