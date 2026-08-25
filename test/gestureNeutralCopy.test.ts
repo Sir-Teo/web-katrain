@@ -33,3 +33,25 @@ describe('gesture-neutral copy in shared components', () => {
     expect(lessons).toContain('Choose a point on the board.');
   });
 });
+
+describe('device-specific components use their own device\'s word', () => {
+  it('TopControlBar says tap, since it only renders in the mobile shell', () => {
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+    const bar = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+
+    // It is rendered inside the {!isDesktop && ...} shell and the desktop
+    // dashboard never imports it, so "Tap" is right and "click" was the outlier.
+    expect(layout).toContain('<TopControlBar');
+    expect(readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8')).not.toContain('TopControlBar');
+    expect(bar).toContain('Region of interest active (tap to clear)');
+    expect(bar).not.toContain('(click to clear)');
+  });
+
+  it('the library empty state names a control a phone actually has', () => {
+    const library = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    // Dropping files in is desktop-only, so it cannot be the only route offered.
+    expect(library).toContain('use the import button');
+    expect(library).toContain('Import SGF, ZIP, or board image files');
+  });
+});

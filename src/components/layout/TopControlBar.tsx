@@ -749,7 +749,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <button
             type="button"
             className="px-2 py-0.5 rounded-md border ui-success-soft text-xs font-semibold hover:brightness-110 transition-colors"
-            title="Region of interest active (click to clear)"
+            title="Region of interest active (tap to clear)"
             onClick={() => setRegionOfInterest(null)}
           >
             ROI

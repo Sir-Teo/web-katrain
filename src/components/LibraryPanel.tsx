@@ -2329,7 +2329,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 ) : items.length === 0 ? (
                   <div className="p-6 text-sm ui-text-faint">
                     <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Library is empty</div>
-                    <div>Save the current game or drag SGF, ZIP, or board image files here to build your library.</div>
+                    <div>Save the current game, or use the import button for SGF, ZIP, and board image files. On a desktop you can drop them here too.</div>
                   </div>
                 ) : (
                   <div>
