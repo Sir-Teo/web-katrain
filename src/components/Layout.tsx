@@ -36,7 +36,7 @@ import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineStatusSummary } from '../utils/engineStatusSummary';
-import { normalizeBoardSize } from '../utils/boardSize';
+import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
   PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
@@ -1787,12 +1787,20 @@ export const Layout: React.FC = () => {
           : { kind: 'pasted', name: getImportedSgfNameFromProperties(parsed.tree?.props, 'Pasted SGF') }
       );
       markCurrentGameCleanAndClearAutoSave();
+      // Only 9, 13 and 19 are supported, so anything else silently became a
+      // 19x19 board. Saying just "Loaded SGF" leaves the reader staring at a
+      // shape that no longer matches the file they pasted.
+      const declaredSize = unsupportedSgfBoardSize(result.sgf);
+      const loadedSize = normalizeBoardSize(
+        useGameStore.getState().currentNode.gameState.board.length,
+        DEFAULT_BOARD_SIZE
+      );
       toast(
         appendRestoredAnalysisSummary(
           result.source === 'ogs' ? `Downloaded OGS game ${result.gameId ?? ''}.` : 'Loaded SGF.',
           restoredAnalysisCount
-        ),
-        'success'
+        ) + (declaredSize ? ` Board size ${declaredSize} is not supported, so it opened as ${loadedSize}×${loadedSize}.` : ''),
+        declaredSize ? 'info' : 'success'
       );
       return 'loaded';
     } catch {

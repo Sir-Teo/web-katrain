@@ -8,6 +8,28 @@ export const isBoardSize = (value: number): value is BoardSize =>
 export const normalizeBoardSize = (value: number | null | undefined, fallback: BoardSize): BoardSize =>
   typeof value === 'number' && isBoardSize(value) ? value : fallback;
 
+/**
+ * The board size a file asked for, when the app cannot honour it. Only 9, 13
+ * and 19 are supported, so a 5x5 tsumego or a 21x21 game is loaded as 19x19 —
+ * the stones keep their coordinates but the shape is unrecognisable, and
+ * reporting a plain "Loaded SGF" leaves the reader thinking it is broken.
+ * Returns null for junk like SZ[abc]: there is no real board to name there.
+ */
+export const unsupportedSgfBoardSize = (sgfText: string): string | null => {
+  // Properties run together as FF[4]SZ[19], so anchor on "not part of a
+  // longer identifier" rather than on a preceding delimiter.
+  const match = /(?<![A-Za-z])SZ\[([^\]]*)\]/.exec(sgfText);
+  if (!match) return null;
+  const raw = (match[1] ?? '').trim();
+  if (!raw) return null;
+  const [width, height] = raw.split(':').map((part) => part.trim());
+  const parsedWidth = Number.parseInt(width ?? '', 10);
+  if (!Number.isFinite(parsedWidth)) return null;
+  // SGF allows a non-square SZ[w:h]; this app has no layout for one.
+  if (height !== undefined && height !== width) return raw;
+  return isBoardSize(parsedWidth) ? null : raw;
+};
+
 export const createEmptyBoard = (size: BoardSize): BoardState =>
   Array.from({ length: size }, () => Array(size).fill(null));
 
