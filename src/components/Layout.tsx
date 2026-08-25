@@ -80,7 +80,6 @@ import {
   loadUiState,
   saveUiState,
 } from './layout/types';
-import { PanelEdgeToggle } from './layout/ui';
 import { formatMoveLabel, playerToShort, rgba } from './layout/ui-utils';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
@@ -148,7 +147,6 @@ type SaveToLibraryDialogState = {
   folderOptions: LibraryFolderOption[];
 };
 
-type LayoutShortcutId = (typeof LAYOUT_SHORTCUT_IDS)[number];
 
 function computePointsLost(args: { currentNode: GameNode }): number | null {
   const node = args.currentNode;
@@ -391,7 +389,6 @@ export const Layout: React.FC = () => {
     return readLocalStorage('web-katrain:bottom_bar_open:v1') !== 'false';
   });
   const layoutShortcutLabels = useShortcutLabels(LAYOUT_SHORTCUT_IDS);
-  const withLayoutShortcut = (label: string, id: LayoutShortcutId) => `${label} (${layoutShortcutLabels[id]})`;
   const [mobileHomeOpen, setMobileHomeOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
     return isMobileLayoutViewport() && readLocalStorage(MOBILE_HOME_DISMISSED_KEY) !== 'true';
@@ -3757,20 +3754,6 @@ export const Layout: React.FC = () => {
             />
           )}
 
-          {!isMobile && !focusMode && (
-            <div
-              className="absolute right-3 z-30"
-              style={{ top: topBarOpen ? 'calc(var(--ui-bar-height) + 8px)' : 8 }}
-            >
-              <PanelEdgeToggle
-                side="top"
-                state={topBarOpen ? 'open' : 'closed'}
-                title={topBarOpen ? withLayoutShortcut('Hide top bar', 'toggle-top-bar') : withLayoutShortcut('Show top bar', 'toggle-top-bar')}
-                onClick={handleToggleTopBar}
-                className="rounded-lg border border-[var(--ui-border)]"
-              />
-            </div>
-          )}
         </main>
 
         {isDesktop && showSidebar && (
@@ -3839,58 +3822,6 @@ export const Layout: React.FC = () => {
           showAnalysisSection={!isDesktop}
         />
 
-        {isDesktop && (
-          <>
-            <div
-              className="absolute top-1/2 z-30"
-              style={
-                libraryOpen
-                  ? { left: leftPanelWidth, transform: 'translate(0, -50%)' }
-                  : { left: 0, transform: 'translate(0, -50%)' }
-              }
-            >
-              <PanelEdgeToggle
-                side="left"
-                state={libraryOpen ? 'open' : 'closed'}
-                title={libraryOpen ? withLayoutShortcut('Hide panel', 'toggle-library') : withLayoutShortcut('Show library', 'toggle-library')}
-                onClick={handleToggleLibrary}
-              />
-            </div>
-            <div
-              className="absolute top-1/2 z-30"
-              style={
-                showSidebar
-                  ? { right: rightPanelWidth, transform: 'translate(0, -50%)' }
-                  : { right: 0, transform: 'translate(0, -50%)' }
-              }
-            >
-              <PanelEdgeToggle
-                side="right"
-                state={showSidebar ? 'open' : 'closed'}
-                title={showSidebar ? withLayoutShortcut('Hide panel', 'toggle-sidebar') : withLayoutShortcut('Show panel', 'toggle-sidebar')}
-                onClick={handleToggleSidebar}
-              />
-            </div>
-          </>
-        )}
-
-        {!isMobile && !focusMode && (
-          <>
-            {settings.showBoardControls && (
-              <div
-                className="absolute left-1/2 -translate-x-1/2 z-30"
-                style={{ bottom: bottomBarOpen ? 'calc(var(--ui-bar-height) + 28px)' : 28 }}
-              >
-                <PanelEdgeToggle
-                  side="bottom"
-                  state={bottomBarOpen ? 'open' : 'closed'}
-                  title={bottomBarOpen ? withLayoutShortcut('Hide bottom controls', 'toggle-bottom-bar') : withLayoutShortcut('Show bottom controls', 'toggle-bottom-bar')}
-                  onClick={handleToggleBottomBar}
-                />
-              </div>
-            )}
-          </>
-        )}
 
         {isMobile && !focusMode && (
           <div className="fixed bottom-0 left-0 right-0 z-[44] flex flex-col pointer-events-none">

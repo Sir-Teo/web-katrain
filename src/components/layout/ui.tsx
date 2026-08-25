@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaChevronRight, FaChevronLeft, FaChevronUp, FaChevronDown } from 'react-icons/fa';
+import { FaChevronRight } from 'react-icons/fa';
 import { mediaQueryMatches } from '../../utils/mediaQuery';
 
 // Parse title like "Back (←)" into { label: "Back", shortcut: "←" }
@@ -268,48 +268,3 @@ export const SectionHeader: React.FC<{
   </div>
 );
 
-export const PanelEdgeToggle: React.FC<{
-  side: 'left' | 'right' | 'top' | 'bottom';
-  state: 'open' | 'closed';
-  title: string;
-  onClick: () => void;
-  className?: string;
-}> = ({ side, state, title, onClick, className }) => {
-  const isLeft = side === 'left';
-  const isRight = side === 'right';
-  const isTop = side === 'top';
-  const isVertical = isLeft || isRight;
-  const isOpen = state === 'open';
-  const icon = isLeft
-    ? (isOpen ? <FaChevronLeft size={12} /> : <FaChevronRight size={12} />)
-    : isRight
-      ? (isOpen ? <FaChevronRight size={12} /> : <FaChevronLeft size={12} />)
-      : isTop
-        ? (isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />)
-        : (isOpen ? <FaChevronDown size={12} /> : <FaChevronUp size={12} />);
-  const edgeClasses = isLeft
-    ? 'border-r border-[var(--ui-border)] rounded-r-lg'
-    : isRight
-      ? 'border-l border-[var(--ui-border)] rounded-l-lg'
-      : isTop
-        ? 'border-b border-[var(--ui-border)] rounded-b-lg'
-        : 'border-t border-[var(--ui-border)] rounded-t-lg';
-  const sizeClasses = isVertical ? 'h-14 w-6' : 'w-14 h-6';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-label={title}
-      className={[
-        sizeClasses,
-        'bg-[var(--ui-surface-2)]/90 hover:bg-[var(--ui-surface)] flex items-center justify-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] opacity-80 hover:opacity-100 transition-all shadow-md',
-        edgeClasses,
-        className ?? '',
-      ].join(' ')}
-    >
-      {icon}
-    </button>
-  );
-};
