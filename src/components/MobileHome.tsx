@@ -177,7 +177,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   return (
     <div
       ref={homeRef}
-      className="fixed inset-0 z-[45] lg:hidden ui-bg mobile-safe-inset mobile-safe-area-bottom"
+      className="fixed inset-0 z-[45] desktop-shell:hidden ui-bg mobile-safe-inset mobile-safe-area-bottom"
       role="dialog"
       aria-modal="true"
       aria-labelledby="mobile-home-title"

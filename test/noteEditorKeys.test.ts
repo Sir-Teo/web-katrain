@@ -32,7 +32,9 @@ describe('note editor keyboard actions', () => {
     expect(source).toContain('data-note-save="true"');
     expect(source).toContain('data-note-cancel="true"');
     expect(source).toContain('data-note-edit="true"');
-    expect(source.match(/className="grid h-11 w-11[^\n]+lg:h-7 lg:w-7"/g)).toHaveLength(2);
+    // Shrinking these to 28px is a desktop-shell call, not a width call: a
+    // landscape phone is wide enough for `lg:` and still a touch device.
+    expect(source.match(/className="grid h-11 w-11[^\n]+desktop-shell:h-7 desktop-shell:w-7"/g)).toHaveLength(2);
   });
 
   it('offers one way to start an empty note, not three', () => {
