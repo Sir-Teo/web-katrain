@@ -109,6 +109,8 @@ interface TopControlBarProps {
   // Analysis actions
   analyzeExtra: (action: 'extra' | 'equalize' | 'sweep' | 'alternative' | 'stop') => void;
   startSelectRegionOfInterest: () => void;
+  cancelSelectRegionOfInterest: () => void;
+  isSelectingRegionOfInterest: boolean;
   resetCurrentAnalysis: () => void;
   clearAnalysisCache: () => void;
   analysisCacheSize: number;
@@ -171,6 +173,8 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   setViewMenuOpen,
   analyzeExtra,
   startSelectRegionOfInterest,
+  cancelSelectRegionOfInterest,
+  isSelectingRegionOfInterest,
   resetCurrentAnalysis,
   clearAnalysisCache,
   analysisCacheSize,
@@ -579,9 +583,22 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <span className="text-sm font-medium">Alternative</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['analysis-alternative']}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { startSelectRegionOfInterest(); closeMobileToolsAfterAction(); }}>
-            <FaCrosshairs size={18} className="text-[var(--ui-text-muted)]" />
-            <span className="text-sm font-medium">Select region</span>
+          {/* Once selecting starts there is no region yet, so the Clear entry
+              below has not appeared — and cancelSelectRegionOfInterest was only
+              reachable from Escape. On touch that made region select a mode you
+              could enter and not leave. Let the same entry back out of it. */}
+          <button
+            type="button"
+            className={mobileToolsGridBtn}
+            aria-pressed={isSelectingRegionOfInterest}
+            onClick={() => {
+              if (isSelectingRegionOfInterest) cancelSelectRegionOfInterest();
+              else startSelectRegionOfInterest();
+              closeMobileToolsAfterAction();
+            }}
+          >
+            <FaCrosshairs size={18} className={isSelectingRegionOfInterest ? 'text-[var(--ui-accent)]' : 'text-[var(--ui-text-muted)]'} />
+            <span className="text-sm font-medium">{isSelectingRegionOfInterest ? 'Cancel region select' : 'Select region'}</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['select-region']}</span>
           </button>
           {regionOfInterest && (

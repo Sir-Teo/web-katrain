@@ -203,6 +203,7 @@ export const Layout: React.FC = () => {
     regionOfInterest,
     isSelectingRegionOfInterest,
     startSelectRegionOfInterest,
+    cancelSelectRegionOfInterest,
     setRegionOfInterest,
     isInsertMode,
     isEditMode,
@@ -280,6 +281,7 @@ export const Layout: React.FC = () => {
       regionOfInterest: state.regionOfInterest,
       isSelectingRegionOfInterest: state.isSelectingRegionOfInterest,
       startSelectRegionOfInterest: state.startSelectRegionOfInterest,
+      cancelSelectRegionOfInterest: state.cancelSelectRegionOfInterest,
       setRegionOfInterest: state.setRegionOfInterest,
       isInsertMode: state.isInsertMode,
       isEditMode: state.isEditMode,
@@ -3515,6 +3517,8 @@ export const Layout: React.FC = () => {
               setViewMenuOpen={setViewMenuOpen}
               analyzeExtra={analyzeExtra}
               startSelectRegionOfInterest={startSelectRegionOfInterest}
+              cancelSelectRegionOfInterest={cancelSelectRegionOfInterest}
+              isSelectingRegionOfInterest={isSelectingRegionOfInterest}
               resetCurrentAnalysis={resetCurrentAnalysis}
               clearAnalysisCache={requestClearAnalysisCache}
               analysisCacheSize={analysisCacheSize}
