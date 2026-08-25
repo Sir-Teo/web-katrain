@@ -162,21 +162,12 @@ describe('TopControlBar', () => {
     for (const state of toggleStates) {
       expect(source, state).toContain(`aria-pressed={${state}}`);
     }
-    expect(source.match(/aria-pressed=\{isAnalysisMode\}/g) ?? []).toHaveLength(2);
-    expect(source.match(/aria-pressed=\{isInsertMode\}/g) ?? []).toHaveLength(2);
-    expect(source.match(/aria-pressed=\{isTeachMode\}/g) ?? []).toHaveLength(2);
-  });
-
-  it('exposes desktop analysis actions as a labelled popover dialog', () => {
-    const html = renderToStaticMarkup(<TopControlBar {...baseProps} analysisMenuOpen={true} isMobile={false} />);
-
-    expect(html).toContain('data-top-actions-menu="true"');
-    expect(html).toContain('Analysis actions');
-    expect(html).toContain('aria-haspopup="dialog"');
-    expect(html).toContain('aria-expanded="true"');
-    expect(html).toContain('aria-modal="false"');
-    expect(html).toMatch(/aria-controls="[^"]+"/);
-    expect(html).toMatch(/aria-labelledby="[^"]+"/);
+    // One occurrence each, in the tools sheet. These used to appear twice
+    // because the analysis popover repeated them, and that popover could never
+    // render: it was guarded by !isMobile inside a mobile-only component.
+    expect(source.match(/aria-pressed=\{isAnalysisMode\}/g) ?? []).toHaveLength(1);
+    expect(source.match(/aria-pressed=\{isInsertMode\}/g) ?? []).toHaveLength(1);
+    expect(source.match(/aria-pressed=\{isTeachMode\}/g) ?? []).toHaveLength(1);
   });
 
   it('exposes mobile tools as a modal dialog owned by the tools button', () => {
@@ -247,7 +238,7 @@ describe('TopControlBar', () => {
     expect(css).toMatch(/@media \(min-width: 760px\)[\s\S]*\[data-mobile-tools-section='game'\] \{[^}]*repeat\(6, minmax\(0, 1fr\)\)/);
   });
 
-  it('keeps desktop toolbar menus mutually exclusive', () => {
+  it('closes the other menu when the view menu opens', () => {
     const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
 
     expect(source).toContain(`onClick={() => {
@@ -255,11 +246,7 @@ describe('TopControlBar', () => {
                 setAnalysisMenuOpen(false);
               }}
               title="View options"`);
-    expect(source).toContain(`onClick={() => {
-                setAnalysisMenuOpen(!analysisMenuOpen);
-                setViewMenuOpen(false);
-              }}
-              title="Analysis actions"`);
+
   });
 
   it('uses explicit button types in toolbar popovers and menus', () => {

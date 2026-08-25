@@ -32,3 +32,22 @@ describe('mobile analysis actions', () => {
     expect(sheet.indexOf('Selfplay to end')).toBeLessThan(sheet.indexOf('Stop analysis'));
   });
 });
+
+describe('the analysis popover it replaced', () => {
+  it('is gone, along with the state that only drove it', () => {
+    const text = bar();
+
+    // It was guarded by !isMobile inside a component that renders only on
+    // mobile, so it never appeared on any viewport. Everything it uniquely
+    // held — stop, reset, clear cache — now lives in the tools sheet.
+    expect(text).not.toContain('closeAnalysisMenuWithFocus');
+    expect(text).not.toContain('actionsMenuButtonRef');
+    expect(text).not.toContain('title="Analysis actions"');
+    expect(text).not.toContain('data-top-actions-menu');
+  });
+
+  it('offers clearing the cache, which had no touch route either', () => {
+    expect(toolsSheet()).toContain('clearAnalysisCache()');
+    expect(toolsSheet()).toContain('Clear cache');
+  });
+});

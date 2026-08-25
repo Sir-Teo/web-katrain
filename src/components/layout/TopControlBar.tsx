@@ -102,7 +102,6 @@ interface TopControlBarProps {
   isAnalysisMode: boolean;
   toggleAnalysisMode: () => void;
   engineDot: string;
-  analysisMenuOpen: boolean;
   setAnalysisMenuOpen: (v: boolean) => void;
   viewMenuOpen: boolean;
   setViewMenuOpen: (v: boolean) => void;
@@ -113,7 +112,6 @@ interface TopControlBarProps {
   isSelectingRegionOfInterest: boolean;
   resetCurrentAnalysis: () => void;
   clearAnalysisCache: () => void;
-  analysisCacheSize: number;
   toggleInsertMode: () => void;
   selfplayToEnd: () => void;
   toggleContinuousAnalysis: () => void;
@@ -124,8 +122,6 @@ interface TopControlBarProps {
   // Game analysis
   isGameAnalysisRunning: boolean;
   gameAnalysisType: string | null;
-  gameAnalysisDone: number;
-  gameAnalysisTotal: number;
   startQuickGameAnalysis: () => void;
   startFastGameAnalysis: (opts?: { moveRange?: [number, number] | null }) => void;
   stopGameAnalysis: () => void;
@@ -167,7 +163,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   isAnalysisMode,
   toggleAnalysisMode,
   engineDot,
-  analysisMenuOpen,
   setAnalysisMenuOpen,
   viewMenuOpen,
   setViewMenuOpen,
@@ -177,7 +172,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   isSelectingRegionOfInterest,
   resetCurrentAnalysis,
   clearAnalysisCache,
-  analysisCacheSize,
   toggleInsertMode,
   selfplayToEnd,
   toggleContinuousAnalysis,
@@ -187,8 +181,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   isTeachMode,
   isGameAnalysisRunning,
   gameAnalysisType,
-  gameAnalysisDone,
-  gameAnalysisTotal,
   startQuickGameAnalysis,
   startFastGameAnalysis,
   stopGameAnalysis,
@@ -235,7 +227,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     'hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
   ].join(' ');
   const viewMenuButtonRef = React.useRef<HTMLButtonElement>(null);
-  const actionsMenuButtonRef = React.useRef<HTMLButtonElement>(null);
   const mobileToolsPanelRef = React.useRef<HTMLDivElement>(null);
   const mobileToolsCloseRef = React.useRef<HTMLButtonElement>(null);
   const mobileToolsInputModeRef = React.useRef<'pointer' | 'keyboard'>('keyboard');
@@ -244,8 +235,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const viewPopoverId = React.useId();
   const viewPopoverTitleId = React.useId();
   const mobileToolsTitleId = React.useId();
-  const actionsPopoverId = React.useId();
-  const actionsPopoverTitleId = React.useId();
   const [isFullscreen, setIsFullscreen] = React.useState(() => {
     if (typeof document === 'undefined') return false;
     return isFullscreenActive();
@@ -274,13 +263,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     }
   }, [setViewMenuOpen, updateMobileToolsInputMode]);
 
-  const closeAnalysisMenuWithFocus = React.useCallback((restoreFocus = false) => {
-    setAnalysisMenuOpen(false);
-    if (restoreFocus && typeof window !== 'undefined') {
-      window.setTimeout(() => restoreFocusIfUnclaimed(actionsMenuButtonRef.current), 0);
-    }
-  }, [setAnalysisMenuOpen]);
-
   React.useEffect(() => {
     if (typeof document === 'undefined') return;
     const handle = () => setIsFullscreen(isFullscreenActive());
@@ -288,7 +270,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   }, []);
 
   React.useEffect(() => {
-    if (!viewMenuOpen && !analysisMenuOpen) return;
+    if (!viewMenuOpen) return;
     const focusableSelector = [
       'a[href]:not([tabindex="-1"])',
       'button:not([disabled]):not([tabindex="-1"])',
@@ -311,7 +293,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        if (analysisMenuOpen) closeAnalysisMenuWithFocus(true);
         if (viewMenuOpen) closeViewMenuWithFocus(true, 'keyboard');
         return;
       }
@@ -345,8 +326,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       document.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [
-    analysisMenuOpen,
-    closeAnalysisMenuWithFocus,
     closeViewMenuWithFocus,
     isMobile,
     updateMobileToolsInputMode,
@@ -646,6 +625,12 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <FaRedoAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Reset analysis</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels['reset-analysis']}</span>
+          </button>
+          {/* Confirm-gated in Layout: it refuses while a game analysis is
+              running, and skips the dialog outright when the cache is empty. */}
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { clearAnalysisCache(); closeMobileToolsAfterAction(); }}>
+            <FaTrash size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Clear cache</span>
           </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeMobileToolsAfterAction(); }}>
             <FaSyncAlt size={18} className="text-[var(--ui-text-muted)]" />
@@ -1014,217 +999,6 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           </button>
         )}
 
-        {!isMobile && (
-          <div className="relative" data-menu-popover>
-            <button
-              ref={actionsMenuButtonRef}
-              type="button"
-              className="px-2 py-1 rounded-lg sm:px-2.5 sm:py-1.5 bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap"
-              onClick={() => {
-                setAnalysisMenuOpen(!analysisMenuOpen);
-                setViewMenuOpen(false);
-              }}
-              title="Analysis actions"
-              aria-haspopup="dialog"
-              aria-expanded={analysisMenuOpen}
-              aria-controls={actionsPopoverId}
-            >
-              Actions <FaChevronDown size={10} className="opacity-80" />
-            </button>
-            {analysisMenuOpen && (
-              <div
-                id={actionsPopoverId}
-                className="absolute right-0 top-full mt-2 w-[480px] ui-panel border rounded-lg shadow-xl overflow-hidden z-50 grid grid-cols-2 divide-x divide-[var(--ui-border)]"
-                role="dialog"
-                aria-modal="false"
-                aria-labelledby={actionsPopoverTitleId}
-                data-top-actions-menu="true"
-              >
-                <div id={actionsPopoverTitleId} className="sr-only">Analysis actions</div>
-                {/* Column 1 */}
-                <div className="flex flex-col">
-                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
-                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">AI Tools</div>
-                  </div>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { analyzeExtra('extra'); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaSearchPlus /> Extra analysis</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['analysis-extra']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { analyzeExtra('equalize'); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaBalanceScale /> Equalize</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['analysis-equalize']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { analyzeExtra('sweep'); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaBroom /> Sweep</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['analysis-sweep']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { analyzeExtra('alternative'); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaRandom /> Alternative</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['analysis-alternative']}</span>
-                  </button>
-
-                  <div className="h-px bg-[var(--ui-border)] w-full mt-auto" />
-                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
-                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Region Control</div>
-                  </div>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { startSelectRegionOfInterest(); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaCrosshairs /> Select region</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['select-region']}</span>
-                  </button>
-                  {regionOfInterest && (
-                    <button type="button"
-                      className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                      onClick={() => { setRegionOfInterest(null); setAnalysisMenuOpen(false); }}
-                    >
-                      <span className="flex items-center gap-2"><FaTimes /> Clear region</span>
-                      <span className="text-xs ui-text-faint">—</span>
-                    </button>
-                  )}
-
-                  <div className="h-px bg-[var(--ui-border)] w-full" />
-                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
-                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Engine Control</div>
-                  </div>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { toggleContinuousAnalysis(); setAnalysisMenuOpen(false); }}
-                    aria-pressed={isAnalysisMode}
-                  >
-                    <span className="flex items-center gap-2"><FaChartLine /> Continuous analysis</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['continuous-analysis']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { makeAiMove(); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaPlay /> AI move</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['ai-move']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { analyzeExtra('stop'); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaStop /> Stop analysis</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels.escape}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { rotateBoard(); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaSyncAlt /> Rotate board</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['rotate-board']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { toggleTeachMode(); setAnalysisMenuOpen(false); }}
-                    aria-pressed={isTeachMode}
-                  >
-                    <span className="flex items-center gap-2"><FaGraduationCap /> Teach mode</span>
-                    <span className="text-xs ui-text-faint">{isTeachMode ? 'on' : 'off'}</span>
-                  </button>
-                </div>
-
-                {/* Column 2 */}
-                <div className="flex flex-col">
-                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
-                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Game Analysis</div>
-                  </div>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { resetCurrentAnalysis(); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaRedoAlt /> Reset analysis</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['reset-analysis']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => { clearAnalysisCache(); setAnalysisMenuOpen(false); }}
-                    disabled={analysisCacheSize === 0 || isGameAnalysisRunning}
-                    title={
-                      analysisCacheSize > 0
-                        ? `Clear ${analysisCacheSize} cached ${analysisCacheSize === 1 ? 'analysis' : 'analyses'}`
-                        : 'No cached analysis'
-                    }
-                  >
-                    <span className="flex items-center gap-2"><FaTrash /> Clear analysis cache</span>
-                    <span className="text-xs ui-text-faint">{analysisCacheSize > 0 ? analysisCacheSize : '—'}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { toggleInsertMode(); setAnalysisMenuOpen(false); }}
-                    aria-pressed={isInsertMode}
-                  >
-                    <span className="flex items-center gap-2"><FaLayerGroup /> Insert mode</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['toggle-insert']} · {isInsertMode ? 'on' : 'off'}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { selfplayToEnd(); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaFastForward /> Selfplay to end</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels.selfplay}</span>
-                  </button>
-
-                  <div className="h-px bg-[var(--ui-border)] w-full mt-auto" />
-                  <div className="border-b border-[var(--ui-border)] px-3 py-2 bg-[var(--ui-surface-2)]">
-                    <div className="text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider">Reports</div>
-                  </div>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => {
-                      if (isGameAnalysisRunning && gameAnalysisType === 'quick') stopGameAnalysis();
-                      else startQuickGameAnalysis();
-                      setAnalysisMenuOpen(false);
-                    }}
-                  >
-                    <span className="flex items-center gap-2"><FaChartLine /> {isGameAnalysisRunning && gameAnalysisType === 'quick' ? 'Stop quick analysis' : 'Analyze game (quick graph)'}</span>
-                    <span className="text-xs ui-text-faint">{isGameAnalysisRunning && gameAnalysisType === 'quick' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => {
-                      if (isGameAnalysisRunning && gameAnalysisType === 'fast') stopGameAnalysis();
-                      else startFastGameAnalysis();
-                      setAnalysisMenuOpen(false);
-                    }}
-                  >
-                    <span className="flex items-center gap-2"><FaFastForward /> {isGameAnalysisRunning && gameAnalysisType === 'fast' ? 'Stop fast analysis' : 'Analyze game (fast review)'}</span>
-                    <span className="text-xs ui-text-faint">{isGameAnalysisRunning && gameAnalysisType === 'fast' ? `${gameAnalysisDone}/${gameAnalysisTotal}` : '—'}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { setIsGameAnalysisOpen(true); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaRedoAlt /> Re-analyze game…</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['game-analysis-modal']}</span>
-                  </button>
-                  <button type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-                    onClick={() => { setIsGameReportOpen(true); setAnalysisMenuOpen(false); }}
-                  >
-                    <span className="flex items-center gap-2"><FaFileAlt /> Game report…</span>
-                    <span className="text-xs ui-text-faint">{shortcutLabels['game-report-modal']}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

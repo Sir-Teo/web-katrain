@@ -365,7 +365,9 @@ export const Layout: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuFocusInputMode, setMenuFocusInputMode] = useState<'pointer' | 'keyboard'>('keyboard');
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-  const [analysisMenuOpen, setAnalysisMenuOpen] = useState(false);
+  // The analysis popover this state drove is gone; the setter survives because
+  // several close-everything paths still call it defensively.
+  const [, setAnalysisMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const openKeyboardHelp = useCallback((returnFocus?: HTMLElement | null) => {
@@ -3511,7 +3513,6 @@ export const Layout: React.FC = () => {
               isAnalysisMode={isAnalysisMode}
               toggleAnalysisMode={toggleAnalysisMode}
               engineDot={engineDot}
-              analysisMenuOpen={analysisMenuOpen}
               setAnalysisMenuOpen={setAnalysisMenuOpen}
               viewMenuOpen={viewMenuOpen}
               setViewMenuOpen={setViewMenuOpen}
@@ -3521,7 +3522,6 @@ export const Layout: React.FC = () => {
               isSelectingRegionOfInterest={isSelectingRegionOfInterest}
               resetCurrentAnalysis={resetCurrentAnalysis}
               clearAnalysisCache={requestClearAnalysisCache}
-              analysisCacheSize={analysisCacheSize}
               toggleInsertMode={toggleInsertMode}
               selfplayToEnd={selfplayToEnd}
               toggleContinuousAnalysis={toggleContinuousAnalysis}
@@ -3531,8 +3531,6 @@ export const Layout: React.FC = () => {
               isTeachMode={isTeachMode}
               isGameAnalysisRunning={isGameAnalysisRunning}
               gameAnalysisType={gameAnalysisType}
-              gameAnalysisDone={gameAnalysisDone}
-              gameAnalysisTotal={gameAnalysisTotal}
               startQuickGameAnalysis={startQuickGameAnalysis}
               startFastGameAnalysis={startFastGameAnalysis}
               stopGameAnalysis={stopGameAnalysis}
