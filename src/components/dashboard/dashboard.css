@@ -593,6 +593,18 @@
   left: 16px;
 }
 
+/* --library-w is the library's width when it is showing, not the width it
+   occupies: the grid gives that column 0px while the library is collapsed, but
+   the variable keeps its full value. Offsetting the rail by it then pushed the
+   palette a library's width to the right, over columns A-D of the board — 76
+   intersections that could not be clicked in the one mode built for placing
+   stones. The stage reserves its rail from its own left edge, so match that. */
+.wk-dashboard[data-library="closed"]
+  .edit-toolbar-docked--active
+  .edit-toolbar-panel--docked {
+  left: 16px;
+}
+
 .wk-dashboard .edit-toolbar-panel--docked > :last-child {
   display: flex;
   flex: 1 1 auto;
