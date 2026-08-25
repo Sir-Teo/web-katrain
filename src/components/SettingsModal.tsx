@@ -456,7 +456,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="ui-text-muted hover:text-[var(--ui-text)] transition-colors"
+                        className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                         aria-label="Close settings"
                     >
                         <FaTimes />
