@@ -633,6 +633,20 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <span className="text-sm font-medium">Selfplay to end</span>
             <span className="text-[11px] ui-text-faint">{shortcutLabels.selfplay}</span>
           </button>
+          {/* Stop had no touch route at all: its only caller was the analysis
+              menu below, which never renders, so "Selfplay to end" ran with no
+              way to halt it short of the game ending. Escape covers this on a
+              keyboard; the sheet is where a phone can reach it. */}
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('stop'); closeMobileToolsAfterAction(); }}>
+            <FaStop size={18} className="text-[var(--ui-danger)]" />
+            <span className="text-sm font-medium">Stop analysis</span>
+            <span className="text-[11px] ui-text-faint">{shortcutLabels.escape}</span>
+          </button>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { resetCurrentAnalysis(); closeMobileToolsAfterAction(); }}>
+            <FaRedoAlt size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Reset analysis</span>
+            <span className="text-[11px] ui-text-faint">{shortcutLabels['reset-analysis']}</span>
+          </button>
           <button type="button" className={mobileToolsGridBtn} onClick={() => { rotateBoard(); closeMobileToolsAfterAction(); }}>
             <FaSyncAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Rotate board</span>

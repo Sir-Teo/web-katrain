@@ -210,7 +210,14 @@ describe('TopControlBar', () => {
     expect(source).toContain("suppressFocusTooltip={mobileToolsInputMode === 'pointer'}");
     expect(source).toContain("closeViewMenuWithFocus(true, 'keyboard')");
     expect(source.match(/closeViewMenuWithFocus\(true, mobileToolsInputModeRef\.current\)/g) ?? []).toHaveLength(2);
-    expect(source.match(/closeMobileToolsAfterAction\(\)/g) ?? []).toHaveLength(14);
+    // Every tools entry dismisses the sheet after acting, except the two that
+    // open a modal over it. Deriving the count from the buttons keeps this
+    // guarding that invariant instead of needing a bump whenever one is added.
+    const toolsGridButtons = (source.match(/mobileToolsGridBtn\}/g) ?? []).length;
+    const modalOpeners = 2; // Re-analyze, Game report
+    expect(source.match(/closeMobileToolsAfterAction\(\)/g) ?? []).toHaveLength(
+      toolsGridButtons - modalOpeners
+    );
     expect(source).toContain("onScanBoard(); closeViewMenu();");
     expect(source).toContain("setIsGameAnalysisOpen(true); closeViewMenu();");
     expect(source).toContain("setIsGameReportOpen(true); closeViewMenu();");
