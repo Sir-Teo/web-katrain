@@ -33,8 +33,11 @@ describe('game clock is mounted', () => {
     expect(source).toContain('<Timer variant="status" />');
 
     // Progressive shedding: the pause target goes first, the reading last.
+    // The threshold covers every phone width rather than a measured limit,
+    // because the reading is elastic — "1:00 x25" at the large density
+    // overran a 390px bar that the default "0:30 x5" cleared by 2px.
     expect(css).toMatch(
-      /@media \(max-width: 380px\) \{\s*\.mobile-top-timer \.status-bar-button \{\s*display: none;/
+      /@media \(max-width: 430px\) \{\s*\.mobile-top-timer \.status-bar-button \{\s*display: none;/
     );
     expect(css).toMatch(
       /@media \(max-width: 340px\) \{\s*\.mobile-top-timer \{\s*display: none;/

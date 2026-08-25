@@ -3744,7 +3744,13 @@
     border-color: transparent;
   }
 
-  @media (max-width: 380px) {
+  /* 380px was too generous a threshold: the reading itself is elastic, and a
+     wide one ("1:00 ×25") at the large density overran the 390px bar by 5px
+     even though the default "0:30 ×5" left 2px to spare. The chip is there to
+     be read; pause is one tap away in the Review tab's header, so shed the
+     control for every phone-width bar rather than tune a limit that a longer
+     time control can still walk past. */
+  @media (max-width: 430px) {
     .mobile-top-timer .status-bar-button {
       display: none;
     }
