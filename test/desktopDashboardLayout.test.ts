@@ -208,7 +208,9 @@ describe('desktop dashboard layout', () => {
     expect(analysisBlock).toContain('aria-label={legend.winrate ? \'Hide win rate graph\' : \'Show win rate graph\'}');
     expect(analysisBlock).toContain('aria-label={legend.score ? \'Hide score graph\' : \'Show score graph\'}');
     expect(analysisBlock).toContain('aria-label={legendOpen ? \'Hide move-quality legend\' : \'Show move-quality legend\'}');
-    expect(analysisBlock).toContain('aria-controls="dashboard-analysis-quality-legend"');
+    // Gated on legendOpen: the legend only renders while open, so an
+    // unconditional aria-controls left a dangling IDREF when it was closed.
+    expect(analysisBlock).toContain("aria-controls={legendOpen ? 'dashboard-analysis-quality-legend' : undefined}");
     expect(analysisBlock).toContain("overlayBtn('analysisShowHints', 'Top moves', 'layers', settings.analysisShowPolicy)");
     expect(analysisBlock).toContain('aria-label="Run quick graph analysis"');
     expect(analysisBlock).toContain('aria-label={dashboardFastMctsLabel}');

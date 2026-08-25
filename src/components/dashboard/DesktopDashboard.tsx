@@ -924,7 +924,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   title={legendOpen ? 'Hide move-quality legend' : 'Show move-quality legend'}
                   aria-label={legendOpen ? 'Hide move-quality legend' : 'Show move-quality legend'}
                   aria-expanded={legendOpen}
-                  aria-controls="dashboard-analysis-quality-legend"
+                  aria-controls={legendOpen ? 'dashboard-analysis-quality-legend' : undefined}
                   onClick={() => setLegendOpen((v) => !v)}
                 ><Icon name="info" size={12} /></button>
               ))}

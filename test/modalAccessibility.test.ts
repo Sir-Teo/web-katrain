@@ -198,4 +198,33 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain('ref={homeRef}');
     expect(source).toContain('ref={closeButtonRef}');
   });
+
+  it('only points aria-controls at a popup that is currently rendered', () => {
+    // Both popups render only while open, so an unconditional aria-controls
+    // left a dangling IDREF whenever the control was closed. SettingsModal
+    // already gates its search results the same way.
+    const conditional = [
+      {
+        path: 'src/components/layout/LanguageSwitcher.tsx',
+        control: 'aria-controls={open ? menuId : undefined}',
+        target: 'id={menuId}',
+        guard: '{open && (',
+      },
+      {
+        path: 'src/components/dashboard/DesktopDashboard.tsx',
+        control: "aria-controls={legendOpen ? 'dashboard-analysis-quality-legend' : undefined}",
+        target: 'id="dashboard-analysis-quality-legend"',
+        guard: '{legendOpen && (',
+      },
+    ];
+
+    for (const { path, control, target, guard } of conditional) {
+      const source = readFileSync(path, 'utf8');
+      // The guard is what makes the conditional aria-controls necessary; if the
+      // target ever becomes unconditional this assertion should be revisited.
+      expect(source).toContain(guard);
+      expect(source).toContain(target);
+      expect(source).toContain(control);
+    }
+  });
 });
