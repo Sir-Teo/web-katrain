@@ -5065,8 +5065,63 @@
       max-width: min(18rem, calc(100% - 1rem));
     }
 
+    /* The command bar used to be hidden outright here, because a 52px band
+       above a height-bound board costs real board size on a landscape phone.
+       That left analysis mode with no readout at all while ~280px of margin
+       sat empty either side of the centred board. Dock it in that margin
+       instead: the shell becomes two columns, the board column keeps the whole
+       height it had, and the rail only eats width the board was not using.
+       The board is height-bound here, so it comes out exactly the same size. */
+    .mobile-board-shell {
+      /* Tailwind's `flex` utility outranks this layer on cascade order. */
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    /* The canvas has to keep filling the row: it sizes the board off its own
+       height, so centring it here costs 20px of board instead of nothing. */
+    .mobile-board-shell > .mobile-board-canvas {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: stretch;
+    }
+
     .analysis-command-bar-slot,
     .analysis-command-bar-slot--reserve {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: center;
+      width: auto;
+      min-height: 0;
+    }
+
+    /* One column of stacked metrics, sized to fit the narrowest landscape
+       margin we support. The actions row stays out — every one of its buttons
+       already has a home in the Tools sheet on this layout. */
+    .analysis-command-bar-slot .analysis-command-bar {
+      grid-template-columns: minmax(0, 1fr);
+      width: 8.5rem;
+      min-height: 0;
+      gap: 0.375rem;
+      margin: 0;
+      padding: 0.5rem;
+      /* The mobile shell flattens this bar because there it is a full-width
+         band above the board. Standing alone in the margin it needs its edges
+         back, or it reads as text spilled onto the background. */
+      background: color-mix(in srgb, var(--ui-panel) 94%, transparent);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+    }
+
+    .analysis-command-bar-slot .analysis-command-bar__metrics {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.25rem;
+      overflow: visible;
+    }
+
+    .analysis-command-bar-slot .analysis-command-bar__actions {
       display: none;
     }
 

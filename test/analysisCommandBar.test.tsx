@@ -138,6 +138,31 @@ describe('AnalysisCommandBar', () => {
     expect(styles).not.toContain('.analysis-command-bar__metrics:has(> :nth-child(4))');
   });
 
+  it('docks the analysis readout in the empty margin on landscape phones', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    // Landscape used to hide the bar outright so a height-bound board would
+    // not lose a 52px band, which left analysis mode with no readout at all
+    // while ~280px of margin sat unused either side of the board.
+    expect(styles).not.toContain(
+      '.analysis-command-bar-slot,\n    .analysis-command-bar-slot--reserve {\n      display: none;\n    }',
+    );
+    expect(styles).toContain(
+      '.mobile-board-shell {\n      /* Tailwind\'s `flex` utility outranks this layer on cascade order. */\n      display: grid !important;\n      grid-template-columns: minmax(0, 1fr) auto;',
+    );
+    // The canvas sizes the board off its own height, so it has to keep
+    // filling the row rather than centring in it.
+    expect(styles).toContain(
+      '.mobile-board-shell > .mobile-board-canvas {\n      grid-column: 1;\n      grid-row: 1;\n      align-self: stretch;',
+    );
+    expect(styles).toMatch(
+      /\.analysis-command-bar-slot \.analysis-command-bar \{[^}]*width: 8\.5rem;/,
+    );
+    expect(styles).toMatch(
+      /\.analysis-command-bar-slot \.analysis-command-bar__actions \{\s*display: none;/,
+    );
+  });
+
   it('marks active phone toggles with a fill rather than a detached underline', () => {
     const styles = readFileSync('src/index.css', 'utf8');
 
