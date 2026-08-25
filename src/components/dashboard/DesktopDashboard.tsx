@@ -1025,8 +1025,13 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 )}
                 {!showAnalysis && (
                   <div className="coach-card">
-                    <div className="cc-title">Analysis is off</div>
-                    Engine evaluation, board overlays and the win-rate graph are paused.
+                    <div className="cc-title">Live analysis is off</div>
+                    {/* The graph is not paused: a game review fills it from this very
+                        panel while live analysis stays off, so claiming otherwise sat
+                        directly under a populated graph. Only the per-move evaluation
+                        that follows the cursor stops. */}
+                    Moves are not evaluated as you play them, and the board shows no
+                    hints or ownership. A game review still charts the whole game.
                     <div style={{ paddingTop: 8 }}>
                       <button
                         type="button"
