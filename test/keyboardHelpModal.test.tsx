@@ -77,8 +77,16 @@ describe('KeyboardHelpModal', () => {
     expect(html).toContain('aria-label="Customize keyboard shortcuts"');
     expect(html).toContain('keyboard-help-customize-label');
     expect(html).toContain('keyboard-help-title');
-    expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\[data-keyboard-help-customize='true'\][\s\S]*width: 44px/);
-    expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.keyboard-help-customize-label[\s\S]*display: none/);
+    // The label sheds across the whole phone range, not just below 360px: at
+    // 375px and 390px it squeezed the dialog's own title into an ellipsis, and
+    // 414px and 430px had no slack left for a longer localised title. The
+    // threshold is in `em` so a reader's larger text compacts it sooner.
+    expect(css).toMatch(
+      /@media \(max-width: 30em\) \{\s*\[data-keyboard-help-customize='true'\] \{\s*width: 44px/,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 30em\)[\s\S]{0,400}\.keyboard-help-customize-label \{\s*display: none/,
+    );
     expect(css).toMatch(/@media \(max-width: 360px\)[\s\S]*\.keyboard-help-title[\s\S]*font-size: 1rem/);
   });
 

@@ -645,15 +645,18 @@
     line-height: 1.75rem;
   }
 
-  @media (max-width: 360px) {
-    .settings-modal .settings-tab-label-full {
-      display: none;
-    }
+  /* The Customize label used to drop only below 360px, which left the dialog's
+     own title ellipsised to "Keyboard Shortc…" at 375px and 390px — the two
+     commonest phone widths — and with zero slack at 414px and 430px, where any
+     locale with a longer title would clip too. Shed it across the whole phone
+     range instead; the gear icon keeps its aria-label, exactly as it already
+     did below 360px.
 
-    .settings-modal .settings-tab-label-compact {
-      display: inline;
-    }
-
+     In `em` rather than `px` on purpose: a media-query em follows the reader's
+     browser font size, so enlarging text compacts the header sooner instead of
+     leaving a px threshold to squeeze the title, which is what the header
+     markup's own comment asks for. */
+  @media (max-width: 30em) {
     [data-keyboard-help-customize='true'] {
       width: 44px;
       min-width: 44px;
@@ -664,6 +667,16 @@
 
     .keyboard-help-customize-label {
       display: none;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .settings-modal .settings-tab-label-full {
+      display: none;
+    }
+
+    .settings-modal .settings-tab-label-compact {
+      display: inline;
     }
 
     .keyboard-help-title {
