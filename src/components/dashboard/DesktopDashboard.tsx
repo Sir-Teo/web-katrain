@@ -898,23 +898,24 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               {sectionHead('tree', 'Game tree', 'sitemap')}
               <div className="section-body flush">
                 {/* Branch switching only appears once the position actually has
-                    sibling branches; permanent disabled chevrons read as broken. */}
-                <div className="panel-toolbar">
-                  {branchInfo.hasBranches && (
-                    <>
-                      <button type="button" className="pbtn pico" title="Previous branch" aria-label="Previous branch" onClick={() => switchBranch(-1)}><Icon name="chevD" size={12} /></button>
-                      <button type="button" className="pbtn pico" title="Next branch" aria-label="Next branch" onClick={() => switchBranch(1)}><Icon name="chevR" size={12} /></button>
-                      <span className="pbtn" style={{ pointerEvents: 'none' }}>
-                        <span style={{ color: 'var(--faint)' }}>Branch</span>{' '}
-                        <span className="mono" style={{ color: 'var(--ink)' }}>{branchInfo.currentIndex}/{branchInfo.totalBranches}</span>
-                      </span>
-                    </>
-                  )}
-                  <button type="button" className={branchInfo.hasBranches ? 'pbtn pico' : 'hidden'} disabled={!branchInfo.hasBranches} title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
-                  {branchInfo.hasBranches && branchInfo.currentIndex > 1 ? (
-                    <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
-                  ) : null}
-                </div>
+                    sibling branches; permanent disabled chevrons read as broken.
+                    The strip itself goes with them — every control inside is
+                    branch-only, so on a straight-line game it was a 30px empty
+                    band with a rule under it, sitting above the tree. */}
+                {branchInfo.hasBranches && (
+                  <div className="panel-toolbar">
+                    <button type="button" className="pbtn pico" title="Previous branch" aria-label="Previous branch" onClick={() => switchBranch(-1)}><Icon name="chevD" size={12} /></button>
+                    <button type="button" className="pbtn pico" title="Next branch" aria-label="Next branch" onClick={() => switchBranch(1)}><Icon name="chevR" size={12} /></button>
+                    <span className="pbtn" style={{ pointerEvents: 'none' }}>
+                      <span style={{ color: 'var(--faint)' }}>Branch</span>{' '}
+                      <span className="mono" style={{ color: 'var(--ink)' }}>{branchInfo.currentIndex}/{branchInfo.totalBranches}</span>
+                    </span>
+                    <button type="button" className="pbtn pico" title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
+                    {branchInfo.currentIndex > 1 ? (
+                      <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
+                    ) : null}
+                  </div>
+                )}
                 <div className="tree-region">
                   <MoveTree />
                 </div>

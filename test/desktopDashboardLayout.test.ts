@@ -203,8 +203,12 @@ describe('desktop dashboard layout', () => {
     expect(gameTreeBlock).toContain('aria-label="Next branch"');
     expect(gameTreeBlock).toContain('aria-label="Back to branch point"');
     expect(gameTreeBlock).toContain('aria-label="Make current move the main branch"');
-    expect(gameTreeBlock).toContain("className={branchInfo.hasBranches ? 'pbtn pico' : 'hidden'}");
-    expect(gameTreeBlock).toContain('branchInfo.hasBranches && branchInfo.currentIndex > 1');
+    // Every control in the strip is branch-only, so the strip itself is gated
+    // too — otherwise a straight-line game showed an empty 30px band with a
+    // rule under it above the tree.
+    expect(gameTreeBlock).toContain('{branchInfo.hasBranches && (\n                  <div className="panel-toolbar">');
+    expect(gameTreeBlock).toContain('branchInfo.currentIndex > 1 ? (');
+    expect(gameTreeBlock).not.toContain("className={branchInfo.hasBranches ? 'pbtn pico' : 'hidden'}");
     expect(analysisBlock).toContain('aria-label={legend.winrate ? \'Hide win rate graph\' : \'Show win rate graph\'}');
     expect(analysisBlock).toContain('aria-label={legend.score ? \'Hide score graph\' : \'Show score graph\'}');
     expect(analysisBlock).toContain('aria-label={legendOpen ? \'Hide move-quality legend\' : \'Show move-quality legend\'}');
