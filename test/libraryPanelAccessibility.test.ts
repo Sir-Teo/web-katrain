@@ -140,4 +140,18 @@ describe('LibraryPanel accessibility', () => {
     expect(source).not.toContain('Delete ${visibleSelectedIds.size} item(s) from Library?');
     expect(source).toMatch(/LibraryConfirmDialog[\s\S]*onClick=\{onClose\} autoFocus/);
   });
+
+
+  it('lets the game list fill the panel instead of stopping at a fixed height', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const panel = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    // Measured with 128 games at 1440x900: the old 240px cap showed seven rows
+    // and left about 410px of the panel empty, so everything past the seventh
+    // sat behind a scroll of a 231px window. Sizing to the viewport gives 611px
+    // there and still falls back to 240px on the shortest desktop window.
+    expect(css).toContain('max-height: max(240px, calc(100dvh - 280px));');
+    // Only the desktop branch uses it; mobile already sizes itself this way.
+    expect(panel).toContain("isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list'");
+  });
 });

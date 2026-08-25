@@ -3747,8 +3747,13 @@
     max-height: 180px;
   }
 
+  /* Fill the panel instead of stopping at a fixed height. With a real library
+     the 240px cap showed seven rows and left roughly 410px of the panel blank
+     at 900px tall, so every game past the seventh lived behind a scroll of a
+     231px window. The mobile branch already sizes itself this way; the panel
+     scrolls if the estimate runs long, so erring large costs nothing. */
   .panel-compact-list {
-    max-height: 240px;
+    max-height: max(240px, calc(100dvh - 280px));
   }
 
   /* Compact density for the Analysis dashboard card (desktop docked panel).
