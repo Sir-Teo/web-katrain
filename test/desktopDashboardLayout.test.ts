@@ -256,4 +256,24 @@ describe('desktop dashboard layout', () => {
     expect(timerButtons).toHaveLength(2);
     expect(timer.match(/aria-label=\{timerPaused \? 'Resume timer' : 'Pause timer'\}/g)).toHaveLength(2);
   });
+
+
+  it('gates the side panel on the real desktop shell, not viewport width alone', () => {
+    const panel = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+    const responsive = readFileSync('src/utils/responsiveLayout.ts', 'utf8');
+
+    // Tailwind's `lg:` is width-only. The app enters its desktop shell only
+    // when the viewport is wide AND tall enough, so at 1280x460 the mobile
+    // shell rendered while `lg:static` still fired: the panel left the fixed
+    // overlay, its `w-full` took the whole row, and the board collapsed to 0px.
+    expect(panel).not.toContain('lg:');
+    expect(panel).toContain('desktop-shell:static');
+    expect(panel).toContain("showOnDesktop ? 'desktop-shell:flex' : 'desktop-shell:hidden'");
+
+    // The variant must track the same thresholds the shell logic uses.
+    expect(css).toContain('@custom-variant desktop-shell ((min-width: 1024px) and (min-height: 500px))');
+    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_WIDTH = 1024');
+    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_HEIGHT = 500');
+  });
 });

@@ -16,7 +16,10 @@ describe('mobile board screen behind a tab panel', () => {
     const panel = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 
     // The scrim is a sibling of <main>, so it must stay outside the inert subtree.
-    expect(panel).toContain('className="fixed inset-0 bg-black/60 z-30 lg:hidden"');
+    // desktop-shell:, not lg: — the scrim belongs to the mobile shell, which
+    // also runs at wide viewports when the window is too short for the desktop
+    // layout (see the desktop-shell variant in index.css).
+    expect(panel).toContain('className="fixed inset-0 bg-black/60 z-30 desktop-shell:hidden"');
     expect(panel).toContain('onClick={onClose}');
   });
 

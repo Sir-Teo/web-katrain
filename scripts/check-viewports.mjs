@@ -211,6 +211,12 @@ function assertViewport(result) {
   if (result.boardInteractionFailures?.length > 0) {
     failures.push(...result.boardInteractionFailures);
   }
+  const boardBox = result.defaultBoard;
+  if (!boardBox || boardBox.width < 100 || boardBox.height < 100) {
+    failures.push(
+      `board collapsed to ${Math.round(boardBox?.width ?? 0)}x${Math.round(boardBox?.height ?? 0)}px`
+    );
+  }
   if (result.boardCoverageFailures?.length > 0) {
     failures.push(...result.boardCoverageFailures);
   }

@@ -422,7 +422,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-30 desktop-shell:hidden"
           onClick={onClose}
         />
       )}
@@ -432,8 +432,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           'ui-panel border-l flex flex-col overflow-hidden relative',
           'fixed inset-y-0 right-0 z-40 w-full max-w-none sm:max-w-md',
           open ? 'flex' : 'hidden',
-          'lg:static lg:max-w-none lg:z-auto',
-          showOnDesktop ? 'lg:flex' : 'lg:hidden',
+          'desktop-shell:static desktop-shell:max-w-none desktop-shell:z-auto',
+          showOnDesktop ? 'desktop-shell:flex' : 'desktop-shell:hidden',
           isMobile ? 'mobile-safe-bottom mobile-safe-inset' : '',
         ].join(' ')}
         style={width ? { width } : undefined}
@@ -443,7 +443,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           {isMobile && (
             <button
               type="button"
-              className="mobile-panel-back lg:hidden h-11 min-h-11 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
+              className="mobile-panel-back desktop-shell:hidden h-11 min-h-11 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
               onClick={onClose}
               title="Back to board"
             >
