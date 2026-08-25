@@ -402,6 +402,33 @@ describe('GameStore loadGame', () => {
         expect(pasted.parent?.move).toEqual({ x: 2, y: 2, player: 'white' });
     });
 
+    it('reports how much of a pasted branch actually landed', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        // The first variation is the branch to copy; the second already owns
+        // cc, so only its opening move can be replayed there.
+        store.loadGame(parseSgf('(;GM[1]SZ[9](;B[aa];W[cc])(;B[cc];W[gg]))'));
+        store.navigateStart();
+        store.navigateForward();
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 0, y: 0, player: 'black' });
+        store.copyCurrentBranch();
+        expect(useGameStore.getState().notification?.message).toBe('Copied branch (2 nodes).');
+
+        store.switchBranch(1);
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 2, y: 2, player: 'black' });
+        store.navigateEnd();
+        expect(useGameStore.getState().currentNode.move).toEqual({ x: 6, y: 6, player: 'white' });
+
+        store.pasteCopiedBranch();
+        const pasted = useGameStore.getState().currentNode;
+        expect(pasted.move).toEqual({ x: 0, y: 0, player: 'black' });
+        expect(pasted.children).toHaveLength(0);
+        expect(useGameStore.getState().notification?.message).toBe(
+            'Pasted 1 of 2 nodes — 1 move is not legal here.'
+        );
+    });
+
     it('opens problem collections at the first problem without leaving joseki roots', () => {
         const store = useGameStore.getState();
         store.resetGame();

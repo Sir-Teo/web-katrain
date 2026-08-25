@@ -4263,7 +4263,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       const history = pushEditHistory(state);
       state.currentNode.children.push(pasted);
-      const nodes = countClipboardNodes(source);
+      // A branch replayed somewhere else can run into stones that were not
+      // there when it was copied, and pasteBranchSnapshot drops those moves
+      // along with everything under them. Count what actually landed, and say
+      // so when part of the branch did not survive the move.
+      const nodes = countNodes(pasted);
+      const copied = countClipboardNodes(source);
+      const dropped = copied - nodes;
       return {
           ...history,
           currentNode: pasted,
@@ -4275,10 +4281,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
           analysisData: pasted.analysis || null,
           activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, pasted),
           treeVersion: state.treeVersion + 1,
-          notification: {
-              message: `Pasted branch (${nodes} node${nodes === 1 ? '' : 's'}).`,
-              type: 'success',
-          },
+          notification: dropped > 0
+              ? {
+                  message: `Pasted ${nodes} of ${copied} nodes — ${dropped === 1 ? '1 move is' : `${dropped} moves are`} not legal here.`,
+                  type: 'info' as const,
+              }
+              : {
+                  message: `Pasted branch (${nodes} node${nodes === 1 ? '' : 's'}).`,
+                  type: 'success' as const,
+              },
       };
   }),
 
