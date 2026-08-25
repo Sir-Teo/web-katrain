@@ -261,6 +261,12 @@ function assertViewport(result) {
   if (result.localeSmokeFailures.length > 0) {
     failures.push(`locale smoke failures: ${result.localeSmokeFailures.join(', ')}`);
   }
+  if (result.deadAriaRefs?.length > 0) {
+    // aria-controls/-labelledby naming an element that is not in the DOM is
+    // silent: nothing renders differently and only assistive tech loses the
+    // relationship. Conditionally rendered panels are the usual cause.
+    failures.push(`dead ARIA references: ${result.deadAriaRefs.map((r) => `${r.attr}="${r.id}" on ${r.on}`).join(', ')}`);
+  }
   if (result.documentOverflow > 1) failures.push(`document overflows by ${result.documentOverflow}px`);
   // The check above runs after the QA interactions have opened and closed
   // things. This one is the pristine first load, which is what a reader
@@ -2639,6 +2645,21 @@ async function main() {
       result.defaultBoardContainerAlign = defaultLayout.boardContainerAlign;
       result.defaultIdleAnalysisSlotHeight = defaultLayout.idleAnalysisSlotHeight;
       result.defaultDocumentOverflow = defaultLayout.documentOverflow;
+      result.deadAriaRefs = await evaluate(cdp, `(() => {
+        const out = [];
+        for (const attr of ['aria-labelledby', 'aria-describedby', 'aria-controls', 'aria-owns']) {
+          for (const el of document.querySelectorAll('[' + attr + ']')) {
+            const raw = (el.getAttribute(attr) || '').trim();
+            if (!raw) continue;
+            for (const id of raw.split(/\\s+/)) {
+              if (!document.getElementById(id)) {
+                out.push({ attr, id, on: (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 30) });
+              }
+            }
+          }
+        }
+        return out;
+      })()`);
       assertViewport(result);
       const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
       fs.writeFileSync(

@@ -540,7 +540,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     role="tab"
                                     aria-label={tab.label}
                                     aria-selected={isActive}
-                                    aria-controls={`panel-${tab.id}`}
+                                    // Only the selected tab's panel is rendered, so pointing at
+                                    // the others names an element that is not there.
+                                    aria-controls={isActive ? `panel-${tab.id}` : undefined}
                                     tabIndex={isActive ? 0 : -1}
                                     onClick={() => setActiveTab(tab.id)}
                                     onKeyDown={(e) => {
@@ -1999,7 +2001,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 type="button"
                                                 className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left transition-colors hover:bg-[var(--ui-surface-2)]"
                                                 aria-expanded={officialModelsOpen}
-                                                aria-controls="settings-official-models"
+                                                aria-controls={officialModelsOpen ? 'settings-official-models' : undefined}
                                                 onClick={() => setOfficialModelsOpen((open) => !open)}
                                             >
                                                 <span className="min-w-0 flex-1">
@@ -2276,7 +2278,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         type="button"
                                         className="mt-4 flex min-h-11 w-full items-center gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left transition-colors hover:bg-[var(--ui-surface-2)]"
                                         aria-expanded={advancedEngineOpen}
-                                        aria-controls="settings-advanced-engine"
+                                        aria-controls={advancedEngineOpen ? 'settings-advanced-engine' : undefined}
                                         onClick={() => setAdvancedEngineOpen((open) => !open)}
                                     >
                                         <span className="min-w-0 flex-1">

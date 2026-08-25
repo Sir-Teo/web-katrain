@@ -435,7 +435,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       title={legendOpen ? 'Hide analysis legend' : 'Show analysis legend'}
       aria-label={legendOpen ? 'Hide analysis legend' : 'Show analysis legend'}
       aria-expanded={legendOpen}
-      aria-controls="analysis-quality-legend"
+      aria-controls={legendOpen ? 'analysis-quality-legend' : undefined}
     >
       <FaInfoCircle size={12} aria-hidden="true" />
     </button>
@@ -574,7 +574,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             title={engineDetailsOpen ? 'Hide engine details' : 'Show engine details'}
             aria-label={engineDetailsOpen ? 'Hide engine details' : 'Show engine details'}
             aria-expanded={engineDetailsOpen}
-            aria-controls="analysis-engine-details"
+            aria-controls={!compact || engineDetailsOpen ? 'analysis-engine-details' : undefined}
           >
             <FaInfoCircle size={12} aria-hidden="true" />
           </button>

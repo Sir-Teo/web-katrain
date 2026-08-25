@@ -197,10 +197,12 @@ describe('SettingsModal', () => {
     expect(source).toContain('<div className="text-xs text-[var(--ui-text-faint)]">Upload weights (.bin.gz)</div>');
     expect(source).toContain('Official model downloads');
     expect(source).toContain('aria-expanded={officialModelsOpen}');
-    expect(source).toContain('aria-controls="settings-official-models"');
+    // Declared only while open: the region is unmounted when collapsed, and a
+    // reference to an element that is not there is worse than none at all.
+    expect(source).toContain("aria-controls={officialModelsOpen ? 'settings-official-models' : undefined}");
     expect(source).toContain('Advanced engine tuning');
     expect(source).toContain('aria-expanded={advancedEngineOpen}');
-    expect(source).toContain('aria-controls="settings-advanced-engine"');
+    expect(source).toContain("aria-controls={advancedEngineOpen ? 'settings-advanced-engine' : undefined}");
     expect(source).toContain('ADVANCED_ENGINE_SETTING_IDS.has(entry.id)');
     expect(source).toContain('setAdvancedEngineOpen(true)');
     expect(source).toContain('data-katago-uploaded-model-summary="true"');
