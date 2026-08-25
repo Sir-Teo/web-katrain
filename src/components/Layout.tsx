@@ -37,6 +37,8 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
+import { LazyModalBoundary } from './LazyModalBoundary';
+import { isStaleBuildError } from '../utils/errorReporting';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
   PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
@@ -2954,6 +2956,19 @@ export const Layout: React.FC = () => {
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-board-announcer="true">
         {boardAnnouncement}
       </div>
+      <LazyModalBoundary
+        onError={(error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          // A deploy is news, not a fault; only a genuine load failure is an error.
+          const stale = isStaleBuildError(message);
+          toast(
+            stale
+              ? 'Web KaTrain has been updated. Reload to open this.'
+              : 'That panel could not be opened. Reload to try again.',
+            stale ? 'info' : 'error'
+          );
+        }}
+      >
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
         {isAboutOpen && (
@@ -3171,6 +3186,7 @@ export const Layout: React.FC = () => {
           />
         )}
       </Suspense>
+      </LazyModalBoundary>
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={mainFileInputAccept} />
 
