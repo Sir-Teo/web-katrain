@@ -3322,7 +3322,10 @@
     text-align: center;
   }
 
-  @media (max-width: 1023px) {
+  /* Matches MOBILE_LAYOUT_MEDIA in src/utils/responsiveLayout.ts: the mobile
+     shell also runs on short, wide windows, and a width-only query left these
+     controls at their 26-31px desktop heights while the app was in touch mode. */
+  @media (max-width: 1023px), (max-height: 499px) {
     .manual-score-panel {
       box-sizing: border-box;
       max-height: min(420px, calc(100vh - 80px));

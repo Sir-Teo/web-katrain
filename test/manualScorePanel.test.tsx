@@ -149,4 +149,26 @@ describe('ManualScorePanel', () => {
     expect(blackLeadHtml).toContain('Black by 3');
     expect(jigoHtml).toContain('Even game');
   });
+
+
+  it('sizes its controls for touch whenever the mobile shell is running', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const responsive = readFileSync('src/utils/responsiveLayout.ts', 'utf8');
+
+    // The mobile shell also runs on short, wide windows (width >= 1024 but
+    // height < 500). A width-only query left these at their 26-31px desktop
+    // heights there while the app was in touch mode — measured 7 targets under
+    // 44px at 1280x460, and none at 844x390.
+    const start = css.indexOf('@media (max-width: 1023px), (max-height: 499px)');
+    expect(start).toBeGreaterThan(-1);
+    const block = css.slice(start, css.indexOf('\n  }', start));
+    expect(block.length).toBeGreaterThan(200);
+    expect(block).toContain('.manual-score-method button');
+    expect(block).toContain('.manual-score-actions button');
+    expect(block).toContain('min-height: 44px');
+
+    // Keep the query in step with the shell thresholds it mirrors.
+    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_WIDTH = 1024');
+    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_HEIGHT = 500');
+  });
 });
