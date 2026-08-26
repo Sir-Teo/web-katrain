@@ -1,5 +1,6 @@
 import { getKataGoEngineClient } from '../engine/katago/client';
 import type { GameNode, GameSettings } from '../types';
+import { komiWithHandicapBonus } from './handicap';
 
 /**
  * Resolve a configured model URL to an absolute URL the worker can fetch.
@@ -28,6 +29,13 @@ export interface PositionEval {
  * The worker self-loads the model if needed, so this works even before any
  * full analysis has run.
  */
+/** The game's starting position, which is where the handicap stones live. */
+function rootBoardOf(node: GameNode): GameNode['gameState']['board'] {
+  let current = node;
+  while (current.parent) current = current.parent;
+  return current.gameState.board;
+}
+
 export async function evaluateNode(node: GameNode, settings: GameSettings): Promise<PositionEval> {
   const modelUrl = resolveModelUrl(settings.katagoModelUrl);
   const res = await getKataGoEngineClient().evaluate({
@@ -38,7 +46,7 @@ export async function evaluateNode(node: GameNode, settings: GameSettings): Prom
     previousPreviousBoard: node.parent?.parent?.gameState.board,
     currentPlayer: node.gameState.currentPlayer,
     moveHistory: node.gameState.moveHistory,
-    komi: node.gameState.komi,
+    komi: komiWithHandicapBonus(rootBoardOf(node), settings.gameRules, node.gameState.komi),
     rules: settings.gameRules,
     conservativePass: settings.katagoConservativePass,
   });

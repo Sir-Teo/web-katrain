@@ -33,6 +33,7 @@ import {
 } from '../utils/branchNavigation';
 import { ensurePinGameId, getNodePath, getPinGameId, resolveNodePath, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
 import { describeHumanBotPick, pickHumanBotMove } from '../utils/humanBotMove';
+import { komiWithHandicapBonus } from '../utils/handicap';
 import { humanBotPresets } from '../engine/katago/chosenMove';
 import { getResignResult } from '../utils/resign';
 import {
@@ -2006,7 +2007,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             previousPreviousBoard: grandparentBoard,
             currentPlayer: s.currentPlayer,
             moveHistory: s.moveHistory,
-            komi: s.komi,
+            komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, s.komi),
             rules,
             topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
             analysisPvLen: Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 30)),
@@ -2110,7 +2111,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 previousPreviousBoard: n.parent?.parent?.gameState.board,
                 currentPlayer: n.gameState.currentPlayer,
                 moveHistory: n.gameState.moveHistory,
-                komi: n.gameState.komi,
+                komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, n.gameState.komi),
               })),
               rules,
               conservativePass,
@@ -2275,7 +2276,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               previousPreviousBoard: grandparentBoard,
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
-              komi: node.gameState.komi,
+              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
               rules,
               topK,
               analysisPvLen,
@@ -2463,7 +2464,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               previousPreviousBoard: grandparentBoard,
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
-              komi: node.gameState.komi,
+              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
               rules,
               topK,
               analysisPvLen,
@@ -2771,7 +2772,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          previousPreviousBoard: grandparentBoard,
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
-	          komi: state.komi,
+	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
             rules,
             regionOfInterest: state.regionOfInterest,
 	          topK,
@@ -3322,7 +3323,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          previousPreviousBoard: grandparentBoard,
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
-	          komi: state.komi,
+	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
             rules,
 	          topK,
             includeMovesOwnership: aiNeedsMovesOwnership,
