@@ -34,6 +34,7 @@ export interface CandidateMove {
   scoreStdev?: number;
   visits: number;
   edgeVisits?: number; // KataGo edgeVisits: what the root paid for this move
+  noResultValue?: number; // KataGo noResultValue for this move's subtree
   weight?: number; // total weight behind the child
   edgeWeight?: number; // the share of it this edge bought
   pointsLost: number; // relative to root eval (KaTrain-like)

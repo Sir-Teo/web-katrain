@@ -128,6 +128,7 @@ class Node {
   weightSum = 0;
   weightSqSum = 0;
   valueAvg = 0; // [-1,1] where +1 is black win
+  noResultAvg = 0; // probability this subtree ends with no result at all
   scoreLeadAvg = 0; // black lead
   scoreMeanAvg = 0; // black score mean
   scoreMeanSqAvg = 0; // E[score^2], for the mixture stdev
@@ -136,6 +137,7 @@ class Node {
 
   // This node's own network evaluation, which is one weighted term of the above.
   nnValue = 0;
+  nnNoResult = 0;
   nnScoreLead = 0;
   nnScoreMean = 0;
   nnScoreMeanSq = 0;
@@ -904,6 +906,7 @@ type ChildWeightStats = {
   selfUtility: number;
   policy: number;
   value: number;
+  noResult: number;
   scoreLead: number;
   scoreMean: number;
   scoreMeanSq: number;
@@ -1199,6 +1202,7 @@ function recomputeNodeStats(node: Node): void {
           selfUtility: 0,
           policy: 0,
           value: 0,
+          noResult: 0,
           scoreLead: 0,
           scoreMean: 0,
           scoreMeanSq: 0,
@@ -1213,6 +1217,7 @@ function recomputeNodeStats(node: Node): void {
       entry.selfUtility = node.playerToMove === BLACK ? childUtility : -childUtility;
       entry.policy = e.prior;
       entry.value = child.valueAvg;
+      entry.noResult = child.noResultAvg;
       entry.scoreLead = child.scoreLeadAvg;
       entry.scoreMean = child.scoreMeanAvg;
       entry.scoreMeanSq = child.scoreMeanSqAvg;
@@ -1236,6 +1241,7 @@ function recomputeNodeStats(node: Node): void {
   }
 
   let valueSum = 0;
+  let noResultSum = 0;
   let scoreLeadSum = 0;
   let scoreMeanSum = 0;
   let scoreMeanSqSum = 0;
@@ -1250,6 +1256,7 @@ function recomputeNodeStats(node: Node): void {
     const rawWeight = child.rawWeight ?? desiredWeight;
     const weightScaling = rawWeight > 0 ? desiredWeight / rawWeight : 0;
     valueSum += desiredWeight * child.value;
+    noResultSum += desiredWeight * child.noResult;
     scoreLeadSum += desiredWeight * child.scoreLead;
     scoreMeanSum += desiredWeight * child.scoreMean;
     scoreMeanSqSum += desiredWeight * child.scoreMeanSq;
@@ -1279,6 +1286,7 @@ function recomputeNodeStats(node: Node): void {
     }
   }
   valueSum += ownWeight * node.nnValue;
+  noResultSum += ownWeight * node.nnNoResult;
   scoreLeadSum += ownWeight * node.nnScoreLead;
   scoreMeanSum += ownWeight * node.nnScoreMean;
   scoreMeanSqSum += ownWeight * node.nnScoreMeanSq;
@@ -1292,6 +1300,7 @@ function recomputeNodeStats(node: Node): void {
   node.weightSum = weightSum;
   node.weightSqSum = weightSqSum;
   node.valueAvg = valueSum / weightSum;
+  node.noResultAvg = noResultSum / weightSum;
   node.scoreLeadAvg = scoreLeadSum / weightSum;
   node.scoreMeanAvg = scoreMeanSum / weightSum;
   node.scoreMeanSqAvg = scoreMeanSqSum / weightSum;
@@ -1373,6 +1382,7 @@ function setNodeOwnEval(
     recentScoreCenter,
   });
   node.nnValue = blackWinLossValue(ev);
+  node.nnNoResult = ev.blackNoResultProb;
   node.nnScoreLead = ev.blackScoreLead;
   node.nnScoreMean = ev.blackScoreMean;
   node.nnScoreMeanSq = ev.blackScoreStdev * ev.blackScoreStdev + ev.blackScoreMean * ev.blackScoreMean;
@@ -2308,7 +2318,15 @@ const LCB_WINRATE_RADIUS_SCALE =
  */
 export function recomputeNodeStatsForTest(args: {
   playerToMove: 'black' | 'white';
-  own: { value: number; scoreLead: number; scoreMean: number; scoreMeanSq: number; utility: number; weight?: number };
+  own: {
+    value: number;
+    scoreLead: number;
+    scoreMean: number;
+    scoreMeanSq: number;
+    utility: number;
+    weight?: number;
+    noResult?: number;
+  };
   children: Array<{
     prior: number;
     visits: number;
@@ -2317,6 +2335,7 @@ export function recomputeNodeStatsForTest(args: {
     weightSum?: number;
     weightSqSum?: number;
     value: number;
+    noResult?: number;
     scoreLead: number;
     scoreMean: number;
     scoreMeanSq: number;
@@ -2332,10 +2351,12 @@ export function recomputeNodeStatsForTest(args: {
   scoreMeanSqAvg: number;
   utilityAvg: number;
   utilitySqAvg: number;
+  noResultAvg: number;
 } {
   const pla = args.playerToMove === 'black' ? BLACK : WHITE;
   const node = new Node(pla);
   node.nnValue = args.own.value;
+  node.nnNoResult = args.own.noResult ?? 0;
   node.nnScoreLead = args.own.scoreLead;
   node.nnScoreMean = args.own.scoreMean;
   node.nnScoreMeanSq = args.own.scoreMeanSq;
@@ -2347,6 +2368,7 @@ export function recomputeNodeStatsForTest(args: {
     child.weightSum = c.weightSum ?? c.visits;
     child.weightSqSum = c.weightSqSum ?? c.visits;
     child.valueAvg = c.value;
+    child.noResultAvg = c.noResult ?? 0;
     child.scoreLeadAvg = c.scoreLead;
     child.scoreMeanAvg = c.scoreMean;
     child.scoreMeanSqAvg = c.scoreMeanSq;
@@ -2365,6 +2387,7 @@ export function recomputeNodeStatsForTest(args: {
     scoreMeanSqAvg: node.scoreMeanSqAvg,
     utilityAvg: node.utilityAvg,
     utilitySqAvg: node.utilitySqAvg,
+    noResultAvg: node.noResultAvg,
   };
 }
 
@@ -2437,6 +2460,7 @@ type CandidateRow = {
   prior: number;
   playSelectionValue: number;
   edgeVisits: number; // what this parent paid for, which visits can exceed
+  noResultValue: number; // chance this move's subtree ends with no result
   weight: number; // the child's own weight
   edgeWeight: number; // the share of it this edge bought
   utility: number; // child utilityAvg, from black's perspective
@@ -2459,6 +2483,11 @@ export type AnalysisPayloadMove = {
    * transposition brought other lines to the same position.
    */
   edgeVisits: number;
+  /**
+   * KataGo's noResultValue: how likely this move's subtree is to end with no result
+   * at all, which only rules without superko allow.
+   */
+  noResultValue: number;
   /** Total weight behind the child, and the share of it this edge bought. */
   weight: number;
   edgeWeight: number;
@@ -2517,6 +2546,7 @@ function collectRootCandidateRows(
       prior: e.prior,
       playSelectionValue: selection ? selection.values[i]! : child.visits,
       edgeVisits: e.visits,
+      noResultValue: child.noResultAvg,
       weight: child.weightSum,
       edgeWeight: edgeChildWeight(e),
       utility: child.utilityAvg,
@@ -2573,6 +2603,7 @@ function buildAnalysisMoves(args: {
       scoreStdev: m.scoreStdev,
       visits: m.visits,
       edgeVisits: m.edgeVisits,
+      noResultValue: m.noResultValue,
       weight: m.weight,
       edgeWeight: m.edgeWeight,
       pointsLost,
@@ -3714,6 +3745,7 @@ export class MctsSearch {
     rootNode.ownership = rootOwnership;
     rootNode.visits = 1;
     rootNode.nnValue = rootValue;
+    rootNode.nnNoResult = rawNoResultProb;
     rootNode.nnScoreLead = rootScoreLead;
     rootNode.nnScoreMean = rootScoreMean;
     rootNode.nnScoreMeanSq = rootScoreMeanSq;
@@ -3871,6 +3903,7 @@ export class MctsSearch {
 
     if (shouldExpandRoot) child.visits = 1;
     child.nnValue = rootValue;
+    child.nnNoResult = rawNoResultProb;
     child.nnScoreLead = rootScoreLead;
     child.nnScoreMean = rootScoreMean;
     child.nnScoreMeanSq = rootScoreMeanSq;

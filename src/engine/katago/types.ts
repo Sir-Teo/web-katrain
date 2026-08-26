@@ -99,6 +99,7 @@ export interface KataGoAnalysisPayload {
     scoreStdev: number;
     visits: number;
     edgeVisits?: number; // what the parent paid for; visits can exceed it
+    noResultValue?: number; // chance this move's subtree ends with no result
     weight?: number;
     edgeWeight?: number;
     pointsLost: number;

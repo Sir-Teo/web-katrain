@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MctsSearch, blackWinLossValue } from '../src/engine/katago/analyzeMcts';
+import { MctsSearch, blackWinLossValue, recomputeNodeStatsForTest } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
 import { emptyBoard, hasModel, loadHarnessModel, rawEval } from './helpers/engineHarness';
 
@@ -65,4 +65,50 @@ describe.skipIf(!hasModel())('the winrate the engine reports', () => {
     // The distinction is real even here, where the chance is small.
     expect(reported.rawWinRate).not.toBe(raw.blackWinProb);
   }, 120000);
+
+  it('carries the chance of no result up the tree with everything else', async () => {
+    setBoardSize(19);
+    const model = await loadHarnessModel();
+    const search = await MctsSearch.create({
+      model,
+      board: emptyBoard(19),
+      currentPlayer: 'black',
+      moveHistory: [],
+      komi: 6.5,
+      rules: 'japanese',
+      nnRandomize: false,
+      conservativePass: true,
+      maxChildren: 12,
+      ownershipMode: 'root',
+      wideRootNoise: 0,
+    });
+    await search.run({ visits: 40, maxTimeMs: 120000, batchSize: 4 });
+    const analysis = search.getAnalysis({ topK: 12, analysisPvLen: 1 });
+
+    expect(analysis.moves.length).toBeGreaterThan(1);
+    for (const move of analysis.moves) {
+      expect(move.noResultValue!).toBeGreaterThanOrEqual(0);
+      expect(move.noResultValue!).toBeLessThan(1);
+    }
+    // The network gives an ordinary opening a small but real chance of ending in
+    // nothing under Japanese rules, and the moves inherit it rather than zeroing it.
+    expect(analysis.moves.some((m) => m.noResultValue! > 0)).toBe(true);
+    expect(analysis.rawNoResultProb).toBeGreaterThan(0);
+  }, 120000);
+});
+
+describe('averaging the chance of no result', () => {
+  it('weights it like every other quantity', () => {
+    const stats = recomputeNodeStatsForTest({
+      playerToMove: 'black',
+      own: { value: 0, scoreLead: 0, scoreMean: 0, scoreMeanSq: 0, utility: 0, weight: 1, noResult: 0.5 },
+      children: [
+        { prior: 0.5, visits: 3, value: 0, noResult: 0.1, scoreLead: 0, scoreMean: 0, scoreMeanSq: 0, utility: 0 },
+        { prior: 0.5, visits: 1, value: 0, noResult: 0.9, scoreLead: 0, scoreMean: 0, scoreMeanSq: 0, utility: 0 },
+      ],
+    });
+    // Three visits at a tenth, one at nine tenths, and the node's own half: the
+    // children have equal utility so nothing gets downweighted on the way up.
+    expect(stats.noResultAvg).toBeCloseTo((3 * 0.1 + 1 * 0.9 + 1 * 0.5) / 5, 10);
+  });
 });
