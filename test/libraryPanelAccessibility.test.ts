@@ -2,6 +2,20 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('LibraryPanel accessibility', () => {
+  it('leaves the mobile library the way its sibling tabs are left', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    // Library, Tree and Review are all tabs in the mobile shell, reached and
+    // left the same way; Library alone used a dismiss cross for it. It shares
+    // RightPanel's back-button classes so the two headers cannot drift.
+    expect(source).toContain('className="mobile-panel-back h-11 min-h-11 shrink-0');
+    expect(source).toContain('<span className="mobile-panel-back-label text-sm font-medium">Board</span>');
+    expect(source).toContain('aria-label="Back to board"');
+    // Docked on desktop it is a panel being closed, so the cross stays there.
+    expect(source).toContain('aria-label="Close library"');
+    expect(source).toContain("showCloseButtonOnDesktop ? '' : 'lg:hidden',");
+  });
+
   it('names toolbar form controls explicitly', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
@@ -89,7 +103,10 @@ describe('LibraryPanel accessibility', () => {
 
     expect(source).toContain('open: isMobile || listOpen');
     expect(source).toContain('hideHeader: isMobile');
-    expect(source).toContain("isMobile ? 'h-11 min-h-11 w-11 min-w-11' : 'h-9 w-9'");
+    // The header's leading control keeps a 44px touch target on mobile and the
+    // desktop panel's smaller square when docked.
+    expect(source).toContain("className=\"mobile-panel-back h-11 min-h-11 shrink-0");
+    expect(source).toContain("'h-9 w-9',");
   });
 
   it('keeps selection exit beside the selection count instead of adding a toolbar row', () => {

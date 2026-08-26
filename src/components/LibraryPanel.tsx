@@ -6,6 +6,7 @@ import {
   FaTrash,
   FaPen,
   FaSearch,
+  FaChevronLeft,
   FaChevronRight,
   FaDownload,
   FaUpload,
@@ -1907,19 +1908,39 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         onDrop={handleDrop}
       >
         <div className="ui-bar ui-bar-height ui-bar-pad relative border-b border-[var(--ui-border)] flex items-center gap-2">
-          <button
-            type="button"
-            className={[
-              showCloseButtonOnDesktop ? '' : 'lg:hidden',
-              isMobile ? 'h-11 min-h-11 w-11 min-w-11' : 'h-9 w-9',
-              'shrink-0 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors',
-            ].join(' ')}
-            onClick={onClose}
-            title="Close library"
-            aria-label="Close library"
-          >
-            <FaTimes />
-          </button>
+          {/* Library is a tab in the mobile shell, reached and left the same way
+              as Tree and Review, so it uses their back affordance rather than a
+              dismiss cross — three sibling tabs should not need three different
+              ways out. Docked on desktop it is a panel being closed, so the
+              cross stays there. Shares RightPanel's classes so the two headers
+              cannot drift; the tree-tab overrides on them are scoped to
+              .mobile-panel-header, which this is not. */}
+          {isMobile ? (
+            <button
+              type="button"
+              className="mobile-panel-back h-11 min-h-11 shrink-0 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
+              onClick={onClose}
+              title="Back to board"
+              aria-label="Back to board"
+            >
+              <FaChevronLeft size={12} aria-hidden="true" />
+              <span className="mobile-panel-back-label text-sm font-medium">Board</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={[
+                showCloseButtonOnDesktop ? '' : 'lg:hidden',
+                'h-9 w-9',
+                'shrink-0 flex items-center justify-center rounded-lg hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors',
+              ].join(' ')}
+              onClick={onClose}
+              title="Close library"
+              aria-label="Close library"
+            >
+              <FaTimes />
+            </button>
+          )}
           <div className="text-sm font-semibold text-[var(--ui-text)]">Library</div>
           <div
             className={[
