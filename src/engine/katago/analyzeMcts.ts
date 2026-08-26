@@ -269,15 +269,16 @@ function opponentHasPassedFourTimes(moveHistory: RecentMove[], currentPlayer: Pl
  * Symmetries under which the root position is unchanged, KataGo's
  * SymmetryHelpers::markDuplicateMoveLocs (cpp/neuralnet/nninputs.cpp).
  *
- * KataGo compares stones only, because its analysis engine zeroes the pre-root
- * history (ignorePreRootHistory defaults to true there). This port feeds the last
- * five moves to the net, so a symmetry that moves them changes the input and is
- * not a real duplicate: it has to fix them too.
+ * KataGo compares stones only, which is sound because its analysis engine zeroes
+ * the pre-root history. When this port is asked to keep that history instead, a
+ * symmetry that moves one of the last five moves changes the network input and is
+ * not a real duplicate, so it has to fix those moves too.
  */
 export function computeValidRootSymmetries(args: {
   stones: Uint8Array;
   koPoint: number;
   recentMoves: RecentMove[];
+  ignorePreRootHistory?: boolean;
 }): number[] {
   const valid = [0];
   // A ko ban is not symmetric, so nothing may be treated as a duplicate.
@@ -293,7 +294,7 @@ export function computeValidRootSymmetries(args: {
         break;
       }
     }
-    if (ok) {
+    if (ok && args.ignorePreRootHistory !== true) {
       for (const m of args.recentMoves) {
         if (m.move === PASS_MOVE) continue;
         if (map[off + m.move] !== m.move) {
@@ -384,6 +385,8 @@ function buildRootMoveMask(args: {
   moveHistory: RecentMove[];
   currentPlayer: Player;
   symmetryPruning?: boolean;
+  /** KataGo ignorePreRootHistory: with it on, symmetry is a matter of stones alone. */
+  ignorePreRootHistory?: boolean;
   /** Moves the search may not play at the root, KataGo's avoidMoves. */
   avoidMoves?: Uint8Array | null;
 }): { allowedMoves: Uint8Array | null; roiMask: Uint8Array | null; rootSymmetries: number[] } {
@@ -417,6 +420,7 @@ function buildRootMoveMask(args: {
     stones: args.stones,
     koPoint: args.koPoint,
     recentMoves: takeLastMoves(args.moveHistory, 5),
+    ignorePreRootHistory: args.ignorePreRootHistory,
   });
   const symDupMoves = markSymmetryDuplicateMoves(rootSymmetries, args.currentPlayer === 'black', allowedMoves);
   if (!symDupMoves) return { allowedMoves, roiMask, rootSymmetries };
@@ -606,6 +610,8 @@ async function buildRootEval(args: {
   forcedRootMoves?: Uint8Array | null;
   avoidRootMoves?: Uint8Array | null;
   outputScaleMultiplier: number;
+  /** KataGo ignorePreRootHistory: the root's history planes stay empty. */
+  ignorePreRootHistory: boolean;
   node?: Node;
   preserveExistingChildren?: boolean;
 }): Promise<{
@@ -641,6 +647,7 @@ async function buildRootEval(args: {
       currentPlayer: args.currentPlayer,
       recentMoves: takeRecentMoves(args.rootMoves, [], 5),
       conservativePassAndIsRoot: args.conservativePass,
+      maxHistory: args.ignorePreRootHistory ? 0 : 5,
     },
   });
 
@@ -665,6 +672,7 @@ async function buildRootEval(args: {
     moveHistory: args.rootMoves,
     currentPlayer: args.currentPlayer,
     symmetryPruning: args.rootSymmetryPruning,
+    ignorePreRootHistory: args.ignorePreRootHistory,
     avoidMoves: args.avoidRootMoves,
   });
   const rootPolicy = new Float32Array(BOARD_AREA + 1);
@@ -2754,6 +2762,8 @@ type EvalState = {
   komi?: number;
   conservativePassAndIsRoot?: boolean;
   symmetry?: number;
+  /** KataGo maxHistory: how far back the history planes may look. Defaults to 5. */
+  maxHistory?: number;
 };
 
 type NeuralEval = {
@@ -2837,9 +2847,10 @@ async function evaluateBatch(args: {
     const opp = pla === 'black' ? 'white' : 'black';
     const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
 
+    const maxTurnsOfHistoryToInclude = Math.max(0, Math.min(5, state.maxHistory ?? 5));
     let numTurnsOfHistoryIncluded = 0;
     if (!suppressHistory) {
-      for (let h = 0; h < 5; h++) {
+      for (let h = 0; h < maxTurnsOfHistoryToInclude; h++) {
         const m = recentMoves[recentMoves.length - 1 - h];
         if (!m) break;
         if (m.player !== expectedPlayers[h]) break;
@@ -2882,6 +2893,7 @@ async function evaluateBatch(args: {
       komi: state.komi ?? args.komi,
       rules,
       conservativePassAndIsRoot: state.conservativePassAndIsRoot,
+      maxHistory: maxTurnsOfHistoryToInclude,
       libertyMap,
       areaMap: includeAreaFeature ? areaMap : undefined,
       ladderedStones: scratch.ladderedStonesScratch,
@@ -3053,6 +3065,12 @@ export class MctsSearch {
    */
   private humanExplore: HumanExploreParams | null;
   /**
+   * KataGo ignorePreRootHistory, which its analysis engine turns on by default: the
+   * network sees no moves from before the root, only the ones the search itself
+   * played. Analysis then judges the position rather than the path that reached it.
+   */
+  private readonly ignorePreRootHistory: boolean;
+  /**
    * Whether a game that ends inside the search gets its real score. Only area
    * scoring can be counted straight off the board; territory rules need the dead
    * stones agreed first, which is what KataGo's encore is for, so under those the
@@ -3092,6 +3110,7 @@ export class MctsSearch {
     rootEndingBonus: Float64Array | null;
     forcedRootMoves: Uint8Array | null;
     humanExplore: HumanExploreParams | null;
+    ignorePreRootHistory: boolean;
   }) {
     this.model = args.model;
     this.ownershipMode = args.ownershipMode;
@@ -3124,6 +3143,7 @@ export class MctsSearch {
     this.rootEndingBonus = args.rootEndingBonus;
     this.forcedRootMoves = args.forcedRootMoves;
     this.humanExplore = args.humanExplore;
+    this.ignorePreRootHistory = args.ignorePreRootHistory;
     this.scoreTerminalNodes = args.rules === 'chinese';
   }
 
@@ -3153,6 +3173,11 @@ export class MctsSearch {
      */
     humanSlRootExploreProbWeightless?: number;
     humanSlRootExploreProbWeightful?: number;
+    /**
+     * KataGo ignorePreRootHistory. Defaults to true, as it does for KataGo's
+     * analysis engine (Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY).
+     */
+    ignorePreRootHistory?: boolean;
     /** Moves the search may not play at the root, KataGo's avoidMoves. */
     avoidRootMoves?: Uint8Array | null;
   }): Promise<MctsSearch> {
@@ -3175,6 +3200,7 @@ export class MctsSearch {
     }));
 
     const forcedRootMoves = topHumanMovesMask(args.humanPolicy, args.humanMoveCount ?? DEFAULT_HUMAN_MOVE_COUNT);
+    const ignorePreRootHistory = args.ignorePreRootHistory !== false;
     const weightlessProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightless ?? 0));
     const weightfulProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightful ?? 0));
     const humanExplore: HumanExploreParams | null =
@@ -3216,6 +3242,7 @@ export class MctsSearch {
       forcedRootMoves,
       avoidRootMoves: args.avoidRootMoves,
       outputScaleMultiplier,
+      ignorePreRootHistory,
       node: rootNode,
     });
     rootNode.ownership = rootOwnership;
@@ -3270,6 +3297,7 @@ export class MctsSearch {
       rootEndingBonus,
       forcedRootMoves,
       humanExplore,
+      ignorePreRootHistory,
     });
   }
 
@@ -3340,6 +3368,7 @@ export class MctsSearch {
       maxChildren: this.maxChildren,
       regionOfInterest: args.regionOfInterest,
       outputScaleMultiplier: this.outputScaleMultiplier,
+      ignorePreRootHistory: this.ignorePreRootHistory,
       node: child,
       preserveExistingChildren: !shouldExpandRoot,
     });
@@ -3462,6 +3491,7 @@ export class MctsSearch {
         prevPrevLibertyMap?: Uint8Array;
         currentPlayer: Player;
         recentMoves: RecentMove[];
+        maxHistory: number;
       }> = [];
 
       let attempts = 0;
@@ -3786,6 +3816,9 @@ export class MctsSearch {
           prevPrevLibertyMap,
           currentPlayer: leafPlayer,
           recentMoves: takeRecentMoves(this.rootMoves, pathMoves, 5, recentMovesScratch),
+          // With pre-root history ignored, only the moves the search itself played
+          // reach the history planes: KataGo's maxHistory of depth-below-the-root.
+          maxHistory: this.ignorePreRootHistory ? pathMoves.length : 5,
         });
       }
 

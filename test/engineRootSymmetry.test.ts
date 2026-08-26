@@ -88,6 +88,19 @@ describe('root symmetry detection', () => {
     expect(symmetries).toEqual([0]);
   });
 
+  it('compares stones alone once pre-root history is ignored', () => {
+    setBoardSize(9);
+    // With the root's history planes empty, KataGo's own condition applies: a
+    // symmetry is real if it fixes the stones, whatever moves led to them.
+    const symmetries = computeValidRootSymmetries({
+      stones: new Uint8Array(BOARD_AREA),
+      koPoint: -1,
+      recentMoves: [{ move: 3 * BOARD_SIZE + 2, player: 'black' }],
+      ignorePreRootHistory: true,
+    });
+    expect(symmetries).toHaveLength(8);
+  });
+
   it('ignores passes in the recent move history', () => {
     setBoardSize(9);
     const symmetries = computeValidRootSymmetries({
