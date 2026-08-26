@@ -17,8 +17,7 @@ import {
   sortMoveReportEntries,
   type GameReport,
   type MoveReportEntry,
-  type MovePolicyCategory,
-} from '../src/utils/gameReport';
+  type MovePolicyCategory, humanPolicyStats,} from '../src/utils/gameReport';
 import type { AnalysisResult, CandidateMove } from '../src/types';
 
 const EMPTY_TERRITORY: number[][] = Array.from({ length: 19 }, () => Array.from({ length: 19 }, () => 0));
@@ -651,5 +650,33 @@ describe('formatPolicyRank', () => {
 
   it('treats rank 0 as absent because policy ranks are 1-based', () => {
     expect(formatPolicyRank(0)).toBe('unranked');
+  });
+});
+
+describe('humanPolicyStats', () => {
+  it('reports how likely the played move was for the configured rank', () => {
+    // A 9x9 human policy where the played move is the third most likely choice.
+    const policy = new Float32Array(9 * 9 + 1).fill(-1);
+    policy[0] = 0.5; // (0,0)
+    policy[10] = 0.3; // (1,1)
+    policy[20] = 0.15; // (2,2)
+    const stats = humanPolicyStats({ move: { x: 2, y: 2 }, humanPolicy: policy, boardSize: 9 })!;
+    expect(stats.prior).toBeCloseTo(0.15, 6);
+    expect(stats.rank).toBe(3);
+  });
+
+  it('handles a pass and an unlisted move', () => {
+    const policy = new Float32Array(9 * 9 + 1).fill(-1);
+    policy[9 * 9] = 0.2; // pass
+    const pass = humanPolicyStats({ move: { x: -1, y: -1 }, humanPolicy: policy, boardSize: 9 })!;
+    expect(pass.prior).toBeCloseTo(0.2, 6);
+    expect(pass.rank).toBe(1);
+
+    // Illegal or unscored points stay at -1 and produce nothing rather than a zero.
+    expect(humanPolicyStats({ move: { x: 4, y: 4 }, humanPolicy: policy, boardSize: 9 })).toBeNull();
+  });
+
+  it('reports nothing without the human network', () => {
+    expect(humanPolicyStats({ move: { x: 3, y: 3 }, humanPolicy: undefined, boardSize: 9 })).toBeNull();
   });
 });

@@ -142,6 +142,17 @@ export type ParsedKataGoModelV8 = {
   numInputChannels: number;
   numInputGlobalChannels: number;
   metaEncoderVersion: number;
+  /** Present only for human SL nets (meta encoder version 1). */
+  metaEncoder?: {
+    numInputMetaChannels: number;
+    mul1: ParsedMatMul;
+    bias1: ParsedMatBias;
+    act1: ActivationKind;
+    mul2: ParsedMatMul;
+    bias2: ParsedMatBias;
+    act2: ActivationKind;
+    mul3: ParsedMatMul;
+  };
   postProcessParams: {
     tdScoreMultiplier: number;
     scoreMeanMultiplier: number;
@@ -236,6 +247,18 @@ export class KataGoModelV8Tf {
   readonly postProcessParams: ParsedKataGoModelV8['postProcessParams'];
   readonly policyOutChannels: number;
   readonly scoreValueChannels: number;
+  /** Non-zero for human SL nets, which need SGF metadata alongside the board. */
+  readonly metaEncoderVersion: number;
+
+  private readonly metaEncoder?: {
+    mul1: TfMatMul;
+    bias1: TfMatBias;
+    act1: ActivationKind;
+    mul2: TfMatMul;
+    bias2: TfMatBias;
+    act2: ActivationKind;
+    mul3: TfMatMul;
+  };
 
   private readonly trunkConv1: TfConv;
   private readonly trunkGInput: TfMatMul;
@@ -274,6 +297,18 @@ export class KataGoModelV8Tf {
     this.postProcessParams = parsed.postProcessParams;
     this.policyOutChannels = parsed.policyOutChannels;
     this.scoreValueChannels = parsed.scoreValueChannels;
+    this.metaEncoderVersion = parsed.metaEncoderVersion;
+    if (parsed.metaEncoder) {
+      this.metaEncoder = {
+        mul1: makeMatMul(parsed.metaEncoder.mul1),
+        bias1: makeMatBias(parsed.metaEncoder.bias1),
+        act1: parsed.metaEncoder.act1,
+        mul2: makeMatMul(parsed.metaEncoder.mul2),
+        bias2: makeMatBias(parsed.metaEncoder.bias2),
+        act2: parsed.metaEncoder.act2,
+        mul3: makeMatMul(parsed.metaEncoder.mul3),
+      };
+    }
 
     this.trunkConv1 = makeConv(parsed.trunk.conv1);
     this.trunkGInput = makeMatMul(parsed.trunk.ginput);
@@ -346,7 +381,7 @@ export class KataGoModelV8Tf {
     this.ownership = makeConv(parsed.value.ownership);
   }
 
-  forward(spatial: tf.Tensor4D, global: tf.Tensor2D): {
+  forward(spatial: tf.Tensor4D, global: tf.Tensor2D, meta?: tf.Tensor2D): {
     policy: tf.Tensor4D;
     policyPass: tf.Tensor2D;
     value: tf.Tensor2D;
@@ -354,7 +389,7 @@ export class KataGoModelV8Tf {
     ownership: tf.Tensor4D;
   } {
     return tf.tidy(() => {
-      const trunk = this.forwardTrunk(spatial, global);
+      const trunk = this.forwardTrunk(spatial, global, meta);
 
       // Policy head
       let p1Out = conv2d(trunk, this.p1);
@@ -379,9 +414,6 @@ export class KataGoModelV8Tf {
       value = value.add(this.v3Bias.b) as tf.Tensor2D;
       let scoreValue = tf.matMul(v2Out, this.sv3.w) as tf.Tensor2D; // [N,scoreValueChannels]
       scoreValue = scoreValue.add(this.sv3Bias.b) as tf.Tensor2D;
-      if (this.scoreValueChannels > 4) {
-        scoreValue = scoreValue.slice([0, 0], [scoreValue.shape[0], 4]) as tf.Tensor2D;
-      }
 
       const ownership = conv2d(v1Out2, this.ownership); // [N,19,19,1]
 
@@ -389,14 +421,14 @@ export class KataGoModelV8Tf {
     });
   }
 
-  forwardPolicyValue(spatial: tf.Tensor4D, global: tf.Tensor2D): {
+  forwardPolicyValue(spatial: tf.Tensor4D, global: tf.Tensor2D, meta?: tf.Tensor2D): {
     policy: tf.Tensor4D;
     policyPass: tf.Tensor2D;
     value: tf.Tensor2D;
     scoreValue: tf.Tensor2D;
   } {
     return tf.tidy(() => {
-      const trunk = this.forwardTrunk(spatial, global);
+      const trunk = this.forwardTrunk(spatial, global, meta);
 
       let p1Out = conv2d(trunk, this.p1);
       const g1Out = conv2d(trunk, this.g1);
@@ -419,9 +451,6 @@ export class KataGoModelV8Tf {
       value = value.add(this.v3Bias.b) as tf.Tensor2D;
       let scoreValue = tf.matMul(v2Out, this.sv3.w) as tf.Tensor2D;
       scoreValue = scoreValue.add(this.sv3Bias.b) as tf.Tensor2D;
-      if (this.scoreValueChannels > 4) {
-        scoreValue = scoreValue.slice([0, 0], [scoreValue.shape[0], 4]) as tf.Tensor2D;
-      }
 
       return { policy, policyPass, value, scoreValue };
     });
@@ -429,13 +458,14 @@ export class KataGoModelV8Tf {
 
   forwardValueOnly(
     spatial: tf.Tensor4D,
-    global: tf.Tensor2D
+    global: tf.Tensor2D,
+    meta?: tf.Tensor2D
   ): {
     value: tf.Tensor2D;
     scoreValue: tf.Tensor2D;
   } {
     return tf.tidy(() => {
-      const trunk = this.forwardTrunk(spatial, global);
+      const trunk = this.forwardTrunk(spatial, global, meta);
       const v1Out = conv2d(trunk, this.v1);
       const v1Out2 = bnAct(v1Out, this.v1BN, this.v1Activation);
       const v1Mean = poolRowsValueHead(v1Out2);
@@ -446,19 +476,37 @@ export class KataGoModelV8Tf {
       value = value.add(this.v3Bias.b) as tf.Tensor2D;
       let scoreValue = tf.matMul(v2Out, this.sv3.w) as tf.Tensor2D;
       scoreValue = scoreValue.add(this.sv3Bias.b) as tf.Tensor2D;
-      if (this.scoreValueChannels > 4) {
-        scoreValue = scoreValue.slice([0, 0], [scoreValue.shape[0], 4]) as tf.Tensor2D;
-      }
       return { value, scoreValue };
     });
   }
 
-  private forwardTrunk(spatial: tf.Tensor4D, global: tf.Tensor2D): tf.Tensor4D {
+  private forwardTrunk(spatial: tf.Tensor4D, global: tf.Tensor2D, meta?: tf.Tensor2D): tf.Tensor4D {
     let trunk = conv2d(spatial, this.trunkConv1);
     const ginput = tf.matMul(global, this.trunkGInput.w) as tf.Tensor2D;
     trunk = trunk.add(ginput.reshape([ginput.shape[0], 1, 1, ginput.shape[1]])) as tf.Tensor4D;
+    if (this.metaEncoder) {
+      if (!meta) throw new Error('This model needs SGF metadata input');
+      const metaBias = this.forwardMetaEncoder(meta);
+      trunk = trunk.add(metaBias.reshape([metaBias.shape[0], 1, 1, metaBias.shape[1]])) as tf.Tensor4D;
+    }
     trunk = this.applyBlockStack(trunk, this.trunkBlocks);
     return bnAct(trunk, this.trunkTipBN, this.trunkTipActivation);
+  }
+
+  /**
+   * KataGo's SGF metadata encoder: a three-layer MLP over the game metadata whose
+   * output is added to the trunk as another per-channel bias, the same way the
+   * global inputs are (cpp/neuralnet/eigenbackend.cpp).
+   */
+  private forwardMetaEncoder(meta: tf.Tensor2D): tf.Tensor2D {
+    const enc = this.metaEncoder!;
+    let out = tf.matMul(meta, enc.mul1.w) as tf.Tensor2D;
+    out = out.add(enc.bias1.b) as tf.Tensor2D;
+    out = applyActivation2D(out, enc.act1);
+    out = tf.matMul(out, enc.mul2.w) as tf.Tensor2D;
+    out = out.add(enc.bias2.b) as tf.Tensor2D;
+    out = applyActivation2D(out, enc.act2);
+    return tf.matMul(out, enc.mul3.w) as tf.Tensor2D;
   }
 
   private forwardPolicyPass(gpool: tf.Tensor2D): tf.Tensor2D {

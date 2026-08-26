@@ -1,4 +1,4 @@
-import type { CandidateMove, GameNode, Player } from '../types';
+import type { CandidateMove, FloatArray, GameNode, Player } from '../types';
 import { isReportReadyAnalysis } from './analysisCoverage';
 import { getCurrentLineNodes, type ActiveBranchMap } from './branchNavigation';
 import { getEvaluationClass } from './nodeAnalysis';
@@ -218,6 +218,30 @@ export type PlayerReportStats = {
   policyDistribution?: MovePolicyDistribution;
 };
 
+/**
+ * Where the played move sits in the human network's policy: how often a player of
+ * that rank plays it, and its rank among their choices.
+ */
+export function humanPolicyStats(args: {
+  move: { x: number; y: number };
+  humanPolicy?: FloatArray;
+  boardSize: number;
+}): { prior: number; rank: number } | null {
+  const policy = args.humanPolicy;
+  if (!policy) return null;
+  const { x, y } = args.move;
+  const idx = x < 0 || y < 0 ? args.boardSize * args.boardSize : y * args.boardSize + x;
+  const prior = policy[idx] ?? -1;
+  if (!(prior >= 0)) return null;
+
+  let rank = 1;
+  for (let i = 0; i <= args.boardSize * args.boardSize; i++) {
+    const other = policy[i] ?? -1;
+    if (other > prior) rank += 1;
+  }
+  return { prior, rank };
+}
+
 export type MoveReportEntry = {
   node: GameNode;
   moveNumber: number;
@@ -238,6 +262,14 @@ export type MoveReportEntry = {
   topCandidate?: CandidateMove;
   isTopMove?: boolean;
   pv?: string[];
+  /**
+   * How likely a player of the configured rank was to play this move, from
+   * KataGo's human network. Present only when that network was loaded during the
+   * analysis; it is what makes a mistake list level-appropriate rather than
+   * absolute (docs/Analysis_Engine.md, "Possible metrics that might be interesting").
+   */
+  humanPrior?: number;
+  humanRank?: number;
   policy?: {
     rank: number;
     playedPrior: number;
@@ -579,6 +611,7 @@ export function computeGameReport(args: {
     );
     if (approved) aiApprovedMoveCount[player] += 1;
 
+    const human = humanPolicyStats({ move, humanPolicy: parent.analysis?.humanPolicy, boardSize });
     const policy = policyClassification({ move, candidates: cands, topCandidate: top });
     if (policy) {
       if (policy.rank >= 1 && policy.rank <= 5) aiTop5MoveCount[player] += 1;
@@ -607,6 +640,8 @@ export function computeGameReport(args: {
       topCandidate: top ?? undefined,
       isTopMove: top ? top.x === move.x && top.y === move.y : undefined,
       pv: top?.pv,
+      humanPrior: human?.prior,
+      humanRank: human?.rank,
       policy,
     });
   }

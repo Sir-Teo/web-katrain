@@ -5,12 +5,16 @@ import { FaBolt, FaCheck, FaChevronDown, FaGlobe, FaMicrochip, FaTimes } from 'r
 import type { GameSettings } from '../types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import {
+    KATAGO_HUMAN_MODEL_SIZE,
+    KATAGO_HUMAN_MODEL_URL,
     KATAGO_RECOMMENDED_MODEL_NAME,
     KATAGO_RECOMMENDED_MODEL_SIZE,
     KATAGO_RECOMMENDED_MODEL_UPLOADED,
     KATAGO_RECOMMENDED_MODEL_URL,
     KATAGO_SMALL_MODEL_PATH,
 } from '../engine/katago/modelDefaults';
+import { KATAGO_HUMAN_PROFILES } from '../engine/katago/searchParams';
+import { describeHumanProfile } from '../utils/humanProfileLabel';
 import { publicUrl } from '../utils/publicUrl';
 import { preferredScrollBehavior } from '../utils/mediaQuery';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../utils/boardThemes';
@@ -166,11 +170,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     );
     const engineModelLabel = getEngineModelLabel(engineModelName, settings.katagoModelUrl);
     const modelUploadInputRef = React.useRef<HTMLInputElement>(null);
+    const humanModelUploadInputRef = React.useRef<HTMLInputElement>(null);
+    const humanBlobUrlRef = React.useRef<string | null>(null);
     const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
     const [downloadingUrl, setDownloadingUrl] = React.useState<string | null>(null);
     const [downloadProgress, setDownloadProgress] = React.useState<number | null>(null);
     const [downloadError, setDownloadError] = React.useState<string | null>(null);
     const [modelUploadError, setModelUploadError] = React.useState<string | null>(null);
+    const [humanModelError, setHumanModelError] = React.useState<string | null>(null);
+    const [humanModelFileName, setHumanModelFileName] = React.useState<string | null>(null);
     const [uploadedModelInfo, setUploadedModelInfo] = React.useState<UploadedModelInfo | null>(() => getUploadedModelInfo());
     const [webGpuAvailability, setWebGpuAvailability] = React.useState<BrowserBackendAvailability>(() => detectWebGpuAvailability());
     const shortcutLabels = useShortcutLabels(ANALYSIS_OVERLAY_SHORTCUT_IDS);
@@ -395,6 +403,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         event.target.value = '';
     };
 
+    const handleHumanModelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        const problem = validateModelUploadFile(file);
+        if (problem) {
+            setHumanModelError(problem);
+            return;
+        }
+        setHumanModelError(null);
+        // Session-only: the blob URL dies with the page, and the stored setting is
+        // reset on load so a dead URL never comes back.
+        if (humanBlobUrlRef.current) URL.revokeObjectURL(humanBlobUrlRef.current);
+        const url = URL.createObjectURL(file);
+        humanBlobUrlRef.current = url;
+        setHumanModelFileName(file.name);
+        updateSettings({ humanSlModelUrl: url });
+    };
+
     const handleCopyUrl = async (url: string) => {
         const onCopied = () => {
             setCopiedUrl(url);
@@ -406,6 +433,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         if (await copyTextToClipboard(url)) {
             onCopied();
         }
+    };
+
+    const handleClearHumanUpload = () => {
+        if (humanBlobUrlRef.current) {
+            URL.revokeObjectURL(humanBlobUrlRef.current);
+            humanBlobUrlRef.current = null;
+        }
+        setHumanModelFileName(null);
+        setHumanModelError(null);
+        updateSettings({ humanSlModelUrl: KATAGO_HUMAN_MODEL_URL });
     };
 
     const handleClearUpload = () => {
@@ -1416,6 +1453,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             className={selectClass}
                                         >
                                             <option value="default">Default (engine top move)</option>
+                                            <option value="human">Human (KataGo human net)</option>
                                             <option value="rank">Rank (KaTrain)</option>
                                             <option value="simple">Simple Ownership (KaTrain)</option>
                                             <option value="settle">Settle Stones (KaTrain)</option>
@@ -1915,6 +1953,119 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
                                     )}
                                 </div>
+                                {/* Human SL Section */}
+                                <div className={sectionClass}>
+                                    <h3 className={sectionTitleClass}>Human-like moves</h3>
+                                    <div className="mt-4 space-y-4">
+                                        <div className={rowClass}>
+                                            <label htmlFor="settings-human-sl-enabled" className={labelClass}>
+                                                Show what a human would play
+                                            </label>
+                                            <input
+                                                id="settings-human-sl-enabled"
+                                                type="checkbox"
+                                                checked={settings.humanSlEnabled}
+                                                onChange={(e) => updateSettings({ humanSlEnabled: e.target.checked })}
+                                                className="toggle"
+                                            />
+                                        </div>
+                                        <p className={subtextClass}>
+                                            KataGo's human network predicts the move a player of a given rank would make, rather
+                                            than the best move. It is a second set of weights ({KATAGO_HUMAN_MODEL_SIZE}) downloaded
+                                            on first use, and it never changes the analysis itself.
+                                        </p>
+
+                                        {settings.humanSlEnabled || settings.aiStrategy === 'human' ? (
+                                            <>
+                                                <div className="space-y-2">
+                                                    <label htmlFor="settings-human-sl-profile" className="text-[var(--ui-text-muted)] block">
+                                                        Player profile
+                                                    </label>
+                                                    <select
+                                                        id="settings-human-sl-profile"
+                                                        value={settings.humanSlProfile}
+                                                        onChange={(e) => updateSettings({ humanSlProfile: e.target.value })}
+                                                        className={selectClass}
+                                                    >
+                                                        {KATAGO_HUMAN_PROFILES.map((profile) => (
+                                                            <option key={profile} value={profile}>
+                                                                {describeHumanProfile(profile)}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label htmlFor="settings-human-sl-source" className="text-[var(--ui-text-muted)] block">
+                                                        Policy overlay shows
+                                                    </label>
+                                                    <select
+                                                        id="settings-human-sl-source"
+                                                        value={settings.analysisPolicySource}
+                                                        onChange={(e) =>
+                                                            updateSettings({
+                                                                analysisPolicySource: e.target.value === 'human' ? 'human' : 'engine',
+                                                            })
+                                                        }
+                                                        className={selectClass}
+                                                    >
+                                                        <option value="engine">Engine policy</option>
+                                                        <option value="human">Human policy</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label htmlFor="settings-human-sl-url" className="text-[var(--ui-text-muted)] block">
+                                                        Human model URL
+                                                    </label>
+                                                    <input
+                                                        id="settings-human-sl-url"
+                                                        type="text"
+                                                        value={humanBlobUrlRef.current && settings.humanSlModelUrl === humanBlobUrlRef.current ? '' : settings.humanSlModelUrl}
+                                                        onChange={(e) => updateSettings({ humanSlModelUrl: e.target.value })}
+                                                        className={`${inputClass} text-xs`}
+                                                        placeholder={KATAGO_HUMAN_MODEL_URL}
+                                                    />
+                                                    <p className={subtextClass}>
+                                                        The official download does not allow cross-origin fetches, so either host the
+                                                        file yourself, put it under <span className="font-mono">{publicUrl('models/')}</span>,
+                                                        or load it from disk below.
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            className={pillButtonClass}
+                                                            onClick={() => humanModelUploadInputRef.current?.click()}
+                                                        >
+                                                            Load Human Weights
+                                                        </button>
+                                                        {humanModelFileName ? (
+                                                            <button type="button" className={pillButtonClass} onClick={handleClearHumanUpload}>
+                                                                Clear
+                                                            </button>
+                                                        ) : null}
+                                                        <input
+                                                            ref={humanModelUploadInputRef}
+                                                            type="file"
+                                                            accept={MODEL_UPLOAD_ACCEPT}
+                                                            onChange={handleHumanModelUpload}
+                                                            className="hidden"
+                                                        />
+                                                    </div>
+                                                    {humanModelFileName ? (
+                                                        <p className={subtextClass}>
+                                                            Using <span className="font-mono">{humanModelFileName}</span> for this session only.
+                                                        </p>
+                                                    ) : null}
+                                                    {humanModelError ? (
+                                                        <p className="text-xs text-[var(--ui-danger,#ef4444)]">{humanModelError}</p>
+                                                    ) : null}
+                                                </div>
+                                            </>
+                                        ) : null}
+                                    </div>
+                                </div>
+
                                 {/* KataGo Section */}  
                                 <div className={sectionClass}>  
                                     <h3 className={sectionTitleClass}>KataGo</h3>

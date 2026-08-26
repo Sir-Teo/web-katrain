@@ -31,3 +31,17 @@ describe('NotesPanel analysis status line', () => {
     expect(source).toContain('let text = moveLine;');
   });
 });
+
+describe('NotesPanel human policy line', () => {
+  it('reports how often a player of the configured rank plays the move', () => {
+    const source = readFileSync('src/components/NotesPanel.tsx', 'utf8');
+
+    // KataGo's human network answers the question a reviewer actually has: was
+    // this a normal move at my level, or an unusual one? The line only appears
+    // when that network produced a policy for the parent position.
+    expect(source).toContain('const parentHumanPolicy = parent?.analysis?.humanPolicy;');
+    expect(source).toContain('if (!detailed || !move || !parentHumanPolicy) return null;');
+    expect(source).toContain('text += `Human ${humanProfileLabel}${rankPart}:');
+    expect(source).toContain('text += `Human pick: ${bestLabel}');
+  });
+});

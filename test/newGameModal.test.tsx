@@ -25,6 +25,7 @@ function aiConfig(args: {
   return {
     opponent: args.opponent ?? 'none',
     aiStrategy: args.strategy ?? settings.aiStrategy,
+    humanSlProfile: settings.humanSlProfile,
     aiRankKyu: settings.aiRankKyu,
     aiScoreLossStrength: settings.aiScoreLossStrength,
     aiPolicyOpeningMoves: settings.aiPolicyOpeningMoves,

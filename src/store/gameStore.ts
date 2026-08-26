@@ -7,7 +7,8 @@ import { coordinateToSgf, expandSgfPointList, extractKaTrainUserNoteFromSgfComme
 import { getKataGoEngineClient, isKataGoCanceledError } from '../engine/katago/client';
 import type { KataGoAnalysisPayload } from '../engine/katago/types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
-import { KATAGO_RECOMMENDED_MODEL_URL, KATAGO_SMALL_MODEL_PATH } from '../engine/katago/modelDefaults';
+import { KATAGO_HUMAN_MODEL_URL, KATAGO_RECOMMENDED_MODEL_URL, KATAGO_SMALL_MODEL_PATH } from '../engine/katago/modelDefaults';
+import { KATAGO_HUMAN_PROFILE_DEFAULT } from '../engine/katago/searchParams';
 import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katrainSgfAnalysis';
 import { decodeKayaKa } from '../utils/kayaSgfAnalysis';
 import { publicUrl } from '../utils/publicUrl';
@@ -31,6 +32,7 @@ import {
   type ActiveBranchMap,
 } from '../utils/branchNavigation';
 import { ensurePinGameId, getNodePath, getPinGameId, resolveNodePath, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
+import { describeHumanBotPick, pickHumanBotMove } from '../utils/humanBotMove';
 import { getResignResult } from '../utils/resign';
 import {
   admitNotification,
@@ -161,8 +163,10 @@ interface GameStore extends GameState {
     reuseTree?: boolean;
     ownershipRefreshIntervalMs?: number;
     reportEveryMs?: number;
+    /** Moves the search may not play at the root (KataGo avoidMoves). */
+    avoidMoves?: Array<{ x: number; y: number }>;
   }) => Promise<void>;
-  analyzeExtra: (mode: 'extra' | 'equalize' | 'sweep' | 'alternative' | 'stop') => void;
+  analyzeExtra: (mode: 'extra' | 'equalize' | 'sweep' | 'alternative' | 'without-top' | 'stop') => void;
   resetCurrentAnalysis: () => void;
   startSelectRegionOfInterest: () => void;
   cancelSelectRegionOfInterest: () => void;
@@ -270,6 +274,14 @@ const loadStoredSettings = (): Partial<GameSettings> | null => {
     const isV1Settings = legacyEntry?.key === 'web-katrain:settings:v1';
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
+    // An uploaded human net lives in a blob: URL that dies with the page, so a
+    // stored one would only produce a failing fetch on the next load.
+    if ('humanSlModelUrl' in parsed) {
+      const stored = (parsed as { humanSlModelUrl?: unknown }).humanSlModelUrl;
+      if (typeof stored !== 'string' || /^blob:/i.test(stored.trim())) {
+        delete (parsed as { humanSlModelUrl?: unknown }).humanSlModelUrl;
+      }
+    }
     if ('katagoModelUrl' in parsed) {
       const normalized = normalizeModelUrl((parsed as { katagoModelUrl?: unknown }).katagoModelUrl);
       if (normalized) {
@@ -1027,6 +1039,10 @@ const defaultSettings: GameSettings = {
   katagoAnalysisPvLen: 15,
   katagoNnRandomize: true,
   katagoConservativePass: true,
+  humanSlEnabled: false,
+  humanSlModelUrl: KATAGO_HUMAN_MODEL_URL,
+  humanSlProfile: KATAGO_HUMAN_PROFILE_DEFAULT,
+  analysisPolicySource: 'engine',
   teachNumUndoPrompts: [1, 1, 1, 0.5, 0, 0],
 
   aiStrategy: 'rank',
@@ -1418,6 +1434,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
         topK: Math.max(s.settings.katagoTopK, 20),
         reuseTree: false,
         maxTimeMs: longTimeMs,
+      });
+      return;
+    }
+
+    if (mode === 'without-top') {
+      const candidates = s.currentNode.analysis?.moves ?? [];
+      const top = candidates.find((m) => m.order === 0) ?? candidates[0] ?? null;
+      if (!top || top.x < 0 || top.y < 0) {
+        set({ notification: { message: 'Analyze the position first, then ask what else there is.', type: 'error' } });
+        return;
+      }
+      const label = `${String.fromCharCode(65 + (top.x >= 8 ? top.x + 1 : top.x))}${s.board.length - top.y}`;
+      const visits = Math.max(16, Math.min(s.settings.katagoVisits, ENGINE_MAX_VISITS));
+      toast(`Analyzing without ${label}: ${visits} visits`);
+      void s.runAnalysis({
+        force: true,
+        visits,
+        reuseTree: false,
+        maxTimeMs: longTimeMs,
+        avoidMoves: [{ x: top.x, y: top.y }],
       });
       return;
     }
@@ -2395,7 +2431,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 s.settings.katagoOwnershipMode,
                 s.settings.katagoWideRootNoise,
                 s.settings.katagoNnRandomize,
-                s.settings.katagoConservativePass
+                s.settings.katagoConservativePass,
+                s.settings.humanSlEnabled ? s.settings.humanSlProfile : '',
+                s.settings.humanSlEnabled ? s.settings.humanSlModelUrl : ''
               ),
               run: () => getKataGoEngineClient().analyze({
               positionId: node.id,
@@ -2417,6 +2455,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
               wideRootNoise: s.settings.katagoWideRootNoise,
               nnRandomize: s.settings.katagoNnRandomize,
               conservativePass: s.settings.katagoConservativePass,
+              humanModelUrl: s.settings.humanSlEnabled ? s.settings.humanSlModelUrl : undefined,
+              humanSlProfile: s.settings.humanSlEnabled ? s.settings.humanSlProfile : undefined,
               visits,
               maxTimeMs,
               batchSize,
@@ -2507,7 +2547,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       // Check if current node already has analysis
       const desiredVisits = Math.max(16, Math.min(opts?.visits ?? state.settings.katagoVisits, ENGINE_MAX_VISITS));
-      if (!opts?.force && state.currentNode.analysis) {
+      const avoidMoves = opts?.avoidMoves && opts.avoidMoves.length > 0 ? opts.avoidMoves : undefined;
+      if (!opts?.force && !avoidMoves && state.currentNode.analysis) {
         const existing = state.currentNode.analysis;
         const existingOwnershipMode = existing.ownershipMode ?? 'root';
         const requiredOwnershipMode = state.settings.katagoOwnershipMode;
@@ -2568,6 +2609,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               moves: analysis.moves,
               territory: opts.includeTerritory ? ownershipToTerritoryGrid(analysis.ownership, boardSize) : opts.fallbackTerritory,
               policy: analysis.policy,
+              humanPolicy: analysis.humanPolicy,
               ownershipStdev: analysis.ownershipStdev,
               ownershipMode: state.settings.katagoOwnershipMode,
             };
@@ -2664,7 +2706,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         batchSize,
         maxChildren,
         reuseTree,
-        ownershipRefreshIntervalMs
+        ownershipRefreshIntervalMs,
+        state.settings.humanSlEnabled ? state.settings.humanSlProfile : '',
+        state.settings.humanSlEnabled ? state.settings.humanSlModelUrl : '',
+        avoidMoves ? avoidMoves.map((m) => `${m.x},${m.y}`).sort().join(' ') : ''
       );
       set({ engineStatus: 'loading', engineError: null });
 
@@ -2699,6 +2744,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             wideRootNoise,
             nnRandomize,
             conservativePass,
+            humanModelUrl: state.settings.humanSlEnabled ? state.settings.humanSlModelUrl : undefined,
+            humanSlProfile: state.settings.humanSlEnabled ? state.settings.humanSlProfile : undefined,
+            avoidMoves: avoidMoves?.map((m) => ({ x: m.x, y: m.y, player: state.currentPlayer })),
           visits,
           maxTimeMs,
           batchSize,
@@ -3171,6 +3219,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const nnRandomize = false;
         const conservativePass = state.settings.katagoConservativePass;
         const aiNeedsMovesOwnership = state.settings.aiStrategy === 'simple' || state.settings.aiStrategy === 'settle';
+        const aiWantsHumanPolicy = state.settings.aiStrategy === 'human' && !!state.settings.humanSlModelUrl;
         const aiOwnershipMode = aiNeedsMovesOwnership ? 'tree' : state.settings.katagoOwnershipMode;
         const topK =
           state.settings.aiStrategy === 'default'
@@ -3215,7 +3264,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             maxChildren,
             state.settings.katagoReuseTree,
             aiOwnershipMode,
-            state.settings.aiStrategy
+            state.settings.aiStrategy,
+            aiWantsHumanPolicy ? state.settings.humanSlProfile : ''
           ),
           preempt: true,
           run: () => getKataGoEngineClient().analyze({
@@ -3238,6 +3288,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             wideRootNoise,
             nnRandomize,
             conservativePass,
+            humanModelUrl: aiWantsHumanPolicy ? state.settings.humanSlModelUrl : undefined,
+            humanSlProfile: aiWantsHumanPolicy ? state.settings.humanSlProfile : undefined,
           visits,
           maxTimeMs,
           batchSize,
@@ -3267,6 +3319,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             moves: analysis.moves,
             territory: ownershipToTerritoryGrid(analysis.ownership, boardSize),
             policy: analysis.policy,
+            humanPolicy: analysis.humanPolicy,
             ownershipStdev: analysis.ownershipStdev,
             ownershipMode: aiOwnershipMode,
           };
@@ -3339,6 +3392,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 x: best.x,
                 y: best.y,
                 thoughts: `Default strategy chose top move ${bestLabel}.`,
+              };
+            }
+
+            if (strategy === 'human') {
+              const humanPolicy = analysisWithTerritory.humanPolicy;
+              if (humanPolicy) {
+                const pick = pickHumanBotMove({
+                  humanPolicy,
+                  boardSize,
+                  engineBest: best,
+                  isLegal: (x, y) => isValidMove(latest.board, x, y, playerAtStart, parentBoard),
+                });
+                if (pick) {
+                  return {
+                    x: pick.x,
+                    y: pick.y,
+                    thoughts: describeHumanBotPick(pick, settings.humanSlProfile, boardSize),
+                  };
+                }
+              }
+              // Without the human net there is nothing human to imitate, so fall back
+              // to the engine's own move rather than playing something random.
+              if (!best) return null;
+              return {
+                x: best.x,
+                y: best.y,
+                thoughts: `Human profile unavailable, played the engine's move ${bestLabel}.`,
               };
             }
 

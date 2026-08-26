@@ -23,10 +23,13 @@ import {
 } from './backendFallback';
 import { BOARD_AREA, BOARD_SIZE, PASS_MOVE, setBoardSize } from './fastBoard';
 import { postprocessKataGoV8 } from './evalV8';
+import { humanSlMetadataRow } from './humanSlProfile';
 
 let model: KataGoModelV8Tf | null = null;
 let loadedModelName: string | undefined;
 let loadedModelUrl: string | null = null;
+let humanModel: KataGoModelV8Tf | null = null;
+let loadedHumanModelUrl: string | null = null;
 let backendPromise: Promise<void> | null = null;
 let backendPreference: KataGoBackendPreference | null = null;
 let prodModeEnabled = false;
@@ -84,6 +87,8 @@ let searchKey: {
   nnRandomize: boolean;
   conservativePass: boolean;
   roiKey: string | null;
+  humanKey: string | null;
+  avoidKey: string | null;
 } | null = null;
 const latestAnalyzeByGroup = new Map<string, number>();
 let interactiveToken = 0;
@@ -266,6 +271,131 @@ async function ensureModel(modelUrl: string, backend?: KataGoBackendPreference):
   }
 }
 
+/**
+ * Loads KataGo's human SL net, which is a second network used only to predict how a
+ * human of a given rank would move. It is kept separate from the main model: the
+ * analysis itself always comes from the strong net.
+ */
+async function ensureHumanModel(modelUrl: string): Promise<KataGoModelV8Tf> {
+  if (humanModel && loadedHumanModelUrl === modelUrl) return humanModel;
+
+  const res = await fetch(modelUrl);
+  if (!res.ok) throw new Error(`Failed to fetch human model: ${res.status} ${res.statusText}`);
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (looksLikeMarkup(buf)) throw modelResponseError(modelUrl);
+  const parsed = parseKataGoModelV8(maybeUngzip(buf));
+  if (parsed.metaEncoderVersion !== 1) {
+    throw new Error('That model is not a human SL net (it has no metadata encoder)');
+  }
+  humanModel = new KataGoModelV8Tf(parsed);
+  loadedHumanModelUrl = modelUrl;
+  return humanModel;
+}
+
+/** Softmax over the board points of a logit array, ignoring the pass at the end. */
+function softmaxOverBoard(logits: Float32Array): Float32Array {
+  const out = new Float32Array(BOARD_AREA);
+  let max = -Infinity;
+  for (let p = 0; p < BOARD_AREA; p++) if (logits[p]! > max) max = logits[p]!;
+  let sum = 0;
+  for (let p = 0; p < BOARD_AREA; p++) {
+    const v = Math.exp(logits[p]! - max);
+    out[p] = v;
+    sum += v;
+  }
+  if (sum > 0) for (let p = 0; p < BOARD_AREA; p++) out[p]! /= sum;
+  return out;
+}
+
+/** Raw human-net policy logits for one position, including the pass at the end. */
+async function computeHumanPolicyLogits(args: {
+  modelUrl: string;
+  profile: string;
+  board: KataGoAnalyzeRequest['board'];
+  previousBoard?: KataGoAnalyzeRequest['previousBoard'];
+  previousPreviousBoard?: KataGoAnalyzeRequest['previousPreviousBoard'];
+  currentPlayer: KataGoAnalyzeRequest['currentPlayer'];
+  moveHistory: KataGoAnalyzeRequest['moveHistory'];
+  komi: number;
+  rules: GameRules;
+  conservativePass: boolean;
+}): Promise<Float32Array> {
+  const net = await ensureHumanModel(args.modelUrl);
+  const metaRow = humanSlMetadataRow({
+    profile: args.profile,
+    nextPlayer: args.currentPlayer,
+    boardArea: BOARD_AREA,
+  });
+  if (!metaRow) throw new Error(`Unknown human profile "${args.profile}"`);
+
+  fillInputsV7FastForPosition({
+    board: args.board,
+    previousBoard: args.previousBoard,
+    previousPreviousBoard: args.previousPreviousBoard,
+    currentPlayer: args.currentPlayer,
+    moveHistory: args.moveHistory,
+    komi: args.komi,
+    rules: args.rules,
+    conservativePassAndIsRoot: args.conservativePass,
+    outSpatial: evalSpatialV7,
+    outGlobal: evalGlobalV7,
+  });
+
+  const spatial = tf.tensor4d(evalSpatialV7, [1, BOARD_SIZE, BOARD_SIZE, 22]);
+  const global = tf.tensor2d(evalGlobalV7, [1, 19]);
+  const meta = tf.tensor2d(metaRow, [1, metaRow.length]);
+  const out = net.forwardPolicyValue(spatial, global, meta);
+  try {
+    const [policyArr, passArr] = await Promise.all([out.policy.data(), out.policyPass.data()]);
+    const channels = net.policyOutChannels;
+    const logits = new Float32Array(BOARD_AREA + 1);
+    for (let p = 0; p < BOARD_AREA; p++) logits[p] = (policyArr as Float32Array)[p * channels]!;
+    logits[BOARD_AREA] = (passArr as Float32Array)[0]!;
+    return logits;
+  } finally {
+    spatial.dispose();
+    global.dispose();
+    meta.dispose();
+    out.policy.dispose();
+    out.policyPass.dispose();
+    out.value.dispose();
+    out.scoreValue.dispose();
+  }
+}
+
+/**
+ * Turns raw human logits into a probability per legal move, using the search's own
+ * policy array to say which moves are legal (illegal stays -1, as there).
+ */
+function humanPolicyFromLogits(logits: Float32Array, legality: ArrayLike<number>): Float32Array {
+  const out = new Float32Array(BOARD_AREA + 1);
+  let max = -Infinity;
+  for (let p = 0; p <= BOARD_AREA; p++) {
+    if (legality[p]! < 0) continue;
+    if (logits[p]! > max) max = logits[p]!;
+  }
+  if (!Number.isFinite(max)) {
+    out.fill(-1);
+    return out;
+  }
+  let sum = 0;
+  for (let p = 0; p <= BOARD_AREA; p++) {
+    if (legality[p]! < 0) {
+      out[p] = -1;
+      continue;
+    }
+    const v = Math.exp(logits[p]! - max);
+    out[p] = v;
+    sum += v;
+  }
+  if (sum > 0) {
+    for (let p = 0; p <= BOARD_AREA; p++) {
+      if (out[p]! >= 0) out[p]! /= sum;
+    }
+  }
+  return out;
+}
+
 function post(msg: KataGoWorkerResponse, transfer?: Transferable[]) {
   if (transfer && transfer.length > 0) self.postMessage(msg, transfer);
   else self.postMessage(msg);
@@ -319,6 +449,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       valueLogits: valueLogitsArr,
       scoreValue: scoreValueArr,
       postProcessParams: model.postProcessParams,
+      modelVersion: model.modelVersion,
     });
 
     post({
@@ -388,13 +519,15 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     out.value.dispose();
     out.scoreValue.dispose();
 
+    const scoreChannels = model.scoreValueChannels;
     const evals = new Array(batch);
     for (let i = 0; i < batch; i++) {
       const evaled = postprocessKataGoV8({
         nextPlayer: msg.positions[i]!.currentPlayer,
         valueLogits: valueLogitsArr.subarray(i * 3, i * 3 + 3),
-        scoreValue: scoreValueArr.subarray(i * 4, i * 4 + 4),
+        scoreValue: scoreValueArr.subarray(i * scoreChannels, i * scoreChannels + scoreChannels),
         postProcessParams: model.postProcessParams,
+        modelVersion: model.modelVersion,
       });
       evals[i] = {
         rootWinRate: evaled.blackWinProb,
@@ -469,6 +602,51 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         : 0;
     const shouldReport = reportEveryMs > 0;
     const cloneBuffers = msg.reuseTree === true || shouldReport;
+    const humanKey = msg.humanModelUrl && msg.humanSlProfile ? `${msg.humanSlProfile}@${msg.humanModelUrl}` : null;
+
+    // KataGo avoidMoves: points the search is not allowed to play at the root, which
+    // is how an analysis answers "and if that move were not available?".
+    let avoidRootMoves: Uint8Array | null = null;
+    let avoidKey: string | null = null;
+    if (msg.avoidMoves && msg.avoidMoves.length > 0) {
+      const mask = new Uint8Array(BOARD_AREA);
+      const parts: string[] = [];
+      for (const move of msg.avoidMoves) {
+        if (move.x < 0 || move.y < 0 || move.x >= BOARD_SIZE || move.y >= BOARD_SIZE) continue;
+        mask[move.y * BOARD_SIZE + move.x] = 1;
+        parts.push(`${move.x},${move.y}`);
+      }
+      if (parts.length > 0) {
+        avoidRootMoves = mask;
+        avoidKey = parts.sort().join(' ');
+      }
+    }
+
+    // The human policy is about the position, not the search, so it is computed up
+    // front: its favourite moves are added to the root so the report says what they
+    // are worth, and the same numbers are reported alongside the analysis.
+    let humanLogits: Float32Array | null = null;
+    let humanPolicyError: string | undefined;
+    if (msg.humanModelUrl && msg.humanSlProfile) {
+      try {
+        humanLogits = await computeHumanPolicyLogits({
+          modelUrl: msg.humanModelUrl,
+          profile: msg.humanSlProfile,
+          board: msg.board,
+          previousBoard: msg.previousBoard,
+          previousPreviousBoard: msg.previousPreviousBoard,
+          currentPlayer: msg.currentPlayer,
+          moveHistory: msg.moveHistory,
+          komi: msg.komi,
+          rules,
+          conservativePass,
+        });
+      } catch (err) {
+        // A missing or broken human net must not take the real analysis down with it.
+        humanPolicyError = err instanceof Error ? err.message : String(err);
+      }
+    }
+    const humanMovePriors = humanLogits ? softmaxOverBoard(humanLogits) : null;
 
     const canReuse =
       msg.reuseTree === true &&
@@ -488,7 +666,9 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.rules === rules &&
       searchKey.nnRandomize === nnRandomize &&
       searchKey.conservativePass === conservativePass &&
-      searchKey.roiKey === roiKey;
+      searchKey.roiKey === roiKey &&
+      searchKey.humanKey === humanKey &&
+      searchKey.avoidKey === avoidKey;
 
     let reusedSearch = canReuse;
 
@@ -513,7 +693,9 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         searchKey.rules === rules &&
         searchKey.nnRandomize === nnRandomize &&
         searchKey.conservativePass === conservativePass &&
-        searchKey.roiKey === roiKey;
+        searchKey.roiKey === roiKey &&
+        searchKey.humanKey === humanKey &&
+        searchKey.avoidKey === avoidKey;
 
       if (canReRoot) {
         const lastMove = msg.moveHistory[msg.moveHistory.length - 1] ?? null;
@@ -548,6 +730,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
               nnRandomize,
               conservativePass,
               roiKey,
+              humanKey,
+              avoidKey,
             };
           }
         }
@@ -571,6 +755,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         wideRootNoise,
         rootSymmetrySamples,
         regionOfInterest: msg.regionOfInterest,
+        humanPolicy: humanMovePriors,
+        avoidRootMoves,
       });
       if (typeof msg.positionId === 'string') {
         searchKey = {
@@ -588,6 +774,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           nnRandomize,
           conservativePass,
           roiKey,
+          humanKey,
+          avoidKey,
         };
       } else {
         searchKey = null;
@@ -599,9 +787,19 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       const push = (value?: unknown) => {
         if (value && ArrayBuffer.isView(value)) transfer.push(value.buffer);
       };
+      if (humanLogits) {
+        const humanPolicy = humanPolicyFromLogits(humanLogits, analysis.policy);
+        analysis.humanPolicy = humanPolicy;
+        for (const move of analysis.moves) {
+          const pos = move.x < 0 || move.y < 0 ? BOARD_AREA : move.y * BOARD_SIZE + move.x;
+          const prior = humanPolicy[pos] ?? -1;
+          if (prior >= 0) move.humanPrior = prior;
+        }
+      }
       push(analysis.ownership);
       push(analysis.ownershipStdev);
       push(analysis.policy);
+      push(analysis.humanPolicy);
       for (const move of analysis.moves) push(move.ownership);
 
       post(
@@ -612,6 +810,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           backend: tf.getBackend(),
           modelName: loadedModelName,
           analysis,
+          humanPolicyError,
         },
         transfer
       );

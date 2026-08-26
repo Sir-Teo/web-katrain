@@ -2226,7 +2226,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
     if (!hasAnalysisOverlay || !settings.analysisShowPolicy) return;
-    const policy = visibleAnalysis?.policy;
+    // With the human SL net loaded, the same overlay can show how a player of the
+    // configured rank would move instead of the engine's own policy.
+    if (!visibleAnalysis) return;
+    const humanPolicy = visibleAnalysis.humanPolicy;
+    const policy = settings.analysisPolicySource === 'human' && humanPolicy ? humanPolicy : visibleAnalysis.policy;
     if (!policy) return;
 
     let best = 0;
@@ -2335,6 +2339,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     currentPlayer,
     settings.analysisPolicyMetric,
     settings.analysisShowPolicy,
+    settings.analysisPolicySource,
     settings.trainerExtraPrecision,
     setupOverlayCanvas,
     toDisplay,
@@ -3146,8 +3151,16 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 {typeof hoveredMove.winRateLost === 'number' && (
                   <div>Winrate Lost: {(hoveredMove.winRateLost * 100).toFixed(1)}%</div>
                 )}
+                {typeof hoveredMove.lcb === 'number' && (
+                  <div title="Lower confidence bound: how bad this move could still turn out to be">
+                    LCB: {(hoveredMove.lcb * 100).toFixed(1)}%
+                  </div>
+                )}
                 {typeof hoveredMove.prior === 'number' && (
                   <div>Prior: {(hoveredMove.prior * 100).toFixed(1)}%</div>
+                )}
+                {typeof hoveredMove.humanPrior === 'number' && (
+                  <div>Human: {(hoveredMove.humanPrior * 100).toFixed(1)}%</div>
                 )}
                 <div>Visits: {hoveredMove.visits}</div>
                 {hoveredMove.pv && hoveredMove.pv.length > 0 && (

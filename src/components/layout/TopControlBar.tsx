@@ -104,7 +104,7 @@ interface TopControlBarProps {
   viewMenuOpen: boolean;
   setViewMenuOpen: (v: boolean) => void;
   // Analysis actions
-  analyzeExtra: (action: 'extra' | 'equalize' | 'sweep' | 'alternative' | 'stop') => void;
+  analyzeExtra: (action: 'extra' | 'equalize' | 'sweep' | 'alternative' | 'without-top' | 'stop') => void;
   startSelectRegionOfInterest: () => void;
   cancelSelectRegionOfInterest: () => void;
   isSelectingRegionOfInterest: boolean;

@@ -12,6 +12,7 @@ import { getNoteEditorSyncDecision } from '../utils/noteEditorState';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 import { getCurrentLineMoveNumber, isGameNodeStep } from '../utils/branchNavigation';
+import { describeHumanProfile } from '../utils/humanProfileLabel';
 
 const NOTE_SHORTCUT_IDS = ['edit-note'] as const;
 
@@ -245,7 +246,19 @@ function NotePreview({ note }: { note: string }) {
 }
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, showNotes, showShapeCoach = true, focusRequest = 0 }) => {
-  const { rootNode, currentNode, setCurrentNodeNote, treeVersion, gameRules, isAnalysisMode, engineStatus, engineError, noteFontScale, updateSettings } = useGameStore(
+  const {
+    rootNode,
+    currentNode,
+    setCurrentNodeNote,
+    treeVersion,
+    gameRules,
+    isAnalysisMode,
+    engineStatus,
+    engineError,
+    noteFontScale,
+    humanSlProfile,
+    updateSettings,
+  } = useGameStore(
     (state) => ({
       rootNode: state.rootNode,
       currentNode: state.currentNode,
@@ -256,6 +269,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       engineStatus: state.engineStatus,
       engineError: state.engineError,
       noteFontScale: state.settings.noteFontScale,
+      humanSlProfile: state.settings.humanSlProfile,
       updateSettings: state.updateSettings,
     }),
     shallow
@@ -277,6 +291,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   );
   const parent = currentNode.parent;
   const parentPolicy = parent?.analysis?.policy;
+  const parentHumanPolicy = parent?.analysis?.humanPolicy;
+  const humanProfileLabel = describeHumanProfile(humanSlProfile);
   const depth = getCurrentLineMoveNumber(currentNode);
   const label = moveToLabel(move, boardSize);
   const currentNoMoveLabel = noMoveNodeLabel(currentNode);
@@ -298,6 +314,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     const best = rankList[0] ?? null;
     return { rank: rank > 0 ? rank : null, prob, best };
   }, [boardSize, detailed, move, parentPolicy]);
+
+  // How often a player of the configured rank plays the move that was actually
+  // played, from KataGo's human network. This is the number that tells a reviewer
+  // whether a move was a normal choice at their level or an unusual one.
+  const humanStats = useMemo(() => {
+    if (!detailed || !move || !parentHumanPolicy) return null;
+    const idx = move.x < 0 || move.y < 0 ? boardSize * boardSize : move.y * boardSize + move.x;
+    const prob = parentHumanPolicy[idx] ?? -1;
+    if (!(prob >= 0)) return null;
+    const rankList = policyRanking(parentHumanPolicy, boardSize);
+    const rank =
+      rankList.findIndex((m) =>
+        move.x < 0 || move.y < 0 ? m.isPass : !m.isPass && m.x === move.x && m.y === move.y
+      ) + 1;
+    return { prob, rank: rank > 0 ? rank : null, best: rankList[0] ?? null };
+  }, [boardSize, detailed, move, parentHumanPolicy]);
 
   const topMove = useMemo(() => bestMoveFromCandidates(parent?.analysis?.moves), [parent?.analysis?.moves]);
   const topMoveLabel =
@@ -493,6 +525,17 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       text += `Policy rank: #${policyStats.rank} (${(policyStats.prob * 100).toFixed(2)}%)\n`;
       if (policyStats.rank !== 1 && policyStats.best) {
         text += `Policy best: ${policyStats.best.isPass ? 'Pass' : moveToLabel({ x: policyStats.best.x, y: policyStats.best.y, player: move.player }, boardSize)} (${(policyStats.best.prob * 100).toFixed(2)}%)\n`;
+      }
+    }
+
+    if (detailed && humanStats) {
+      const rankPart = humanStats.rank ? ` #${humanStats.rank}` : '';
+      text += `Human ${humanProfileLabel}${rankPart}: ${(humanStats.prob * 100).toFixed(2)}%\n`;
+      if (humanStats.rank !== 1 && humanStats.best) {
+        const bestLabel = humanStats.best.isPass
+          ? 'Pass'
+          : moveToLabel({ x: humanStats.best.x, y: humanStats.best.y, player: move.player }, boardSize);
+        text += `Human pick: ${bestLabel} (${(humanStats.best.prob * 100).toFixed(2)}%)\n`;
       }
     }
 

@@ -6,6 +6,13 @@ export type KataGoEval = {
   blackScoreMean: number; // >0 means black ahead (score mean)
   blackScoreStdev: number; // >=0
   blackNoResultProb: number; // 0..1
+  /**
+   * The net's own estimate of how much its win/loss and score judgements will move
+   * over the next few moves. Only nets from model version 10 on predict these; older
+   * ones report -1, exactly like KataGo does (cpp/neuralnet/nneval.cpp).
+   */
+  shorttermWinlossError: number;
+  shorttermScoreError: number;
 };
 
 export type KataGoPostProcessParams = {
@@ -13,6 +20,8 @@ export type KataGoPostProcessParams = {
   scoreStdevMultiplier: number;
   leadMultiplier: number;
   outputScaleMultiplier: number;
+  shorttermValueErrorMultiplier?: number;
+  shorttermScoreErrorMultiplier?: number;
 };
 
 const softPlus = (x: number): number => {
@@ -25,8 +34,11 @@ const softPlus = (x: number): number => {
 export function postprocessKataGoV8(args: {
   nextPlayer: Player;
   valueLogits: ArrayLike<number>; // [win, loss, noResult] from player-to-move perspective
-  scoreValue: ArrayLike<number>; // [scoreMean, scoreStdevPreSoftplus, lead, varTimeLeftPreSoftplus]
+  // [scoreMean, scoreStdevPreSoftplus, lead, varTimeLeftPreSoftplus,
+  //  shorttermWinlossErrorPreSoftplus, shorttermScoreErrorPreSoftplus]
+  scoreValue: ArrayLike<number>;
   postProcessParams?: KataGoPostProcessParams;
+  modelVersion?: number;
 }): KataGoEval {
   const { nextPlayer, valueLogits, scoreValue } = args;
   const postProcessParams = args.postProcessParams;
@@ -71,11 +83,37 @@ export function postprocessKataGoV8(args: {
   const blackScoreStdev = Math.sqrt(Math.max(0, scoreMeanSq - scoreMean * scoreMean));
   const blackNoResultProb = noResultProb;
 
+  // Shortterm error heads: model version 10 and up (cpp/neuralnet/nneval.cpp, the
+  // modelVersion >= 4 block). Version 14 halves the pre-softplus input and squares.
+  let shorttermWinlossError = -1;
+  let shorttermScoreError = -1;
+  if (scoreValue.length >= 6) {
+    const modelVersion = args.modelVersion ?? 0;
+    const valueErrorMultiplier = postProcessParams?.shorttermValueErrorMultiplier ?? 0.25;
+    const scoreErrorMultiplier = postProcessParams?.shorttermScoreErrorMultiplier ?? 30.0;
+    const winlossPre = scoreValue[4]! * outputScaleMultiplier;
+    const scorePre = scoreValue[5]! * outputScaleMultiplier;
+    if (modelVersion >= 14) {
+      const sw = softPlus(winlossPre * 0.5);
+      shorttermWinlossError = Math.sqrt(sw * sw * valueErrorMultiplier);
+      const ss = softPlus(scorePre * 0.5);
+      shorttermScoreError = Math.sqrt(ss * ss * scoreErrorMultiplier);
+    } else if (modelVersion >= 10) {
+      shorttermWinlossError = Math.sqrt(softPlus(winlossPre) * valueErrorMultiplier);
+      shorttermScoreError = Math.sqrt(softPlus(scorePre) * scoreErrorMultiplier);
+    } else {
+      shorttermWinlossError = softPlus(winlossPre);
+      shorttermScoreError = softPlus(scorePre) * 10.0;
+    }
+  }
+
   return {
     blackWinProb,
     blackScoreLead,
     blackScoreMean,
     blackScoreStdev,
     blackNoResultProb,
+    shorttermWinlossError,
+    shorttermScoreError,
   };
 }

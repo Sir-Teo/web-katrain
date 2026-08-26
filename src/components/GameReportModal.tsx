@@ -35,6 +35,7 @@ import { afterAnimationFrames } from '../utils/animationFrame';
 import { printWindow } from '../utils/print';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { describeHumanProfile } from '../utils/humanProfileLabel';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -153,6 +154,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     isInsertMode,
     startFastGameAnalysis,
     stopGameAnalysis,
+    humanSlProfile,
   } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
@@ -167,9 +169,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       isInsertMode: state.isInsertMode,
       startFastGameAnalysis: state.startFastGameAnalysis,
       stopGameAnalysis: state.stopGameAnalysis,
+      humanSlProfile: state.settings.humanSlProfile,
     }),
     shallow
   );
+  const humanProfileLabel = describeHumanProfile(humanSlProfile);
   const [phaseFilter, setPhaseFilter] = useState<GameReportPhaseFilter>('all');
   const [reportGraph, setReportGraph] = useState({ score: true, winrate: true });
   const [playerFilter, setPlayerFilter] = useState<'all' | Player>('all');
@@ -775,6 +779,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 </span>{' '}
                 {policyRank} · {fmtPolicyPct(policy?.relativePrior)} of top
               </span>
+              {typeof entry.humanPrior === 'number' && (
+                <span
+                  title={`How often a player of the configured rank plays this move, from KataGo's human network${entry.humanRank ? ` (their #${entry.humanRank} choice here)` : ''}`}
+                >
+                  {humanProfileLabel}: {fmtPolicyPct(entry.humanPrior)}
+                  {entry.humanRank ? ` · #${entry.humanRank}` : ''}
+                </span>
+              )}
               <span>
                 Win: {fmtWinRate(entry.winRateBefore)} {'->'} {fmtWinRate(entry.winRateAfter)} ({fmtWinSwing(entry.winRateSwing)})
               </span>

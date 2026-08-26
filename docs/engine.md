@@ -18,6 +18,7 @@ binary and does not require a backend server.
 | `src/engine/katago/evalV8.ts` | Post-processing of network value and score outputs. |
 | `src/engine/katago/positionInputsV7.ts` | Board position to v7 input planes, including ko, ladder, and area features. |
 | `src/engine/katago/backendFallback.ts` | TensorFlow.js backend preference and fallback helpers. |
+| `src/engine/katago/humanSlProfile.ts` | Metadata rows for KataGo's human SL net (rank, era, time control). |
 
 ## Model Loading
 
@@ -102,9 +103,73 @@ search. A normal analysis request can control:
 The returned payload includes root win rate, root score lead, score self-play,
 score standard deviation, visits, policy, ownership, ownership standard
 deviation, and candidate moves with visits, priors, point loss, win-rate loss,
-score, PV, and optional move ownership.
+score, PV, per-move PV visits, LCB, and optional move ownership.
 
 Root values are stored from Black's perspective.
+
+### What the search does, and where it comes from
+
+The search follows KataGo's own behaviour rather than a generic PUCT loop. The
+ported pieces, with the C++ they mirror:
+
+- Node statistics are rebuilt from a node's children after every playout
+  (`recomputeNodeStats`), so noise pruning and sibling downweighting apply at
+  every node rather than only in the final report.
+- Move ranking uses play selection values with LCB, not raw visit counts
+  (`getPlaySelectionValues`, `getSelfUtilityLCBAndRadius`), and the principal
+  variation follows the same values at every depth.
+- Root symmetry pruning searches one copy of each symmetrically equivalent move
+  and puts the copies back into the output with `isSymmetryOf`
+  (`markDuplicateMoveLocs`).
+- The root ending bonus and the four-passes pruning keep the endgame tidy
+  (`getEndingWhiteScoreBonus`, `isAllowedRootMove`).
+- Subtree value bias corrects a node's own evaluation using what the search has
+  learned about positions with the same local pattern (`SubtreeValueBiasTable`).
+- Uncertainty weighting gives a visit less weight when the network says its own
+  judgement is still moving (`computeWeightFromNNOutput`). Only networks from
+  model version 10 on predict this; older ones, including the bundled small
+  network, weight every visit equally.
+
+## Human-like Moves
+
+KataGo 1.15 added a second network trained on human games, which predicts the
+move a player of a given rank would make rather than the best move. Settings can
+point at it (`b18c384nbt-humanv0.bin.gz`); the analysis itself always comes from
+the main network, and the human network only adds a `humanPolicy` to the payload,
+which the policy overlay can draw instead of the engine's own policy.
+
+Profiles follow KataGo's `humanSLProfile` names: `rank_20k` through `rank_9d`,
+`preaz_*` for pre-AlphaGo style, and `proyear_1800` through `proyear_2023`. The
+official download does not send CORS headers, so Settings also accepts a local
+path under `public/models/` or a file loaded from disk for the session.
+
+The report and the move info panel use the same numbers the other way round: how
+often a player of the configured rank plays the move that was actually played, so
+a review can say whether a move was a normal choice at that level or an unusual
+one, rather than only how many points it cost.
+
+The same network drives the `human` AI strategy: instead of playing the engine's
+move, the bot samples from the human policy at full temperature, which is what
+KataGo recommends for imitating a rank rather than beating it. Passing is left to
+the engine, because the game records the network learned from often omit passes.
+The moves that policy likes are also given a couple of visits in every analysis,
+so the report can say what the move a player of that rank would choose costs.
+
+### Finished games
+
+Two passes end the game. Under area scoring the result is then a matter of
+counting, so the search scores such a node exactly instead of asking the network
+about a filled board, which is off-distribution and unreliable. Territory rules
+need the dead stones agreed first — what KataGo's encore is for — so under those
+the network keeps judging the position as before.
+
+### Restricting the search
+
+`avoidMoves` (KataGo's own name for it) removes moves from the root's options
+without touching the policy the overlay draws. The command palette's "Analyze
+without the top move" uses it to answer what the rest of the board is worth when
+one move dominates the reading. A region of interest restricts the root the same
+way, and the two compose.
 
 ## Analysis Modes
 

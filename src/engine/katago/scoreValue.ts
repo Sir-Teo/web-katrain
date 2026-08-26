@@ -122,6 +122,21 @@ export function expectedWhiteScoreValue(args: {
   return b0 + lambdaMean * (b1 - b0);
 }
 
+/**
+ * d(scoreValue)/d(score), KataGo ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust
+ * (cpp/neuralnet/nninputs.cpp). Used to turn a score error into a utility error.
+ */
+export function whiteDScoreValueDScoreSmoothNoDrawAdjust(args: {
+  finalWhiteMinusBlackScore: number;
+  center: number;
+  scale: number;
+  sqrtBoardArea: number;
+}): number {
+  const adjustedScore = args.finalWhiteMinusBlackScore - args.center;
+  const scaleFactor = args.scale * args.sqrtBoardArea;
+  return (scaleFactor / (scaleFactor * scaleFactor + adjustedScore * adjustedScore)) * (2 / Math.PI);
+}
+
 export function getScoreStdev(scoreMean: number, scoreMeanSq: number): number {
   const variance = scoreMeanSq - scoreMean * scoreMean;
   if (variance <= 0) return 0;

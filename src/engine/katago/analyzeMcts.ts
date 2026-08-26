@@ -3,7 +3,12 @@ import type { BoardState, FloatArray, GameRules, Move, Player, RegionOfInterest 
 import { getAnimationNow } from '../../utils/animationFrame';
 import { postprocessKataGoV8 } from './evalV8';
 import type { KataGoModelV8Tf } from './modelV8';
-import { expectedWhiteScoreValue, getSqrtBoardArea } from './scoreValue';
+import {
+  expectedWhiteScoreValue,
+  getScoreStdev,
+  getSqrtBoardArea,
+  whiteDScoreValueDScoreSmoothNoDrawAdjust,
+} from './scoreValue';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
 import {
   BLACK,
@@ -21,6 +26,10 @@ import {
   computeLadderFeaturesV7KataGoInto,
   computeLadderedStonesV7KataGoInto,
   computeAreaMapV7KataGoInto,
+  computePassAliveAreaInto,
+  isAdjacentToColor,
+  isNonPassAliveSelfConnection,
+  wouldBeCapture,
   computeLibertyMap,
   computeLibertyMapInto,
   updateLibertyMapForSeeds,
@@ -44,7 +53,7 @@ type Edge = {
   move: number; // 0..360 or PASS_MOVE
   prior: number;
   child: Node | null;
-  pvCache?: { visits: number; depth: number; pv: string[] };
+  pvCache?: { visits: number; depth: number; moves: number[]; pvVisits: number[] };
 };
 
 type ExpandScratch = {
@@ -73,16 +82,41 @@ const getExpandScratch = (): ExpandScratch => {
   return expandScratch;
 };
 
+/**
+ * A search node, holding KataGo's NodeStats: weighted averages over this node's own
+ * network evaluation and its children's stats, recomputed after every playout
+ * (cpp/search/searchupdatehelpers.cpp recomputeNodeStats) rather than accumulated,
+ * because the children are reweighted every time.
+ */
 class Node {
   readonly playerToMove: StoneColor;
   visits = 0;
-  valueSum = 0; // [-1,1] where +1 is black win
-  scoreLeadSum = 0; // black lead
-  scoreMeanSum = 0; // black score mean
-  scoreMeanSqSum = 0; // sum of (stdev^2 + mean^2) for mixture stdev
-  utilitySum = 0; // from black perspective
-  utilitySqSum = 0; // from black perspective
+  weightSum = 0;
+  weightSqSum = 0;
+  valueAvg = 0; // [-1,1] where +1 is black win
+  scoreLeadAvg = 0; // black lead
+  scoreMeanAvg = 0; // black score mean
+  scoreMeanSqAvg = 0; // E[score^2], for the mixture stdev
+  utilityAvg = 0; // from black perspective
+  utilitySqAvg = 0; // from black perspective
+
+  // This node's own network evaluation, which is one weighted term of the above.
+  nnValue = 0;
+  nnScoreLead = 0;
+  nnScoreMean = 0;
+  nnScoreMeanSq = 0;
+  nnWeight = 1;
   nnUtility: number | null = null; // direct NN eval utility, from black perspective
+
+  /** Set when the game is over here: the score is known, so no network eval is needed. */
+  isTerminal = false;
+
+  // Subtree value bias: the shared record of how much the search has historically
+  // disagreed with the network about positions that look locally like this one.
+  biasEntry: SubtreeBiasEntry | null = null;
+  biasEpoch = -1;
+  lastBiasDeltaSum = 0;
+  lastBiasWeight = 0;
   ownership: Float32Array | null = null; // len 361, +1 black owns, -1 white owns
   inFlight = 0;
   pendingEval = false;
@@ -185,6 +219,191 @@ function buildAllowedMovesMask(roi?: RegionOfInterest | null): Uint8Array | null
   return allowed;
 }
 
+/** Last n entries of a move list, oldest first. */
+function takeLastMoves(moves: RecentMove[], n: number): RecentMove[] {
+  return moves.length <= n ? moves : moves.slice(moves.length - n);
+}
+
+/**
+ * KataGo's four-passes test in isAllowedRootMove: the opponent's last four moves
+ * (every other entry back from the end) were all passes.
+ */
+function opponentHasPassedFourTimes(moveHistory: RecentMove[], currentPlayer: Player): boolean {
+  const lastIdx = moveHistory.length - 1;
+  if (lastIdx < 6) return false;
+  const opp: Player = currentPlayer === 'black' ? 'white' : 'black';
+  for (const back of [0, 2, 4, 6]) {
+    const m = moveHistory[lastIdx - back]!;
+    if (m.move !== PASS_MOVE || m.player !== opp) return false;
+  }
+  return true;
+}
+
+/**
+ * Symmetries under which the root position is unchanged, KataGo's
+ * SymmetryHelpers::markDuplicateMoveLocs (cpp/neuralnet/nninputs.cpp).
+ *
+ * KataGo compares stones only, because its analysis engine zeroes the pre-root
+ * history (ignorePreRootHistory defaults to true there). This port feeds the last
+ * five moves to the net, so a symmetry that moves them changes the input and is
+ * not a real duplicate: it has to fix them too.
+ */
+export function computeValidRootSymmetries(args: {
+  stones: Uint8Array;
+  koPoint: number;
+  recentMoves: RecentMove[];
+}): number[] {
+  const valid = [0];
+  // A ko ban is not symmetric, so nothing may be treated as a duplicate.
+  if (args.koPoint >= 0) return valid;
+
+  const map = getSymPosMap();
+  for (let sym = 1; sym < NUM_SYMMETRIES; sym++) {
+    const off = sym * BOARD_AREA;
+    let ok = true;
+    for (let p = 0; p < BOARD_AREA; p++) {
+      if (args.stones[p] !== args.stones[map[off + p]!]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      for (const m of args.recentMoves) {
+        if (m.move === PASS_MOVE) continue;
+        if (map[off + m.move] !== m.move) {
+          ok = false;
+          break;
+        }
+      }
+    }
+    if (ok) valid.push(sym);
+  }
+  return valid;
+}
+
+/**
+ * Marks every root move that is a symmetric copy of another, keeping one
+ * representative. The iteration order is KataGo's, which keeps the representative
+ * in the upper right for black:
+ * https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner
+ */
+export function markSymmetryDuplicateMoves(
+  validSymmetries: number[],
+  nextPlayerIsBlack: boolean,
+  roiMask: Uint8Array | null
+): Uint8Array | null {
+  if (validSymmetries.length <= 1) return null;
+  const map = getSymPosMap();
+  const dup = new Uint8Array(BOARD_AREA);
+  const n = BOARD_SIZE;
+
+  const markFrom = (loc: number) => {
+    // A move the search may not play never becomes the representative, so a copy
+    // inside the region survives instead (KataGo passes avoidMoveUntilByLoc here).
+    if (roiMask && roiMask[loc] === 0) return;
+    if (dup[loc] === 1) return;
+    for (const sym of validSymmetries) {
+      if (sym === 0) continue;
+      const symLoc = map[sym * BOARD_AREA + loc]!;
+      if (symLoc !== loc) dup[symLoc] = 1;
+    }
+  };
+
+  if (nextPlayerIsBlack) {
+    for (let x = n - 1; x >= 0; x--) {
+      for (let y = 0; y < n; y++) markFrom(y * n + x);
+    }
+  } else {
+    for (let x = 0; x < n; x++) {
+      for (let y = n - 1; y >= 0; y--) markFrom(y * n + x);
+    }
+  }
+  return dup;
+}
+
+/**
+ * The root move mask: the region of interest, minus symmetric duplicates when
+ * root symmetry pruning applies. Also reports the symmetries that were folded
+ * away so the analysis output can put the copies back.
+ */
+/**
+ * The moves a human of the configured rank is most likely to play, as a mask.
+ * They are added to the root's children so the report says what those moves are
+ * actually worth, which is the point of loading the human net at all.
+ */
+export function topHumanMovesMask(humanPolicy: ArrayLike<number> | null | undefined, count: number): Uint8Array | null {
+  if (!humanPolicy || count <= 0) return null;
+  const best: Array<{ move: number; prob: number }> = [];
+  for (let p = 0; p < BOARD_AREA; p++) {
+    const prob = humanPolicy[p] ?? -1;
+    if (prob <= 0) continue;
+    if (best.length < count) {
+      best.push({ move: p, prob });
+      if (best.length === count) best.sort((a, b) => a.prob - b.prob);
+    } else if (prob > best[0]!.prob) {
+      best[0] = { move: p, prob };
+      best.sort((a, b) => a.prob - b.prob);
+    }
+  }
+  if (best.length === 0) return null;
+  const mask = new Uint8Array(BOARD_AREA);
+  for (const entry of best) mask[entry.move] = 1;
+  return mask;
+}
+
+function buildRootMoveMask(args: {
+  regionOfInterest?: RegionOfInterest | null;
+  stones: Uint8Array;
+  koPoint: number;
+  moveHistory: RecentMove[];
+  currentPlayer: Player;
+  symmetryPruning?: boolean;
+  /** Moves the search may not play at the root, KataGo's avoidMoves. */
+  avoidMoves?: Uint8Array | null;
+}): { allowedMoves: Uint8Array | null; roiMask: Uint8Array | null; rootSymmetries: number[] } {
+  const roiMask = buildAllowedMovesMask(args.regionOfInterest);
+  let allowedMoves = roiMask;
+
+  if (args.avoidMoves) {
+    const avoided = allowedMoves ? new Uint8Array(allowedMoves) : new Uint8Array(BOARD_AREA).fill(1);
+    for (let p = 0; p < BOARD_AREA; p++) {
+      if (args.avoidMoves[p] === 1) avoided[p] = 0;
+    }
+    allowedMoves = avoided;
+  }
+
+  // KataGo rootPruneUselessMoves: once the opponent has passed four times running,
+  // stop considering moves inside either side's pass-alive area. Those only prolong
+  // a finished game (cpp/search/searchhelpers.cpp isAllowedRootMove).
+  if (opponentHasPassedFourTimes(args.moveHistory, args.currentPlayer)) {
+    const safeArea = computePassAliveAreaInto(args.stones, new Uint8Array(BOARD_AREA), false);
+    const pruned = allowedMoves ? new Uint8Array(allowedMoves) : new Uint8Array(BOARD_AREA).fill(1);
+    for (let p = 0; p < BOARD_AREA; p++) {
+      if ((safeArea[p] as StoneColor) !== EMPTY) pruned[p] = 0;
+    }
+    // Passing is never masked, so pruning every point on the board is still fine.
+    allowedMoves = pruned;
+  }
+
+  if (args.symmetryPruning === false) return { allowedMoves, roiMask, rootSymmetries: [0] };
+
+  const rootSymmetries = computeValidRootSymmetries({
+    stones: args.stones,
+    koPoint: args.koPoint,
+    recentMoves: takeLastMoves(args.moveHistory, 5),
+  });
+  const symDupMoves = markSymmetryDuplicateMoves(rootSymmetries, args.currentPlayer === 'black', allowedMoves);
+  if (!symDupMoves) return { allowedMoves, roiMask, rootSymmetries };
+
+  // Searching one copy of each symmetric move spends every visit on a distinct
+  // position; the copies go back into the analysis output afterwards.
+  const allowed = allowedMoves ? new Uint8Array(allowedMoves) : new Uint8Array(BOARD_AREA).fill(1);
+  for (let p = 0; p < BOARD_AREA; p++) {
+    if (symDupMoves[p] === 1) allowed[p] = 0;
+  }
+  return { allowedMoves: allowed, roiMask, rootSymmetries };
+}
+
 function expandNode(args: {
   node: Node;
   stones: Uint8Array;
@@ -195,6 +414,8 @@ function expandNode(args: {
   maxChildren: number;
   libertyMap?: Uint8Array;
   allowedMoves?: Uint8Array;
+  /** Moves to keep as children even if the policy would rank them out of the top set. */
+  forcedMoves?: Uint8Array;
   policyOut?: Float32Array; // len 362, illegal = -1, pass at index 361
   policyOutputScaling?: number;
 }): void {
@@ -217,7 +438,6 @@ function expandNode(args: {
   let maxLogit = passLogitScaled;
   const allowedMoves = args.allowedMoves;
   for (let p = 0; p < BOARD_AREA; p++) {
-    if (allowedMoves && allowedMoves[p] === 0) continue;
     if (stones[p] !== EMPTY) continue;
     if (p === koPoint) continue;
 
@@ -278,10 +498,17 @@ function expandNode(args: {
 
   const topMoves = scratch.topMoves;
   const topPriors = scratch.topPriors;
+  const forcedMoves = args.forcedMoves;
   const maxKids = Math.max(0, maxChildren);
   let topCount = 0;
   let minIdx = 0;
   for (let i = 0; i < moveCount; i++) {
+    // The mask restricts which moves the search may pick, like KataGo's
+    // isAllowedRootMove. Policy itself is normalized over every legal move, so
+    // masking does not inflate the priors of the moves that survive.
+    if (allowedMoves && allowedMoves[movesScratch[i]!] === 0) continue;
+    // Forced moves are added afterwards so they cannot be crowded out.
+    if (forcedMoves && forcedMoves[movesScratch[i]!] === 1) continue;
     const prior = priorsScratch[i]!;
     if (topCount < maxKids) {
       topMoves[topCount] = movesScratch[i]!;
@@ -312,13 +539,22 @@ function expandNode(args: {
     return topMoves[a]! - topMoves[b]!;
   });
 
-  const edges: Edge[] = new Array(topCount + 1);
-  let edgeIdx = 0;
+  const edges: Edge[] = [];
   for (let i = 0; i < order.length; i++) {
     const idx = order[i]!;
-    edges[edgeIdx++] = { move: topMoves[idx]!, prior: topPriors[idx]!, child: null };
+    edges.push({ move: topMoves[idx]!, prior: topPriors[idx]!, child: null });
   }
-  edges[edgeIdx++] = { move: PASS_MOVE, prior: passPrior, child: null };
+  if (forcedMoves) {
+    // Their real policy prior, so the search still treats them on their merits;
+    // forcing only guarantees they are looked at at all.
+    for (let i = 0; i < moveCount; i++) {
+      const move = movesScratch[i]!;
+      if (forcedMoves[move] !== 1) continue;
+      if (allowedMoves && allowedMoves[move] === 0) continue;
+      edges.push({ move, prior: priorsScratch[i]!, child: null });
+    }
+  }
+  edges.push({ move: PASS_MOVE, prior: passPrior, child: null });
 
   node.edges = edges;
 }
@@ -340,10 +576,16 @@ async function buildRootEval(args: {
   rootMoves: RecentMove[];
   maxChildren: number;
   regionOfInterest?: RegionOfInterest | null;
+  rootSymmetryPruning?: boolean;
+  forcedRootMoves?: Uint8Array | null;
+  avoidRootMoves?: Uint8Array | null;
   outputScaleMultiplier: number;
   node?: Node;
   preserveExistingChildren?: boolean;
 }): Promise<{
+  rootSymmetries: number[];
+  roiMask: Uint8Array | null;
+  rootNnWeight: number;
   rootLibertyMap: Uint8Array;
   rootOwnership: Float32Array;
   rootPolicy: Float32Array;
@@ -390,7 +632,15 @@ async function buildRootEval(args: {
     }
   }
 
-  const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);
+  const { allowedMoves: rootAllowedMoves, roiMask, rootSymmetries } = buildRootMoveMask({
+    regionOfInterest: args.regionOfInterest,
+    stones: args.rootStones,
+    koPoint: args.rootKoPoint,
+    moveHistory: args.rootMoves,
+    currentPlayer: args.currentPlayer,
+    symmetryPruning: args.rootSymmetryPruning,
+    avoidMoves: args.avoidRootMoves,
+  });
   const rootPolicy = new Float32Array(BOARD_AREA + 1);
   const policyNode = args.node ?? new Node(playerToColor(args.currentPlayer));
   const previousEdges = args.preserveExistingChildren === true ? policyNode.edges : null;
@@ -404,6 +654,7 @@ async function buildRootEval(args: {
     maxChildren: args.maxChildren,
     libertyMap: rootEval.libertyMap,
     allowedMoves: rootAllowedMoves ?? undefined,
+    forcedMoves: args.forcedRootMoves ?? undefined,
     policyOut: rootPolicy,
     policyOutputScaling: args.outputScaleMultiplier,
   });
@@ -430,6 +681,14 @@ async function buildRootEval(args: {
   const rootScoreMeanSq = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
 
   return {
+    rootSymmetries,
+    roiMask,
+    rootNnWeight: computeWeightFromEval({
+      blackScoreMean: rootEval.blackScoreMean,
+      shorttermWinlossError: rootEval.shorttermWinlossError ?? -1,
+      shorttermScoreError: rootEval.shorttermScoreError ?? -1,
+      recentScoreCenter,
+    }),
     rootLibertyMap,
     rootOwnership,
     rootPolicy,
@@ -512,15 +771,10 @@ type ChildWeightStats = {
   scoreLead: number;
   scoreMean: number;
   scoreMeanSq: number;
-};
-
-type RootSelfStats = {
-  value: number;
-  scoreLead: number;
-  scoreMean: number;
-  scoreMeanSq: number;
-  utility: number;
-  weight: number;
+  rawWeight?: number; // the child's own weightSum, before reweighting
+  weightSqSum?: number;
+  utility?: number;
+  utilitySq?: number;
 };
 
 const SQRT_3 = Math.sqrt(3);
@@ -645,85 +899,369 @@ function downweightBadChildrenAndNormalizeWeight(args: {
   for (const s of stats) s.weightAdjusted *= factor;
 }
 
-function computeWeightedRootStats(args: { children: ChildWeightStats[]; rootSelf: RootSelfStats }): {
-  rootValue: number;
+// KataGo subtreeValueBias defaults (cpp/program/setup.cpp): factor 0.45, weight
+// exponent 0.85. The idea is that if the search keeps finding a node's own network
+// evaluation too optimistic, positions that look locally the same are probably
+// getting the same error, so correct them all by the average of what was found.
+const SUBTREE_VALUE_BIAS_FACTOR: number = 0.45;
+const SUBTREE_VALUE_BIAS_WEIGHT_EXPONENT = 0.85;
+const SUBTREE_BIAS_PATTERN_RADIUS = 2; // KataGo hashes a 5x5 window
+
+/** How many of the human net's favourite moves to guarantee a place in the report. */
+const DEFAULT_HUMAN_MOVE_COUNT = 5;
+/**
+ * Visits every such move gets before normal selection takes over. Being a child is
+ * not enough: a move a strong net dislikes would otherwise sit at zero visits and
+ * the report could not say what it costs, which is the whole point of showing it.
+ */
+const HUMAN_MOVE_MIN_VISITS = 2;
+
+type SubtreeBiasEntry = { deltaUtilitySum: number; weightSum: number };
+
+/**
+ * KataGo's SubtreeValueBiasTable, keyed the same way: the move that led here, the
+ * move before that, the local 5x5 pattern (with atari marked) on the board before
+ * the move, whose turn it is, and any ko ban.
+ */
+class SubtreeBiasTable {
+  private entries = new Map<string, SubtreeBiasEntry>();
+  epoch = 0;
+
+  get(key: string): SubtreeBiasEntry {
+    let entry = this.entries.get(key);
+    if (!entry) {
+      entry = { deltaUtilitySum: 0, weightSum: 0 };
+      this.entries.set(key, entry);
+    }
+    return entry;
+  }
+
+  /** Drops everything, e.g. when the search re-roots and old nodes fall away. */
+  reset(): void {
+    this.entries.clear();
+    this.epoch++;
+  }
+}
+
+function buildSubtreeBiasKey(args: {
+  stones: Uint8Array; // board BEFORE the move
+  libertyMap: Uint8Array;
+  move: number;
+  parentMove: number;
+  koPoint: number;
+  pla: StoneColor;
+}): string {
+  const { stones, libertyMap, move, parentMove, koPoint, pla } = args;
+  let key = `${pla}|${parentMove}|${move}|${koPoint}`;
+  if (move === PASS_MOVE) return key;
+
+  const x = move % BOARD_SIZE;
+  const y = (move / BOARD_SIZE) | 0;
+  const r = SUBTREE_BIAS_PATTERN_RADIUS;
+  const dxMin = Math.max(-r, -x);
+  const dxMax = Math.min(r, BOARD_SIZE - 1 - x);
+  const dyMin = Math.max(-r, -y);
+  const dyMax = Math.min(r, BOARD_SIZE - 1 - y);
+  key += '|';
+  for (let dy = dyMin; dy <= dyMax; dy++) {
+    for (let dx = dxMin; dx <= dxMax; dx++) {
+      const pos = (y + dy) * BOARD_SIZE + (x + dx);
+      const color = stones[pos] as StoneColor;
+      key += color === EMPTY ? '.' : color === BLACK ? (libertyMap[pos] === 1 ? 'b' : 'B') : libertyMap[pos] === 1 ? 'w' : 'W';
+    }
+    key += '/';
+  }
+  return key;
+}
+
+// KataGo useUncertainty defaults (cpp/program/setup.cpp): on, coeff 0.25, exponent 1,
+// max weight 8. Only nets from model version 10 on predict the shortterm errors this
+// needs; with older nets every visit keeps weight 1, exactly as in KataGo.
+const USE_UNCERTAINTY = true;
+const UNCERTAINTY_COEFF = 0.25;
+const UNCERTAINTY_EXPONENT = 1.0;
+const UNCERTAINTY_MAX_WEIGHT = 8.0;
+
+/** KataGo Search::getApproxScoreUtilityDerivative. */
+function approxScoreUtilityDerivative(whiteScoreMean: number, recentScoreCenter: number): number {
+  const sqrtBoardArea = getSqrtBoardArea();
+  const staticDerivative = whiteDScoreValueDScoreSmoothNoDrawAdjust({
+    finalWhiteMinusBlackScore: whiteScoreMean,
+    center: 0.0,
+    scale: 2.0,
+    sqrtBoardArea,
+  });
+  const dynamicDerivative = whiteDScoreValueDScoreSmoothNoDrawAdjust({
+    finalWhiteMinusBlackScore: whiteScoreMean,
+    center: recentScoreCenter,
+    scale: DYNAMIC_SCORE_CENTER_SCALE,
+    sqrtBoardArea,
+  });
+  return staticDerivative * STATIC_SCORE_UTILITY_FACTOR + dynamicDerivative * DYNAMIC_SCORE_UTILITY_FACTOR;
+}
+
+/**
+ * KataGo Search::computeWeightFromNNOutput: a visit counts for less when the network
+ * says its own judgement of this position is still moving around a lot.
+ */
+export function computeWeightFromEval(args: {
+  blackScoreMean: number;
+  shorttermWinlossError: number;
+  shorttermScoreError: number;
+  recentScoreCenter: number;
+}): number {
+  if (!USE_UNCERTAINTY) return 1.0;
+  // Nets before model version 10 do not predict these and report -1.
+  if (!(args.shorttermWinlossError >= 0) || !(args.shorttermScoreError >= 0)) return 1.0;
+
+  const whiteScoreMean = -args.blackScoreMean;
+  const utilityUncertaintyWL = WIN_LOSS_UTILITY_FACTOR * args.shorttermWinlossError;
+  const utilityUncertaintyScore =
+    approxScoreUtilityDerivative(whiteScoreMean, args.recentScoreCenter) * args.shorttermScoreError;
+  const utilityUncertainty = utilityUncertaintyWL + utilityUncertaintyScore;
+
+  const poweredUncertainty =
+    UNCERTAINTY_EXPONENT === 1.0
+      ? utilityUncertainty
+      : UNCERTAINTY_EXPONENT === 0.5
+        ? Math.sqrt(utilityUncertainty)
+        : Math.pow(utilityUncertainty, UNCERTAINTY_EXPONENT);
+
+  const baselineUncertainty = UNCERTAINTY_COEFF / UNCERTAINTY_MAX_WEIGHT;
+  return UNCERTAINTY_COEFF / (poweredUncertainty + baselineUncertainty);
+}
+
+/**
+ * KataGo Search::recomputeNodeStats: rebuild a node's stats from its children plus
+ * its own evaluation, reweighting the children by noise pruning and by how bad they
+ * look relative to their siblings. Visits are counted separately by the caller.
+ */
+// Recomputing runs once per node per playout, so the child stats are pooled rather
+// than allocated each time (KataGo keeps the same buffer per search thread).
+const recomputeStatsPool: ChildWeightStats[] = [];
+const recomputeStatsWork: ChildWeightStats[] = [];
+
+function recomputeNodeStats(node: Node): void {
+  const edges = node.edges;
+  const stats = recomputeStatsWork;
+  stats.length = 0;
+  let origTotalChildWeight = 0;
+
+  if (edges) {
+    for (const e of edges) {
+      const child = e.child;
+      if (!child || child.visits <= 0 || child.weightSum <= 0) continue;
+      const childUtility = child.utilityAvg;
+      const idx = stats.length;
+      let entry = recomputeStatsPool[idx];
+      if (!entry) {
+        entry = {
+          weightAdjusted: 0,
+          rawWeight: 0,
+          weightSqSum: 0,
+          selfUtility: 0,
+          policy: 0,
+          value: 0,
+          scoreLead: 0,
+          scoreMean: 0,
+          scoreMeanSq: 0,
+          utility: 0,
+          utilitySq: 0,
+        };
+        recomputeStatsPool[idx] = entry;
+      }
+      entry.weightAdjusted = child.weightSum;
+      entry.rawWeight = child.weightSum;
+      entry.weightSqSum = child.weightSqSum;
+      entry.selfUtility = node.playerToMove === BLACK ? childUtility : -childUtility;
+      entry.policy = e.prior;
+      entry.value = child.valueAvg;
+      entry.scoreLead = child.scoreLeadAvg;
+      entry.scoreMean = child.scoreMeanAvg;
+      entry.scoreMeanSq = child.scoreMeanSqAvg;
+      entry.utility = childUtility;
+      entry.utilitySq = child.utilitySqAvg;
+      stats.push(entry);
+      origTotalChildWeight += child.weightSum;
+    }
+  }
+
+  let currentTotalChildWeight = origTotalChildWeight;
+  if (USE_NOISE_PRUNING && stats.length > 0) currentTotalChildWeight = pruneNoiseWeight(stats);
+  if (stats.length > 0) {
+    downweightBadChildrenAndNormalizeWeight({
+      stats,
+      currentTotalWeight: currentTotalChildWeight,
+      desiredTotalWeight: currentTotalChildWeight,
+      amountToSubtract: 0,
+      amountToPrune: 0,
+    });
+  }
+
+  let valueSum = 0;
+  let scoreLeadSum = 0;
+  let scoreMeanSum = 0;
+  let scoreMeanSqSum = 0;
+  let utilitySum = 0;
+  let utilitySqSum = 0;
+  let weightSqSum = 0;
+  let weightSum = currentTotalChildWeight;
+
+  for (const child of stats) {
+    const desiredWeight = child.weightAdjusted;
+    if (desiredWeight <= 0) continue;
+    const rawWeight = child.rawWeight ?? desiredWeight;
+    const weightScaling = rawWeight > 0 ? desiredWeight / rawWeight : 0;
+    valueSum += desiredWeight * child.value;
+    scoreLeadSum += desiredWeight * child.scoreLead;
+    scoreMeanSum += desiredWeight * child.scoreMean;
+    scoreMeanSqSum += desiredWeight * child.scoreMeanSq;
+    utilitySum += desiredWeight * (child.utility ?? 0);
+    utilitySqSum += desiredWeight * (child.utilitySq ?? 0);
+    weightSqSum += weightScaling * weightScaling * (child.weightSqSum ?? 0);
+  }
+
+  // The node's own evaluation is one more weighted term, corrected by whatever the
+  // search has learned about positions that look locally like this one.
+  const ownWeight = node.nnWeight;
+  let ownUtility = node.nnUtility ?? 0;
+  const biasEntry = node.biasEntry;
+  if (SUBTREE_VALUE_BIAS_FACTOR !== 0 && biasEntry) {
+    if (currentTotalChildWeight > 1e-10) {
+      const utilityChildren = utilitySum / currentTotalChildWeight;
+      const biasWeight = Math.pow(origTotalChildWeight, SUBTREE_VALUE_BIAS_WEIGHT_EXPONENT);
+      const biasDeltaSum = (utilityChildren - ownUtility) * biasWeight;
+      // Replace this node's previous contribution rather than adding to it.
+      biasEntry.deltaUtilitySum += biasDeltaSum - node.lastBiasDeltaSum;
+      biasEntry.weightSum += biasWeight - node.lastBiasWeight;
+      node.lastBiasDeltaSum = biasDeltaSum;
+      node.lastBiasWeight = biasWeight;
+    }
+    if (biasEntry.weightSum > 0.001) {
+      ownUtility += (SUBTREE_VALUE_BIAS_FACTOR * biasEntry.deltaUtilitySum) / biasEntry.weightSum;
+    }
+  }
+  valueSum += ownWeight * node.nnValue;
+  scoreLeadSum += ownWeight * node.nnScoreLead;
+  scoreMeanSum += ownWeight * node.nnScoreMean;
+  scoreMeanSqSum += ownWeight * node.nnScoreMeanSq;
+  utilitySum += ownWeight * ownUtility;
+  utilitySqSum += ownWeight * ownUtility * ownUtility;
+  weightSqSum += ownWeight * ownWeight;
+  weightSum += ownWeight;
+
+  if (weightSum <= 0) return;
+
+  node.weightSum = weightSum;
+  node.weightSqSum = weightSqSum;
+  node.valueAvg = valueSum / weightSum;
+  node.scoreLeadAvg = scoreLeadSum / weightSum;
+  node.scoreMeanAvg = scoreMeanSum / weightSum;
+  node.scoreMeanSqAvg = scoreMeanSqSum / weightSum;
+  node.utilityAvg = utilitySum / weightSum;
+  node.utilitySqAvg = utilitySqSum / weightSum;
+}
+
+/**
+ * The final score of a finished game, from black's perspective, under area scoring.
+ * This is the ordinary area count: every stone, plus every empty point only one
+ * colour can reach. Dead stones still on the board count for their owner, which is
+ * exactly how KataGo scores a game that ended by two passes — and why the search
+ * learns to capture them before passing.
+ */
+export function terminalAreaScoreBlack(
+  stones: Uint8Array,
+  komi: number,
+  outOwnership?: Float32Array
+): number {
+  const area = computeAreaMapV7KataGoInto(stones, new Uint8Array(BOARD_AREA));
+  let black = 0;
+  let white = 0;
+  for (let p = 0; p < BOARD_AREA; p++) {
+    const owner = area[p] as StoneColor;
+    if (owner === BLACK) black++;
+    else if (owner === WHITE) white++;
+    if (outOwnership) outOwnership[p] = owner === BLACK ? 1 : owner === WHITE ? -1 : 0;
+  }
+  return black - white - komi;
+}
+
+/**
+ * Turns a finished game into a node evaluation: the result is known, so the win
+ * value is 1, 0 or a half for a draw, and the score is the real score rather than
+ * the network's guess (KataGo's Search::setTerminalValue).
+ */
+function setNodeTerminalEval(node: Node, args: { stones: Uint8Array; komi: number; recentScoreCenter: number }): void {
+  // The ownership map is exact here too, so the territory overlay can show the
+  // finished game rather than the network's guess about it.
+  const ownership = new Float32Array(BOARD_AREA);
+  const score = terminalAreaScoreBlack(args.stones, args.komi, ownership);
+  node.ownership = ownership;
+  const blackWinProb = score > 0 ? 1 : score < 0 ? 0 : 0.5;
+  node.isTerminal = true;
+  node.nnValue = 2 * blackWinProb - 1;
+  node.nnScoreLead = score;
+  node.nnScoreMean = score;
+  node.nnScoreMeanSq = score * score;
+  node.nnWeight = 1;
+  node.nnUtility = computeBlackUtilityFromEval({
+    blackWinProb,
+    blackNoResultProb: 0,
+    blackScoreMean: score,
+    blackScoreStdev: 0,
+    recentScoreCenter: args.recentScoreCenter,
+  });
+  recomputeNodeStats(node);
+}
+
+/** Records a node's own network evaluation and makes its stats reflect it. */
+function setNodeOwnEval(
+  node: Node,
+  ev: {
+    blackWinProb: number;
+    blackNoResultProb: number;
+    blackScoreLead: number;
+    blackScoreMean: number;
+    blackScoreStdev: number;
+    shorttermWinlossError?: number;
+    shorttermScoreError?: number;
+  },
+  recentScoreCenter: number
+): void {
+  const utility = computeBlackUtilityFromEval({
+    blackWinProb: ev.blackWinProb,
+    blackNoResultProb: ev.blackNoResultProb,
+    blackScoreMean: ev.blackScoreMean,
+    blackScoreStdev: ev.blackScoreStdev,
+    recentScoreCenter,
+  });
+  node.nnValue = 2 * ev.blackWinProb - 1;
+  node.nnScoreLead = ev.blackScoreLead;
+  node.nnScoreMean = ev.blackScoreMean;
+  node.nnScoreMeanSq = ev.blackScoreStdev * ev.blackScoreStdev + ev.blackScoreMean * ev.blackScoreMean;
+  node.nnUtility = utility;
+  node.nnWeight = computeWeightFromEval({
+    blackScoreMean: ev.blackScoreMean,
+    shorttermWinlossError: ev.shorttermWinlossError ?? -1,
+    shorttermScoreError: ev.shorttermScoreError ?? -1,
+    recentScoreCenter,
+  });
+  recomputeNodeStats(node);
+}
+
+/** What the search reports for the position itself: the root node's own stats. */
+function rootNodeStats(rootNode: Node): {
   rootWinRate: number;
   rootScoreLead: number;
   rootScoreSelfplay: number;
   rootScoreStdev: number;
 } {
-  const stats = args.children;
-  if (stats.length === 0) {
-    const rootValue = args.rootSelf.value;
-    const rootScoreSelfplay = args.rootSelf.scoreMean;
-    const rootScoreMeanSq = args.rootSelf.scoreMeanSq;
-    const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
-    return {
-      rootValue,
-      rootWinRate: (rootValue + 1) * 0.5,
-      rootScoreLead: args.rootSelf.scoreLead,
-      rootScoreSelfplay,
-      rootScoreStdev,
-    };
-  }
-
-  let totalWeight = 0;
-  for (const s of stats) totalWeight += s.weightAdjusted;
-  if (USE_NOISE_PRUNING) totalWeight = pruneNoiseWeight(stats);
-
-  downweightBadChildrenAndNormalizeWeight({
-    stats,
-    currentTotalWeight: totalWeight,
-    desiredTotalWeight: totalWeight,
-    amountToSubtract: 0,
-    amountToPrune: 0,
-  });
-
-  let weightSum = 0;
-  let valueSum = 0;
-  let scoreMeanSum = 0;
-  let scoreMeanSqSum = 0;
-  let scoreLeadSum = 0;
-
-  for (const s of stats) {
-    if (s.weightAdjusted <= 0) continue;
-    weightSum += s.weightAdjusted;
-    valueSum += s.weightAdjusted * s.value;
-    scoreMeanSum += s.weightAdjusted * s.scoreMean;
-    scoreMeanSqSum += s.weightAdjusted * s.scoreMeanSq;
-    scoreLeadSum += s.weightAdjusted * s.scoreLead;
-  }
-
-  weightSum += args.rootSelf.weight;
-  valueSum += args.rootSelf.weight * args.rootSelf.value;
-  scoreMeanSum += args.rootSelf.weight * args.rootSelf.scoreMean;
-  scoreMeanSqSum += args.rootSelf.weight * args.rootSelf.scoreMeanSq;
-  scoreLeadSum += args.rootSelf.weight * args.rootSelf.scoreLead;
-
-  if (weightSum <= 0) {
-    const rootValue = args.rootSelf.value;
-    const rootScoreSelfplay = args.rootSelf.scoreMean;
-    const rootScoreMeanSq = args.rootSelf.scoreMeanSq;
-    const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
-    return {
-      rootValue,
-      rootWinRate: (rootValue + 1) * 0.5,
-      rootScoreLead: args.rootSelf.scoreLead,
-      rootScoreSelfplay,
-      rootScoreStdev,
-    };
-  }
-
-  const rootValue = valueSum / weightSum;
-  const rootScoreSelfplay = scoreMeanSum / weightSum;
-  const rootScoreMeanSq = scoreMeanSqSum / weightSum;
-  const rootScoreStdev = Math.sqrt(Math.max(0, rootScoreMeanSq - rootScoreSelfplay * rootScoreSelfplay));
+  const scoreSelfplay = rootNode.scoreMeanAvg;
   return {
-    rootValue,
-    rootWinRate: (rootValue + 1) * 0.5,
-    rootScoreLead: scoreLeadSum / weightSum,
-    rootScoreSelfplay,
-    rootScoreStdev,
+    rootWinRate: (rootNode.valueAvg + 1) * 0.5,
+    rootScoreLead: rootNode.scoreLeadAvg,
+    rootScoreSelfplay: scoreSelfplay,
+    rootScoreStdev: Math.sqrt(Math.max(0, rootNode.scoreMeanSqAvg - scoreSelfplay * scoreSelfplay)),
   };
 }
 
@@ -853,6 +1391,13 @@ const ROOT_FPU_LOSS_PROP = 0.0;
 const FPU_PARENT_WEIGHT_BY_VISITED_POLICY = true;
 const FPU_PARENT_WEIGHT_BY_VISITED_POLICY_POW = 2.0;
 const FPU_PARENT_WEIGHT = 0.0;
+const NUM_VIRTUAL_LOSSES_PER_THREAD = 1.0;
+
+// KataGo Search::getPlaySelectionValues / getSelfUtilityLCBAndRadius.
+// Defaults from cpp/program/setup.cpp for analysis and GTP setups.
+const USE_LCB_FOR_SELECTION = true;
+const LCB_STDEVS = 5.0;
+const MIN_VISIT_PROP_FOR_LCB = 0.15;
 const TOTALCHILDWEIGHT_PUCT_OFFSET = 0.01;
 
 function cpuctExploration(totalChildWeight: number): number {
@@ -898,29 +1443,61 @@ class Rand {
   }
 }
 
-function selectEdge(node: Node, isRoot: boolean, wideRootNoise: number, rand: Rand): Edge {
-  const edges = node.edges;
-  if (!edges || edges.length === 0) throw new Error('selectEdge called on unexpanded node');
+/**
+ * Parent-side numbers that both edge selection during search and play-selection
+ * values after search need: KataGo's getFpuValueForChildrenAssumeVisited plus
+ * getExploreScaling (cpp/search/searchexplorehelpers.cpp).
+ *
+ * Filled into a scratch object so the hot search path allocates nothing.
+ */
+type ParentSelectionStats = {
+  totalChildWeight: number;
+  policyProbMassVisited: number;
+  parentUtility: number;
+  parentUtilityStdevFactor: number;
+  parentWeightPerVisit: number;
+  fpuValue: number;
+  scaling: number;
+};
 
+const parentSelectionStatsScratch: ParentSelectionStats = {
+  totalChildWeight: 0,
+  policyProbMassVisited: 0,
+  parentUtility: 0,
+  parentUtilityStdevFactor: 1,
+  parentWeightPerVisit: 1,
+  fpuValue: 0,
+  scaling: 0,
+};
+
+function computeParentSelectionStats(
+  node: Node,
+  isRoot: boolean,
+  includeInFlight: boolean,
+  policyProbMassVisitedOverride: number | null = null,
+  out: ParentSelectionStats = parentSelectionStatsScratch
+): ParentSelectionStats {
+  const edges = node.edges;
   const pla = node.playerToMove;
-  const sign = pla === BLACK ? 1 : -1;
 
   let totalChildWeight = 0;
   let policyProbMassVisited = 0;
-
-  for (const e of edges) {
-    const child = e.child;
-    if (!child) continue;
-    const w = child.visits + child.inFlight;
-    if (w <= 0) continue;
-    totalChildWeight += w;
-    policyProbMassVisited += e.prior;
+  if (edges) {
+    for (const e of edges) {
+      const child = e.child;
+      if (!child) continue;
+      const w = child.weightSum + (includeInFlight ? child.inFlight * NUM_VIRTUAL_LOSSES_PER_THREAD : 0);
+      if (w <= 0) continue;
+      totalChildWeight += w;
+      policyProbMassVisited += e.prior;
+    }
   }
+  if (policyProbMassVisitedOverride !== null) policyProbMassVisited = policyProbMassVisitedOverride;
 
   const visits = node.visits;
-  const weightSum = visits;
-  const parentUtility = visits > 0 ? node.utilitySum / visits : 0;
-  const parentUtilitySqAvg = visits > 0 ? node.utilitySqSum / visits : parentUtility * parentUtility;
+  const weightSum = node.weightSum;
+  const parentUtility = node.utilityAvg;
+  const parentUtilitySqAvg = node.utilitySqAvg;
 
   const variancePrior = CPUCT_UTILITY_STDEV_PRIOR * CPUCT_UTILITY_STDEV_PRIOR;
   const variancePriorWeight = CPUCT_UTILITY_STDEV_PRIOR_WEIGHT;
@@ -961,7 +1538,34 @@ function selectEdge(node: Node, isRoot: boolean, wideRootNoise: number, rand: Ra
   const lossValue = pla === BLACK ? -utilityRadius : utilityRadius;
   fpuValue = fpuValue + (lossValue - fpuValue) * fpuLossProp;
 
-  const scaling = exploreScaling(totalChildWeight, parentUtilityStdevFactor);
+  out.totalChildWeight = totalChildWeight;
+  out.policyProbMassVisited = policyProbMassVisited;
+  out.parentUtility = parentUtility;
+  out.parentUtilityStdevFactor = parentUtilityStdevFactor;
+  out.parentWeightPerVisit = visits > 0 ? weightSum / visits : 1.0;
+  out.fpuValue = fpuValue;
+  out.scaling = exploreScaling(totalChildWeight, parentUtilityStdevFactor);
+  return out;
+}
+
+function selectEdge(
+  node: Node,
+  isRoot: boolean,
+  wideRootNoise: number,
+  rand: Rand,
+  endingBonus: Float64Array | null = null,
+  recentScoreCenter = 0,
+  forcedRootMoves: Uint8Array | null = null
+): Edge {
+  const edges = node.edges;
+  if (!edges || edges.length === 0) throw new Error('selectEdge called on unexpanded node');
+
+  const pla = node.playerToMove;
+  const sign = pla === BLACK ? 1 : -1;
+
+  const stats = computeParentSelectionStats(node, isRoot, true);
+  const fpuValue = stats.fpuValue;
+  const scaling = stats.scaling;
 
   let bestEdge = edges[0]!;
   let bestScore = Number.NEGATIVE_INFINITY;
@@ -969,11 +1573,44 @@ function selectEdge(node: Node, isRoot: boolean, wideRootNoise: number, rand: Ra
   const applyWideRootNoise = isRoot && wideRootNoise > 0;
   const wideRootNoisePolicyExponent = applyWideRootNoise ? 1.0 / (4.0 * wideRootNoise + 1.0) : 1.0;
 
+  if (isRoot && forcedRootMoves) {
+    // Give the moves we promised to report their first visits before anything else.
+    for (const e of edges) {
+      if (e.move === PASS_MOVE || forcedRootMoves[e.move] !== 1) continue;
+      const child = e.child;
+      const visits = child ? child.visits + child.inFlight : 0;
+      if (visits < HUMAN_MOVE_MIN_VISITS) return e;
+    }
+  }
+
+  const rootEndingBonus = isRoot ? endingBonus : null;
+  const utilityRadiusForVirtualLoss = WIN_LOSS_UTILITY_FACTOR + STATIC_SCORE_UTILITY_FACTOR + DYNAMIC_SCORE_UTILITY_FACTOR;
+
   for (const e of edges) {
     const child = e.child;
-    const childWeight = child ? child.visits + child.inFlight : 0;
-    let childUtility = child && child.visits > 0 ? child.utilitySum / child.visits : fpuValue;
+    const hasStats = child !== null && child.visits > 0 && child.weightSum > 0;
+    let childWeight = hasStats ? child!.weightSum : 0;
+    let childUtility = hasStats ? child!.utilityAvg : fpuValue;
     let prior = e.prior;
+
+    if (rootEndingBonus && hasStats) {
+      // Tiny adjustment that keeps the endgame tidy: settled points and premature
+      // passes are worth slightly fewer points than the network thinks.
+      const bonus = rootEndingBonus[e.move]!;
+      if (bonus !== 0) {
+        childUtility += scoreUtilityDiffBlack(child!.scoreMeanAvg, child!.scoreMeanSqAvg, bonus, recentScoreCenter);
+      }
+    }
+
+    // Virtual losses steer the other in-flight evaluations of this batch elsewhere.
+    const virtualLosses = child ? child.inFlight : 0;
+    if (virtualLosses > 0) {
+      const virtualLossWeight = virtualLosses * NUM_VIRTUAL_LOSSES_PER_THREAD;
+      const virtualLossUtility = pla === BLACK ? -utilityRadiusForVirtualLoss : utilityRadiusForVirtualLoss;
+      const virtualLossWeightFrac = virtualLossWeight / (virtualLossWeight + Math.max(0.25, childWeight));
+      childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossWeightFrac;
+      childWeight += virtualLossWeight;
+    }
 
     if (applyWideRootNoise) {
       // Mirrors KataGo's wideRootNoise: smooth policy and add random utility bonuses (root only).
@@ -997,6 +1634,670 @@ function selectEdge(node: Node, isRoot: boolean, wideRootNoise: number, rand: Ra
   return bestEdge;
 }
 
+// KataGo rootEndingBonusPoints, default 0.5 for the analysis and GTP setups.
+const ROOT_ENDING_BONUS_POINTS: number = 0.5;
+
+/**
+ * KataGo Search::getEndingWhiteScoreBonus (cpp/search/searchhelpers.cpp),
+ * precomputed for every root move. Values are extra points for white, so they
+ * combine with the score the same way a real score difference would.
+ *
+ * The point is cosmetic-but-important endgame behaviour: don't play inside
+ * territory that is already settled, don't pass while dame are left.
+ */
+export function computeEndingScoreBonuses(args: {
+  stones: Uint8Array;
+  libertyMap: Uint8Array;
+  koPoint: number;
+  ownership: Float32Array | null; // black perspective
+  currentPlayer: Player;
+  rules: GameRules;
+}): Float64Array | null {
+  if (ROOT_ENDING_BONUS_POINTS === 0) return null;
+  const ownership = args.ownership;
+  if (!ownership || ownership.length < BOARD_AREA) return null;
+
+  const rootPla = playerToColor(args.currentPlayer);
+  const opp = opponentOf(rootPla);
+  const isAreaIsh = args.rules === 'chinese';
+  const hasButton = false; // none of the rulesets this app offers use a button
+  const extreme = 0.95;
+  const tail = 0.05;
+
+  const passAliveArea = computePassAliveAreaInto(args.stones, new Uint8Array(BOARD_AREA), false);
+  const bonuses = new Float64Array(BOARD_AREA + 1);
+  let any = false;
+
+  const setBonus = (move: number, extraRootPoints: number) => {
+    if (extraRootPoints === 0) return;
+    // Stored from white's perspective, like KataGo's return value.
+    bonuses[move] = rootPla === WHITE ? extraRootPoints : -extraRootPoints;
+    any = true;
+  };
+
+  if (isAreaIsh) {
+    // Area scoring: discourage moves in settled territory, but never discourage
+    // cleanup, dame filling, or connections of groups that are not pass-alive yet.
+    if (args.koPoint < 0) {
+      for (let p = 0; p < BOARD_AREA; p++) {
+        if ((args.stones[p] as StoneColor) !== EMPTY) continue;
+        const plaOwnership = rootPla === BLACK ? ownership[p]! : -ownership[p]!;
+        if (plaOwnership <= -extreme) {
+          if (!wouldBeCapture(args.stones, args.libertyMap, p, rootPla)) {
+            setBonus(p, -ROOT_ENDING_BONUS_POINTS * ((-extreme - plaOwnership) / tail));
+          }
+        } else if (plaOwnership >= extreme) {
+          if (
+            !isAdjacentToColor(args.stones, p, opp) &&
+            !isNonPassAliveSelfConnection(args.stones, p, rootPla, passAliveArea)
+          ) {
+            setBonus(p, -ROOT_ENDING_BONUS_POINTS * ((plaOwnership - extreme) / tail));
+          }
+        }
+      }
+    }
+    if (hasButton) setBonus(PASS_MOVE, -ROOT_ENDING_BONUS_POINTS * 0.5);
+  } else {
+    // Territory scoring: discourage passing so that dame get filled first, and
+    // discourage pointless threats inside settled territory just the same.
+    setBonus(PASS_MOVE, -ROOT_ENDING_BONUS_POINTS * (2.0 / 3.0));
+    if (args.koPoint < 0) {
+      for (let p = 0; p < BOARD_AREA; p++) {
+        if ((args.stones[p] as StoneColor) !== EMPTY) continue;
+        const plaOwnership = rootPla === BLACK ? ownership[p]! : -ownership[p]!;
+        if (plaOwnership <= -extreme) {
+          setBonus(p, -ROOT_ENDING_BONUS_POINTS * ((-extreme - plaOwnership) / tail));
+        } else if (plaOwnership >= extreme) {
+          if (
+            !isAdjacentToColor(args.stones, p, opp) &&
+            !isNonPassAliveSelfConnection(args.stones, p, rootPla, passAliveArea)
+          ) {
+            setBonus(p, -ROOT_ENDING_BONUS_POINTS * ((plaOwnership - extreme) / tail));
+          }
+        }
+      }
+    }
+  }
+
+  return any ? bonuses : null;
+}
+
+/**
+ * KataGo Search::getScoreUtilityDiff: what pretending white scored `whiteDelta`
+ * more points does to the utility. Returned black-perspective, since that is the
+ * frame utilities live in here.
+ */
+function scoreUtilityDiffBlack(
+  blackScoreMean: number,
+  blackScoreMeanSq: number,
+  whiteDelta: number,
+  recentScoreCenter: number
+): number {
+  if (whiteDelta === 0) return 0;
+  const whiteScoreMean = -blackScoreMean;
+  const whiteScoreStdev = getScoreStdev(whiteScoreMean, blackScoreMeanSq);
+  const sqrtBoardArea = getSqrtBoardArea();
+
+  const staticDiff =
+    expectedWhiteScoreValue({
+      whiteScoreMean: whiteScoreMean + whiteDelta,
+      whiteScoreStdev,
+      center: 0.0,
+      scale: 2.0,
+      sqrtBoardArea,
+    }) -
+    expectedWhiteScoreValue({ whiteScoreMean, whiteScoreStdev, center: 0.0, scale: 2.0, sqrtBoardArea });
+
+  const dynamicDiff =
+    DYNAMIC_SCORE_UTILITY_FACTOR === 0
+      ? 0
+      : expectedWhiteScoreValue({
+          whiteScoreMean: whiteScoreMean + whiteDelta,
+          whiteScoreStdev,
+          center: recentScoreCenter,
+          scale: DYNAMIC_SCORE_CENTER_SCALE,
+          sqrtBoardArea,
+        }) -
+        expectedWhiteScoreValue({
+          whiteScoreMean,
+          whiteScoreStdev,
+          center: recentScoreCenter,
+          scale: DYNAMIC_SCORE_CENTER_SCALE,
+          sqrtBoardArea,
+        });
+
+  const whiteDiff = staticDiff * STATIC_SCORE_UTILITY_FACTOR + dynamicDiff * DYNAMIC_SCORE_UTILITY_FACTOR;
+  return -whiteDiff;
+}
+
+/**
+ * KataGo Search::getExploreSelectionValue and getExploreSelectionValueInverse
+ * (cpp/search/searchexplorehelpers.cpp). Utility is black-perspective in this
+ * port where KataGo's is white-perspective, so the player sign is flipped.
+ */
+function exploreSelectionValue(
+  scaling: number,
+  prior: number,
+  childWeight: number,
+  childUtility: number,
+  pla: StoneColor
+): number {
+  const explore = (scaling * prior) / (1.0 + childWeight);
+  return explore + (pla === BLACK ? childUtility : -childUtility);
+}
+
+function exploreSelectionValueInverse(
+  value: number,
+  scaling: number,
+  prior: number,
+  childUtility: number,
+  pla: StoneColor
+): number {
+  const valueComponent = pla === BLACK ? childUtility : -childUtility;
+  const exploreComponent = value - valueComponent;
+  if (exploreComponent <= 0) return 1e100;
+  const childWeight = (scaling * prior) / exploreComponent - 1;
+  return childWeight < 0 ? 0 : childWeight;
+}
+
+type PlaySelectionValues = {
+  values: Float64Array; // per edge index, KataGo's playSelectionValue
+  lcb: Float64Array; // per edge index, from the player-to-move's perspective
+  radius: Float64Array; // per edge index
+};
+
+/**
+ * KataGo Search::getPlaySelectionValues (cpp/search/searchresults.cpp).
+ *
+ * Every visit carries weight 1 in this port, so weightSum and weightSqSum are
+ * both the visit count and the effective sample size is just the visits.
+ */
+function computePlaySelectionValues(
+  node: Node,
+  isRoot: boolean,
+  endingBonus: Float64Array | null = null,
+  recentScoreCenter = 0
+): PlaySelectionValues | null {
+  const edges = node.edges;
+  if (!edges || edges.length === 0) return null;
+
+  const pla = node.playerToMove;
+  const n = edges.length;
+  const values = new Float64Array(n);
+  const lcb = new Float64Array(n);
+  const radius = new Float64Array(n);
+
+  const utilityRangeRadius = WIN_LOSS_UTILITY_FACTOR + STATIC_SCORE_UTILITY_FACTOR + DYNAMIC_SCORE_UTILITY_FACTOR;
+  const zeroVisitRadius = 2.0 * utilityRangeRadius * LCB_STDEVS;
+  const rootEndingBonus = isRoot ? endingBonus : null;
+
+  /** Child utility including the root ending bonus, as KataGo applies it. */
+  const utilityWithBonus = (child: Node, move: number): number => {
+    const utility = child.utilityAvg;
+    if (!rootEndingBonus) return utility;
+    const bonus = rootEndingBonus[move]!;
+    if (bonus === 0) return utility;
+    return utility + scoreUtilityDiffBlack(child.scoreMeanAvg, child.scoreMeanSqAvg, bonus, recentScoreCenter);
+  };
+
+  let anyVisitedChild = false;
+  for (let i = 0; i < n; i++) {
+    const child = edges[i]!.child;
+    const visits = child ? child.visits : 0;
+    values[i] = child && visits > 0 ? child.weightSum : 0;
+    if (visits > 0) anyVisitedChild = true;
+    lcb[i] = -zeroVisitRadius;
+    radius[i] = zeroVisitRadius;
+  }
+  if (!anyVisitedChild) return null;
+
+  // The most stably explored child, before LCB. A little weight on raw policy, and
+  // one visit's worth discounted because the most recent visit is overweighted.
+  let nonLcbBestIdx = 0;
+  let nonLcbBestChildWeight = -1e30;
+  {
+    let maxGoodness = -1e30;
+    for (let i = 0; i < n; i++) {
+      const weight = values[i]!;
+      const visits = edges[i]!.child?.visits ?? 0;
+      const goodness = (weight * Math.max(0, visits - 1)) / Math.max(1, visits) + 2.0 * edges[i]!.prior;
+      if (goodness > maxGoodness) {
+        maxGoodness = goodness;
+        nonLcbBestChildWeight = weight;
+        nonLcbBestIdx = i;
+      }
+    }
+  }
+
+  // Root only: take back weight from children that in retrospect got more visits
+  // than the final explore selection values justify.
+  if (isRoot) {
+    const bestEdge = edges[nonLcbBestIdx]!;
+    const bestChild = bestEdge.child;
+    if (bestChild && bestChild.visits > 0) {
+      // policyProbMassVisited is irrelevant here: it only feeds the FPU value,
+      // which is unused because every child considered below has visits.
+      const stats = computeParentSelectionStats(node, true, false, 1.0);
+      const scaling = stats.scaling;
+      const bestChildUtility = utilityWithBonus(bestChild, bestEdge.move);
+      const bestChildExploreSelectionValue = exploreSelectionValue(
+        scaling,
+        bestEdge.prior,
+        bestChild.weightSum,
+        bestChildUtility,
+        pla
+      );
+      for (let i = 0; i < n; i++) {
+        if (i === nonLcbBestIdx) continue;
+        const child = edges[i]!.child;
+        if (!child || child.visits <= 0) {
+          values[i] = 0;
+          continue;
+        }
+        const childUtility = utilityWithBonus(child, edges[i]!.move);
+        const retrospectivelyWanted = exploreSelectionValueInverse(
+          bestChildExploreSelectionValue,
+          scaling,
+          edges[i]!.prior,
+          childUtility,
+          pla
+        );
+        const childWeight = child.weightSum;
+        values[i] = Math.ceil(childWeight > retrospectivelyWanted ? retrospectivelyWanted : childWeight);
+      }
+    }
+  }
+
+  // KataGo Search::getSelfUtilityLCBAndRadius.
+  for (let i = 0; i < n; i++) {
+    const child = edges[i]!.child;
+    if (!child || child.visits <= 0) continue;
+
+    let weightSum = child.weightSum;
+    let weightSqSum = child.weightSqSum;
+    if (weightSum <= 0 || weightSqSum <= 0) continue;
+    let ess = (weightSum * weightSum) / weightSqSum;
+
+    const utilityAvg = child.utilityAvg;
+    let utilitySqAvg = child.utilitySqAvg;
+
+    // A small prior that the variance is as large as it can be, so that the
+    // radius stays sane at tiny sample sizes without a T distribution.
+    const priorWeight = weightSum / (ess * ess * ess);
+    utilitySqAvg = Math.max(utilitySqAvg, utilityAvg * utilityAvg + 1e-8);
+    utilitySqAvg =
+      (utilitySqAvg * weightSum + (utilitySqAvg + utilityRangeRadius * utilityRangeRadius) * priorWeight) /
+      (weightSum + priorWeight);
+    weightSum += priorWeight;
+    weightSqSum += priorWeight * priorWeight;
+    ess = (weightSum * weightSum) / weightSqSum;
+
+    const utilityForSelf = utilityWithBonus(child, edges[i]!.move);
+    const selfUtility = pla === BLACK ? utilityForSelf : -utilityForSelf;
+    const utilityVariance = utilitySqAvg - utilityAvg * utilityAvg;
+    const estimateStdev = Math.sqrt(Math.max(0, utilityVariance / ess));
+    const childRadius = estimateStdev * LCB_STDEVS;
+
+    radius[i] = childRadius;
+    lcb[i] = selfUtility - childRadius;
+  }
+
+  if (USE_LCB_FOR_SELECTION) {
+    let bestLcb = -1e10;
+    let bestLcbIndex = -1;
+    for (let i = 0; i < n; i++) {
+      const weight = values[i]!;
+      if (weight > 0 && weight >= MIN_VISIT_PROP_FOR_LCB * nonLcbBestChildWeight) {
+        if (lcb[i]! > bestLcb) {
+          bestLcb = lcb[i]!;
+          bestLcbIndex = i;
+        }
+      }
+    }
+    if (bestLcbIndex >= 0) {
+      // The best-LCB move gets enough weight to beat every other child.
+      let adjustedWeight = values[bestLcbIndex]!;
+      for (let i = 0; i < n; i++) {
+        if (i === bestLcbIndex) continue;
+        const excessValue = bestLcb - lcb[i]!;
+        if (excessValue < 0) continue;
+        const childRadius = radius[i]!;
+        // How many times wider would the radius have to be before this move's LCB
+        // would win? Capped so no move can gain more than a factor of 5.
+        const radiusFactor = (childRadius + excessValue) / (childRadius + 0.2 * excessValue);
+        const lbound = radiusFactor * radiusFactor * values[i]!;
+        if (lbound > adjustedWeight) adjustedWeight = lbound;
+      }
+      values[bestLcbIndex] = adjustedWeight;
+    }
+  }
+
+  return { values, lcb, radius };
+}
+
+/**
+ * KataGo's winrate-scale LCB hack (PlayUtils::getHackedLCBForWinrate): the real
+ * LCB is on utility, so the radius is rescaled by how much winrate matters in it.
+ */
+const LCB_WINRATE_RADIUS_SCALE =
+  0.5 * (WIN_LOSS_UTILITY_FACTOR / (WIN_LOSS_UTILITY_FACTOR + STATIC_SCORE_UTILITY_FACTOR + DYNAMIC_SCORE_UTILITY_FACTOR + 1e-20));
+
+/**
+ * Test seam: aggregates a parent's stats from plain child numbers through the real
+ * recompute path, so the weighting can be checked without a network.
+ */
+export function recomputeNodeStatsForTest(args: {
+  playerToMove: 'black' | 'white';
+  own: { value: number; scoreLead: number; scoreMean: number; scoreMeanSq: number; utility: number; weight?: number };
+  children: Array<{
+    prior: number;
+    visits: number;
+    weightSum?: number;
+    weightSqSum?: number;
+    value: number;
+    scoreLead: number;
+    scoreMean: number;
+    scoreMeanSq: number;
+    utility: number;
+    utilitySq?: number;
+  }>;
+}): {
+  weightSum: number;
+  weightSqSum: number;
+  valueAvg: number;
+  scoreLeadAvg: number;
+  scoreMeanAvg: number;
+  scoreMeanSqAvg: number;
+  utilityAvg: number;
+  utilitySqAvg: number;
+} {
+  const pla = args.playerToMove === 'black' ? BLACK : WHITE;
+  const node = new Node(pla);
+  node.nnValue = args.own.value;
+  node.nnScoreLead = args.own.scoreLead;
+  node.nnScoreMean = args.own.scoreMean;
+  node.nnScoreMeanSq = args.own.scoreMeanSq;
+  node.nnUtility = args.own.utility;
+  node.nnWeight = args.own.weight ?? 1;
+  node.edges = args.children.map((c, i) => {
+    const child = new Node(pla === BLACK ? WHITE : BLACK);
+    child.visits = c.visits;
+    child.weightSum = c.weightSum ?? c.visits;
+    child.weightSqSum = c.weightSqSum ?? c.visits;
+    child.valueAvg = c.value;
+    child.scoreLeadAvg = c.scoreLead;
+    child.scoreMeanAvg = c.scoreMean;
+    child.scoreMeanSqAvg = c.scoreMeanSq;
+    child.utilityAvg = c.utility;
+    child.utilitySqAvg = c.utilitySq ?? c.utility * c.utility;
+    return { move: i, prior: c.prior, child } as Edge;
+  });
+  node.visits = 1 + args.children.reduce((n, c) => n + c.visits, 0);
+  recomputeNodeStats(node);
+  return {
+    weightSum: node.weightSum,
+    weightSqSum: node.weightSqSum,
+    valueAvg: node.valueAvg,
+    scoreLeadAvg: node.scoreLeadAvg,
+    scoreMeanAvg: node.scoreMeanAvg,
+    scoreMeanSqAvg: node.scoreMeanSqAvg,
+    utilityAvg: node.utilityAvg,
+    utilitySqAvg: node.utilitySqAvg,
+  };
+}
+
+/**
+ * Test seam: builds a throwaway node/edge tree from plain numbers and runs the
+ * real play-selection code over it, so the LCB math can be checked without a
+ * network. Not used by the engine itself.
+ */
+export function computePlaySelectionValuesForTest(args: {
+  playerToMove: 'black' | 'white';
+  parentVisits: number;
+  parentUtilitySum: number;
+  parentUtilitySqSum: number;
+  parentNnUtility?: number;
+  isRoot: boolean;
+  children: Array<{
+    prior: number;
+    visits: number;
+    utilitySum: number;
+    utilitySqSum: number;
+    scoreMeanSum?: number;
+    scoreMeanSqSum?: number;
+  }>;
+  endingBonus?: Float64Array | null;
+  recentScoreCenter?: number;
+}): { values: number[]; lcb: number[]; radius: number[] } | null {
+  const pla = args.playerToMove === 'black' ? BLACK : WHITE;
+  const node = new Node(pla);
+  node.visits = args.parentVisits;
+  node.weightSum = args.parentVisits;
+  node.weightSqSum = args.parentVisits;
+  node.utilityAvg = args.parentVisits > 0 ? args.parentUtilitySum / args.parentVisits : 0;
+  node.utilitySqAvg = args.parentVisits > 0 ? args.parentUtilitySqSum / args.parentVisits : 0;
+  node.nnUtility = args.parentNnUtility ?? null;
+  node.edges = args.children.map((c, i) => {
+    const child = new Node(pla === BLACK ? WHITE : BLACK);
+    child.visits = c.visits;
+    child.weightSum = c.visits;
+    child.weightSqSum = c.visits;
+    child.utilityAvg = c.visits > 0 ? c.utilitySum / c.visits : 0;
+    child.utilitySqAvg = c.visits > 0 ? c.utilitySqSum / c.visits : 0;
+    child.scoreMeanAvg = c.visits > 0 ? (c.scoreMeanSum ?? 0) / c.visits : 0;
+    child.scoreMeanSqAvg = c.visits > 0 ? (c.scoreMeanSqSum ?? 0) / c.visits : 0;
+    return { move: i, prior: c.prior, child } as Edge;
+  });
+  const result = computePlaySelectionValues(
+    node,
+    args.isRoot,
+    args.endingBonus ?? null,
+    args.recentScoreCenter ?? 0
+  );
+  if (!result) return null;
+  return {
+    values: Array.from(result.values),
+    lcb: Array.from(result.lcb),
+    radius: Array.from(result.radius),
+  };
+}
+
+type CandidateRow = {
+  edge: Edge;
+  move: number;
+  visits: number;
+  winRate: number;
+  scoreLead: number;
+  scoreSelfplay: number;
+  scoreStdev: number;
+  prior: number;
+  playSelectionValue: number;
+  lcbSelf: number; // utility LCB from the player-to-move's perspective
+  radius: number;
+};
+
+export type AnalysisPayloadMove = {
+  x: number;
+  y: number;
+  winRate: number;
+  winRateLost: number;
+  scoreLead: number;
+  scoreSelfplay: number;
+  scoreStdev: number;
+  visits: number;
+  pointsLost: number;
+  relativePointsLost: number;
+  order: number;
+  prior: number;
+  pv: string[];
+  pvVisits: number[];
+  lcb: number;
+  utilityLcb: number;
+  playSelectionValue: number;
+  /** Set when this move is a symmetric copy of the move that was actually searched. */
+  isSymmetryOf?: { x: number; y: number };
+  /** How likely a human of the configured rank is to play this move, if known. */
+  humanPrior?: number;
+  ownership?: FloatArray;
+};
+
+/**
+ * Per-child stats plus KataGo play selection values for a searched root, sorted
+ * the way KataGo sorts analysis data.
+ */
+function collectRootCandidateRows(
+  rootNode: Node,
+  endingBonus: Float64Array | null = null,
+  recentScoreCenter = 0
+): CandidateRow[] {
+  const edges = rootNode.edges ?? [];
+  const selection = computePlaySelectionValues(rootNode, true, endingBonus, recentScoreCenter);
+  const rows: CandidateRow[] = [];
+
+  for (let i = 0; i < edges.length; i++) {
+    const e = edges[i]!;
+    const child = e.child;
+    if (!child || child.visits <= 0) continue;
+    const q = child.valueAvg;
+    const winRate = (q + 1) * 0.5;
+    const scoreLead = child.scoreLeadAvg;
+    const scoreSelfplay = child.scoreMeanAvg;
+    const scoreMeanSq = child.scoreMeanSqAvg;
+    const scoreStdev = Math.sqrt(Math.max(0, scoreMeanSq - scoreSelfplay * scoreSelfplay));
+    rows.push({
+      edge: e,
+      move: e.move,
+      visits: child.visits,
+      winRate,
+      scoreLead,
+      scoreSelfplay,
+      scoreStdev,
+      prior: e.prior,
+      playSelectionValue: selection ? selection.values[i]! : child.visits,
+      lcbSelf: selection ? selection.lcb[i]! : 0,
+      radius: selection ? selection.radius[i]! : 0,
+    });
+  }
+
+  rows.sort(compareCandidateRows);
+  return rows;
+}
+
+/** Turns sorted candidate rows into the analysis payload's move list. */
+function buildAnalysisMoves(args: {
+  rows: CandidateRow[];
+  topK: number;
+  pvDepth: number;
+  currentPlayer: Player;
+  rootWinRate: number;
+  rootScoreLead: number;
+  includeMovesOwnership: boolean;
+  cloneBuffers: boolean;
+  rootSymmetries?: number[];
+  roiMask?: Uint8Array | null;
+}): AnalysisPayloadMove[] {
+  const { rows, rootWinRate, rootScoreLead } = args;
+  const topRows = rows.length > args.topK ? rows.slice(0, args.topK) : rows;
+  const best = topRows[0] ?? null;
+  const bestScoreLead = best ? best.scoreLead : rootScoreLead;
+  const sign = args.currentPlayer === 'black' ? 1 : -1;
+
+  const built = topRows.map((m, i) => {
+    const pointsLost = sign * (rootScoreLead - m.scoreLead);
+    const relativePointsLost = sign * (bestScoreLead - m.scoreLead);
+    const winRateLost = sign * (rootWinRate - m.winRate);
+
+    const x = m.move === PASS_MOVE ? -1 : m.move % BOARD_SIZE;
+    const y = m.move === PASS_MOVE ? -1 : (m.move / BOARD_SIZE) | 0;
+
+    const pv = getPvForEdge(m.edge, args.pvDepth);
+    const pvMoves = pv.moves;
+    // KataGo reports lcb on the winrate scale and utilityLcb on the utility scale;
+    // both are black-perspective here, like every other number in this payload.
+    const lcb = m.winRate - sign * m.radius * LCB_WINRATE_RADIUS_SCALE;
+    const utilityLcb = sign * m.lcbSelf;
+
+    return {
+      x,
+      y,
+      winRate: m.winRate,
+      winRateLost,
+      scoreLead: m.scoreLead,
+      scoreSelfplay: m.scoreSelfplay,
+      scoreStdev: m.scoreStdev,
+      visits: m.visits,
+      pointsLost,
+      relativePointsLost,
+      order: i,
+      prior: m.prior,
+      move: m.move,
+      pvMoves,
+      pv: pvMoves.map(moveToGtp),
+      pvVisits: pv.pvVisits,
+      lcb,
+      utilityLcb,
+      playSelectionValue: m.playSelectionValue,
+      ownership:
+        args.includeMovesOwnership && m.edge.child?.ownership
+          ? args.cloneBuffers
+            ? new Float32Array(m.edge.child.ownership)
+            : m.edge.child.ownership
+          : undefined,
+    };
+  });
+
+  const symmetries = args.rootSymmetries ?? [0];
+  if (symmetries.length <= 1) {
+    return built.map((row) => {
+      const { move, pvMoves, ...rest } = row;
+      void move;
+      void pvMoves;
+      return rest;
+    });
+  }
+
+  // KataGo's duplicateForSymmetries: the search only looked at one copy of each
+  // symmetric move, so put the copies back with their variations mapped over.
+  const map = getSymPosMap();
+  const roiMask = args.roiMask ?? null;
+  const seen = new Set<number>();
+  const out: AnalysisPayloadMove[] = [];
+  for (const row of built) {
+    const { move, pvMoves, ...base } = row;
+    for (const sym of symmetries) {
+      const symMove = move === PASS_MOVE ? PASS_MOVE : map[sym * BOARD_AREA + move]!;
+      if (seen.has(symMove)) continue;
+      if (roiMask && symMove !== PASS_MOVE && roiMask[symMove] === 0) continue;
+      seen.add(symMove);
+      const symPv = sym === 0 ? pvMoves : pvMoves.map((mv) => (mv === PASS_MOVE ? mv : map[sym * BOARD_AREA + mv]!));
+      out.push({
+        ...base,
+        x: symMove === PASS_MOVE ? -1 : symMove % BOARD_SIZE,
+        y: symMove === PASS_MOVE ? -1 : (symMove / BOARD_SIZE) | 0,
+        pv: sym === 0 ? base.pv : symPv.map(moveToGtp),
+        isSymmetryOf:
+          sym === 0 || move === PASS_MOVE
+            ? undefined
+            : { x: move % BOARD_SIZE, y: (move / BOARD_SIZE) | 0 },
+      });
+    }
+  }
+  out.forEach((m, i) => (m.order = i));
+  return out;
+}
+
+/** KataGo AnalysisData operator< (cpp/search/analysisdata.cpp). Negative = a first. */
+function compareCandidateRows(
+  a: { visits: number; playSelectionValue: number; prior: number },
+  b: { visits: number; playSelectionValue: number; prior: number }
+): number {
+  if (a.visits > 0 && b.visits === 0) return -1;
+  if (b.visits > 0 && a.visits === 0) return 1;
+  if (a.playSelectionValue !== b.playSelectionValue) return b.playSelectionValue - a.playSelectionValue;
+  if (a.visits !== b.visits) return b.visits - a.visits;
+  return b.prior - a.prior;
+}
+
 function moveToGtp(move: number): string {
   if (move === PASS_MOVE) return 'pass';
   const x = move % BOARD_SIZE;
@@ -1006,37 +2307,44 @@ function moveToGtp(move: number): string {
   return `${letter}${BOARD_SIZE - y}`;
 }
 
-function buildPv(edge: Edge, maxDepth: number): string[] {
+function buildPv(edge: Edge, maxDepth: number): { moves: number[]; pvVisits: number[] } {
   const pvMoves: number[] = [edge.move];
+  const pvVisits: number[] = [edge.child?.visits ?? 0];
   let node = edge.child;
   let depth = 1;
 
+  // KataGo's appendPV walks play selection values, not raw visits, so the PV
+  // agrees with the LCB-adjusted move it reports at every depth.
   while (node && node.edges && node.edges.length > 0 && depth < maxDepth) {
+    const selection = computePlaySelectionValues(node, false);
+    if (!selection) break;
     let best: Edge | null = null;
-    let bestVisits = 0;
-    for (const e of node.edges) {
-      const v = e.child ? e.child.visits : 0;
-      if (v > bestVisits) {
-        bestVisits = v;
-        best = e;
+    let bestValue = 0;
+    for (let i = 0; i < node.edges.length; i++) {
+      const value = selection.values[i]!;
+      if (value > bestValue) {
+        bestValue = value;
+        best = node.edges[i]!;
       }
     }
-    if (!best || bestVisits <= 0) break;
+    if (!best || bestValue <= 0) break;
     pvMoves.push(best.move);
+    pvVisits.push(best.child?.visits ?? 0);
     node = best.child;
     depth++;
   }
 
-  return pvMoves.map(moveToGtp);
+  return { moves: pvMoves, pvVisits };
 }
 
-function getPvForEdge(edge: Edge, maxDepth: number): string[] {
+function getPvForEdge(edge: Edge, maxDepth: number): { moves: number[]; pvVisits: number[] } {
   const visits = edge.child?.visits ?? 0;
   const cache = edge.pvCache;
-  if (cache && cache.visits === visits && cache.depth === maxDepth) return cache.pv;
-  const pv = buildPv(edge, maxDepth);
-  edge.pvCache = { visits, depth: maxDepth, pv };
-  return pv;
+  if (cache && cache.visits === visits && cache.depth === maxDepth) return cache;
+  const built = buildPv(edge, maxDepth);
+  const cached = { visits, depth: maxDepth, moves: built.moves, pvVisits: built.pvVisits };
+  edge.pvCache = cached;
+  return cached;
 }
 
 const NUM_SYMMETRIES = 8;
@@ -1121,6 +2429,8 @@ function averageRootEvals(evals: NeuralEval[], outputScaleMultiplier: number): N
   let blackScoreMean = 0;
   let blackScoreMeanSq = 0;
   let blackNoResultProb = 0;
+  let shorttermWinlossError = 0;
+  let shorttermScoreError = 0;
 
   for (const ev of evals) {
     const sym = ev.symmetry;
@@ -1151,6 +2461,8 @@ function averageRootEvals(evals: NeuralEval[], outputScaleMultiplier: number): N
     blackScoreMean += ev.blackScoreMean * inv;
     blackScoreMeanSq += (ev.blackScoreStdev * ev.blackScoreStdev + ev.blackScoreMean * ev.blackScoreMean) * inv;
     blackNoResultProb += ev.blackNoResultProb * inv;
+    if (ev.shorttermWinlossError >= 0) shorttermWinlossError += ev.shorttermWinlossError * inv;
+    if (ev.shorttermScoreError >= 0) shorttermScoreError += ev.shorttermScoreError * inv;
   }
 
   const minPolicyProb = 1e-30;
@@ -1172,6 +2484,9 @@ function averageRootEvals(evals: NeuralEval[], outputScaleMultiplier: number): N
     blackScoreMean,
     blackScoreStdev: Math.sqrt(Math.max(0, blackScoreMeanSq - blackScoreMean * blackScoreMean)),
     blackNoResultProb,
+    // Averaged over the symmetries that reported them; -1 if the net has no such head.
+    shorttermWinlossError: first.shorttermWinlossError >= 0 ? shorttermWinlossError : -1,
+    shorttermScoreError: first.shorttermScoreError >= 0 ? shorttermScoreError : -1,
     libertyMap: new Uint8Array(first.libertyMap),
     areaMap: new Uint8Array(first.areaMap),
     ownership,
@@ -1325,6 +2640,9 @@ type NeuralEval = {
   blackScoreMean: number;
   blackScoreStdev: number;
   blackNoResultProb: number;
+  // -1 when the net is older than model version 10 and does not predict them.
+  shorttermWinlossError: number;
+  shorttermScoreError: number;
   libertyMap: Uint8Array;
   areaMap: Uint8Array;
   ownership?: Float32Array; // len 361, raw logits (player-to-move perspective, symmetry space if symmetry != 0)
@@ -1533,18 +2851,22 @@ async function evaluateBatch(args: {
 
     const passLogit = passLogits[i]!;
     const vOff = i * 3;
-    const sOff = i * 4;
+    const scoreChannels = model.scoreValueChannels;
+    const sOff = i * scoreChannels;
     const evaled = postprocessKataGoV8({
       nextPlayer: states[i]!.currentPlayer,
       valueLogits: valueArr.subarray(vOff, vOff + 3),
-      scoreValue: scoreArr.subarray(sOff, sOff + 4),
+      scoreValue: scoreArr.subarray(sOff, sOff + scoreChannels),
       postProcessParams: model.postProcessParams,
+      modelVersion: model.modelVersion,
     });
 
     results.push({
       policy,
       symmetry: sym,
       passLogit,
+      shorttermWinlossError: evaled.shorttermWinlossError,
+      shorttermScoreError: evaled.shorttermScoreError,
       blackWinProb: evaled.blackWinProb,
       blackScoreLead: evaled.blackScoreLead,
       blackScoreMean: evaled.blackScoreMean,
@@ -1585,11 +2907,6 @@ export class MctsSearch {
   private rootOwnership: Float32Array; // len 361
   private recentScoreCenter: number;
   private readonly rand: Rand;
-  private rootSelfValue: number;
-  private rootSelfScoreLead: number;
-  private rootSelfScoreMean: number;
-  private rootSelfScoreMeanSq: number;
-  private rootSelfUtility: number;
 
   private jobStonesScratch = new Uint8Array(0);
   private jobPrevStonesScratch = new Uint8Array(0);
@@ -1601,6 +2918,19 @@ export class MctsSearch {
   private libertyMapStack: Uint8Array[] = [];
   private libertySeedsScratch = new Int16Array(BOARD_AREA * 5);
   private treeOwnershipCache: { visits: number; ownership: Float32Array; ownershipStdev: Float32Array; timestamp: number } | null = null;
+  private rootSymmetries: number[];
+  private roiMask: Uint8Array | null;
+  private rootEndingBonus: Float64Array | null;
+  private forcedRootMoves: Uint8Array | null;
+  /**
+   * Whether a game that ends inside the search gets its real score. Only area
+   * scoring can be counted straight off the board; territory rules need the dead
+   * stones agreed first, which is what KataGo's encore is for, so under those the
+   * network keeps judging the position as it does today.
+   */
+  private readonly scoreTerminalNodes: boolean;
+  private readonly subtreeBiasTable = new SubtreeBiasTable();
+  private readonly rootSymmetryPruning: boolean;
 
   private constructor(args: {
     model: KataGoModelV8Tf;
@@ -1626,11 +2956,11 @@ export class MctsSearch {
     recentScoreCenter: number;
     rand: Rand;
     outputScaleMultiplier: number;
-    rootSelfValue: number;
-    rootSelfScoreLead: number;
-    rootSelfScoreMean: number;
-    rootSelfScoreMeanSq: number;
-    rootSelfUtility: number;
+    rootSymmetries: number[];
+    roiMask: Uint8Array | null;
+    rootSymmetryPruning: boolean;
+    rootEndingBonus: Float64Array | null;
+    forcedRootMoves: Uint8Array | null;
   }) {
     this.model = args.model;
     this.ownershipMode = args.ownershipMode;
@@ -1657,11 +2987,12 @@ export class MctsSearch {
     this.recentScoreCenter = args.recentScoreCenter;
     this.rand = args.rand;
     this.outputScaleMultiplier = args.outputScaleMultiplier;
-    this.rootSelfValue = args.rootSelfValue;
-    this.rootSelfScoreLead = args.rootSelfScoreLead;
-    this.rootSelfScoreMean = args.rootSelfScoreMean;
-    this.rootSelfScoreMeanSq = args.rootSelfScoreMeanSq;
-    this.rootSelfUtility = args.rootSelfUtility;
+    this.rootSymmetries = args.rootSymmetries;
+    this.roiMask = args.roiMask;
+    this.rootSymmetryPruning = args.rootSymmetryPruning;
+    this.rootEndingBonus = args.rootEndingBonus;
+    this.forcedRootMoves = args.forcedRootMoves;
+    this.scoreTerminalNodes = args.rules === 'chinese';
   }
 
   static async create(args: {
@@ -1680,6 +3011,12 @@ export class MctsSearch {
     wideRootNoise: number;
     rootSymmetrySamples?: number;
     regionOfInterest?: RegionOfInterest | null;
+    rootSymmetryPruning?: boolean;
+    /** Human SL policy for the root position, used to widen the candidate list. */
+    humanPolicy?: ArrayLike<number> | null;
+    humanMoveCount?: number;
+    /** Moves the search may not play at the root, KataGo's avoidMoves. */
+    avoidRootMoves?: Uint8Array | null;
   }): Promise<MctsSearch> {
     const outputScaleMultiplier = args.model.postProcessParams?.outputScaleMultiplier ?? 1.0;
     const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples);
@@ -1699,8 +3036,12 @@ export class MctsSearch {
       player: m.player,
     }));
 
+    const forcedRootMoves = topHumanMovesMask(args.humanPolicy, args.humanMoveCount ?? DEFAULT_HUMAN_MOVE_COUNT);
     const rootNode = new Node(playerToColor(args.currentPlayer));
     const {
+      rootSymmetries,
+      roiMask,
+      rootNnWeight,
       rootLibertyMap,
       rootOwnership,
       rootPolicy,
@@ -1727,21 +3068,33 @@ export class MctsSearch {
       rootMoves,
       maxChildren: args.maxChildren,
       regionOfInterest: args.regionOfInterest,
+      rootSymmetryPruning: args.rootSymmetryPruning,
+      forcedRootMoves,
+      avoidRootMoves: args.avoidRootMoves,
       outputScaleMultiplier,
       node: rootNode,
     });
     rootNode.ownership = rootOwnership;
     rootNode.visits = 1;
-    rootNode.valueSum = rootValue;
-    rootNode.scoreLeadSum = rootScoreLead;
-    rootNode.scoreMeanSum = rootScoreMean;
-    rootNode.scoreMeanSqSum = rootScoreMeanSq;
-    rootNode.utilitySum = rootUtility;
-    rootNode.utilitySqSum = rootUtility * rootUtility;
+    rootNode.nnValue = rootValue;
+    rootNode.nnScoreLead = rootScoreLead;
+    rootNode.nnScoreMean = rootScoreMean;
+    rootNode.nnScoreMeanSq = rootScoreMeanSq;
     rootNode.nnUtility = rootUtility;
+    rootNode.nnWeight = rootNnWeight;
+    recomputeNodeStats(rootNode);
 
     const rootPrevLibertyMap =
       rootPrevStones === rootStones ? rootLibertyMap : computeLibertyMapInto(rootPrevStones, new Uint8Array(BOARD_AREA));
+
+    const rootEndingBonus = computeEndingScoreBonuses({
+      stones: rootStones,
+      libertyMap: rootLibertyMap,
+      koPoint: rootKoPoint,
+      ownership: args.ownershipMode === 'none' ? null : rootOwnership,
+      currentPlayer: args.currentPlayer,
+      rules: args.rules,
+    });
 
     return new MctsSearch({
       model: args.model,
@@ -1767,11 +3120,11 @@ export class MctsSearch {
       recentScoreCenter,
       rand: new Rand(),
       outputScaleMultiplier,
-      rootSelfValue: rootValue,
-      rootSelfScoreLead: rootScoreLead,
-      rootSelfScoreMean: rootScoreMean,
-      rootSelfScoreMeanSq: rootScoreMeanSq,
-      rootSelfUtility: rootUtility,
+      rootSymmetries,
+      roiMask,
+      rootSymmetryPruning: args.rootSymmetryPruning !== false,
+      rootEndingBonus,
+      forcedRootMoves,
     });
   }
 
@@ -1811,6 +3164,9 @@ export class MctsSearch {
 
     const shouldExpandRoot = !child.edges || child.edges.length === 0;
     const {
+      rootSymmetries,
+      roiMask,
+      rootNnWeight,
       rootLibertyMap,
       rootOwnership,
       rootPolicy,
@@ -1824,6 +3180,7 @@ export class MctsSearch {
       model: this.model,
       ownershipMode: this.ownershipMode,
       rules: args.rules,
+      rootSymmetryPruning: this.rootSymmetryPruning,
       rootSymmetrySamples: this.rootSymmetrySamples,
       komi: args.komi,
       currentPlayer: args.currentPlayer,
@@ -1845,16 +3202,14 @@ export class MctsSearch {
     const rootPrevLibertyMap =
       rootPrevStones === rootStones ? rootLibertyMap : computeLibertyMapInto(rootPrevStones, new Uint8Array(BOARD_AREA));
 
-    if (shouldExpandRoot) {
-      child.visits = 1;
-      child.valueSum = rootValue;
-      child.scoreLeadSum = rootScoreLead;
-      child.scoreMeanSum = rootScoreMean;
-      child.scoreMeanSqSum = rootScoreMeanSq;
-      child.utilitySum = rootUtility;
-      child.utilitySqSum = rootUtility * rootUtility;
-    }
+    if (shouldExpandRoot) child.visits = 1;
+    child.nnValue = rootValue;
+    child.nnScoreLead = rootScoreLead;
+    child.nnScoreMean = rootScoreMean;
+    child.nnScoreMeanSq = rootScoreMeanSq;
     child.nnUtility = rootUtility;
+    child.nnWeight = rootNnWeight;
+    recomputeNodeStats(child);
     child.pendingEval = false;
     child.inFlight = 0;
     child.ownership = rootOwnership;
@@ -1870,12 +3225,23 @@ export class MctsSearch {
     this.rootPolicy = rootPolicy;
     this.rootOwnership = rootOwnership;
     this.recentScoreCenter = recentScoreCenter;
-    this.rootSelfValue = rootValue;
-    this.rootSelfScoreLead = rootScoreLead;
-    this.rootSelfScoreMean = rootScoreMean;
-    this.rootSelfScoreMeanSq = rootScoreMeanSq;
-    this.rootSelfUtility = rootUtility;
     this.currentPlayer = args.currentPlayer;
+    this.rootSymmetries = rootSymmetries;
+    this.roiMask = roiMask;
+    // The human moves belonged to the old root; the caller starts a new search when
+    // it wants them for the new position.
+    this.forcedRootMoves = null;
+    // Nodes outside the new root's subtree are gone, and their contributions to the
+    // bias table would linger, so start the table over (KataGo decays them instead).
+    this.subtreeBiasTable.reset();
+    this.rootEndingBonus = computeEndingScoreBonuses({
+      stones: rootStones,
+      libertyMap: rootLibertyMap,
+      koPoint: rootKoPoint,
+      ownership: this.ownershipMode === 'none' ? null : rootOwnership,
+      currentPlayer: args.currentPlayer,
+      rules: args.rules,
+    });
     this.treeOwnershipCache = null;
 
     return true;
@@ -1924,6 +3290,7 @@ export class MctsSearch {
 
     while (this.rootNode.visits < maxVisits && !timeExceeded()) {
       if (shouldAbort?.()) return true;
+      const visitsBeforeBatch = this.rootNode.visits;
       const jobs: Array<{
         leaf: Node;
         path: Node[];
@@ -1960,8 +3327,33 @@ export class MctsSearch {
         let player = this.rootNode.playerToMove;
 
         while (node.edges && node.edges.length > 0) {
-          const e = selectEdge(node, node === this.rootNode, this.wideRootNoise, this.rand);
+          const e = selectEdge(
+            node,
+            node === this.rootNode,
+            this.wideRootNoise,
+            this.rand,
+            this.rootEndingBonus,
+            this.recentScoreCenter,
+            this.forcedRootMoves
+          );
           const move = e.move;
+
+          // The bias key describes the position BEFORE the move, so build it while
+          // the simulated board still shows that position.
+          const existingChild = e.child;
+          const needsBiasKey =
+            SUBTREE_VALUE_BIAS_FACTOR !== 0 &&
+            (!existingChild || existingChild.biasEpoch !== this.subtreeBiasTable.epoch);
+          const biasKey = needsBiasKey
+            ? buildSubtreeBiasKey({
+                stones: sim.stones,
+                libertyMap: libertyMapStack[depth] ?? this.rootLibertyMap,
+                move,
+                parentMove: pathMoves.length > 0 ? pathMoves[pathMoves.length - 1]!.move : PASS_MOVE,
+                koPoint: sim.koPoint,
+                pla: player,
+              })
+            : null;
 
           const snapshot = playMove(sim, move, player, captureStack);
           undoMoves.push(move);
@@ -1994,12 +3386,53 @@ export class MctsSearch {
           }
           pathMoves.length = pathIdx + 1;
 
+          // Two passes in a row end the game. Under area scoring the result is then
+          // a matter of counting, so the node gets the real score instead of another
+          // network guess (KataGo scores such a node as terminal).
+          // pathMoves already holds the move just played, so the one before it is
+          // either its predecessor on this path or, at the first ply, the last move
+          // of the game so far.
+          const previousMove =
+            pathMoves.length >= 2
+              ? pathMoves[pathMoves.length - 2]!.move
+              : this.rootMoves.length > 0
+                ? this.rootMoves[this.rootMoves.length - 1]!.move
+                : null;
+          const endsGame = this.scoreTerminalNodes && move === PASS_MOVE && previousMove === PASS_MOVE;
+
           if (!e.child) e.child = new Node(opponentOf(player));
+          if (biasKey !== null) {
+            e.child.biasEntry = this.subtreeBiasTable.get(biasKey);
+            e.child.biasEpoch = this.subtreeBiasTable.epoch;
+            e.child.lastBiasDeltaSum = 0;
+            e.child.lastBiasWeight = 0;
+          }
           node = e.child;
           player = node.playerToMove;
           path.push(node);
 
+          if (endsGame && !node.isTerminal && !node.edges) {
+            setNodeTerminalEval(node, {
+              stones: sim.stones,
+              komi: this.komi,
+              recentScoreCenter: this.recentScoreCenter,
+            });
+          }
+
           if (!node.edges) break;
+        }
+
+        // A finished game needs no evaluation: count the visit and unwind.
+        if (node.isTerminal) {
+          for (let i = path.length - 1; i >= 0; i--) {
+            const n = path[i]!;
+            n.visits += 1;
+            recomputeNodeStats(n);
+          }
+          for (let i = undoMoves.length - 1; i >= 0; i--) {
+            undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
+          }
+          continue;
         }
 
         if (node.pendingEval) {
@@ -2106,7 +3539,13 @@ export class MctsSearch {
         });
       }
 
-      if (jobs.length === 0) break;
+      if (jobs.length === 0) {
+        // A batch can come back empty because every playout ended in a finished
+        // game, which needs no evaluation. That is progress, so keep going; only
+        // a batch that achieved nothing at all means the search is stuck.
+        if (this.rootNode.visits > visitsBeforeBatch) continue;
+        break;
+      }
 
       const includeOwnership = this.ownershipMode === 'tree';
       const evals = await evaluateBatch({
@@ -2150,24 +3589,14 @@ export class MctsSearch {
           policyOutputScaling: this.outputScaleMultiplier,
         });
 
-        const leafValue = 2 * ev.blackWinProb - 1;
-        const leafUtility = computeBlackUtilityFromEval({
-          blackWinProb: ev.blackWinProb,
-          blackNoResultProb: ev.blackNoResultProb,
-          blackScoreMean: ev.blackScoreMean,
-          blackScoreStdev: ev.blackScoreStdev,
-          recentScoreCenter: this.recentScoreCenter,
-        });
-        job.leaf.nnUtility = leafUtility;
-        for (const n of job.path) {
+        setNodeOwnEval(job.leaf, ev, this.recentScoreCenter);
+        // KataGo recomputes each node on the path from its children after every
+        // playout, deepest first, because the reweighting depends on the siblings.
+        for (let i = job.path.length - 1; i >= 0; i--) {
+          const n = job.path[i]!;
           n.visits += 1;
-          n.valueSum += leafValue;
-          n.scoreLeadSum += ev.blackScoreLead;
-          n.scoreMeanSum += ev.blackScoreMean;
-          n.scoreMeanSqSum += ev.blackScoreStdev * ev.blackScoreStdev + ev.blackScoreMean * ev.blackScoreMean;
-          n.utilitySum += leafUtility;
-          n.utilitySqSum += leafUtility * leafUtility;
           n.inFlight -= 1;
+          if (n !== job.leaf) recomputeNodeStats(n);
         }
         job.leaf.pendingEval = false;
       }
@@ -2191,22 +3620,9 @@ export class MctsSearch {
     ownership: FloatArray;
     ownershipStdev: FloatArray;
     policy: FloatArray;
-    moves: Array<{
-      x: number;
-      y: number;
-      winRate: number;
-      winRateLost: number;
-      scoreLead: number;
-      scoreSelfplay: number;
-      scoreStdev: number;
-      visits: number;
-      pointsLost: number;
-      relativePointsLost: number;
-      order: number;
-      prior: number;
-      pv: string[];
-      ownership?: FloatArray;
-    }>;
+    // Filled in by the worker when a human SL profile was requested.
+    humanPolicy?: FloatArray;
+    moves: AnalysisPayloadMove[];
   } {
     const topK = Math.max(1, Math.min(args.topK, 50));
     const includeMovesOwnership = args.includeMovesOwnership === true;
@@ -2214,132 +3630,25 @@ export class MctsSearch {
     const analysisPvLen = Math.max(0, Math.min(args.analysisPvLen, 60));
     const pvDepth = 1 + analysisPvLen;
 
-    const edges = this.rootNode.edges ?? [];
-    const EMPTY_PV: string[] = [];
-    const childStats: ChildWeightStats[] = [];
-    const topMoves: Array<{
-      edge: Edge;
-      move: number;
-      visits: number;
-      winRate: number;
-      scoreLead: number;
-      scoreSelfplay: number;
-      scoreStdev: number;
-      prior: number;
-      pv: string[];
-      orderIndex: number;
-    }> = [];
-    let orderIndex = 0;
-    let minIdx = -1;
+    const rows = collectRootCandidateRows(this.rootNode, this.rootEndingBonus, this.recentScoreCenter);
 
-    const isBetter = (a: (typeof topMoves)[number], b: (typeof topMoves)[number]) =>
-      a.visits > b.visits || (a.visits === b.visits && a.orderIndex < b.orderIndex);
-    const isWorse = (a: (typeof topMoves)[number], b: (typeof topMoves)[number]) =>
-      a.visits < b.visits || (a.visits === b.visits && a.orderIndex > b.orderIndex);
-
-    const updateMinIdx = () => {
-      minIdx = 0;
-      for (let i = 1; i < topMoves.length; i++) {
-        if (isWorse(topMoves[i]!, topMoves[minIdx]!)) minIdx = i;
-      }
-    };
-
-    for (const e of edges) {
-      const child = e.child;
-      if (!child || child.visits <= 0) continue;
-      const q = child.valueSum / child.visits;
-      const winRate = (q + 1) * 0.5;
-      const scoreLead = child.scoreLeadSum / child.visits;
-      const scoreSelfplay = child.scoreMeanSum / child.visits;
-      const scoreMeanSq = child.scoreMeanSqSum / child.visits;
-      const scoreStdev = Math.sqrt(Math.max(0, scoreMeanSq - scoreSelfplay * scoreSelfplay));
-      const utility = child.utilitySum / child.visits;
-      childStats.push({
-        weightAdjusted: child.visits,
-        selfUtility: utility,
-        policy: e.prior,
-        value: q,
-        scoreLead,
-        scoreMean: scoreSelfplay,
-        scoreMeanSq,
-      });
-      const row = {
-        edge: e,
-        move: e.move,
-        visits: child.visits,
-        winRate,
-        scoreLead,
-        scoreSelfplay,
-        scoreStdev,
-        prior: e.prior,
-        pv: EMPTY_PV,
-        orderIndex: orderIndex++,
-      };
-      if (topMoves.length < topK) {
-        topMoves.push(row);
-        if (topMoves.length === topK) updateMinIdx();
-      } else if (minIdx >= 0 && isBetter(row, topMoves[minIdx]!)) {
-        topMoves[minIdx] = row;
-        updateMinIdx();
-      }
-    }
-
-    topMoves.sort((a, b) => {
-      const diff = b.visits - a.visits;
-      if (diff !== 0) return diff;
-      return a.orderIndex - b.orderIndex;
-    });
-    for (const row of topMoves) row.pv = getPvForEdge(row.edge, pvDepth);
-
-    const rootStats = computeWeightedRootStats({
-      children: childStats,
-      rootSelf: {
-        value: this.rootSelfValue,
-        scoreLead: this.rootSelfScoreLead,
-        scoreMean: this.rootSelfScoreMean,
-        scoreMeanSq: this.rootSelfScoreMeanSq,
-        utility: this.rootSelfUtility,
-        weight: 1,
-      },
-    });
+    const rootStats = rootNodeStats(this.rootNode);
     const rootWinRate = rootStats.rootWinRate;
     const rootScoreLead = rootStats.rootScoreLead;
     const rootScoreSelfplay = rootStats.rootScoreSelfplay;
     const rootScoreStdev = rootStats.rootScoreStdev;
 
-    const best = topMoves[0] ?? null;
-    const bestScoreLead = best ? best.scoreLead : rootScoreLead;
-    const sign = this.currentPlayer === 'black' ? 1 : -1;
-
-    const moves = topMoves.map((m, i) => {
-      const pointsLost = sign * (rootScoreLead - m.scoreLead);
-      const relativePointsLost = sign * (bestScoreLead - m.scoreLead);
-      const winRateLost = sign * (rootWinRate - m.winRate);
-
-      const x = m.move === PASS_MOVE ? -1 : m.move % BOARD_SIZE;
-      const y = m.move === PASS_MOVE ? -1 : (m.move / BOARD_SIZE) | 0;
-
-      return {
-        x,
-        y,
-        winRate: m.winRate,
-        winRateLost,
-        scoreLead: m.scoreLead,
-        scoreSelfplay: m.scoreSelfplay,
-        scoreStdev: m.scoreStdev,
-        visits: m.visits,
-        pointsLost,
-        relativePointsLost,
-        order: i,
-        prior: m.prior,
-        pv: m.pv,
-        ownership:
-          includeMovesOwnership && m.edge.child?.ownership
-            ? cloneBuffers
-              ? new Float32Array(m.edge.child.ownership)
-              : m.edge.child.ownership
-            : undefined,
-      };
+    const moves = buildAnalysisMoves({
+      rows,
+      topK,
+      pvDepth,
+      currentPlayer: this.currentPlayer,
+      rootWinRate,
+      rootScoreLead,
+      includeMovesOwnership,
+      cloneBuffers,
+      rootSymmetries: this.rootSymmetries,
+      roiMask: this.roiMask,
     });
 
     let ownership: Float32Array;
@@ -2376,461 +3685,4 @@ export class MctsSearch {
       moves,
     };
   }
-}
-
-export async function analyzeMcts(args: {
-  model: KataGoModelV8Tf;
-  board: BoardState;
-  previousBoard?: BoardState;
-  previousPreviousBoard?: BoardState;
-  currentPlayer: Player;
-  moveHistory: Move[];
-  komi: number;
-  topK?: number;
-  analysisPvLen?: number;
-  wideRootNoise?: number;
-  rules?: GameRules;
-  nnRandomize?: boolean;
-  visits?: number;
-  maxTimeMs?: number;
-  batchSize?: number;
-  maxChildren?: number;
-  rootSymmetrySamples?: number;
-  regionOfInterest?: RegionOfInterest | null;
-}): Promise<{
-  rootWinRate: number;
-  rootScoreLead: number;
-  rootScoreSelfplay: number;
-  rootScoreStdev: number;
-  rootVisits: number;
-  ownership: FloatArray; // len 361, +1 black owns, -1 white owns (tree-averaged)
-  ownershipStdev: FloatArray; // len 361 (tree stdev)
-  policy: FloatArray; // len 362, illegal = -1, pass at index 361
-  moves: Array<{
-    x: number;
-    y: number;
-    winRate: number;
-    winRateLost: number;
-    scoreLead: number;
-    scoreSelfplay: number;
-    scoreStdev: number;
-    visits: number;
-    pointsLost: number;
-    relativePointsLost: number;
-    order: number;
-    prior: number;
-    pv: string[];
-  }>;
-}> {
-  const outputScaleMultiplier = args.model.postProcessParams?.outputScaleMultiplier ?? 1.0;
-  const maxVisits = Math.max(16, Math.min(args.visits ?? 256, ENGINE_MAX_VISITS));
-  const maxTimeMs = Math.max(25, Math.min(args.maxTimeMs ?? 800, ENGINE_MAX_TIME_MS));
-  const batchSize = Math.max(1, Math.min(args.batchSize ?? (tf.getBackend() === 'webgpu' ? 16 : 4), 64));
-  const maxChildren = Math.max(4, Math.min(args.maxChildren ?? 64, 361));
-  const topK = Math.max(1, Math.min(args.topK ?? 10, 50));
-  const analysisPvLen = Math.max(0, Math.min(args.analysisPvLen ?? 15, 60));
-  const wideRootNoise = Math.max(0, Math.min(args.wideRootNoise ?? 0.04, 5));
-  const rules: GameRules = args.rules ?? 'japanese';
-  const nnRandomize = args.nnRandomize !== false;
-  const rootSymmetrySamples = clampRootSymmetrySamples(
-    args.rootSymmetrySamples ?? rootSymmetrySamplesForBackend(tf.getBackend())
-  );
-  const pvDepth = 1 + analysisPvLen;
-  const rand = new Rand();
-
-  const rootStones = boardStateToStones(args.board);
-  const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory });
-
-  const rootPrevStones = args.previousBoard ? boardStateToStones(args.previousBoard) : rootStones;
-  const rootPrevKoPoint = computeKoPointAfterMove(
-    args.previousPreviousBoard,
-    args.moveHistory.length >= 2 ? args.moveHistory[args.moveHistory.length - 2]! : null
-  );
-  const rootPrevPrevStones = args.previousPreviousBoard ? boardStateToStones(args.previousPreviousBoard) : rootPrevStones;
-  const rootPrevPrevKoPoint = -1;
-
-  const rootMoves: RecentMove[] = args.moveHistory.map((m) => ({
-    move: m.x < 0 || m.y < 0 ? PASS_MOVE : m.y * BOARD_SIZE + m.x,
-    player: m.player,
-  }));
-
-  const rootPos: SimPosition = { stones: rootStones.slice(), koPoint: rootKoPoint };
-  const rootNode = new Node(playerToColor(args.currentPlayer));
-
-  const rootEval = await evaluateRootEval({
-    model: args.model,
-    includeOwnership: true,
-    rules,
-    rootSymmetrySamples,
-    policyOptimism: ROOT_POLICY_OPTIMISM,
-    komi: args.komi,
-    outputScaleMultiplier,
-    state: {
-      stones: rootPos.stones,
-      koPoint: rootPos.koPoint,
-      prevStones: rootPrevStones,
-      prevKoPoint: rootPrevKoPoint,
-      prevPrevStones: rootPrevPrevStones,
-      prevPrevKoPoint: rootPrevPrevKoPoint,
-      currentPlayer: args.currentPlayer,
-      recentMoves: takeRecentMoves(rootMoves, [], 5),
-    },
-  });
-  if (!rootEval.ownership) throw new Error('Missing ownership output');
-
-  const rootOwnershipSign = args.currentPlayer === 'black' ? 1 : -1;
-  const rootOwnership = new Float32Array(BOARD_AREA);
-  const rootSym = rootEval.symmetry;
-  const rootSymOff = rootSym * BOARD_AREA;
-  const symPosMap = rootSym === 0 ? null : getSymPosMap();
-  for (let i = 0; i < BOARD_AREA; i++) {
-    const symPos = rootSym === 0 ? i : symPosMap![rootSymOff + i]!;
-    rootOwnership[i] = rootOwnershipSign * activatedOwnership(rootEval, symPos, outputScaleMultiplier);
-  }
-
-  const rootAllowedMoves = buildAllowedMovesMask(args.regionOfInterest);
-  const rootPolicy = new Float32Array(BOARD_AREA + 1);
-  expandNode({
-    node: rootNode,
-    stones: rootPos.stones,
-    koPoint: rootPos.koPoint,
-    policyLogits: rootEval.policy,
-    policyLogitsSymmetry: rootSym,
-    passLogit: rootEval.passLogit,
-    maxChildren,
-    libertyMap: rootEval.libertyMap,
-    allowedMoves: rootAllowedMoves ?? undefined,
-    policyOut: rootPolicy,
-    policyOutputScaling: outputScaleMultiplier,
-  });
-  rootNode.ownership = rootOwnership;
-
-  const recentScoreCenter = computeRecentScoreCenter(-rootEval.blackScoreMean);
-
-  const rootValue = 2 * rootEval.blackWinProb - 1;
-  const rootUtility = computeBlackUtilityFromEval({
-    blackWinProb: rootEval.blackWinProb,
-    blackNoResultProb: rootEval.blackNoResultProb,
-    blackScoreMean: rootEval.blackScoreMean,
-    blackScoreStdev: rootEval.blackScoreStdev,
-    recentScoreCenter,
-  });
-  rootNode.visits = 1;
-  rootNode.valueSum = rootValue;
-  rootNode.scoreLeadSum = rootEval.blackScoreLead;
-  rootNode.scoreMeanSum = rootEval.blackScoreMean;
-  const rootScoreMeanSq = rootEval.blackScoreStdev * rootEval.blackScoreStdev + rootEval.blackScoreMean * rootEval.blackScoreMean;
-  rootNode.scoreMeanSqSum = rootScoreMeanSq;
-  rootNode.utilitySum = rootUtility;
-  rootNode.utilitySqSum = rootUtility * rootUtility;
-  rootNode.nnUtility = rootUtility;
-
-  const sim: SimPosition = { stones: rootStones.slice(), koPoint: rootKoPoint };
-  const captureStack: number[] = [];
-  const undoMoves: number[] = [];
-  const undoPlayers: StoneColor[] = [];
-  const undoSnapshots: UndoSnapshot[] = [];
-  const pathMoves: RecentMove[] = [];
-
-  const deadline = getAnimationNow() + maxTimeMs;
-  let timeCheckCounter = 0;
-  const timeCheckMask = 0x1f;
-  const timeExceeded = (): boolean => {
-    if ((timeCheckCounter++ & timeCheckMask) !== 0) return false;
-    return getAnimationNow() >= deadline;
-  };
-
-  while (rootNode.visits < maxVisits && !timeExceeded()) {
-    const jobs: Array<{
-      leaf: Node;
-      path: Node[];
-      stones: Uint8Array;
-      koPoint: number;
-      prevStones: Uint8Array;
-      prevKoPoint: number;
-      prevPrevStones: Uint8Array;
-      prevPrevKoPoint: number;
-      currentPlayer: Player;
-      recentMoves: RecentMove[];
-    }> = [];
-
-    let attempts = 0;
-    while (jobs.length < batchSize && rootNode.visits + jobs.length < maxVisits && !timeExceeded()) {
-      attempts++;
-      if (attempts > batchSize * 8) break;
-
-      undoMoves.length = 0;
-      undoPlayers.length = 0;
-      undoSnapshots.length = 0;
-      pathMoves.length = 0;
-      sim.stones.set(rootStones);
-      sim.koPoint = rootKoPoint;
-
-      const path: Node[] = [rootNode];
-      let node = rootNode;
-      let player = rootNode.playerToMove;
-
-      while (node.edges && node.edges.length > 0) {
-        const e = selectEdge(node, node === rootNode, wideRootNoise, rand);
-        const move = e.move;
-
-        const snapshot = playMove(sim, move, player, captureStack);
-        undoMoves.push(move);
-        undoPlayers.push(player);
-        undoSnapshots.push(snapshot);
-        const pathIdx = pathMoves.length;
-        const pathPlayer = colorToPlayer(player);
-        let pathEntry = pathMoves[pathIdx];
-        if (!pathEntry) {
-          pathEntry = { move, player: pathPlayer };
-          pathMoves[pathIdx] = pathEntry;
-        } else {
-          pathEntry.move = move;
-          pathEntry.player = pathPlayer;
-        }
-        pathMoves.length = pathIdx + 1;
-
-        if (!e.child) e.child = new Node(opponentOf(player));
-        node = e.child;
-        player = node.playerToMove;
-        path.push(node);
-
-        if (!node.edges) break;
-      }
-
-      if (node.pendingEval) {
-        for (let i = undoMoves.length - 1; i >= 0; i--) {
-          undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
-        }
-        continue;
-      }
-
-      node.pendingEval = true;
-      for (const n of path) n.inFlight++;
-
-      const leafStones = sim.stones.slice();
-      const leafKoPoint = sim.koPoint;
-      let prevStones = leafStones;
-      let prevKoPoint = leafKoPoint;
-      let prevPrevStones = leafStones;
-      let prevPrevKoPoint = leafKoPoint;
-      const leafPlayer = colorToPlayer(player);
-
-      if (undoMoves.length >= 1) {
-        const lastIdx = undoMoves.length - 1;
-        undoMove(sim, undoMoves[lastIdx]!, undoPlayers[lastIdx]!, undoSnapshots[lastIdx]!, captureStack);
-
-        if (lastIdx === 0) {
-          prevStones = rootStones;
-          prevKoPoint = rootKoPoint;
-          prevPrevStones = rootPrevStones;
-          prevPrevKoPoint = rootPrevKoPoint;
-        } else {
-          prevStones = sim.stones.slice();
-          prevKoPoint = sim.koPoint;
-
-          const secondIdx = undoMoves.length - 2;
-          undoMove(sim, undoMoves[secondIdx]!, undoPlayers[secondIdx]!, undoSnapshots[secondIdx]!, captureStack);
-
-          if (secondIdx === 0) {
-            prevPrevStones = rootStones;
-            prevPrevKoPoint = rootKoPoint;
-          } else {
-            prevPrevStones = sim.stones.slice();
-            prevPrevKoPoint = sim.koPoint;
-          }
-
-          for (let i = secondIdx - 1; i >= 0; i--) {
-            undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
-          }
-        }
-      }
-
-      jobs.push({
-        leaf: node,
-        path,
-        stones: leafStones,
-        koPoint: leafKoPoint,
-        prevStones,
-        prevKoPoint,
-        prevPrevStones,
-        prevPrevKoPoint,
-        currentPlayer: leafPlayer,
-        recentMoves: takeRecentMoves(rootMoves, pathMoves, 5),
-      });
-    }
-
-    if (jobs.length === 0) break;
-
-    const evals = await evaluateBatch({
-      model: args.model,
-      includeOwnership: true,
-      rules,
-      nnRandomize,
-      policyOptimism: POLICY_OPTIMISM,
-      komi: args.komi,
-      states: jobs,
-    });
-    timeCheckCounter = 0;
-
-    for (let i = 0; i < jobs.length; i++) {
-      const job = jobs[i]!;
-      const ev = evals[i]!;
-      if (!ev.ownership) throw new Error('Missing ownership output');
-
-      const ownershipSign = job.currentPlayer === 'black' ? 1 : -1;
-      const own = new Float32Array(BOARD_AREA);
-      const sym = ev.symmetry;
-      const symOff = sym * BOARD_AREA;
-      const symPosMap = sym === 0 ? null : getSymPosMap();
-      for (let p = 0; p < BOARD_AREA; p++) {
-        const symPos = sym === 0 ? p : symPosMap![symOff + p]!;
-        own[p] = ownershipSign * Math.tanh(ev.ownership[symPos]! * outputScaleMultiplier);
-      }
-      job.leaf.ownership = own;
-
-      expandNode({
-        node: job.leaf,
-        stones: job.stones,
-        koPoint: job.koPoint,
-        policyLogits: ev.policy,
-        policyLogitsSymmetry: ev.symmetry,
-        passLogit: ev.passLogit,
-        maxChildren,
-        libertyMap: ev.libertyMap,
-        policyOutputScaling: outputScaleMultiplier,
-      });
-
-      const leafValue = 2 * ev.blackWinProb - 1;
-      const leafUtility = computeBlackUtilityFromEval({
-        blackWinProb: ev.blackWinProb,
-        blackNoResultProb: ev.blackNoResultProb,
-        blackScoreMean: ev.blackScoreMean,
-        blackScoreStdev: ev.blackScoreStdev,
-        recentScoreCenter,
-      });
-      job.leaf.nnUtility = leafUtility;
-      for (const n of job.path) {
-        n.visits += 1;
-        n.valueSum += leafValue;
-        n.scoreLeadSum += ev.blackScoreLead;
-        n.scoreMeanSum += ev.blackScoreMean;
-        n.scoreMeanSqSum += ev.blackScoreStdev * ev.blackScoreStdev + ev.blackScoreMean * ev.blackScoreMean;
-        n.utilitySum += leafUtility;
-        n.utilitySqSum += leafUtility * leafUtility;
-        n.inFlight -= 1;
-      }
-      job.leaf.pendingEval = false;
-    }
-  }
-
-  const edges = rootNode.edges ?? [];
-  const childStats: ChildWeightStats[] = [];
-  const moveRows: Array<{
-    edge: Edge;
-    move: number;
-    visits: number;
-    winRate: number;
-    scoreLead: number;
-    scoreSelfplay: number;
-    scoreStdev: number;
-    prior: number;
-    pv: string[];
-  }> = [];
-
-  for (const e of edges) {
-    const child = e.child;
-    if (!child || child.visits <= 0) continue;
-    const q = child.valueSum / child.visits;
-    const winRate = (q + 1) * 0.5;
-    const scoreLead = child.scoreLeadSum / child.visits;
-    const scoreSelfplay = child.scoreMeanSum / child.visits;
-    const scoreMeanSq = child.scoreMeanSqSum / child.visits;
-    const scoreStdev = Math.sqrt(Math.max(0, scoreMeanSq - scoreSelfplay * scoreSelfplay));
-    const utility = child.utilitySum / child.visits;
-    childStats.push({
-      weightAdjusted: child.visits,
-      selfUtility: utility,
-      policy: e.prior,
-      value: q,
-      scoreLead,
-      scoreMean: scoreSelfplay,
-      scoreMeanSq,
-    });
-    moveRows.push({
-      edge: e,
-      move: e.move,
-      visits: child.visits,
-      winRate,
-      scoreLead,
-      scoreSelfplay,
-      scoreStdev,
-      prior: e.prior,
-      pv: getPvForEdge(e, pvDepth),
-    });
-  }
-
-  moveRows.sort((a, b) => b.visits - a.visits);
-
-  const rootStats = computeWeightedRootStats({
-    children: childStats,
-    rootSelf: {
-      value: rootValue,
-      scoreLead: rootEval.blackScoreLead,
-      scoreMean: rootEval.blackScoreMean,
-      scoreMeanSq: rootScoreMeanSq,
-      utility: rootUtility,
-      weight: 1,
-    },
-  });
-  const rootWinRate = rootStats.rootWinRate;
-  const rootScoreLead = rootStats.rootScoreLead;
-  const rootScoreSelfplay = rootStats.rootScoreSelfplay;
-  const rootScoreStdev = rootStats.rootScoreStdev;
-
-  const topMoves = moveRows.slice(0, Math.min(topK, moveRows.length));
-  const best = topMoves[0] ?? null;
-  const bestScoreLead = best ? best.scoreLead : rootScoreLead;
-  const sign = args.currentPlayer === 'black' ? 1 : -1;
-
-  const moves = topMoves.map((m) => {
-    const pointsLost = sign * (rootScoreLead - m.scoreLead);
-    const relativePointsLost = sign * (bestScoreLead - m.scoreLead);
-    const winRateLost = sign * (rootWinRate - m.winRate);
-
-    const x = m.move === PASS_MOVE ? -1 : m.move % BOARD_SIZE;
-    const y = m.move === PASS_MOVE ? -1 : (m.move / BOARD_SIZE) | 0;
-
-    return {
-      x,
-      y,
-      winRate: m.winRate,
-      winRateLost,
-      scoreLead: m.scoreLead,
-      scoreSelfplay: m.scoreSelfplay,
-      scoreStdev: m.scoreStdev,
-      visits: m.visits,
-      pointsLost,
-      relativePointsLost,
-      order: 0,
-      prior: m.prior,
-      pv: m.pv,
-    };
-  });
-
-  moves.sort((a, b) => b.visits - a.visits);
-  moves.forEach((m, i) => (m.order = i));
-
-  const { ownership, ownershipStdev } = averageTreeOwnership(rootNode);
-  return {
-    rootWinRate,
-    rootScoreLead,
-    rootScoreSelfplay,
-    rootScoreStdev,
-    rootVisits: rootNode.visits,
-    ownership,
-    ownershipStdev,
-    policy: rootPolicy,
-    moves,
-  };
 }

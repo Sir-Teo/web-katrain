@@ -581,6 +581,7 @@ export const Layout: React.FC = () => {
   const defaultAiConfig: AiConfigValues = {
     opponent: isAiPlaying && aiColor ? aiColor : 'none',
     aiStrategy: settings.aiStrategy,
+    humanSlProfile: settings.humanSlProfile,
     aiRankKyu: settings.aiRankKyu,
     aiScoreLossStrength: settings.aiScoreLossStrength,
     aiPolicyOpeningMoves: settings.aiPolicyOpeningMoves,
@@ -2490,6 +2491,19 @@ export const Layout: React.FC = () => {
         shortcutId: 'toggle-analysis',
         run: toggleAnalysisMode,
         keywords: ['engine', 'ai'],
+      },
+      {
+        id: 'analysis-without-top',
+        label: 'Analyze without the top move',
+        category: 'Analysis',
+        // KataGo's avoidMoves: the same search with the engine's own first choice
+        // taken off the table, which is how you find out what the rest of the board
+        // is worth when one move dominates the reading.
+        run: () => {
+          closeFloatingMenus();
+          analyzeExtra('without-top');
+        },
+        keywords: ['avoid', 'exclude', 'second best', 'alternative plan'],
       },
       {
         id: 'toggle-children',

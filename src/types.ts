@@ -38,6 +38,11 @@ export interface CandidateMove {
   order: number; // 0 for best move
   prior?: number; // policy prior probability (0..1)
   pv?: string[]; // principal variation, GTP coords (e.g. ["D4","Q16",...])
+  pvVisits?: number[]; // visits behind each move of the pv (KataGo includePVVisits)
+  lcb?: number; // winrate-scale lower confidence bound, black perspective
+  utilityLcb?: number; // utility-scale lower confidence bound, black perspective
+  playSelectionValue?: number; // KataGo play selection weight, LCB adjusted
+  humanPrior?: number; // human SL policy for this move, when that net is loaded
   ownership?: FloatArray; // optional per-move ownership (KaTrain includeMovesOwnership)
 }
 
@@ -50,6 +55,7 @@ export interface AnalysisResult {
   moves: CandidateMove[];
   territory: number[][]; // boardSize x boardSize grid, values -1 (white) to 1 (black)
   policy?: FloatArray; // len boardSize*boardSize + 1, illegal = -1, pass at last index
+  humanPolicy?: FloatArray; // same shape, from the human SL net (illegal = -1)
   ownershipStdev?: FloatArray; // len boardSize*boardSize
   ownershipMode?: 'none' | 'root' | 'tree';
 }
@@ -190,10 +196,16 @@ export interface GameSettings {
   katagoAnalysisPvLen: number; // KataGo analysisPVLen (moves after the first)
   katagoNnRandomize: boolean; // KataGo nnRandomize (random symmetries)
   katagoConservativePass: boolean; // KataGo conservativePass (KaTrain default: true)
+  // KataGo human SL net: predicts how a human of a given rank would play.
+  humanSlEnabled: boolean;
+  humanSlModelUrl: string;
+  humanSlProfile: string; // KataGo humanSLProfile, e.g. rank_5k / preaz_1d / proyear_1950
+  analysisPolicySource: 'engine' | 'human'; // which policy the R overlay draws
   teachNumUndoPrompts: number[]; // KaTrain trainer/num_undo_prompts
 
   aiStrategy:
     | 'default'
+    | 'human' // KataGo human SL net: plays like the configured rank
     | 'rank'
     | 'scoreloss'
     | 'policy'

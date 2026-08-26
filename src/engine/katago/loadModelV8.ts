@@ -8,6 +8,9 @@ import {
 } from './binModelParser';
 import type { ParsedKataGoModelV8 } from './modelV8';
 
+/** KataGo SGFMetadata::METADATA_INPUT_NUM_CHANNELS for meta encoder version 1. */
+export const NUM_INPUT_META_CHANNELS_V1 = 192;
+
 export function parseKataGoModelV8(data: Uint8Array): ParsedKataGoModelV8 {
   const p = new KataGoBinModelParser(data);
 
@@ -47,7 +50,8 @@ export function parseKataGoModelV8(data: Uint8Array): ParsedKataGoModelV8 {
   if (modelVersion >= 15) {
     for (let i = 0; i < 7; i++) p.readInt(); // Unused model-level params in KataGo v15+.
   }
-  if (metaEncoderVersion !== 0) {
+  // Version 1 is the SGF metadata encoder that the human SL nets use.
+  if (metaEncoderVersion !== 0 && metaEncoderVersion !== 1) {
     throw new Error(`Unsupported metaEncoderVersion ${metaEncoderVersion}`);
   }
 
@@ -60,11 +64,37 @@ export function parseKataGoModelV8(data: Uint8Array): ParsedKataGoModelV8 {
   p.readInt();
   const gpoolNumChannels = p.readInt();
   if (modelVersion >= 15) {
-    for (let i = 0; i < 6; i++) p.readInt(); // Unused trunk params in KataGo v15+.
+    const trunkNormKind = p.readInt();
+    // 0 is KataGo's standard batch-norm trunk; 1 is RMS norm, which this port does
+    // not implement, so refuse rather than reading the weights as the wrong shape.
+    if (trunkNormKind !== 0) throw new Error(`Unsupported trunk norm kind ${trunkNormKind}`);
+    for (let i = 0; i < 5; i++) p.readInt(); // Unused trunk params in KataGo v15+.
   }
 
   const conv1 = parseConv2d(p);
   const ginput = parseMatMul(p);
+
+  // KataGo SGFMetadataEncoderDesc: a small MLP over the game metadata whose output
+  // is added to the trunk as another per-channel bias (cpp/neuralnet/desc.cpp).
+  let metaEncoder: ParsedKataGoModelV8['metaEncoder'];
+  if (metaEncoderVersion > 0) {
+    p.readToken(); // meta encoder name
+    const numInputMetaChannels = p.readInt();
+    if (numInputMetaChannels !== NUM_INPUT_META_CHANNELS_V1) {
+      throw new Error(`Unexpected numInputMetaChannels ${numInputMetaChannels}`);
+    }
+    const mul1 = parseMatMul(p);
+    const bias1 = parseMatBias(p);
+    const act1 = parseActivationKind(p, modelVersion);
+    const mul2 = parseMatMul(p);
+    const bias2 = parseMatBias(p);
+    const act2 = parseActivationKind(p, modelVersion);
+    const mul3 = parseMatMul(p);
+    if (mul3.outChannels !== trunkNumChannels) {
+      throw new Error(`Meta encoder output ${mul3.outChannels} does not match trunk channels ${trunkNumChannels}`);
+    }
+    metaEncoder = { numInputMetaChannels, mul1, bias1, act1, mul2, bias2, act2, mul3 };
+  }
 
   function parseResidualBlock(): ParsedKataGoModelV8['trunk']['blocks'][number] {
     const kindTok = p.readToken();
@@ -155,6 +185,7 @@ export function parseKataGoModelV8(data: Uint8Array): ParsedKataGoModelV8 {
     numInputChannels,
     numInputGlobalChannels,
     metaEncoderVersion,
+    metaEncoder,
     postProcessParams,
     policyOutChannels: p2.outChannels,
     scoreValueChannels: sv3.outChannels,

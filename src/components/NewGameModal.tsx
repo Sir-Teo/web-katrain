@@ -5,6 +5,8 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { BotPersonaPicker } from './BotPersonaPicker';
 import { botPersonaAiPatch, type BotPersona } from '../data/botPersonas';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { KATAGO_HUMAN_PROFILES } from '../engine/katago/searchParams';
+import { describeHumanProfile } from '../utils/humanProfileLabel';
 
 export type GameInfoValues = {
   blackName: string;
@@ -24,6 +26,7 @@ export type AiConfigValues = {
 } & Pick<
   GameSettings,
   | 'aiStrategy'
+  | 'humanSlProfile'
   | 'aiRankKyu'
   | 'aiScoreLossStrength'
   | 'aiPolicyOpeningMoves'
@@ -423,6 +426,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
                   >
                     <option value="default">Default (engine top move)</option>
+                    <option value="human">Human (KataGo human net)</option>
                     <option value="rank">Rank (KaTrain)</option>
                     <option value="simple">Simple Ownership</option>
                     <option value="settle">Settle Stones</option>
@@ -437,6 +441,26 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     <option value="influence">Influence</option>
                   </select>
                 </div>
+                {aiConfig.aiStrategy === 'human' && (
+                  <div className="space-y-1">
+                    <label htmlFor="new-game-human-profile" className="text-[var(--ui-text-muted)] text-sm">Plays like</label>
+                    <select
+                      id="new-game-human-profile"
+                      value={aiConfig.humanSlProfile}
+                      onChange={(e) => updateAiConfig({ humanSlProfile: e.target.value })}
+                      className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
+                    >
+                      {KATAGO_HUMAN_PROFILES.map((profile) => (
+                        <option key={profile} value={profile}>
+                          {describeHumanProfile(profile)}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="text-xs ui-text-faint">
+                      Needs KataGo's human network, set up under Settings → AI/Engine.
+                    </div>
+                  </div>
+                )}
                 {aiConfig.aiStrategy === 'rank' && (
                   <div className="space-y-1">
                     <label htmlFor="new-game-ai-rank-target" className="text-[var(--ui-text-muted)] text-sm">Strength (rank target)</label>

@@ -397,7 +397,8 @@ function buildGroups(stones: Uint8Array): number {
   return numGroups;
 }
 
-function isAdjacentToColor(stones: Uint8Array, pos: number, color: StoneColor): boolean {
+/** Board::isAdjacentToPla. */
+export function isAdjacentToColor(stones: Uint8Array, pos: number, color: StoneColor): boolean {
   const nStart = NEIGHBOR_START[pos]!;
   const nCount = NEIGHBOR_COUNT[pos]!;
   for (let i = 0; i < nCount; i++) {
@@ -627,6 +628,92 @@ function calculateAreaForPla(args: {
       }
     }
   }
+}
+
+/**
+ * Strictly pass-alive groups and strictly safe territory: KataGo's rootSafeArea,
+ * which is Board::calculateArea with nonPassAliveStones, safeBigTerritories and
+ * unsafeBigTerritories all false (cpp/search/search.cpp computeRootValues).
+ */
+export function computePassAliveAreaInto(stones: Uint8Array, out: Uint8Array, isMultiStoneSuicideLegal = false): Uint8Array {
+  if (out.length !== BOARD_AREA) throw new Error(`computePassAliveAreaInto: expected out length ${BOARD_AREA}, got ${out.length}`);
+  out.fill(EMPTY);
+  const numGroups = buildGroups(stones);
+  for (const plaColor of [BLACK, WHITE] as StoneColor[]) {
+    calculateAreaForPla({
+      stones,
+      numGroups,
+      plaColor,
+      safeBigTerritories: false,
+      unsafeBigTerritories: false,
+      isMultiStoneSuicideLegal,
+      result: out,
+    });
+  }
+  return out;
+}
+
+/** Board::wouldBeCapture: playing here takes at least one opposing stone off. */
+export function wouldBeCapture(stones: Uint8Array, libertyMap: Uint8Array, pos: number, pla: StoneColor): boolean {
+  if ((stones[pos] as StoneColor) !== EMPTY) return false;
+  const opp = opponentOf(pla);
+  const nStart = NEIGHBOR_START[pos]!;
+  const nCount = NEIGHBOR_COUNT[pos]!;
+  for (let i = 0; i < nCount; i++) {
+    const n = NEIGHBORS[nStart + i]!;
+    if ((stones[n] as StoneColor) === opp && libertyMap[n] === 1) return true;
+  }
+  return false;
+}
+
+/**
+ * Board::isNonPassAliveSelfConnection: does playing here join two different
+ * chains of the player's own, at least one of which is not already pass-alive?
+ */
+export function isNonPassAliveSelfConnection(
+  stones: Uint8Array,
+  pos: number,
+  pla: StoneColor,
+  passAliveArea: Uint8Array
+): boolean {
+  if ((stones[pos] as StoneColor) !== EMPTY) return false;
+  if ((passAliveArea[pos] as StoneColor) === pla) return false;
+
+  const nStart = NEIGHBOR_START[pos]!;
+  const nCount = NEIGHBOR_COUNT[pos]!;
+
+  let seedStone = -1;
+  for (let i = 0; i < nCount; i++) {
+    const n = NEIGHBORS[nStart + i]!;
+    if ((stones[n] as StoneColor) === pla && (passAliveArea[n] as StoneColor) === EMPTY) {
+      seedStone = n;
+      break;
+    }
+  }
+  if (seedStone < 0) return false;
+
+  // Flood the seed's chain, then look for an adjacent own stone outside it.
+  const seen = new Set<number>();
+  const stack = [seedStone];
+  seen.add(seedStone);
+  while (stack.length > 0) {
+    const cur = stack.pop()!;
+    const s = NEIGHBOR_START[cur]!;
+    const c = NEIGHBOR_COUNT[cur]!;
+    for (let i = 0; i < c; i++) {
+      const n = NEIGHBORS[s + i]!;
+      if ((stones[n] as StoneColor) !== pla) continue;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      stack.push(n);
+    }
+  }
+
+  for (let i = 0; i < nCount; i++) {
+    const n = NEIGHBORS[nStart + i]!;
+    if ((stones[n] as StoneColor) === pla && !seen.has(n)) return true;
+  }
+  return false;
 }
 
 export function computeAreaMapV7KataGo(stones: Uint8Array, isMultiStoneSuicideLegal = false): Uint8Array {

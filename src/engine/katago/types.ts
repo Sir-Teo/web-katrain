@@ -46,6 +46,11 @@ export interface KataGoAnalyzeRequest {
   ownershipRefreshIntervalMs?: number;
   reuseTree?: boolean;
   ownershipMode?: 'none' | 'root' | 'tree';
+  /** KataGo human SL net, used only to report how a human of a given rank would play. */
+  humanModelUrl?: string;
+  humanSlProfile?: string;
+  /** Moves the search may not play at the root (KataGo avoidMoves). */
+  avoidMoves?: Move[];
 }
 
 export interface KataGoAnalysisPayload {
@@ -57,6 +62,8 @@ export interface KataGoAnalysisPayload {
   ownership: FloatArray; // len 361, +1 black owns, -1 white owns
   ownershipStdev: FloatArray; // len 361
   policy: FloatArray; // len 362, illegal = -1, pass at index 361
+  // Same shape as `policy`, from the human SL net for the requested profile.
+  humanPolicy?: FloatArray;
   moves: Array<{
     x: number;
     y: number;
@@ -71,6 +78,11 @@ export interface KataGoAnalysisPayload {
     order: number;
     prior: number;
     pv: string[];
+    pvVisits?: number[]; // visits at each move of the pv (KataGo includePVVisits)
+    lcb?: number; // winrate-scale lower confidence bound, black perspective
+    utilityLcb?: number; // utility-scale lower confidence bound, black perspective
+    playSelectionValue?: number; // KataGo play selection weight (LCB adjusted)
+    humanPrior?: number; // human SL policy for this move, when that net is loaded
     ownership?: FloatArray; // len 361, +1 black owns, -1 white owns (position after this move)
   }>;
 }
@@ -84,6 +96,8 @@ export interface KataGoAnalyzeUpdate {
   modelName?: string;
   analysis?: KataGoAnalysisPayload;
   error?: string;
+  /** Set when a human SL policy was asked for but could not be produced. */
+  humanPolicyError?: string;
 }
 
 export interface KataGoAnalyzeResponse {
@@ -95,6 +109,7 @@ export interface KataGoAnalyzeResponse {
   modelName?: string;
   analysis?: KataGoAnalysisPayload;
   error?: string;
+  humanPolicyError?: string;
 }
 
 export interface KataGoEvalRequest {
