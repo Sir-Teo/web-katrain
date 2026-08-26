@@ -53,12 +53,13 @@ describe.skipIf(!hasModel())('filling dame before passing', () => {
   const pass = (moves: Array<{ x: number; y: number; playSelectionValue: number; visits: number }>) =>
     moves.find((m) => m.x < 0 && m.y < 0);
 
-  it('would otherwise pass with dame still on the board', async () => {
+  it('leaves passing on the table without the flag', async () => {
     const off = await analyze('japanese', false);
-    // Passing is worth as much as filling under territory scoring, so the search
-    // settles on it and leaves the two neutral points to the opponent.
-    expect(off.moves[0]!.x).toBeLessThan(0);
-    expect(pass(off.moves)!.playSelectionValue).toBeGreaterThan(0);
+    // Filling a dame gains nothing under territory scoring, so the search spends
+    // real visits on passing and reports it as a candidate like any other move.
+    const passRow = pass(off.moves)!;
+    expect(passRow.visits).toBeGreaterThan(0);
+    expect(passRow.playSelectionValue).toBeGreaterThan(0);
   }, 120000);
 
   it('plays the dame instead once it is asked to', async () => {

@@ -878,8 +878,8 @@ function computeBlackUtilityFromEval(args: {
   return -whiteUtility;
 }
 
-const VALUE_WEIGHT_EXPONENT: number = 0.25;
-const USE_NOISE_PRUNING = true;
+let VALUE_WEIGHT_EXPONENT: number = 0.25;
+let USE_NOISE_PRUNING = true;
 const NOISE_PRUNE_UTILITY_SCALE = 0.15;
 const NOISE_PRUNING_CAP = 1e50;
 
@@ -1023,7 +1023,7 @@ function downweightBadChildrenAndNormalizeWeight(args: {
 // exponent 0.85. The idea is that if the search keeps finding a node's own network
 // evaluation too optimistic, positions that look locally the same are probably
 // getting the same error, so correct them all by the average of what was found.
-const SUBTREE_VALUE_BIAS_FACTOR: number = 0.45;
+let SUBTREE_VALUE_BIAS_FACTOR: number = 0.45;
 const SUBTREE_VALUE_BIAS_WEIGHT_EXPONENT = 0.85;
 const SUBTREE_BIAS_PATTERN_RADIUS = 2; // KataGo hashes a 5x5 window
 
@@ -1097,7 +1097,7 @@ function buildSubtreeBiasKey(args: {
 // KataGo useUncertainty defaults (cpp/program/setup.cpp): on, coeff 0.25, exponent 1,
 // max weight 8. Only nets from model version 10 on predict the shortterm errors this
 // needs; with older nets every visit keeps weight 1, exactly as in KataGo.
-const USE_UNCERTAINTY = true;
+let USE_UNCERTAINTY = true;
 const UNCERTAINTY_COEFF = 0.25;
 const UNCERTAINTY_EXPONENT = 1.0;
 const UNCERTAINTY_MAX_WEIGHT = 8.0;
@@ -1511,18 +1511,70 @@ function averageTreeOwnership(node: Node): { ownership: Float32Array; ownershipS
   return { ownership: out, ownershipStdev: stdev };
 }
 
-const CPUCT_EXPLORATION = 1.0;
-const CPUCT_EXPLORATION_LOG = 0.45;
+let CPUCT_EXPLORATION = 1.0;
+let CPUCT_EXPLORATION_LOG = 0.45;
 const CPUCT_EXPLORATION_BASE = 500;
-const CPUCT_UTILITY_STDEV_PRIOR = 0.4;
-const CPUCT_UTILITY_STDEV_PRIOR_WEIGHT = 2.0;
-const CPUCT_UTILITY_STDEV_SCALE = 0.85;
+let CPUCT_UTILITY_STDEV_PRIOR = 0.4;
+let CPUCT_UTILITY_STDEV_PRIOR_WEIGHT = 2.0;
+let CPUCT_UTILITY_STDEV_SCALE = 0.85;
 const FPU_REDUCTION_MAX = 0.2;
 const ROOT_FPU_REDUCTION_MAX = 0.1;
 const FPU_LOSS_PROP = 0.0;
 const ROOT_FPU_LOSS_PROP = 0.0;
-const FPU_PARENT_WEIGHT_BY_VISITED_POLICY = true;
+let FPU_PARENT_WEIGHT_BY_VISITED_POLICY = true;
 const FPU_PARENT_WEIGHT_BY_VISITED_POLICY_POW = 2.0;
+
+/**
+ * The handful of KataGo search parameters this port fixes at its analysis defaults
+ * rather than exposing. They are bindings rather than constants for one reason: the
+ * recorded runs in KataGo's own test results use a different set
+ * (`SearchParams::forTestsV1`), and reproducing one is the only way to check this
+ * search against its. Nothing in the app changes them.
+ */
+export type SearchTuning = {
+  cpuctExploration: number;
+  cpuctExplorationLog: number;
+  cpuctUtilityStdevPrior: number;
+  cpuctUtilityStdevPriorWeight: number;
+  cpuctUtilityStdevScale: number;
+  fpuParentWeightByVisitedPolicy: boolean;
+  valueWeightExponent: number;
+  useNoisePruning: boolean;
+  useUncertainty: boolean;
+  subtreeValueBiasFactor: number;
+};
+
+const ANALYSIS_TUNING: SearchTuning = {
+  cpuctExploration: CPUCT_EXPLORATION,
+  cpuctExplorationLog: CPUCT_EXPLORATION_LOG,
+  cpuctUtilityStdevPrior: CPUCT_UTILITY_STDEV_PRIOR,
+  cpuctUtilityStdevPriorWeight: CPUCT_UTILITY_STDEV_PRIOR_WEIGHT,
+  cpuctUtilityStdevScale: CPUCT_UTILITY_STDEV_SCALE,
+  fpuParentWeightByVisitedPolicy: FPU_PARENT_WEIGHT_BY_VISITED_POLICY,
+  valueWeightExponent: VALUE_WEIGHT_EXPONENT,
+  useNoisePruning: USE_NOISE_PRUNING,
+  useUncertainty: USE_UNCERTAINTY,
+  subtreeValueBiasFactor: SUBTREE_VALUE_BIAS_FACTOR,
+};
+
+/** Test seam. Call `resetSearchTuning` afterwards; the app never calls either. */
+export function setSearchTuningForTest(tuning: Partial<SearchTuning>): void {
+  const next = { ...ANALYSIS_TUNING, ...tuning };
+  CPUCT_EXPLORATION = next.cpuctExploration;
+  CPUCT_EXPLORATION_LOG = next.cpuctExplorationLog;
+  CPUCT_UTILITY_STDEV_PRIOR = next.cpuctUtilityStdevPrior;
+  CPUCT_UTILITY_STDEV_PRIOR_WEIGHT = next.cpuctUtilityStdevPriorWeight;
+  CPUCT_UTILITY_STDEV_SCALE = next.cpuctUtilityStdevScale;
+  FPU_PARENT_WEIGHT_BY_VISITED_POLICY = next.fpuParentWeightByVisitedPolicy;
+  VALUE_WEIGHT_EXPONENT = next.valueWeightExponent;
+  USE_NOISE_PRUNING = next.useNoisePruning;
+  USE_UNCERTAINTY = next.useUncertainty;
+  SUBTREE_VALUE_BIAS_FACTOR = next.subtreeValueBiasFactor;
+}
+
+export function resetSearchTuning(): void {
+  setSearchTuningForTest({});
+}
 const FPU_PARENT_WEIGHT = 0.0;
 const NUM_VIRTUAL_LOSSES_PER_THREAD = 1.0;
 
@@ -4021,13 +4073,16 @@ export class MctsSearch {
           // often than the edge was paid for can simply pay one back, which is a
           // whole playout without a network call.
           if (countEdgeVisit && e.child && e.visits < e.child.visits) {
+            // KataGo adds the edge visit and only then recomputes the node above
+            // it, so the parent sees the visit it just paid for. Recomputing first
+            // would leave every node's view of its newest child one visit stale.
             e.visits += 1;
             for (let i = path.length - 1; i >= 0; i--) {
               const n = path[i]!;
               n.visits += 1;
+              if (i < edgePath.length) edgePath[i]!.visits += 1;
               recomputeNodeStats(n);
             }
-            for (const pe of edgePath) pe.visits += 1;
             caughtUpEdgeVisits = true;
             break;
           }
@@ -4185,9 +4240,9 @@ export class MctsSearch {
             if (i <= weightlessFrom) break;
             const n = path[i]!;
             n.visits += 1;
+            if (i < edgePath.length) edgePath[i]!.visits += 1;
             recomputeNodeStats(n);
           }
-          for (let i = edgePath.length - 1; i > weightlessFrom; i--) edgePath[i]!.visits += 1;
           for (let i = undoMoves.length - 1; i >= 0; i--) {
             undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
           }
@@ -4365,9 +4420,11 @@ export class MctsSearch {
           n.inFlight -= 1;
           if (i <= job.weightlessFrom) continue;
           n.visits += 1;
+          // The edge this node took has to be paid for before the node is rebuilt
+          // from its children, or the node undercounts the child it just visited.
+          if (i < job.edgePath.length) job.edgePath[i]!.visits += 1;
           if (n !== job.leaf) recomputeNodeStats(n);
         }
-        for (let i = job.edgePath.length - 1; i > job.weightlessFrom; i--) job.edgePath[i]!.visits += 1;
         job.leaf.pendingEval = false;
       }
       if (shouldAbort?.()) return true;
