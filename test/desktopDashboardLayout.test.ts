@@ -191,6 +191,20 @@ describe('desktop dashboard layout', () => {
     expect(gameTreeBlock).not.toContain('branchInfo.currentIndex + 1');
   });
 
+  it('gives the docked score bar a navbar row instead of a third one', () => {
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    // The bar is as wide as the strip allows, so in the wrapping navbar it took
+    // the row it landed on and pushed the play actions onto a third row of
+    // their own. Three rows cost the board 102px at 1440x900 and 121px at
+    // 1280x800 for a bar that is 48px tall.
+    expect(css).toMatch(
+      /\.wk-dashboard \.navbar:has\(\.manual-score-docked\) \.board-tools \{\s*order: 1;\s*flex-basis: 100%;/
+    );
+    // Only while scoring: edit mode docks a 32px launcher that fits the row.
+    expect(css).not.toContain('.wk-dashboard .navbar .board-tools {\n  order: 1;');
+  });
+
   it('labels visible dashboard tree and analysis toolbar controls', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const gameTreeStart = dashboardSource.indexOf('{/* Game tree */}');

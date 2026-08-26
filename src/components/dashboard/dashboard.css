@@ -727,6 +727,18 @@
   flex: 0 0 auto;
   padding: 0 10px;
 }
+/* The docked score bar is as wide as the strip allows, so in the wrapping
+   navbar it claimed the row it landed on and pushed the play actions (Undo,
+   AI move, Resign) onto a third row of their own, hard against the left edge.
+   Three rows cost the board 102px at 1440x900 and 121px at 1280x800 for a bar
+   that is only 48px tall. Give the bar a row of its own, last, so the nav row
+   keeps the play actions where they always are. */
+.wk-dashboard .navbar:has(.manual-score-docked) .board-tools {
+  order: 1;
+  flex-basis: 100%;
+  justify-content: center;
+}
+
 .wk-dashboard .board-chip {
   display: inline-flex; align-items: center; gap: 6px;
   min-width: 32px; height: 32px; padding: 0 10px;
