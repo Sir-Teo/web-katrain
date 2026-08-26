@@ -1839,6 +1839,12 @@ const ENABLE_MORE_PASSING_HACKS: boolean = true;
 // KataGo enablePassingHacks, likewise default true for analysis and GTP.
 const ENABLE_PASSING_HACKS: boolean = true;
 
+// KataGo fillDameBeforePass. Its own example configs leave this off, but its
+// basicDecentParams turns it on, and this app follows the same GUI-shaped choice it
+// already makes for conservativePass: under territory scoring a bot that passes with
+// dame still open leaves the human to tidy up after it.
+const FILL_DAME_BEFORE_PASS: boolean = true;
+
 // KataGo chosenMoveTemperatureHalflife, which also paces rootPolicyTemperature.
 const CHOSEN_MOVE_TEMPERATURE_HALFLIFE = 19;
 
@@ -2031,10 +2037,13 @@ function computePlaySelectionValues(
   node: Node,
   isRoot: boolean,
   endingBonus: Float64Array | null = null,
-  recentScoreCenter = 0
+  recentScoreCenter = 0,
+  /** KataGo's shouldSuppressPass: passing is off the table at this node. */
+  suppressPass = false
 ): PlaySelectionValues | null {
   const edges = node.edges;
   if (!edges || edges.length === 0) return null;
+  const isSuppressedPass = (i: number): boolean => suppressPass && edges[i]!.move === PASS_MOVE;
 
   const pla = node.playerToMove;
   const n = edges.length;
@@ -2059,7 +2068,7 @@ function computePlaySelectionValues(
   for (let i = 0; i < n; i++) {
     const child = edges[i]!.child;
     const visits = child ? child.visits : 0;
-    values[i] = child && visits > 0 ? edgeChildWeight(edges[i]!) : 0;
+    values[i] = child && visits > 0 && !isSuppressedPass(i) ? edgeChildWeight(edges[i]!) : 0;
     if (visits > 0 && values[i]! > 0) anyVisitedChild = true;
     lcb[i] = -zeroVisitRadius;
     radius[i] = zeroVisitRadius;
@@ -2073,6 +2082,7 @@ function computePlaySelectionValues(
   {
     let maxGoodness = -1e30;
     for (let i = 0; i < n; i++) {
+      if (isSuppressedPass(i)) continue;
       const weight = values[i]!;
       const visits = edges[i]!.child?.visits ?? 0;
       const goodness = (weight * Math.max(0, visits - 1)) / Math.max(1, visits) + 2.0 * edges[i]!.prior;
@@ -2105,7 +2115,7 @@ function computePlaySelectionValues(
       for (let i = 0; i < n; i++) {
         if (i === nonLcbBestIdx) continue;
         const child = edges[i]!.child;
-        if (!child || child.visits <= 0 || edges[i]!.visits <= 0) {
+        if (!child || child.visits <= 0 || edges[i]!.visits <= 0 || isSuppressedPass(i)) {
           values[i] = 0;
           continue;
         }
@@ -2372,10 +2382,11 @@ export type AnalysisPayloadMove = {
 function collectRootCandidateRows(
   rootNode: Node,
   endingBonus: Float64Array | null = null,
-  recentScoreCenter = 0
+  recentScoreCenter = 0,
+  suppressPass = false
 ): CandidateRow[] {
   const edges = rootNode.edges ?? [];
-  const selection = computePlaySelectionValues(rootNode, true, endingBonus, recentScoreCenter);
+  const selection = computePlaySelectionValues(rootNode, true, endingBonus, recentScoreCenter, suppressPass);
   const rows: CandidateRow[] = [];
 
   for (let i = 0; i < edges.length; i++) {
@@ -3195,6 +3206,7 @@ export class MctsSearch {
    */
   private readonly useGraphSearch: boolean = USE_GRAPH_SEARCH;
   /** KataGo rootPolicyTemperature and rootPolicyTemperatureEarly, before interpolation. */
+  private readonly fillDameBeforePass: boolean;
   private readonly rootPolicyTemperature: number;
   private readonly rootPolicyTemperatureEarly: number;
   private readonly transpositionTable = new Map<number, Node>();
@@ -3246,6 +3258,7 @@ export class MctsSearch {
     ignorePreRootHistory: boolean;
     enablePassingHacks: boolean;
     useGraphSearch: boolean;
+    fillDameBeforePass: boolean;
     rootPolicyTemperature: number;
     rootPolicyTemperatureEarly: number;
   }) {
@@ -3283,6 +3296,7 @@ export class MctsSearch {
     this.ignorePreRootHistory = args.ignorePreRootHistory;
     this.enablePassingHacks = args.enablePassingHacks;
     this.useGraphSearch = args.useGraphSearch;
+    this.fillDameBeforePass = args.fillDameBeforePass;
     this.rootPolicyTemperature = args.rootPolicyTemperature;
     this.rootPolicyTemperatureEarly = args.rootPolicyTemperatureEarly;
     this.resetGraphSearchState();
@@ -3310,6 +3324,76 @@ export class MctsSearch {
   /** How many times the search found a position it had already reached another way. */
   getTranspositionHits(): number {
     return this.transpositionHits;
+  }
+
+  /**
+   * KataGo Search::shouldSuppressPass (cpp/search/searchhelpers.cpp). Under territory
+   * scoring, passing is taken off the table while some move that is not deep in the
+   * opponent's territory still costs nothing to play, so dame get filled instead of
+   * left for the opponent to tidy up.
+   */
+  private shouldSuppressPass(): boolean {
+    if (!this.fillDameBeforePass) return false;
+    if (this.rules !== 'japanese' && this.rules !== 'korean') return false;
+    const ownership = this.ownershipMode === 'none' ? null : this.rootOwnership;
+    if (!ownership) return false;
+    const edges = this.rootNode.edges;
+    if (!edges) return false;
+
+    const pla = this.rootNode.playerToMove;
+    const sign = pla === BLACK ? 1 : -1;
+
+    let passEdge: Edge | null = null;
+    for (const e of edges) {
+      if (e.move === PASS_MOVE && e.child) {
+        passEdge = e;
+        break;
+      }
+    }
+    if (!passEdge?.child) return false;
+    const passWeight = edgeChildWeight(passEdge);
+    if (passEdge.child.visits <= 0 || passWeight <= 1e-10) return false;
+    const passUtility = sign * passEdge.child.utilityAvg;
+    const passScoreMean = sign * passEdge.child.scoreMeanAvg;
+    const passLead = sign * passEdge.child.scoreLeadAvg;
+
+    // Ownership is stored from black's perspective, so flip it for white.
+    const extreme = 0.95;
+    const ownedByPla = (pos: number): number => sign * ownership[pos]!;
+
+    for (const e of edges) {
+      const child = e.child;
+      if (!child || e.move === PASS_MOVE) continue;
+
+      // A point the opponent all but owns is not dame, unless it touches something
+      // this player owns, in which case it is still worth playing.
+      const oppOwned = ownedByPla(e.move) < -extreme;
+      if (oppOwned) {
+        let adjToPlaOwned = false;
+        const nStart = NEIGHBOR_STARTS[e.move]!;
+        const nCount = NEIGHBOR_COUNTS[e.move]!;
+        for (let i = 0; i < nCount; i++) {
+          if (ownedByPla(NEIGHBOR_LIST[nStart + i]!) > extreme) {
+            adjToPlaOwned = true;
+            break;
+          }
+        }
+        if (!adjToPlaOwned) continue;
+      }
+
+      const childWeight = edgeChildWeight(e);
+      // Too little of the search behind it to trust the comparison.
+      if ((e.visits <= 500 && childWeight <= 2 * Math.sqrt(passWeight)) || childWeight <= 1e-10) continue;
+
+      if (
+        sign * child.utilityAvg > passUtility - 0.1 &&
+        sign * child.scoreMeanAvg > passScoreMean - 0.5 &&
+        sign * child.scoreLeadAvg > passLead - 0.5
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** rootPolicyTemperature for the root's turn number, KataGo's interpolateEarly. */
@@ -3360,6 +3444,8 @@ export class MctsSearch {
     enablePassingHacks?: boolean;
     /** KataGo useGraphSearch. Defaults to true, as it does for everything but distributed. */
     useGraphSearch?: boolean;
+    /** KataGo fillDameBeforePass. Only ever bites under territory scoring. */
+    fillDameBeforePass?: boolean;
     /**
      * KataGo rootPolicyTemperature: above 1 the root policy is flattened, so the
      * search spreads over more moves. `Early` is the value on move 0, decaying to
@@ -3392,6 +3478,7 @@ export class MctsSearch {
     const ignorePreRootHistory = args.ignorePreRootHistory !== false;
     const enablePassingHacks = args.enablePassingHacks ?? ENABLE_PASSING_HACKS;
     const useGraphSearch = args.useGraphSearch ?? USE_GRAPH_SEARCH;
+    const fillDameBeforePass = args.fillDameBeforePass ?? FILL_DAME_BEFORE_PASS;
     const rootPolicyTemperature = Math.max(0.01, Math.min(100, args.rootPolicyTemperature ?? 1));
     const rootPolicyTemperatureEarly = Math.max(
       0.01,
@@ -3509,6 +3596,7 @@ export class MctsSearch {
       ignorePreRootHistory,
       enablePassingHacks,
       useGraphSearch,
+      fillDameBeforePass,
       rootPolicyTemperature,
       rootPolicyTemperatureEarly,
     });
@@ -4185,7 +4273,12 @@ export class MctsSearch {
     const analysisPvLen = Math.max(0, Math.min(args.analysisPvLen, 60));
     const pvDepth = 1 + analysisPvLen;
 
-    const rows = collectRootCandidateRows(this.rootNode, this.rootEndingBonus, this.recentScoreCenter);
+    const rows = collectRootCandidateRows(
+      this.rootNode,
+      this.rootEndingBonus,
+      this.recentScoreCenter,
+      this.shouldSuppressPass()
+    );
 
     const rootStats = rootNodeStats(this.rootNode);
     const rootWinRate = rootStats.rootWinRate;

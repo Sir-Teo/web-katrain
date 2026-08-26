@@ -83,6 +83,7 @@ let searchKey: {
   currentPlayer: 'black' | 'white';
   wideRootNoise: number;
   rootPolicyTemperature: number;
+  fillDameBeforePass: boolean;
   rootSymmetrySamples: number;
   rules: GameRules;
   nnRandomize: boolean;
@@ -592,6 +593,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const analysisPvLen = Math.max(0, Math.min(msg.analysisPvLen ?? 15, 60));
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
     const rootPolicyTemperature = Math.max(0.01, Math.min(msg.rootPolicyTemperature ?? 1, 100));
+    const fillDameBeforePass = msg.fillDameBeforePass !== false;
     const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
     const rootSymmetrySamples = rootSymmetrySamplesForBackend(tf.getBackend());
@@ -669,6 +671,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.currentPlayer === msg.currentPlayer &&
       searchKey.wideRootNoise === wideRootNoise &&
       searchKey.rootPolicyTemperature === rootPolicyTemperature &&
+      searchKey.fillDameBeforePass === fillDameBeforePass &&
       searchKey.rootSymmetrySamples === rootSymmetrySamples &&
       searchKey.rules === rules &&
       searchKey.nnRandomize === nnRandomize &&
@@ -697,6 +700,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         searchKey.komi === msg.komi &&
         searchKey.wideRootNoise === wideRootNoise &&
         searchKey.rootPolicyTemperature === rootPolicyTemperature &&
+        searchKey.fillDameBeforePass === fillDameBeforePass &&
         searchKey.rootSymmetrySamples === rootSymmetrySamples &&
         searchKey.rules === rules &&
         searchKey.nnRandomize === nnRandomize &&
@@ -734,6 +738,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
               currentPlayer: msg.currentPlayer,
               wideRootNoise,
               rootPolicyTemperature,
+              fillDameBeforePass,
               rootSymmetrySamples,
               rules,
               nnRandomize,
@@ -763,6 +768,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         ownershipMode,
         wideRootNoise,
         rootPolicyTemperature,
+        fillDameBeforePass,
         rootSymmetrySamples,
         regionOfInterest: msg.regionOfInterest,
         humanPolicy: humanMovePriors,
@@ -781,6 +787,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           currentPlayer: msg.currentPlayer,
           wideRootNoise,
           rootPolicyTemperature,
+          fillDameBeforePass,
           rootSymmetrySamples,
           rules,
           nnRandomize,

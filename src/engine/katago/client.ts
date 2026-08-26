@@ -255,6 +255,7 @@ class KataGoEngineClient {
     humanSlProfile?: string;
     humanSlRootExploreProb?: number;
     rootPolicyTemperature?: number;
+    fillDameBeforePass?: boolean;
     avoidMoves?: Move[];
     onProgress?: (analysis: Analysis) => void;
   }): Promise<Analysis> {
@@ -296,6 +297,7 @@ class KataGoEngineClient {
       humanSlProfile: args.humanSlProfile,
       humanSlRootExploreProb: args.humanSlRootExploreProb,
       rootPolicyTemperature: args.rootPolicyTemperature,
+      fillDameBeforePass: args.fillDameBeforePass,
       avoidMoves: args.avoidMoves,
     };
     const promise = new Promise<Analysis>((resolve, reject) => {

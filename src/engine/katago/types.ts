@@ -40,6 +40,8 @@ export interface KataGoAnalyzeRequest {
   rootPolicyTemperature?: number;
   nnRandomize?: boolean;
   conservativePass?: boolean;
+  /** KataGo fillDameBeforePass: under territory scoring, don't pass while dame remain. */
+  fillDameBeforePass?: boolean;
   visits?: number;
   maxTimeMs?: number;
   batchSize?: number;

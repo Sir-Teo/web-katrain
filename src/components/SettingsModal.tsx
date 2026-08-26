@@ -154,6 +154,7 @@ const ADVANCED_ENGINE_SETTING_IDS = new Set([
     'settings-katago-reuse-tree',
     'settings-katago-randomize-symmetry',
     'settings-katago-conservative-pass',
+    'settings-katago-fill-dame-before-pass',
 ]);
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
@@ -2648,6 +2649,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         </div>
                                         <p className={subtextClass}>
                                             KaTrain default: suppresses “pass ends game” features at the root.
+                                        </p>
+                                    </div>
+
+                                    <div className="mt-3 space-y-1">
+                                        <label htmlFor="settings-katago-fill-dame-before-pass" className="text-[var(--ui-text-muted)] block text-sm">Fill Dame Before Pass</label>
+                                        <div className="flex items-center space-x-2 text-sm text-[var(--ui-text-muted)]">
+                                            <input
+                                                id="settings-katago-fill-dame-before-pass"
+                                                type="checkbox"
+                                                checked={settings.katagoFillDameBeforePass}
+                                                onChange={(e) => updateSettings({ katagoFillDameBeforePass: e.target.checked })}
+                                                className="rounded"
+                                            />
+                                            <span>Enable (fillDameBeforePass)</span>
+                                        </div>
+                                        <p className={subtextClass}>
+                                            Under territory scoring only: takes passing off the table while a move that
+                                            costs nothing is still on the board, so dame get filled rather than left for
+                                            the other player. KataGo's own example configs leave this off.
                                         </p>
                                     </div>
                                     </div>

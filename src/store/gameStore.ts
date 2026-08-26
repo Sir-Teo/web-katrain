@@ -1038,6 +1038,7 @@ const defaultSettings: GameSettings = {
   katagoOwnershipMode: 'root',
   katagoWideRootNoise: 0.04,
   katagoRootPolicyTemperature: 1.0,
+  katagoFillDameBeforePass: true,
   katagoAnalysisPvLen: 15,
   katagoNnRandomize: true,
   katagoConservativePass: true,
@@ -2012,6 +2013,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             includeMovesOwnership: false,
             wideRootNoise: 0.0,
             rootPolicyTemperature: 1.0,
+            fillDameBeforePass: s.settings.katagoFillDameBeforePass,
             nnRandomize: false,
             conservativePass: s.settings.katagoConservativePass,
             visits,
@@ -2280,6 +2282,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               includeMovesOwnership: false,
               wideRootNoise: s.settings.katagoWideRootNoise,
               rootPolicyTemperature: s.settings.katagoRootPolicyTemperature,
+              fillDameBeforePass: s.settings.katagoFillDameBeforePass,
               nnRandomize: s.settings.katagoNnRandomize,
               conservativePass: s.settings.katagoConservativePass,
               visits: fastVisits,
@@ -2460,6 +2463,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               includeMovesOwnership: s.settings.katagoOwnershipMode === 'tree',
               wideRootNoise: s.settings.katagoWideRootNoise,
               rootPolicyTemperature: s.settings.katagoRootPolicyTemperature,
+              fillDameBeforePass: s.settings.katagoFillDameBeforePass,
               nnRandomize: s.settings.katagoNnRandomize,
               conservativePass: s.settings.katagoConservativePass,
               humanModelUrl: s.settings.humanSlEnabled ? s.settings.humanSlModelUrl : undefined,
@@ -2581,6 +2585,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           const analysisPvLen = opts?.analysisPvLen ?? state.settings.katagoAnalysisPvLen;
           const wideRootNoise = opts?.wideRootNoise ?? state.settings.katagoWideRootNoise;
           const rootPolicyTemperature = state.settings.katagoRootPolicyTemperature;
+          const fillDameBeforePass = state.settings.katagoFillDameBeforePass;
           const nnRandomize = opts?.nnRandomize ?? state.settings.katagoNnRandomize;
           const conservativePass = opts?.conservativePass ?? state.settings.katagoConservativePass;
           const visits = Math.max(16, Math.min(opts?.visits ?? state.settings.katagoVisits, ENGINE_MAX_VISITS));
@@ -2708,6 +2713,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         state.settings.katagoOwnershipMode,
         wideRootNoise,
         rootPolicyTemperature,
+        fillDameBeforePass,
         nnRandomize,
         conservativePass,
         visits,
@@ -2752,6 +2758,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             analysisPvLen,
             wideRootNoise,
             rootPolicyTemperature,
+            fillDameBeforePass,
             nnRandomize,
             conservativePass,
             humanModelUrl: state.settings.humanSlEnabled ? state.settings.humanSlModelUrl : undefined,
@@ -2861,6 +2868,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         'katagoOwnershipMode',
         'katagoWideRootNoise',
         'katagoRootPolicyTemperature',
+        'katagoFillDameBeforePass',
         'katagoAnalysisPvLen',
         'katagoNnRandomize',
         'katagoConservativePass',
@@ -3228,6 +3236,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const analysisPvLen = state.settings.katagoAnalysisPvLen;
         const wideRootNoise = 0;
         const rootPolicyTemperature = 1;
+        const fillDameBeforePass = state.settings.katagoFillDameBeforePass;
         const nnRandomize = false;
         const conservativePass = state.settings.katagoConservativePass;
         const aiNeedsMovesOwnership = state.settings.aiStrategy === 'simple' || state.settings.aiStrategy === 'settle';
@@ -3299,6 +3308,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             analysisPvLen,
             wideRootNoise,
             rootPolicyTemperature,
+            fillDameBeforePass,
             nnRandomize,
             conservativePass,
             humanModelUrl: aiWantsHumanPolicy ? state.settings.humanSlModelUrl : undefined,

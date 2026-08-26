@@ -110,6 +110,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-katago-reuse-tree', tab: 'ai', label: "Reuse Search Tree" },
   { id: 'settings-katago-randomize-symmetry', tab: 'ai', label: "Randomize Symmetry" },
   { id: 'settings-katago-conservative-pass', tab: 'ai', label: "Conservative Pass" },
+  { id: 'settings-katago-fill-dame-before-pass', tab: 'ai', label: 'Fill Dame Before Pass' },
 ];
 
 /** Human-readable tab names, for labelling a result with where it will take you. */

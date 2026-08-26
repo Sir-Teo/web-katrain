@@ -199,6 +199,7 @@ export interface GameSettings {
   katagoAnalysisPvLen: number; // KataGo analysisPVLen (moves after the first)
   katagoNnRandomize: boolean; // KataGo nnRandomize (random symmetries)
   katagoConservativePass: boolean; // KataGo conservativePass (KaTrain default: true)
+  katagoFillDameBeforePass: boolean; // KataGo fillDameBeforePass, territory scoring only
   // KataGo human SL net: predicts how a human of a given rank would play.
   humanSlEnabled: boolean;
   humanSlModelUrl: string;
