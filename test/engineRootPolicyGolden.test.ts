@@ -27,11 +27,16 @@ const RECORDED_PRIORS: ReadonlyArray<readonly [string, number]> = [
   ['R4', 2.07], ['D6', 1.95], ['E3', 1.78], ['C17', 1.85], ['N17', 1.56], ['Q10', 1.25],
 ];
 
-// KataGo's test harness asked its evaluator for defaultSymmetry 1. Its symmetry
-// indices are not this port's: 1 there is 7 here, the same mismatch the 5x5 golden
-// ran into. Which index is used does not matter in play -- the eight are sampled or
-// averaged -- but it has to be pinned to reproduce a recorded run.
-const KATAGO_DEFAULT_SYMMETRY_1 = 7;
+// This case lives in runV8TestsRandomSym, whose evaluator was built with
+// defaultSymmetry -1: it drew a RANDOM symmetry per evaluation from a fixed seed.
+// So there is no single symmetry to match -- each node got its own, and only the
+// root's is recoverable, by trying all eight and seeing which reproduces the
+// recorded policy. It is ours numbered 7. Regressing the recorded policy against
+// ours in log space picks it out unambiguously: r-squared 0.9996 against 0.93 or
+// worse for every other symmetry.
+const ROOT_SYMMETRY_THE_RECORDED_RUN_DREW = 7;
+/** The draw that node happened to get, found the same way. */
+const LEAF_SYMMETRY_THE_RECORDED_RUN_DREW = 3;
 
 const gtpToXy = (label: string): [number, number] => {
   const columns = 'ABCDEFGHJKLMNOPQRST';
@@ -76,7 +81,7 @@ describe.skipIf(!hasModel())("KataGo's recorded root policy at 19x19", () => {
       // forTestsV1 leaves symmetry pruning off and keeps pre-root history.
       rootSymmetryPruning: false,
       ignorePreRootHistory: false,
-      rootSymmetry: KATAGO_DEFAULT_SYMMETRY_1,
+      rootSymmetry: ROOT_SYMMETRY_THE_RECORDED_RUN_DREW,
     });
     const policy = search.getAnalysis({ topK: 1, analysisPvLen: 0 }).policy;
 
@@ -105,5 +110,47 @@ describe.skipIf(!hasModel())("KataGo's recorded root policy at 19x19", () => {
       // to the last bit, so a quarter of a percentage point is the honest bar.
       expect(`${label} ${Math.abs(ours - recorded) < 0.25}`).toBe(`${label} true`);
     }
+  }, 120000);
+
+  // The one child of that root KataGo searched exactly once. With a single visit a
+  // node's reported value IS its own network output, so this pins the value head at
+  // 19x19 -- until now only the 5x5 tiny board golden covered it, and only for the
+  // policy at that. This node drew a different symmetry from the root, which is what
+  // gave the randomisation away: sweeping all eight, only one reproduces all three
+  // numbers, and it is not the root's.
+  it('agrees on the value of a leaf it visited once', async () => {
+    setBoardSize(19);
+    const model = await loadHarnessModel();
+    const moves = parseSgfMoves(SGF);
+    // Q10, the move KataGo's search spent a single visit on.
+    const [qx, qy] = gtpToXy('Q10');
+    moves.push({ x: qx, y: qy, player: 'white' });
+    const board: BoardState = Array.from({ length: 19 }, () => Array.from({ length: 19 }, () => null));
+    for (const move of moves) board[move.y]![move.x] = move.player;
+
+    const search = await MctsSearch.create({
+      model,
+      board,
+      currentPlayer: 'black',
+      moveHistory: moves,
+      komi: 6.5,
+      rules: 'japanese',
+      nnRandomize: false,
+      // A node inside the search is not the root, so conservative passing is off.
+      conservativePass: false,
+      maxChildren: 10,
+      ownershipMode: 'root',
+      wideRootNoise: 0,
+      rootSymmetryPruning: false,
+      ignorePreRootHistory: false,
+      rootSymmetry: LEAF_SYMMETRY_THE_RECORDED_RUN_DREW,
+    });
+    const analysis = search.getAnalysis({ topK: 1, analysisPvLen: 0 });
+
+    // KataGo printed W -4.79c, scoreMean -1.5 and lead -1.1, from white's point of
+    // view; ours are black's. Its numbers carry two decimals at most.
+    expect(-(2 * analysis.rawWinRate - 1) * 100).toBeCloseTo(-4.79, 1);
+    expect(-analysis.rawScoreSelfplay).toBeCloseTo(-1.5, 1);
+    expect(-analysis.rawScoreLead).toBeCloseTo(-1.1, 1);
   }, 120000);
 });

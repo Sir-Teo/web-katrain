@@ -32,8 +32,14 @@ const RECORDED: ReadonlyArray<readonly [string, number, number, number]> = [
   ['N17', 2, 2, -152.93], ['Q10', 1, 1, -356.34],
 ];
 
-// KataGo's symmetry indices are not this port's; its defaultSymmetry 1 is our 7.
-const KATAGO_DEFAULT_SYMMETRY_1 = 7;
+// The recorded run randomised the symmetry per evaluation from a fixed seed, which
+// cannot be reproduced here: only the root's draw is recoverable, and it is ours
+// numbered 7. Every other node in the recorded search was evaluated under some other
+// symmetry than the one this search will use, and the network is only approximately
+// equivariant -- a single position's value moves by whole centipercent between
+// symmetries. That, not any fault in the search, is why the visit counts below
+// cannot be expected to line up exactly.
+const ROOT_SYMMETRY_THE_RECORDED_RUN_DREW = 7;
 
 const FOR_TESTS_V1 = {
   cpuctExploration: 0.9,
@@ -94,7 +100,7 @@ describe.skipIf(!hasModel())("KataGo's recorded 200 visit search", () => {
       ignorePreRootHistory: false,
       rootPolicyTemperature: 1.1,
       rootPolicyTemperatureEarly: 1.2,
-      rootSymmetry: KATAGO_DEFAULT_SYMMETRY_1,
+      rootSymmetry: ROOT_SYMMETRY_THE_RECORDED_RUN_DREW,
       useGraphSearch: false,
       enablePassingHacks: false,
       fillDameBeforePass: false,
