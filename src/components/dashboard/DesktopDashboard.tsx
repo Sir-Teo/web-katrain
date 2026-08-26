@@ -685,6 +685,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               onClick={() => setGamestripOpen((v) => !v)}
             >
               <Icon name={gamestripOpen ? 'chevU' : 'chevD'} size={13} />
+              {!gamestripOpen && <span className="edge-toggle-label">Game info</span>}
             </button>
             <div className="board-wrap">
               <div className="goban-frame">{board}</div>
@@ -713,6 +714,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               onClick={toggleSidebar}
             >
               <Icon name={sidebarOpen ? 'chevR' : 'chevL'} size={13} />
+              {!sidebarOpen && <span className="edge-toggle-label">Analysis</span>}
             </button>
             {showAnalysis && commandbarHasContent && (
               <button
@@ -724,6 +726,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 onClick={() => setCommandbarOpen((v) => !v)}
               >
                 <Icon name={commandbarOpen ? 'chevD' : 'chevU'} size={13} />
+                {!commandbarOpen && <span className="edge-toggle-label">Metrics</span>}
               </button>
             )}
           </div>

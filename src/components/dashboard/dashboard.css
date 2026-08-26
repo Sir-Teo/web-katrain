@@ -1190,11 +1190,22 @@
 .wk-dashboard .edge-toggle svg { width: 13px; height: 13px; }
 .wk-dashboard .edge-toggle.left { left: 0; border-left: none; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .wk-dashboard .edge-toggle.right { right: 0; border-right: none; border-radius: var(--r-sm) 0 0 var(--r-sm); }
-.wk-dashboard .edge-toggle.left:not(.open):has(.edge-toggle-label) {
+/* A collapsed panel is a 24px sliver on the edge; without a word on it the
+   only clue to what it brings back is the tooltip. Every collapsed handle
+   names its panel, and gives back the space once the panel is open. */
+.wk-dashboard .edge-toggle.left:not(.open):has(.edge-toggle-label),
+.wk-dashboard .edge-toggle.right:not(.open):has(.edge-toggle-label) {
   width: 30px;
   height: 88px;
   flex-direction: column;
   gap: 5px;
+}
+.wk-dashboard .edge-toggle.top:not(.open):has(.edge-toggle-label),
+.wk-dashboard .edge-toggle.bottom:not(.open):has(.edge-toggle-label) {
+  width: auto;
+  height: 22px;
+  gap: 5px;
+  padding: 0 9px;
 }
 .wk-dashboard .edge-toggle-label {
   writing-mode: vertical-rl;
@@ -1204,6 +1215,18 @@
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--faint);
+}
+/* Vertical text on a right-hand rail reads top-to-bottom, the mirror of the
+   left rail rather than a copy of it. */
+.wk-dashboard .edge-toggle.right .edge-toggle-label {
+  transform: none;
+}
+/* The horizontal handles have room to set their label on the baseline. */
+.wk-dashboard .edge-toggle.top .edge-toggle-label,
+.wk-dashboard .edge-toggle.bottom .edge-toggle-label {
+  writing-mode: horizontal-tb;
+  transform: none;
+  white-space: nowrap;
 }
 .wk-dashboard .edge-toggle:hover .edge-toggle-label { color: var(--ink-soft); }
 .wk-dashboard .edge-toggle.top,

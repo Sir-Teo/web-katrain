@@ -32,6 +32,26 @@ describe('desktop dashboard layout', () => {
     expect(css).toContain('writing-mode: vertical-rl;');
   });
 
+  it('names every collapsed panel on its own handle, not just the library', () => {
+    // A collapsed panel leaves a 24px sliver on the edge. Library carried a
+    // word on it; analysis, game info and metrics carried only a chevron and a
+    // tooltip, so what they brought back was a guess.
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(dashboardSource).toContain('!sidebarOpen && <span className="edge-toggle-label">Analysis</span>');
+    expect(dashboardSource).toContain('!gamestripOpen && <span className="edge-toggle-label">Game info</span>');
+    expect(dashboardSource).toContain('!commandbarOpen && <span className="edge-toggle-label">Metrics</span>');
+    expect(css).toContain('.wk-dashboard .edge-toggle.right:not(.open):has(.edge-toggle-label)');
+    expect(css).toContain('.wk-dashboard .edge-toggle.top:not(.open):has(.edge-toggle-label)');
+    expect(css).toContain('.wk-dashboard .edge-toggle.bottom:not(.open):has(.edge-toggle-label)');
+    // The horizontal handles set their label on the baseline instead of
+    // inheriting the vertical rail's writing mode.
+    expect(css).toMatch(
+      /\.wk-dashboard \.edge-toggle\.top \.edge-toggle-label,\n\.wk-dashboard \.edge-toggle\.bottom \.edge-toggle-label \{[\s\S]*writing-mode: horizontal-tb/
+    );
+  });
+
   it('keeps first-run actions in a compact, non-overlapping board rail', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
