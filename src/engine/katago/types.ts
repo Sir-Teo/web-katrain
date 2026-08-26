@@ -59,8 +59,14 @@ export interface KataGoAnalyzeRequest {
    * leaves the search alone; its human-bot config uses 0.8.
    */
   humanSlRootExploreProb?: number;
-  /** Moves the search may not play at the root (KataGo avoidMoves). */
-  avoidMoves?: Move[];
+  /**
+   * KataGo avoidMoves: moves the search may not play until `untilDepth` plies from
+   * the root. `untilDepth` defaults to 1, which bans the move at the root alone.
+   * `player` defaults to whoever is to move.
+   */
+  avoidMoves?: Array<{ x: number; y: number; player?: Player; untilDepth?: number }>;
+  /** KataGo allowMoves: the complement, at most one entry per player. */
+  allowMoves?: Array<{ moves: Array<{ x: number; y: number }>; player?: Player; untilDepth?: number }>;
 }
 
 export interface KataGoAnalysisPayload {

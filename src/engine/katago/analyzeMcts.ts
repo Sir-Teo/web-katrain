@@ -405,16 +405,20 @@ function buildRootMoveMask(args: {
   symmetryPruning?: boolean;
   /** KataGo ignorePreRootHistory: with it on, symmetry is a matter of stones alone. */
   ignorePreRootHistory?: boolean;
-  /** Moves the search may not play at the root, KataGo's avoidMoves. */
-  avoidMoves?: Uint8Array | null;
+  /**
+   * KataGo avoidMoveUntilByLoc for the player to move: the ply before which each
+   * move is off limits. Index BOARD_AREA is the pass. Zero means no restriction.
+   */
+  avoidMoveUntil?: Int32Array | null;
 }): { allowedMoves: Uint8Array | null; roiMask: Uint8Array | null; rootSymmetries: number[] } {
   const roiMask = buildAllowedMovesMask(args.regionOfInterest);
   let allowedMoves = roiMask;
 
-  if (args.avoidMoves) {
+  if (args.avoidMoveUntil) {
+    // The root is ply zero, so anything with a positive untilDepth is banned here.
     const avoided = allowedMoves ? new Uint8Array(allowedMoves) : new Uint8Array(BOARD_AREA).fill(1);
     for (let p = 0; p < BOARD_AREA; p++) {
-      if (args.avoidMoves[p] === 1) avoided[p] = 0;
+      if (args.avoidMoveUntil[p]! > 0) avoided[p] = 0;
     }
     allowedMoves = avoided;
   }
@@ -665,7 +669,7 @@ async function buildRootEval(args: {
   regionOfInterest?: RegionOfInterest | null;
   rootSymmetryPruning?: boolean;
   forcedRootMoves?: Uint8Array | null;
-  avoidRootMoves?: Uint8Array | null;
+  avoidRootMoves?: Int32Array | null;
   outputScaleMultiplier: number;
   /** KataGo ignorePreRootHistory: the root's history planes stay empty. */
   ignorePreRootHistory: boolean;
@@ -743,7 +747,7 @@ async function buildRootEval(args: {
     currentPlayer: args.currentPlayer,
     symmetryPruning: args.rootSymmetryPruning,
     ignorePreRootHistory: args.ignorePreRootHistory,
-    avoidMoves: args.avoidRootMoves,
+    avoidMoveUntil: args.avoidRootMoves,
   });
   const rootPolicy = new Float32Array(BOARD_AREA + 1);
   const policyNode = args.node ?? new Node(playerToColor(args.currentPlayer));
@@ -1720,9 +1724,9 @@ function computeParentSelectionStats(
 }
 
 /** What a descent step chose, and whether the node is being charged for it. */
-type EdgeSelection = { edge: Edge; countEdgeVisit: boolean };
+type EdgeSelection = { edge: Edge | null; countEdgeVisit: boolean };
 
-const edgeSelectionScratch = { edge: null, countEdgeVisit: true } as unknown as EdgeSelection;
+const edgeSelectionScratch: EdgeSelection = { edge: null, countEdgeVisit: true };
 
 function selectEdge(
   node: Node,
@@ -1733,6 +1737,9 @@ function selectEdge(
   recentScoreCenter = 0,
   forcedRootMoves: Uint8Array | null = null,
   humanExplore: HumanExploreParams | null = null,
+  /** Plies from the root, for KataGo's avoidMoveUntilByLoc. */
+  depth = 0,
+  avoidMoveUntil: Int32Array | null = null,
   out: EdgeSelection = edgeSelectionScratch
 ): EdgeSelection {
   const edges = node.edges;
@@ -1771,7 +1778,7 @@ function selectEdge(
   const fpuValue = stats.fpuValue;
   const scaling = stats.scaling;
 
-  let bestEdge = edges[0]!;
+  let bestEdge: Edge | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
   const applyWideRootNoise = isRoot && wideRootNoise > 0 && countEdgeVisit;
@@ -1795,6 +1802,8 @@ function selectEdge(
 
   for (const e of edges) {
     const child = e.child;
+    // KataGo avoidMoveUntilByLoc: off limits until this many plies from the root.
+    if (avoidMoveUntil && avoidMoveUntil[e.move]! > depth) continue;
     let prior = humanPolicy ? (humanPolicy[e.move] ?? -1) : e.prior;
     // KataGo treats a negative policy entry as an illegal move and skips it.
     if (prior < 0) continue;
@@ -3240,6 +3249,12 @@ export class MctsSearch {
   private readonly useGraphSearch: boolean = USE_GRAPH_SEARCH;
   /** KataGo rootPolicyTemperature and rootPolicyTemperatureEarly, before interpolation. */
   private readonly fillDameBeforePass: boolean;
+  /**
+   * KataGo avoidMoveUntilByLocBlack / White: the ply before which each move is off
+   * limits for that player, indexed by move with BOARD_AREA for the pass.
+   */
+  private readonly avoidMoveUntilBlack: Int32Array | null;
+  private readonly avoidMoveUntilWhite: Int32Array | null;
   private readonly rootPolicyTemperature: number;
   private readonly rootPolicyTemperatureEarly: number;
   private readonly transpositionTable = new Map<number, Node>();
@@ -3302,6 +3317,8 @@ export class MctsSearch {
     enablePassingHacks: boolean;
     useGraphSearch: boolean;
     fillDameBeforePass: boolean;
+    avoidMoveUntilBlack: Int32Array | null;
+    avoidMoveUntilWhite: Int32Array | null;
     rootRaw: {
       winRate: number;
       scoreLead: number;
@@ -3349,6 +3366,8 @@ export class MctsSearch {
     this.enablePassingHacks = args.enablePassingHacks;
     this.useGraphSearch = args.useGraphSearch;
     this.fillDameBeforePass = args.fillDameBeforePass;
+    this.avoidMoveUntilBlack = args.avoidMoveUntilBlack;
+    this.avoidMoveUntilWhite = args.avoidMoveUntilWhite;
     this.rootRaw = args.rootRaw;
     this.rootPolicyTemperature = args.rootPolicyTemperature;
     this.rootPolicyTemperatureEarly = args.rootPolicyTemperatureEarly;
@@ -3506,8 +3525,12 @@ export class MctsSearch {
      */
     rootPolicyTemperature?: number;
     rootPolicyTemperatureEarly?: number;
-    /** Moves the search may not play at the root, KataGo's avoidMoves. */
-    avoidRootMoves?: Uint8Array | null;
+    /**
+     * KataGo avoidMoveUntilByLoc, one array per player: the ply before which each
+     * move is off limits. Index BOARD_AREA is the pass; zero means no restriction.
+     */
+    avoidMoveUntilBlack?: Int32Array | null;
+    avoidMoveUntilWhite?: Int32Array | null;
   }): Promise<MctsSearch> {
     const outputScaleMultiplier = args.model.postProcessParams?.outputScaleMultiplier ?? 1.0;
     const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples);
@@ -3594,7 +3617,8 @@ export class MctsSearch {
       regionOfInterest: args.regionOfInterest,
       rootSymmetryPruning: args.rootSymmetryPruning,
       forcedRootMoves,
-      avoidRootMoves: args.avoidRootMoves,
+      avoidRootMoves:
+        args.currentPlayer === 'black' ? (args.avoidMoveUntilBlack ?? null) : (args.avoidMoveUntilWhite ?? null),
       outputScaleMultiplier,
       ignorePreRootHistory,
       enablePassingHacks,
@@ -3657,6 +3681,8 @@ export class MctsSearch {
       enablePassingHacks,
       useGraphSearch,
       fillDameBeforePass,
+      avoidMoveUntilBlack: args.avoidMoveUntilBlack ?? null,
+      avoidMoveUntilWhite: args.avoidMoveUntilWhite ?? null,
       rootRaw: {
         winRate: rawWinRate,
         scoreLead: rawScoreLead,
@@ -3926,8 +3952,11 @@ export class MctsSearch {
             this.rootEndingBonus,
             this.recentScoreCenter,
             this.forcedRootMoves,
-            isRootNode ? this.humanExplore : null
+            isRootNode ? this.humanExplore : null,
+            depth,
+            player === BLACK ? this.avoidMoveUntilBlack : this.avoidMoveUntilWhite
           );
+          if (!selection.edge) break;
           let e = selection.edge;
           let countEdgeVisit = selection.countEdgeVisit;
 
@@ -3937,6 +3966,10 @@ export class MctsSearch {
           if (
             ENABLE_MORE_PASSING_HACKS &&
             weightlessFrom < 0 &&
+            // KataGo will not force a playout while any move is being avoided, in
+            // case the move it would force is one of them.
+            this.avoidMoveUntilBlack === null &&
+            this.avoidMoveUntilWhite === null &&
             (node !== this.rootNode || this.roiMask === null)
           ) {
             const lastMove =

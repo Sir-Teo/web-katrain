@@ -8,7 +8,7 @@ import pako from 'pako';
 
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
 import { looksLikeMarkup, modelResponseError } from './modelResponse';
-import type { GameRules, KataGoBackendPreference, RegionOfInterest } from '../../types';
+import type { GameRules, KataGoBackendPreference, Player, RegionOfInterest } from '../../types';
 import { publicUrl } from '../../utils/publicUrl';
 import { getAnimationNow } from '../../utils/animationFrame';
 import { parseKataGoModelV8 } from './loadModelV8';
@@ -612,23 +612,46 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         ? `${msg.humanSlProfile}@${msg.humanModelUrl}#${humanSlRootExploreProb}`
         : null;
 
-    // KataGo avoidMoves: points the search is not allowed to play at the root, which
-    // is how an analysis answers "and if that move were not available?".
-    let avoidRootMoves: Uint8Array | null = null;
-    let avoidKey: string | null = null;
-    if (msg.avoidMoves && msg.avoidMoves.length > 0) {
-      const mask = new Uint8Array(BOARD_AREA);
-      const parts: string[] = [];
-      for (const move of msg.avoidMoves) {
-        if (move.x < 0 || move.y < 0 || move.x >= BOARD_SIZE || move.y >= BOARD_SIZE) continue;
-        mask[move.y * BOARD_SIZE + move.x] = 1;
-        parts.push(`${move.x},${move.y}`);
-      }
-      if (parts.length > 0) {
-        avoidRootMoves = mask;
-        avoidKey = parts.sort().join(' ');
-      }
+    // KataGo avoidMoveUntilByLoc: how deep into the search each move stays off
+    // limits for each player, which is how an analysis answers "and if that move
+    // were not available?". An untilDepth of 1 bans it at the root alone.
+    const avoidParts: string[] = [];
+    let avoidMoveUntilBlack: Int32Array | null = null;
+    let avoidMoveUntilWhite: Int32Array | null = null;
+    const avoidArrayFor = (player: Player): Int32Array => {
+      if (player === 'black') return (avoidMoveUntilBlack ??= new Int32Array(BOARD_AREA + 1));
+      return (avoidMoveUntilWhite ??= new Int32Array(BOARD_AREA + 1));
+    };
+    const moveIndexOf = (move: { x: number; y: number }): number => {
+      if (move.x < 0 || move.y < 0) return BOARD_AREA;
+      if (move.x >= BOARD_SIZE || move.y >= BOARD_SIZE) return -1;
+      return move.y * BOARD_SIZE + move.x;
+    };
+    for (const move of msg.avoidMoves ?? []) {
+      const idx = moveIndexOf(move);
+      if (idx < 0) continue;
+      const untilDepth = Math.max(1, Math.min(Math.floor(move.untilDepth ?? 1), 1000));
+      const player: Player = move.player ?? msg.currentPlayer;
+      avoidArrayFor(player)[idx] = untilDepth;
+      avoidParts.push(`a${player[0]}${idx}:${untilDepth}`);
     }
+    // allowMoves is the complement: everything else is off limits for that player.
+    for (const allow of msg.allowMoves ?? []) {
+      const player: Player = allow.player ?? msg.currentPlayer;
+      const untilDepth = Math.max(1, Math.min(Math.floor(allow.untilDepth ?? 1), 1000));
+      const allowed = new Set<number>();
+      for (const move of allow.moves) {
+        const idx = moveIndexOf(move);
+        if (idx >= 0) allowed.add(idx);
+      }
+      if (allowed.size === 0) continue;
+      const array = avoidArrayFor(player);
+      for (let p = 0; p <= BOARD_AREA; p++) {
+        if (!allowed.has(p)) array[p] = untilDepth;
+      }
+      avoidParts.push(`l${player[0]}${[...allowed].sort((x, y) => x - y).join(',')}:${untilDepth}`);
+    }
+    const avoidKey = avoidParts.length > 0 ? avoidParts.sort().join(' ') : null;
 
     // The human policy is about the position, not the search, so it is computed up
     // front: its favourite moves are added to the root so the report says what they
@@ -773,7 +796,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         regionOfInterest: msg.regionOfInterest,
         humanPolicy: humanMovePriors,
         humanSlRootExploreProbWeightless: humanSlRootExploreProb,
-        avoidRootMoves,
+        avoidMoveUntilBlack,
+        avoidMoveUntilWhite,
       });
       if (typeof msg.positionId === 'string') {
         searchKey = {

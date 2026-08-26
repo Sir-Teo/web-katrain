@@ -256,7 +256,8 @@ class KataGoEngineClient {
     humanSlRootExploreProb?: number;
     rootPolicyTemperature?: number;
     fillDameBeforePass?: boolean;
-    avoidMoves?: Move[];
+    avoidMoves?: Array<{ x: number; y: number; player?: Player; untilDepth?: number }>;
+    allowMoves?: Array<{ moves: Array<{ x: number; y: number }>; player?: Player; untilDepth?: number }>;
     onProgress?: (analysis: Analysis) => void;
   }): Promise<Analysis> {
     this.rejectIfCrashed();
@@ -299,6 +300,7 @@ class KataGoEngineClient {
       rootPolicyTemperature: args.rootPolicyTemperature,
       fillDameBeforePass: args.fillDameBeforePass,
       avoidMoves: args.avoidMoves,
+      allowMoves: args.allowMoves,
     };
     const promise = new Promise<Analysis>((resolve, reject) => {
       this.pending.set(id, { resolve, reject, onProgress: args.onProgress });

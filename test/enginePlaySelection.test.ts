@@ -261,7 +261,8 @@ describe.skipIf(!hasModel())('avoiding moves at the root', () => {
     const top = plain.getAnalysis({ topK: 3, analysisPvLen: 1 }).moves[0]!;
     expect(top.x).toBeGreaterThanOrEqual(0);
 
-    const avoid = new Uint8Array(BOARD_SIZE * BOARD_SIZE);
+    // Off limits for one ply, which is the root alone.
+    const avoid = new Int32Array(BOARD_SIZE * BOARD_SIZE + 1);
     avoid[top.y * BOARD_SIZE + top.x] = 1;
     const restricted = await MctsSearch.create({
       model,
@@ -275,7 +276,7 @@ describe.skipIf(!hasModel())('avoiding moves at the root', () => {
       maxChildren: 24,
       ownershipMode: 'root',
       wideRootNoise: 0,
-      avoidRootMoves: avoid,
+      avoidMoveUntilBlack: avoid,
     });
     await restricted.run({ visits: 60, maxTimeMs: 120000, batchSize: 4 });
     const analysis = restricted.getAnalysis({ topK: 20, analysisPvLen: 1 });
