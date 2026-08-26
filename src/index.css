@@ -371,9 +371,14 @@
       padding-right: 6px !important;
     }
 
-    .mobile-panel-title {
-      display: none;
-    }
+    /* No blanket `.mobile-panel-title { display: none }` here. It was written
+       for the tree tab, which carries first/last navigation, the view toggle
+       and the clock alongside the title; the tree tab now sheds its own title
+       at every width, so all this rule still did was leave the Review panel
+       unnamed below 380px. Review has only the back button and the clock, and
+       the title measures 120px clear at 320px with the header not overflowing,
+       so it stays. The title is flex-1 and truncates, which is what a longer
+       locale needs anyway. */
 
     .mobile-tree-view-controls {
       gap: 2px !important;

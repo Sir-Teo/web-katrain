@@ -60,6 +60,13 @@ describe('RightPanel layout', () => {
     expect(css).toMatch(
       /\.mobile-panel-header\[data-mobile-panel-tab='tree'\] \.mobile-panel-title,\s*\.mobile-panel-header\[data-mobile-panel-tab='tree'\] \.mobile-panel-back-label \{\s*display: none;/
     );
+    // ...and it is the only one. A blanket hide below 380px predated the
+    // tab-scoped rule above and, once that landed, all it still did was leave
+    // the Review panel unnamed on a 320-380px phone, where the title measures
+    // 120px clear with the header not overflowing.
+    expect(css).not.toMatch(
+      /@media \(max-width: 380px\) \{[\s\S]{0,400}?\n {4}\.mobile-panel-title \{\s*display: none;/
+    );
   });
 
   it('uses strict integer draft parsing for branch number edits', () => {
