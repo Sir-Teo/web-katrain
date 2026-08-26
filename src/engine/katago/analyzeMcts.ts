@@ -688,6 +688,14 @@ async function buildRootEval(args: {
   rootScoreMeanSq: number;
   rootUtility: number;
   recentScoreCenter: number;
+  /** KataGo rootInfo's raw* fields: what the network said before any search. */
+  rawWinRate: number;
+  rawScoreLead: number;
+  rawScoreSelfplay: number;
+  rawScoreSelfplayStdev: number;
+  rawNoResultProb: number;
+  rawStWrError: number;
+  rawStScoreError: number;
 }> {
   const includeOwnership = args.ownershipMode !== 'none';
   const rootEval = await evaluateRootEval({
@@ -796,6 +804,13 @@ async function buildRootEval(args: {
     rootScoreMeanSq,
     rootUtility,
     recentScoreCenter,
+    rawWinRate: rootEval.blackWinProb,
+    rawScoreLead: rootEval.blackScoreLead,
+    rawScoreSelfplay: rootEval.blackScoreMean,
+    rawScoreSelfplayStdev: rootEval.blackScoreStdev,
+    rawNoResultProb: rootEval.blackNoResultProb,
+    rawStWrError: rootEval.shorttermWinlossError,
+    rawStScoreError: rootEval.shorttermScoreError,
   };
 }
 
@@ -2341,6 +2356,9 @@ type CandidateRow = {
   scoreStdev: number;
   prior: number;
   playSelectionValue: number;
+  edgeVisits: number; // what this parent paid for, which visits can exceed
+  weight: number; // the child's own weight
+  edgeWeight: number; // the share of it this edge bought
   utility: number; // child utilityAvg, from black's perspective
   lcbSelf: number; // utility LCB from the player-to-move's perspective
   radius: number;
@@ -2355,6 +2373,15 @@ export type AnalysisPayloadMove = {
   scoreSelfplay: number;
   scoreStdev: number;
   visits: number;
+  /**
+   * KataGo's edgeVisits: what the parent invested in this move. `visits` counts the
+   * child node itself, which can be more when human SL exploration or a graph search
+   * transposition brought other lines to the same position.
+   */
+  edgeVisits: number;
+  /** Total weight behind the child, and the share of it this edge bought. */
+  weight: number;
+  edgeWeight: number;
   pointsLost: number;
   relativePointsLost: number;
   order: number;
@@ -2409,6 +2436,9 @@ function collectRootCandidateRows(
       scoreStdev,
       prior: e.prior,
       playSelectionValue: selection ? selection.values[i]! : child.visits,
+      edgeVisits: e.visits,
+      weight: child.weightSum,
+      edgeWeight: edgeChildWeight(e),
       utility: child.utilityAvg,
       lcbSelf: selection ? selection.lcb[i]! : 0,
       radius: selection ? selection.radius[i]! : 0,
@@ -2462,6 +2492,9 @@ function buildAnalysisMoves(args: {
       scoreSelfplay: m.scoreSelfplay,
       scoreStdev: m.scoreStdev,
       visits: m.visits,
+      edgeVisits: m.edgeVisits,
+      weight: m.weight,
+      edgeWeight: m.edgeWeight,
       pointsLost,
       relativePointsLost,
       order: i,
@@ -3213,6 +3246,16 @@ export class MctsSearch {
   private readonly rootGraphHash = new Int32Array(2);
   private readonly graphHashScratch = new Int32Array(2);
   private rootConsecutivePasses = 0;
+  /** KataGo rootInfo's raw* fields: the network's own read of the root, unsearched. */
+  private rootRaw = {
+    winRate: 0.5,
+    scoreLead: 0,
+    scoreSelfplay: 0,
+    scoreSelfplayStdev: 0,
+    noResultProb: 0,
+    stWrError: -1,
+    stScoreError: -1,
+  };
   /** How often a transposition was found. Reported for tests and diagnostics. */
   private transpositionHits = 0;
   /**
@@ -3259,6 +3302,15 @@ export class MctsSearch {
     enablePassingHacks: boolean;
     useGraphSearch: boolean;
     fillDameBeforePass: boolean;
+    rootRaw: {
+      winRate: number;
+      scoreLead: number;
+      scoreSelfplay: number;
+      scoreSelfplayStdev: number;
+      noResultProb: number;
+      stWrError: number;
+      stScoreError: number;
+    };
     rootPolicyTemperature: number;
     rootPolicyTemperatureEarly: number;
   }) {
@@ -3297,6 +3349,7 @@ export class MctsSearch {
     this.enablePassingHacks = args.enablePassingHacks;
     this.useGraphSearch = args.useGraphSearch;
     this.fillDameBeforePass = args.fillDameBeforePass;
+    this.rootRaw = args.rootRaw;
     this.rootPolicyTemperature = args.rootPolicyTemperature;
     this.rootPolicyTemperatureEarly = args.rootPolicyTemperatureEarly;
     this.resetGraphSearchState();
@@ -3515,6 +3568,13 @@ export class MctsSearch {
       rootScoreMeanSq,
       rootUtility,
       recentScoreCenter,
+      rawWinRate,
+      rawScoreLead,
+      rawScoreSelfplay,
+      rawScoreSelfplayStdev,
+      rawNoResultProb,
+      rawStWrError,
+      rawStScoreError,
     } = await buildRootEval({
       model: args.model,
       ownershipMode: args.ownershipMode,
@@ -3597,6 +3657,15 @@ export class MctsSearch {
       enablePassingHacks,
       useGraphSearch,
       fillDameBeforePass,
+      rootRaw: {
+        winRate: rawWinRate,
+        scoreLead: rawScoreLead,
+        scoreSelfplay: rawScoreSelfplay,
+        scoreSelfplayStdev: rawScoreSelfplayStdev,
+        noResultProb: rawNoResultProb,
+        stWrError: rawStWrError,
+        stScoreError: rawStScoreError,
+      },
       rootPolicyTemperature,
       rootPolicyTemperatureEarly,
     });
@@ -3650,6 +3719,13 @@ export class MctsSearch {
       rootScoreMeanSq,
       rootUtility,
       recentScoreCenter,
+      rawWinRate,
+      rawScoreLead,
+      rawScoreSelfplay,
+      rawScoreSelfplayStdev,
+      rawNoResultProb,
+      rawStWrError,
+      rawStScoreError,
     } = await buildRootEval({
       model: this.model,
       ownershipMode: this.ownershipMode,
@@ -3709,6 +3785,15 @@ export class MctsSearch {
     // it wants them for the new position.
     this.forcedRootMoves = null;
     this.humanExplore = null;
+    this.rootRaw = {
+      winRate: rawWinRate,
+      scoreLead: rawScoreLead,
+      scoreSelfplay: rawScoreSelfplay,
+      scoreSelfplayStdev: rawScoreSelfplayStdev,
+      noResultProb: rawNoResultProb,
+      stWrError: rawStWrError,
+      stScoreError: rawStScoreError,
+    };
     this.resetGraphSearchState();
     // Nodes outside the new root's subtree are gone, and their contributions to the
     // bias table would linger, so start the table over (KataGo decays them instead).
@@ -4260,6 +4345,15 @@ export class MctsSearch {
     rootScoreSelfplay: number;
     rootScoreStdev: number;
     rootVisits: number;
+    /** What the network alone said about the root, before any search. */
+    rawWinRate: number;
+    rawScoreLead: number;
+    rawScoreSelfplay: number;
+    rawScoreSelfplayStdev: number;
+    rawNoResultProb: number;
+    /** -1 when the net is older than model version 10 and does not predict them. */
+    rawStWrError: number;
+    rawStScoreError: number;
     ownership: FloatArray;
     ownershipStdev: FloatArray;
     policy: FloatArray;
@@ -4327,6 +4421,13 @@ export class MctsSearch {
       rootScoreSelfplay,
       rootScoreStdev,
       rootVisits: this.rootNode.visits,
+      rawWinRate: this.rootRaw.winRate,
+      rawScoreLead: this.rootRaw.scoreLead,
+      rawScoreSelfplay: this.rootRaw.scoreSelfplay,
+      rawScoreSelfplayStdev: this.rootRaw.scoreSelfplayStdev,
+      rawNoResultProb: this.rootRaw.noResultProb,
+      rawStWrError: this.rootRaw.stWrError,
+      rawStScoreError: this.rootRaw.stScoreError,
       ownership,
       ownershipStdev,
       policy: policyOut,

@@ -33,6 +33,9 @@ export interface CandidateMove {
   scoreSelfplay?: number;
   scoreStdev?: number;
   visits: number;
+  edgeVisits?: number; // KataGo edgeVisits: what the root paid for this move
+  weight?: number; // total weight behind the child
+  edgeWeight?: number; // the share of it this edge bought
   pointsLost: number; // relative to root eval (KaTrain-like)
   relativePointsLost?: number; // relative to top move (KaTrain-like)
   order: number; // 0 for best move
@@ -54,6 +57,14 @@ export interface AnalysisResult {
   rootScoreSelfplay?: number;
   rootScoreStdev?: number;
   rootVisits?: number;
+  // KataGo rootInfo's raw* fields: what the network said before any search.
+  rawWinRate?: number;
+  rawScoreLead?: number;
+  rawScoreSelfplay?: number;
+  rawScoreSelfplayStdev?: number;
+  rawNoResultProb?: number;
+  rawStWrError?: number;
+  rawStScoreError?: number;
   moves: CandidateMove[];
   territory: number[][]; // boardSize x boardSize grid, values -1 (white) to 1 (black)
   policy?: FloatArray; // len boardSize*boardSize + 1, illegal = -1, pass at last index

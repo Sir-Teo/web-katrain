@@ -69,6 +69,14 @@ export interface KataGoAnalysisPayload {
   rootScoreSelfplay: number;
   rootScoreStdev: number;
   rootVisits: number;
+  // KataGo rootInfo's raw* fields: the network's own read, before any search.
+  rawWinRate?: number;
+  rawScoreLead?: number;
+  rawScoreSelfplay?: number;
+  rawScoreSelfplayStdev?: number;
+  rawNoResultProb?: number;
+  rawStWrError?: number; // -1 when the net does not predict it
+  rawStScoreError?: number;
   ownership: FloatArray; // len 361, +1 black owns, -1 white owns
   ownershipStdev: FloatArray; // len 361
   policy: FloatArray; // len 362, illegal = -1, pass at index 361
@@ -83,6 +91,9 @@ export interface KataGoAnalysisPayload {
     scoreSelfplay: number;
     scoreStdev: number;
     visits: number;
+    edgeVisits?: number; // what the parent paid for; visits can exceed it
+    weight?: number;
+    edgeWeight?: number;
     pointsLost: number;
     relativePointsLost: number;
     order: number;
