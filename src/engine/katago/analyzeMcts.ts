@@ -675,6 +675,8 @@ async function buildRootEval(args: {
   ignorePreRootHistory: boolean;
   /** KataGo enablePassingHacks. */
   enablePassingHacks: boolean;
+  /** KataGo's defaultSymmetry for the root evaluation. Defaults to 0. */
+  rootSymmetry?: number;
   /** KataGo rootPolicyTemperature, already interpolated for the turn number. */
   rootPolicyTemperature: number;
   node?: Node;
@@ -722,6 +724,7 @@ async function buildRootEval(args: {
       conservativePassAndIsRoot: args.conservativePass,
       maxHistory: args.ignorePreRootHistory ? 0 : 5,
       enablePassingHacks: args.enablePassingHacks,
+      symmetry: args.rootSymmetry,
     },
   });
 
@@ -2816,7 +2819,7 @@ async function evaluateRootEval(args: {
         nnRandomize: false,
         policyOptimism: args.policyOptimism,
         komi: args.komi,
-        states: [{ ...args.state, symmetry: 0 }],
+        states: [{ ...args.state, symmetry: args.state.symmetry ?? 0 }],
       })
     )[0]!;
   }
@@ -3526,6 +3529,11 @@ export class MctsSearch {
     rootPolicyTemperature?: number;
     rootPolicyTemperatureEarly?: number;
     /**
+     * KataGo's defaultSymmetry: which of the eight symmetries to evaluate the root
+     * with. Defaults to 0. Only useful for reproducing a recorded run.
+     */
+    rootSymmetry?: number;
+    /**
      * KataGo avoidMoveUntilByLoc, one array per player: the ply before which each
      * move is off limits. Index BOARD_AREA is the pass; zero means no restriction.
      */
@@ -3623,6 +3631,7 @@ export class MctsSearch {
       ignorePreRootHistory,
       enablePassingHacks,
       rootPolicyTemperature: effectiveRootPolicyTemperature,
+      rootSymmetry: args.rootSymmetry,
       node: rootNode,
     });
     rootNode.ownership = rootOwnership;
