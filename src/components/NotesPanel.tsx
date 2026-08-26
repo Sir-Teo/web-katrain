@@ -452,7 +452,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const analysisStatusText = useMemo(() => {
     if (!isAnalysisMode) return 'Analysis off (Tab to enable)';
     if (engineStatus === 'error') return engineError ? `Engine error: ${engineError}` : 'Engine error';
-    if (engineStatus === 'loading') return 'Analyzing move...';
+    // Turning analysis on before the engine is up left this saying "Analyzing
+    // move..." while a ~30MB model was still downloading and compiling —
+    // nothing was being analyzed, and the wait reads as a stall. The status
+    // chip already says Loading; say the same thing here.
+    if (engineStatus === 'loading') return 'Loading engine...';
     return 'Analyzing move...';
   }, [engineError, engineStatus, isAnalysisMode]);
 
