@@ -44,6 +44,12 @@ export function fillInputsV7Fast(args: {
    * Only area scoring can price the board that way without agreeing dead stones.
    */
   enablePassingHacks?: boolean;
+  /**
+   * KataGo drawEquivalentWinsForWhite: what a draw is worth to white, folded into
+   * the komi the net is shown. Defaults to KataGo's own 0.5, at which it does
+   * nothing; it only bites on a komi that could produce a jigo in the first place.
+   */
+  drawEquivalentWinsForWhite?: number;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable
@@ -107,7 +113,15 @@ export function fillInputsV7Fast(args: {
     }
   }
 
-  const selfKomi = pla === 'white' ? komi : -komi;
+  // KataGo BoardHistory::whiteKomiAdjustmentForDraws: the draw utility is folded
+  // into the komi, so a komi that can produce a jigo is shifted by how much a draw
+  // is worth. At the default of 0.5 -- a draw being half a win -- this is zero.
+  const drawEquivalentWinsForWhite = args.drawEquivalentWinsForWhite ?? 0.5;
+  // Rules::gameResultWillBeInteger, with hasButton false for every ruleset here.
+  const gameResultWillBeInteger = Math.trunc(komi) === komi;
+  const drawAdjustment = gameResultWillBeInteger ? drawEquivalentWinsForWhite - 0.5 : 0;
+  const whiteKomiAdjusted = komi + drawAdjustment;
+  const selfKomi = pla === 'white' ? whiteKomiAdjusted : -whiteKomiAdjusted;
 
   // KataGo counts the score this feature implies while it fills it in, so that the
   // passing hacks below can ask whether ending the game right now would be a win.
@@ -225,6 +239,12 @@ export function extractInputsV7Fast(args: {
    * Only area scoring can price the board that way without agreeing dead stones.
    */
   enablePassingHacks?: boolean;
+  /**
+   * KataGo drawEquivalentWinsForWhite: what a draw is worth to white, folded into
+   * the komi the net is shown. Defaults to KataGo's own 0.5, at which it does
+   * nothing; it only bites on a komi that could produce a jigo in the first place.
+   */
+  drawEquivalentWinsForWhite?: number;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable
