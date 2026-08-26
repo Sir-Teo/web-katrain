@@ -288,9 +288,6 @@
     padding-inline: 0.5rem;
   }
 
-  .mobile-tree-header-controls {
-    gap: 0.25rem;
-  }
 
   @media (max-width: 430px) {
     .mobile-bottom-controls {
