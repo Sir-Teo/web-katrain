@@ -201,6 +201,10 @@ export interface GameSettings {
   humanSlEnabled: boolean;
   humanSlModelUrl: string;
   humanSlProfile: string; // KataGo humanSLProfile, e.g. rank_5k / preaz_1d / proyear_1950
+  // Which of KataGo's two human-bot configs ai:human follows: 'imitate' plays the
+  // rank as it is (gtp_human5k_example.cfg), 'search' backs it with the search
+  // (gtp_human9d_search_example.cfg).
+  humanSlBotStyle: 'imitate' | 'search';
   analysisPolicySource: 'engine' | 'human'; // which policy the R overlay draws
   teachNumUndoPrompts: number[]; // KaTrain trainer/num_undo_prompts
 

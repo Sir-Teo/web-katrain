@@ -33,6 +33,7 @@ import {
 } from '../utils/branchNavigation';
 import { ensurePinGameId, getNodePath, getPinGameId, resolveNodePath, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
 import { describeHumanBotPick, pickHumanBotMove } from '../utils/humanBotMove';
+import { humanBotPresets } from '../engine/katago/chosenMove';
 import { getResignResult } from '../utils/resign';
 import {
   admitNotification,
@@ -1042,6 +1043,7 @@ const defaultSettings: GameSettings = {
   humanSlEnabled: false,
   humanSlModelUrl: KATAGO_HUMAN_MODEL_URL,
   humanSlProfile: KATAGO_HUMAN_PROFILE_DEFAULT,
+  humanSlBotStyle: 'imitate',
   analysisPolicySource: 'engine',
   teachNumUndoPrompts: [1, 1, 1, 0.5, 0, 0],
 
@@ -3290,6 +3292,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
             conservativePass,
             humanModelUrl: aiWantsHumanPolicy ? state.settings.humanSlModelUrl : undefined,
             humanSlProfile: aiWantsHumanPolicy ? state.settings.humanSlProfile : undefined,
+            humanSlRootExploreProb:
+              state.settings.aiStrategy === 'human'
+                ? humanBotPresets[state.settings.humanSlBotStyle].rootExploreProbWeightless
+                : undefined,
           visits,
           maxTimeMs,
           batchSize,
@@ -3405,6 +3411,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   candidates,
                   playerToMove: playerAtStart,
                   turnNumber: latest.moveHistory.length,
+                  params: humanBotPresets[settings.humanSlBotStyle],
                   isLegal: (x, y) => isValidMove(latest.board, x, y, playerAtStart, parentBoard),
                 });
                 if (pick) {

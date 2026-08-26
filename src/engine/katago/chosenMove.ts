@@ -37,8 +37,16 @@ export type HumanChosenMoveParams = ChosenMoveTemperature & {
   chosenMoveIgnorePass: boolean;
 };
 
+export type HumanBotPreset = HumanChosenMoveParams & {
+  /**
+   * humanSLRootExploreProbWeightless: how often a playout leaves the root by the
+   * human policy rather than the net's, without the root being charged for it.
+   */
+  rootExploreProbWeightless: number;
+};
+
 /** KataGo's own human-bot configs, which are the tuned settings for this net. */
-export const humanBotPresets: Record<'imitate' | 'search', HumanChosenMoveParams> = {
+export const humanBotPresets: Record<'imitate' | 'search', HumanBotPreset> = {
   // cpp/configs/gtp_human5k_example.cfg: play the rank, don't play well.
   imitate: {
     chosenMoveProp: 1.0,
@@ -48,6 +56,7 @@ export const humanBotPresets: Record<'imitate' | 'search', HumanChosenMoveParams
     temperatureEarly: 0.85,
     temperatureHalflife: 80,
     temperatureOnlyBelowProb: 0.01,
+    rootExploreProbWeightless: 0.0,
   },
   // cpp/configs/gtp_human9d_search_example.cfg: human shapes, backed by the search.
   search: {
@@ -58,8 +67,11 @@ export const humanBotPresets: Record<'imitate' | 'search', HumanChosenMoveParams
     temperatureEarly: 0.7,
     temperatureHalflife: 30,
     temperatureOnlyBelowProb: 1.0,
+    rootExploreProbWeightless: 0.8,
   },
 };
+
+export type HumanBotStyle = keyof typeof humanBotPresets;
 
 /**
  * KataGo Search::interpolateEarly: `earlyValue` on move 0 decaying to `value`, with

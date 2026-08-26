@@ -602,7 +602,11 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         : 0;
     const shouldReport = reportEveryMs > 0;
     const cloneBuffers = msg.reuseTree === true || shouldReport;
-    const humanKey = msg.humanModelUrl && msg.humanSlProfile ? `${msg.humanSlProfile}@${msg.humanModelUrl}` : null;
+    const humanSlRootExploreProb = Math.max(0, Math.min(1, msg.humanSlRootExploreProb ?? 0));
+    const humanKey =
+      msg.humanModelUrl && msg.humanSlProfile
+        ? `${msg.humanSlProfile}@${msg.humanModelUrl}#${humanSlRootExploreProb}`
+        : null;
 
     // KataGo avoidMoves: points the search is not allowed to play at the root, which
     // is how an analysis answers "and if that move were not available?".
@@ -756,6 +760,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         rootSymmetrySamples,
         regionOfInterest: msg.regionOfInterest,
         humanPolicy: humanMovePriors,
+        humanSlRootExploreProbWeightless: humanSlRootExploreProb,
         avoidRootMoves,
       });
       if (typeof msg.positionId === 'string') {

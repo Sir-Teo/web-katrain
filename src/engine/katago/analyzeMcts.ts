@@ -1443,11 +1443,43 @@ function exploreScaling(totalChildWeight: number, parentUtilityStdevFactor: numb
   );
 }
 
+// KataGo humanSLCpuctExploration / humanSLCpuctPermanent. Zero by default in
+// searchparams.cpp; these are the values its human-bot configs ship
+// (cpp/configs/gtp_human9d_search_example.cfg), and they only matter on the
+// playouts that actually explore from the human policy.
+const HUMAN_SL_CPUCT_EXPLORATION: number = 0.5;
+const HUMAN_SL_CPUCT_PERMANENT: number = 2.0;
+
+/**
+ * KataGo Search::getExploreScalingHuman. The human policy is not a value estimate,
+ * so this drops the utility-stdev factor and grows with sqrt of the weight already
+ * spent rather than its log.
+ */
+export function exploreScalingHuman(totalChildWeight: number): number {
+  return (
+    (HUMAN_SL_CPUCT_EXPLORATION + HUMAN_SL_CPUCT_PERMANENT * Math.sqrt(totalChildWeight)) *
+    Math.sqrt(totalChildWeight + TOTALCHILDWEIGHT_PUCT_OFFSET)
+  );
+}
+
+/** How often a playout should explore from the human policy instead of the net's. */
+export type HumanExploreParams = {
+  policy: ArrayLike<number>; // len BOARD_AREA + 1, illegal = -1, pass last
+  /** humanSLRootExploreProbWeightless: explore, but do not charge the node for it. */
+  weightlessProb: number;
+  /** humanSLRootExploreProbWeightful: explore and pay for it like any other visit. */
+  weightfulProb: number;
+};
+
 class Rand {
   private spare: number | null = null;
 
   nextBool(p: number): boolean {
     return Math.random() < p;
+  }
+
+  nextDouble(): number {
+    return Math.random();
   }
 
   nextGaussian(): number {
@@ -1503,7 +1535,14 @@ function computeParentSelectionStats(
   isRoot: boolean,
   includeInFlight: boolean,
   policyProbMassVisitedOverride: number | null = null,
-  out: ParentSelectionStats = parentSelectionStatsScratch
+  out: ParentSelectionStats = parentSelectionStatsScratch,
+  /** Set on a playout that explores from the human policy rather than the net's. */
+  humanPolicy: ArrayLike<number> | null = null,
+  /**
+   * False on a weightless playout, where KataGo redoes PUCT against the child's own
+   * weight rather than the share this node's edges have paid for.
+   */
+  countEdgeVisit = true
 ): ParentSelectionStats {
   const edges = node.edges;
   const pla = node.playerToMove;
@@ -1514,10 +1553,14 @@ function computeParentSelectionStats(
     for (const e of edges) {
       const child = e.child;
       if (!child) continue;
-      const w = edgeChildWeight(e) + (includeInFlight ? child.inFlight * NUM_VIRTUAL_LOSSES_PER_THREAD : 0);
+      const prior = humanPolicy ? (humanPolicy[e.move] ?? -1) : e.prior;
+      if (prior < 0) continue;
+      const w =
+        (countEdgeVisit ? edgeChildWeight(e) : child.weightSum) +
+        (includeInFlight ? child.inFlight * NUM_VIRTUAL_LOSSES_PER_THREAD : 0);
       if (w <= 0) continue;
       totalChildWeight += w;
-      policyProbMassVisited += e.prior;
+      policyProbMassVisited += prior;
     }
   }
   if (policyProbMassVisitedOverride !== null) policyProbMassVisited = policyProbMassVisitedOverride;
@@ -1572,9 +1615,16 @@ function computeParentSelectionStats(
   out.parentUtilityStdevFactor = parentUtilityStdevFactor;
   out.parentWeightPerVisit = visits > 0 ? weightSum / visits : 1.0;
   out.fpuValue = fpuValue;
-  out.scaling = exploreScaling(totalChildWeight, parentUtilityStdevFactor);
+  out.scaling = humanPolicy
+    ? exploreScalingHuman(totalChildWeight)
+    : exploreScaling(totalChildWeight, parentUtilityStdevFactor);
   return out;
 }
+
+/** What a descent step chose, and whether the node is being charged for it. */
+type EdgeSelection = { edge: Edge; countEdgeVisit: boolean };
+
+const edgeSelectionScratch = { edge: null, countEdgeVisit: true } as unknown as EdgeSelection;
 
 function selectEdge(
   node: Node,
@@ -1583,22 +1633,50 @@ function selectEdge(
   rand: Rand,
   endingBonus: Float64Array | null = null,
   recentScoreCenter = 0,
-  forcedRootMoves: Uint8Array | null = null
-): Edge {
+  forcedRootMoves: Uint8Array | null = null,
+  humanExplore: HumanExploreParams | null = null,
+  out: EdgeSelection = edgeSelectionScratch
+): EdgeSelection {
   const edges = node.edges;
   if (!edges || edges.length === 0) throw new Error('selectEdge called on unexpanded node');
 
   const pla = node.playerToMove;
   const sign = pla === BLACK ? 1 : -1;
 
-  const stats = computeParentSelectionStats(node, isRoot, true);
+  // KataGo rolls once per playout for whether to descend by the human policy, and
+  // a weightless roll additionally means the node is not charged for the visit.
+  let humanPolicy: ArrayLike<number> | null = null;
+  out.countEdgeVisit = true;
+  if (humanExplore) {
+    const totalHumanProb = humanExplore.weightlessProb + humanExplore.weightfulProb;
+    if (totalHumanProb > 0) {
+      const r = rand.nextDouble();
+      if (r < humanExplore.weightlessProb) {
+        humanPolicy = humanExplore.policy;
+        out.countEdgeVisit = false;
+      } else if (r < totalHumanProb) {
+        humanPolicy = humanExplore.policy;
+      }
+    }
+  }
+  const countEdgeVisit = out.countEdgeVisit;
+
+  const stats = computeParentSelectionStats(
+    node,
+    isRoot,
+    true,
+    null,
+    parentSelectionStatsScratch,
+    humanPolicy,
+    countEdgeVisit
+  );
   const fpuValue = stats.fpuValue;
   const scaling = stats.scaling;
 
   let bestEdge = edges[0]!;
   let bestScore = Number.NEGATIVE_INFINITY;
 
-  const applyWideRootNoise = isRoot && wideRootNoise > 0;
+  const applyWideRootNoise = isRoot && wideRootNoise > 0 && countEdgeVisit;
   const wideRootNoisePolicyExponent = applyWideRootNoise ? 1.0 / (4.0 * wideRootNoise + 1.0) : 1.0;
 
   if (isRoot && forcedRootMoves) {
@@ -1607,7 +1685,10 @@ function selectEdge(
       if (e.move === PASS_MOVE || forcedRootMoves[e.move] !== 1) continue;
       const child = e.child;
       const visits = child ? child.visits + child.inFlight : 0;
-      if (visits < HUMAN_MOVE_MIN_VISITS) return e;
+      if (visits < HUMAN_MOVE_MIN_VISITS) {
+        out.edge = e;
+        return out;
+      }
     }
   }
 
@@ -1616,11 +1697,13 @@ function selectEdge(
 
   for (const e of edges) {
     const child = e.child;
-    const edgeWeight = edgeChildWeight(e);
+    let prior = humanPolicy ? (humanPolicy[e.move] ?? -1) : e.prior;
+    // KataGo treats a negative policy entry as an illegal move and skips it.
+    if (prior < 0) continue;
+    const edgeWeight = child ? (countEdgeVisit ? edgeChildWeight(e) : child.weightSum) : 0;
     const hasStats = child !== null && child.visits > 0 && edgeWeight > 0;
     let childWeight = hasStats ? edgeWeight : 0;
     let childUtility = hasStats ? child!.utilityAvg : fpuValue;
-    let prior = e.prior;
 
     if (rootEndingBonus && hasStats) {
       // Tiny adjustment that keeps the endgame tidy: settled points and premature
@@ -1660,7 +1743,8 @@ function selectEdge(
     }
   }
 
-  return bestEdge;
+  out.edge = bestEdge;
+  return out;
 }
 
 // KataGo rootEndingBonusPoints, default 0.5 for the analysis and GTP setups.
@@ -2964,6 +3048,11 @@ export class MctsSearch {
   private rootEndingBonus: Float64Array | null;
   private forcedRootMoves: Uint8Array | null;
   /**
+   * KataGo humanSLRootExploreProb*: how often a playout leaves the root by the
+   * human policy instead of the net's. Null when the caller asked for neither.
+   */
+  private humanExplore: HumanExploreParams | null;
+  /**
    * Whether a game that ends inside the search gets its real score. Only area
    * scoring can be counted straight off the board; territory rules need the dead
    * stones agreed first, which is what KataGo's encore is for, so under those the
@@ -3002,6 +3091,7 @@ export class MctsSearch {
     rootSymmetryPruning: boolean;
     rootEndingBonus: Float64Array | null;
     forcedRootMoves: Uint8Array | null;
+    humanExplore: HumanExploreParams | null;
   }) {
     this.model = args.model;
     this.ownershipMode = args.ownershipMode;
@@ -3033,6 +3123,7 @@ export class MctsSearch {
     this.rootSymmetryPruning = args.rootSymmetryPruning;
     this.rootEndingBonus = args.rootEndingBonus;
     this.forcedRootMoves = args.forcedRootMoves;
+    this.humanExplore = args.humanExplore;
     this.scoreTerminalNodes = args.rules === 'chinese';
   }
 
@@ -3056,6 +3147,12 @@ export class MctsSearch {
     /** Human SL policy for the root position, used to widen the candidate list. */
     humanPolicy?: ArrayLike<number> | null;
     humanMoveCount?: number;
+    /**
+     * KataGo humanSLRootExploreProbWeightless / Weightful. Both default to 0, as
+     * KataGo's do; its human-bot config sets the weightless one to 0.8.
+     */
+    humanSlRootExploreProbWeightless?: number;
+    humanSlRootExploreProbWeightful?: number;
     /** Moves the search may not play at the root, KataGo's avoidMoves. */
     avoidRootMoves?: Uint8Array | null;
   }): Promise<MctsSearch> {
@@ -3078,6 +3175,12 @@ export class MctsSearch {
     }));
 
     const forcedRootMoves = topHumanMovesMask(args.humanPolicy, args.humanMoveCount ?? DEFAULT_HUMAN_MOVE_COUNT);
+    const weightlessProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightless ?? 0));
+    const weightfulProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightful ?? 0));
+    const humanExplore: HumanExploreParams | null =
+      args.humanPolicy && weightlessProb + weightfulProb > 0
+        ? { policy: Float32Array.from(args.humanPolicy), weightlessProb, weightfulProb }
+        : null;
     const rootNode = new Node(playerToColor(args.currentPlayer));
     const {
       rootSymmetries,
@@ -3166,6 +3269,7 @@ export class MctsSearch {
       rootSymmetryPruning: args.rootSymmetryPruning !== false,
       rootEndingBonus,
       forcedRootMoves,
+      humanExplore,
     });
   }
 
@@ -3272,6 +3376,7 @@ export class MctsSearch {
     // The human moves belonged to the old root; the caller starts a new search when
     // it wants them for the new position.
     this.forcedRootMoves = null;
+    this.humanExplore = null;
     // Nodes outside the new root's subtree are gone, and their contributions to the
     // bias table would linger, so start the table over (KataGo decays them instead).
     this.subtreeBiasTable.reset();
@@ -3329,11 +3434,17 @@ export class MctsSearch {
       return getAnimationNow() >= deadline;
     };
 
-    while (this.rootNode.visits < maxVisits && !timeExceeded()) {
+    // A weightless playout never credits the root, so a search that spends many of
+    // them can want far more playouts than visits. KataGo bounds that with
+    // maxPlayouts; in a browser we always want some bound, so here is one.
+    let playouts = 0;
+    const maxPlayouts = maxVisits * 8;
+
+    while (this.rootNode.visits < maxVisits && playouts < maxPlayouts && !timeExceeded()) {
       if (shouldAbort?.()) return true;
       const visitsBeforeBatch = this.rootNode.visits;
-      // KataGo's shouldCountPlayout: a weightless playout is not charged to the
-      // visit limit, because the root never sees it.
+      // Weightless playouts do not raise the root's visit count, so they must not
+      // count against the batch's estimate of how close the limit is.
       let weightlessJobs = 0;
       const jobs: Array<{
         leaf: Node;
@@ -3383,16 +3494,19 @@ export class MctsSearch {
         let player = this.rootNode.playerToMove;
 
         while (node.edges && node.edges.length > 0) {
-          let e = selectEdge(
+          const isRootNode = node === this.rootNode;
+          const selection = selectEdge(
             node,
-            node === this.rootNode,
+            isRootNode,
             this.wideRootNoise,
             this.rand,
             this.rootEndingBonus,
             this.recentScoreCenter,
-            this.forcedRootMoves
+            this.forcedRootMoves,
+            isRootNode ? this.humanExplore : null
           );
-          let countEdgeVisit = true;
+          let e = selection.edge;
+          let countEdgeVisit = selection.countEdgeVisit;
 
           // KataGo enableMorePassingHacks: once a pass would end the game, make sure
           // the search has looked at both passing and not passing, without letting
@@ -3544,6 +3658,7 @@ export class MctsSearch {
         // The playout was spent paying an edge back its visits, so nothing else
         // is owed: unwind and start the next one.
         if (caughtUpEdgeVisits) {
+          playouts++;
           for (let i = undoMoves.length - 1; i >= 0; i--) {
             undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
           }
@@ -3552,6 +3667,7 @@ export class MctsSearch {
 
         // A finished game needs no evaluation: count the visit and unwind.
         if (node.isTerminal) {
+          playouts++;
           for (let i = path.length - 1; i >= 0; i--) {
             if (i <= weightlessFrom) break;
             const n = path[i]!;
@@ -3652,6 +3768,7 @@ export class MctsSearch {
         }
 
         const recentMovesScratch = this.jobRecentMovesScratch[jobIdx] ?? (this.jobRecentMovesScratch[jobIdx] = []);
+        playouts++;
         if (weightlessFrom >= 0) weightlessJobs++;
         jobs.push({
           leaf: node,

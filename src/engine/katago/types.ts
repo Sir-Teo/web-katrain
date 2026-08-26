@@ -49,6 +49,12 @@ export interface KataGoAnalyzeRequest {
   /** KataGo human SL net, used only to report how a human of a given rank would play. */
   humanModelUrl?: string;
   humanSlProfile?: string;
+  /**
+   * KataGo humanSLRootExploreProbWeightless: how often a playout leaves the root by
+   * the human policy without the root being charged for it. 0 (KataGo's default)
+   * leaves the search alone; its human-bot config uses 0.8.
+   */
+  humanSlRootExploreProb?: number;
   /** Moves the search may not play at the root (KataGo avoidMoves). */
   avoidMoves?: Move[];
 }

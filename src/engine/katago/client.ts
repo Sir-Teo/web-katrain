@@ -253,6 +253,7 @@ class KataGoEngineClient {
     ownershipMode?: 'none' | 'root' | 'tree';
     humanModelUrl?: string;
     humanSlProfile?: string;
+    humanSlRootExploreProb?: number;
     avoidMoves?: Move[];
     onProgress?: (analysis: Analysis) => void;
   }): Promise<Analysis> {
@@ -292,6 +293,7 @@ class KataGoEngineClient {
       ownershipMode: args.ownershipMode,
       humanModelUrl: args.humanModelUrl,
       humanSlProfile: args.humanSlProfile,
+      humanSlRootExploreProb: args.humanSlRootExploreProb,
       avoidMoves: args.avoidMoves,
     };
     const promise = new Promise<Analysis>((resolve, reject) => {

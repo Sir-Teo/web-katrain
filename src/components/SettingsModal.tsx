@@ -1995,6 +1995,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     </select>
                                                 </div>
 
+                                                {settings.aiStrategy === 'human' ? (
+                                                    <div className="space-y-2">
+                                                        <label htmlFor="settings-human-sl-bot-style" className="text-[var(--ui-text-muted)] block">
+                                                            Opponent plays
+                                                        </label>
+                                                        <select
+                                                            id="settings-human-sl-bot-style"
+                                                            value={settings.humanSlBotStyle}
+                                                            onChange={(e) =>
+                                                                updateSettings({
+                                                                    humanSlBotStyle: e.target.value === 'search' ? 'search' : 'imitate',
+                                                                })
+                                                            }
+                                                            className={selectClass}
+                                                        >
+                                                            <option value="imitate">Like the rank, mistakes and all</option>
+                                                            <option value="search">Human shapes, backed by the search</option>
+                                                        </select>
+                                                        <p className={subtextClass}>
+                                                            KataGo ships both: the first imitates the profile faithfully, the second
+                                                            keeps the human's choice of moves but lets the search steer away from the
+                                                            bad ones, which plays a good deal stronger than the rank.
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+
                                                 <div className="space-y-2">
                                                     <label htmlFor="settings-human-sl-source" className="text-[var(--ui-text-muted)] block">
                                                         Policy overlay shows
