@@ -262,6 +262,12 @@ export const SectionHeader: React.FC<{
         'panel-section-title',
         buttonClassName ?? '',
       ].join(' ')}
+      // The chevron's rotation was the only thing saying whether the section is
+      // open, and rotation is a CSS class. The desktop shell's identical toggle
+      // has carried aria-expanded all along. No aria-controls to go with it:
+      // both call sites render the body only while open, so the id would name a
+      // node that is not in the document half the time.
+      aria-expanded={open}
       onClick={onToggle}
     >
       <span className={['panel-collapse-icon', open ? 'open' : ''].join(' ')}>
