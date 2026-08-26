@@ -16,14 +16,14 @@ import type { Move } from '../src/types';
 
 const at = (x: number, y: number): number => y * BOARD_SIZE + x;
 
-const inputsWith = (recentMoves: RecentMove[], maxHistory?: number) => {
+const inputsWith = (recentMoves: RecentMove[], maxHistory?: number, rules: 'chinese' | 'japanese' = 'chinese') => {
   return extractInputsV7Fast({
     stones: new Uint8Array(BOARD_AREA),
     koPoint: -1,
     currentPlayer: 'black',
     recentMoves,
     komi: 7,
-    rules: 'chinese',
+    rules,
     maxHistory,
   });
 };
@@ -68,12 +68,13 @@ describe('maxHistory', () => {
 
   it('still tells the net a pass would end the phase', () => {
     // KataGo reads that from the real history, not the truncated one, so hiding
-    // history does not hide the fact that the game is one pass from over.
+    // history does not hide the fact that the game is one pass from over. Shown
+    // under territory rules, where friendly passing does not hide it separately.
     const afterPass: RecentMove[] = [{ move: PASS_MOVE, player: 'white' }];
-    expect(inputsWith(afterPass, 0).global[14]).toBe(1);
+    expect(inputsWith(afterPass, 0, 'japanese').global[14]).toBe(1);
     // And the pass itself does not reach the history globals.
-    expect(inputsWith(afterPass, 0).global[0]).toBe(0);
-    expect(inputsWith(afterPass).global[0]).toBe(1);
+    expect(inputsWith(afterPass, 0, 'japanese').global[0]).toBe(0);
+    expect(inputsWith(afterPass, undefined, 'japanese').global[0]).toBe(1);
   });
 });
 

@@ -6,14 +6,19 @@ import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHa
 import type { GameRules, Move } from '../src/types';
 
 // ---------------------------------------------------------------------------
-// enablePassingHacks (cpp/neuralnet/nninputs.cpp), on by default for KataGo's
-// analysis and GTP setups.
+// Hiding the end of the game from the network.
 //
-// When a pass would end the game and ending it right now would not be a win, the
-// net is told that passing does not end anything. A losing side then keeps looking
-// for something better instead of settling for the score it would concede. Only
-// area scoring can price the board that way without agreeing dead stones first,
-// which is why the hack is silent under territory rules.
+// KataGo suppresses the "a pass would end the phase" feature, and the history
+// planes with it, under any of three conditions (cpp/neuralnet/nninputs.cpp):
+//   * conservativePassAndIsRoot, at the root only;
+//   * shouldSuppressEndGameFromFriendlyPass, which under area scoring with friendly
+//     passing -- every area ruleset KataGo ships -- fires at EVERY node;
+//   * enablePassingHacks together with the game ending in a loss for the mover.
+//
+// The third needs the area feature, which this port only builds under Chinese
+// rules, where the second already fires. So `enablePassingHacks` is faithful but
+// inert here; it would come alive with the territory-scoring encore, which this
+// port does not model. What is observable is the combined rule below.
 // ---------------------------------------------------------------------------
 
 // Black owns the left three columns, white the right five, with one open column
@@ -68,61 +73,57 @@ const inputsAfterPass = (args: {
   });
 };
 
-describe('passing hacks in the network input', () => {
+describe('hiding the end of the game', () => {
   beforeEach(() => setBoardSize(9));
 
-  it('hides the end of the game from a side that would lose by ending it', () => {
-    const hacked = inputsAfterPass({ diagram: BLACK_LOSING, enablePassingHacks: true });
-    // Told that passing settles nothing, and the opponent's pass is hidden too.
-    expect(hacked.global[14]).toBe(0);
-    expect(hacked.global[0]).toBe(0);
+  it('hides it under area scoring whoever is winning', () => {
+    // Friendly passing makes this unconditional under Chinese rules: the net is
+    // never told that this pass settles anything, whichever way the game is going.
+    for (const diagram of [BLACK_LOSING, BLACK_WINNING]) {
+      for (const enablePassingHacks of [false, true]) {
+        const inputs = inputsAfterPass({ diagram, enablePassingHacks });
+        expect(inputs.global[14]).toBe(0);
+        expect(inputs.global[0]).toBe(0);
+      }
+    }
   });
 
-  it('leaves the position alone without the hack', () => {
-    const plain = inputsAfterPass({ diagram: BLACK_LOSING, enablePassingHacks: false });
-    expect(plain.global[14]).toBe(1);
-    expect(plain.global[0]).toBe(1);
-  });
-
-  it('leaves a winning side to end the game if it wants to', () => {
-    const winning = inputsAfterPass({ diagram: BLACK_WINNING, enablePassingHacks: true });
-    expect(winning.global[14]).toBe(1);
-    expect(winning.global[0]).toBe(1);
-  });
-
-  it('counts the komi on the losing side of the comparison', () => {
-    // Same board both ways: with 7 komi against it black is behind, and a komi
-    // large enough to swing the count the other way turns the hack off.
-    const base = {
-      stones: stonesFrom(BLACK_WINNING),
-      koPoint: -1,
-      currentPlayer: 'black' as const,
-      recentMoves: [{ move: PASS_MOVE, player: 'white' as const }],
-      rules: 'chinese' as const,
-      enablePassingHacks: true,
-    };
-    expect(extractInputsV7Fast({ ...base, komi: 7 }).global[14]).toBe(1);
-    expect(extractInputsV7Fast({ ...base, komi: 60 }).global[14]).toBe(0);
-  });
-
-  it('stays out of it under territory rules, where the board cannot be counted yet', () => {
+  it('leaves territory scoring to say what it means', () => {
+    // Japanese rules set friendlyPassOk false and build no area feature, so neither
+    // of the two unconditional reasons applies and the pass is shown as it is.
     const japanese = inputsAfterPass({ diagram: BLACK_LOSING, enablePassingHacks: true, rules: 'japanese' });
     expect(japanese.global[14]).toBe(1);
+    expect(japanese.global[0]).toBe(1);
   });
 
-  it('is one of two reasons to suppress, not the only one', () => {
-    // conservativePassAndIsRoot suppresses whichever way the game is going.
-    const winningAtRoot = inputsAfterPass({
+  it('still hides it at the root when conservative passing asks', () => {
+    const japanese = inputsAfterPass({
       diagram: BLACK_WINNING,
       enablePassingHacks: false,
+      rules: 'japanese',
       conservativePassAndIsRoot: true,
     });
-    expect(winningAtRoot.global[14]).toBe(0);
+    expect(japanese.global[14]).toBe(0);
+  });
+
+  it('says nothing about a pass that would not end anything', () => {
+    // No pass behind us, so there is nothing to hide either way.
+    const inputs = extractInputsV7Fast({
+      stones: stonesFrom(BLACK_LOSING),
+      koPoint: -1,
+      currentPlayer: 'black',
+      recentMoves: [{ move: 3, player: 'white' }],
+      komi: 7,
+      rules: 'chinese',
+      enablePassingHacks: true,
+    });
+    expect(inputs.global[14]).toBe(0);
+    expect(inputs.global[0]).toBe(0);
   });
 });
 
-describe.skipIf(!hasModel())('passing hacks reach the search', () => {
-  const rootEval = async (args: { enablePassingHacks: boolean; conservativePass: boolean }) => {
+describe.skipIf(!hasModel())('the suppression reaches the search', () => {
+  const rootEval = async (rules: GameRules, conservativePass: boolean) => {
     setBoardSize(9);
     const model = await loadHarnessModel();
     const moveHistory: Move[] = [{ x: -1, y: -1, player: 'white' }];
@@ -132,29 +133,26 @@ describe.skipIf(!hasModel())('passing hacks reach the search', () => {
       currentPlayer: 'black',
       moveHistory,
       komi: 7,
-      rules: 'chinese',
+      rules,
       nnRandomize: false,
-      conservativePass: args.conservativePass,
+      conservativePass,
       maxChildren: 20,
       ownershipMode: 'root',
       wideRootNoise: 0,
-      // The root would otherwise have no history planes at all, which is the very
-      // thing the hack also suppresses.
+      // The root would otherwise have no history planes at all, which is one of the
+      // things being suppressed here.
       ignorePreRootHistory: false,
-      enablePassingHacks: args.enablePassingHacks,
     });
     return search.getAnalysis({ topK: 1, analysisPvLen: 1 });
   };
 
-  it('changes what a losing root sees', async () => {
-    const hacked = await rootEval({ enablePassingHacks: true, conservativePass: false });
-    const plain = await rootEval({ enablePassingHacks: false, conservativePass: false });
-    expect(Math.abs(hacked.rootWinRate - plain.rootWinRate)).toBeGreaterThan(0);
-  }, 120000);
-
-  it('adds nothing where conservative passing already suppressed it', async () => {
-    const hacked = await rootEval({ enablePassingHacks: true, conservativePass: true });
-    const plain = await rootEval({ enablePassingHacks: false, conservativePass: true });
-    expect(hacked.rootWinRate).toBeCloseTo(plain.rootWinRate, 12);
+  it('changes what a root one pass from the end sees under area scoring', async () => {
+    // Chinese suppresses whatever conservativePass says, Japanese only at the root,
+    // so the two rulesets disagree exactly where the suppression differs.
+    const chinese = await rootEval('chinese', false);
+    const japanese = await rootEval('japanese', false);
+    const japaneseConservative = await rootEval('japanese', true);
+    expect(japanese.rootWinRate).not.toBe(japaneseConservative.rootWinRate);
+    expect(chinese.rootWinRate).toBe((await rootEval('chinese', true)).rootWinRate);
   }, 120000);
 });

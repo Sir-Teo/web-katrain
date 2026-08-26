@@ -3,6 +3,8 @@ import { getOpponent } from '../../utils/gameLogic';
 import { BLACK, WHITE, EMPTY, PASS_MOVE, BOARD_SIZE, computeLibertyMap, computeAreaMapV7KataGo, type StoneColor } from './fastBoard';
 
 const INPUT_SPATIAL_CHANNELS_V7 = 22;
+// KataGo NNPos::KOMI_CLIP_RADIUS.
+const KOMI_CLIP_RADIUS = 20;
 const INPUT_GLOBAL_CHANNELS_V7 = 19;
 
 export type KataGoInputsV7 = {
@@ -109,6 +111,7 @@ export function fillInputsV7Fast(args: {
 
   // KataGo counts the score this feature implies while it fills it in, so that the
   // passing hacks below can ask whether ending the game right now would be a win.
+  // Note it uses the unclamped komi here, and the clamped one for the komi plane.
   const hasAreaFeature = rules === 'chinese';
   let boardScoreForPla = 0;
   if (hasAreaFeature) {
@@ -136,9 +139,16 @@ export function fillInputsV7Fast(args: {
   // features and the passWouldEndPhase global are suppressed together.
   const lastMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
   const passWouldEndGame = lastMove?.move === PASS_MOVE;
+  // KataGo BoardHistory::shouldSuppressEndGameFromFriendlyPass: under area scoring
+  // where passing is friendly -- which is every area ruleset KataGo ships, Chinese
+  // included -- a pass that would end the game is hidden from the net at every node,
+  // not just at the root. Territory rules set friendlyPassOk false and are untouched.
+  const friendlyPassOk = rules === 'chinese';
+  const suppressFromFriendlyPass = friendlyPassOk && hasAreaFeature && passWouldEndGame;
   const suppressHistory =
     passWouldEndGame &&
     (args.conservativePassAndIsRoot === true ||
+      suppressFromFriendlyPass ||
       (args.enablePassingHacks === true && finalPhaseAndGameEndWouldNotBeWin));
 
   const historyPlanes = [9, 10, 11, 12, 13] as const;
@@ -160,7 +170,11 @@ export function fillInputsV7Fast(args: {
     }
   }
 
-  global[5] = selfKomi / 20.0;
+  // KataGo bounds the komi it shows the net, and uses the bounded value for the
+  // parity wave below as well (NNPos::KOMI_CLIP_RADIUS).
+  const komiClipBound = BOARD_SIZE * BOARD_SIZE + KOMI_CLIP_RADIUS;
+  const clampedSelfKomi = Math.max(-komiClipBound, Math.min(komiClipBound, selfKomi));
+  global[5] = clampedSelfKomi / 20.0;
 
   if (rules === 'japanese' || rules === 'korean') {
     // KataGo "Japanese": territory scoring + seki tax.
@@ -175,10 +189,10 @@ export function fillInputsV7Fast(args: {
     const drawableKomisAreEven = boardAreaIsEven;
 
     let komiFloor: number;
-    if (drawableKomisAreEven) komiFloor = Math.floor(selfKomi / 2.0) * 2.0;
-    else komiFloor = Math.floor((selfKomi - 1.0) / 2.0) * 2.0 + 1.0;
+    if (drawableKomisAreEven) komiFloor = Math.floor(clampedSelfKomi / 2.0) * 2.0;
+    else komiFloor = Math.floor((clampedSelfKomi - 1.0) / 2.0) * 2.0 + 1.0;
 
-    let delta = selfKomi - komiFloor;
+    let delta = clampedSelfKomi - komiFloor;
     if (delta < 0.0) delta = 0.0;
     if (delta > 2.0) delta = 2.0;
 
