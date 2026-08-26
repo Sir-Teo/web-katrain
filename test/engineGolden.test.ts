@@ -160,11 +160,18 @@ describe.skipIf(!hasModel())('KataGo golden reference', () => {
     const whiteLead = -evaled.blackScoreLead;
     const whiteScoreMeanSq = whiteScoreMean * whiteScoreMean + evaled.blackScoreStdev * evaled.blackScoreStdev;
 
-    expect(whiteWin).toBeCloseTo(REF.win, 2);
-    expect(evaled.blackNoResultProb).toBeCloseTo(REF.noResult, 2);
-    expect(whiteScoreMean).toBeCloseTo(REF.scoreMean, 1);
-    expect(whiteLead).toBeCloseTo(REF.lead, 1);
-    expect(whiteScoreMeanSq).toBeCloseTo(REF.scoreMeanSq, 0);
+    // These bands were set from what the deviation actually is, not from what felt
+    // safe. Measured against the values above: win 2.4e-4, no-result 2.7e-4, score
+    // mean 5.6e-3, lead 4.5e-3, score mean square 5e-5 -- and KataGo printed its
+    // numbers rounded, which accounts for a part of even that. The bands allow
+    // roughly four times the observed error. They used to allow twenty times it,
+    // which would have let a real regression through: a tenth of a percent of
+    // winrate is worth catching, and a whole half percent went unnoticed.
+    expect(Math.abs(whiteWin - REF.win)).toBeLessThanOrEqual(1e-3);
+    expect(Math.abs(evaled.blackNoResultProb - REF.noResult)).toBeLessThanOrEqual(1e-3);
+    expect(Math.abs(whiteScoreMean - REF.scoreMean)).toBeLessThanOrEqual(0.02);
+    expect(Math.abs(whiteLead - REF.lead)).toBeLessThanOrEqual(0.02);
+    expect(Math.abs(whiteScoreMeanSq - REF.scoreMeanSq)).toBeLessThanOrEqual(0.05);
 
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
