@@ -42,6 +42,7 @@ export interface CandidateMove {
   lcb?: number; // winrate-scale lower confidence bound, black perspective
   utilityLcb?: number; // utility-scale lower confidence bound, black perspective
   playSelectionValue?: number; // KataGo play selection weight, LCB adjusted
+  utility?: number; // KataGo utilityAvg for this child, black perspective
   humanPrior?: number; // human SL policy for this move, when that net is loaded
   ownership?: FloatArray; // optional per-move ownership (KaTrain includeMovesOwnership)
 }

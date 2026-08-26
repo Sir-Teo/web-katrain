@@ -2112,6 +2112,7 @@ type CandidateRow = {
   scoreStdev: number;
   prior: number;
   playSelectionValue: number;
+  utility: number; // child utilityAvg, from black's perspective
   lcbSelf: number; // utility LCB from the player-to-move's perspective
   radius: number;
 };
@@ -2134,6 +2135,8 @@ export type AnalysisPayloadMove = {
   lcb: number;
   utilityLcb: number;
   playSelectionValue: number;
+  /** KataGo's utilityAvg for this child, from black's perspective. */
+  utility: number;
   /** Set when this move is a symmetric copy of the move that was actually searched. */
   isSymmetryOf?: { x: number; y: number };
   /** How likely a human of the configured rank is to play this move, if known. */
@@ -2174,6 +2177,7 @@ function collectRootCandidateRows(
       scoreStdev,
       prior: e.prior,
       playSelectionValue: selection ? selection.values[i]! : child.visits,
+      utility: child.utilityAvg,
       lcbSelf: selection ? selection.lcb[i]! : 0,
       radius: selection ? selection.radius[i]! : 0,
     });
@@ -2237,6 +2241,7 @@ function buildAnalysisMoves(args: {
       lcb,
       utilityLcb,
       playSelectionValue: m.playSelectionValue,
+      utility: m.utility,
       ownership:
         args.includeMovesOwnership && m.edge.child?.ownership
           ? args.cloneBuffers

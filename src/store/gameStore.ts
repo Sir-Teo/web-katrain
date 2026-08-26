@@ -3402,6 +3402,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   humanPolicy,
                   boardSize,
                   engineBest: best,
+                  candidates,
+                  playerToMove: playerAtStart,
+                  turnNumber: latest.moveHistory.length,
                   isLegal: (x, y) => isValidMove(latest.board, x, y, playerAtStart, parentBoard),
                 });
                 if (pick) {

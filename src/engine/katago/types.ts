@@ -82,6 +82,7 @@ export interface KataGoAnalysisPayload {
     lcb?: number; // winrate-scale lower confidence bound, black perspective
     utilityLcb?: number; // utility-scale lower confidence bound, black perspective
     playSelectionValue?: number; // KataGo play selection weight (LCB adjusted)
+    utility?: number; // KataGo utilityAvg for this child, black perspective
     humanPrior?: number; // human SL policy for this move, when that net is loaded
     ownership?: FloatArray; // len 361, +1 black owns, -1 white owns (position after this move)
   }>;

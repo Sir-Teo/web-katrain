@@ -3,12 +3,12 @@ import { describeHumanBotPick, pickHumanBotMove } from '../src/utils/humanBotMov
 import type { CandidateMove } from '../src/types';
 
 // ---------------------------------------------------------------------------
-// Playing like a human of a given rank.
-//
-// KataGo's guidance for the human SL net is to sample from its policy at full
-// temperature rather than take its best move, because always taking the top move
-// plays noticeably stronger than the rank it is imitating. Passing is left to the
-// engine, since the human records the net learned from often omit passes.
+// Playing like a human of a given rank, the way KataGo's own human-bot configs do
+// (cpp/configs/gtp_human5k_example.cfg): the search's play selection values are
+// moved onto the human SL policy and sampled with the chosen-move temperature,
+// rather than the bot simply taking the net's best move — always taking the top
+// move plays noticeably stronger than the rank it is imitating. Passing keeps the
+// search's own weight, since the human records the net learned from often omit it.
 // ---------------------------------------------------------------------------
 
 const policyOf = (entries: Array<[number, number, number]>, boardSize = 9): Float32Array => {
@@ -16,6 +16,9 @@ const policyOf = (entries: Array<[number, number, number]>, boardSize = 9): Floa
   for (const [x, y, p] of entries) policy[y * boardSize + x] = p;
   return policy;
 };
+
+const candidateOf = (over: Partial<CandidateMove>): CandidateMove =>
+  ({ x: 0, y: 0, winRate: 0.5, scoreLead: 0, visits: 1, pointsLost: 0, order: 0, ...over }) as CandidateMove;
 
 describe('human bot move', () => {
   it('samples proportionally to the human policy', () => {
@@ -50,12 +53,30 @@ describe('human bot move', () => {
       [2, 2, 0.6],
       [6, 6, 0.4],
     ]);
-    // At a low temperature the leading move takes almost all the weight, so a draw
-    // that picked the second move at temperature 1 now picks the first.
+    // At a low temperature applied to every move, the leading one takes almost all
+    // the weight, so a draw that picked the second at the default now picks the first.
     const hot = pickHumanBotMove({ humanPolicy, boardSize: 9, random: () => 0.65 })!;
     expect(`${hot.x},${hot.y}`).toBe('6,6');
-    const cold = pickHumanBotMove({ humanPolicy, boardSize: 9, temperature: 0.2, random: () => 0.65 })!;
+    const cold = pickHumanBotMove({
+      humanPolicy,
+      boardSize: 9,
+      params: { temperature: 0.2, temperatureEarly: 0.2, temperatureOnlyBelowProb: 1 },
+      random: () => 0.65,
+    })!;
     expect(`${cold.x},${cold.y}`).toBe('2,2');
+  });
+
+  it('damps the tail of the policy but leaves the leading moves alone', () => {
+    const humanPolicy = policyOf([
+      [2, 2, 0.6],
+      [6, 6, 0.395],
+      [0, 0, 0.005],
+    ]);
+    // KataGo's chosenMoveTemperatureOnlyBelowProb is 0.01, so the 0.5% move is the
+    // only one reshaped: its slice ends up smaller than its raw share of the total.
+    const drawAtTailShare = 1 - 0.005 / 2;
+    const pick = pickHumanBotMove({ humanPolicy, boardSize: 9, random: () => drawAtTailShare })!;
+    expect(`${pick.x},${pick.y}`).not.toBe('0,0');
   });
 
   it('skips moves the board does not allow', () => {
@@ -70,6 +91,44 @@ describe('human bot move', () => {
       random: () => 0.5,
     })!;
     expect(`${pick.x},${pick.y}`).toBe('6,6');
+  });
+
+  it('follows the human policy over the search when imitating', () => {
+    const humanPolicy = policyOf([
+      [2, 2, 0.2],
+      [6, 6, 0.8],
+    ]);
+    // The search overwhelmingly prefers 2,2 — the imitating bot still plays 6,6,
+    // because humanSLChosenMoveProp of 1 hands the whole shape to the human net.
+    const pick = pickHumanBotMove({
+      humanPolicy,
+      boardSize: 9,
+      candidates: [
+        candidateOf({ x: 2, y: 2, visits: 100, playSelectionValue: 100, utility: 0.4, humanPrior: 0.2 }),
+        candidateOf({ x: 6, y: 6, visits: 1, playSelectionValue: 1, utility: -0.4, humanPrior: 0.8, order: 1 }),
+      ],
+      random: () => 0.9,
+    })!;
+    expect(`${pick.x},${pick.y}`).toBe('6,6');
+  });
+
+  it('prefers the move the search likes when the PIKL lambda is small', () => {
+    const humanPolicy = policyOf([
+      [2, 2, 0.2],
+      [6, 6, 0.8],
+    ]);
+    const pick = pickHumanBotMove({
+      humanPolicy,
+      boardSize: 9,
+      playerToMove: 'black',
+      params: { piklLambda: 0.08 },
+      candidates: [
+        candidateOf({ x: 2, y: 2, visits: 100, playSelectionValue: 100, utility: 0.4, humanPrior: 0.2 }),
+        candidateOf({ x: 6, y: 6, visits: 1, playSelectionValue: 1, utility: -0.4, humanPrior: 0.8, order: 1 }),
+      ],
+      random: () => 0.9,
+    })!;
+    expect(`${pick.x},${pick.y}`).toBe('2,2');
   });
 
   it('passes when the engine wants to pass', () => {
