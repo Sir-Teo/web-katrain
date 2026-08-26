@@ -784,7 +784,11 @@ async function buildRootEval(args: {
   }
 
   const recentScoreCenter = computeRecentScoreCenter(-rootEval.blackScoreMean);
-  const rootValue = 2 * rootEval.blackWinProb - 1;
+  // KataGo's winLossValue is winProb - lossProb, which is not the same as twice the
+  // win probability minus one once the net gives a game any chance of ending with no
+  // result: it counts a no-result as half a win to each side. Its reported winrate,
+  // and KaTrain's, is 0.5 + 0.5 * that.
+  const rootValue = blackWinLossValue(rootEval);
   const rootUtility = computeBlackUtilityFromEval({
     blackWinProb: rootEval.blackWinProb,
     blackNoResultProb: rootEval.blackNoResultProb,
@@ -812,7 +816,7 @@ async function buildRootEval(args: {
     rootScoreMeanSq,
     rootUtility,
     recentScoreCenter,
-    rawWinRate: rootEval.blackWinProb,
+    rawWinRate: 0.5 + 0.5 * rootValue,
     rawScoreLead: rootEval.blackScoreLead,
     rawScoreSelfplay: rootEval.blackScoreMean,
     rawScoreSelfplayStdev: rootEval.blackScoreStdev,
@@ -837,6 +841,16 @@ function computeRecentScoreCenter(expectedWhiteScore: number): number {
   if (recentScoreCenter > expectedWhiteScore + cap) recentScoreCenter = expectedWhiteScore + cap;
   if (recentScoreCenter < expectedWhiteScore - cap) recentScoreCenter = expectedWhiteScore - cap;
   return recentScoreCenter;
+}
+
+/**
+ * KataGo's winLossValue from black's point of view: the win probability less the
+ * loss probability, so a no-result counts half to each side. Reported winrates are
+ * `0.5 + 0.5 *` this, which is not the same as the win probability alone.
+ */
+export function blackWinLossValue(ev: { blackWinProb: number; blackNoResultProb: number }): number {
+  const blackLossProb = 1.0 - ev.blackWinProb - ev.blackNoResultProb;
+  return ev.blackWinProb - blackLossProb;
 }
 
 function computeBlackUtilityFromEval(args: {
@@ -1358,7 +1372,7 @@ function setNodeOwnEval(
     blackScoreStdev: ev.blackScoreStdev,
     recentScoreCenter,
   });
-  node.nnValue = 2 * ev.blackWinProb - 1;
+  node.nnValue = blackWinLossValue(ev);
   node.nnScoreLead = ev.blackScoreLead;
   node.nnScoreMean = ev.blackScoreMean;
   node.nnScoreMeanSq = ev.blackScoreStdev * ev.blackScoreStdev + ev.blackScoreMean * ev.blackScoreMean;
