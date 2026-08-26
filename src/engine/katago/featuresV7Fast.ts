@@ -35,6 +35,13 @@ export function fillInputsV7Fast(args: {
    * pass would end the phase, which KataGo reads from the real history either way.
    */
   maxHistory?: number;
+  /**
+   * KataGo enablePassingHacks, on by default for its analysis and GTP setups: when a
+   * pass would end the game and ending it now would not be a win, tell the net that
+   * passing does not end anything, so it looks for a better result than conceding.
+   * Only area scoring can price the board that way without agreeing dead stones.
+   */
+  enablePassingHacks?: boolean;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable
@@ -98,23 +105,41 @@ export function fillInputsV7Fast(args: {
     }
   }
 
-  if (rules === 'chinese') {
+  const selfKomi = pla === 'white' ? komi : -komi;
+
+  // KataGo counts the score this feature implies while it fills it in, so that the
+  // passing hacks below can ask whether ending the game right now would be a win.
+  const hasAreaFeature = rules === 'chinese';
+  let boardScoreForPla = 0;
+  if (hasAreaFeature) {
     const area = args.areaMap ?? computeAreaMapV7KataGo(stones);
     for (let y = 0; y < BOARD_SIZE; y++) {
       for (let x = 0; x < BOARD_SIZE; x++) {
         const pos = y * BOARD_SIZE + x;
         const v = area[pos] as StoneColor;
-        if (v === plaColor) spatial[idxNHWC(x, y, 18)] = 1.0;
-        else if (v === oppColor) spatial[idxNHWC(x, y, 19)] = 1.0;
+        if (v === plaColor) {
+          spatial[idxNHWC(x, y, 18)] = 1.0;
+          boardScoreForPla += 1;
+        } else if (v === oppColor) {
+          spatial[idxNHWC(x, y, 19)] = 1.0;
+          boardScoreForPla -= 1;
+        }
       }
     }
   }
+  const finalPhaseAndGameEndWouldNotBeWin = hasAreaFeature && boardScoreForPla + selfKomi <= 0;
 
-  // KataGo conservativePassAndIsRoot: if a pass now would end the game, suppress history features and also
-  // suppress the passWouldEndPhase global so the net doesn't treat the game as ending.
+  // If a pass now would end the game, KataGo sometimes tells the net it would not:
+  // at the root under conservativePass, and anywhere under enablePassingHacks when
+  // the player to move is not winning, so that a losing side keeps looking rather
+  // than settling for the score it would concede by passing. Both the history
+  // features and the passWouldEndPhase global are suppressed together.
   const lastMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
   const passWouldEndGame = lastMove?.move === PASS_MOVE;
-  const suppressHistory = args.conservativePassAndIsRoot === true && passWouldEndGame;
+  const suppressHistory =
+    passWouldEndGame &&
+    (args.conservativePassAndIsRoot === true ||
+      (args.enablePassingHacks === true && finalPhaseAndGameEndWouldNotBeWin));
 
   const historyPlanes = [9, 10, 11, 12, 13] as const;
   const passGlobals = [0, 1, 2, 3, 4] as const;
@@ -135,7 +160,6 @@ export function fillInputsV7Fast(args: {
     }
   }
 
-  const selfKomi = pla === 'white' ? komi : -komi;
   global[5] = selfKomi / 20.0;
 
   if (rules === 'japanese' || rules === 'korean') {
@@ -180,6 +204,13 @@ export function extractInputsV7Fast(args: {
    * pass would end the phase, which KataGo reads from the real history either way.
    */
   maxHistory?: number;
+  /**
+   * KataGo enablePassingHacks, on by default for its analysis and GTP setups: when a
+   * pass would end the game and ending it now would not be a win, tell the net that
+   * passing does not end anything, so it looks for a better result than conceding.
+   * Only area scoring can price the board that way without agreeing dead stones.
+   */
+  enablePassingHacks?: boolean;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable

@@ -612,6 +612,8 @@ async function buildRootEval(args: {
   outputScaleMultiplier: number;
   /** KataGo ignorePreRootHistory: the root's history planes stay empty. */
   ignorePreRootHistory: boolean;
+  /** KataGo enablePassingHacks. */
+  enablePassingHacks: boolean;
   node?: Node;
   preserveExistingChildren?: boolean;
 }): Promise<{
@@ -648,6 +650,7 @@ async function buildRootEval(args: {
       recentMoves: takeRecentMoves(args.rootMoves, [], 5),
       conservativePassAndIsRoot: args.conservativePass,
       maxHistory: args.ignorePreRootHistory ? 0 : 5,
+      enablePassingHacks: args.enablePassingHacks,
     },
   });
 
@@ -1761,6 +1764,9 @@ const ROOT_ENDING_BONUS_POINTS: number = 0.5;
 // KataGo enableMorePassingHacks, default true for the analysis and GTP setups.
 const ENABLE_MORE_PASSING_HACKS: boolean = true;
 
+// KataGo enablePassingHacks, likewise default true for analysis and GTP.
+const ENABLE_PASSING_HACKS: boolean = true;
+
 /**
  * KataGo Search::getEndingWhiteScoreBonus (cpp/search/searchhelpers.cpp),
  * precomputed for every root move. Values are extra points for white, so they
@@ -2764,6 +2770,8 @@ type EvalState = {
   symmetry?: number;
   /** KataGo maxHistory: how far back the history planes may look. Defaults to 5. */
   maxHistory?: number;
+  /** KataGo enablePassingHacks: hide the end of the game from a side that is losing. */
+  enablePassingHacks?: boolean;
 };
 
 type NeuralEval = {
@@ -2894,6 +2902,7 @@ async function evaluateBatch(args: {
       rules,
       conservativePassAndIsRoot: state.conservativePassAndIsRoot,
       maxHistory: maxTurnsOfHistoryToInclude,
+      enablePassingHacks: state.enablePassingHacks,
       libertyMap,
       areaMap: includeAreaFeature ? areaMap : undefined,
       ladderedStones: scratch.ladderedStonesScratch,
@@ -3071,6 +3080,12 @@ export class MctsSearch {
    */
   private readonly ignorePreRootHistory: boolean;
   /**
+   * KataGo enablePassingHacks, on by default for its analysis setup: a side that is
+   * losing is not told that passing would end the game, so it keeps looking for
+   * something better instead of conceding the score it stands to lose by.
+   */
+  private readonly enablePassingHacks: boolean;
+  /**
    * Whether a game that ends inside the search gets its real score. Only area
    * scoring can be counted straight off the board; territory rules need the dead
    * stones agreed first, which is what KataGo's encore is for, so under those the
@@ -3111,6 +3126,7 @@ export class MctsSearch {
     forcedRootMoves: Uint8Array | null;
     humanExplore: HumanExploreParams | null;
     ignorePreRootHistory: boolean;
+    enablePassingHacks: boolean;
   }) {
     this.model = args.model;
     this.ownershipMode = args.ownershipMode;
@@ -3144,6 +3160,7 @@ export class MctsSearch {
     this.forcedRootMoves = args.forcedRootMoves;
     this.humanExplore = args.humanExplore;
     this.ignorePreRootHistory = args.ignorePreRootHistory;
+    this.enablePassingHacks = args.enablePassingHacks;
     this.scoreTerminalNodes = args.rules === 'chinese';
   }
 
@@ -3178,6 +3195,8 @@ export class MctsSearch {
      * analysis engine (Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY).
      */
     ignorePreRootHistory?: boolean;
+    /** KataGo enablePassingHacks. Defaults to true, as it does for analysis and GTP. */
+    enablePassingHacks?: boolean;
     /** Moves the search may not play at the root, KataGo's avoidMoves. */
     avoidRootMoves?: Uint8Array | null;
   }): Promise<MctsSearch> {
@@ -3201,6 +3220,7 @@ export class MctsSearch {
 
     const forcedRootMoves = topHumanMovesMask(args.humanPolicy, args.humanMoveCount ?? DEFAULT_HUMAN_MOVE_COUNT);
     const ignorePreRootHistory = args.ignorePreRootHistory !== false;
+    const enablePassingHacks = args.enablePassingHacks ?? ENABLE_PASSING_HACKS;
     const weightlessProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightless ?? 0));
     const weightfulProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightful ?? 0));
     const humanExplore: HumanExploreParams | null =
@@ -3243,6 +3263,7 @@ export class MctsSearch {
       avoidRootMoves: args.avoidRootMoves,
       outputScaleMultiplier,
       ignorePreRootHistory,
+      enablePassingHacks,
       node: rootNode,
     });
     rootNode.ownership = rootOwnership;
@@ -3298,6 +3319,7 @@ export class MctsSearch {
       forcedRootMoves,
       humanExplore,
       ignorePreRootHistory,
+      enablePassingHacks,
     });
   }
 
@@ -3369,6 +3391,7 @@ export class MctsSearch {
       regionOfInterest: args.regionOfInterest,
       outputScaleMultiplier: this.outputScaleMultiplier,
       ignorePreRootHistory: this.ignorePreRootHistory,
+      enablePassingHacks: this.enablePassingHacks,
       node: child,
       preserveExistingChildren: !shouldExpandRoot,
     });
@@ -3492,6 +3515,7 @@ export class MctsSearch {
         currentPlayer: Player;
         recentMoves: RecentMove[];
         maxHistory: number;
+        enablePassingHacks: boolean;
       }> = [];
 
       let attempts = 0;
@@ -3819,6 +3843,7 @@ export class MctsSearch {
           // With pre-root history ignored, only the moves the search itself played
           // reach the history planes: KataGo's maxHistory of depth-below-the-root.
           maxHistory: this.ignorePreRootHistory ? pathMoves.length : 5,
+          enablePassingHacks: this.enablePassingHacks,
         });
       }
 
