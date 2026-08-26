@@ -22,12 +22,14 @@ import type { BoardState, Move } from '../src/types';
 const SGF =
   '(;GM[1]FF[4]CA[UTF-8]RU[Japanese]SZ[19]KM[6.5];B[dd];W[qd];B[pq];W[dp];B[oc];W[pe];B[fq];W[jp];B[ph];W[cf];B[ck])';
 
-// Move, visits and play selection value, as KataGo printed them.
-const RECORDED: ReadonlyArray<readonly [string, number, number]> = [
-  ['Q4', 25, 48], ['C11', 26, 26], ['R5', 26, 26], ['C7', 23, 23], ['Q17', 20, 20],
-  ['C6', 15, 15], ['O16', 13, 13], ['D7', 11, 11], ['M17', 7, 7], ['F17', 5, 5],
-  ['N16', 5, 5], ['Q5', 5, 4], ['R4', 4, 4], ['D6', 4, 4], ['E3', 3, 3],
-  ['C17', 2, 2], ['N17', 2, 2], ['Q10', 1, 1],
+// Move, visits, play selection value and the lower confidence bound in centi-utility
+// from white's point of view, as KataGo printed them.
+const RECORDED: ReadonlyArray<readonly [string, number, number, number]> = [
+  ['Q4', 25, 48, -3.09], ['C11', 26, 26, -5.16], ['R5', 26, 26, -4.13], ['C7', 23, 23, -4.42],
+  ['Q17', 20, 20, -3.42], ['C6', 15, 15, -5.58], ['O16', 13, 13, -7.17], ['D7', 11, 11, -9.00],
+  ['M17', 7, 7, -13.66], ['F17', 5, 5, -29.95], ['N16', 5, 5, -29.18], ['Q5', 5, 4, -30.04],
+  ['R4', 4, 4, -45.24], ['D6', 4, 4, -45.21], ['E3', 3, 3, -76.18], ['C17', 2, 2, -156.36],
+  ['N17', 2, 2, -152.93], ['Q10', 1, 1, -356.34],
 ];
 
 // KataGo's symmetry indices are not this port's; its defaultSymmetry 1 is our 7.
@@ -139,5 +141,27 @@ describe.skipIf(!hasModel())("KataGo's recorded 200 visit search", () => {
       );
     }
     expect(best.playSelectionValue).toBeGreaterThan(best.visits);
+
+    // The lower confidence bound is dominated by how many visits a move has, so it
+    // is only comparable where the two searches happened to spend the same number.
+    // Where they did it agrees closely, which checks the whole of KataGo's
+    // getSelfUtilityLCBAndRadius: the variance prior, the effective sample size,
+    // and the sign of the perspective.
+    let compared = 0;
+    for (const [label, visits, , recordedLcb] of RECORDED) {
+      const [x, y] = gtpToXy(label);
+      const ours = byPoint.get(`${x},${y}`)!;
+      if (ours.visits !== visits) continue;
+      compared += 1;
+      // Ours is reported from black's point of view, and white is to move here.
+      const ourLcbCenti = -ours.utilityLcb! * 100;
+      const tolerance = Math.max(1.5, Math.abs(recordedLcb) * 0.02);
+      expect(`${label} lcb near ${recordedLcb.toFixed(2)}`).toBe(
+        Math.abs(ourLcbCenti - recordedLcb) <= tolerance
+          ? `${label} lcb near ${recordedLcb.toFixed(2)}`
+          : `${label} lcb was ${ourLcbCenti.toFixed(2)}`
+      );
+    }
+    expect(compared).toBeGreaterThanOrEqual(4);
   }, 300000);
 });
