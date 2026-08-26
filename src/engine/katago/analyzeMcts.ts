@@ -37,6 +37,13 @@ import {
   type StoneColor,
   type UndoSnapshot,
 } from './fastBoard';
+import {
+  GRAPH_SEARCH_REP_BOUND,
+  computeStateHash,
+  mixGraphHash,
+  packHashKey,
+  simpleRepetitionBoundGt,
+} from './graphHash';
 import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
 import { POLICY_OPTIMISM, ROOT_POLICY_OPTIMISM } from './searchParams';
 
@@ -59,7 +66,7 @@ type Edge = {
    * The parent only owns the fraction of the child's weight its edge visits bought.
    */
   visits: number;
-  pvCache?: { visits: number; depth: number; moves: number[]; pvVisits: number[] };
+  pvCache?: { visits: number; depth: number; moves: number[]; pvVisits: number[]; pvEdgeVisits: number[] };
 };
 
 /** KataGo NodeStats::childWeight (cpp/search/searchnode.h). */
@@ -246,6 +253,16 @@ function buildAllowedMovesMask(roi?: RegionOfInterest | null): Uint8Array | null
 }
 
 /** Last n entries of a move list, oldest first. */
+/** How many passes the game currently ends with, KataGo's consecutiveEndingPasses. */
+function countConsecutiveEndingPasses(moves: RecentMove[]): number {
+  let count = 0;
+  for (let i = moves.length - 1; i >= 0; i--) {
+    if (moves[i]!.move !== PASS_MOVE) break;
+    count++;
+  }
+  return count;
+}
+
 function takeLastMoves(moves: RecentMove[], n: number): RecentMove[] {
   return moves.length <= n ? moves : moves.slice(moves.length - n);
 }
@@ -1352,6 +1369,10 @@ function averageTreeOwnership(node: Node): { ownership: Float32Array; ownershipS
     }
   };
 
+  // KataGo carries a set of the nodes on the current branch, because with graph
+  // search the same node can be reached again and the walk has to stop there.
+  const graphPath = new Set<Node>();
+
   const traverse = (n: Node, desiredProp: number): boolean => {
     if (!n.ownership) return false;
 
@@ -1366,6 +1387,12 @@ function averageTreeOwnership(node: Node): { ownership: Float32Array; ownershipS
       return true;
     }
 
+    if (graphPath.has(n)) {
+      accumulate(n.ownership, desiredProp);
+      return true;
+    }
+    graphPath.add(n);
+
     let childrenWeightSum = 0;
     let relativeChildrenWeightSum = 0;
     const childWeights: number[] = [];
@@ -1374,14 +1401,15 @@ function averageTreeOwnership(node: Node): { ownership: Float32Array; ownershipS
     for (const e of edges) {
       const child = e.child;
       if (!child || child.visits <= 0) continue;
-      const w = child.visits;
+      const w = edgeChildWeight(e);
+      if (w <= 0) continue;
       childWeights.push(w);
       childNodes.push(child);
       childrenWeightSum += w;
       relativeChildrenWeightSum += w * w;
     }
 
-    const parentNNWeight = 1.0;
+    const parentNNWeight = Math.max(1e-10, n.nnWeight);
     const denom = childrenWeightSum + parentNNWeight;
     const desiredPropFromChildren = denom > 0 ? (desiredProp * childrenWeightSum) / denom : 0;
     let selfProp = denom > 0 ? (desiredProp * parentNNWeight) / denom : desiredProp;
@@ -1401,6 +1429,7 @@ function averageTreeOwnership(node: Node): { ownership: Float32Array; ownershipS
       }
     }
 
+    graphPath.delete(n);
     accumulate(n.ownership, selfProp);
     return true;
   };
@@ -1766,6 +1795,16 @@ const ENABLE_MORE_PASSING_HACKS: boolean = true;
 
 // KataGo enablePassingHacks, likewise default true for analysis and GTP.
 const ENABLE_PASSING_HACKS: boolean = true;
+
+// KataGo useGraphSearch, on for every setup except distributed training: positions
+// the search reaches more than one way share a node, so their visits pool instead
+// of being split between copies.
+const USE_GRAPH_SEARCH: boolean = true;
+
+// A cycle cannot form while only positions whose last move had a large local region
+// are shared, but a descent that never ended would hang the worker, so there is a
+// hard floor under it as well.
+const MAX_DESCENT_DEPTH = 512;
 
 /**
  * KataGo Search::getEndingWhiteScoreBonus (cpp/search/searchhelpers.cpp),
@@ -2266,6 +2305,8 @@ export type AnalysisPayloadMove = {
   prior: number;
   pv: string[];
   pvVisits: number[];
+  /** Visits this line paid for, which unlike pvVisits never rises along the PV. */
+  pvEdgeVisits: number[];
   lcb: number;
   utilityLcb: number;
   playSelectionValue: number;
@@ -2372,6 +2413,7 @@ function buildAnalysisMoves(args: {
       pvMoves,
       pv: pvMoves.map(moveToGtp),
       pvVisits: pv.pvVisits,
+      pvEdgeVisits: pv.pvEdgeVisits,
       lcb,
       utilityLcb,
       playSelectionValue: m.playSelectionValue,
@@ -2446,9 +2488,15 @@ function moveToGtp(move: number): string {
   return `${letter}${BOARD_SIZE - y}`;
 }
 
-function buildPv(edge: Edge, maxDepth: number): { moves: number[]; pvVisits: number[] } {
+/**
+ * KataGo's appendPV reports two counts per PV move: the node's own visits, which
+ * under graph search can exceed its parent's because other lines reached it too,
+ * and the edge visits this line actually paid for, which cannot.
+ */
+function buildPv(edge: Edge, maxDepth: number): { moves: number[]; pvVisits: number[]; pvEdgeVisits: number[] } {
   const pvMoves: number[] = [edge.move];
   const pvVisits: number[] = [edge.child?.visits ?? 0];
+  const pvEdgeVisits: number[] = [edge.visits];
   let node = edge.child;
   let depth = 1;
 
@@ -2469,19 +2517,29 @@ function buildPv(edge: Edge, maxDepth: number): { moves: number[]; pvVisits: num
     if (!best || bestValue <= 0) break;
     pvMoves.push(best.move);
     pvVisits.push(best.child?.visits ?? 0);
+    pvEdgeVisits.push(best.visits);
     node = best.child;
     depth++;
   }
 
-  return { moves: pvMoves, pvVisits };
+  return { moves: pvMoves, pvVisits, pvEdgeVisits };
 }
 
-function getPvForEdge(edge: Edge, maxDepth: number): { moves: number[]; pvVisits: number[] } {
+function getPvForEdge(
+  edge: Edge,
+  maxDepth: number
+): { moves: number[]; pvVisits: number[]; pvEdgeVisits: number[] } {
   const visits = edge.child?.visits ?? 0;
   const cache = edge.pvCache;
   if (cache && cache.visits === visits && cache.depth === maxDepth) return cache;
   const built = buildPv(edge, maxDepth);
-  const cached = { visits, depth: maxDepth, moves: built.moves, pvVisits: built.pvVisits };
+  const cached = {
+    visits,
+    depth: maxDepth,
+    moves: built.moves,
+    pvVisits: built.pvVisits,
+    pvEdgeVisits: built.pvEdgeVisits,
+  };
   edge.pvCache = cached;
   return cached;
 }
@@ -3086,6 +3144,17 @@ export class MctsSearch {
    */
   private readonly enablePassingHacks: boolean;
   /**
+   * KataGo's node table: the position hash of every node in the tree, so a position
+   * the search reaches a second way is recognised instead of duplicated.
+   */
+  private readonly useGraphSearch: boolean = USE_GRAPH_SEARCH;
+  private readonly transpositionTable = new Map<number, Node>();
+  private readonly rootGraphHash = new Int32Array(2);
+  private readonly graphHashScratch = new Int32Array(2);
+  private rootConsecutivePasses = 0;
+  /** How often a transposition was found. Reported for tests and diagnostics. */
+  private transpositionHits = 0;
+  /**
    * Whether a game that ends inside the search gets its real score. Only area
    * scoring can be counted straight off the board; territory rules need the dead
    * stones agreed first, which is what KataGo's encore is for, so under those the
@@ -3127,6 +3196,7 @@ export class MctsSearch {
     humanExplore: HumanExploreParams | null;
     ignorePreRootHistory: boolean;
     enablePassingHacks: boolean;
+    useGraphSearch: boolean;
   }) {
     this.model = args.model;
     this.ownershipMode = args.ownershipMode;
@@ -3161,7 +3231,32 @@ export class MctsSearch {
     this.humanExplore = args.humanExplore;
     this.ignorePreRootHistory = args.ignorePreRootHistory;
     this.enablePassingHacks = args.enablePassingHacks;
+    this.useGraphSearch = args.useGraphSearch;
+    this.resetGraphSearchState();
     this.scoreTerminalNodes = args.rules === 'chinese';
+  }
+
+  /**
+   * Start the node table over and re-hash the root. Everything in the table belongs
+   * to the tree that hangs off the current root, so re-rooting has to clear it or a
+   * stale entry could graft a position that is no longer reachable back in.
+   */
+  private resetGraphSearchState(): void {
+    this.transpositionTable.clear();
+    this.transpositionHits = 0;
+    this.rootConsecutivePasses = countConsecutiveEndingPasses(this.rootMoves);
+    computeStateHash(
+      this.rootStones,
+      this.rootKoPoint,
+      this.rootNode.playerToMove,
+      this.rootConsecutivePasses,
+      this.rootGraphHash
+    );
+  }
+
+  /** How many times the search found a position it had already reached another way. */
+  getTranspositionHits(): number {
+    return this.transpositionHits;
   }
 
   static async create(args: {
@@ -3197,6 +3292,8 @@ export class MctsSearch {
     ignorePreRootHistory?: boolean;
     /** KataGo enablePassingHacks. Defaults to true, as it does for analysis and GTP. */
     enablePassingHacks?: boolean;
+    /** KataGo useGraphSearch. Defaults to true, as it does for everything but distributed. */
+    useGraphSearch?: boolean;
     /** Moves the search may not play at the root, KataGo's avoidMoves. */
     avoidRootMoves?: Uint8Array | null;
   }): Promise<MctsSearch> {
@@ -3221,6 +3318,7 @@ export class MctsSearch {
     const forcedRootMoves = topHumanMovesMask(args.humanPolicy, args.humanMoveCount ?? DEFAULT_HUMAN_MOVE_COUNT);
     const ignorePreRootHistory = args.ignorePreRootHistory !== false;
     const enablePassingHacks = args.enablePassingHacks ?? ENABLE_PASSING_HACKS;
+    const useGraphSearch = args.useGraphSearch ?? USE_GRAPH_SEARCH;
     const weightlessProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightless ?? 0));
     const weightfulProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightful ?? 0));
     const humanExplore: HumanExploreParams | null =
@@ -3320,6 +3418,7 @@ export class MctsSearch {
       humanExplore,
       ignorePreRootHistory,
       enablePassingHacks,
+      useGraphSearch,
     });
   }
 
@@ -3429,6 +3528,7 @@ export class MctsSearch {
     // it wants them for the new position.
     this.forcedRootMoves = null;
     this.humanExplore = null;
+    this.resetGraphSearchState();
     // Nodes outside the new root's subtree are gone, and their contributions to the
     // bias table would linger, so start the table over (KataGo decays them instead).
     this.subtreeBiasTable.reset();
@@ -3539,6 +3639,9 @@ export class MctsSearch {
 
         const path: Node[] = [this.rootNode];
         const edgePath: Edge[] = [];
+        let parentGraphH0 = this.rootGraphHash[0]!;
+        let parentGraphH1 = this.rootGraphHash[1]!;
+        let consecutivePasses = this.rootConsecutivePasses;
         // The path index at which a weightless playout began, or -1. KataGo's
         // countEdgeVisit=false means that edge and every edge above it goes unpaid,
         // so nothing at or above this index is credited with the playout.
@@ -3547,7 +3650,7 @@ export class MctsSearch {
         let node = this.rootNode;
         let player = this.rootNode.playerToMove;
 
-        while (node.edges && node.edges.length > 0) {
+        while (node.edges && node.edges.length > 0 && depth < MAX_DESCENT_DEPTH) {
           const isRootNode = node === this.rootNode;
           const selection = selectEdge(
             node,
@@ -3687,13 +3790,51 @@ export class MctsSearch {
                 : null;
           const endsGame = this.scoreTerminalNodes && move === PASS_MOVE && previousMove === PASS_MOVE;
 
-          if (!e.child) e.child = new Node(opponentOf(player));
-          if (biasKey !== null) {
+          const childPlayer = opponentOf(player);
+          consecutivePasses = move === PASS_MOVE ? consecutivePasses + 1 : 0;
+          let childGraphH0 = 0;
+          let childGraphH1 = 0;
+          if (this.useGraphSearch) {
+            const scratch = this.graphHashScratch;
+            computeStateHash(sim.stones, sim.koPoint, childPlayer, consecutivePasses, scratch);
+            // KataGo only lets a position stand for itself when no short repetition
+            // could come back through the move that made it; otherwise the path's
+            // own hash goes in too, and only the identical path matches.
+            if (!simpleRepetitionBoundGt(sim.stones, move, GRAPH_SEARCH_REP_BOUND)) {
+              mixGraphHash(parentGraphH0, parentGraphH1, scratch[0]!, scratch[1]!, scratch);
+            }
+            childGraphH0 = scratch[0]!;
+            childGraphH1 = scratch[1]!;
+          }
+
+          if (!e.child) {
+            let attached: Node | null = null;
+            if (this.useGraphSearch) {
+              const key = packHashKey(childGraphH0, childGraphH1);
+              const existing = this.transpositionTable.get(key);
+              // An ancestor would close a cycle, which the repetition bound is
+              // meant to rule out, but it costs one scan to be certain.
+              if (existing && existing.playerToMove === childPlayer && !path.includes(existing)) {
+                attached = existing;
+                this.transpositionHits++;
+              }
+              if (!attached) {
+                attached = new Node(childPlayer);
+                this.transpositionTable.set(key, attached);
+              }
+            } else {
+              attached = new Node(childPlayer);
+            }
+            e.child = attached;
+          }
+          if (biasKey !== null && e.child.biasEpoch !== this.subtreeBiasTable.epoch) {
             e.child.biasEntry = this.subtreeBiasTable.get(biasKey);
             e.child.biasEpoch = this.subtreeBiasTable.epoch;
             e.child.lastBiasDeltaSum = 0;
             e.child.lastBiasWeight = 0;
           }
+          parentGraphH0 = childGraphH0;
+          parentGraphH1 = childGraphH1;
           node = e.child;
           player = node.playerToMove;
           path.push(node);
@@ -3713,6 +3854,16 @@ export class MctsSearch {
         // is owed: unwind and start the next one.
         if (caughtUpEdgeVisits) {
           playouts++;
+          for (let i = undoMoves.length - 1; i >= 0; i--) {
+            undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
+          }
+          continue;
+        }
+
+        // The descent ran into its depth floor without reaching a leaf. Nothing
+        // should get here; abandoning the playout beats re-evaluating a node that
+        // already has children.
+        if (node.edges && node.edges.length > 0) {
           for (let i = undoMoves.length - 1; i >= 0; i--) {
             undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
           }

@@ -202,9 +202,13 @@ describe.skipIf(!hasModel())('analysis output ordering', () => {
       expect(m.lcb).toBeLessThanOrEqual(m.winRate);
       expect(m.pvVisits.length).toBe(m.pv.length);
       expect(m.pvVisits[0]).toBe(m.visits);
+      expect(m.pvEdgeVisits.length).toBe(m.pv.length);
       for (let d = 1; d < m.pvVisits.length; d++) {
-        expect(m.pvVisits[d]!).toBeLessThanOrEqual(m.pvVisits[d - 1]!);
         expect(m.pvVisits[d]!).toBeGreaterThan(0);
+        // Node visits can rise along the pv, because graph search lets other lines
+        // reach the same position. What this line paid for cannot.
+        expect(m.pvEdgeVisits[d]!).toBeLessThanOrEqual(m.pvEdgeVisits[d - 1]!);
+        expect(m.pvEdgeVisits[d]!).toBeLessThanOrEqual(m.pvVisits[d]!);
       }
     });
   }, 120000);

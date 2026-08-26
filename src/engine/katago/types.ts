@@ -85,6 +85,7 @@ export interface KataGoAnalysisPayload {
     prior: number;
     pv: string[];
     pvVisits?: number[]; // visits at each move of the pv (KataGo includePVVisits)
+    pvEdgeVisits?: number[]; // visits this line paid for; never rises along the pv
     lcb?: number; // winrate-scale lower confidence bound, black perspective
     utilityLcb?: number; // utility-scale lower confidence bound, black perspective
     playSelectionValue?: number; // KataGo play selection weight (LCB adjusted)

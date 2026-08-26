@@ -39,6 +39,7 @@ export interface CandidateMove {
   prior?: number; // policy prior probability (0..1)
   pv?: string[]; // principal variation, GTP coords (e.g. ["D4","Q16",...])
   pvVisits?: number[]; // visits behind each move of the pv (KataGo includePVVisits)
+  pvEdgeVisits?: number[]; // visits this line paid for; never rises along the pv
   lcb?: number; // winrate-scale lower confidence bound, black perspective
   utilityLcb?: number; // utility-scale lower confidence bound, black perspective
   playSelectionValue?: number; // KataGo play selection weight, LCB adjusted
