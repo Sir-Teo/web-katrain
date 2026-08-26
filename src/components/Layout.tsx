@@ -64,6 +64,7 @@ import { MenuDrawer } from './layout/MenuDrawer';
 import { TopControlBar } from './layout/TopControlBar';
 import { BottomControlBar } from './layout/BottomControlBar';
 import { RightPanel } from './layout/RightPanel';
+import { MobileMatchStrip } from './layout/MobileMatchStrip';
 import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
 import { NotificationToast } from './layout/NotificationToast';
 import { LibraryPanel } from './LibraryPanel';
@@ -95,7 +96,7 @@ import { getMistakeNavigationAvailability } from '../utils/mistakeNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
 import { AnalysisCacheClearConfirmModal } from './AnalysisCacheClearConfirmModal';
 import { getResignResult } from '../utils/resign';
-import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutSize, isDesktopLayoutViewport, isMobileLayoutViewport } from '../utils/responsiveLayout';
+import { DESKTOP_LAYOUT_MEDIA, isDesktopLayoutSize, isDesktopLayoutViewport, isMobileLayoutViewport, shouldShowMobileMatchStrip } from '../utils/responsiveLayout';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery';
 import { PREFERS_DARK_MEDIA_QUERY, getResolvedUiTheme } from '../utils/uiThemes';
@@ -455,6 +456,10 @@ export const Layout: React.FC = () => {
   const [viewportWidth, setViewportWidth] = useState(() => {
     if (typeof window === 'undefined') return 1200;
     return window.innerWidth;
+  });
+  const [viewportHeight, setViewportHeight] = useState(() => {
+    if (typeof window === 'undefined') return 900;
+    return window.innerHeight;
   });
 
   const mode = uiState.mode;
@@ -1076,7 +1081,10 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const handleResize = () => setViewportWidth(window.innerWidth);
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+      setViewportHeight(window.innerHeight);
+    };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -1299,6 +1307,14 @@ export const Layout: React.FC = () => {
       typeof winRate === 'number' ||
       typeof scoreLead === 'number');
   const mobileContextToolActive = isMobile && (isEditMode || scoringMode);
+  // Phone portrait centres a width-limited board inside a much taller shell.
+  // Fill the top of that spare band with the player facts the bottom bar has
+  // to drop at phone widths; the gate keeps it off viewports where it would
+  // shrink the board instead (tablet portrait, landscape).
+  const showMobileMatchStrip =
+    isMobile
+    && !mobileContextToolActive
+    && shouldShowMobileMatchStrip(viewportWidth, viewportHeight);
   const showBoardAnalysisCommandBar = showAnalysisCommandBar && !mobileContextToolActive;
   const [boardToolOffsetY, setBoardToolOffsetY] = useState(12);
   const analysisCommandBarSlotClass = mobileContextToolActive
@@ -3677,6 +3693,20 @@ export const Layout: React.FC = () => {
               <CandidatePvTiles
                 pinnedKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
                 onPin={setReportHoverMove}
+              />
+            )}
+            {showMobileMatchStrip && (
+              <MobileMatchStrip
+                currentPlayer={currentPlayer}
+                blackName={blackName}
+                whiteName={whiteName}
+                blackRank={blackRank}
+                whiteRank={whiteRank}
+                capturedBlack={capturedBlack}
+                capturedWhite={capturedWhite}
+                boardSize={boardSize}
+                komi={komi}
+                handicap={handicap}
               />
             )}
             <div

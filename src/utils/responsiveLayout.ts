@@ -28,3 +28,22 @@ export function isMobileLayoutViewport(): boolean {
     isMobileLayoutSize(window.innerWidth, window.innerHeight)
   );
 }
+
+/**
+ * On a phone in portrait the board is width-limited, so the shell is left with
+ * a tall band of empty space above and below it — measured at 35-38% of the
+ * viewport on every current phone size. The match strip fills the top of that
+ * band with the player/capture facts the bottom bar has to drop below 415px.
+ *
+ * The gate is derived from the viewport alone so it cannot oscillate: the
+ * canvas gets about `height - MOBILE_BOARD_CHROME` and the board takes about
+ * `width - MOBILE_BOARD_GUTTER`, so the spare band is `height - width - 166`.
+ * Requiring 260px keeps the strip off viewports where it would have to steal
+ * height from the board (tablet portrait, small landscape-ish phones).
+ */
+const MOBILE_MATCH_STRIP_MIN_SPARE = 260;
+
+export function shouldShowMobileMatchStrip(width: number, height: number): boolean {
+  if (isDesktopLayoutSize(width, height)) return false;
+  return height - width >= MOBILE_MATCH_STRIP_MIN_SPARE;
+}

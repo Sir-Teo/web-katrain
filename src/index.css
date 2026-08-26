@@ -5816,6 +5816,98 @@
       grid-column: 3;
     }
   }
+
+  /* Phone portrait leaves 35-38% of the viewport empty around a width-limited
+     board. The match strip takes the top of that band and carries the facts
+     the bottom control bar hides below 415px: who is to move, both names, and
+     capture counts. Layout gates it on viewport size (see
+     shouldShowMobileMatchStrip) so it never steals height from the board. */
+  .mobile-match-strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 34px;
+    margin-bottom: 6px;
+    padding: 4px 6px;
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    background: var(--ui-surface);
+    font-size: 0.75rem;
+    line-height: 1.1;
+  }
+
+  .mobile-match-player {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: var(--ui-text-muted);
+  }
+
+  .mobile-match-player.is-to-move {
+    border-color: color-mix(in srgb, var(--ui-accent) 45%, transparent);
+    background: color-mix(in srgb, var(--ui-accent) 12%, transparent);
+    color: var(--ui-text);
+  }
+
+  .mobile-match-name {
+    overflow: hidden;
+    min-width: 0;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-match-player.is-to-move .mobile-match-name {
+    color: var(--ui-accent);
+  }
+
+  .mobile-match-rank {
+    flex: 0 0 auto;
+    color: var(--ui-text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Captures read as a running gain for the side that took them, so the count
+     stays legible next to a truncating name. */
+  .mobile-match-captures {
+    flex: 0 0 auto;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text-muted);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mobile-match-facts {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    padding-right: 2px;
+    color: var(--ui-text-faint);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+  }
+
+  .mobile-match-fact {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Two names plus both capture counts win over static setup facts when the
+     row gets tight. */
+  @media (max-width: 379px) {
+    .mobile-match-facts {
+      display: none;
+    }
+  }
+
 }
 
 /* One-shot notable-move animations (score-loss pill, set-up sparkle). */

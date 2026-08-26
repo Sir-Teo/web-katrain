@@ -6,6 +6,7 @@ import {
   isMobileLayoutSize,
   isMobileLayoutViewport,
   MOBILE_LAYOUT_MEDIA,
+  shouldShowMobileMatchStrip,
 } from '../src/utils/responsiveLayout';
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -63,5 +64,28 @@ describe('responsive layout thresholds', () => {
 
     expect(isDesktopLayoutViewport()).toBe(true);
     expect(isMobileLayoutViewport()).toBe(false);
+  });
+});
+
+describe('mobile match strip gate', () => {
+  it('fills the spare band on phone portrait viewports', () => {
+    expect(shouldShowMobileMatchStrip(390, 844)).toBe(true);
+    expect(shouldShowMobileMatchStrip(360, 800)).toBe(true);
+    expect(shouldShowMobileMatchStrip(430, 932)).toBe(true);
+    expect(shouldShowMobileMatchStrip(375, 667)).toBe(true);
+  });
+
+  it('stays off where the board would have to give up height for it', () => {
+    // Tablet portrait: the board is already height-limited.
+    expect(shouldShowMobileMatchStrip(768, 1024)).toBe(false);
+    // Short phone portrait: only ~84px of spare band in total.
+    expect(shouldShowMobileMatchStrip(320, 568)).toBe(false);
+    // Landscape phones centre a height-limited board with side margins.
+    expect(shouldShowMobileMatchStrip(844, 390)).toBe(false);
+  });
+
+  it('never shows on the desktop shell', () => {
+    expect(shouldShowMobileMatchStrip(1024, 1400)).toBe(false);
+    expect(shouldShowMobileMatchStrip(1280, 800)).toBe(false);
   });
 });
