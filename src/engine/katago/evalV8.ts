@@ -7,6 +7,12 @@ export type KataGoEval = {
   blackScoreStdev: number; // >=0
   blackNoResultProb: number; // 0..1
   /**
+   * KataGo's varTimeLeft: how much meaningful game the net thinks is left, in no
+   * particular unit. Large while the winner is open, small once it is settled.
+   * -1 from a net whose score head is too short to carry it.
+   */
+  varTimeLeft: number;
+  /**
    * The net's own estimate of how much its win/loss and score judgements will move
    * over the next few moves. Only nets from model version 10 on predict these; older
    * ones report -1, exactly like KataGo does (cpp/neuralnet/nneval.cpp).
@@ -20,6 +26,7 @@ export type KataGoPostProcessParams = {
   scoreStdevMultiplier: number;
   leadMultiplier: number;
   outputScaleMultiplier: number;
+  varianceTimeMultiplier?: number;
   shorttermValueErrorMultiplier?: number;
   shorttermScoreErrorMultiplier?: number;
 };
@@ -71,6 +78,14 @@ export function postprocessKataGoV8(args: {
   let scoreMeanSq = scoreMean * scoreMean + scoreStdev * scoreStdev;
   let lead = leadPreScaled * leadMultiplier;
 
+  // KataGo's varTimeLeft: its guess at how much meaningful game is left, in no
+  // particular unit. Large while the winner is still open, small once it is not.
+  // Unlike the score it is not conditioned on the game actually finishing, so it
+  // takes no no-result adjustment and has no perspective.
+  const varianceTimeMultiplier = postProcessParams?.varianceTimeMultiplier ?? 40.0;
+  const varTimeLeftPreSoftplus = (scoreValue[3] ?? 0) * outputScaleMultiplier;
+  const varTimeLeft = scoreValue.length >= 4 ? softPlus(varTimeLeftPreSoftplus) * varianceTimeMultiplier : -1;
+
   // Make unconditional with respect to no-result.
   scoreMean *= 1.0 - noResultProb;
   scoreMeanSq *= 1.0 - noResultProb;
@@ -113,6 +128,7 @@ export function postprocessKataGoV8(args: {
     blackScoreMean,
     blackScoreStdev,
     blackNoResultProb,
+    varTimeLeft,
     shorttermWinlossError,
     shorttermScoreError,
   };

@@ -65,6 +65,7 @@ export interface AnalysisResult {
   rawNoResultProb?: number;
   rawStWrError?: number;
   rawStScoreError?: number;
+  rawVarTimeLeft?: number;
   moves: CandidateMove[];
   territory: number[][]; // boardSize x boardSize grid, values -1 (white) to 1 (black)
   policy?: FloatArray; // len boardSize*boardSize + 1, illegal = -1, pass at last index

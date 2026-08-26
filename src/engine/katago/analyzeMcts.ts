@@ -702,6 +702,7 @@ async function buildRootEval(args: {
   rawNoResultProb: number;
   rawStWrError: number;
   rawStScoreError: number;
+  rawVarTimeLeft: number;
 }> {
   const includeOwnership = args.ownershipMode !== 'none';
   const rootEval = await evaluateRootEval({
@@ -818,6 +819,7 @@ async function buildRootEval(args: {
     rawNoResultProb: rootEval.blackNoResultProb,
     rawStWrError: rootEval.shorttermWinlossError,
     rawStScoreError: rootEval.shorttermScoreError,
+    rawVarTimeLeft: rootEval.varTimeLeft,
   };
 }
 
@@ -2782,6 +2784,7 @@ function averageRootEvals(evals: NeuralEval[], outputScaleMultiplier: number): N
   let blackNoResultProb = 0;
   let shorttermWinlossError = 0;
   let shorttermScoreError = 0;
+  let varTimeLeft = 0;
 
   for (const ev of evals) {
     const sym = ev.symmetry;
@@ -2814,6 +2817,7 @@ function averageRootEvals(evals: NeuralEval[], outputScaleMultiplier: number): N
     blackNoResultProb += ev.blackNoResultProb * inv;
     if (ev.shorttermWinlossError >= 0) shorttermWinlossError += ev.shorttermWinlossError * inv;
     if (ev.shorttermScoreError >= 0) shorttermScoreError += ev.shorttermScoreError * inv;
+    varTimeLeft += ev.varTimeLeft * inv;
   }
 
   const minPolicyProb = 1e-30;
@@ -2838,6 +2842,7 @@ function averageRootEvals(evals: NeuralEval[], outputScaleMultiplier: number): N
     // Averaged over the symmetries that reported them; -1 if the net has no such head.
     shorttermWinlossError: first.shorttermWinlossError >= 0 ? shorttermWinlossError : -1,
     shorttermScoreError: first.shorttermScoreError >= 0 ? shorttermScoreError : -1,
+    varTimeLeft,
     libertyMap: new Uint8Array(first.libertyMap),
     areaMap: new Uint8Array(first.areaMap),
     ownership,
@@ -2998,6 +3003,8 @@ type NeuralEval = {
   // -1 when the net is older than model version 10 and does not predict them.
   shorttermWinlossError: number;
   shorttermScoreError: number;
+  /** KataGo varTimeLeft: how much meaningful game the net thinks is left. */
+  varTimeLeft: number;
   libertyMap: Uint8Array;
   areaMap: Uint8Array;
   ownership?: Float32Array; // len 361, raw logits (player-to-move perspective, symmetry space if symmetry != 0)
@@ -3225,6 +3232,7 @@ async function evaluateBatch(args: {
       passLogit,
       shorttermWinlossError: evaled.shorttermWinlossError,
       shorttermScoreError: evaled.shorttermScoreError,
+      varTimeLeft: evaled.varTimeLeft,
       blackWinProb: evaled.blackWinProb,
       blackScoreLead: evaled.blackScoreLead,
       blackScoreMean: evaled.blackScoreMean,
@@ -3325,6 +3333,7 @@ export class MctsSearch {
     noResultProb: 0,
     stWrError: -1,
     stScoreError: -1,
+    varTimeLeft: -1,
   };
   /** How often a transposition was found. Reported for tests and diagnostics. */
   private transpositionHits = 0;
@@ -3382,6 +3391,7 @@ export class MctsSearch {
       noResultProb: number;
       stWrError: number;
       stScoreError: number;
+      varTimeLeft: number;
     };
     rootPolicyTemperature: number;
     rootPolicyTemperatureEarly: number;
@@ -3658,6 +3668,7 @@ export class MctsSearch {
       rawNoResultProb,
       rawStWrError,
       rawStScoreError,
+      rawVarTimeLeft,
     } = await buildRootEval({
       model: args.model,
       ownershipMode: args.ownershipMode,
@@ -3752,6 +3763,7 @@ export class MctsSearch {
         noResultProb: rawNoResultProb,
         stWrError: rawStWrError,
         stScoreError: rawStScoreError,
+        varTimeLeft: rawVarTimeLeft,
       },
       rootPolicyTemperature,
       rootPolicyTemperatureEarly,
@@ -3813,6 +3825,7 @@ export class MctsSearch {
       rawNoResultProb,
       rawStWrError,
       rawStScoreError,
+      rawVarTimeLeft,
     } = await buildRootEval({
       model: this.model,
       ownershipMode: this.ownershipMode,
@@ -3880,6 +3893,7 @@ export class MctsSearch {
       noResultProb: rawNoResultProb,
       stWrError: rawStWrError,
       stScoreError: rawStScoreError,
+      varTimeLeft: rawVarTimeLeft,
     };
     this.resetGraphSearchState();
     // Nodes outside the new root's subtree are gone, and their contributions to the
@@ -4453,6 +4467,8 @@ export class MctsSearch {
     /** -1 when the net is older than model version 10 and does not predict them. */
     rawStWrError: number;
     rawStScoreError: number;
+    /** KataGo rawVarTimeLeft. -1 from a net that does not predict it. */
+    rawVarTimeLeft: number;
     ownership: FloatArray;
     ownershipStdev: FloatArray;
     policy: FloatArray;
@@ -4527,6 +4543,7 @@ export class MctsSearch {
       rawNoResultProb: this.rootRaw.noResultProb,
       rawStWrError: this.rootRaw.stWrError,
       rawStScoreError: this.rootRaw.stScoreError,
+      rawVarTimeLeft: this.rootRaw.varTimeLeft,
       ownership,
       ownershipStdev,
       policy: policyOut,
