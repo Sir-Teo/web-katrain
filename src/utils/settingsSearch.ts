@@ -95,6 +95,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-human-sl-bot-style', tab: 'ai', label: 'Opponent plays' },
   { id: 'settings-human-sl-source', tab: 'ai', label: 'Policy overlay shows' },
   { id: 'settings-human-sl-url', tab: 'ai', label: 'Human model URL' },
+  { id: 'settings-katago-root-policy-temperature', tab: 'ai', label: 'Root Policy Temperature' },
   { id: 'settings-katago-model-url', tab: 'ai', label: "Model URL" },
   { id: 'settings-katago-backend', tab: 'ai', label: "Backend" },
   { id: 'settings-katago-visits', tab: 'ai', label: "Visits" },

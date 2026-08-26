@@ -36,6 +36,8 @@ export interface KataGoAnalyzeRequest {
   analysisPvLen?: number;
   includeMovesOwnership?: boolean;
   wideRootNoise?: number;
+  /** KataGo rootPolicyTemperature: above 1 flattens the root policy, widening the search. */
+  rootPolicyTemperature?: number;
   nnRandomize?: boolean;
   conservativePass?: boolean;
   visits?: number;

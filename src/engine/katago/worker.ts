@@ -82,6 +82,7 @@ let searchKey: {
   komi: number;
   currentPlayer: 'black' | 'white';
   wideRootNoise: number;
+  rootPolicyTemperature: number;
   rootSymmetrySamples: number;
   rules: GameRules;
   nnRandomize: boolean;
@@ -590,6 +591,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const ownershipMode: OwnershipMode = includeMovesOwnership ? 'tree' : requestedOwnershipMode;
     const analysisPvLen = Math.max(0, Math.min(msg.analysisPvLen ?? 15, 60));
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
+    const rootPolicyTemperature = Math.max(0.01, Math.min(msg.rootPolicyTemperature ?? 1, 100));
     const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
     const rootSymmetrySamples = rootSymmetrySamplesForBackend(tf.getBackend());
@@ -666,6 +668,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.komi === msg.komi &&
       searchKey.currentPlayer === msg.currentPlayer &&
       searchKey.wideRootNoise === wideRootNoise &&
+      searchKey.rootPolicyTemperature === rootPolicyTemperature &&
       searchKey.rootSymmetrySamples === rootSymmetrySamples &&
       searchKey.rules === rules &&
       searchKey.nnRandomize === nnRandomize &&
@@ -693,6 +696,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         searchKey.ownershipMode === ownershipMode &&
         searchKey.komi === msg.komi &&
         searchKey.wideRootNoise === wideRootNoise &&
+        searchKey.rootPolicyTemperature === rootPolicyTemperature &&
         searchKey.rootSymmetrySamples === rootSymmetrySamples &&
         searchKey.rules === rules &&
         searchKey.nnRandomize === nnRandomize &&
@@ -729,6 +733,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
               komi: msg.komi,
               currentPlayer: msg.currentPlayer,
               wideRootNoise,
+              rootPolicyTemperature,
               rootSymmetrySamples,
               rules,
               nnRandomize,
@@ -757,6 +762,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         maxChildren,
         ownershipMode,
         wideRootNoise,
+        rootPolicyTemperature,
         rootSymmetrySamples,
         regionOfInterest: msg.regionOfInterest,
         humanPolicy: humanMovePriors,
@@ -774,6 +780,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           komi: msg.komi,
           currentPlayer: msg.currentPlayer,
           wideRootNoise,
+          rootPolicyTemperature,
           rootSymmetrySamples,
           rules,
           nnRandomize,

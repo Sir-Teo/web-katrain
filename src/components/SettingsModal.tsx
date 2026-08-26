@@ -2543,6 +2543,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <p className={subtextClass}>KaTrain default is 0.04; set 0 for strongest/most stable.</p>
                                         </div>
                                         <div className="space-y-1">
+                                            <label htmlFor="settings-katago-root-policy-temperature" className="text-[var(--ui-text-muted)] block text-sm">Root Policy Temperature</label>
+                                            <input
+                                                id="settings-katago-root-policy-temperature"
+                                                type="number"
+                                                min={0.01}
+                                                max={100}
+                                                step={0.05}
+                                                value={settings.katagoRootPolicyTemperature}
+                                                onChange={(e) =>
+                                                    updateSettings({
+                                                        katagoRootPolicyTemperature: Math.min(
+                                                            100,
+                                                            Math.max(0.01, parseFloat(e.target.value || '1'))
+                                                        ),
+                                                    })
+                                                }
+                                                className={inputClass}
+                                            />
+                                            <p className={subtextClass}>
+                                                KataGo's rootPolicyTemperature. Above 1 flattens the policy at the root so the
+                                                search looks at more moves; 1 leaves it alone. Unlike wide root noise it adds
+                                                nothing random, and it never changes the policy that is reported.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
                                             <label htmlFor="settings-katago-pv-len" className="text-[var(--ui-text-muted)] block text-sm">PV Len</label>
                                             <input
                                                 id="settings-katago-pv-len"

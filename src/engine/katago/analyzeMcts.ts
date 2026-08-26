@@ -10,6 +10,7 @@ import {
   whiteDScoreValueDScoreSmoothNoDrawAdjust,
 } from './scoreValue';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
+import { interpolateEarly } from './chosenMove';
 import {
   BLACK,
   WHITE,
@@ -465,6 +466,12 @@ function expandNode(args: {
   forcedMoves?: Uint8Array;
   policyOut?: Float32Array; // len 362, illegal = -1, pass at index 361
   policyOutputScaling?: number;
+  /**
+   * KataGo rootPolicyTemperature, already interpolated for the turn number. Above 1
+   * it flattens the root policy so the search spreads over more moves. It reshapes
+   * the priors the search explores by, never the policy that gets reported.
+   */
+  rootPolicyTemperature?: number;
 }): void {
   const { node, stones, koPoint, policyLogits, passLogit, maxChildren } = args;
   const policyScale = args.policyOutputScaling ?? 1.0;
@@ -534,13 +541,46 @@ function expandNode(args: {
   sum += passPriorRaw;
   const invSum = 1.0 / sum;
   for (let i = 0; i < moveCount; i++) priorsScratch[i] *= invSum;
-  const passPrior = passPriorRaw * invSum;
+  let passPrior = passPriorRaw * invSum;
 
   if (args.policyOut) {
     const out = args.policyOut;
     out.fill(-1);
     for (let i = 0; i < moveCount; i++) out[movesScratch[i]!] = priorsScratch[i]! as number;
     out[PASS_MOVE] = passPrior as number;
+  }
+
+  // KataGo Search::maybeAddPolicyNoiseAndTemp. The reported policy above is the raw
+  // one; only what the search explores by is reshaped.
+  const rootPolicyTemperature = args.rootPolicyTemperature ?? 1.0;
+  if (rootPolicyTemperature !== 1.0 && rootPolicyTemperature > 0) {
+    let maxValue = passPrior;
+    for (let i = 0; i < moveCount; i++) {
+      if (priorsScratch[i]! > maxValue) maxValue = priorsScratch[i]!;
+    }
+    if (maxValue > 0) {
+      const logMaxValue = Math.log(maxValue);
+      const invTemp = 1.0 / rootPolicyTemperature;
+      let tempSum = 0;
+      for (let i = 0; i < moveCount; i++) {
+        const prob = priorsScratch[i]!;
+        if (prob > 0) {
+          // Numerically stable way to raise to a power and normalize.
+          const p = Math.exp((Math.log(prob) - logMaxValue) * invTemp);
+          priorsScratch[i] = p;
+          tempSum += p;
+        }
+      }
+      if (passPrior > 0) {
+        passPrior = Math.exp((Math.log(passPrior) - logMaxValue) * invTemp);
+        tempSum += passPrior;
+      }
+      if (tempSum > 0) {
+        const invTempSum = 1.0 / tempSum;
+        for (let i = 0; i < moveCount; i++) priorsScratch[i] *= invTempSum;
+        passPrior *= invTempSum;
+      }
+    }
   }
 
   const topMoves = scratch.topMoves;
@@ -631,6 +671,8 @@ async function buildRootEval(args: {
   ignorePreRootHistory: boolean;
   /** KataGo enablePassingHacks. */
   enablePassingHacks: boolean;
+  /** KataGo rootPolicyTemperature, already interpolated for the turn number. */
+  rootPolicyTemperature: number;
   node?: Node;
   preserveExistingChildren?: boolean;
 }): Promise<{
@@ -711,6 +753,7 @@ async function buildRootEval(args: {
     forcedMoves: args.forcedRootMoves ?? undefined,
     policyOut: rootPolicy,
     policyOutputScaling: args.outputScaleMultiplier,
+    rootPolicyTemperature: args.rootPolicyTemperature,
   });
   if (previousEdges && policyNode.edges) {
     const previousByMove = new Map<number, Edge>();
@@ -1795,6 +1838,9 @@ const ENABLE_MORE_PASSING_HACKS: boolean = true;
 
 // KataGo enablePassingHacks, likewise default true for analysis and GTP.
 const ENABLE_PASSING_HACKS: boolean = true;
+
+// KataGo chosenMoveTemperatureHalflife, which also paces rootPolicyTemperature.
+const CHOSEN_MOVE_TEMPERATURE_HALFLIFE = 19;
 
 // KataGo useGraphSearch, on for every setup except distributed training: positions
 // the search reaches more than one way share a node, so their visits pool instead
@@ -3148,6 +3194,9 @@ export class MctsSearch {
    * the search reaches a second way is recognised instead of duplicated.
    */
   private readonly useGraphSearch: boolean = USE_GRAPH_SEARCH;
+  /** KataGo rootPolicyTemperature and rootPolicyTemperatureEarly, before interpolation. */
+  private readonly rootPolicyTemperature: number;
+  private readonly rootPolicyTemperatureEarly: number;
   private readonly transpositionTable = new Map<number, Node>();
   private readonly rootGraphHash = new Int32Array(2);
   private readonly graphHashScratch = new Int32Array(2);
@@ -3197,6 +3246,8 @@ export class MctsSearch {
     ignorePreRootHistory: boolean;
     enablePassingHacks: boolean;
     useGraphSearch: boolean;
+    rootPolicyTemperature: number;
+    rootPolicyTemperatureEarly: number;
   }) {
     this.model = args.model;
     this.ownershipMode = args.ownershipMode;
@@ -3232,6 +3283,8 @@ export class MctsSearch {
     this.ignorePreRootHistory = args.ignorePreRootHistory;
     this.enablePassingHacks = args.enablePassingHacks;
     this.useGraphSearch = args.useGraphSearch;
+    this.rootPolicyTemperature = args.rootPolicyTemperature;
+    this.rootPolicyTemperatureEarly = args.rootPolicyTemperatureEarly;
     this.resetGraphSearchState();
     this.scoreTerminalNodes = args.rules === 'chinese';
   }
@@ -3257,6 +3310,19 @@ export class MctsSearch {
   /** How many times the search found a position it had already reached another way. */
   getTranspositionHits(): number {
     return this.transpositionHits;
+  }
+
+  /** rootPolicyTemperature for the root's turn number, KataGo's interpolateEarly. */
+  private effectiveRootPolicyTemperature(turnNumber: number): number {
+    if (this.rootPolicyTemperature === 1 && this.rootPolicyTemperatureEarly === 1) return 1;
+    return interpolateEarly({
+      halflife: CHOSEN_MOVE_TEMPERATURE_HALFLIFE,
+      earlyValue: this.rootPolicyTemperatureEarly,
+      value: this.rootPolicyTemperature,
+      turnNumber,
+      boardWidth: BOARD_SIZE,
+      boardHeight: BOARD_SIZE,
+    });
   }
 
   static async create(args: {
@@ -3294,6 +3360,13 @@ export class MctsSearch {
     enablePassingHacks?: boolean;
     /** KataGo useGraphSearch. Defaults to true, as it does for everything but distributed. */
     useGraphSearch?: boolean;
+    /**
+     * KataGo rootPolicyTemperature: above 1 the root policy is flattened, so the
+     * search spreads over more moves. `Early` is the value on move 0, decaying to
+     * the other over KataGo's chosenMoveTemperatureHalflife. Both default to 1.
+     */
+    rootPolicyTemperature?: number;
+    rootPolicyTemperatureEarly?: number;
     /** Moves the search may not play at the root, KataGo's avoidMoves. */
     avoidRootMoves?: Uint8Array | null;
   }): Promise<MctsSearch> {
@@ -3319,6 +3392,22 @@ export class MctsSearch {
     const ignorePreRootHistory = args.ignorePreRootHistory !== false;
     const enablePassingHacks = args.enablePassingHacks ?? ENABLE_PASSING_HACKS;
     const useGraphSearch = args.useGraphSearch ?? USE_GRAPH_SEARCH;
+    const rootPolicyTemperature = Math.max(0.01, Math.min(100, args.rootPolicyTemperature ?? 1));
+    const rootPolicyTemperatureEarly = Math.max(
+      0.01,
+      Math.min(100, args.rootPolicyTemperatureEarly ?? rootPolicyTemperature)
+    );
+    const effectiveRootPolicyTemperature =
+      rootPolicyTemperature === 1 && rootPolicyTemperatureEarly === 1
+        ? 1
+        : interpolateEarly({
+            halflife: CHOSEN_MOVE_TEMPERATURE_HALFLIFE,
+            earlyValue: rootPolicyTemperatureEarly,
+            value: rootPolicyTemperature,
+            turnNumber: rootMoves.length,
+            boardWidth: BOARD_SIZE,
+            boardHeight: BOARD_SIZE,
+          });
     const weightlessProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightless ?? 0));
     const weightfulProb = Math.max(0, Math.min(1, args.humanSlRootExploreProbWeightful ?? 0));
     const humanExplore: HumanExploreParams | null =
@@ -3362,6 +3451,7 @@ export class MctsSearch {
       outputScaleMultiplier,
       ignorePreRootHistory,
       enablePassingHacks,
+      rootPolicyTemperature: effectiveRootPolicyTemperature,
       node: rootNode,
     });
     rootNode.ownership = rootOwnership;
@@ -3419,6 +3509,8 @@ export class MctsSearch {
       ignorePreRootHistory,
       enablePassingHacks,
       useGraphSearch,
+      rootPolicyTemperature,
+      rootPolicyTemperatureEarly,
     });
   }
 
@@ -3491,6 +3583,7 @@ export class MctsSearch {
       outputScaleMultiplier: this.outputScaleMultiplier,
       ignorePreRootHistory: this.ignorePreRootHistory,
       enablePassingHacks: this.enablePassingHacks,
+      rootPolicyTemperature: this.effectiveRootPolicyTemperature(rootMoves.length),
       node: child,
       preserveExistingChildren: !shouldExpandRoot,
     });

@@ -195,6 +195,7 @@ export interface GameSettings {
   katagoReuseTree: boolean;
   katagoOwnershipMode: 'root' | 'tree';
   katagoWideRootNoise: number; // KataGo/KaTrain wideRootNoise
+  katagoRootPolicyTemperature: number; // KataGo rootPolicyTemperature; > 1 widens the search
   katagoAnalysisPvLen: number; // KataGo analysisPVLen (moves after the first)
   katagoNnRandomize: boolean; // KataGo nnRandomize (random symmetries)
   katagoConservativePass: boolean; // KataGo conservativePass (KaTrain default: true)
