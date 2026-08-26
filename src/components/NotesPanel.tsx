@@ -471,9 +471,16 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       return `${currentNoMoveLabel}\n${playerToShort(currentNode.gameState.currentPlayer)} to play`;
     }
 
-    if (!currentNode.analysis) return analysisStatusText;
+    // The move line needs nothing from the engine — it is the move that was
+    // played — but it sat behind the analysis check, so anyone reading a game
+    // with analysis off got a status string where the move should be, under a
+    // heading that already says the analysis is off. Lead with the move either
+    // way and let the status follow it.
+    const moveLine = `Move ${depth}: ${playerToShort(move.player)} ${label}\n`;
 
-    let text = `Move ${depth}: ${playerToShort(move.player)} ${label}\n`;
+    if (!currentNode.analysis) return `${moveLine}${analysisStatusText}`;
+
+    let text = moveLine;
 
     if (detailed && topMove && topMoveLabel) {
       const topScore = typeof topMove.scoreLead === 'number' ? `${topMove.scoreLead > 0 ? '+' : ''}${topMove.scoreLead.toFixed(1)}` : '?';

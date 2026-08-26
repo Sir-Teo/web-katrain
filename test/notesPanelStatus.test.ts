@@ -17,4 +17,17 @@ describe('NotesPanel analysis status line', () => {
     expect(block).toContain("if (!isAnalysisMode) return 'Analysis off (Tab to enable)';");
     expect(block.match(/'Analyzing move\.\.\.'/g) ?? []).toHaveLength(1);
   });
+
+  it('names the move even when there is no analysis to report on it', () => {
+    const source = readFileSync('src/components/NotesPanel.tsx', 'utf8');
+
+    // The move line is derived from the played move, not from the engine, but
+    // it used to sit behind the analysis check — so with analysis off the block
+    // showed only a status string, under a panel that already said as much.
+    const moveLine = source.indexOf('const moveLine = `Move ${depth}:');
+    const guard = source.indexOf('if (!currentNode.analysis) return `${moveLine}${analysisStatusText}`;');
+    expect(moveLine).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(moveLine);
+    expect(source).toContain('let text = moveLine;');
+  });
 });
