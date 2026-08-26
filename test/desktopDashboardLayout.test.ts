@@ -203,6 +203,13 @@ describe('desktop dashboard layout', () => {
     );
     // Only while scoring: edit mode docks a 32px launcher that fits the row.
     expect(css).not.toContain('.wk-dashboard .navbar .board-tools {\n  order: 1;');
+
+    // Done and the header cross both call onDone. Side by side on one bar they
+    // are the same action twice, and the cross's 32px was what pushed the bar
+    // past the strip at 1280x800 onto a second row.
+    expect(css).toMatch(
+      /\.manual-score-panel\.manual-score-docked \.manual-score-icon \{\s*display: none;/
+    );
   });
 
   it('labels visible dashboard tree and analysis toolbar controls', () => {

@@ -693,6 +693,15 @@
   font-size: 15px;
   text-align: left;
 }
+/* The header cross and the Done button both call onDone. In the card layouts
+   that reads correctly — a dismiss affordance at the top of the panel and a
+   primary at the bottom — but flattened into one horizontal bar they sit on the
+   same line, 550px apart, as the same action. Drop the cross here. The 32px it
+   took is also what pushed the bar past the strip at 1280x800, wrapping it onto
+   a second row and costing the board another 36px. */
+.wk-dashboard .board-extra-tools .manual-score-panel.manual-score-docked .manual-score-icon {
+  display: none;
+}
 .wk-dashboard .board-extra-tools .manual-score-panel.manual-score-docked .manual-score-status,
 .wk-dashboard .board-extra-tools .manual-score-panel.manual-score-docked .manual-score-totals,
 .wk-dashboard .board-extra-tools .manual-score-panel.manual-score-docked .manual-score-help {
