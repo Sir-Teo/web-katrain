@@ -53,8 +53,34 @@ type Edge = {
   move: number; // 0..360 or PASS_MOVE
   prior: number;
   child: Node | null;
+  /**
+   * KataGo's edge visits, which lag the child's own visit count whenever a
+   * weightless playout evaluated the child without the parent paying for it.
+   * The parent only owns the fraction of the child's weight its edge visits bought.
+   */
+  visits: number;
   pvCache?: { visits: number; depth: number; moves: number[]; pvVisits: number[] };
 };
+
+/** KataGo NodeStats::childWeight (cpp/search/searchnode.h). */
+function edgeChildWeight(edge: Edge): number {
+  const child = edge.child;
+  if (!child) return 0;
+  const childVisits = child.visits;
+  if (childVisits <= 0 || edge.visits <= 0) return 0;
+  if (edge.visits >= childVisits) return child.weightSum;
+  return (child.weightSum * edge.visits) / childVisits;
+}
+
+/** KataGo NodeStats::childWeightSq. */
+function edgeChildWeightSq(edge: Edge): number {
+  const child = edge.child;
+  if (!child) return 0;
+  const childVisits = child.visits;
+  if (childVisits <= 0 || edge.visits <= 0) return 0;
+  if (edge.visits >= childVisits) return child.weightSqSum;
+  return (child.weightSqSum * edge.visits) / childVisits;
+}
 
 type ExpandScratch = {
   moves: Int16Array;
@@ -542,7 +568,7 @@ function expandNode(args: {
   const edges: Edge[] = [];
   for (let i = 0; i < order.length; i++) {
     const idx = order[i]!;
-    edges.push({ move: topMoves[idx]!, prior: topPriors[idx]!, child: null });
+    edges.push({ move: topMoves[idx]!, prior: topPriors[idx]!, child: null, visits: 0 });
   }
   if (forcedMoves) {
     // Their real policy prior, so the search still treats them on their merits;
@@ -551,10 +577,10 @@ function expandNode(args: {
       const move = movesScratch[i]!;
       if (forcedMoves[move] !== 1) continue;
       if (allowedMoves && allowedMoves[move] === 0) continue;
-      edges.push({ move, prior: priorsScratch[i]!, child: null });
+      edges.push({ move, prior: priorsScratch[i]!, child: null, visits: 0 });
     }
   }
-  edges.push({ move: PASS_MOVE, prior: passPrior, child: null });
+  edges.push({ move: PASS_MOVE, prior: passPrior, child: null, visits: 0 });
 
   node.edges = edges;
 }
@@ -665,6 +691,7 @@ async function buildRootEval(args: {
       const previous = previousByMove.get(edge.move);
       if (!previous) continue;
       edge.child = previous.child;
+      edge.visits = previous.visits;
       edge.pvCache = previous.pvCache;
     }
   }
@@ -1050,7 +1077,8 @@ function recomputeNodeStats(node: Node): void {
   if (edges) {
     for (const e of edges) {
       const child = e.child;
-      if (!child || child.visits <= 0 || child.weightSum <= 0) continue;
+      if (!child || child.visits <= 0 || child.weightSum <= 0 || e.visits <= 0) continue;
+      const edgeWeight = edgeChildWeight(e);
       const childUtility = child.utilityAvg;
       const idx = stats.length;
       let entry = recomputeStatsPool[idx];
@@ -1070,7 +1098,7 @@ function recomputeNodeStats(node: Node): void {
         };
         recomputeStatsPool[idx] = entry;
       }
-      entry.weightAdjusted = child.weightSum;
+      entry.weightAdjusted = edgeWeight;
       entry.rawWeight = child.weightSum;
       entry.weightSqSum = child.weightSqSum;
       entry.selfUtility = node.playerToMove === BLACK ? childUtility : -childUtility;
@@ -1082,7 +1110,7 @@ function recomputeNodeStats(node: Node): void {
       entry.utility = childUtility;
       entry.utilitySq = child.utilitySqAvg;
       stats.push(entry);
-      origTotalChildWeight += child.weightSum;
+      origTotalChildWeight += edgeWeight;
     }
   }
 
@@ -1486,7 +1514,7 @@ function computeParentSelectionStats(
     for (const e of edges) {
       const child = e.child;
       if (!child) continue;
-      const w = child.weightSum + (includeInFlight ? child.inFlight * NUM_VIRTUAL_LOSSES_PER_THREAD : 0);
+      const w = edgeChildWeight(e) + (includeInFlight ? child.inFlight * NUM_VIRTUAL_LOSSES_PER_THREAD : 0);
       if (w <= 0) continue;
       totalChildWeight += w;
       policyProbMassVisited += e.prior;
@@ -1588,8 +1616,9 @@ function selectEdge(
 
   for (const e of edges) {
     const child = e.child;
-    const hasStats = child !== null && child.visits > 0 && child.weightSum > 0;
-    let childWeight = hasStats ? child!.weightSum : 0;
+    const edgeWeight = edgeChildWeight(e);
+    const hasStats = child !== null && child.visits > 0 && edgeWeight > 0;
+    let childWeight = hasStats ? edgeWeight : 0;
     let childUtility = hasStats ? child!.utilityAvg : fpuValue;
     let prior = e.prior;
 
@@ -1636,6 +1665,9 @@ function selectEdge(
 
 // KataGo rootEndingBonusPoints, default 0.5 for the analysis and GTP setups.
 const ROOT_ENDING_BONUS_POINTS: number = 0.5;
+
+// KataGo enableMorePassingHacks, default true for the analysis and GTP setups.
+const ENABLE_MORE_PASSING_HACKS: boolean = true;
 
 /**
  * KataGo Search::getEndingWhiteScoreBonus (cpp/search/searchhelpers.cpp),
@@ -1844,8 +1876,8 @@ function computePlaySelectionValues(
   for (let i = 0; i < n; i++) {
     const child = edges[i]!.child;
     const visits = child ? child.visits : 0;
-    values[i] = child && visits > 0 ? child.weightSum : 0;
-    if (visits > 0) anyVisitedChild = true;
+    values[i] = child && visits > 0 ? edgeChildWeight(edges[i]!) : 0;
+    if (visits > 0 && values[i]! > 0) anyVisitedChild = true;
     lcb[i] = -zeroVisitRadius;
     radius[i] = zeroVisitRadius;
   }
@@ -1874,7 +1906,7 @@ function computePlaySelectionValues(
   if (isRoot) {
     const bestEdge = edges[nonLcbBestIdx]!;
     const bestChild = bestEdge.child;
-    if (bestChild && bestChild.visits > 0) {
+    if (bestChild && bestChild.visits > 0 && bestEdge.visits > 0) {
       // policyProbMassVisited is irrelevant here: it only feeds the FPU value,
       // which is unused because every child considered below has visits.
       const stats = computeParentSelectionStats(node, true, false, 1.0);
@@ -1883,14 +1915,14 @@ function computePlaySelectionValues(
       const bestChildExploreSelectionValue = exploreSelectionValue(
         scaling,
         bestEdge.prior,
-        bestChild.weightSum,
+        edgeChildWeight(bestEdge),
         bestChildUtility,
         pla
       );
       for (let i = 0; i < n; i++) {
         if (i === nonLcbBestIdx) continue;
         const child = edges[i]!.child;
-        if (!child || child.visits <= 0) {
+        if (!child || child.visits <= 0 || edges[i]!.visits <= 0) {
           values[i] = 0;
           continue;
         }
@@ -1902,7 +1934,7 @@ function computePlaySelectionValues(
           childUtility,
           pla
         );
-        const childWeight = child.weightSum;
+        const childWeight = edgeChildWeight(edges[i]!);
         values[i] = Math.ceil(childWeight > retrospectivelyWanted ? retrospectivelyWanted : childWeight);
       }
     }
@@ -1913,8 +1945,8 @@ function computePlaySelectionValues(
     const child = edges[i]!.child;
     if (!child || child.visits <= 0) continue;
 
-    let weightSum = child.weightSum;
-    let weightSqSum = child.weightSqSum;
+    let weightSum = edgeChildWeight(edges[i]!);
+    let weightSqSum = edgeChildWeightSq(edges[i]!);
     if (weightSum <= 0 || weightSqSum <= 0) continue;
     let ess = (weightSum * weightSum) / weightSqSum;
 
@@ -1992,6 +2024,8 @@ export function recomputeNodeStatsForTest(args: {
   children: Array<{
     prior: number;
     visits: number;
+    /** The parent's edge visits, which default to the child's own visit count. */
+    edgeVisits?: number;
     weightSum?: number;
     weightSqSum?: number;
     value: number;
@@ -2030,7 +2064,7 @@ export function recomputeNodeStatsForTest(args: {
     child.scoreMeanSqAvg = c.scoreMeanSq;
     child.utilityAvg = c.utility;
     child.utilitySqAvg = c.utilitySq ?? c.utility * c.utility;
-    return { move: i, prior: c.prior, child } as Edge;
+    return { move: i, prior: c.prior, child, visits: c.edgeVisits ?? c.visits } as Edge;
   });
   node.visits = 1 + args.children.reduce((n, c) => n + c.visits, 0);
   recomputeNodeStats(node);
@@ -2061,6 +2095,8 @@ export function computePlaySelectionValuesForTest(args: {
   children: Array<{
     prior: number;
     visits: number;
+    /** The parent's edge visits, which default to the child's own visit count. */
+    edgeVisits?: number;
     utilitySum: number;
     utilitySqSum: number;
     scoreMeanSum?: number;
@@ -2086,7 +2122,7 @@ export function computePlaySelectionValuesForTest(args: {
     child.utilitySqAvg = c.visits > 0 ? c.utilitySqSum / c.visits : 0;
     child.scoreMeanAvg = c.visits > 0 ? (c.scoreMeanSum ?? 0) / c.visits : 0;
     child.scoreMeanSqAvg = c.visits > 0 ? (c.scoreMeanSqSum ?? 0) / c.visits : 0;
-    return { move: i, prior: c.prior, child } as Edge;
+    return { move: i, prior: c.prior, child, visits: c.edgeVisits ?? c.visits } as Edge;
   });
   const result = computePlaySelectionValues(
     node,
@@ -3296,9 +3332,14 @@ export class MctsSearch {
     while (this.rootNode.visits < maxVisits && !timeExceeded()) {
       if (shouldAbort?.()) return true;
       const visitsBeforeBatch = this.rootNode.visits;
+      // KataGo's shouldCountPlayout: a weightless playout is not charged to the
+      // visit limit, because the root never sees it.
+      let weightlessJobs = 0;
       const jobs: Array<{
         leaf: Node;
         path: Node[];
+        edgePath: Edge[];
+        weightlessFrom: number;
         stones: Uint8Array;
         koPoint: number;
         libertyMap: Uint8Array;
@@ -3313,7 +3354,11 @@ export class MctsSearch {
       }> = [];
 
       let attempts = 0;
-      while (jobs.length < batchSize && this.rootNode.visits + jobs.length < maxVisits && !timeExceeded()) {
+      while (
+        jobs.length < batchSize &&
+        this.rootNode.visits + jobs.length - weightlessJobs < maxVisits &&
+        !timeExceeded()
+      ) {
         if (shouldAbort?.()) break;
         attempts++;
         if (attempts > batchSize * 8) break;
@@ -3328,11 +3373,17 @@ export class MctsSearch {
         let depth = 0;
 
         const path: Node[] = [this.rootNode];
+        const edgePath: Edge[] = [];
+        // The path index at which a weightless playout began, or -1. KataGo's
+        // countEdgeVisit=false means that edge and every edge above it goes unpaid,
+        // so nothing at or above this index is credited with the playout.
+        let weightlessFrom = -1;
+        let caughtUpEdgeVisits = false;
         let node = this.rootNode;
         let player = this.rootNode.playerToMove;
 
         while (node.edges && node.edges.length > 0) {
-          const e = selectEdge(
+          let e = selectEdge(
             node,
             node === this.rootNode,
             this.wideRootNoise,
@@ -3341,6 +3392,69 @@ export class MctsSearch {
             this.recentScoreCenter,
             this.forcedRootMoves
           );
+          let countEdgeVisit = true;
+
+          // KataGo enableMorePassingHacks: once a pass would end the game, make sure
+          // the search has looked at both passing and not passing, without letting
+          // that look cost the node any weight.
+          if (
+            ENABLE_MORE_PASSING_HACKS &&
+            weightlessFrom < 0 &&
+            (node !== this.rootNode || this.roiMask === null)
+          ) {
+            const lastMove =
+              pathMoves.length > 0
+                ? pathMoves[pathMoves.length - 1]!.move
+                : this.rootMoves.length > 0
+                  ? this.rootMoves[this.rootMoves.length - 1]!.move
+                  : null;
+            if (lastMove === PASS_MOVE) {
+              let totalChildEdgeVisits = 0;
+              let passEdge: Edge | null = null;
+              let hasPassChild = false;
+              let hasNonPassChild = false;
+              let bestNewNonPass: Edge | null = null;
+              for (const x of node.edges) {
+                if (x.move === PASS_MOVE) passEdge = x;
+                if (!x.child) {
+                  if (x.move !== PASS_MOVE && (!bestNewNonPass || x.prior > bestNewNonPass.prior)) {
+                    bestNewNonPass = x;
+                  }
+                  continue;
+                }
+                totalChildEdgeVisits += x.visits;
+                if (x.move === PASS_MOVE) hasPassChild = true;
+                else hasNonPassChild = true;
+              }
+              if (totalChildEdgeVisits >= 2) {
+                if (!hasPassChild && passEdge && e.move !== PASS_MOVE) {
+                  e = passEdge;
+                  countEdgeVisit = false;
+                } else if (!hasNonPassChild && e.move === PASS_MOVE && bestNewNonPass) {
+                  e = bestNewNonPass;
+                  countEdgeVisit = false;
+                }
+              }
+            }
+          }
+
+          // KataGo maybeCatchUpEdgeVisits: an edge whose child has been visited more
+          // often than the edge was paid for can simply pay one back, which is a
+          // whole playout without a network call.
+          if (countEdgeVisit && e.child && e.visits < e.child.visits) {
+            e.visits += 1;
+            for (let i = path.length - 1; i >= 0; i--) {
+              const n = path[i]!;
+              n.visits += 1;
+              recomputeNodeStats(n);
+            }
+            for (const pe of edgePath) pe.visits += 1;
+            caughtUpEdgeVisits = true;
+            break;
+          }
+
+          if (!countEdgeVisit) weightlessFrom = path.length - 1;
+          edgePath.push(e);
           const move = e.move;
 
           // The bias key describes the position BEFORE the move, so build it while
@@ -3427,13 +3541,24 @@ export class MctsSearch {
           if (!node.edges) break;
         }
 
+        // The playout was spent paying an edge back its visits, so nothing else
+        // is owed: unwind and start the next one.
+        if (caughtUpEdgeVisits) {
+          for (let i = undoMoves.length - 1; i >= 0; i--) {
+            undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
+          }
+          continue;
+        }
+
         // A finished game needs no evaluation: count the visit and unwind.
         if (node.isTerminal) {
           for (let i = path.length - 1; i >= 0; i--) {
+            if (i <= weightlessFrom) break;
             const n = path[i]!;
             n.visits += 1;
             recomputeNodeStats(n);
           }
+          for (let i = edgePath.length - 1; i > weightlessFrom; i--) edgePath[i]!.visits += 1;
           for (let i = undoMoves.length - 1; i >= 0; i--) {
             undoMove(sim, undoMoves[i]!, undoPlayers[i]!, undoSnapshots[i]!, captureStack);
           }
@@ -3527,9 +3652,12 @@ export class MctsSearch {
         }
 
         const recentMovesScratch = this.jobRecentMovesScratch[jobIdx] ?? (this.jobRecentMovesScratch[jobIdx] = []);
+        if (weightlessFrom >= 0) weightlessJobs++;
         jobs.push({
           leaf: node,
           path,
+          edgePath,
+          weightlessFrom,
           stones: leafStones,
           koPoint: leafKoPoint,
           libertyMap: leafLibertyBuf,
@@ -3597,12 +3725,15 @@ export class MctsSearch {
         setNodeOwnEval(job.leaf, ev, this.recentScoreCenter);
         // KataGo recomputes each node on the path from its children after every
         // playout, deepest first, because the reweighting depends on the siblings.
+        // A weightless playout stops crediting at the node that asked for it.
         for (let i = job.path.length - 1; i >= 0; i--) {
           const n = job.path[i]!;
-          n.visits += 1;
           n.inFlight -= 1;
+          if (i <= job.weightlessFrom) continue;
+          n.visits += 1;
           if (n !== job.leaf) recomputeNodeStats(n);
         }
+        for (let i = job.edgePath.length - 1; i > job.weightlessFrom; i--) job.edgePath[i]!.visits += 1;
         job.leaf.pendingEval = false;
       }
       if (shouldAbort?.()) return true;
