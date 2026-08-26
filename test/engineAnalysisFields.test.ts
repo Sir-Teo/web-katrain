@@ -35,10 +35,23 @@ describe.skipIf(!hasModel())('analysis payload fields', () => {
     });
   };
 
+  // One deterministic 200 visit search, read by both assertions below: the second
+  // wants the root before and after, so it needs the reading taken before the run.
+  let sharedSearch: Promise<{
+    before: ReturnType<MctsSearch['getAnalysis']>;
+    after: ReturnType<MctsSearch['getAnalysis']>;
+  }> | null = null;
+  const searched = () =>
+    (sharedSearch ??= (async () => {
+      const search = await make();
+      const before = search.getAnalysis({ topK: 1, analysisPvLen: 0 });
+      await search.run({ visits: 200, maxTimeMs: 120000, batchSize: 4 });
+      const after = search.getAnalysis({ topK: 50, analysisPvLen: 2 });
+      return { before, after };
+    })());
+
   it('reports what the root paid for each move alongside what the child got', async () => {
-    const search = await make();
-    await search.run({ visits: 200, maxTimeMs: 120000, batchSize: 4 });
-    const analysis = search.getAnalysis({ topK: 50, analysisPvLen: 2 });
+    const analysis = (await searched()).after;
 
     let totalEdgeVisits = 0;
     for (const m of analysis.moves) {
@@ -56,10 +69,7 @@ describe.skipIf(!hasModel())('analysis payload fields', () => {
   }, 120000);
 
   it("keeps the network's own read of the root untouched by the search", async () => {
-    const search = await make();
-    const before = search.getAnalysis({ topK: 1, analysisPvLen: 0 });
-    await search.run({ visits: 200, maxTimeMs: 120000, batchSize: 4 });
-    const after = search.getAnalysis({ topK: 1, analysisPvLen: 0 });
+    const { before, after } = await searched();
 
     expect(after.rawWinRate).toBe(before.rawWinRate);
     expect(after.rawScoreLead).toBe(before.rawScoreLead);

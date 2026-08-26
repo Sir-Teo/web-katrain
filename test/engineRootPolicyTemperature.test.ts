@@ -13,7 +13,17 @@ import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness'
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!hasModel())('root policy temperature', () => {
-  const analyze = async (rootPolicyTemperature: number) => {
+  // The searches are deterministic, and several assertions want the same ones.
+  const cache = new Map<number, Promise<ReturnType<MctsSearch['getAnalysis']>>>();
+  const analyze = (rootPolicyTemperature: number) => {
+    const cached = cache.get(rootPolicyTemperature);
+    if (cached) return cached;
+    const started = runAnalysis(rootPolicyTemperature);
+    cache.set(rootPolicyTemperature, started);
+    return started;
+  };
+
+  const runAnalysis = async (rootPolicyTemperature: number) => {
     setBoardSize(9);
     const model = await loadHarnessModel();
     const search = await MctsSearch.create({
