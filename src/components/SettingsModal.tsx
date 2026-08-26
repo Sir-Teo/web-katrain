@@ -12,6 +12,7 @@ import {
     KATAGO_SMALL_MODEL_PATH,
 } from '../engine/katago/modelDefaults';
 import { publicUrl } from '../utils/publicUrl';
+import { preferredScrollBehavior } from '../utils/mediaQuery';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../utils/boardThemes';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { UI_THEME_OPTIONS } from '../utils/uiThemes';
@@ -217,7 +218,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         if (!label && !control) return;
         setPendingReveal(null);
 
-        (label ?? control)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        (label ?? control)?.scrollIntoView({ block: 'center', behavior: preferredScrollBehavior() });
         // Focused, not just scrolled to, so keyboard users land on the control
         // and can change it straight away.
         control?.focus({ preventScroll: true });

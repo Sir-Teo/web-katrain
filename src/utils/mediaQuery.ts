@@ -38,3 +38,18 @@ export function subscribeMediaQueryList(
 
   return () => {};
 }
+
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+export function prefersReducedMotion(): boolean {
+  return mediaQueryMatches(REDUCED_MOTION_QUERY);
+}
+
+/**
+ * `scrollTo({ behavior: 'smooth' })` is driven by JS, so the stylesheet's
+ * reduced-motion block — which only zeroes CSS transitions and animations —
+ * never reaches it. Ask here instead.
+ */
+export function preferredScrollBehavior(): ScrollBehavior {
+  return prefersReducedMotion() ? 'auto' : 'smooth';
+}

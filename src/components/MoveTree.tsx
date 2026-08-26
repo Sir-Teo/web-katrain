@@ -19,6 +19,7 @@ import {
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getWorkerConstructor } from '../utils/browserWorker';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
+import { preferredScrollBehavior } from '../utils/mediaQuery';
 import { cancelAnimationFrameSafe, requestAnimationFrameSafe, type AnimationFrameHandle } from '../utils/animationFrame';
 import {
   getMoveTreeNodeMarkers,
@@ -134,7 +135,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       : 'working'
     : 'sync';
 
-  const centerCurrentNode = useCallback((behavior: ScrollBehavior = 'smooth') => {
+  const centerCurrentNode = useCallback((behavior: ScrollBehavior = preferredScrollBehavior()) => {
     const container = containerRef.current;
     const activeLayout = syncLayout ?? (shouldUseWorker && workerResult?.key === layoutKey ? workerResult.layout : null);
     if (!container || !activeLayout) return;
@@ -150,7 +151,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       const command = getMoveTreeCommandFromEvent(event);
       if (!command) return;
       if (command === 'center-current') {
-        centerCurrentNode('smooth');
+        centerCurrentNode();
       } else if (command === 'toggle-layout') {
         setLayoutDirection((current) => (current === 'horizontal' ? 'vertical' : 'horizontal'));
       } else if (command === 'toggle-minimap') {
@@ -315,7 +316,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   }, []);
 
   useEffect(() => {
-    centerCurrentNode('smooth');
+    centerCurrentNode();
   }, [centerCurrentNode]);
 
   const visible = useMemo(() => (layout ? getVisibleMoveTreeItems(layout, viewport) : null), [layout, viewport]);
@@ -339,7 +340,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     container.scrollTo({
       left: Math.max(0, x - container.clientWidth / 2),
       top: Math.max(0, y - container.clientHeight / 2),
-      behavior: 'smooth',
+      behavior: preferredScrollBehavior(),
     });
   };
   const handleMinimapKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
@@ -349,7 +350,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       event.stopPropagation();
-      centerCurrentNode('smooth');
+      centerCurrentNode();
       return;
     }
 
@@ -357,7 +358,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     if (!nextScroll) return;
     event.preventDefault();
     event.stopPropagation();
-    container.scrollTo({ ...nextScroll, behavior: 'smooth' });
+    container.scrollTo({ ...nextScroll, behavior: preferredScrollBehavior() });
   };
   const nextLayoutDirection = layoutDirection === 'horizontal' ? 'vertical' : 'horizontal';
   const layoutDirectionLabel =
@@ -387,7 +388,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
         <button
           type="button"
           className="move-tree-control-button"
-          onClick={() => centerCurrentNode('smooth')}
+          onClick={() => centerCurrentNode()}
           title={centerCurrentLabel}
           aria-label={centerCurrentLabel}
         >
