@@ -3852,6 +3852,20 @@
     }
   }
 
+  /* The same trade, one bar over. The tree tab's panel header carries the back
+     chevron, first/last navigation and the tree/list toggle beside the clock —
+     it is crowded enough that it already sheds its own title — and the clock's
+     44px pause target pushed the reading off the right edge there: 341px of a
+     340px bar, and 21px over at 320px. The reading is the part worth keeping,
+     and pause stays one tap away on the Review tab, whose header carries only
+     the back chevron and the clock. Components layer for the same reason as
+     the rule above: `.status-bar-button` sets its display here. */
+  @media (max-width: 430px) {
+    .mobile-panel-header[data-mobile-panel-tab='tree'] .status-bar-button {
+      display: none;
+    }
+  }
+
   .panel-toggle {
     padding: 4px 6px;
     border: none;

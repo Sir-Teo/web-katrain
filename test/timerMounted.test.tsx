@@ -42,6 +42,13 @@ describe('game clock is mounted', () => {
     expect(css).toMatch(
       /@media \(max-width: 340px\) \{\s*\.mobile-top-timer \{\s*display: none;/
     );
+    // The tree tab's panel header runs the same trade: it carries first/last
+    // navigation and the view toggle beside the clock, and the pause target
+    // pushed the reading past the right edge at 320px and 340px. Review keeps
+    // the target, which is what makes it "one tap away".
+    expect(css).toMatch(
+      /@media \(max-width: 430px\) \{\s*\.mobile-panel-header\[data-mobile-panel-tab='tree'\] \.status-bar-button \{\s*display: none;/
+    );
   });
 
   it('hides the status chip entirely when no time control is set', () => {
