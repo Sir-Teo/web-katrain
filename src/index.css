@@ -5908,6 +5908,33 @@
     }
   }
 
+
+  /* The settings dialog is 960px wide, so a right-aligned switch sat about
+     690px from the label it belongs to, and the General tab scrolled 2100px in
+     a 527px window. Pair the plain rows into two columns once the dialog is
+     wide enough to hold them: the label and its control end up a glance apart
+     and the tab scrolls roughly half as far. Blocks that own their own
+     internal layout - theme pickers, input grids, section hints - keep the
+     full width. */
+  @media (min-width: 900px) {
+    .settings-section > div:has(> .settings-row) {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      gap: 6px 28px;
+    }
+
+    /* space-y-4 stacks margins on the siblings, which a grid gap replaces. */
+    .settings-section > div:has(> .settings-row) > * {
+      grid-column: 1 / -1;
+      margin-top: 0 !important;
+    }
+
+    .settings-section > div:has(> .settings-row) > .settings-row {
+      grid-column: span 1;
+    }
+  }
+
 }
 
 /* One-shot notable-move animations (score-loss pill, set-up sparkle). */

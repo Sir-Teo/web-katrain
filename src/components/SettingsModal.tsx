@@ -263,7 +263,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const isUploadedModel = isUploadedModelUrl(settings.katagoModelUrl);
     const sectionClass = 'settings-section rounded-xl border ui-surface p-4 sm:p-5';
     const sectionTitleClass = 'text-xs font-semibold ui-text-muted tracking-[0.12em] uppercase';
-    const rowClass = 'flex items-center justify-between gap-4 min-h-11';
+    const rowClass = 'settings-row flex items-center justify-between gap-4 min-h-11';
     const labelClass = 'text-[var(--ui-text)] text-sm sm:text-base';
     const inputClass =
         'w-full ui-input rounded-lg px-3 py-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono';

@@ -25,6 +25,27 @@ describe('SettingsModal', () => {
     expect(html).not.toContain('bg-slate-800/70');
   });
 
+  it('pairs plain rows into two columns on a wide dialog', () => {
+    // The dialog is 960px wide, so a right-aligned switch sat ~690px from its
+    // label. Pairing the rows brings that under 300px and halves the run of
+    // toggles; blocks with their own internal layout keep the full width.
+    const html = renderToStaticMarkup(<SettingsModal onClose={() => undefined} />);
+    const css = readFileSync('src/index.css', 'utf8');
+
+    expect(html).toContain('settings-row');
+    expect(css).toMatch(
+      /@media \(min-width: 900px\)[\s\S]*\.settings-section > div:has\(> \.settings-row\) \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/
+    );
+    // Everything that is not a plain row spans both columns, and the grid gap
+    // replaces the margins Tailwind's space-y-4 puts on the siblings.
+    expect(css).toMatch(
+      /\.settings-section > div:has\(> \.settings-row\) > \* \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*margin-top: 0 !important/
+    );
+    expect(css).toMatch(
+      /\.settings-section > div:has\(> \.settings-row\) > \.settings-row \{[\s\S]*grid-column: span 1/
+    );
+  });
+
   it('keeps settings content scrollable in short landscape dialogs', () => {
     const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
     const css = readFileSync('src/index.css', 'utf8');
