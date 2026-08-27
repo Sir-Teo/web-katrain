@@ -16,6 +16,19 @@ const playerLine = (name: string, rank?: string) => (rank ? `${name} (${rank})` 
 // A small curated strip so first-time visitors have a starting point.
 const FEATURED_PRO_GAMES = PRO_GAMES.slice(0, Math.min(4, PRO_GAMES.length));
 
+/**
+ * Chip-sized name for a featured game. Every bundled game is an East Asian
+ * name written family-name-first, so the *first* word is the identifying one:
+ * taking the last word turned "Cho Chikun vs O Rissei" into "Chikun v Rissei"
+ * and "Lee Sedol vs Gu Li" into "Sedol v Li", which reads as two given names
+ * and, in Gu Li's case, as a surname that is not his. The chip's title carries
+ * the full names and ranks either way.
+ */
+const shortPlayerName = (name: string): string => {
+  const first = name.trim().split(/\s+/)[0];
+  return first || name.trim();
+};
+
 export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGame }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
@@ -116,7 +129,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                       ].join(' ')}
                       title={`${playerLine(g.black, g.blackRank)} vs ${playerLine(g.white, g.whiteRank)}`}
                     >
-                      {g.black.split(' ').slice(-1)[0]} v {g.white.split(' ').slice(-1)[0]}
+                      {shortPlayerName(g.black)} v {shortPlayerName(g.white)}
                     </button>
                   ))}
                 </div>
