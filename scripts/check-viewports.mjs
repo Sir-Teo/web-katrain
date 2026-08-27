@@ -822,6 +822,23 @@ async function main() {
           const sheet = document.querySelector('[data-bottom-more-sheet="true"]');
           if (!sheet) return { failures: ['sheet did not open'], smallTouchTargets: [] };
           if (sheet.getAttribute('aria-modal') !== 'true') failures.push('sheet is not modal');
+          // One long label wrapping to a second line used to grow its whole
+          // grid row from 48px to 61px, so the sheet read as two rhythms. In
+          // portrait every action row is the same height whether its label
+          // wraps or not; landscape lays the same buttons out in four columns
+          // with its own measured tuning, so it is left alone here.
+          if (innerHeight > innerWidth) {
+            const grid = sheet.querySelector('[data-bottom-more-grid="true"]');
+            const rowHeights = grid
+              ? [...new Set(Array.from(grid.querySelectorAll('button'))
+                .map((button) => button.getBoundingClientRect())
+                .filter((bounds) => bounds.width > 0 && bounds.height > 0)
+                .map((bounds) => Math.round(bounds.height)))]
+              : [];
+            if (rowHeights.length > 1) {
+              failures.push('More Controls rows are ragged: ' + rowHeights.sort((a, b) => a - b).join('/') + 'px');
+            }
+          }
           const smallTouchTargets = auditSmallTouchTargets(sheet);
           const focusableSelector = [
             'a[href]:not([tabindex="-1"])',

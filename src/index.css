@@ -5935,6 +5935,23 @@
     }
   }
 
+
+  /* Measured on a phone: the longest label, "Forward 10 moves", needs 127px
+     and the cell gives its text 124px at 390px wide. One label wrapped, its
+     grid row grew from 48px to 61px, and the sheet read as two rhythms. Buy
+     back the three pixels, and let a label that still wraps on a narrower
+     phone do it inside the 48px the other rows keep. Portrait only: the
+     landscape sheet is a four-column layout with its own measured tuning. */
+  @media (orientation: portrait) {
+    /* Descendant, not child: the Edit/Score pair sits one level deeper in its
+       own two-column wrapper and is the same kind of row. */
+    [data-bottom-more-grid='true'] button {
+      gap: 6px !important;
+      padding: 4px 8px !important;
+      line-height: 1.15;
+    }
+  }
+
 }
 
 /* One-shot notable-move animations (score-loss pill, set-up sparkle). */
