@@ -963,6 +963,27 @@
   .wk-dashboard .nav-divider { margin: 0; }
   .wk-dashboard .navbar { padding: 8px 8px 12px; }
 }
+/* Docking the library is what reaches this tier: it takes 300px off the column
+   independently of the viewport, so 1280px lands at a 609px column while 1366px
+   stays at 670px and needs nothing. Measured at 609px the rail wanted 645px and
+   dropped the play actions onto a second row, which costs the board ~20px of
+   height. Nothing here removes a control — the separators are decorative and
+   the rest is rhythm — and it buys ~55px, enough for a four-digit move number.
+   Below ~590px (a 1200px viewport, where docking starts) the rail still wraps;
+   shedding another 50px there would mean taking controls away, and wrapping is
+   the cheaper trade. */
+@container boardcol (max-width: 700px) {
+  .wk-dashboard .nav-divider { display: none; }
+  .wk-dashboard .navbar { gap: 1px; padding: 8px 6px 12px; }
+  .wk-dashboard .navbar .navgroup { gap: 1px; }
+  .wk-dashboard .playactions { gap: 2px; }
+  .wk-dashboard .pass-btn { padding: 0 8px; }
+  /* 28px keeps every navigation button clear of the 24px WCAG floor; the chips
+     and play actions are held to this app's denser 32px and are not touched. */
+  .wk-dashboard .navbtn { width: 28px; }
+  .wk-dashboard .move-counter { padding: 0 6px; }
+  .wk-dashboard .move-counter input { width: 30px; }
+}
 
 /* ---------------- Sidebar (analysis) ---------------- */
 .wk-dashboard .sidebar {
