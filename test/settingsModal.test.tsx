@@ -71,10 +71,9 @@ describe('SettingsModal', () => {
     expect(source).not.toContain('border-slate-700/50');
   });
 
-  it('shows board theme descriptions in the Kaya-style picker', () => {
+  it('shows board theme descriptions in the theme picker', () => {
     const html = renderToStaticMarkup(<SettingsModal onClose={() => undefined} />);
 
-    expect(html).toContain('Kaya-style previews');
     // The native name is only appended when it differs from the English one, so
     // English renders bare rather than as "English (English)".
     expect(html).not.toContain('English (English)');

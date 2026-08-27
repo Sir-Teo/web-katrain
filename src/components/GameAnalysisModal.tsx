@@ -156,7 +156,6 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
           >
             <div className="flex items-center justify-between gap-2">
               <div id={DEPTH_PRESETS_LABEL_ID} className="text-[var(--ui-text-muted)] text-sm">Analysis depth presets</div>
-              <span className="text-xs ui-text-faint">Kaya-style</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {visitPresets.map((preset) => {

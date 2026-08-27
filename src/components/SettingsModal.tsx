@@ -665,7 +665,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         <div className={rowClass}>
                                             <div>
                                                 <label htmlFor="settings-fuzzy-stone-placement" className={labelClass}>Fuzzy Stone Placement</label>
-                                                <p className={subtextClass}>Stable Kaya-style stone offsets for a more natural board.</p>
+                                                <p className={subtextClass}>Sets stones slightly off-center, fixed once played.</p>
                                             </div>
                                             <input
                                                 id="settings-fuzzy-stone-placement"
@@ -682,7 +682,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     search index is derived from those, so a radiogroup
                                                     labelled only by aria-labelledby cannot be found. */}
                                                 <label id="settings-board-theme-label" htmlFor="settings-board-theme" className="ui-text-muted">Board Theme</label>
-                                                <span className="text-xs ui-text-faint">Kaya-style previews</span>
                                             </div>
                                             <input
                                                 id="settings-board-theme"

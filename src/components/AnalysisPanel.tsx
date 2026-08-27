@@ -523,7 +523,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         <div className="text-[0.6875rem] font-semibold uppercase tracking-wide ui-text-faint">
           Analysis depth
         </div>
-        <div className="text-[0.6875rem] ui-text-faint">Kaya-style</div>
       </div>
       <div className={['grid gap-1', compact ? 'grid-cols-4' : 'grid-cols-2'].join(' ')}>
         {liveVisitPresets.map((preset) => {
