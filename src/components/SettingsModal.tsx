@@ -754,7 +754,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             </span>
                                                             <span className="flex min-w-0 items-center justify-between gap-2">
                                                                 <span className="truncate text-xs font-semibold">{theme.label}</span>
-                                                                {selected ? <span className="text-[0.625rem] font-mono text-[var(--ui-accent)]">On</span> : null}
+                                                                {/* One of a set, not a switch: "On" read as a toggle state and
+                                                                    set 10px mono capital O next to a lowercase n. The engine
+                                                                    cards below already mark their choice with this chip. */}
+                                                                {selected ? (
+                                                                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-[var(--ui-accent)] text-[0.5rem] text-[var(--ui-accent-contrast)]">
+                                                                        <FaCheck aria-hidden="true" />
+                                                                    </span>
+                                                                ) : null}
                                                             </span>
                                                             {theme.config.description ? (
                                                                 <span

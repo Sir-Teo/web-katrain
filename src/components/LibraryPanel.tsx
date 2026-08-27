@@ -371,10 +371,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [sortKey, setSortKey] = useState(() => {
     return readLocalStorage('web-katrain:library_sort:v1') ?? 'recent';
   });
-  const [listOpen, setListOpen] = useState(() => {
-    return readLocalStorage('web-katrain:library_list_open:v1') !== 'false';
-  });
-
   useEffect(() => {
     let cancelled = false;
     setLibraryStatus('loading');
@@ -486,10 +482,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   useEffect(() => {
     writeLocalStorage('web-katrain:library_sort:v1', String(sortKey));
   }, [sortKey]);
-
-  useEffect(() => {
-    writeLocalStorage('web-katrain:library_list_open:v1', String(listOpen));
-  }, [listOpen]);
 
   useEffect(() => {
     onLibraryUpdated?.();
@@ -2120,9 +2112,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           <div className="flex flex-col min-h-0">
             {renderSection({
               title: 'Library',
-              open: isMobile || listOpen,
-              onToggle: () => setListOpen((prev) => !prev),
-              hideHeader: isMobile,
+              open: true,
+              onToggle: () => {},
+              // The panel's own bar already says Library, and this is its only
+              // section — collapsing it just blanked the panel, which the close
+              // control does better. Both shells hide the repeated title.
+              hideHeader: true,
               contentClassName: 'panel-section-content flex flex-col min-h-0 p-0',
               children: (
                 <>

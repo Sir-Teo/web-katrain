@@ -127,11 +127,15 @@ describe('LibraryPanel accessibility', () => {
     expect(styles).toMatch(/@container \(max-width: 430px\)[\s\S]*\.library-panel \.library-header-collapsible-action \{[\s\S]*display: none;/);
   });
 
-  it('keeps the standalone mobile library open without repeating its workspace title', () => {
+  it('keeps the library list open without repeating its workspace title', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
-    expect(source).toContain('open: isMobile || listOpen');
-    expect(source).toContain('hideHeader: isMobile');
+    // The panel bar names the workspace in both shells, and the list is the
+    // only section under it, so a second "Library" heading was a row of
+    // duplicate label whose collapse control only blanked the panel.
+    expect(source).toContain('open: true');
+    expect(source).toContain('hideHeader: true');
+    expect(source).not.toContain('listOpen');
     // The header's leading control keeps a 44px touch target on mobile and the
     // desktop panel's smaller square when docked.
     expect(source).toContain("className=\"mobile-panel-back h-11 min-h-11 min-w-11 shrink-0");
