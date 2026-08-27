@@ -13,7 +13,13 @@ describe('NotesPanel analysis status line', () => {
     // Turning analysis on before the engine is up used to say "Analyzing
     // move..." while a ~30MB model was still downloading and compiling. The
     // loading branch existed but returned the same string as the ready one.
-    expect(block).toContain("if (engineStatus === 'loading') return 'Loading engine...';");
+    // ...and it said so in a third wording. The header pill's "Loading model"
+    // and this line's "Loading engine..." were on screen together whenever
+    // analysis was switched on cold. Both read the same constant now.
+    expect(block).toContain('if (engineStatus === \'loading\') return `${ENGINE_LOADING_LABEL}\u2026`;');
+    expect(source).toContain("import { ENGINE_LOADING_LABEL } from '../utils/engineStatusSummary';");
+    expect(readFileSync('src/components/Layout.tsx', 'utf8')).toContain('? ENGINE_LOADING_LABEL');
+    expect(source).not.toContain("'Loading engine...'");
     // "(Tab to enable)" is an instruction a touch-only device cannot follow,
     // so the hint is dropped there and the state still named.
     expect(block).toContain("return touchOnly ? 'Analysis off' : 'Analysis off (Tab to enable)';");

@@ -35,7 +35,7 @@ import { computeManualScoreEstimate, estimateDeadStonesByPlayout, estimateDeadSt
 import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
-import { getEngineStatusSummary } from '../utils/engineStatusSummary';
+import { ENGINE_LOADING_LABEL, getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
 import { LazyModalBoundary } from './LazyModalBoundary';
 import { isStaleBuildError } from '../utils/errorReporting';
@@ -3403,7 +3403,7 @@ export const Layout: React.FC = () => {
               engineError
                 ? 'Engine error'
                 : engineStatus === 'loading'
-                  ? 'Loading model'
+                  ? ENGINE_LOADING_LABEL
                   : // An AI move can run for many seconds; name it so the wait is
                     // legible rather than looking like a hang.
                     isAiThinking

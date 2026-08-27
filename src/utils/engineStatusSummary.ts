@@ -2,6 +2,19 @@ import type { KataGoBackendPreference } from '../types';
 
 export type EngineStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+/**
+ * What the engine's loading state is called wherever there is room for a
+ * sentence. `stateLabel` below stays the bare word because it is set beside the
+ * backend name in a status chip ("Loading · WebGPU"); these are the surfaces
+ * that spell it out. Three wordings were in use, and the header pill's "Loading
+ * model" and the note panel's "Loading engine..." were on screen together.
+ *
+ * "Model", not "engine": the state means the net is not resident yet, not that
+ * a request is in flight — see the note beside `engineStatus: 'loading'` in
+ * gameStore.
+ */
+export const ENGINE_LOADING_LABEL = 'Loading model';
+
 export interface EngineStatusSummaryArgs {
   status: EngineStatus;
   error?: string | null;

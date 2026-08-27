@@ -14,6 +14,7 @@ import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 import { getCurrentLineMoveNumber, isGameNodeStep } from '../utils/branchNavigation';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
+import { ENGINE_LOADING_LABEL } from '../utils/engineStatusSummary';
 
 /**
  * A device with no hover and only a coarse pointer has no keys to press, so
@@ -497,9 +498,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     if (engineStatus === 'error') return engineError ? `Engine error: ${engineError}` : 'Engine error';
     // Turning analysis on before the engine is up left this saying "Analyzing
     // move..." while a ~30MB model was still downloading and compiling —
-    // nothing was being analyzed, and the wait reads as a stall. The status
-    // chip already says Loading; say the same thing here.
-    if (engineStatus === 'loading') return 'Loading engine...';
+    // nothing was being analyzed, and the wait reads as a stall. Say what the
+    // header pill says, from the same constant, rather than a third wording.
+    if (engineStatus === 'loading') return `${ENGINE_LOADING_LABEL}…`;
     return 'Analyzing move...';
   }, [engineError, engineStatus, isAnalysisMode, touchOnly]);
 
