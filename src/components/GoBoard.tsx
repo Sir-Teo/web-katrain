@@ -712,7 +712,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   // Hover affordances are for pointers that can hover. A touch "hover" is just
   // the moment before a tap, so showing them there flashes a tooltip over the
   // stone the player is trying to place.
-  const [hoverFromMouse, setHoverFromMouse] = useState(false);
+  const [hoverFromHoveringPointer, setHoverFromHoveringPointer] = useState(false);
 
   /**
    * The move number of the stone under the cursor, when hovering one is
@@ -733,11 +733,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   );
 
   const hoveredStoneMoveNumber = useMemo(() => {
-    if (!hoverFromMouse || !cursorPt || isEditMode || scoringMode) return null;
+    if (!hoverFromHoveringPointer || !cursorPt || isEditMode || scoringMode) return null;
     if (!board[cursorPt.y]?.[cursorPt.x]) return null;
     const placedAt = placementGrid[cursorPt.y]?.[cursorPt.x];
     return placedAt != null && placedAt > 0 ? placedAt : null;
-  }, [board, cursorPt, hoverFromMouse, isEditMode, placementGrid, scoringMode]);
+  }, [board, cursorPt, hoverFromHoveringPointer, isEditMode, placementGrid, scoringMode]);
 
   useEffect(() => {
     if (!canHoverAnalysisMove && hoveredMove) onHoverMove(null);
@@ -1859,7 +1859,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    setHoverFromMouse(e.pointerType === 'mouse');
+    // A pen hovers the way a mouse does — an Apple Pencil or a Surface pen
+    // reports a position without contact — so it gets the same feedback. Only
+    // touch is excluded, where a "hover" is really a press and the readout
+    // would sit under the finger making it.
+    setHoverFromHoveringPointer(e.pointerType !== 'touch');
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
     const localY = e.clientY - rect.top;
