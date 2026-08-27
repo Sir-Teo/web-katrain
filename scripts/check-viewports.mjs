@@ -329,6 +329,16 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.dashboardSubMinimumTargets.length} desktop target(s) below the 24px WCAG minimum: ${summary}`);
     }
+    // Same floor, for every dialog the smoke flows open. This lives in the
+    // desktop branch on purpose: the 44px audit above it is the mobile
+    // counterpart, and a copy left in that branch would never run.
+    if (result.modalSubMinimumTargets.length > 0) {
+      const summary = result.modalSubMinimumTargets
+        .slice(0, 8)
+        .map((target) => `${target.modal}: ${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+        .join(', ');
+      failures.push(`${result.modalSubMinimumTargets.length} modal target(s) below the 24px WCAG minimum: ${summary}`);
+    }
     if (result.dashboardGameStripWrapped) {
       failures.push('desktop game status strip wrapped onto multiple rows');
     }
@@ -745,6 +755,35 @@ async function main() {
           .filter(isVisibleTarget)
           .map((el) => ({ el, r: el.getBoundingClientRect() }))
           .filter(({ r }) => r.width < 44 || r.height < 44)
+          .map(({ el, r }) => ({
+            label: targetLabel(el),
+            tag: el.tagName.toLowerCase(),
+            width: r.width,
+            height: r.height,
+          }));
+        // Desktop counterpart to auditSmallTouchTargets: modals were only ever
+        // audited under the mobile gate, so no dialog's target sizes had been
+        // checked on desktop. 24px is the WCAG 2.2 SC 2.5.8 floor, the same one
+        // dashboardSubMinimumTargets holds the shell to.
+        const auditSubMinimumTargets = (scope = document) => Array.from(scope.querySelectorAll('button, input:not([type="hidden"]), select, textarea, a[href], [role="button"], [role="tab"]'))
+          .filter((el) => !el.closest('[data-board-snapshot="true"], [data-photo-board-trace-grid="true"]'))
+          // Not targets: the sr-only inputs that exist only to give a radiogroup
+          // a labelable element are aria-hidden, tabindex -1 and clipped to 1x1,
+          // but sr-only clips rather than hiding, so checkVisibility still says
+          // yes. A pointer can never land on them.
+          .filter((el) => el.getAttribute('aria-hidden') !== 'true' && el.tabIndex >= 0 && !el.classList.contains('sr-only'))
+          .filter((el) => {
+            const r = el.getBoundingClientRect();
+            if (r.width <= 0 || r.height <= 0) return false;
+            return el.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true });
+          })
+          // A checkbox or radio inside a label is activated by the whole label,
+          // so that is the target to measure, not the 16px box.
+          .map((el) => {
+            const wrapper = /^(checkbox|radio)$/.test(el.type || '') ? el.closest('label') : null;
+            return { el, r: (wrapper || el).getBoundingClientRect() };
+          })
+          .filter(({ r }) => r.width < 24 || r.height < 24)
           .map(({ el, r }) => ({
             label: targetLabel(el),
             tag: el.tagName.toLowerCase(),
@@ -1510,6 +1549,7 @@ async function main() {
         };
         const modalSmokeFailures = [];
         const modalSmallTouchTargets = [];
+        const modalSubMinimumTargets = [];
         const dispatchShortcut = (key, options = {}) => {
           const event = new KeyboardEvent('keydown', {
             key,
@@ -1775,6 +1815,8 @@ async function main() {
             }
             if (${viewport.mobile}) {
               modalSmallTouchTargets.push(...auditSmallTouchTargets(dialog).map((target) => ({ ...target, modal: name })));
+            } else {
+              modalSubMinimumTargets.push(...auditSubMinimumTargets(dialog).map((target) => ({ ...target, modal: name })));
             }
             if (afterOpen) await afterOpen(dialog);
             if (!(await closeDialog(dialog, closeLabel))) {
@@ -2483,6 +2525,8 @@ async function main() {
             }
             if (${viewport.mobile}) {
               modalSmallTouchTargets.push(...auditSmallTouchTargets(guideDialog).map((target) => ({ ...target, modal: 'report guide' })));
+            } else {
+              modalSubMinimumTargets.push(...auditSubMinimumTargets(guideDialog).map((target) => ({ ...target, modal: 'report guide' })));
             }
             if (!(await closeDialog(guideDialog, 'Close report guide'))) {
               modalSmokeFailures.push('report guide close control missing');
@@ -2591,6 +2635,8 @@ async function main() {
               await waitForFrames(2);
               if (${viewport.mobile}) {
                 modalSmallTouchTargets.push(...auditSmallTouchTargets(dialog).map((target) => ({ ...target, modal: \`settings \${tabLabel}\` })));
+              } else {
+                modalSubMinimumTargets.push(...auditSubMinimumTargets(dialog).map((target) => ({ ...target, modal: \`settings \${tabLabel}\` })));
               }
               if (tabLabel === 'General') {
                 await runLocalePickerSmoke(dialog);
@@ -2862,6 +2908,7 @@ async function main() {
           editModeSmallTouchTargets,
           modalSmokeFailures,
           modalSmallTouchTargets,
+          modalSubMinimumTargets,
           clipboardSmokeFailures,
           editToolSmokeFailures,
           desktopEditPanelOverlaps,

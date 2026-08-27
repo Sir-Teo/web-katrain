@@ -1296,7 +1296,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     max="10"
                                                     value={settings.showLastNMistakes}
                                                     onChange={(e) => updateSettings({ showLastNMistakes: parseInt(e.target.value, 10) })}
-                                                    className="flex-1"
+                                                    className="h-11 flex-1 lg:h-6"
                                                 />
                                                 <span className="text-[var(--ui-text)] font-mono w-8 text-right">{settings.showLastNMistakes}</span>
                                             </div>
@@ -1316,7 +1316,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     step="0.5"
                                                     value={settings.mistakeThreshold ?? 3.0}
                                                     onChange={(e) => updateSettings({ mistakeThreshold: parseFloat(e.target.value) })}
-                                                    className="flex-1"
+                                                    className="h-11 flex-1 lg:h-6"
                                                 />
                                                 <span className="text-[var(--ui-text)] font-mono w-10 text-right">{(settings.mistakeThreshold ?? 3.0).toFixed(1)}</span>
                                             </div>
