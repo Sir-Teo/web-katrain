@@ -428,6 +428,9 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.editModeSmallTouchTargets.length} edit-mode touch target(s) below 44px: ${summary}`);
     }
+    if (result.contrastFailures?.length > 0) {
+      failures.push(`${result.contrastFailures.length} text contrast failure(s): ${result.contrastFailures.slice(0, 6).join('; ')}`);
+    }
     if (result.treeSmallTouchTargets.length > 0) {
       const summary = result.treeSmallTouchTargets
         .slice(0, 8)
@@ -807,6 +810,90 @@ async function main() {
               bottom: r.bottom,
             }))
           : [];
+        // Text contrast. The palette is entirely token-driven and measured
+        // clean at 4.5:1 (3:1 for large text) in all four themes, so anything
+        // failing here is a hard-coded colour or a token used off its intended
+        // surface. Colours are read computed, never sampled from a screenshot:
+        // capture in this setup is not colour-accurate.
+        const auditContrast = () => {
+          const parseColor = (value) => {
+            if (!value) return null;
+            // Every backslash here is doubled on purpose: this whole probe is
+            // a template literal, so a single one is swallowed before the page
+            // ever sees the regex.
+            let m = value.match(/rgba?\\(([^)]+)\\)/);
+            if (m) {
+              const parts = m[1].split(/[,\\s\\/]+/).filter(Boolean).map(Number);
+              return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+            }
+            m = value.match(/color\\(srgb\\s+([^)]+)\\)/);
+            if (m) {
+              const parts = m[1].split(/[\\s\\/]+/).filter(Boolean).map(Number);
+              return { r: parts[0] * 255, g: parts[1] * 255, b: parts[2] * 255, a: parts.length > 3 ? parts[3] : 1 };
+            }
+            return null;
+          };
+          const composite = (fg, bg) => ({
+            r: fg.r * fg.a + bg.r * (1 - fg.a),
+            g: fg.g * fg.a + bg.g * (1 - fg.a),
+            b: fg.b * fg.a + bg.b * (1 - fg.a),
+            a: 1,
+          });
+          const luminance = (c) => {
+            const channel = (v) => {
+              const n = v / 255;
+              return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
+            };
+            return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+          };
+          const contrast = (a, b) => {
+            const first = luminance(a);
+            const second = luminance(b);
+            const hi = Math.max(first, second);
+            const lo = Math.min(first, second);
+            return (hi + 0.05) / (lo + 0.05);
+          };
+          const backgroundOf = (el) => {
+            let node = el;
+            let acc = null;
+            while (node) {
+              const c = parseColor(getComputedStyle(node).backgroundColor);
+              if (c && c.a > 0) {
+                acc = acc ? composite(acc, c) : c;
+                if (acc.a >= 0.999) return acc;
+              }
+              node = node.parentElement;
+            }
+            return acc && acc.a >= 0.999 ? acc : { r: 255, g: 255, b: 255, a: 1 };
+          };
+          const failures = [];
+          const seen = new Set();
+          for (const el of document.querySelectorAll('*')) {
+            if (el.children.length > 0) continue;
+            const text = (el.textContent || '').trim();
+            if (text.length < 2) continue;
+            const style = getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden') continue;
+            if (Number(style.opacity) < 0.15) continue;
+            const bounds = el.getBoundingClientRect();
+            if (bounds.width < 4 || bounds.height < 4) continue;
+            if (el.closest('[data-board-snapshot="true"], canvas, svg')) continue;
+            const fg = parseColor(style.color);
+            if (!fg) continue;
+            const bg = backgroundOf(el);
+            const effective = fg.a < 1 ? composite(fg, bg) : fg;
+            const ratio = contrast(effective, bg);
+            const size = parseFloat(style.fontSize);
+            const large = size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700);
+            const required = large ? 3 : 4.5;
+            if (ratio + 0.05 >= required) continue;
+            const key = String(el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className || '') + '|' + style.color;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            failures.push(text.slice(0, 24) + ' ' + (Math.round(ratio * 100) / 100) + ':1 (needs ' + required + ':1)');
+          }
+          return failures;
+        };
         const waitForFrames = async (frames = 2) => {
           for (let i = 0; i < frames; i++) {
             await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -2689,6 +2776,7 @@ async function main() {
           photoBoardTraceImportFailures,
           boardThemeSmokeFailures,
           localeSmokeFailures,
+          contrastFailures: auditContrast(),
           treeSmallTouchTargets,
           reviewSmallTouchTargets,
           boardTouchAction,
