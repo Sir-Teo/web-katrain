@@ -138,6 +138,9 @@ export interface DesktopDashboardProps {
   onOpenRecent: (item: LibraryFile) => void;
 
   toast: (message: string, type?: 'info' | 'error' | 'success') => void;
+
+  /** Routine status, rendered in the header's spare middle rather than over it. */
+  headerNotification?: React.ReactNode;
 }
 
 function evalColorForPointsLost(pl: number): string {
@@ -194,7 +197,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
     recentItems, loadedFileId, onOpenRecent,
-    toast,
+    toast, headerNotification,
   } = props;
   const rulesLabel = formatRulesLabel(rules);
 
@@ -498,7 +501,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           </button>
         </div>
 
-        <div className="header-spacer" />
+        {/* The header's spare middle is a flex slot, not empty canvas: routine
+            status lands inside it so it is squeezed by the two control
+            clusters instead of drawn on top of them. */}
+        <div className="header-spacer">{headerNotification}</div>
 
         <LanguageSwitcher
           appLocale={settings.appLocale}

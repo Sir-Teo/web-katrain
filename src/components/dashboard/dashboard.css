@@ -160,7 +160,15 @@
 }
 .wk-dashboard .brand-name b { font-weight: 700; }
 .wk-dashboard .header-divider { width: 1px; height: 22px; background: var(--line); flex: none; }
-.wk-dashboard .header-spacer { flex: 1 1 auto; min-width: 8px; }
+/* Holds the routine-status toast; `min-width` lets the two control clusters
+   squeeze it rather than be covered by it. */
+.wk-dashboard .header-spacer {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 8px;
+}
 .wk-dashboard .dashboard-language-switcher { flex: none; }
 .wk-dashboard .dashboard-language-switcher > button {
   min-width: 66px;

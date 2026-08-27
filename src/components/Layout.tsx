@@ -3498,8 +3498,22 @@ export const Layout: React.FC = () => {
             loadedFileId={loadedLibraryFileId}
             onOpenRecent={handleOpenRecent}
             toast={toast}
+            headerNotification={
+              notification && notification.type !== 'error' ? (
+                <NotificationToast
+                  notification={notification}
+                  onClose={clearNotification}
+                  onHoldChange={setNotificationHeld}
+                  onUndo={undoEditFromToast}
+                  commandBarVisible={false}
+                  placement="desktop-header"
+                />
+              ) : null
+            }
           />
-          {notification && (
+          {/* Errors stay an overlay below the header: they never auto-dismiss,
+              carry a Copy action, and need more than one line. */}
+          {notification && notification.type === 'error' && (
             <NotificationToast
               notification={notification}
               onClose={clearNotification}
