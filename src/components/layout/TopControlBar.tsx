@@ -19,6 +19,7 @@ import {
   FaKeyboard,
   FaTools,
   FaCamera,
+  FaCheck,
   FaTrash,
   FaInfoCircle,
   FaBook,
@@ -354,17 +355,53 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const closeViewMenuIfMobile = () => {
     if (isMobile) closeViewMenuWithFocus(true, mobileToolsInputModeRef.current);
   };
+
+  /**
+   * A menu toggle reads its state from a leading check, the way every other
+   * view menu does. The old rows spelled it out in faint grey ("on · K"),
+   * which is the same colour whether it is on or off — you had to read the
+   * word to know. `aria-pressed` already announces the state, so the label
+   * says what the row is, once.
+   */
+  const viewToggleRow = ({ label, on, shortcut, onToggle, icon, disabled, extraClass }: {
+    label: string;
+    on: boolean;
+    shortcut?: string;
+    onToggle: () => void;
+    icon?: React.ReactNode;
+    disabled?: boolean;
+    extraClass?: string;
+  }) => (
+    <button
+      type="button"
+      className={[
+        'view-toggle w-full px-3 py-2 text-left flex items-center justify-between',
+        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)]',
+        extraClass ?? '',
+      ].filter(Boolean).join(' ')}
+      disabled={disabled}
+      aria-pressed={on}
+      aria-label={shortcut ? `${label}, shortcut ${shortcut}` : label}
+      onClick={() => { onToggle(); closeViewMenuIfMobile(); }}
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="view-toggle-mark" aria-hidden="true">{on ? <FaCheck size={11} /> : null}</span>
+        {icon}
+        <span className="truncate">{label}</span>
+      </span>
+      {shortcut ? <span className="view-toggle-key text-xs ui-text-faint">{shortcut}</span> : null}
+    </button>
+  );
   const desktopViewMenu = (
     <div className="grid grid-cols-2" data-mobile-tools-view-grid="true">
       {/* Settings column */}
       <div className="flex flex-col border-r border-[var(--ui-border)]">
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { toggleFullscreen(); closeViewMenuIfMobile(); }}
-          aria-pressed={isFullscreen}
-        >
-          <span>Fullscreen</span><span className="text-xs ui-text-faint">{isFullscreen ? 'on' : 'off'} · {shortcutLabels.fullscreen}</span>
-        </button>
+        {viewToggleRow({
+          label: 'Fullscreen',
+          on: isFullscreen,
+          shortcut: shortcutLabels.fullscreen,
+          onToggle: toggleFullscreen,
+        })}
         <button type="button"
           className="mobile-tools-redundant w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
           onClick={() => { closeViewMenu(); onCommandPalette(); }}
@@ -409,95 +446,78 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           <span className="flex items-center gap-2"><FaCamera /> Photo Board</span>
         </button>
         <div className="mobile-tools-redundant h-px bg-[var(--ui-border)] w-full" />
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateSettings({ showCoordinates: !settings.showCoordinates }); closeViewMenuIfMobile(); }}
-          aria-label={`Coordinates ${settings.showCoordinates ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-coordinates']}`}
-          aria-pressed={settings.showCoordinates}
-        >
-          <span>Coordinates</span><span className="text-xs ui-text-faint">{settings.showCoordinates ? 'on' : 'off'} · {shortcutLabels['toggle-coordinates']}</span>
-        </button>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateSettings({ showNextMovePreview: !settings.showNextMovePreview }); closeViewMenuIfMobile(); }}
-          aria-label={`Next move preview ${settings.showNextMovePreview ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-next-move-preview']}`}
-          aria-pressed={settings.showNextMovePreview}
-        >
-          <span>Next move preview</span><span className="text-xs ui-text-faint">{settings.showNextMovePreview ? 'on' : 'off'} · {shortcutLabels['toggle-next-move-preview']}</span>
-        </button>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateSettings({ showMoveNumbers: !settings.showMoveNumbers }); closeViewMenuIfMobile(); }}
-          aria-label={`Move numbers ${settings.showMoveNumbers ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-move-numbers']}`}
-          aria-pressed={settings.showMoveNumbers}
-        >
-          <span>Move numbers</span><span className="text-xs ui-text-faint">{settings.showMoveNumbers ? 'on' : 'off'} · {shortcutLabels['toggle-move-numbers']}</span>
-        </button>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateSettings({ showBoardControls: !settings.showBoardControls }); closeViewMenuIfMobile(); }}
-          aria-pressed={settings.showBoardControls}
-        >
-          <span>Board controls</span><span className="text-xs ui-text-faint">{settings.showBoardControls ? 'on' : 'off'}</span>
-        </button>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateSettings({ showAnalysisBar: !settings.showAnalysisBar }); closeViewMenuIfMobile(); }}
-          aria-label={`Analysis bar ${settings.showAnalysisBar ? 'on' : 'off'}`}
-          aria-pressed={settings.showAnalysisBar}
-        >
-          <span>Analysis bar</span><span className="text-xs ui-text-faint">{settings.showAnalysisBar ? 'on' : 'off'}</span>
-        </button>
-        <button type="button"
-          className="mobile-tools-redundant w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateSettings({ soundEnabled: !settings.soundEnabled }); closeViewMenuIfMobile(); }}
-          aria-label={`Sound ${settings.soundEnabled ? 'on' : 'off'}, shortcut ${shortcutLabels['toggle-sound']}`}
-          aria-pressed={settings.soundEnabled}
-        >
-          <span className="flex items-center gap-2">{settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />} Sound</span>
-          <span className="text-xs ui-text-faint">{settings.soundEnabled ? 'on' : 'off'} · {shortcutLabels['toggle-sound']}</span>
-        </button>
+        {viewToggleRow({
+          label: 'Coordinates',
+          on: settings.showCoordinates,
+          shortcut: shortcutLabels['toggle-coordinates'],
+          onToggle: () => updateSettings({ showCoordinates: !settings.showCoordinates }),
+        })}
+        {viewToggleRow({
+          label: 'Next move preview',
+          on: settings.showNextMovePreview,
+          shortcut: shortcutLabels['toggle-next-move-preview'],
+          onToggle: () => updateSettings({ showNextMovePreview: !settings.showNextMovePreview }),
+        })}
+        {viewToggleRow({
+          label: 'Move numbers',
+          on: settings.showMoveNumbers,
+          shortcut: shortcutLabels['toggle-move-numbers'],
+          onToggle: () => updateSettings({ showMoveNumbers: !settings.showMoveNumbers }),
+        })}
+        {viewToggleRow({
+          label: 'Board controls',
+          on: settings.showBoardControls,
+          onToggle: () => updateSettings({ showBoardControls: !settings.showBoardControls }),
+        })}
+        {viewToggleRow({
+          label: 'Analysis bar',
+          on: settings.showAnalysisBar,
+          onToggle: () => updateSettings({ showAnalysisBar: !settings.showAnalysisBar }),
+        })}
+        {viewToggleRow({
+          label: 'Sound',
+          on: settings.soundEnabled,
+          shortcut: shortcutLabels['toggle-sound'],
+          onToggle: () => updateSettings({ soundEnabled: !settings.soundEnabled }),
+          icon: settings.soundEnabled ? <FaVolumeUp /> : <FaVolumeMute />,
+          extraClass: 'mobile-tools-redundant',
+        })}
       </div>
 
       {/* Overlays and Themes column */}
       <div className="flex flex-col">
         <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-surface-2)]">Analysis Overlays</div>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateControls({ analysisShowChildren: !settings.analysisShowChildren }); closeViewMenuIfMobile(); }}
-          aria-pressed={settings.analysisShowChildren}
-        >
-          <span>Children</span><span className="text-xs ui-text-faint">{settings.analysisShowChildren ? 'on' : 'off'} · {shortcutLabels['toggle-children']}</span>
-        </button>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateControls({ analysisShowEval: !settings.analysisShowEval }); closeViewMenuIfMobile(); }}
-          aria-pressed={settings.analysisShowEval}
-        >
-          <span>Dots</span><span className="text-xs ui-text-faint">{settings.analysisShowEval ? 'on' : 'off'} · {shortcutLabels['toggle-eval']}</span>
-        </button>
-        <button type="button"
-          className={['w-full px-3 py-2 text-left flex items-center justify-between', settings.analysisShowPolicy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)]'].join(' ')}
-          disabled={settings.analysisShowPolicy}
-          onClick={() => { updateControls({ analysisShowHints: !settings.analysisShowHints }); closeViewMenuIfMobile(); }}
-          aria-pressed={settings.analysisShowHints}
-        >
-          <span>Top moves</span><span className="text-xs ui-text-faint">{settings.analysisShowHints ? 'on' : 'off'} · {shortcutLabels['toggle-hints']}</span>
-        </button>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateControls({ analysisShowPolicy: !settings.analysisShowPolicy }); closeViewMenuIfMobile(); }}
-          aria-pressed={settings.analysisShowPolicy}
-        >
-          <span>Heatmap</span><span className="text-xs ui-text-faint">{settings.analysisShowPolicy ? 'on' : 'off'} · {shortcutLabels['toggle-policy']}</span>
-        </button>
-        <button type="button"
-          className="w-full px-3 py-2 text-left hover:bg-[var(--ui-surface-2)] flex items-center justify-between"
-          onClick={() => { updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }); closeViewMenuIfMobile(); }}
-          aria-pressed={settings.analysisShowOwnership}
-        >
-          <span>Territory</span><span className="text-xs ui-text-faint">{settings.analysisShowOwnership ? 'on' : 'off'} · {shortcutLabels['toggle-territory']}</span>
-        </button>
+        {viewToggleRow({
+          label: 'Children',
+          on: settings.analysisShowChildren,
+          shortcut: shortcutLabels['toggle-children'],
+          onToggle: () => updateControls({ analysisShowChildren: !settings.analysisShowChildren }),
+        })}
+        {viewToggleRow({
+          label: 'Dots',
+          on: settings.analysisShowEval,
+          shortcut: shortcutLabels['toggle-eval'],
+          onToggle: () => updateControls({ analysisShowEval: !settings.analysisShowEval }),
+        })}
+        {viewToggleRow({
+          label: 'Top moves',
+          on: settings.analysisShowHints,
+          shortcut: shortcutLabels['toggle-hints'],
+          onToggle: () => updateControls({ analysisShowHints: !settings.analysisShowHints }),
+          disabled: settings.analysisShowPolicy,
+        })}
+        {viewToggleRow({
+          label: 'Heatmap',
+          on: settings.analysisShowPolicy,
+          shortcut: shortcutLabels['toggle-policy'],
+          onToggle: () => updateControls({ analysisShowPolicy: !settings.analysisShowPolicy }),
+        })}
+        {viewToggleRow({
+          label: 'Territory',
+          on: settings.analysisShowOwnership,
+          shortcut: shortcutLabels['toggle-territory'],
+          onToggle: () => updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }),
+        })}
 
         <div className="border-t border-[var(--ui-border)] w-full mt-auto" />
         <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-surface-2)] w-full">Themes</div>

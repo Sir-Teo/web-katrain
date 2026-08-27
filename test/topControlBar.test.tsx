@@ -127,24 +127,36 @@ describe('TopControlBar', () => {
 
   it('exposes boolean menu actions as pressed buttons', () => {
     const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
-    const toggleStates = [
-      'isFullscreen',
-      'settings.showCoordinates',
-      'settings.showNextMovePreview',
-      'settings.showMoveNumbers',
-      'settings.showBoardControls',
-      'settings.showAnalysisBar',
-      'settings.soundEnabled',
-      'settings.analysisShowChildren',
-      'settings.analysisShowEval',
-      'settings.analysisShowHints',
-      'settings.analysisShowPolicy',
-      'settings.analysisShowOwnership',
+    const html = renderToStaticMarkup(<TopControlBar {...baseProps} viewMenuOpen={true} isMobile={false} />);
+    // Asserted on the rendered markup rather than on `aria-pressed={expr}` in
+    // the source: the rows share one component now, so the source carries the
+    // attribute once and a missing toggle would not show up there at all.
+    const buttons = html.split('<button').slice(1).map((chunk) => `<button${chunk.split('</button>')[0]}`);
+    const toggleLabels = [
+      'Fullscreen',
+      'Coordinates',
+      'Next move preview',
+      'Move numbers',
+      'Board controls',
+      'Analysis bar',
+      'Sound',
+      'Children',
+      'Dots',
+      'Top moves',
+      'Heatmap',
+      'Territory',
     ];
 
-    for (const state of toggleStates) {
-      expect(source, state).toContain(`aria-pressed={${state}}`);
+    for (const label of toggleLabels) {
+      const button = buttons.find((markup) => (
+        markup.includes('class="view-toggle')
+        && new RegExp(`aria-label="${label}(,|")`).test(markup)
+      ));
+      expect(button, label).toBeDefined();
+      expect(button, label).toMatch(/aria-pressed="(true|false)"/);
     }
+    // The state is a mark, not a word, so it must be there to be read at all.
+    expect(buttons.filter((markup) => markup.includes('view-toggle-mark'))).toHaveLength(toggleLabels.length);
     // One occurrence each, in the tools sheet. These used to appear twice
     // because the analysis popover repeated them, and that popover could never
     // render: it was guarded by !isMobile inside a mobile-only component.

@@ -5852,6 +5852,26 @@
     }
   }
 
+  /* View-menu toggles. The check occupies its slot whether or not it is set,
+     so every label in the column starts on the same x. */
+  .view-toggle-mark {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    color: var(--ui-accent);
+  }
+
+  .view-toggle[aria-pressed='true'] {
+    font-weight: 600;
+  }
+
+  .view-toggle-key {
+    flex: none;
+    padding-left: 0.5rem;
+  }
+
   /* Phone portrait leaves 35-38% of the viewport empty around a width-limited
      board. The match strip takes the top of that band and carries the facts
      the bottom control bar hides below 415px: who is to move, both names, and
