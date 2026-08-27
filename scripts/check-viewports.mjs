@@ -453,9 +453,6 @@ function assertViewport(result) {
     if (result.engineStatusClipped) {
       failures.push(`engine status text is clipped: ${result.engineStatusClipped}`);
     }
-    if (result.contrastFailures?.length > 0) {
-      failures.push(`${result.contrastFailures.length} text contrast failure(s): ${result.contrastFailures.slice(0, 6).join('; ')}`);
-    }
     if (result.treeSmallTouchTargets.length > 0) {
       const summary = result.treeSmallTouchTargets
         .slice(0, 8)
@@ -477,6 +474,12 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.modalSmallTouchTargets.length} modal touch target(s) below 44px: ${summary}`);
     }
+  }
+  // Text contrast is a property of the theme and the type scale, not of the
+  // shell, and auditContrast() already runs at every viewport — but the report
+  // sat in the mobile branch, so desktop text had never been checked.
+  if (result.contrastFailures?.length > 0) {
+    failures.push(`${result.contrastFailures.length} text contrast failure(s): ${result.contrastFailures.slice(0, 6).join('; ')}`);
   }
   if (result.modalSmokeFailures.length > 0) {
     failures.push(`modal smoke failures: ${result.modalSmokeFailures.join(', ')}`);
@@ -970,6 +973,36 @@ async function main() {
             failures.push(text.slice(0, 24) + ' ' + (Math.round(ratio * 100) / 100) + ':1 (needs ' + required + ':1)');
           }
           return failures;
+        };
+        // auditContrast reads whatever theme is mounted, which is the default
+        // one. The palette it guards is defined per theme in index.css, so a
+        // token that only fails under kaya or light would never be seen. Each
+        // theme is applied to the root, audited, and the original restored;
+        // setting data-ui-theme is the whole mechanism, since the themes are
+        // plain :root[data-ui-theme=...] custom-property blocks.
+        const auditContrastAllThemes = () => {
+          const root = document.documentElement;
+          const original = root.dataset.uiTheme;
+          const out = [];
+          for (const theme of ['noir', 'kaya', 'studio', 'light']) {
+            root.dataset.uiTheme = theme;
+            // A custom-property swap on the root does not invalidate every
+            // descendant's cached computed style on its own, and reading a
+            // stale colour against a fresh background invents failures at
+            // ~1.2:1. Detach and reattach to force a full recalc.
+            root.style.display = 'none';
+            void root.offsetHeight;
+            root.style.display = '';
+            void getComputedStyle(root).getPropertyValue('--ui-text');
+            out.push(...auditContrast().map((entry) => theme + ': ' + entry));
+          }
+          if (original === undefined) delete root.dataset.uiTheme;
+          else root.dataset.uiTheme = original;
+          root.style.display = 'none';
+          void root.offsetHeight;
+          root.style.display = '';
+          void getComputedStyle(root).getPropertyValue('--ui-text');
+          return out;
         };
         const waitForFrames = async (frames = 2) => {
           for (let i = 0; i < frames; i++) {
@@ -2896,7 +2929,7 @@ async function main() {
             if (text.scrollWidth <= text.clientWidth + 1) return null;
             return (text.textContent || '').trim().slice(0, 24) + ' needs ' + Math.round(text.scrollWidth) + 'px in ' + Math.round(text.clientWidth) + 'px';
           })(),
-          contrastFailures: auditContrast(),
+          contrastFailures: auditContrastAllThemes(),
           treeSmallTouchTargets,
           reviewSmallTouchTargets,
           boardTouchAction,
