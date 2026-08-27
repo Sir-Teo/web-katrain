@@ -1166,6 +1166,10 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    /* An 11px cap-height line box made this disclosure button 16px tall. It
+       spans the panel's width, so the height was the only axis under the
+       24x24 floor, and the header row has the room. */
+    min-height: 24px;
     border: none;
     background: transparent;
     cursor: pointer;
@@ -1347,7 +1351,9 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 24px;
+    /* One height for every small action in the side rail: see the note on
+       .graph-legend .lg in dashboard.css. */
+    min-height: 28px;
     padding: 3px 7px;
     border-radius: 4px;
     border: 1px solid var(--ui-border);
@@ -2912,9 +2918,12 @@
     opacity: 1;
   }
 
+  /* The glyph stays 14px; the button grows to the 24x24 floor, which the 28px
+     tree row already has room for. */
   .library-tree-node-arrow {
-    width: 14px;
-    height: 14px;
+    width: 24px;
+    height: 24px;
+    margin: 0 -5px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3778,7 +3787,11 @@
     border-radius: 4px;
     transition: all 0.2s ease;
     line-height: 1;
-    min-height: 20px;
+    /* The game strip is 42px with 7px of padding, so a 28px control fills its
+       content box exactly and costs the strip no height. At 20px this was the
+       smallest target in the desktop shell, and it starts and stops the clock. */
+    min-height: 28px;
+    min-width: 28px;
   }
 
   .status-bar-button:hover {

@@ -615,7 +615,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                 href={moveInsight.learnMoreUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-[0.625rem] font-semibold text-[var(--ui-accent)] hover:bg-[var(--ui-surface-2)]"
+                className="panel-action-button font-semibold text-[var(--ui-accent)]"
                 aria-label={`Learn more about ${moveInsight.label}`}
               >
                 Learn more

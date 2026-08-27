@@ -317,6 +317,18 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.dashboardBoardActionSmallTargets.length} desktop board action target(s) below 32px: ${summary}`);
     }
+    // WCAG 2.2 SC 2.5.8 (AA) floors every target at 24x24 CSS px. The header and
+    // board-action checks above hold their own zones to this app's denser 32px,
+    // but nothing covered the side rail or the game strip, where a 23px "Learn
+    // more" and a 20px clock button had drifted under the floor. The edge-toggle
+    // slivers pass on their short side at exactly 24px, so they need no carve-out.
+    if (result.dashboardSubMinimumTargets.length > 0) {
+      const summary = result.dashboardSubMinimumTargets
+        .slice(0, 8)
+        .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+        .join(', ');
+      failures.push(`${result.dashboardSubMinimumTargets.length} desktop target(s) below the 24px WCAG minimum: ${summary}`);
+    }
     if (result.dashboardGameStripWrapped) {
       failures.push('desktop game status strip wrapped onto multiple rows');
     }
@@ -760,6 +772,26 @@ async function main() {
             })
             .map((element) => ({ element, bounds: element.getBoundingClientRect() }))
             .filter(({ bounds }) => bounds.width < 32 || bounds.height < 32)
+            .map(({ element, bounds }) => ({
+              label: targetLabel(element),
+              width: bounds.width,
+              height: bounds.height,
+            }))
+          : [];
+        const dashboardSubMinimumTargets = dashboard
+          ? Array.from(dashboard.querySelectorAll('button, [role="button"], [role="tab"], a[href], select, input:not([type="hidden"])'))
+            // checkVisibility's opacityProperty walks ancestors, which matters
+            // here: the library row actions rest inside an opacity-0, width-0
+            // wrapper and only exist as targets once the row is hovered. A
+            // display/visibility test alone counted all 4 per row, at the 12px
+            // width the collapsed wrapper squeezes them to.
+            .filter((element) => {
+              const bounds = element.getBoundingClientRect();
+              if (bounds.width <= 0 || bounds.height <= 0) return false;
+              return element.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true });
+            })
+            .map((element) => ({ element, bounds: element.getBoundingClientRect() }))
+            .filter(({ bounds }) => bounds.width < 24 || bounds.height < 24)
             .map(({ element, bounds }) => ({
               label: targetLabel(element),
               width: bounds.width,
@@ -2741,6 +2773,7 @@ async function main() {
           topControlsOutOfBarDetails,
           dashboardHeaderSmallTargets,
           dashboardBoardActionSmallTargets,
+          dashboardSubMinimumTargets,
           dashboardNavbarWrapped,
           dashboardGameStripWrapped,
           dashboardCommandbarHeight: rect(dashboard?.querySelector('.commandbar'))?.height ?? 0,

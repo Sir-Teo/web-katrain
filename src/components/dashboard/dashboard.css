@@ -848,8 +848,11 @@
   font-family: var(--mono); font-size: 12.5px; color: var(--muted);
 }
 .wk-dashboard .move-counter b { color: var(--ink); font-weight: 600; }
+/* The pill is 34px but the input drew only its 19px line box, leaving the one
+   editable control on the navbar under the 24x24 floor. 24px keeps the dashed
+   underline within 2.5px of where it already sat inside the pill. */
 .wk-dashboard .move-counter input {
-  width: 38px; border: none; background: transparent; outline: none;
+  width: 38px; height: 24px; border: none; background: transparent; outline: none;
   border-bottom: 1px dashed var(--line-strong); cursor: text;
   font-family: var(--mono); font-size: 12.5px; color: var(--ink); text-align: right; font-weight: 600;
 }
@@ -1052,7 +1055,12 @@
 /* Winrate graph */
 .wk-dashboard .graph-wrap { padding: 10px 14px 4px; }
 .wk-dashboard .graph-legend { display: flex; align-items: center; gap: 14px; padding: 4px 14px 0; font-size: 11px; color: var(--muted); }
-.wk-dashboard .graph-legend .lg { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; white-space: nowrap; background: transparent; border: 1px solid transparent; border-radius: var(--r-xs); cursor: pointer; padding: 0 5px; color: inherit; font-size: inherit; }
+/* The rail ran four heights for one tier of small actions - 23px (Learn more),
+   24px (legend toggles, Add to note), 26px (Analyze game) and 28px (the tree and
+   legend controls). They all sit at 28px now, the height four of the nine
+   already used; section heads (40px) and the mode tabs (43px) stay their own
+   tier. Same reasoning as the More Controls sheet's one-rhythm fix. */
+.wk-dashboard .graph-legend .lg { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; white-space: nowrap; background: transparent; border: 1px solid transparent; border-radius: var(--r-xs); cursor: pointer; padding: 0 5px; color: inherit; font-size: inherit; }
 .wk-dashboard .graph-legend .lg:hover { background: var(--panel-soft); color: var(--ink-soft); }
 .wk-dashboard .graph-legend .lg.on { background: var(--panel-soft); border-color: var(--line); color: var(--ink); }
 .wk-dashboard .graph-legend .lg-check { display: inline-flex; opacity: 0; color: var(--ink); }
