@@ -5952,6 +5952,19 @@
     }
   }
 
+
+  /* The backend detail is already dropped below 640px, but on the narrowest
+     phones the pill's own padding left the state word 40px to say "Loading"
+     in 47px, so it rendered as "Load...". A truncated status word is worse
+     than a tight one: buy the room back from the padding and the gap. */
+  @media (max-width: 380px) {
+    .analysis-command-bar__status {
+      gap: 0.25rem;
+      padding-inline: 0.25rem;
+      font-size: 0.6875rem;
+    }
+  }
+
 }
 
 /* One-shot notable-move animations (score-loss pill, set-up sparkle). */

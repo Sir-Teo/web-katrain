@@ -428,6 +428,9 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.editModeSmallTouchTargets.length} edit-mode touch target(s) below 44px: ${summary}`);
     }
+    if (result.engineStatusClipped) {
+      failures.push(`engine status text is clipped: ${result.engineStatusClipped}`);
+    }
     if (result.contrastFailures?.length > 0) {
       failures.push(`${result.contrastFailures.length} text contrast failure(s): ${result.contrastFailures.slice(0, 6).join('; ')}`);
     }
@@ -2776,6 +2779,15 @@ async function main() {
           photoBoardTraceImportFailures,
           boardThemeSmokeFailures,
           localeSmokeFailures,
+          // The state word is the whole point of the pill; the backend detail
+          // is already dropped below 640px. Truncating "Loading" to "Load..."
+          // reads as breakage, so the pill has to fit the word it is showing.
+          engineStatusClipped: (() => {
+            const text = document.querySelector('.analysis-command-bar__status-text');
+            if (!text) return null;
+            if (text.scrollWidth <= text.clientWidth + 1) return null;
+            return (text.textContent || '').trim().slice(0, 24) + ' needs ' + Math.round(text.scrollWidth) + 'px in ' + Math.round(text.clientWidth) + 'px';
+          })(),
           contrastFailures: auditContrast(),
           treeSmallTouchTargets,
           reviewSmallTouchTargets,
