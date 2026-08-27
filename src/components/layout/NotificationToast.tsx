@@ -16,7 +16,7 @@ interface NotificationToastProps {
   notification: NotificationToastMessage;
   onClose: () => void;
   commandBarVisible?: boolean;
-  placement?: 'default' | 'desktop-dashboard';
+  placement?: 'default' | 'desktop-dashboard' | 'desktop-header';
   /** Called as the pointer or focus enters and leaves, to hold the dismissal timer. */
   onHoldChange?: (held: boolean) => void;
   /** Reverts the change the toast is reporting; enables the Undo button. */
@@ -71,6 +71,7 @@ export function NotificationToast({
         'notification-toast-region',
         commandBarVisible ? 'notification-toast-region--below-command-bar' : '',
         placement === 'desktop-dashboard' ? 'notification-toast-region--desktop-dashboard' : '',
+        placement === 'desktop-header' ? 'notification-toast-region--desktop-header' : '',
       ].join(' ')}
       data-notification-region="true"
     >

@@ -5862,9 +5862,13 @@
     line-height: 1.1;
   }
 
+  /* Content-sized rather than equal halves: with `flex: 1 1 0` a short name
+     ("Gu Li") kept 100px of slack while the long one beside it ellipsed, so
+     "Lee Sedol" lost 14px at 390px wide. An `auto` basis spends the free space
+     where the text actually is. */
   .mobile-match-player {
     display: flex;
-    flex: 1 1 0;
+    flex: 1 1 auto;
     align-items: center;
     gap: 5px;
     min-width: 0;
