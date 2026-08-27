@@ -353,6 +353,19 @@ function assertViewport(result) {
     if (result.dashboardNavbarWrapped) {
       failures.push('desktop command bar wraps primary play actions onto a second row');
     }
+    // Same rail, with the library docked. The 590px floor is deliberate: the
+    // wide layout starts docking at a 1200px viewport, which leaves a 540px
+    // column, and closing that last 50px would mean taking controls off the
+    // rail rather than tightening it. See the max-width: 700px tier in
+    // dashboard.css.
+    if (result.navbarWithLibrary?.stillOpen) {
+      failures.push('library stayed docked after the nav bar probe closed it');
+    }
+    if (result.navbarWithLibrary?.wrapped && result.navbarWithLibrary.columnWidth > 590) {
+      failures.push(
+        `desktop command bar wraps with the library docked (${Math.round(result.navbarWithLibrary.columnWidth)}px column, ${Math.round(result.navbarWithLibrary.navbarHeight ?? 0)}px tall)`
+      );
+    }
     if (result.dashboardCommandbarHeight > 40) {
       failures.push(`desktop metric rail is too tall (${Math.round(result.dashboardCommandbarHeight)}px)`);
     }
@@ -664,6 +677,22 @@ async function main() {
       });
       await cdp.send('Page.navigate', { url: appUrl });
       await waitForBoard(cdp);
+      // Each viewport has to start from a clean slate. The previous pass edits
+      // the game, so its auto-save debounce can land after we navigate away —
+      // and the next load then opens the recovery modal over the whole app,
+      // which reads as a flood of unrelated failures (289 board intersections,
+      // every smoke flow dead). The suite used to pass only because it beat
+      // that timer; adding 700ms anywhere upstream broke it.
+      const hadAutoSave = await evaluate(cdp, `(() => {
+        const key = 'web-katrain:auto_saved_game:v1';
+        const had = localStorage.getItem(key) !== null;
+        localStorage.removeItem(key);
+        return had;
+      })()`);
+      if (hadAutoSave) {
+        await cdp.send('Page.navigate', { url: appUrl });
+        await waitForBoard(cdp);
+      }
       const opensPanels = !viewport.mobile
         && ((viewport.width === 1024 && viewport.height === 768)
           || (viewport.width === 1440 && viewport.height === 900));
@@ -3047,6 +3076,46 @@ async function main() {
         }
         return [...seen].filter(([, n]) => n > 1).map(([id, n]) => id + ' x' + n);
       })()`);
+      // The nav bar's density tiers key on the board column, and docking the
+      // library takes 300px off that column without moving the viewport — so
+      // the wrap check above only ever ran in the configuration that fits.
+      // Dock the library, measure, put it back.
+      if (result.desktop) {
+        result.navbarWithLibrary = await evaluate(cdp, `(async () => {
+          const dashboard = document.querySelector('.wk-dashboard');
+          // Only the wide layout docks the library into its own column; below
+          // that it is a drawer over the board, which squeezes nothing and
+          // leaves a scrim the rest of this run would have to click through.
+          if (dashboard?.dataset.layout !== 'wide') return null;
+          const key = 'web-katrain:library_open:v1';
+          const restore = localStorage.getItem(key);
+          const findButton = (label) => Array.from(document.querySelectorAll('button'))
+            .find((button) => (button.getAttribute('aria-label') || '') === label);
+          const show = findButton('Show library');
+          if (!show) return null;
+          show.click();
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          const navbar = document.querySelector('.wk-dashboard .navbar');
+          const pass = navbar?.querySelector('.pass-btn');
+          const play = navbar?.querySelector('.playactions');
+          const column = document.querySelector('.wk-dashboard .board-col');
+          const out = {
+            columnWidth: column ? column.getBoundingClientRect().width : null,
+            navbarHeight: navbar ? navbar.getBoundingClientRect().height : null,
+            wrapped: pass && play
+              ? Math.abs(pass.getBoundingClientRect().top - play.getBoundingClientRect().top) > 2
+              : false,
+          };
+          const hide = findButton('Hide library');
+          if (hide) hide.click();
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          // The open state is persisted, so leaving it set would carry the
+          // drawer — and its scrim — into the next viewport's whole run.
+          out.stillOpen = document.querySelector('.wk-dashboard')?.dataset.library === 'open';
+          if (restore === null) localStorage.removeItem(key); else localStorage.setItem(key, restore);
+          return out;
+        })()`);
+      }
       result.pageErrors = [...new Set(pageErrors)];
       assertViewport(result);
       const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
