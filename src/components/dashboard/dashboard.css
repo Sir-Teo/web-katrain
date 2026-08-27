@@ -425,7 +425,11 @@
 }
 .wk-dashboard .gs-player .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; white-space: nowrap; }
 .wk-dashboard .gs-player .rk { color: var(--faint); font-family: var(--mono); font-size: 11px; }
-.wk-dashboard .gs-player .cap { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+/* "29 captured" wrapped onto a second line, which made the whole strip 48px
+   tall with a ragged baseline and — because the wrapped column is narrower —
+   squeezed both names into "G..." and "Lee S..." at 1440px. The count reads
+   the same as the mobile match strip's "+29" and costs a third of the width. */
+.wk-dashboard .gs-player .cap { color: var(--muted); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
 .wk-dashboard .gs-sep { width: 1px; height: 18px; background: var(--line); }
 .wk-dashboard .gs-fact { color: var(--muted); font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
 .wk-dashboard .gs-fact b { color: var(--ink); font-weight: 600; }
@@ -433,9 +437,13 @@
   font-weight: 700; color: var(--green); background: var(--green-bg);
   border: 1px solid color-mix(in srgb, var(--green) 35%, var(--panel)); padding: 2px 8px; border-radius: var(--r-sm); font-size: 11.5px;
 }
+/* Sized to the name it holds, not to a fixed 220px slot: "Untitled" needs 62px,
+   and the 158px of reserved emptiness was what over-subscribed the strip and
+   truncated both player names at 1440px. Who is playing outranks which file
+   they came from, so this still gives up its width first under real pressure. */
 .wk-dashboard .gs-file {
   display: inline-flex; align-items: center; gap: 6px;
-  flex: 0 1 220px; min-width: 0;
+  flex: 0 6 auto; min-width: 0;
   color: var(--muted); font-size: 11.5px; max-width: 220px;
 }
 .wk-dashboard .gs-file .fn { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -884,7 +892,7 @@
    the save status onto a second row; players, board size, file name stay. */
 @container boardcol (max-width: 1000px) {
   .wk-dashboard .gamestrip .gs-fact:not(.gs-fact-primary) { display: none; }
-  .wk-dashboard .gs-file { flex-basis: 140px; max-width: 140px; }
+  .wk-dashboard .gs-file { max-width: 140px; }
 }
 
 /* Same tier, same reasoning, for the metric qualifiers under each readout:
@@ -897,10 +905,12 @@
 @container boardcol (max-width: 1000px) {
   .wk-dashboard .cb-metric .sub { display: none; }
 }
-@container boardcol (max-width: 960px) {
+@container boardcol (max-width: 860px) {
   /* Names and turn state identify the players faster than capture totals. Hide
      the secondary counts before letting the strip wrap or truncating both
-     names beyond recognition. */
+     names beyond recognition. The 960px tier was sized for the old "29
+     captured" token; "+29" costs 20px instead of 60px, so the counts now
+     survive down to a 909px column (1280px with both panels open). */
   .wk-dashboard .gs-player .cap { display: none; }
 }
 @container boardcol (max-width: 760px) {

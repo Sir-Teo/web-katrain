@@ -43,7 +43,7 @@ const MatchPlayer: React.FC<MatchPlayerProps> = ({ color, name, rank, captures, 
       {rank ? <span className="mobile-match-rank">{rank}</span> : null}
       {captures > 0 ? (
         <span className="mobile-match-captures" title={`${captures} captured`}>
-          +{captures}
+          +{captures}<span className="sr-only"> captured</span>
         </span>
       ) : null}
       {toMove ? <span className="sr-only">to move</span> : null}

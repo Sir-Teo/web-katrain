@@ -633,13 +633,21 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     <span className="stone-mini b" />
                     <span className="nm" title={blackName || 'Black'}>{blackName || 'Black'}</span>
                     {blackRank ? <span className="rk">{blackRank}</span> : null}
-                    {capturedWhite > 0 ? <span className="cap">{capturedWhite} captured</span> : null}
+                    {capturedWhite > 0 ? (
+                      <span className="cap" title={`${capturedWhite} captured`}>
+                        +{capturedWhite}<span className="sr-only"> captured</span>
+                      </span>
+                    ) : null}
                   </div>
                   <div className={`gs-player${currentPlayer === 'white' ? ' to-move' : ''}`}>
                     <span className="stone-mini w" />
                     <span className="nm" title={whiteName || 'White'}>{whiteName || 'White'}</span>
                     {whiteRank ? <span className="rk">{whiteRank}</span> : null}
-                    {capturedBlack > 0 ? <span className="cap">{capturedBlack} captured</span> : null}
+                    {capturedBlack > 0 ? (
+                      <span className="cap" title={`${capturedBlack} captured`}>
+                        +{capturedBlack}<span className="sr-only"> captured</span>
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <span className="gs-sep" />
