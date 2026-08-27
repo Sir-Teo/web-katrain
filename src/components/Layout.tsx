@@ -3622,6 +3622,7 @@ export const Layout: React.FC = () => {
               engineMetaTitle={engineMetaTitle}
               engineError={engineError}
               isMobile={isMobile}
+              analysisCommandBarVisible={showBoardAnalysisCommandBar}
             />
           )}
 

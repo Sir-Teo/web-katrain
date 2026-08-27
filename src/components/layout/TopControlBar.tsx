@@ -148,6 +148,8 @@ interface TopControlBarProps {
   engineMetaTitle?: string;
   engineError?: string | null;
   isMobile?: boolean;
+  /** True while the analysis command bar is showing its own engine status. */
+  analysisCommandBarVisible?: boolean;
 }
 
 export const TopControlBar: React.FC<TopControlBarProps> = ({
@@ -204,6 +206,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   engineMetaTitle,
   engineError,
   isMobile = false,
+  analysisCommandBarVisible = false,
 }) => {
   const topIconClass = 'ui-control';
   const shortcutLabels = useShortcutLabels(TOP_CONTROL_SHORTCUT_IDS);
@@ -757,17 +760,23 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
 
       <div className="hidden desktop-shell:block flex-1 min-w-2" />
 
-      {/* Engine status */}
-      <EngineStatusBadge
-        label={engineMeta}
-        title={engineMetaTitle}
-        dotClass={engineDot}
-        tone={engineError ? 'error' : 'default'}
-        variant="pill"
-        showErrorTag={!!engineError}
-        className="hidden xl:flex shrink min-w-0"
-        maxWidthClassName="max-w-[180px]"
-      />
+      {/* Engine status. `xl:` is a width, and this bar's shell is chosen by
+          width *and* height — so at 1280x460 it appeared beside the analysis
+          command bar's own status, which docks in that layout's right margin:
+          the same "Loading · WebGPU", twice, 980px apart. The command bar owns
+          the reading whenever it is up; this badge covers the rest. */}
+      {!analysisCommandBarVisible && (
+        <EngineStatusBadge
+          label={engineMeta}
+          title={engineMetaTitle}
+          dotClass={engineDot}
+          tone={engineError ? 'error' : 'default'}
+          variant="pill"
+          showErrorTag={!!engineError}
+          className="hidden xl:flex shrink min-w-0"
+          maxWidthClassName="max-w-[180px]"
+        />
+      )}
 
       {/* Analysis badges */}
       <div className="hidden 2xl:flex items-center gap-1.5 text-xs shrink-0">

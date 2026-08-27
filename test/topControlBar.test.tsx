@@ -263,4 +263,20 @@ describe('TopControlBar', () => {
 
     expect(source.match(/<button\b(?![^>]*\btype=)[^>]*>/gs) ?? []).toEqual([]);
   });
+
+  it('leaves the engine reading to the command bar when that bar is up', () => {
+    const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    // `xl:` is a width, and this bar's shell is chosen by width *and* height.
+    // At 1280x460 the badge appeared beside the analysis command bar's own
+    // status, which docks in that layout's right margin — the same
+    // "Loading · WebGPU" twice, 980px apart. Measured there: the badge is gone
+    // in analyze mode, kept in play mode, and back as soon as an edit tool
+    // hides the command bar, which is the one case where it is the only
+    // reading on screen.
+    expect(source).toContain('analysisCommandBarVisible?: boolean;');
+    expect(source).toContain('{!analysisCommandBarVisible && (');
+    expect(layout).toContain('analysisCommandBarVisible={showBoardAnalysisCommandBar}');
+  });
 });
