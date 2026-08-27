@@ -127,6 +127,35 @@ describe('LibraryPanel accessibility', () => {
     expect(styles).toMatch(/@container \(max-width: 430px\)[\s\S]*\.library-panel \.library-header-collapsible-action \{[\s\S]*display: none;/);
   });
 
+  it('gives a hover-less pointer the row menu at any width', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const marker = "@media (max-width: 1023px), (max-height: 499px), (hover: none) {";
+    const start = css.indexOf(marker);
+    expect(start).toBeGreaterThan(-1);
+
+    // A row's actions are revealed by hover, with a ⋯ menu standing in where
+    // there is no hover. Keyed on the viewport alone, and with the desktop
+    // shell starting at 1024px, a tablet-sized touchscreen got neither:
+    // measured under emulated `hover: none` at 1366x1024, the ⋯ was
+    // display:none and the actions were a zero-width, zero-opacity group, so
+    // rename/duplicate/export/delete had no target at all.
+    let depth = 0;
+    let end = css.indexOf('{', start);
+    for (let i = end; i < css.length; i += 1) {
+      if (css[i] === '{') depth += 1;
+      else if (css[i] === '}') { depth -= 1; if (depth === 0) { end = i; break; } }
+    }
+    const block = css.slice(start, end);
+    expect(block).toContain(".library-tree-node[data-library-row='folder'] .library-tree-node-more {");
+    expect(block).toContain('display: inline-flex;');
+    expect(block).toContain(".library-tree-node[data-library-row='folder'] .library-tree-node-actions {");
+
+    // And the touch row layout lives in exactly one place — it was moved into
+    // this query rather than copied, so the two conditions cannot drift apart.
+    expect(css.match(/grid-template-columns: 44px 44px 16px minmax\(0, 1fr\) auto 44px;/g) ?? [])
+      .toHaveLength(1);
+  });
+
   it('keeps the library list open without repeating its workspace title', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
