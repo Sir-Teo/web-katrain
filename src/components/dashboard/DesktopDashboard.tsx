@@ -1021,7 +1021,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   </div>
                 )}
                 {mode === 'analyze' && (
-                <div className="overlay-row" style={{ paddingTop: 8 }}>
+                <div className="overlay-row overlay-row--actions" style={{ paddingTop: 8 }}>
                   <button
                     type="button"
                     className="pbtn"

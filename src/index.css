@@ -3898,6 +3898,16 @@
     }
   }
 
+  /* One command per line, so the category rides beside the shortcut chip
+     rather than under the label. Both are hidden on the shell that has no
+     keyboard (the rule above), where the label is the whole row. */
+  .command-palette-shortcut-slot {
+    flex: none;
+    display: flex;
+    justify-content: flex-end;
+    min-width: 7rem;
+  }
+
   .panel-toggle {
     padding: 4px 6px;
     border: none;
@@ -4475,6 +4485,8 @@
        62 Ctrl+... labels. Same rule, same breakpoint. */
     .mobile-shortcut-hint,
     .command-palette-shortcut,
+    .command-palette-shortcut-slot,
+    .command-palette-category,
     [data-mobile-tools-dialog='true'] button > .text-\[11px\].ui-text-faint {
       display: none;
     }

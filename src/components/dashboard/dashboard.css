@@ -1115,10 +1115,20 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.wk-dashboard .overlay-row--toggles .pbtn {
+.wk-dashboard .overlay-row--toggles .pbtn,
+.wk-dashboard .overlay-row--actions .pbtn {
   justify-content: center;
   min-width: 0;
   padding: 0 6px;
+}
+
+/* The three review actions sit directly under that matrix, so they take the
+   same columns: a ragged row read as an accident beside a tidy grid, and the
+   middle button retitles itself Stop while running — which slid Report left,
+   under a pointer that had just been over Fast review. */
+.wk-dashboard .overlay-row--actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* Quality legend */

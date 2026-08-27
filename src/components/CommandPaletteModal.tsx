@@ -214,17 +214,29 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                     onClick={() => runCommand(command)}
                     data-command-palette-item={command.id}
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-[var(--ui-text)]">{command.label}</span>
-                      <span className="mt-0.5 block truncate text-xs ui-text-faint">
-                        {recentSet.has(command.id) ? `Recent · ${command.category}` : command.category}
-                      </span>
+                    {/* One line per command. The category mostly restates the
+                        label ("Save SGF · File"), and stacking it halved how
+                        many commands a screen could hold — the thing a palette
+                        is for. It keeps its place beside the shortcut on the
+                        widths that have room, and the full reading stays in the
+                        option's accessible name either way. */}
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ui-text)]">
+                      {command.label}
                     </span>
-                    {shortcut && (
-                      <kbd className="command-palette-shortcut shrink-0 rounded ui-surface-2 px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]" aria-hidden="true">
-                        {shortcut}
-                      </kbd>
-                    )}
+                    <span className="command-palette-category shrink-0 text-xs ui-text-faint">
+                      {recentSet.has(command.id) ? `Recent · ${command.category}` : command.category}
+                    </span>
+                    {/* The chip column keeps its width whether or not this
+                        command has a shortcut; without it the categories drift
+                        left and right down the list by however wide the chip
+                        beside them happened to be. */}
+                    <span className="command-palette-shortcut-slot">
+                      {shortcut ? (
+                        <kbd className="command-palette-shortcut rounded ui-surface-2 px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]" aria-hidden="true">
+                          {shortcut}
+                        </kbd>
+                      ) : null}
+                    </span>
                   </button>
                 );
               })}

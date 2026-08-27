@@ -328,6 +328,20 @@ describe('desktop dashboard layout', () => {
   });
 
 
+  it('holds the review actions in the same columns as the overlay toggles', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    // Quick graph / Fast review / Report sit directly under the 3-column
+    // overlay matrix. Natural widths read as an accident there, and the middle
+    // button becomes "Stop" while a review runs — which slid Report left, under
+    // a pointer that had just clicked the button beside it.
+    expect(source).toContain('className="overlay-row overlay-row--actions"');
+    expect(css).toMatch(
+      /\.wk-dashboard \.overlay-row--actions \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/,
+    );
+  });
+
   it('says when a board mode is engaged, not just colours the chip', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
 
