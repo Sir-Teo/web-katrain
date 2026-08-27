@@ -2751,7 +2751,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
         state.settings.humanSlEnabled ? state.settings.humanSlModelUrl : '',
         avoidMoves ? avoidMoves.map((m) => `${m.x},${m.y}`).sort().join(' ') : ''
       );
-      set({ engineStatus: 'loading', engineError: null });
+      // "Loading" is about the model, not about a request being in flight.
+      // Flagging it on every live-analysis pass left the pill reading
+      // "Loading model" — and the notes panel "Loading engine..." — for the
+      // whole session while results were already on the board. A reported
+      // backend means the net is resident, so only a cold or failed engine
+      // goes back to loading.
+      set((s) => (s.engineBackend && s.engineStatus !== 'error'
+        ? { engineError: null }
+        : { engineStatus: 'loading', engineError: null }));
 
 	      return analysisQueue
 	        .enqueue<KataGoAnalysisPayload>({
