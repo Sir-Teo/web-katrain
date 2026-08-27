@@ -497,6 +497,13 @@ function assertViewport(result) {
   if (result.scorePanelFailures.length > 0) {
     failures.push(`score panel failures: ${result.scorePanelFailures.join(', ')}`);
   }
+  if (result.scorePanelSubMinimumTargets.length > 0) {
+    const summary = result.scorePanelSubMinimumTargets
+      .slice(0, 8)
+      .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+      .join(', ');
+    failures.push(`${result.scorePanelSubMinimumTargets.length} score panel target(s) below the 24px WCAG minimum: ${summary}`);
+  }
   if (result.scorePanelSmallTouchTargets.length > 0) {
     const summary = result.scorePanelSmallTouchTargets
       .slice(0, 8)
@@ -514,6 +521,13 @@ function assertViewport(result) {
       .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
       .join(', ');
     failures.push(`${result.analysisDepthSmallTouchTargets.length} analysis depth touch target(s) below 44px: ${summary}`);
+  }
+  if (result.pwaBannerSubMinimumTargets?.length > 0) {
+    const summary = result.pwaBannerSubMinimumTargets
+      .slice(0, 8)
+      .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+      .join(', ');
+    failures.push(`${result.pwaBannerSubMinimumTargets.length} PWA banner target(s) below the 24px WCAG minimum: ${summary}`);
   }
   if (result.pwaBannerSmallTouchTargets.length > 0) {
     const summary = result.pwaBannerSmallTouchTargets
@@ -1755,6 +1769,9 @@ async function main() {
         const runPwaBannerSmoke = async () => {
           const failures = [];
           const smallTouchTargets = [];
+          // The banner renders at every viewport, so measure it on desktop too:
+          // the last of the mobile-only audits without a counterpart.
+          const subMinimumTargets = [];
           const waitForBanner = async () => {
             for (let i = 0; i < 30; i++) {
               const banner = document.querySelector('.pwa-install-banner');
@@ -1779,7 +1796,7 @@ async function main() {
           let banner = await waitForBanner();
           if (!banner) {
             failures.push('offline-ready banner missing');
-            return { failures, smallTouchTargets };
+            return { failures, smallTouchTargets, subMinimumTargets };
           }
           if (document.documentElement.getAttribute('data-pwa-banner') !== 'offline-ready') {
             failures.push('offline-ready root state missing');
@@ -1792,13 +1809,14 @@ async function main() {
           }
           assertBannerFits(banner, 'offline-ready');
           if (${viewport.mobile}) smallTouchTargets.push(...auditSmallTouchTargets(banner));
+          else subMinimumTargets.push(...auditSubMinimumTargets(banner));
 
           window.dispatchEvent(new Event('web-katrain:pwa-update-ready'));
           await waitForFrames(4);
           banner = await waitForBanner();
           if (!banner) {
             failures.push('update-ready banner missing');
-            return { failures, smallTouchTargets };
+            return { failures, smallTouchTargets, subMinimumTargets };
           }
           if (document.documentElement.getAttribute('data-pwa-banner') !== 'update-ready') {
             failures.push('update-ready did not replace offline-ready banner');
@@ -1808,6 +1826,7 @@ async function main() {
           }
           assertBannerFits(banner, 'update-ready');
           if (${viewport.mobile}) smallTouchTargets.push(...auditSmallTouchTargets(banner));
+          else subMinimumTargets.push(...auditSubMinimumTargets(banner));
 
           const dismissButton = findButtonByLabel('Dismiss', banner);
           if (!dismissButton) {
@@ -1825,7 +1844,7 @@ async function main() {
               failures.push('dismiss did not clear root banner height');
             }
           }
-          return { failures, smallTouchTargets };
+          return { failures, smallTouchTargets, subMinimumTargets };
         };
         const findButtonByLabel = (label, scope = document) => Array.from(scope.querySelectorAll('button')).find((candidate) => {
           const candidateLabel = targetLabel(candidate);
@@ -2371,6 +2390,7 @@ async function main() {
         };
         const scorePanelFailures = [];
         const scorePanelSmallTouchTargets = [];
+        const scorePanelSubMinimumTargets = [];
         let scorePanelReachable = true;
         const bottomMoreSheetSmoke = ${viewport.mobile}
           ? await runBottomMoreSheetSmoke()
@@ -2821,8 +2841,13 @@ async function main() {
             if (scorePanelRect && (scorePanelRect.left < -1 || scorePanelRect.right > innerWidth + 1 || scorePanelRect.top < -1 || scorePanelRect.bottom > innerHeight + 1)) {
               scorePanelFailures.push(\`panel escapes viewport \${Math.round(scorePanelRect.width)}x\${Math.round(scorePanelRect.height)} at \${Math.round(scorePanelRect.left)},\${Math.round(scorePanelRect.top)}-\${Math.round(scorePanelRect.right)},\${Math.round(scorePanelRect.bottom)} in \${innerWidth}x\${innerHeight}\`);
             }
+            // The panel is opened at every viewport, but only its mobile
+            // targets were ever measured — the last of the mobile-only audits
+            // with no desktop counterpart.
             if (${viewport.mobile}) {
               scorePanelSmallTouchTargets.push(...auditSmallTouchTargets(scorePanel));
+            } else {
+              scorePanelSubMinimumTargets.push(...auditSubMinimumTargets(scorePanel));
             }
             const doneButton = findButtonByLabel('Done scoring', scorePanel) || findButtonByLabel('Done', scorePanel);
             if (!doneButton) {
@@ -2917,6 +2942,7 @@ async function main() {
           fullscreenSmokeFailures,
           pwaBannerFailures: pwaBannerSmoke.failures,
           pwaBannerSmallTouchTargets: pwaBannerSmoke.smallTouchTargets,
+          pwaBannerSubMinimumTargets: pwaBannerSmoke.subMinimumTargets,
           photoBoardTraceImportFailures,
           boardThemeSmokeFailures,
           localeSmokeFailures,
@@ -2948,6 +2974,7 @@ async function main() {
           scorePanelReachable,
           scorePanelFailures,
           scorePanelSmallTouchTargets,
+          scorePanelSubMinimumTargets,
           analysisDepthReachable,
           analysisDepthFailures,
           analysisDepthSmallTouchTargets,
