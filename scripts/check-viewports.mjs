@@ -477,6 +477,9 @@ function assertViewport(result) {
   if (result.editToolSmokeFailures.length > 0) {
     failures.push(`edit tool smoke failures: ${result.editToolSmokeFailures.join(', ')}`);
   }
+  if (result.desktopEditPanelOverlaps.length > 0) {
+    failures.push(`desktop edit panel covers the game strip: ${result.desktopEditPanelOverlaps.join(', ')}`);
+  }
   if (!result.scorePanelReachable) failures.push('score panel not reachable');
   if (result.scorePanelFailures.length > 0) {
     failures.push(`score panel failures: ${result.scorePanelFailures.join(', ')}`);
@@ -2409,6 +2412,32 @@ async function main() {
           closeEditButton?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }
+        // The block above only runs on mobile, so desktop edit mode had never
+        // been entered here — and its fixed-position rail was clearing the 50px
+        // header but not the game strip under it, hiding both player entries for
+        // as long as edit mode stayed open.
+        let desktopEditPanelOverlaps = [];
+        if (!${viewport.mobile} && editButton) {
+          const openEdit = Array.from(document.querySelectorAll('button')).find((button) => {
+            const label = targetSearchText(button);
+            return label.includes('Open SGF edit tools') || label.includes('Edit position');
+          });
+          openEdit?.click();
+          await waitForFrames(2);
+          const editPanel = document.querySelector('.edit-toolbar-panel');
+          const gameStrip = document.querySelector('.gamestrip');
+          const panelRect = rect(editPanel);
+          if (panelRect && gameStrip && intersects(panelRect, rect(gameStrip))) {
+            const covered = Array.from(gameStrip.querySelectorAll('.gs-player, .gs-fact, .gs-file, .gs-save'))
+              .filter((el) => intersects(panelRect, rect(el)))
+              .map((el) => (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24));
+            desktopEditPanelOverlaps = covered.length > 0 ? covered : ['game strip'];
+          }
+          const closeEdit = Array.from(document.querySelectorAll('button')).find((button) =>
+            targetSearchText(button).includes('Close edit mode'));
+          closeEdit?.click();
+          await waitForFrames(2);
+        }
         await runMobileToolsDialogSmoke();
         photoBoardTraceImportFailures = await runPhotoBoardTraceImportSmoke();
         await runTopLanguageSwitcherSmoke();
@@ -2835,6 +2864,7 @@ async function main() {
           modalSmallTouchTargets,
           clipboardSmokeFailures,
           editToolSmokeFailures,
+          desktopEditPanelOverlaps,
           scorePanelReachable,
           scorePanelFailures,
           scorePanelSmallTouchTargets,
