@@ -3977,6 +3977,15 @@
     min-width: 0;
   }
 
+  /* Neither of the pair may be squeezed under the 44px this shell keeps: at
+     320px the cell is 96px, and the cache button's own padding was pushing the
+     legend button down to 40px wide. Trimmed padding fits 44 + 4 + 44. */
+  .analysis-overlay-grid-tail > .panel-action-button,
+  .analysis-overlay-grid-tail > .panel-icon-button {
+    flex: none;
+    padding-inline: 4px;
+  }
+
   .panel-toggle {
     padding: 4px 6px;
     border: none;

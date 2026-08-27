@@ -115,6 +115,11 @@ describe('AnalysisPanel', () => {
     // "Top moves" is 105px of content in a 96px cell at 320px wide; the trimmed
     // side padding is what keeps it from being clipped there.
     expect(css).toMatch(/\.analysis-overlay-grid > \.panel-action-button \{[^}]*padding-inline: 4px;/);
+    // And the pair sharing the sixth cell keeps its 44px targets: the cache
+    // button's own padding had squeezed the legend button to 40px wide there.
+    expect(css).toMatch(
+      /\.analysis-overlay-grid-tail > \.panel-icon-button \{[^}]*flex: none;[^}]*padding-inline: 4px;/,
+    );
   });
 
   it('leads the played-move detail with the points figure', () => {
