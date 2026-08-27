@@ -243,7 +243,15 @@ function assertViewport(result) {
   if (result.desktop && result.notificationOverlapsSidePanel) {
     failures.push('desktop notification overlaps the analysis sidebar');
   }
-  if (result.desktop && result.notificationOverlapsBoard) {
+  // An error toast on the desktop dashboard is placed below the game strip on
+  // purpose (see the note beside .notification-toast-region--desktop-dashboard
+  // in index.css): the board column has no gap wide enough to hold it beside
+  // the board — 192px between the board's right edge and the sidebar at 1280 —
+  // so clipping the board's top edge is the chosen trade against covering the
+  // save badge and the clock. Info and success toasts sit in the header's quiet
+  // middle and must still clear the board completely, and the game-strip check
+  // below is what actually holds the error toast in place.
+  if (result.desktop && result.notificationOverlapsBoard && result.notificationType !== 'error') {
     failures.push('desktop notification overlaps the board');
   }
   if (result.desktop && result.notificationOverlapsGameStripControl) {
@@ -909,7 +917,7 @@ async function main() {
         // failing here is a hard-coded colour or a token used off its intended
         // surface. Colours are read computed, never sampled from a screenshot:
         // capture in this setup is not colour-accurate.
-        const auditContrast = () => {
+        const auditContrast = (skipSelector) => {
           const parseColor = (value) => {
             if (!value) return null;
             // Every backslash here is doubled on purpose: this whole probe is
@@ -972,6 +980,7 @@ async function main() {
             const bounds = el.getBoundingClientRect();
             if (bounds.width < 4 || bounds.height < 4) continue;
             if (el.closest('[data-board-snapshot="true"], canvas, svg')) continue;
+            if (skipSelector && el.closest(skipSelector)) continue;
             const fg = parseColor(style.color);
             if (!fg) continue;
             const bg = backgroundOf(el);
@@ -997,8 +1006,17 @@ async function main() {
         const auditContrastAllThemes = () => {
           const root = document.documentElement;
           const original = root.dataset.uiTheme;
-          const out = [];
+          // The mounted theme first, with nothing skipped: that is the only pass
+          // where every element's colours are the ones the app actually shipped.
+          const out = auditContrast().map((entry) => (original || 'default') + ': ' + entry);
+          // The graph's empty overlay picks its palette in JavaScript
+          // (scoreWinrateGraphTheme.ts hardcodes bg-[rgb(248,250,252)] on the
+          // light branch), so swapping data-ui-theme flips the CSS variables
+          // underneath classes React never re-renders. That mismatched pair
+          // never occurs in the app, and reported ~2:1 against three themes.
+          const jsThemed = '[data-analysis-graph-empty-state="true"]';
           for (const theme of ['noir', 'kaya', 'studio', 'light']) {
+            if (theme === original) continue;
             root.dataset.uiTheme = theme;
             // A custom-property swap on the root does not invalidate every
             // descendant's cached computed style on its own, and reading a
@@ -1008,7 +1026,7 @@ async function main() {
             void root.offsetHeight;
             root.style.display = '';
             void getComputedStyle(root).getPropertyValue('--ui-text');
-            out.push(...auditContrast().map((entry) => theme + ': ' + entry));
+            out.push(...auditContrast(jsThemed).map((entry) => theme + ': ' + entry));
           }
           if (original === undefined) delete root.dataset.uiTheme;
           else root.dataset.uiTheme = original;
@@ -2872,9 +2890,21 @@ async function main() {
           : { turnVisible: true, saveVisible: false, overlaps: [] };
         const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
         const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
+        // Every notification assertion below used to read an empty slot. Info
+        // and success toasts clear themselves after 2500ms, and by the time
+        // this block ran the flows that raise them were long past — so
+        // notificationToast was null, intersects(null, ...) was false, and all
+        // four checks passed no matter what the app did. Raise one here
+        // instead. Ctrl+C is the right trigger: the clipboard is unavailable
+        // headless, so it produces an *error* toast, and errors are the one
+        // type that never auto-dismisses. It also moves nothing on screen,
+        // unlike entering edit mode, which shifts the board into its rail.
+        dispatchShortcut('c', { ctrlKey: true });
+        await waitForFrames(3);
         const notificationToast = document.querySelector('.notification-toast');
         const notificationToastRect = rect(notificationToast);
         const notificationMessage = notificationToast?.querySelector('.notification-toast-message')?.textContent?.trim() || '';
+        const notificationType = notificationToast?.getAttribute('data-notification-type') || '';
         const dashboardGameStripTargets = Array.from(document.querySelectorAll('.wk-dashboard .gamestrip > *'))
           .filter(isVisibleTarget);
         const dashboardMetricClipping = dashboard ? Array.from(dashboard.querySelectorAll('.cb-metric'))
@@ -2925,6 +2955,7 @@ async function main() {
           sidePanelOverlapsBoard: intersects(rect(sidePanel), rect(board)),
           notificationToast: notificationToastRect,
           notificationMessage,
+          notificationType,
           mobileNotificationTooWide: ${viewport.mobile} && notificationMessage === 'Edit mode off.' && (notificationToastRect?.width ?? 0) > Math.min(320, innerWidth - 24),
           notificationOverlapsSidePanel: intersects(notificationToastRect, rect(sidePanel)),
           notificationOverlapsBoard: intersects(notificationToastRect, rect(board)),

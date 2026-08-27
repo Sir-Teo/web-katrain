@@ -1033,6 +1033,18 @@
       right: calc(var(--sidebar-w) + 1rem);
     }
 
+    /* "Below the header" cleared the 50px header but not the game strip
+       directly under it, so an error toast sat on the strip and covered the
+       save badge and the clock — and errors are the one type that never
+       auto-dismisses, so that cover lasted until it was closed by hand.
+       The board column has no gap wide enough to hold the toast beside the
+       board — 192px between the board's right edge and the sidebar at 1280 —
+       so this clips the board's top edge instead, which is the lesser cover. */
+    body:has(.wk-dashboard[data-gamestrip="open"])
+      .notification-toast-region--desktop-dashboard:has(.notification-toast-error) {
+      top: 5.9375rem; /* the 3.25rem header offset plus the strip's 43px */
+    }
+
     /* Lightweight status belongs in the quiet middle of the desktop header.
        Keeping it out of the game strip prevents save/game actions from being
        covered at the tight 1024px desktop breakpoint. Errors stay below the
