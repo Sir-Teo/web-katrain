@@ -22,6 +22,7 @@ const baseProps = {
   whiteName: 'White',
   boardSize: 19,
   moveCount: 42,
+  totalMoveCount: 42,
   engineMeta: 'KataGo · 20 visits',
   recentItems: [],
   onClose: () => undefined,
@@ -116,5 +117,33 @@ describe('MobileHome', () => {
     expect(html).toContain('Teaching Game 3');
     expect(html).not.toContain('Teaching Game 4');
     expect(html).toContain('Save Copy to Library');
+  });
+});
+
+describe('MobileHome first visit', () => {
+  it('leads with starting a game when there is nothing to continue', () => {
+    const html = renderToStaticMarkup(
+      <MobileHome {...baseProps} moveCount={0} totalMoveCount={0} />
+    );
+
+    // The board action is a way back to an untouched board, not a resume, and
+    // the accent belongs on the action a first visitor actually wants.
+    expect(html).toContain('Open Board');
+    expect(html).not.toContain('Continue Board');
+    const boardIndex = html.indexOf('Open Board');
+    const quickIndex = html.indexOf('Quick New Game');
+    const accentBefore = html.lastIndexOf('ui-accent-soft', quickIndex);
+    expect(accentBefore).toBeGreaterThan(boardIndex);
+  });
+
+  it('resumes, and counts the line, once a game exists', () => {
+    const html = renderToStaticMarkup(
+      <MobileHome {...baseProps} moveCount={12} totalMoveCount={42} />
+    );
+
+    expect(html).toContain('Continue Board');
+    expect(html).not.toContain('Open Board');
+    expect(html).toContain('#12');
+    expect(html).toContain('/ 42');
   });
 });

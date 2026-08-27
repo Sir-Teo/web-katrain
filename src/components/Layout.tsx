@@ -3267,6 +3267,7 @@ export const Layout: React.FC = () => {
           whiteName={whiteName}
           boardSize={boardSize}
           moveCount={currentMoveNumber}
+          totalMoveCount={totalMovesInCurrentLine}
           engineMeta={engineMeta}
           gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
           gamepadCount={gamepadStatus.count}

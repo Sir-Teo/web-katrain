@@ -26,6 +26,8 @@ interface MobileHomeProps {
   whiteName: string;
   boardSize: number;
   moveCount: number;
+  /** Moves in the current line, so the home screen can tell a loaded game from an untouched board. */
+  totalMoveCount: number;
   engineMeta: string;
   gamepadName?: string | null;
   gamepadCount?: number;
@@ -96,6 +98,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   whiteName,
   boardSize,
   moveCount,
+  totalMoveCount,
   engineMeta,
   gamepadName,
   gamepadCount = 0,
@@ -118,6 +121,12 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   const homeRef = React.useRef<HTMLDivElement>(null);
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
   useEscapeToClose(onClose, open);
+
+  // On a first visit there is nothing to continue: the board is empty and
+  // "Continue Board" was the accented primary anyway. Lead with starting a
+  // game until a game exists, and say Open Board for what is really a way
+  // back to an untouched board.
+  const hasGameToContinue = totalMoveCount > 0;
 
   React.useEffect(() => {
     if (!open) return;
@@ -242,7 +251,10 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               </div>
               <div className="border-x border-[var(--ui-border)] px-2 py-2">
                 <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">Move</div>
-                <div className="mt-1 text-sm font-semibold">#{moveCount}</div>
+                <div className="mt-1 text-sm font-semibold">
+                  #{moveCount}
+                  {hasGameToContinue ? <span className="ui-text-faint"> / {totalMoveCount}</span> : null}
+                </div>
               </div>
               <div className="px-2 py-2">
                 <div className="text-[0.6875rem] uppercase tracking-wide ui-text-faint">Engine</div>
@@ -255,7 +267,13 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             className="mobile-home-actions mobile-home-actions--primary mt-3 border-y border-[var(--ui-border)]"
             aria-label="Start or continue"
           >
-            <HomeAction label="Continue Board" compactLabel="Continue" icon={<FaThLarge />} onClick={onClose} primary />
+            <HomeAction
+              label={hasGameToContinue ? 'Continue Board' : 'Open Board'}
+              compactLabel={hasGameToContinue ? 'Continue' : 'Board'}
+              icon={<FaThLarge />}
+              onClick={onClose}
+              primary={hasGameToContinue}
+            />
             <HomeAction
               label="Quick New Game"
               compactLabel="Quick Game"
@@ -264,6 +282,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               hint={`${quickNewGameBoardSize}×${quickNewGameBoardSize} defaults`}
               title={quickNewGameWarning}
               ariaLabel={quickNewGameWarning}
+              primary={!hasGameToContinue}
             />
             <HomeAction label="New Game" compactLabel="New Game" icon={<FaPlay />} onClick={onNewGame} />
             <HomeAction label="Open SGF / Model" compactLabel="Open SGF" icon={<FaFolderOpen />} onClick={onOpenSgf} />
