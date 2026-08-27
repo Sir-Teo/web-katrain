@@ -43,11 +43,14 @@ describe('AnalysisPanel', () => {
     expect(html).toContain('aria-label="Run quick graph analysis"');
     expect(html).toContain('aria-label="Stop game analysis"');
     expect(html).toContain('aria-label="No cached analysis to clear"');
-    expect(html).toContain('aria-label="Hide child move markers"');
-    expect(html).toContain('aria-label="Hide move evaluation dots"');
-    expect(html).toContain('aria-label="Hide top move hints"');
-    expect(html).toContain('aria-label="Show move heatmap"');
-    expect(html).toContain('aria-label="Hide territory ownership"');
+    // Overlay toggles take their accessible name from the visible chip text and
+    // report state through aria-pressed, so the name never restates it.
+    expect(html).toContain('title="Hide child move markers"');
+    expect(html).toContain('title="Hide move evaluation dots"');
+    expect(html).toContain('title="Hide top move hints"');
+    expect(html).toContain('title="Show move heatmap"');
+    expect(html).toContain('title="Hide territory ownership"');
+    expect(html).not.toContain('aria-label="Hide child move markers"');
     expect(html).toContain('aria-label="Show analysis legend"');
     expect(html).toContain('aria-label="Open analysis options"');
     expect(html).toContain('aria-label="Open game report"');
@@ -68,9 +71,8 @@ describe('AnalysisPanel', () => {
       />,
     );
 
-    expect(html).toContain('aria-label="Top move hints hidden while heatmap is showing"');
     expect(html).toContain('title="Move heatmap is showing; top move hints are hidden"');
-    expect(html).toContain('aria-label="Hide move heatmap"');
+    expect(html).toContain('title="Hide move heatmap"');
   });
 
   it('collapses redundant engine diagnostics and keeps depth presets on one compact row', () => {

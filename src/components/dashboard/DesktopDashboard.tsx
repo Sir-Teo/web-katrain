@@ -399,19 +399,19 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     const on = !!settings[keyName];
     const overlayActionLabel = on ? `Hide ${DASHBOARD_OVERLAY_NAMES[keyName]}` : `Show ${DASHBOARD_OVERLAY_NAMES[keyName]}`;
     const topMovesHiddenByPolicy = keyName === 'analysisShowHints' && disabled;
-    const overlayLabel = topMovesHiddenByPolicy
-      ? 'Top move hints hidden while heatmap is showing'
-      : overlayActionLabel;
     const overlayTitle = topMovesHiddenByPolicy
       ? 'Move heatmap is showing; top move hints are hidden'
       : overlayActionLabel;
+    // No aria-label: the accessible name is the visible chip text, so voice
+    // control can act on the word the user reads, and aria-pressed carries the
+    // on/off state on its own. A "Hide …"/"Show …" name states it a second
+    // time, and reads as a contradiction next to the pressed state.
     return (
       <button
         type="button"
         className={`pbtn${on ? ' on' : ''}`}
         disabled={disabled}
         aria-pressed={on}
-        aria-label={overlayLabel}
         title={overlayTitle}
         onClick={() => updateControls({ [keyName]: !on } as Partial<AnalysisControlsState>)}
       >

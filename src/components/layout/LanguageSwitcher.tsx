@@ -96,13 +96,17 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
 
   return (
     <div className={['app-language-switcher relative', className ?? ''].join(' ')} ref={containerRef} data-language-switcher="desktop">
+      {/* The trigger writes the language recorded in the saved SGF; it does not
+          translate the interface. Settings, the mobile drawer and this button's
+          own menu all call it the document language, so the trigger's tooltip
+          and accessible name say the same rather than promising a UI language. */}
       <button
         ref={triggerRef}
         type="button"
         className="h-8 min-w-[88px] px-2 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
         onClick={() => setOpen((value) => !value)}
-        title={`${activeLocale.languageLabel}: ${activeLocale.label}${activeLocale.label === activeLocale.nativeLabel ? '' : ` (${activeLocale.nativeLabel})`}`}
-        aria-label={`${activeLocale.changeLanguageLabel}: ${activeLocale.label}`}
+        title={`Document language: ${activeLocale.label}${activeLocale.label === activeLocale.nativeLabel ? '' : ` (${activeLocale.nativeLabel})`}`}
+        aria-label={`Change document language: ${activeLocale.label}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}

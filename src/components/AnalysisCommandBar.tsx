@@ -256,14 +256,13 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const topMovesHiddenByPolicy = analysisControls.analysisShowPolicy;
   const liveAnalysisLabel = isAnalysisMode ? 'Turn live analysis off' : 'Start live analysis';
   const topMovesToggleTitle = topMovesHiddenByPolicy ? 'Move heatmap is showing; top move hints are hidden' : 'Show or hide top move hints';
-  const topMovesToggleLabel = topMovesHiddenByPolicy
-    ? 'Top move hints hidden while heatmap is showing'
-    : analysisControls.analysisShowHints
-      ? 'Hide top move hints'
-      : 'Show top move hints';
-  const topMoveMetricAriaLabel = `Cycle top move hint label. Current: ${topMoveMetricLabel}`;
+  // The chips that cycle a value have no ARIA state to lean on the way a
+  // toggle has aria-pressed, so their accessible name keeps the action — but it
+  // opens with the text printed on the chip, which is what a voice-control user
+  // reads out and what the old "Cycle …" names left out entirely.
+  const topMoveMetricAriaLabel = `Hint: ${topMoveMetricLabel} — cycle top move hint label`;
   const heatmapToggleLabel = analysisControls.analysisShowPolicy ? 'Hide move heatmap' : 'Show move heatmap';
-  const policyHeatmapMetricAriaLabel = `Cycle move heatmap metric. Current: ${policyHeatmapMetricLabel}`;
+  const policyHeatmapMetricAriaLabel = `Map: ${policyHeatmapMetricLabel} — cycle move heatmap metric`;
   const territoryToggleLabel = analysisControls.analysisShowOwnership ? 'Hide territory ownership' : 'Show territory ownership';
   const gameReportLabel = 'Open the full game report';
   const playedMoveQuality = React.useMemo(
@@ -629,7 +628,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
               ? 'Stop game analysis before changing live depth'
               : `Live analysis depth: ${liveVisits} visits (${liveVisitLabel}).`
           }
-          aria-label={`Live analysis depth ${liveVisits} visits`}
+          aria-label={`Depth: ${liveVisitCountLabel} — ${liveVisits} visits`}
         >
           <FaSearch size={12} aria-hidden="true" />
           <span>Depth: {liveVisitCountLabel}</span>
@@ -657,7 +656,6 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           aria-pressed={analysisControls.analysisShowHints}
           disabled={topMovesHiddenByPolicy}
           title={topMovesToggleTitle}
-          aria-label={topMovesToggleLabel}
         >
           <FaLayerGroup size={12} aria-hidden="true" />
           <span>Top moves</span>
@@ -679,7 +677,6 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onClick={() => toggleOverlay('analysisShowPolicy')}
           aria-pressed={analysisControls.analysisShowPolicy}
           title={heatmapToggleLabel}
-          aria-label={heatmapToggleLabel}
         >
           <FaThLarge size={12} aria-hidden="true" />
           <span>Heatmap</span>
@@ -704,7 +701,6 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onClick={() => toggleOverlay('analysisShowOwnership')}
           aria-pressed={analysisControls.analysisShowOwnership}
           title={territoryToggleLabel}
-          aria-label={territoryToggleLabel}
         >
           <FaMap size={12} aria-hidden="true" />
           <span>Territory</span>

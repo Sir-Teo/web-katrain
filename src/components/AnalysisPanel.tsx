@@ -359,13 +359,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     const overlayName = ANALYSIS_OVERLAY_NAMES[control];
     const overlayActionLabel = analysisControls[control] ? `Hide ${overlayName}` : `Show ${overlayName}`;
     const topMovesHiddenByPolicy = control === 'analysisShowHints' && disabled;
-    const overlayLabel = topMovesHiddenByPolicy
-      ? 'Top move hints hidden while heatmap is showing'
-      : overlayActionLabel;
     const overlayTitle = topMovesHiddenByPolicy
       ? 'Move heatmap is showing; top move hints are hidden'
       : overlayActionLabel;
 
+    // No aria-label: the accessible name is the visible chip text, so voice
+    // control can act on the word the user reads, and aria-pressed carries the
+    // on/off state on its own.
     return (
       <button
         type="button"
@@ -375,7 +375,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         ].join(' ')}
         onClick={() => updateControls({ [control]: !analysisControls[control] })}
         aria-pressed={analysisControls[control]}
-        aria-label={overlayLabel}
         disabled={disabled}
         title={overlayTitle}
       >

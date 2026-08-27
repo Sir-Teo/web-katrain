@@ -66,11 +66,15 @@ describe('AnalysisCommandBar', () => {
     expect(html).not.toMatch(/aria-controls=/);
     expect(html).toContain('aria-label="Turn live analysis off"');
     expect(html).toContain('aria-label="Run a fast review of the game"');
-    expect(html).toContain('aria-label="Hide top move hints"');
-    expect(html).toContain('aria-label="Cycle top move hint label. Current: Delta"');
-    expect(html).toContain('aria-label="Show move heatmap"');
-    expect(html).toContain('aria-label="Cycle move heatmap metric. Current: Prob."');
-    expect(html).toContain('aria-label="Hide territory ownership"');
+    // Toggles: visible chip text is the accessible name, aria-pressed the state.
+    expect(html).toContain('title="Show or hide top move hints"');
+    expect(html).toContain('title="Show move heatmap"');
+    expect(html).toContain('title="Hide territory ownership"');
+    expect(html).not.toContain('aria-label="Hide top move hints"');
+    // Value chips: the name opens with the text printed on the chip.
+    expect(html).toContain('aria-label="Hint: Delta \u2014 cycle top move hint label"');
+    expect(html).toContain('aria-label="Map: Prob. \u2014 cycle move heatmap metric"');
+    expect(html).toContain('aria-label="Depth: 5k \u2014 5000 visits"');
     expect(html).toContain('aria-label="Open the full game report"');
     expect(html).toContain('data-analysis-metrics-overflow="none"');
     expect(html).toContain('data-analysis-actions-overflow="none"');

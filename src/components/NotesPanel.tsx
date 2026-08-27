@@ -603,7 +603,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               onClick={addShapeCoachToNote}
               disabled={hasShapeCoachNoteBlock}
               title={hasShapeCoachNoteBlock ? 'Shape Coach is already in this note' : 'Add Shape Coach to note'}
-              aria-label={hasShapeCoachNoteBlock ? `${moveInsight.label} Shape Coach is already in this note` : `Add ${moveInsight.label} Shape Coach to note`}
+              aria-label={hasShapeCoachNoteBlock
+                ? `In note: ${moveInsight.label} Shape Coach is already in this note`
+                : `Add to note: ${moveInsight.label} Shape Coach`}
             >
               <FaStickyNote size={11} aria-hidden="true" />
               <span>{hasShapeCoachNoteBlock ? 'In note' : 'Add to note'}</span>

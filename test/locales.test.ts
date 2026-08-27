@@ -17,8 +17,7 @@ describe('app locales', () => {
     expect(getAppLocaleHtmlLang('zh-TW')).toBe('zh-Hant');
     expect(getAppLocaleHtmlLang('ja')).toBe('ja');
     expect(getAppLocaleShortLabel('de')).toBe('DE');
-    expect(getAppLocaleOption('es').languageLabel).toBe('Idioma');
-    expect(getAppLocaleOption('it').selectLanguageLabel).toBe('Seleziona lingua');
+    expect(getAppLocaleOption('it').nativeLabel).toBe('Italiano');
     expect(getAppLocaleOption('pt').nativeLabel).toBe('Português');
     expect(getAppLocaleOption('vi').nativeLabel).toBe('Tiếng Việt');
   });
