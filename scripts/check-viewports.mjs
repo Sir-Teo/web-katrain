@@ -428,6 +428,13 @@ function assertViewport(result) {
         .join(', ');
       failures.push(`${result.editModeSmallTouchTargets.length} edit-mode touch target(s) below 44px: ${summary}`);
     }
+    if (result.treeSmallTouchTargets.length > 0) {
+      const summary = result.treeSmallTouchTargets
+        .slice(0, 8)
+        .map((target) => `${target.label} ${Math.round(target.width)}x${Math.round(target.height)}`)
+        .join(', ');
+      failures.push(`${result.treeSmallTouchTargets.length} tree-tab touch target(s) below 44px: ${summary}`);
+    }
     if (result.reviewSmallTouchTargets.length > 0) {
       const summary = result.reviewSmallTouchTargets
         .slice(0, 8)
@@ -2197,6 +2204,20 @@ async function main() {
         let noteEditorReachable = true;
         let noteEditorKeyboardAware = true;
         let noteEditorLifecycleFailures = [];
+        // The tree tab drops its back button's label and tightens the padding,
+        // which had left that control 36px wide. The empty-state smoke below
+        // only measures the empty state's own action, so nothing covered the
+        // tab's chrome once the tree had content.
+        let treeSmallTouchTargets = [];
+        if (${viewport.mobile}) {
+          const treeTab = Array.from(document.querySelectorAll('button[role="tab"]')).find((button) => button.getAttribute('aria-label') === 'Tree');
+          treeTab?.click();
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          treeSmallTouchTargets = auditSmallTouchTargets();
+          const backToBoardTab = Array.from(document.querySelectorAll('button[role="tab"]')).find((button) => button.getAttribute('aria-label') === 'Board');
+          backToBoardTab?.click();
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        }
         let reviewSmallTouchTargets = [];
         if (${viewport.mobile}) {
           const reviewTab = Array.from(document.querySelectorAll('button[role="tab"]')).find((button) => button.getAttribute('aria-label') === 'Review');
@@ -2651,6 +2672,7 @@ async function main() {
           photoBoardTraceImportFailures,
           boardThemeSmokeFailures,
           localeSmokeFailures,
+          treeSmallTouchTargets,
           reviewSmallTouchTargets,
           boardTouchAction,
           smallTouchTargets,
