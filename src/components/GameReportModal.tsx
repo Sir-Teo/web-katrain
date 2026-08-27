@@ -1780,9 +1780,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     <React.Fragment key={label}>
                       <div className={`col-span-3 ${mutedClass}`}>{label}</div>
                       <div className="col-span-5">
+                        {/* The 8px bar is the inner span, centred by the grid, so the
+                            wrapper is free to be a real target. lg:h-2 shrank it to
+                            the graphic's own height, leaving an 8px strip to hit;
+                            h-6 clears the 24px floor and changes nothing visible.
+                            The h-11 touch size below lg was already right. */}
                         <button
                           type="button"
-                          className="grid h-11 w-full place-items-center rounded-full hover:brightness-125 lg:h-2"
+                          className="grid h-11 w-full place-items-center rounded-full hover:brightness-125 lg:h-6"
                           onClick={() => setBucketFilter(bucketFilter === idx ? null : idx)}
                           aria-label={`Filter loss bucket ${label}`}
                         >
