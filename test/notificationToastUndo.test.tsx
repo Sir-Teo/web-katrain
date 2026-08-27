@@ -47,7 +47,7 @@ describe('NotificationToast undo action', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
     expect(html).toContain(`title="${message.replaceAll('"', '&quot;')}"`);
-    expect(css).toMatch(/notification-toast-region--desktop-dashboard:has\(\.notification-toast-success\) \.notification-toast-message \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/);
+    expect(css).toMatch(/\.notification-toast-region--desktop-header \.notification-toast-message \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/);
     expect(css).toMatch(/\.notification-toast-success \.notification-toast-message \{[^}]*-webkit-line-clamp: 2;/);
   });
 

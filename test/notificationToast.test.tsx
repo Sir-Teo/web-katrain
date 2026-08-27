@@ -52,7 +52,7 @@ describe('NotificationToast', () => {
   it('supports a desktop dashboard placement below interactive header controls', () => {
     const html = renderToStaticMarkup(
       <NotificationToast
-        notification={{ message: 'Continuous analysis on', type: 'info' }}
+        notification={{ message: 'Analysis error: backend unavailable', type: 'error' }}
         onClose={() => undefined}
         placement="desktop-dashboard"
       />
@@ -68,8 +68,31 @@ describe('NotificationToast', () => {
     expect(css).toContain('min-height: 2.75rem;');
     expect(css).toContain('@media (min-width: 1024px) and (max-width: 1100px)');
     expect(css).toContain('right: calc(var(--sidebar-w) + 0.5rem);');
-    expect(css).toContain('width: min(323px, calc(100vw - 387px - var(--sidebar-w) - 0.5rem));');
     expect(css).toContain('display: none;');
+  });
+
+  it('puts routine status in the header flex slot rather than over the controls', () => {
+    const html = renderToStaticMarkup(
+      <NotificationToast
+        notification={{ message: 'Continuous analysis on', type: 'info' }}
+        onClose={() => undefined}
+        placement="desktop-header"
+      />
+    );
+
+    expect(html).toContain('notification-toast-region--desktop-header');
+
+    // In flow inside .header-spacer, so the two header clusters squeeze it
+    // instead of being covered by it — no offset can be measured wrong.
+    const css = readFileSync('src/index.css', 'utf8');
+    expect(css).toMatch(/\.notification-toast-region--desktop-header \{[^}]*position: static;[^}]*min-width: 0;/);
+    const dashboard = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+    expect(dashboard).toMatch(/\.wk-dashboard \.header-spacer \{[^}]*display: flex;[^}]*min-width: 8px;/);
+
+    // Only errors keep the overlay placement, so only they can reach the board.
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+    expect(layout).toContain("notification.type !== 'error' ? (");
+    expect(layout).toContain("notification.type === 'error' && (");
   });
 
   it('keeps mobile notification actions at touch target size', () => {
