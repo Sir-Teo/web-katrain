@@ -5,6 +5,7 @@ import { useGameStore } from '../store/gameStore';
 import type { CandidateMove, FloatArray, GameNode, Move, Player } from '../types';
 import { formatRootInfoText } from '../utils/gameInfoText';
 import { parseNoteBlocks, parseNoteInlinePreview, type NoteInlineSegment, type NoteTableAlignment } from '../utils/notePreview';
+import { mediaQueryMatches } from '../utils/mediaQuery';
 import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
@@ -13,6 +14,14 @@ import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 import { getCurrentLineMoveNumber, isGameNodeStep } from '../utils/branchNavigation';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
+
+/**
+ * A device with no hover and only a coarse pointer has no keys to press, so
+ * "or press C" and "(Tab to enable)" are instructions it cannot follow. Read
+ * once per mount rather than subscribed: input capability does not change
+ * under a running panel, and this one re-renders on every move.
+ */
+const TOUCH_ONLY_MEDIA = '(pointer: coarse) and (hover: none)';
 
 const NOTE_SHORTCUT_IDS = ['edit-note'] as const;
 
@@ -481,8 +490,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     }
   };
 
+  const touchOnly = useMemo(() => mediaQueryMatches(TOUCH_ONLY_MEDIA), []);
+
   const analysisStatusText = useMemo(() => {
-    if (!isAnalysisMode) return 'Analysis off (Tab to enable)';
+    if (!isAnalysisMode) return touchOnly ? 'Analysis off' : 'Analysis off (Tab to enable)';
     if (engineStatus === 'error') return engineError ? `Engine error: ${engineError}` : 'Engine error';
     // Turning analysis on before the engine is up left this saying "Analyzing
     // move..." while a ~30MB model was still downloading and compiling —
@@ -490,7 +501,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     // chip already says Loading; say the same thing here.
     if (engineStatus === 'loading') return 'Loading engine...';
     return 'Analyzing move...';
-  }, [engineError, engineStatus, isAnalysisMode]);
+  }, [engineError, engineStatus, isAnalysisMode, touchOnly]);
 
   const infoText = (() => {
     if (!showInfoBlock) return '';
@@ -746,7 +757,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               ) : (
                 <div className="flex h-full min-h-[4.5rem] flex-col items-center justify-center text-xs ui-text-faint">
                   <span className="font-semibold text-[var(--ui-text-muted)]">Add a note</span>
-                  <span>{noteShortcutLabel === 'Disabled' ? 'Select this area to start writing' : `Select this area or press ${noteShortcutLabel}`}</span>
+                  <span>{noteShortcutLabel === 'Disabled' || touchOnly ? 'Select this area to start writing' : `Select this area or press ${noteShortcutLabel}`}</span>
                 </div>
               )}
             </div>

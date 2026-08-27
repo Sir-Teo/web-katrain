@@ -5,7 +5,7 @@ describe('NotesPanel analysis status line', () => {
   it('says the engine is loading rather than claiming to analyze', () => {
     const source = readFileSync('src/components/NotesPanel.tsx', 'utf8');
     const start = source.indexOf('const analysisStatusText');
-    const end = source.indexOf('}, [engineError, engineStatus, isAnalysisMode]);', start);
+    const end = source.indexOf('}, [engineError, engineStatus, isAnalysisMode, touchOnly]);', start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const block = source.slice(start, end);
@@ -14,7 +14,9 @@ describe('NotesPanel analysis status line', () => {
     // move..." while a ~30MB model was still downloading and compiling. The
     // loading branch existed but returned the same string as the ready one.
     expect(block).toContain("if (engineStatus === 'loading') return 'Loading engine...';");
-    expect(block).toContain("if (!isAnalysisMode) return 'Analysis off (Tab to enable)';");
+    // "(Tab to enable)" is an instruction a touch-only device cannot follow,
+    // so the hint is dropped there and the state still named.
+    expect(block).toContain("return touchOnly ? 'Analysis off' : 'Analysis off (Tab to enable)';");
     expect(block.match(/'Analyzing move\.\.\.'/g) ?? []).toHaveLength(1);
   });
 
