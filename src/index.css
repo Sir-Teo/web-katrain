@@ -2583,6 +2583,10 @@
     pointer-events: none;
   }
 
+  /* A zero-height sticky strip so the map floats over the tree without taking
+     a row of it. The map has to be laid out upward from that line: aligned to
+     the flex line's start it hung 71px of its 88 below the scrollport, and all
+     a reader saw of it was a 17px sliver of its top edge. */
   .move-tree-minimap {
     position: sticky;
     right: 0.5rem;
@@ -2590,6 +2594,7 @@
     z-index: 7;
     display: flex;
     justify-content: flex-end;
+    align-items: flex-end;
     height: 0;
     padding-right: 0.5rem;
     pointer-events: none;

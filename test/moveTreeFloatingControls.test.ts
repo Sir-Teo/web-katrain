@@ -29,6 +29,21 @@ describe('move tree floating controls', () => {
     expect(blocks.every((block) => !block.includes('height: 0'))).toBe(true);
   });
 
+  it('lays the tree map upward from its zero-height strip so all of it shows', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const start = css.indexOf('.move-tree-minimap {');
+    expect(start).toBeGreaterThan(-1);
+    const block = css.slice(start, css.indexOf('}', start));
+
+    // The strip is zero-height on purpose — the map floats over the tree rather
+    // than taking a row of it — but a flex line of zero height lays its item out
+    // downward from the sticky edge unless told otherwise, and 71px of the 88px
+    // map hung below the scrollport. All a reader saw was its top sliver.
+    expect(block).toContain('height: 0;');
+    expect(block).toContain('bottom: 0.5rem;');
+    expect(block).toContain('align-items: flex-end;');
+  });
+
   it('renders the controls ahead of the tree so the band sits above it', () => {
     const source = readFileSync('src/components/MoveTree.tsx', 'utf8');
 
