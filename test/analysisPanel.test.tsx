@@ -96,6 +96,27 @@ describe('AnalysisPanel', () => {
     expect(controls.indexOf('Territory')).toBeLessThan(controls.indexOf('Show analysis legend'));
   });
 
+  it('holds the compact overlay controls in fixed columns across phone widths', () => {
+    const html = renderToStaticMarkup(<AnalysisPanel {...baseProps} compact />);
+    const css = readFileSync('src/index.css', 'utf8');
+
+    // Wrapped by natural width the six controls rearranged with the handset:
+    // 3+2 at 390px, 4+1 at 430 — Heatmap and Territory swapping rows between
+    // one phone and the next — and 3+2+1 at 320, where the third row cost a
+    // band of the panel. A fixed matrix is two rows at all four widths.
+    expect(html).toContain('class="analysis-overlay-grid" data-analysis-overlay-controls="true"');
+    expect(html).toContain('analysis-overlay-grid-tail');
+    expect(html).not.toContain('class="flex flex-wrap items-center gap-1.5" data-analysis-overlay-controls="true"');
+
+    const start = css.indexOf('.analysis-overlay-grid {');
+    expect(start).toBeGreaterThan(-1);
+    const block = css.slice(start, css.indexOf('}', start));
+    expect(block).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    // "Top moves" is 105px of content in a 96px cell at 320px wide; the trimmed
+    // side padding is what keeps it from being clipped there.
+    expect(css).toMatch(/\.analysis-overlay-grid > \.panel-action-button \{[^}]*padding-inline: 4px;/);
+  });
+
   it('leads the played-move detail with the points figure', () => {
     const source = readFileSync('src/components/AnalysisPanel.tsx', 'utf8');
 

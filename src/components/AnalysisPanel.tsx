@@ -725,12 +725,15 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       <div className="panel-section-content">
         {compact ? (
           <div className="space-y-1.5">
-            {/* Cache and legend rode their own right-aligned row, which spent a
-                full band of a phone panel on two icons. They wrap with the
-                overlay toggles instead and settle at the end of the last line. */}
-            <div className="flex flex-wrap items-center gap-1.5" data-analysis-overlay-controls="true">
+            {/* Five toggles and the cache/legend pair, on a fixed three-column
+                matrix. Wrapped by natural width they rearranged with the phone:
+                3+2 at 390px, 4+1 at 430 — Heatmap and Territory swapping rows
+                between one handset and the next — and 3+2+1 at 320, where the
+                third row cost a band of the panel. Fixed columns hold every
+                control in one place and fit 320px in two rows. */}
+            <div className="analysis-overlay-grid" data-analysis-overlay-controls="true">
               {overlayToggleButtons}
-              <div className="ml-auto flex items-center gap-1.5">
+              <div className="analysis-overlay-grid-tail">
                 {analysisCacheControl}
                 {legendButton}
               </div>

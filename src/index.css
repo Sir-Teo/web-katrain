@@ -3955,6 +3955,28 @@
     background-image: radial-gradient(circle at 32% 28%, #ffffff 0%, #f1f1f1 42%, #cfcfcf 100%);
   }
 
+  .analysis-overlay-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.375rem;
+    align-items: stretch;
+  }
+
+  .analysis-overlay-grid > .panel-action-button {
+    min-width: 0;
+    padding-inline: 4px;
+  }
+
+  /* The pair shares the cell Territory leaves empty. Icon-sized controls, so
+     they sit at its right-hand end rather than stretching across it. */
+  .analysis-overlay-grid-tail {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
   .panel-toggle {
     padding: 4px 6px;
     border: none;
