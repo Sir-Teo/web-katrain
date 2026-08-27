@@ -3929,6 +3929,32 @@
     min-width: 7rem;
   }
 
+  /* The setup tools are stones, so they are drawn as stones: a rimmed disc
+     carries on any panel background, where a tinted glyph only carried on one.
+     Same two gradients the game strip's mini stones use. */
+
+  /* Whichever stone matches the panel behind it loses its fill — a white stone
+     is 1.1:1 on a light toolbar, a black one 1.2:1 on a dark one. The rim is
+     what carries the shape there, so it is drawn in the theme's own text tone,
+     which contrasts with the panel by construction in every theme. */
+  .edit-tool-stone {
+    display: inline-block;
+    width: 0.8125rem;
+    height: 0.8125rem;
+    border-radius: 9999px;
+    flex: none;
+    border: 1.5px solid var(--ui-text);
+    background-clip: padding-box;
+  }
+
+  .edit-tool-stone.black {
+    background-image: radial-gradient(circle at 35% 30%, #5a5a5a 0%, #232323 40%, #050505 100%);
+  }
+
+  .edit-tool-stone.white {
+    background-image: radial-gradient(circle at 32% 28%, #ffffff 0%, #f1f1f1 42%, #cfcfcf 100%);
+  }
+
   .panel-toggle {
     padding: 4px 6px;
     border: none;

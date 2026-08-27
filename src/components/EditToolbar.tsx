@@ -3,7 +3,6 @@ import {
   FaArrowLeft,
   FaArrowRight,
   FaCaretUp,
-  FaCircle,
   FaCopy,
   FaCut,
   FaEdit,
@@ -44,12 +43,22 @@ const TOOL_GROUPS: Array<{ title: string; items: EditToolItem[] }> = [
   {
     title: 'Setup',
     items: [
-      { tool: 'setup-black', label: 'Black', title: 'Setup black stone', icon: <FaCircle /> },
+      // Drawn as stones rather than tinted glyphs. Painting the icon `text-white`
+      // put a white ring on a #f8fafc button — 1.05:1, which reads as a disabled
+      // control, and it shared FaRegCircle with the circle marker further down
+      // the strip. `text-black` had the mirror problem on the dark themes. A
+      // rimmed disc is legible on either, and says stone rather than circle.
+      {
+        tool: 'setup-black',
+        label: 'Black',
+        title: 'Setup black stone',
+        icon: <span className="edit-tool-stone black" aria-hidden="true" />,
+      },
       {
         tool: 'setup-white',
         label: 'White',
         title: 'Setup white stone',
-        icon: <FaRegCircle className="drop-shadow-sm" />,
+        icon: <span className="edit-tool-stone white" aria-hidden="true" />,
       },
       { tool: 'setup-alternate', label: 'Alt', title: 'Alternate setup stones', icon: <FaExchangeAlt /> },
       { tool: 'setup-erase', label: 'Erase', title: 'Erase setup stone', icon: <FaEraser /> },
@@ -360,9 +369,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
                       aria-label={title}
                       aria-pressed={editTool === item.tool}
                     >
-                      <span className={item.tool === 'setup-black' ? 'text-black' : item.tool === 'setup-white' ? 'text-white' : ''}>
-                        {item.icon}
-                      </span>
+                      <span>{item.icon}</span>
                       <span className="hidden sm:inline">{item.label}</span>
                       {shortcutLabel !== 'Disabled' && (
                         <kbd className="hidden md:inline font-mono text-[0.625rem] ui-text-faint">{shortcutLabel}</kbd>
