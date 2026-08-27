@@ -40,6 +40,15 @@ const KIFU_PRINT_STYLE = `
       background: #ffffff !important; color: #0f172a !important;
     }
     .kifu-print .kifu-controls { display: none !important; }
+    /* One diagram to a page, which is what the break below already asks for.
+       On screen they sit two to a row to keep the preview scannable, and that
+       column count followed them onto paper: each figure came out about 3.5in
+       on A4, where 50 numbered moves do not fit — adjacent labels overlapped by
+       11-17px, up to 16 pairs in a single diagram. A full-width figure is twice
+       the size, and the numbers scale with it. */
+    .kifu-print .kifu-diagram-grid {
+      grid-template-columns: 1fr !important;
+    }
     .kifu-diagram-page {
       break-after: page !important; page-break-after: always !important;
       break-inside: avoid !important; page-break-inside: avoid !important;
@@ -167,7 +176,7 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
               ? 'No moves to print yet.'
               : `${diagrams.length} diagram${diagrams.length === 1 ? '' : 's'} · ${movesPerDiagram === 'all' ? 'all moves on one board' : `${movesPerDiagram} moves per diagram`}.`}
           </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="kifu-diagram-grid grid grid-cols-1 gap-6 sm:grid-cols-2">
             {diagrams.map((diagram) => (
               <div key={diagram.index} className="kifu-diagram-page flex flex-col items-center">
                 <div className="kifu-diagram-caption mb-2 text-sm font-semibold text-[var(--ui-text)]">
@@ -179,7 +188,10 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
                   board={diagram.board}
                   markers={toStaticMarkers(diagram.markers)}
                   showCoordinates
-                  maxPx={360}
+                  // A cap, not a size: the board is `width: 100%`, so in the
+                  // two-column preview its ~350px column still governs. It is
+                  // the printed page's single column that this lets it fill.
+                  maxPx={720}
                   ariaLabel={`Kifu diagram moves ${diagram.startMove} to ${diagram.endMove}`}
                 />
               </div>
