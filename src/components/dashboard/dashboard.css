@@ -1131,6 +1131,17 @@
 }
 .wk-dashboard .coach-card b { color: var(--ink); font-weight: 600; }
 .wk-dashboard .coach-card .cc-title { font-size: 12.5px; color: var(--ink); font-weight: 600; margin-bottom: 3px; }
+/* The switch belongs on the line that names the state, not stacked under a
+   paragraph: the card was 136px of a 750px sidebar to say one thing. */
+.wk-dashboard .coach-card .cc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.wk-dashboard .coach-card .cc-head .cc-title { margin-bottom: 0; }
+.wk-dashboard .coach-card .cc-head .pbtn { flex: none; }
 
 /* timer (play mode) */
 .wk-dashboard .timer-pill {

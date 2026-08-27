@@ -1053,25 +1053,27 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 )}
                 {!showAnalysis && (
                   <div className="coach-card">
-                    <div className="cc-title">Live analysis is off</div>
-                    {/* The graph is not paused: a game review fills it from this very
-                        panel while live analysis stays off, so claiming otherwise sat
-                        directly under a populated graph. Only the per-move evaluation
-                        that follows the cursor stops. */}
-                    Moves are not evaluated as you play them, and the board shows no
-                    hints or ownership. A game review still charts the whole game.
-                    <div style={{ paddingTop: 8 }}>
+                    <div className="cc-head">
+                      <div className="cc-title">Live analysis is off</div>
                       <button
                         type="button"
                         className="pbtn"
+                        aria-label="Turn on live analysis"
                         onClick={() => {
                           setMode('analyze');
                           if (!isContinuousAnalysis) toggleContinuousAnalysis();
                         }}
                       >
-                        <Icon name="chart" size={12} />Turn on analysis
+                        <Icon name="chart" size={12} />Turn on
                       </button>
                     </div>
+                    {/* Says only what stops — the per-move evaluation that follows
+                        the cursor. It used to add that a game review still charts
+                        the whole game, which the graph's own "Analyze game" button
+                        directly above already offers; with no claim left about the
+                        graph, the sentence had nothing to correct. */}
+                    Moves are not evaluated as you play them, and the board shows no
+                    hints or ownership.
                   </div>
                 )}
               </div>
