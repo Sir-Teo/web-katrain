@@ -29,26 +29,44 @@ describe('move tree floating controls', () => {
     expect(blocks.every((block) => !block.includes('height: 0'))).toBe(true);
   });
 
-  it('lays the tree map upward from its zero-height strip so all of it shows', () => {
-    const css = readFileSync('src/index.css', 'utf8');
-    const start = css.indexOf('.move-tree-minimap {');
-    expect(start).toBeGreaterThan(-1);
-    const block = css.slice(start, css.indexOf('}', start));
-
-    // The strip is zero-height on purpose — the map floats over the tree rather
-    // than taking a row of it — but a flex line of zero height lays its item out
-    // downward from the sticky edge unless told otherwise, and 71px of the 88px
-    // map hung below the scrollport. All a reader saw was its top sliver.
-    expect(block).toContain('height: 0;');
-    expect(block).toContain('bottom: 0.5rem;');
-    expect(block).toContain('align-items: flex-end;');
-  });
-
-  it('renders the controls ahead of the tree so the band sits above it', () => {
+  it('hangs the controls, the map and the notice off the pane, not the scroller', () => {
     const source = readFileSync('src/components/MoveTree.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
 
-    expect(source.indexOf('move-tree-floating-controls')).toBeLessThan(
-      source.indexOf('data-move-tree="true"')
-    );
+    // Sticky cannot hold anything against a horizontal scroll here: a block
+    // child's containing block is exactly as wide as the scrollport, so there
+    // is no room to offset and the element rides away with the tree. At move
+    // 231 of a 231-move game — the view the panel opens on — the control band,
+    // the map and the layout notice all sat ~3,700px off-screen.
+    const shellIndex = source.indexOf('className="move-tree-shell');
+    const barIndex = source.indexOf('move-tree-floating-controls');
+    const scrollerIndex = source.indexOf("className=\"relative min-h-0 w-full flex-1 overflow-auto\"");
+    const svgIndex = source.indexOf('data-move-tree="true"');
+    const mapIndex = source.indexOf('data-move-tree-minimap="true"');
+
+    expect(shellIndex).toBeGreaterThan(-1);
+    expect(scrollerIndex).toBeGreaterThan(-1);
+    // Band above the scroller, tree inside it, map after it closes again.
+    expect(shellIndex).toBeLessThan(barIndex);
+    expect(barIndex).toBeLessThan(scrollerIndex);
+    expect(scrollerIndex).toBeLessThan(svgIndex);
+    expect(svgIndex).toBeLessThan(mapIndex);
+    expect(source).toContain('className="move-tree-overlay-strip"');
+    expect(source).toContain('className="move-tree-layout-notice"');
+    expect(source.indexOf('className="move-tree-overlay-strip"')).toBeLessThan(mapIndex);
+
+    // The band and the strip are still sticky, because the pane itself scrolls
+    // in the vertical tree layout — what they must not be is sticky inside the
+    // box that scrolls sideways.
+    for (const [selector, decl] of [
+      ['.move-tree-floating-controls {', 'top: 0;'],
+      ['.move-tree-overlay-strip {', 'bottom: 0.5rem;'],
+    ] as const) {
+      const start = css.indexOf(selector);
+      expect(start).toBeGreaterThan(-1);
+      const block = css.slice(start, css.indexOf('}', start));
+      expect(block).toContain('position: sticky;');
+      expect(block).toContain(decl);
+    }
   });
 });

@@ -378,11 +378,15 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   }
 
   return (
+    /* The controls, the map and the layout notice all used to live inside the
+       scroller, sticky to its edges. Sticky cannot hold them there: their
+       containing block is exactly as wide as the scrollport, so there is no
+       room to offset, and a horizontal scroll carried them away with the tree.
+       At move 231 of a 231-move game — the view the panel opens on — all three
+       sat ~3,700px off-screen. They hang off a shell that does not scroll. */
     <div
-      ref={containerRef}
-      className="relative w-full h-full overflow-auto ui-surface"
+      className="move-tree-shell relative flex h-full w-full flex-col ui-surface"
       data-tree-layout={layoutStatus}
-      onWheel={handleWheel}
     >
       <div className="move-tree-floating-controls">
         <button
@@ -417,6 +421,11 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           </button>
         )}
       </div>
+      <div
+        ref={containerRef}
+        className="relative min-h-0 w-full flex-1 overflow-auto"
+        onWheel={handleWheel}
+      >
       <svg
         width={layout.width}
         height={layout.height}
@@ -564,8 +573,14 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           </div>
         </div>
       )}
+      </div>
+      {/* Both float over the tree from a zero-height strip, so they take no row
+          of it and cannot be carried off by its sideways scroll. Sticky so they
+          stay put when the pane itself scrolls, which it does in the vertical
+          tree layout. */}
+      <div className="move-tree-overlay-strip">
       {layoutStatus === 'working' && (
-        <div className="pointer-events-none sticky bottom-1 left-1 inline-flex rounded bg-[var(--ui-surface)]/90 px-2 py-1 text-[0.625rem] uppercase tracking-wide ui-text-muted">
+        <div className="move-tree-layout-notice">
           Laying out {flatTree.length} nodes
         </div>
       )}
@@ -616,6 +631,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           </svg>
         </div>
       )}
+      </div>
     </div>
   );
 };
