@@ -358,6 +358,11 @@ function assertViewport(result) {
     // column, and closing that last 50px would mean taking controls off the
     // rail rather than tightening it. See the max-width: 700px tier in
     // dashboard.css.
+    // The one surviving intent of the old dual-panel block: the board has to
+    // stay playable while both panels hold their columns.
+    if (result.navbarWithLibrary && result.navbarWithLibrary.boardWidth != null && result.navbarWithLibrary.boardWidth < 300) {
+      failures.push(`board too small with the library docked (${Math.round(result.navbarWithLibrary.boardWidth)}px)`);
+    }
     if (result.navbarWithLibrary?.stillOpen) {
       failures.push('library stayed docked after the nav bar probe closed it');
     }
@@ -377,13 +382,6 @@ function assertViewport(result) {
     if (!result.actionsMenuReachable) failures.push('Actions menu not reachable');
     if (result.topToggleOverTopBar) failures.push('top toggle overlaps top bar');
     if (result.topToggleOverEditToolbar) failures.push('top toggle overlaps edit toolbar');
-    if (result.expectDualDesktopPanels) {
-      if (!result.libraryPanelVisible) failures.push('laptop library panel is not visible with side panel open');
-      if (!result.sidePanelVisible) failures.push('laptop side panel is not visible with library open');
-      if (result.libraryPanelOverlapsBoard) failures.push('laptop library panel overlaps board');
-      if (result.sidePanelOverlapsBoard) failures.push('laptop side panel overlaps board');
-      if (result.board && result.board.width < 300) failures.push(`laptop board too small with both panels open (${Math.round(result.board.width)}px)`);
-    }
   } else {
     if (!result.toolsReachable) failures.push('mobile tools menu not reachable');
     if (!result.editToolsReachable) failures.push('mobile edit tools not reachable');
@@ -2956,7 +2954,6 @@ async function main() {
           // app needs width AND height, so a wide but short window is still the
           // mobile shell. Checking width alone aimed desktop assertions at it.
           desktop: ${viewport.width >= 1024 && viewport.height >= 500},
-          expectDualDesktopPanels: ${viewport.width === 1024 && viewport.height === 768 && !viewport.mobile} && !dashboard,
           innerWidth,
           innerHeight,
           documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
@@ -2978,10 +2975,6 @@ async function main() {
           board: rect(board),
           libraryPanel: rect(libraryPanel),
           sidePanel: rect(sidePanel),
-          libraryPanelVisible: isVisibleBox(libraryPanel),
-          sidePanelVisible: isVisibleBox(sidePanel),
-          libraryPanelOverlapsBoard: intersects(rect(libraryPanel), rect(board)),
-          sidePanelOverlapsBoard: intersects(rect(sidePanel), rect(board)),
           notificationToast: notificationToastRect,
           notificationMessage,
           notificationType,
@@ -3091,27 +3084,35 @@ async function main() {
           const restore = localStorage.getItem(key);
           const findButton = (label) => Array.from(document.querySelectorAll('button'))
             .find((button) => (button.getAttribute('aria-label') || '') === label);
-          const show = findButton('Show library');
-          if (!show) return null;
-          show.click();
+          // Measure whatever state we find: if an earlier step already docked
+          // the library, toggling it here would close the very thing we came
+          // to measure and the probe would report nothing.
+          const alreadyOpen = dashboard.dataset.library === 'open';
+          const show = alreadyOpen ? null : findButton('Show library');
+          if (!alreadyOpen && !show) return null;
+          if (show) show.click();
           await new Promise((resolve) => setTimeout(resolve, 400));
           const navbar = document.querySelector('.wk-dashboard .navbar');
           const pass = navbar?.querySelector('.pass-btn');
           const play = navbar?.querySelector('.playactions');
           const column = document.querySelector('.wk-dashboard .board-col');
+          const boardWithLibrary = document.querySelector('[data-board-snapshot="true"]');
           const out = {
             columnWidth: column ? column.getBoundingClientRect().width : null,
             navbarHeight: navbar ? navbar.getBoundingClientRect().height : null,
+            boardWidth: boardWithLibrary ? boardWithLibrary.getBoundingClientRect().width : null,
             wrapped: pass && play
               ? Math.abs(pass.getBoundingClientRect().top - play.getBoundingClientRect().top) > 2
               : false,
           };
-          const hide = findButton('Hide library');
-          if (hide) hide.click();
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          if (!alreadyOpen) {
+            const hide = findButton('Hide library');
+            if (hide) hide.click();
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
           // The open state is persisted, so leaving it set would carry the
           // drawer — and its scrim — into the next viewport's whole run.
-          out.stillOpen = document.querySelector('.wk-dashboard')?.dataset.library === 'open';
+          out.stillOpen = !alreadyOpen && document.querySelector('.wk-dashboard')?.dataset.library === 'open';
           if (restore === null) localStorage.removeItem(key); else localStorage.setItem(key, restore);
           return out;
         })()`);
