@@ -446,7 +446,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           {isMobile && (
             <button
               type="button"
-              className="mobile-panel-back desktop-shell:hidden h-11 min-h-11 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
+              className="mobile-panel-back desktop-shell:hidden h-11 min-h-11 min-w-11 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
               onClick={onClose}
               title="Back to board"
             >

@@ -82,6 +82,8 @@ import {
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
+
+const LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY = 'web-katrain:library_folders_expanded:v1';
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
 const safeDownloadName = (name: string, fallback: string): string =>
   stripUnsafeFilenameControls(name)
@@ -327,8 +329,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const raw = readLocalStorage(LIBRARY_CURRENT_FOLDER_STORAGE_KEY);
     return raw || null;
   });
+  // A first-run library is one folder holding every shipped game, and nothing
+  // expanded, so opening the panel showed a search box over 640px of nothing.
+  // Only true until the reader collapses or expands something themselves.
+  const [hadStoredFolderExpansion] = useState(
+    () => readLocalStorage(LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY) !== null
+  );
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => {
-    const raw = readLocalStorage('web-katrain:library_folders_expanded:v1');
+    const raw = readLocalStorage(LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY);
     if (!raw) return new Set();
     try {
       const parsed = JSON.parse(raw);
@@ -376,6 +384,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         if (cancelled) return;
         didLoadLibraryRef.current = true;
         setItems(loaded);
+        // Nothing is expanded until someone expands it, so a library whose
+        // files all live in folders opened on an empty-looking tree. Show what
+        // it holds the first time, and only when collapsing hides everything.
+        if (!hadStoredFolderExpansion) {
+          const hasVisibleFile = loaded.some((item) => !isFolder(item) && item.parentId === null);
+          if (!hasVisibleFile) {
+            const topLevelFolderIds = loaded
+              .filter((item) => isFolder(item) && item.parentId === null)
+              .map((item) => item.id);
+            if (topLevelFolderIds.length > 0) setExpandedFolderIds(new Set(topLevelFolderIds));
+          }
+        }
         setLibraryStatus('ready');
       })
       .catch((error) => {
@@ -386,7 +406,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hadStoredFolderExpansion]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current) return;
@@ -460,7 +480,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   useEffect(() => {
     const arr = Array.from(visibleExpandedFolderIds.values());
-    writeLocalStorage('web-katrain:library_folders_expanded:v1', JSON.stringify(arr));
+    writeLocalStorage(LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY, JSON.stringify(arr));
   }, [visibleExpandedFolderIds]);
 
   useEffect(() => {
@@ -1918,7 +1938,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           {isMobile ? (
             <button
               type="button"
-              className="mobile-panel-back h-11 min-h-11 shrink-0 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
+              className="mobile-panel-back h-11 min-h-11 min-w-11 shrink-0 px-3 flex items-center gap-2 rounded-md hover:bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors"
               onClick={onClose}
               title="Back to board"
               aria-label="Back to board"

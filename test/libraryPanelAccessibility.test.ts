@@ -8,12 +8,41 @@ describe('LibraryPanel accessibility', () => {
     // Library, Tree and Review are all tabs in the mobile shell, reached and
     // left the same way; Library alone used a dismiss cross for it. It shares
     // RightPanel's back-button classes so the two headers cannot drift.
-    expect(source).toContain('className="mobile-panel-back h-11 min-h-11 shrink-0');
+    expect(source).toContain('className="mobile-panel-back h-11 min-h-11 min-w-11 shrink-0');
     expect(source).toContain('<span className="mobile-panel-back-label text-sm font-medium">Board</span>');
     expect(source).toContain('aria-label="Back to board"');
     // Docked on desktop it is a panel being closed, so the cross stays there.
     expect(source).toContain('aria-label="Close library"');
     expect(source).toContain("showCloseButtonOnDesktop ? '' : 'lg:hidden',");
+  });
+
+  it('keeps the back button a full touch target once it loses its label', () => {
+    const library = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+    const rightPanel = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+
+    // The tree tab drops the "Board" word and tightens the padding, which left
+    // the button 36px wide. min-w-11 holds the 44px floor either way.
+    expect(css).toContain("[data-mobile-panel-tab='tree'] .mobile-panel-back-label");
+    expect(library).toContain('h-11 min-h-11 min-w-11');
+    expect(rightPanel).toContain('h-11 min-h-11 min-w-11');
+  });
+
+  it('opens a first-run library on its contents, not on a closed folder', () => {
+    const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+    // The shipped library is one folder holding every game, and nothing is
+    // expanded until someone expands it, so the panel opened on a search box
+    // over empty space. Expand top-level folders the first time, and only
+    // when leaving them closed would show no files at all.
+    expect(source).toContain('const [hadStoredFolderExpansion] = useState(');
+    expect(source).toContain('if (!hadStoredFolderExpansion) {');
+    expect(source).toContain(
+      'const hasVisibleFile = loaded.some((item) => !isFolder(item) && item.parentId === null);'
+    );
+    expect(source).toContain('if (topLevelFolderIds.length > 0) setExpandedFolderIds(new Set(topLevelFolderIds));');
+    // A stored preference — including a deliberately empty one — always wins.
+    expect(source).toContain("const LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY = 'web-katrain:library_folders_expanded:v1';");
   });
 
   it('names toolbar form controls explicitly', () => {
@@ -105,7 +134,7 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain('hideHeader: isMobile');
     // The header's leading control keeps a 44px touch target on mobile and the
     // desktop panel's smaller square when docked.
-    expect(source).toContain("className=\"mobile-panel-back h-11 min-h-11 shrink-0");
+    expect(source).toContain("className=\"mobile-panel-back h-11 min-h-11 min-w-11 shrink-0");
     expect(source).toContain("'h-9 w-9',");
   });
 
