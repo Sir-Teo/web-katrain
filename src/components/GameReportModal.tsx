@@ -36,6 +36,7 @@ import { printWindow } from '../utils/print';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
+import { NO_VALUE } from '../utils/analysisSummary';
 
 interface GameReportModalProps {
   onClose: () => void;
@@ -55,32 +56,32 @@ const POLICY_GUIDE: Array<{ category: MovePolicyCategory; detail: string }> = [
 ];
 
 function fmtPct(x: number | undefined): string {
-  if (typeof x !== 'number' || !Number.isFinite(x)) return '--';
+  if (typeof x !== 'number' || !Number.isFinite(x)) return NO_VALUE;
   return `${(x * 100).toFixed(1)}%`;
 }
 
 function fmtNum(x: number | undefined, digits = 2): string {
-  if (typeof x !== 'number' || !Number.isFinite(x)) return '--';
+  if (typeof x !== 'number' || !Number.isFinite(x)) return NO_VALUE;
   return x.toFixed(digits);
 }
 
 function fmtSigned(x: number | undefined, digits = 1): string {
-  if (typeof x !== 'number' || !Number.isFinite(x)) return '--';
+  if (typeof x !== 'number' || !Number.isFinite(x)) return NO_VALUE;
   return x > 0 ? `+${x.toFixed(digits)}` : x.toFixed(digits);
 }
 
 function fmtPolicyPct(value: number | undefined): string {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+  if (typeof value !== 'number' || !Number.isFinite(value)) return NO_VALUE;
   return `${Math.round(value * 100)}%`;
 }
 
 function fmtWinRate(value: number | undefined): string {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+  if (typeof value !== 'number' || !Number.isFinite(value)) return NO_VALUE;
   return `${(value * 100).toFixed(1)}%`;
 }
 
 function fmtWinSwing(value: number | undefined): string {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+  if (typeof value !== 'number' || !Number.isFinite(value)) return NO_VALUE;
   const points = value * 100;
   return points > 0 ? `+${points.toFixed(1)}pp` : `${points.toFixed(1)}pp`;
 }
@@ -715,7 +716,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   };
 
   const formatPv = (pv?: string[], max = 12) => {
-    if (!pv || pv.length === 0) return '-';
+    if (!pv || pv.length === 0) return NO_VALUE;
     const sliced = pv.slice(0, max);
     return `${sliced.join(' ')}${pv.length > max ? ' ...' : ''}`;
   };
@@ -741,7 +742,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           </div>
           <div className={`col-span-2 font-mono ${valueClass}`}>{entry.move}</div>
           <div className={`col-span-2 font-mono ${mutedClass}`}>
-            {entry.topMove ?? '-'}
+            {entry.topMove ?? NO_VALUE}
           </div>
           <div className="col-span-2 text-right font-mono text-rose-300">
             {fmtNum(entry.pointsLost, 2)}
@@ -1180,7 +1181,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   <span className={`font-mono font-semibold ${valueClass}`}>#{studyFocus.topEntry.moveNumber}</span>
                   <span>{studyFocus.topEntry.player === 'black' ? 'B' : 'W'} {studyFocus.topEntry.move}</span>
                   <span className="font-mono text-[var(--ui-danger)]">-{fmtNum(studyFocus.topEntry.pointsLost, 2)}</span>
-                  <span>Engine preferred {studyFocus.topEntry.topMove ?? '-'}</span>
+                  <span>Engine preferred {studyFocus.topEntry.topMove ?? NO_VALUE}</span>
                   <div className="ml-auto flex flex-wrap gap-2 print-hide">
                     <button
                       type="button"
@@ -1690,7 +1691,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   </div>
                 </div>
                 <div className={`mt-2 text-xs ${mutedClass}`}>
-                  Played {activeReview.move}; engine preferred {activeReview.topMove ?? '-'}.
+                  Played {activeReview.move}; engine preferred {activeReview.topMove ?? NO_VALUE}.
                 </div>
               </div>
             )}
@@ -2022,7 +2023,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         Move {entry.moveNumber} - {playerNames[entry.player]}
                       </div>
                       <div className="text-sm text-slate-700">
-                        Played {entry.move} • Best {entry.topMove ?? '-'} • Loss {fmtNum(entry.pointsLost, 2)} • Win {fmtWinSwing(entry.winRateSwing)}
+                        Played {entry.move} • Best {entry.topMove ?? NO_VALUE} • Loss {fmtNum(entry.pointsLost, 2)} • Win {fmtWinSwing(entry.winRateSwing)}
                       </div>
                     </div>
                     <div className="text-xs text-slate-600">

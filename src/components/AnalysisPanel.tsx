@@ -22,7 +22,7 @@ import {
   mergeVisitPresets,
   visitPresetLabel,
 } from '../utils/visitPresets';
-import { formatAnalysisScoreLead, summarizePointsLost } from '../utils/analysisSummary';
+import { NO_VALUE, formatAnalysisScoreLead, summarizePointsLost } from '../utils/analysisSummary';
 import { getCurrentNodeBestMoveSummary } from '../utils/bestMoveSummary';
 import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
 import { setTimedNotification } from '../utils/timedNotification';
@@ -423,7 +423,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       aria-label={analysisCacheLabel}
     >
       <FaTrash size={11} aria-hidden="true" />
-      <span className="tabular-nums">{analysisCacheSize > 0 ? analysisCacheSize : '—'}</span>
+      <span className="tabular-nums">{analysisCacheSize > 0 ? analysisCacheSize : NO_VALUE}</span>
     </button>
   );
   const legendButton = (
@@ -746,7 +746,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               <div className="px-2 py-1">
                 <div className="text-[0.6875rem] ui-text-faint">Winrate</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
-                  {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
+                  {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : NO_VALUE}
                 </div>
               </div>
               <div className="px-2 py-1">
@@ -771,7 +771,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             <div className="px-2 py-1">
               <div className="text-[0.6875rem] ui-text-faint">Winrate</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">
-                {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : '-'}
+                {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : NO_VALUE}
               </div>
             </div>
             <div className="px-2 py-1">
