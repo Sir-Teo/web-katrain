@@ -5,7 +5,7 @@ import {
   recomputeNodeStatsForTest,
 } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // Edge visits (cpp/search/searchnode.h, NodeStats::childWeight).
@@ -78,7 +78,7 @@ describe('edge visits', () => {
 // enableMorePassingHacks, which KataGo turns on for the analysis and GTP setups.
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!hasModel())('more passing hacks', () => {
+describe.skipIf(!runsEngineSuites())('more passing hacks', () => {
   const searchAfter = async (lastMove: { x: number; y: number; player: 'black' | 'white' }) => {
     setBoardSize(9);
     const model = await loadHarnessModel();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch, blackWinLossValue, recomputeNodeStatsForTest } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { emptyBoard, hasModel, loadHarnessModel, rawEval } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, rawEval, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // What "winrate" means (cpp/search/searchresults.cpp).
@@ -36,7 +36,7 @@ describe('winLossValue', () => {
   });
 });
 
-describe.skipIf(!hasModel())('the winrate the engine reports', () => {
+describe.skipIf(!runsEngineSuites())('the winrate the engine reports', () => {
   it('is the one KataGo would report, not the raw win probability', async () => {
     setBoardSize(19);
     const model = await loadHarnessModel();

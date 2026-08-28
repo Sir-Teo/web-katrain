@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { BOARD_AREA, setBoardSize } from '../src/engine/katago/fastBoard';
-import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // rootPolicyTemperature (cpp/search/searchhelpers.cpp maybeAddPolicyNoiseAndTemp),
@@ -12,7 +12,7 @@ import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness'
 // the priors the search explores by -- the policy it reports stays raw.
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!hasModel())('root policy temperature', () => {
+describe.skipIf(!runsEngineSuites())('root policy temperature', () => {
   // The searches are deterministic, and several assertions want the same ones.
   const cache = new Map<number, Promise<ReturnType<MctsSearch['getAnalysis']>>>();
   const analyze = (rootPolicyTemperature: number) => {

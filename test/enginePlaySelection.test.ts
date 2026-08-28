@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import { MctsSearch, computePlaySelectionValuesForTest } from '../src/engine/katago/analyzeMcts';
 import { BOARD_SIZE, setBoardSize } from '../src/engine/katago/fastBoard';
 
@@ -171,7 +171,7 @@ const MID9 = `
   .........
 `;
 
-describe.skipIf(!hasModel())('analysis output ordering', () => {
+describe.skipIf(!runsEngineSuites())('analysis output ordering', () => {
   it('orders moves by play selection value and reports a consistent pv', async () => {
     setBoardSize(9);
     const model = await loadHarnessModel();
@@ -238,7 +238,7 @@ describe.skipIf(!hasModel())('analysis output ordering', () => {
   }, 120000);
 });
 
-describe.skipIf(!hasModel())('avoiding moves at the root', () => {
+describe.skipIf(!runsEngineSuites())('avoiding moves at the root', () => {
   it('never plays a move the request took off the table', async () => {
     setBoardSize(9);
     const model = await loadHarnessModel();

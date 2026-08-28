@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MctsSearch, resetSearchTuning, setSearchTuningForTest } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import type { BoardState, Move } from '../src/types';
 
 // ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ const parseSgfMoves = (sgf: string): Move[] => {
   return moves;
 };
 
-describe.skipIf(!hasModel())("KataGo's recorded 200 visit search", () => {
+describe.skipIf(!runsEngineSuites())("KataGo's recorded 200 visit search", () => {
   afterEach(() => resetSearchTuning());
 
   it('reaches the same shape of tree', async () => {

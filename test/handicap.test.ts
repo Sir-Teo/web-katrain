@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { countHandicapStones, komiWithHandicapBonus, whiteHandicapBonus } from '../src/utils/handicap';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { boardFromDiagram, emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // Handicap compensation (cpp/game/boardhistory.cpp computeWhiteHandicapBonus, and
@@ -86,7 +86,7 @@ const TWO_STONES = `
   .........
 `;
 
-describe.skipIf(!hasModel())('what the compensation is worth', () => {
+describe.skipIf(!runsEngineSuites())('what the compensation is worth', () => {
   // The network's own read of the position, before any search: the point is what
   // komi reaches it, and a search on a handicap board saturates and hides that.
   // Rules are held fixed so the only thing varying is the komi.

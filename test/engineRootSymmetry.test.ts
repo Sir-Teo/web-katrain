@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import {
   MctsSearch,
   computeValidRootSymmetries,
@@ -204,7 +204,7 @@ describe('symmetry duplicate marking', () => {
   });
 });
 
-describe.skipIf(!hasModel())('root symmetry pruning in search', () => {
+describe.skipIf(!runsEngineSuites())('root symmetry pruning in search', () => {
   it('concentrates visits and reports the copies it folded away', async () => {
     setBoardSize(9);
     const model = await loadHarnessModel();

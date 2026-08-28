@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { extractInputsV7Fast, type RecentMove } from '../src/engine/katago/featuresV7Fast';
 import { BOARD_AREA, BOARD_SIZE, PASS_MOVE, setBoardSize } from '../src/engine/katago/fastBoard';
-import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import type { GameRules, Move } from '../src/types';
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ describe('hiding the end of the game', () => {
   });
 });
 
-describe.skipIf(!hasModel())('the suppression reaches the search', () => {
+describe.skipIf(!runsEngineSuites())('the suppression reaches the search', () => {
   const rootEval = async (rules: GameRules, conservativePass: boolean) => {
     setBoardSize(9);
     const model = await loadHarnessModel();

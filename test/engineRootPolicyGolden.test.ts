@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import type { BoardState, Move } from '../src/types';
 
 // ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ const parseSgfMoves = (sgf: string): Move[] => {
   return moves;
 };
 
-describe.skipIf(!hasModel())("KataGo's recorded root policy at 19x19", () => {
+describe.skipIf(!runsEngineSuites())("KataGo's recorded root policy at 19x19", () => {
   it('agrees on every move it listed', async () => {
     setBoardSize(19);
     const model = await loadHarnessModel();

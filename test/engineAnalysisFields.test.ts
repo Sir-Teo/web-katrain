@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { boardFromDiagram, emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import type { BoardState } from '../src/types';
 
 // ---------------------------------------------------------------------------
@@ -13,7 +13,7 @@ import type { BoardState } from '../src/types';
 // network's own read of the position, which the search never moves.
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!hasModel())('analysis payload fields', () => {
+describe.skipIf(!runsEngineSuites())('analysis payload fields', () => {
   const make = async () => {
     setBoardSize(9);
     const model = await loadHarnessModel();

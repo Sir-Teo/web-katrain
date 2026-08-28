@@ -37,7 +37,13 @@ jobs:
       - name: Audit dependencies
         run: npm run audit
 
-      # typecheck -> lint -> test -> build, chained so the first failure stops
-      # it. The same command developers run locally.
+      # typecheck -> test:typecheck -> lint -> test -> build, chained so the
+      # first failure stops it. The same command developers run locally.
+      #
+      # CI is set by Actions, which skips the 71 tests that drive a real MCTS
+      # search. Those need hundreds of visits through the net on the CPU
+      # backend: seconds on a laptop, minutes here — enough that some exceeded
+      # their 180s timeout and others asserted visit counts the search never
+      # reached. Set ENGINE_TESTS=1 to run them anyway, and expect it to be slow.
       - name: Verify
         run: npm run verify

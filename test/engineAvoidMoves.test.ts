@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { BOARD_AREA, BOARD_SIZE, setBoardSize } from '../src/engine/katago/fastBoard';
-import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // avoidMoves and allowMoves with untilDepth (docs/Analysis_Engine.md, and
@@ -14,7 +14,7 @@ import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness'
 
 const at = (x: number, y: number) => y * BOARD_SIZE + x;
 
-describe.skipIf(!hasModel())('avoiding moves to a depth', () => {
+describe.skipIf(!runsEngineSuites())('avoiding moves to a depth', () => {
   const search = async (avoid: { black?: Int32Array; white?: Int32Array }) => {
     setBoardSize(9);
     const model = await loadHarnessModel();

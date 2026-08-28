@@ -8,7 +8,7 @@ import {
   simpleRepetitionBoundGt,
 } from '../src/engine/katago/graphHash';
 import { BLACK, BOARD_AREA, BOARD_SIZE, PASS_MOVE, WHITE, setBoardSize, type StoneColor } from '../src/engine/katago/fastBoard';
-import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // Graph search (cpp/game/graphhash.cpp, cpp/search/search.cpp), which KataGo turns
@@ -120,7 +120,7 @@ describe('position hashing', () => {
   });
 });
 
-describe.skipIf(!hasModel())('sharing transposed positions', () => {
+describe.skipIf(!runsEngineSuites())('sharing transposed positions', () => {
   const run = async (useGraphSearch: boolean, visits: number) => {
     setBoardSize(9);
     const model = await loadHarnessModel();

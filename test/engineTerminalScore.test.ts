@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import { MctsSearch, terminalAreaScoreBlack } from '../src/engine/katago/analyzeMcts';
 import { BOARD_AREA, BOARD_SIZE, setBoardSize } from '../src/engine/katago/fastBoard';
 import type { BoardState, Move } from '../src/types';
@@ -68,7 +68,7 @@ describe('area score of a finished game', () => {
   });
 });
 
-describe.skipIf(!hasModel())('terminal nodes in the search', () => {
+describe.skipIf(!runsEngineSuites())('terminal nodes in the search', () => {
   it('knows a finished game is finished rather than asking the network', async () => {
     setBoardSize(9);
     const model = await loadHarnessModel();

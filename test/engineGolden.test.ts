@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as tf from '@tensorflow/tfjs';
 
-import { hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import { postprocessKataGoV8 } from '../src/engine/katago/evalV8';
 import { fillInputsV7Fast } from '../src/engine/katago/featuresV7Fast';
 import {
@@ -77,7 +77,7 @@ function symPoint(x: number, y: number, n: number, sym: number): [number, number
   return [px, py];
 }
 
-describe.skipIf(!hasModel())('KataGo golden reference', () => {
+describe.skipIf(!runsEngineSuites())('KataGo golden reference', () => {
   it('reproduces KataGo raw NN output for the shipped model', async () => {
     const model = await loadHarnessModel();
     expect(model.modelVersion).toBe(8);

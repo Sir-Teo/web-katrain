@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
 import type { BoardState, Move } from '../src/types';
@@ -48,7 +48,7 @@ function boardWithHistory(): { board: BoardState; history: Move[]; previous: Boa
   return { board, history, previous };
 }
 
-describe.skipIf(!hasModel())('search against KataGo\'s recorded search', () => {
+describe.skipIf(!runsEngineSuites())('search against KataGo\'s recorded search', () => {
   it('reads the position the way KataGo read it', async () => {
     setBoardSize(9);
     const model = await loadHarnessModel();

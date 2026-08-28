@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import {
   MctsSearch,
   computeEndingScoreBonuses,
@@ -185,7 +185,7 @@ describe('root ending score bonus', () => {
   });
 });
 
-describe.skipIf(!hasModel())('pruning useless moves after repeated passes', () => {
+describe.skipIf(!runsEngineSuites())('pruning useless moves after repeated passes', () => {
   it('stops considering moves inside pass-alive area', async () => {
     setBoardSize(9);
     const model = await loadHarnessModel();
