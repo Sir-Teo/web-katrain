@@ -109,6 +109,26 @@ No server-side persistence exists.
   `src/utils/kayaSgfAnalysis.ts`.
 - Online-Go links are resolved through `src/utils/ogs.ts`.
 
+## What `npm run verify` covers
+
+`npm run verify` runs typecheck, `test:typecheck`, lint, the test suite and the
+build — every gate CI runs except `npm audit`, which is left out so the command
+works offline.
+
+Both typechecks are needed, and that is not obvious. `tsc -b` builds
+`tsconfig.app.json` and `tsconfig.node.json`, and **neither includes `test/`** —
+only `tsconfig.test.json` does. So `npm run typecheck` alone silently skips
+every test file. Demonstrated rather than assumed: a deliberate type error in a
+test file leaves `tsc -b` at exit 0 and takes `test:typecheck` to exit 2.
+
+`test:viewport` is not part of `verify` because CI does not run it either;
+`verify` deliberately mirrors CI rather than being stricter, so a green local
+run and a green CI run mean the same thing.
+
+Run `verify` rather than the parts. Chaining them by hand is how the mistake
+gets made: `npm run typecheck | tail -2 && npm run lint` reports tail's exit
+code, not the compiler's, so a real failure reads as success.
+
 ## Project Invariants
 
 - Supported board sizes are 9, 13, and 19.
