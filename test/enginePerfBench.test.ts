@@ -53,6 +53,16 @@ const writeResult = (path: string, result: BenchResult): void => {
  * ask for one — this is for comparing two runs on one machine, the way
  * web-xiangqi's bench-nps.cjs is used.
  */
+// A skipped benchmark and a fast one look identical in the reporter, so say
+// which is happening. `npm run bench` sets BENCH itself; the model is the part
+// a checkout can genuinely be missing.
+if (process.env.BENCH && !hasModel()) {
+  console.warn(
+    'Benchmark skipped: no KataGo model found. Fetch one with '
+    + '`npm run fetch:model` (see docs/engine.md), then re-run `npm run bench`.',
+  );
+}
+
 describe.skipIf(!hasModel() || !process.env.BENCH)('search timing', () => {
   it('times 200 visits on 9x9', async () => {
     setBoardSize(9);
