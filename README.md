@@ -65,9 +65,11 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the Vite dev server with COOP/COEP headers. |
-| `npm test` | Run the Vitest suite. |
-| `npm run test:typecheck` | Type-check the tests. |
-| `npm run test:viewport` | Run the Chrome viewport smoke test. |
+| `npm run verify` | **Run before pushing.** typecheck → test:typecheck → lint → tests → build, chained so the first failure stops it. Mirrors CI, minus `npm audit` so it works offline. |
+| `npm test` | Run the Vitest suite. Typechecks nothing on its own — Vitest transpiles without checking, so a test can pass while failing to compile. |
+| `npm run test:typecheck` | Type-check the tests. Needed separately: `tsc -b` builds the app and node projects, and neither includes `test/`. |
+| `npm run test:viewport` | Chrome viewport smoke test. ~54s, drives a real browser; not in `verify` or CI. Run it after a layout, breakpoint or board-sizing change. |
+| `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Type-check and build the production app. |
 | `npm run preview` | Serve the production build locally with preview headers. |
