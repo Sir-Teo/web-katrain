@@ -90,6 +90,20 @@ game analysis, and self-play.
 Web KaTrain uses browser storage only:
 
 - Settings are stored in `localStorage` under versioned keys.
+- **All storage access should go through `src/utils/storage.ts`.**
+  `readLocalStorage`, `writeLocalStorage`, `getLocalStorage` and `getIndexedDB`
+  each swallow their own failure and return `null`/`false`, so no caller can be
+  brought down by private mode, a blocked-cookie setting or a quota error. One
+  guard at the boundary rather than one per reader — the same shape as
+  `clampWinPercentLoss` on the analysis side.
+
+  Three modules currently reach for `localStorage` directly instead:
+  `utils/tournament.ts`, `utils/gauntlet.ts` and
+  `components/dashboard/DesktopDashboard.tsx`. All three hand-roll the same
+  `typeof` check and `try`/`catch`, so nothing is exposed today — but they are
+  three copies of a guard that exists once, and a fourth reader written by
+  copying them inherits the copy rather than the wrapper. Prefer the wrapper for
+  anything new, and fold these in when one is next touched.
 - The game library lives in IndexedDB database `web-katrain-library`, with a
   localStorage fallback.
 - Uploaded model weights can be stored in IndexedDB database
