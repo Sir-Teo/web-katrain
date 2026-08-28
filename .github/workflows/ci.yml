@@ -1,0 +1,37 @@
+name: CI
+
+# The deploy workflow runs the checks, but only on a push to main — which is
+# also when it publishes. That left a pull request with no verification at all,
+# and made "the checks passed" and "it is live" the same event. This runs the
+# same gates on every branch and pull request, and deploys nothing.
+on:
+  push:
+    branches-ignore: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm run audit
+
+      # typecheck -> lint -> test -> build, chained so the first failure stops
+      # it. The same command developers run locally.
+      - name: Verify
+        run: npm run verify
