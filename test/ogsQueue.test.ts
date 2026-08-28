@@ -4,6 +4,7 @@ import {
   OGS_RATE_LIMIT_COOLDOWN_MS,
   fetchOgsResource,
   getOgsBackoffRemainingMs,
+  isOgsCancelledError,
   parseRetryAfterMs,
   resetOgsFetchQueueForTests,
 } from '../src/utils/ogsQueue';
@@ -129,6 +130,46 @@ describe('fetchOgsResource', () => {
 
     expect(await first).toBe('failed');
     await expect(second).resolves.toMatchObject({ status: 200 });
+  });
+
+  it('stops waiting out a backoff when the caller cancels', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(429, { 'Retry-After': '60' }));
+    const blocker = fetchOgsResource('https://online-go.com/a', {}, { retries: 0 });
+    await vi.advanceTimersByTimeAsync(0);
+    await blocker;
+
+    let cancelled = false;
+    const pending = fetchOgsResource('https://online-go.com/b', {}, { isCancelled: () => cancelled })
+      .then(() => 'resolved', (error: Error) => error.name);
+
+    // Part way into a 60s cooldown the reader presses Stop.
+    await vi.advanceTimersByTimeAsync(1000);
+    cancelled = true;
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(await pending).toBe('OgsCancelledError');
+  });
+
+  it('does not wait out the whole cooldown before noticing a cancel', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(429, { 'Retry-After': '120' }));
+    const blocker = fetchOgsResource('https://online-go.com/a', {}, { retries: 0 });
+    await vi.advanceTimersByTimeAsync(0);
+    await blocker;
+
+    let settled = false;
+    const pending = fetchOgsResource('https://online-go.com/b', {}, { isCancelled: () => true })
+      .catch(() => { settled = true; });
+
+    await vi.advanceTimersByTimeAsync(0);
+    await pending;
+    expect(settled).toBe(true);
+  });
+
+  it('tells a cancel apart from any other failure', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline'));
+    const wasCancel = await fetchOgsResource('https://online-go.com/a')
+      .then(() => false, (error: unknown) => isOgsCancelledError(error));
+    expect(wasCancel).toBe(false);
   });
 
   it('stops waiting when the caller aborts', async () => {

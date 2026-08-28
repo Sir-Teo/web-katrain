@@ -1,6 +1,6 @@
 import type { LibraryItem } from './library';
 import { downloadOgsSgf } from './ogs';
-import { fetchOgsResource } from './ogsQueue';
+import { fetchOgsResource, isOgsCancelledError } from './ogsQueue';
 
 export type OgsPlayer = {
   id: number;
@@ -167,9 +167,12 @@ export const downloadNewOgsGames = async (
     if (isCancelled?.()) break;
     onProgress?.({ downloaded: synced.length, total: fresh.length, current: game });
     try {
-      const sgf = await downloadOgsSgf(String(game.id));
+      const sgf = await downloadOgsSgf(String(game.id), { isCancelled });
       synced.push({ summary: game, sgf });
-    } catch {
+    } catch (error) {
+      // A cancel is not a download failure; reporting it as one would tell the
+      // reader their game was broken when they were the one who stopped.
+      if (isOgsCancelledError(error)) break;
       failed.push(game);
     }
   }

@@ -9,6 +9,9 @@
  * is retried rather than handed back for the caller to record as a failure.
  */
 
+/** How often a backoff wait looks up to see whether it has been cancelled. */
+const CANCEL_POLL_MS = 200;
+
 export const OGS_RATE_LIMIT_COOLDOWN_MS = 30_000;
 export const OGS_MAX_COOLDOWN_MS = 120_000;
 export const OGS_DEFAULT_RETRIES = 2;
@@ -27,7 +30,17 @@ export const getOgsBackoffRemainingMs = (): number => Math.max(0, backoffUntilMs
 const abortError = (signal: AbortSignal): Error =>
   signal.reason instanceof Error ? signal.reason : new Error('OGS request aborted.');
 
-const delay = (ms: number, signal: AbortSignal | null | undefined): Promise<void> =>
+export class OgsCancelledError extends Error {
+  constructor() {
+    super('OGS request cancelled.');
+    this.name = 'OgsCancelledError';
+  }
+}
+
+export const isOgsCancelledError = (error: unknown): error is OgsCancelledError =>
+  error instanceof OgsCancelledError;
+
+const sleep = (ms: number, signal: AbortSignal | null | undefined): Promise<void> =>
   new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       signal?.removeEventListener('abort', onAbort);
@@ -41,6 +54,26 @@ const delay = (ms: number, signal: AbortSignal | null | undefined): Promise<void
 
     signal?.addEventListener('abort', onAbort, { once: true });
   });
+
+/**
+ * Waits out a backoff in short slices so a caller polling a cancel flag is not
+ * held for the whole cooldown. A library sync can be parked here for a couple
+ * of minutes, and the Stop button has to mean something during that.
+ */
+const waitOutBackoff = async (
+  totalMs: number,
+  signal: AbortSignal | null | undefined,
+  isCancelled: (() => boolean) | undefined
+): Promise<void> => {
+  const deadline = Date.now() + totalMs;
+  for (;;) {
+    if (isCancelled?.()) throw new OgsCancelledError();
+    if (signal?.aborted) throw abortError(signal);
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return;
+    await sleep(Math.min(CANCEL_POLL_MS, remaining), signal);
+  }
+};
 
 /**
  * `Retry-After` is either a count of seconds or an HTTP date. Anything absent,
@@ -77,12 +110,17 @@ const recordRateLimit = (response: Response): number => {
 type OgsFetchOptions = {
   /** Attempts after a 429 before the throttled response is handed back. */
   retries?: number;
+  /**
+   * Polled while waiting out a backoff. Returning true rejects with an
+   * OgsCancelledError, which callers can tell apart from a download failure.
+   */
+  isCancelled?: () => boolean;
 };
 
 export const fetchOgsResource = (
   input: RequestInfo | URL,
   init: RequestInit = {},
-  { retries = OGS_DEFAULT_RETRIES }: OgsFetchOptions = {}
+  { retries = OGS_DEFAULT_RETRIES, isCancelled }: OgsFetchOptions = {}
 ): Promise<Response> => {
   const signal = init.signal;
 
@@ -90,10 +128,12 @@ export const fetchOgsResource = (
     let attemptsLeft = retries;
 
     for (;;) {
+      if (isCancelled?.()) throw new OgsCancelledError();
       if (signal?.aborted) throw abortError(signal);
 
       const waitMs = getOgsBackoffRemainingMs();
-      if (waitMs > 0) await delay(waitMs, signal);
+      if (waitMs > 0) await waitOutBackoff(waitMs, signal, isCancelled);
+      if (isCancelled?.()) throw new OgsCancelledError();
       if (signal?.aborted) throw abortError(signal);
 
       const response = await fetch(input, init);
