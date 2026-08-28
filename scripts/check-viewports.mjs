@@ -4,6 +4,34 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 
+/**
+ * The desktop-vs-mobile bounds, read from the source that defines them rather
+ * than copied. They were duplicated here as literals, and a duplicate of a
+ * breakpoint is a breakpoint that will eventually disagree with itself — the
+ * comment below already records one round of that, where checking width alone
+ * aimed desktop assertions at the mobile shell.
+ */
+function readDesktopLayoutBounds() {
+  const source = fs.readFileSync(
+    path.resolve(import.meta.dirname, '../src/utils/responsiveLayout.ts'),
+    'utf8',
+  );
+  const width = /DESKTOP_LAYOUT_MIN_WIDTH\s*=\s*(\d+)/.exec(source);
+  const height = /DESKTOP_LAYOUT_MIN_HEIGHT\s*=\s*(\d+)/.exec(source);
+  if (!width || !height) {
+    throw new Error(
+      'Could not read DESKTOP_LAYOUT_MIN_WIDTH/HEIGHT from src/utils/responsiveLayout.ts. '
+      + 'If they were renamed, update this reader rather than hardcoding the numbers again.',
+    );
+  }
+  return { minWidth: Number(width[1]), minHeight: Number(height[1]) };
+}
+
+const { minWidth: DESKTOP_MIN_WIDTH, minHeight: DESKTOP_MIN_HEIGHT } = readDesktopLayoutBounds();
+
+const isDesktopViewport = (viewport) =>
+  viewport.width >= DESKTOP_MIN_WIDTH && viewport.height >= DESKTOP_MIN_HEIGHT;
+
 const VIEWPORTS = [
   { width: 1280, height: 800, mobile: false },
   { width: 1024, height: 768, mobile: false },
@@ -2950,10 +2978,11 @@ async function main() {
         });
         return {
           viewport: '${viewport.width}x${viewport.height}',
-          // Mirrors isDesktopLayoutSize in src/utils/responsiveLayout.ts: the
-          // app needs width AND height, so a wide but short window is still the
-          // mobile shell. Checking width alone aimed desktop assertions at it.
-          desktop: ${viewport.width >= 1024 && viewport.height >= 500},
+          // isDesktopLayoutSize, with its bounds read from the source rather
+          // than copied: the app needs width AND height, so a wide but short
+          // window is still the mobile shell. Checking width alone aimed
+          // desktop assertions at it.
+          desktop: ${isDesktopViewport(viewport)},
           innerWidth,
           innerHeight,
           documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
