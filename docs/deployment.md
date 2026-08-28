@@ -50,9 +50,17 @@ The repository includes `.github/workflows/deploy-pages.yml`. On pushes to
 1. Checks out the repository with LFS enabled.
 2. Sets up Node 24 with npm caching.
 3. Runs `npm ci`.
-4. Runs `npm run build`.
-5. Uploads `dist/` as a Pages artifact.
-6. Deploys through `actions/deploy-pages`.
+4. Runs `npm run audit`, `npm run lint`, `npm test`, and
+   `npm run test:typecheck`. A failure in any of them stops the deploy.
+5. Runs `npm run build`.
+6. Uploads `dist/` as a Pages artifact.
+7. Deploys through `actions/deploy-pages`.
+
+The gates in step 4 are the same checks `npm run` offers locally, in the same
+order web-chess uses, so a green local run means a green deploy. Note that
+gating on `npm run audit` means a new advisory in a dependency can block a
+release without any app code changing — if that happens, it is a real signal,
+but it is not a build failure.
 
 The current live URL is:
 
