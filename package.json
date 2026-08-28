@@ -17,6 +17,7 @@
     "audit": "npm audit --audit-level=moderate",
     "lint": "eslint .",
     "typecheck": "tsc -b",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
