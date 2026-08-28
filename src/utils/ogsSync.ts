@@ -1,5 +1,6 @@
 import type { LibraryItem } from './library';
 import { downloadOgsSgf } from './ogs';
+import { fetchOgsResource } from './ogsQueue';
 
 export type OgsPlayer = {
   id: number;
@@ -107,7 +108,7 @@ export const parseOgsGameList = (payload: unknown): OgsGameSummary[] => {
 };
 
 const fetchJson = async (url: string): Promise<unknown> => {
-  const response = await fetch(url, { method: 'GET' });
+  const response = await fetchOgsResource(url, { method: 'GET' });
   if (!response.ok) {
     throw new Error(`OGS request failed (${response.status} ${response.statusText})`);
   }
