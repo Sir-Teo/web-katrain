@@ -81,6 +81,9 @@ import {
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
+/** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
+const LIBRARY_PAGE_SIZE = 100;
+
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 
 const LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY = 'web-katrain:library_folders_expanded:v1';
@@ -596,6 +599,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     return arr;
   }, [filteredItems, sortKey]);
+
+  /**
+   * Rows mounted before "Show more". A library has no size cap and imports SGFs
+   * in bulk from a ZIP, so "everything" is not a small number: a seeded library
+   * of 1,200 games mounted 1,208 rows and about 35,000 DOM nodes at once, in
+   * both the folder view and the search results. Both siblings already page
+   * their libraries at 100.
+   */
+  const [visibleLimit, setVisibleLimit] = useState(LIBRARY_PAGE_SIZE);
+  const viewKey = `${query.trim()}\u0000${sortKey}\u0000${favoritesOnly}\u0000${activeTag ?? ''}\u0000${currentFolderId ?? ''}`;
+  const [limitViewKey, setLimitViewKey] = useState(viewKey);
+  // Adjusted during render rather than in an effect: an effect runs after paint,
+  // so changing the search would paint every matching row before trimming it back.
+  if (viewKey !== limitViewKey) {
+    setLimitViewKey(viewKey);
+    setVisibleLimit(LIBRARY_PAGE_SIZE);
+  }
 
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
   const folderOptions = useMemo(() => getLibraryFolderOptions(items), [items]);
@@ -1404,6 +1424,25 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     );
     setDraggingId(null);
     setDragOverRoot(false);
+  };
+
+  /**
+   * Reveals another page. Selection deliberately still spans every match rather
+   * than only the mounted rows, which is what it did before paging and what the
+   * "Select all" label says.
+   */
+  const renderShowMore = (total: number) => {
+    const hidden = total - visibleLimit;
+    if (hidden <= 0) return null;
+    return (
+      <button
+        type="button"
+        className="library-show-more"
+        onClick={() => setVisibleLimit((limit) => limit + LIBRARY_PAGE_SIZE)}
+      >
+        Show {Math.min(hidden, LIBRARY_PAGE_SIZE)} more of {total}
+      </button>
+    );
   };
 
   const renderFileRow = (item: LibraryFile, depth: number) => {
@@ -2334,9 +2373,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </div>
                   ) : (
                     <div>
-                      {sortedItems.map((item) =>
+                      {sortedItems.slice(0, visibleLimit).map((item) =>
                         isFolder(item) ? renderFolderRow(item, 0, false) : renderFileRow(item, 0)
                       )}
+                      {renderShowMore(sortedItems.length)}
                     </div>
                   )
                 ) : libraryStatus === 'loading' ? (
@@ -2356,9 +2396,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 ) : (
                   <div>
-                    {(childrenMap.get(null) ?? []).map((item) =>
+                    {(childrenMap.get(null) ?? []).slice(0, visibleLimit).map((item) =>
                       isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
                     )}
+                    {renderShowMore((childrenMap.get(null) ?? []).length)}
                   </div>
                 )}
               </div>

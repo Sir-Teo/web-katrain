@@ -3039,6 +3039,24 @@
     background: var(--ui-border);
   }
 
+  .library-show-more {
+    display: block;
+    width: calc(100% - 12px);
+    margin: 6px;
+    padding: 7px 10px;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    background: var(--ui-surface);
+    color: var(--ui-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .library-show-more:hover {
+    border-color: var(--ui-border-strong);
+    color: var(--ui-text);
+  }
+
   .library-stats {
     padding: 6px 10px;
     border-top: 1px solid var(--ui-border);
