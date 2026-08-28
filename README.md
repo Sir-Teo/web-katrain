@@ -109,6 +109,18 @@ custom headers, but WASM runs single-threaded there; WebGPU is unaffected.
 - [Deployment](docs/deployment.md)
 - [Runtime diagrams](docs/diagram.md)
 
+## Related Apps
+
+Two sibling apps share this one's shape — an engine in a worker, a move tree, a
+review pass, a saved-game library — for chess and xiangqi:
+
+- [web-chess](https://github.com/Sir-Teo/web-chess) — chess, Stockfish in the browser
+- [web-xiangqi](https://github.com/Sir-Teo/web-xiangqi) — xiangqi, Pikafish compiled to WASM
+
+[web-chess's cross-app learning plan](https://github.com/Sir-Teo/web-chess/blob/main/docs/cross-app-learning-plan.md)
+compares the three and tracks what is worth moving between them. This app is
+generally the reference of the three; where it is not, that plan says so.
+
 ## License
 
 [MIT](LICENSE)
