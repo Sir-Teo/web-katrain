@@ -25,9 +25,10 @@ The Vite dev server sends the COOP/COEP headers required for threaded WASM.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start Vite. Runs `copy:tfjs-wasm` and `fetch:model` first. |
-| `npm test` | Run all Vitest tests. |
+| `npm run verify` | **The one to run before pushing.** typecheck → test:typecheck → lint → test → build, with npm's `&&` so the first failure stops it. Mirrors CI, minus `npm audit` so it works offline. |
+| `npm test` | Run all Vitest tests. Note this typechecks nothing — Vitest transpiles without checking, so a test can pass while failing to compile. |
 | `npm run test:typecheck` | Type-check the test project. |
-| `npm run test:viewport` | Build, serve, and smoke-test key desktop/mobile viewports in Chrome. |
+| `npm run test:viewport` | Build, serve, and smoke-test key desktop/mobile viewports in Chrome. **~54s**, drives a real browser. Not in `verify` or CI — reach for it after a layout, breakpoint or board-sizing change, where it is the only thing that would catch a regression. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Run `tsc -b` and build Vite output into `dist/`. |
 | `npm run preview` | Serve `dist/` locally with preview headers. |
