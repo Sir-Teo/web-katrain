@@ -107,7 +107,14 @@ No server-side persistence exists.
   `src/utils/katrainSgfAnalysis.ts`.
 - Kaya-style `KA` analysis data is encoded and decoded by
   `src/utils/kayaSgfAnalysis.ts`.
-- Online-Go links are resolved through `src/utils/ogs.ts`.
+- Online-Go links are resolved through `src/utils/ogs.ts`, and **every** OGS
+  request goes through the queue in `src/utils/ogsQueue.ts` rather than being
+  issued directly. The queue serialises requests and holds a shared backoff, so
+  a sync walking dozens of games slows down when the server throttles instead of
+  filing the throttled responses as failed downloads. It polls during a backoff
+  wait so Stop takes effect while a sync is sleeping rather than after it, and
+  `getOgsBackoffRemainingMs` lets the sync UI say why it has paused.
+- `src/utils/ogsSync.ts` drives a multi-game sync on top of that queue.
 
 ## What `npm run verify` covers
 
