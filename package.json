@@ -16,6 +16,7 @@
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "audit": "npm audit --audit-level=moderate",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
     "preview": "vite preview"
   },
   "dependencies": {
