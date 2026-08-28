@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch, exploreScalingHuman } from '../src/engine/katago/analyzeMcts';
 import { BOARD_AREA, setBoardSize } from '../src/engine/katago/fastBoard';
-import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // humanSLRootExploreProbWeightless (cpp/search/searchexplorehelpers.cpp).
@@ -29,7 +29,7 @@ describe('human explore scaling', () => {
   });
 });
 
-describe.skipIf(!hasModel())('human root exploration', () => {
+describe.skipIf(!runsEngineSuites())('human root exploration', () => {
   // A policy that only ever wants the 1-1 point, which the network itself would
   // never look at on an empty board. Nothing is marked illegal, so the difference
   // is entirely down to how the search descends.

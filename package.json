@@ -12,9 +12,12 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "test:viewport": "node scripts/check-viewports.mjs",
+    "bench": "BENCH=1 vitest run test/enginePerfBench.test.ts --reporter=verbose",
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "audit": "npm audit --audit-level=moderate",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "verify": "npm run typecheck && npm run test:typecheck && npm run lint && npm test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

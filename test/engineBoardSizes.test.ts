@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { BOARD_AREA, setBoardSize } from '../src/engine/katago/fastBoard';
-import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // Every board size KataGo supports.
@@ -19,7 +19,7 @@ import { emptyBoard, hasModel, loadHarnessModel } from './helpers/engineHarness'
 
 const SIZES = Array.from({ length: 18 }, (_, i) => i + 2);
 
-describe.skipIf(!hasModel())('searching at every board size', () => {
+describe.skipIf(!runsEngineSuites())('searching at every board size', () => {
   it.each(SIZES)('runs and reports sanely on %ix%i', async (size) => {
     setBoardSize(size);
     const model = await loadHarnessModel();

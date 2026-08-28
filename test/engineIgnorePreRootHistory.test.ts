@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { extractInputsV7Fast, type RecentMove } from '../src/engine/katago/featuresV7Fast';
 import { BOARD_AREA, BOARD_SIZE, PASS_MOVE, setBoardSize } from '../src/engine/katago/fastBoard';
-import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import type { Move } from '../src/types';
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ const FINAL = `
   .........
 `;
 
-describe.skipIf(!hasModel())('a root judged by its position, not its path', () => {
+describe.skipIf(!runsEngineSuites())('a root judged by its position, not its path', () => {
   const historyA: Move[] = [
     { x: 2, y: 2, player: 'black' },
     { x: 6, y: 2, player: 'white' },

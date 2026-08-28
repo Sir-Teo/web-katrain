@@ -1,15 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  boardFromDiagram,
-  emptyBoard,
-  hasModel,
-  loadHarnessModel,
-  ownershipSum,
-  rawEval,
-  swapColors,
-  transformBoard,
-  transformOwnership,
-} from './helpers/engineHarness';
+import { boardFromDiagram, emptyBoard, loadHarnessModel, ownershipSum, rawEval, runsEngineSuites, swapColors, transformBoard, transformOwnership } from './helpers/engineHarness';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { BOARD_AREA, setBoardSize } from '../src/engine/katago/fastBoard';
 import { applyCapturesInPlace, getOpponent } from '../src/utils/gameLogic';
@@ -89,7 +79,7 @@ async function analyze(args: { board: BoardState; player: Player; komi: number; 
   return s.getAnalysis({ topK: 6, analysisPvLen: 4 });
 }
 
-describe.skipIf(!hasModel())('engine state estimation', () => {
+describe.skipIf(!runsEngineSuites())('engine state estimation', () => {
   it('is exactly antisymmetric under swapping both colours', async () => {
     // Swapping every stone, swapping who is to move and negating komi produces a
     // bit-identical input tensor, because the net only ever sees "me" and "them".

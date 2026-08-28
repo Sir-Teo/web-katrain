@@ -65,9 +65,11 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the Vite dev server with COOP/COEP headers. |
-| `npm test` | Run the Vitest suite. |
-| `npm run test:typecheck` | Type-check the tests. |
-| `npm run test:viewport` | Run the Chrome viewport smoke test. |
+| `npm run verify` | **Run before pushing.** typecheck → test:typecheck → lint → tests → build, chained so the first failure stops it. Mirrors CI, minus `npm audit` so it works offline. |
+| `npm test` | Run the Vitest suite. Typechecks nothing on its own — Vitest transpiles without checking, so a test can pass while failing to compile. |
+| `npm run test:typecheck` | Type-check the tests. Needed separately: `tsc -b` builds the app and node projects, and neither includes `test/`. |
+| `npm run test:viewport` | Chrome viewport smoke test. ~54s, drives a real browser; not in `verify` or CI. Run it after a layout, breakpoint or board-sizing change. |
+| `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Type-check and build the production app. |
 | `npm run preview` | Serve the production build locally with preview headers. |
@@ -108,6 +110,18 @@ custom headers, but WASM runs single-threaded there; WebGPU is unaffected.
 - [Development](docs/development.md)
 - [Deployment](docs/deployment.md)
 - [Runtime diagrams](docs/diagram.md)
+
+## Related Apps
+
+Two sibling apps share this one's shape — an engine in a worker, a move tree, a
+review pass, a saved-game library — for chess and xiangqi:
+
+- [web-chess](https://github.com/Sir-Teo/web-chess) — chess, Stockfish in the browser
+- [web-xiangqi](https://github.com/Sir-Teo/web-xiangqi) — xiangqi, Pikafish compiled to WASM
+
+[web-chess's cross-app learning plan](https://github.com/Sir-Teo/web-chess/blob/main/docs/cross-app-learning-plan.md)
+compares the three and tracks what is worth moving between them. This app is
+generally the reference of the three; where it is not, that plan says so.
 
 ## License
 

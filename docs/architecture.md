@@ -90,6 +90,20 @@ game analysis, and self-play.
 Web KaTrain uses browser storage only:
 
 - Settings are stored in `localStorage` under versioned keys.
+- **All storage access should go through `src/utils/storage.ts`.**
+  `readLocalStorage`, `writeLocalStorage`, `getLocalStorage` and `getIndexedDB`
+  each swallow their own failure and return `null`/`false`, so no caller can be
+  brought down by private mode, a blocked-cookie setting or a quota error. One
+  guard at the boundary rather than one per reader — the same shape as
+  `clampWinPercentLoss` on the analysis side.
+
+  Three modules currently reach for `localStorage` directly instead:
+  `utils/tournament.ts`, `utils/gauntlet.ts` and
+  `components/dashboard/DesktopDashboard.tsx`. All three hand-roll the same
+  `typeof` check and `try`/`catch`, so nothing is exposed today — but they are
+  three copies of a guard that exists once, and a fourth reader written by
+  copying them inherits the copy rather than the wrapper. Prefer the wrapper for
+  anything new, and fold these in when one is next touched.
 - The game library lives in IndexedDB database `web-katrain-library`, with a
   localStorage fallback.
 - Uploaded model weights can be stored in IndexedDB database
@@ -107,7 +121,34 @@ No server-side persistence exists.
   `src/utils/katrainSgfAnalysis.ts`.
 - Kaya-style `KA` analysis data is encoded and decoded by
   `src/utils/kayaSgfAnalysis.ts`.
-- Online-Go links are resolved through `src/utils/ogs.ts`.
+- Online-Go links are resolved through `src/utils/ogs.ts`, and **every** OGS
+  request goes through the queue in `src/utils/ogsQueue.ts` rather than being
+  issued directly. The queue serialises requests and holds a shared backoff, so
+  a sync walking dozens of games slows down when the server throttles instead of
+  filing the throttled responses as failed downloads. It polls during a backoff
+  wait so Stop takes effect while a sync is sleeping rather than after it, and
+  `getOgsBackoffRemainingMs` lets the sync UI say why it has paused.
+- `src/utils/ogsSync.ts` drives a multi-game sync on top of that queue.
+
+## What `npm run verify` covers
+
+`npm run verify` runs typecheck, `test:typecheck`, lint, the test suite and the
+build — every gate CI runs except `npm audit`, which is left out so the command
+works offline.
+
+Both typechecks are needed, and that is not obvious. `tsc -b` builds
+`tsconfig.app.json` and `tsconfig.node.json`, and **neither includes `test/`** —
+only `tsconfig.test.json` does. So `npm run typecheck` alone silently skips
+every test file. Demonstrated rather than assumed: a deliberate type error in a
+test file leaves `tsc -b` at exit 0 and takes `test:typecheck` to exit 2.
+
+`test:viewport` is not part of `verify` because CI does not run it either;
+`verify` deliberately mirrors CI rather than being stricter, so a green local
+run and a green CI run mean the same thing.
+
+Run `verify` rather than the parts. Chaining them by hand is how the mistake
+gets made: `npm run typecheck | tail -2 && npm run lint` reports tail's exit
+code, not the compiler's, so a real failure reads as success.
 
 ## Project Invariants
 

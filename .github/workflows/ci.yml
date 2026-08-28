@@ -1,0 +1,49 @@
+name: CI
+
+# The deploy workflow runs the checks, but only on a push to main — which is
+# also when it publishes. That left a pull request with no verification at all,
+# and made "the checks passed" and "it is live" the same event. This runs the
+# same gates on every branch and pull request, and deploys nothing.
+# Pull requests only. Adding a `push` trigger as well fired both events for a
+# branch in this repo and ran everything twice per change. A push to main is
+# already covered by the deploy workflow, which runs the same gates.
+on:
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same pull request supersedes the run in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm run audit
+
+      # typecheck -> test:typecheck -> lint -> test -> build, chained so the
+      # first failure stops it. The same command developers run locally.
+      #
+      # CI is set by Actions, which skips the 71 tests that drive a real MCTS
+      # search. Those need hundreds of visits through the net on the CPU
+      # backend: seconds on a laptop, minutes here — enough that some exceeded
+      # their 180s timeout and others asserted visit counts the search never
+      # reached. Set ENGINE_TESTS=1 to run them anyway, and expect it to be slow.
+      - name: Verify
+        run: npm run verify

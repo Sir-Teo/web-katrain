@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import type { GameRules } from '../src/types';
 
 // ---------------------------------------------------------------------------
@@ -28,7 +28,7 @@ const TWO_DAME = `
   XXXXXOOOO
 `;
 
-describe.skipIf(!hasModel())('filling dame before passing', () => {
+describe.skipIf(!runsEngineSuites())('filling dame before passing', () => {
   const analyze = async (rules: GameRules, fillDameBeforePass: boolean) => {
     setBoardSize(9);
     const model = await loadHarnessModel();

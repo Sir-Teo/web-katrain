@@ -67,13 +67,27 @@ const parseProGameMeta = (game: { name: string; source: string; sgf: string }, i
 
 export const PRO_GAMES: ProGameMeta[] = PRELOADED_GAMES.map(parseProGameMeta);
 
-/** Free-text filter across players, event, date, result, and editorial. */
+const proGameSearchText = (game: ProGameMeta): string =>
+  [game.black, game.white, game.event, game.date, game.result, game.name, game.editorial]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+/**
+ * Free-text filter across players, event, date, result, and editorial.
+ *
+ * Every whitespace-separated term has to appear somewhere, rather than the
+ * whole query having to appear as one run of characters. Matching the phrase
+ * meant "sedol 2005" found nothing, because the player and the date sit in
+ * different fields and never end up adjacent.
+ */
 export const filterProGames = (games: ProGameMeta[], query: string): ProGameMeta[] => {
-  const q = query.trim().toLowerCase();
-  if (!q) return games;
-  return games.filter((g) =>
-    [g.black, g.white, g.event, g.date, g.result, g.name, g.editorial].filter(Boolean).join(' ').toLowerCase().includes(q),
-  );
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return games;
+  return games.filter((game) => {
+    const haystack = proGameSearchText(game);
+    return terms.every((term) => haystack.includes(term));
+  });
 };
 
 /** Replay every move to produce the final board position (for previews). */

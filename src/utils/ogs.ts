@@ -1,3 +1,5 @@
+import { fetchOgsResource } from './ogsQueue';
+
 const OGS_HOSTS = new Set(['online-go.com', 'www.online-go.com']);
 const OGS_TEXT_URL_RE =
   /(?:https?:\/\/)?(?:www\.)?online-go\.com\/game\/[^\s<>"'`()[\]{}]+/gi;
@@ -62,9 +64,12 @@ export const extractOgsGameId = (url: string): string | null => {
 
 export const isOgsUrl = (text: string): boolean => extractOgsGameId(text) !== null;
 
-export const downloadOgsSgf = async (gameId: string): Promise<string> => {
+export const downloadOgsSgf = async (
+  gameId: string,
+  options: { isCancelled?: () => boolean } = {}
+): Promise<string> => {
   const apiUrl = `https://online-go.com/api/v1/games/${gameId}/sgf`;
-  const response = await fetch(apiUrl, { method: 'GET' });
+  const response = await fetchOgsResource(apiUrl, { method: 'GET' }, options);
   if (!response.ok) {
     throw new Error(`Failed to download OGS game ${gameId}: ${response.statusText}`);
   }

@@ -15,6 +15,23 @@ developer workflow.
   COOP/COEP headers, service worker caching, and update behavior.
 - [Runtime diagrams](diagram.md): compact diagrams for the main app flow,
   analysis flow, and persistent storage.
+- [Competitor analysis](competitor-analysis.md): what Kaya and Kifubara do,
+  and which of it ports to a client-only app.
+
+## Sibling Apps
+
+This app has two siblings built on the same shape — an engine in a worker, a
+move tree, a review pass, a saved-game library — for chess and xiangqi:
+
+- [web-chess](https://github.com/Sir-Teo/web-chess) ·
+  [architecture](https://github.com/Sir-Teo/web-chess/blob/main/docs/architecture.md)
+- [web-xiangqi](https://github.com/Sir-Teo/web-xiangqi) ·
+  [architecture](https://github.com/Sir-Teo/web-xiangqi/blob/main/docs/architecture.md)
+
+The three are compared, and the work of moving good ideas between them tracked,
+in [web-chess's cross-app learning plan](https://github.com/Sir-Teo/web-chess/blob/main/docs/cross-app-learning-plan.md).
+This app is generally the reference of the three; where it is not, that plan
+says so.
 
 ## Source Map
 

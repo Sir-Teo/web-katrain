@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardFromDiagram, hasModel, loadHarnessModel } from './helpers/engineHarness';
+import { boardFromDiagram, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
 import type { BoardState, Player } from '../src/types';
@@ -51,7 +51,7 @@ async function analyze(args: {
   return search.getAnalysis({ topK: 8, analysisPvLen: 4 });
 }
 
-describe.skipIf(!hasModel())('search quality', () => {
+describe.skipIf(!runsEngineSuites())('search quality', () => {
   it('does not recommend a move that it says loses points', async () => {
     setBoardSize(9);
     const analysis = await analyze({ board: boardFromDiagram(MID9), player: 'black', visits: 120 });
