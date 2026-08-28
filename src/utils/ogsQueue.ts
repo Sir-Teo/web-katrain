@@ -24,7 +24,7 @@ export const resetOgsFetchQueueForTests = (): void => {
   backoffUntilMs = 0;
 };
 
-/** Exposed for the sync UI, which tells the reader why it has paused. */
+/** Read by `OgsSyncModal` so a throttled sync says why it has paused. */
 export const getOgsBackoffRemainingMs = (): number => Math.max(0, backoffUntilMs - Date.now());
 
 const abortError = (signal: AbortSignal): Error =>

@@ -10,6 +10,7 @@ import {
   type OgsSyncProgress,
   type OgsSyncedGame,
 } from '../utils/ogsSync';
+import { getOgsBackoffRemainingMs } from '../utils/ogsQueue';
 import type { LibraryItem } from '../utils/library';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
@@ -35,6 +36,24 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   const [limit, setLimit] = React.useState<number>(25);
   const [isRunning, setIsRunning] = React.useState(false);
   const [progress, setProgress] = React.useState<OgsSyncProgress | null>(null);
+
+  /**
+   * A throttled sync is parked behind the queue's shared backoff, which can run
+   * to two minutes. Without this the counter simply stops moving and the sync
+   * looks hung — which is the failure the queue was written to avoid, only
+   * moved from the download log to the screen.
+   */
+  const [backoffSeconds, setBackoffSeconds] = React.useState(0);
+  React.useEffect(() => {
+    if (!isRunning) {
+      setBackoffSeconds(0);
+      return;
+    }
+    const tick = () => setBackoffSeconds(Math.ceil(getOgsBackoffRemainingMs() / 1000));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [isRunning]);
   const [summary, setSummary] = React.useState<SyncSummary | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const cancelledRef = React.useRef(false);
@@ -169,11 +188,13 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               role="status"
               aria-live="polite"
             >
-              {progress && progress.total > 0
-                ? `Downloading ${Math.min(progress.downloaded + 1, progress.total)} of ${progress.total}${
-                    progress.current ? ` - ${progress.current.black} vs ${progress.current.white}` : ''
-                  }...`
-                : 'Looking up player and games...'}
+              {backoffSeconds > 0
+                ? `OGS is rate limiting us - resuming in ${backoffSeconds}s...`
+                : progress && progress.total > 0
+                  ? `Downloading ${Math.min(progress.downloaded + 1, progress.total)} of ${progress.total}${
+                      progress.current ? ` - ${progress.current.black} vs ${progress.current.white}` : ''
+                    }...`
+                  : 'Looking up player and games...'}
             </div>
           )}
           {error && (
