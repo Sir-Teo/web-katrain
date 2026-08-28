@@ -607,7 +607,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    * both the folder view and the search results. Both siblings already page
    * their libraries at 100.
    */
-  const [visibleLimit, setVisibleLimit] = useState(LIBRARY_PAGE_SIZE);
+  // Keyed by folder id, with '' for the top level and for search results. A
+  // single shared limit would make expanding one folder reveal more rows in
+  // every other folder at once.
+  const [visibleLimits, setVisibleLimits] = useState<Record<string, number>>({});
   // Only what changes the list itself. The current folder drives breadcrumbs
   // and where a save lands, not which rows are rendered, so moving between
   // folders must not collapse an expanded list back to one page.
@@ -617,7 +620,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   // so changing the search would paint every matching row before trimming it back.
   if (viewKey !== limitViewKey) {
     setLimitViewKey(viewKey);
-    setVisibleLimit(LIBRARY_PAGE_SIZE);
+    setVisibleLimits({});
   }
 
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
@@ -1429,19 +1432,27 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setDragOverRoot(false);
   };
 
+  const limitFor = (key: string) => visibleLimits[key] ?? LIBRARY_PAGE_SIZE;
+
   /**
-   * Reveals another page. Selection deliberately still spans every match rather
-   * than only the mounted rows, which is what it did before paging and what the
-   * "Select all" label says.
+   * Reveals another page of one list. Selection deliberately still spans every
+   * match rather than only the mounted rows, which is what it did before paging
+   * and what the "Select all" label says.
    */
-  const renderShowMore = (total: number) => {
-    const hidden = total - visibleLimit;
+  const renderShowMore = (key: string, total: number, depth = 0) => {
+    const hidden = total - limitFor(key);
     if (hidden <= 0) return null;
     return (
       <button
         type="button"
         className="library-show-more"
-        onClick={() => setVisibleLimit((limit) => limit + LIBRARY_PAGE_SIZE)}
+        style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
+        onClick={() =>
+          setVisibleLimits((limits) => ({
+            ...limits,
+            [key]: limitFor(key) + LIBRARY_PAGE_SIZE,
+          }))
+        }
       >
         Show {Math.min(hidden, LIBRARY_PAGE_SIZE)} more of {total}
       </button>
@@ -1756,9 +1767,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </div>
         {allowChildren && isExpanded && children.length > 0 && (
           <div>
-            {children.map((child) =>
+            {children.slice(0, limitFor(item.id)).map((child) =>
               isFolder(child) ? renderFolderRow(child, depth + 1, allowChildren) : renderFileRow(child, depth + 1)
             )}
+            {renderShowMore(item.id, children.length, depth + 1)}
           </div>
         )}
       </div>
@@ -2376,10 +2388,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </div>
                   ) : (
                     <div>
-                      {sortedItems.slice(0, visibleLimit).map((item) =>
+                      {sortedItems.slice(0, limitFor('')).map((item) =>
                         isFolder(item) ? renderFolderRow(item, 0, false) : renderFileRow(item, 0)
                       )}
-                      {renderShowMore(sortedItems.length)}
+                      {renderShowMore('', sortedItems.length)}
                     </div>
                   )
                 ) : libraryStatus === 'loading' ? (
@@ -2399,10 +2411,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 ) : (
                   <div>
-                    {(childrenMap.get(null) ?? []).slice(0, visibleLimit).map((item) =>
+                    {(childrenMap.get(null) ?? []).slice(0, limitFor('')).map((item) =>
                       isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
                     )}
-                    {renderShowMore((childrenMap.get(null) ?? []).length)}
+                    {renderShowMore('', (childrenMap.get(null) ?? []).length)}
                   </div>
                 )}
               </div>
