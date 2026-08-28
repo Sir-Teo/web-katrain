@@ -608,7 +608,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    * their libraries at 100.
    */
   const [visibleLimit, setVisibleLimit] = useState(LIBRARY_PAGE_SIZE);
-  const viewKey = `${query.trim()}\u0000${sortKey}\u0000${favoritesOnly}\u0000${activeTag ?? ''}\u0000${currentFolderId ?? ''}`;
+  // Only what changes the list itself. The current folder drives breadcrumbs
+  // and where a save lands, not which rows are rendered, so moving between
+  // folders must not collapse an expanded list back to one page.
+  const viewKey = `${query.trim()}\u0000${sortKey}\u0000${favoritesOnly}\u0000${activeTag ?? ''}`;
   const [limitViewKey, setLimitViewKey] = useState(viewKey);
   // Adjusted during render rather than in an effect: an effect runs after paint,
   // so changing the search would paint every matching row before trimming it back.
