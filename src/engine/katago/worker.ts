@@ -8,6 +8,7 @@ import pako from 'pako';
 
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
 import { looksLikeMarkup, modelResponseError } from './modelResponse';
+import { collectAnalysisTransferables } from './analysisTransfer';
 import type { GameRules, KataGoBackendPreference, Player, RegionOfInterest } from '../../types';
 import { publicUrl } from '../../utils/publicUrl';
 import { getAnimationNow } from '../../utils/animationFrame';
@@ -826,10 +827,6 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     }
 
     const postAnalysis = (analysis: ReturnType<MctsSearch['getAnalysis']>, type: 'katago:analyze_update' | 'katago:analyze_result') => {
-      const transfer: Transferable[] = [];
-      const push = (value?: unknown) => {
-        if (value && ArrayBuffer.isView(value)) transfer.push(value.buffer);
-      };
       if (humanLogits) {
         const humanPolicy = humanPolicyFromLogits(humanLogits, analysis.policy);
         analysis.humanPolicy = humanPolicy;
@@ -839,12 +836,6 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           if (prior >= 0) move.humanPrior = prior;
         }
       }
-      push(analysis.ownership);
-      push(analysis.ownershipStdev);
-      push(analysis.policy);
-      push(analysis.humanPolicy);
-      for (const move of analysis.moves) push(move.ownership);
-
       post(
         {
           type,
@@ -855,7 +846,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           analysis,
           humanPolicyError,
         },
-        transfer
+        collectAnalysisTransferables(analysis)
       );
     };
 
