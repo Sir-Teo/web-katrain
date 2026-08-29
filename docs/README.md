@@ -17,6 +17,9 @@ developer workflow.
   analysis flow, and persistent storage.
 - [Competitor analysis](competitor-analysis.md): what Kaya and Kifubara do,
   and which of it ports to a client-only app.
+- [Parity](parity.md): the feature matrix for the three sibling apps, what this
+  one is the reference for, and what it is still missing. Update it when a
+  feature lands.
 
 ## Sibling Apps
 
