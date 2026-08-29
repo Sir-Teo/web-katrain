@@ -44,7 +44,7 @@ Measured 2026-08-29.
 | Sound | yes | no | partial |
 | Haptics | yes | no | no |
 | Analysis queue with position cache | yes | no | no |
-| Real service worker + install banner | yes | `coi-serviceworker` only | unregisters legacy SWs |
+| Real service worker | yes (+ install banner) | yes — COI and offline in one worker | unregisters legacy SWs |
 | Position / FEN editor | no | yes | no |
 | Cloud eval, opening explorer, tablebase | no | yes | no |
 | Browser (Playwright) tests | one viewport script | boot, review, layout at two sizes | layout + parity + review |
