@@ -1,76 +1,80 @@
-# Parity with the sibling apps
+# Gates and parity
 
-web-katrain is one of three apps built to the same shape — an engine in a worker, a
-move tree, an eval graph, a review pass with accuracy, a saved-game library, a
-GitHub Pages deploy — for a different game each:
+What has to pass before a change lands here, where each check runs, and how
+that compares with the two sibling repos. Written because the checks drifted
+apart three times without anyone noticing -- a deploy that ran none of them, a
+CI job on a different Node major than the thing it shipped, and a browser suite
+wired into no workflow at all.
 
-- [web-katrain](https://github.com/Sir-Teo/web-katrain) — Go, KataGo in the browser
-- [web-chess](https://github.com/Sir-Teo/web-chess) — chess, Stockfish in the browser
-- [web-xiangqi](https://github.com/Sir-Teo/web-xiangqi) — xiangqi, Pikafish compiled to WASM
+## Running everything locally
 
-**Update the table below when a feature lands here.** That is the whole point of
-the file. The three drift at the speed they are worked on, and nothing else in
-these repos notices: the plan that proposed this file spent a night finding
-things that were only visible by comparison — a deploy that ran no checks, a
-search box none of the three bounded, a lesson learned in one file and left
-unfixed in the file beside it. A table that is kept current turns those into
-something a reader spots in a minute.
+```bash
+npm run verify          # typecheck, test:typecheck, lint, test, build
+npm run audit           # dependency audit; not part of verify, runs in CI
+npm run test:viewport         # headless Chrome over raw CDP, 8 viewports
+```
 
-The deeper comparison, and what is worth moving next, lives in web-chess's
-[`docs/cross-app-learning-plan.md`](https://github.com/Sir-Teo/web-chess/blob/main/docs/cross-app-learning-plan.md)
-and [`docs/cross-app-second-pass.md`](https://github.com/Sir-Teo/web-chess/blob/main/docs/cross-app-second-pass.md).
+**Check the exit code, not the output.** `npm run verify | grep -q ...` keys off
+grep's status, not the gate's; that mistake put a commit over a failing
+typecheck during this work. Run the gate, then read `$?`.
 
-## Where the three stand
+Tests live in both `src/` and `test/`, so `test:typecheck` covers the second
+location; `typecheck` alone would miss it.
 
-Measured 2026-08-29.
+## Where each check runs
 
-| | web-katrain | web-chess | web-xiangqi |
+| check | `verify` | `ci.yml` (pull requests) | deploy (push to `main`) |
 | --- | --- | --- | --- |
-| Domain | Go (KataGo) | Chess (Stockfish) | Xiangqi (Pikafish) |
-| `src` files | 233 | 118 | 71 |
-| Test cases | 1,417 | 410 | 338 |
-| App state | Zustand store | `useState` in `App.tsx` | `useState` in `App.tsx` |
-| Deploy runs the checks | yes | yes | yes |
-| `npm run verify` | yes | yes | yes + engine smoke/parity |
-| Hostile-input parser sweep | yes | yes | yes |
-| Bounded search query | yes | yes | yes |
-| Namespaced, versioned storage keys | yes | yes | yes |
-| One device-tier sizing policy | threads only | capabilities + hash | full tier + live/review policy |
-| Saved-game library | IndexedDB, folders, zip | IndexedDB, JSON backup | localStorage, flat |
-| Auto-save + crash recovery | yes | yes | yes |
-| Error boundary | component + lazy-modal | inline + lazy-dialog | component + lazy-panel |
-| Command palette | yes | yes | yes |
-| Board / UI themes | yes | no | no |
-| Sound | yes | no | partial |
-| Haptics | yes | no | no |
-| Analysis queue with position cache | yes | no | no |
-| Real service worker | yes (+ install banner) | yes — COI and offline in one worker | unregisters legacy SWs |
-| Position / FEN editor | no | yes | no |
-| Cloud eval, opening explorer, tablebase | no | yes | no |
-| Browser (Playwright) tests | one viewport script | boot, review, layout at two sizes | layout + parity + review |
-| Engine built from source | no | no | yes (emsdk) |
+| typecheck / lint / unit tests | yes | via `verify` | yes |
+| `audit` | no | yes | yes |
+| browser suite (`test:viewport`) | no | **yes** | **no** |
 
-## What this repo is the reference for
+The last row is the one to remember: **a push to `main` does not run the browser
+suite.** It runs the deploy workflow, which does not include it. Trigger
+`ci.yml` on `main` via `workflow_dispatch` if you need that coverage after a
+direct push.
 
-**Product surface and app architecture.** Game state lives in a Zustand store
-rather than in `App.tsx` — `App.tsx` here is 13 lines — and 22 test files drive
-that store directly, which is why this repo can test app behaviour at all. Both
-siblings hold their state in a ~5,000-line component and have no test that
-drives it.
+## How the three compare
 
-**The features neither sibling has yet:** command palette and shortcut
-registry, board and UI themes, sound, haptics, a real service worker with an
-install banner and update checks, the analysis queue with per-position caching,
-study modes, and a full documentation set.
+The sibling repos are `web-chess`, `web-katrain` and `web-xiangqi`. They are
+independent apps with the same shape, so most divergence is fine and some is
+not. This section lists what actually differs, measured rather than remembered,
+and says which side of that line each item falls on.
 
-**A parser that scans instead of backtracking.** Both siblings shipped a
-quadratic `\{[^}]*\}` comment scan; this repo's SGF reader is a hand-written
-character scanner and was flat where they were quadratic. `importFuzz.test.ts`
-now pins that rather than assuming it.
+| | web-chess | web-katrain | web-xiangqi |
+| --- | --- | --- | --- |
+| `verify` steps | typecheck, lint, test, build | typecheck, test:typecheck, lint, test, build | typecheck, lint, test, openings, library, smoke, parity, build:react |
+| Browser suite | `test:ui:browser` (Playwright) | `test:viewport` (raw CDP, no dependency) | `test:ui:layout` (Playwright) |
+| Where the browser suite runs | `ci.yml` | `ci.yml` | `ci.yml` |
+| Node in CI / deploy | 20 / 20 | 24 / 24 | 20 / 20 |
+| Deploy gates | audit, lint, test, build | audit, lint, test:typecheck, test, build | audit, build (WASM), verify |
+| Hostile-input sweep | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` |
+| Where the ceilings sit | search query; library PGN 512KB; backup 8MB; auto-save 2MB | search query; auto-save 5MB; model upload 128MB; verdict scan 4000 nodes | search query; **import text 200KB, UCI moves 1024, tree nodes 1024** |
 
-## What this repo is still missing
+**Deliberate, leave alone.** The `verify` lists differ because the apps differ:
+only web-xiangqi has a WASM engine to smoke-test and an opening book to check.
+web-katrain drives Chrome over raw CDP instead of Playwright, which is why it
+carries no browser dependency at all. Node 24 in web-katrain against 20 in the
+other two is a per-repo pin, not drift -- what matters is that CI and deploy
+agree *within* a repo, and all three now do.
 
-A position editor and the cloud-eval stack web-chess has (there is no Go
-equivalent of the Lichess endpoints, so this may stay missing on purpose).
-Device tiering here covers threads only — web-xiangqi's `analysisProfile` also
-resolves a live-analysis budget and a review budget from the same profile.
+**Not deliberate, and worth fixing.**
+
+1. **A push to `main` runs no browser suite anywhere.** `ci.yml` is
+   pull-request-only in all three, and no deploy workflow runs a browser test.
+   Green CI on `main` therefore means less than it appears to. `ci.yml` accepts
+   `workflow_dispatch`, so it can be triggered on `main` by hand as a stopgap.
+2. **Only one repo caps input *before* it parses it.** All three have ceilings,
+   but they sit in different places: web-chess and web-katrain bound what they
+   *write* (auto-save, backups, uploads), while web-xiangqi also bounds what it
+   *reads* -- import text at 200KB, UCI moves and tree nodes at 1024 -- so
+   hostile input is rejected by a length check instead of being walked. The
+   hostile-input sweeps put numbers on it: the same class of input clears
+   web-xiangqi in 7ms and web-katrain in 30ms. Neither is a bug today; 30ms is
+   nowhere near a stutter. The read-side ceiling is the cheaper design and is
+   the thing to port.
+
+**The rule this file exists to enforce:** any check that a sibling has and this
+repo does not should be either adopted or explained here. The gaps found this
+way so far were a deploy that ran no checks at all, a CI/deploy Node split
+inside one repo, and a browser suite that ran in no workflow.
