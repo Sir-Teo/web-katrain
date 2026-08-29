@@ -46,11 +46,46 @@ const VIEWPORTS = [
   { width: 1440, height: 900, mobile: false },
 ];
 
-const chromePath =
-  process.env.CHROME_PATH ||
-  (process.platform === 'darwin'
-    ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-    : 'google-chrome');
+/**
+ * Where Chrome is.
+ *
+ * This used to be `google-chrome` on anything but a Mac, which is true of a
+ * developer's Debian box and was true of the GitHub runner the day it was
+ * written -- but this suite now runs in CI, and a bare binary name that is not
+ * on PATH fails as an unhelpful spawn ENOENT partway through a job. Try the
+ * usual names in order and say plainly what was tried if none of them exist.
+ *
+ * CHROME_PATH still wins outright, and CHROME_BIN is consulted because the
+ * GitHub runner images set it.
+ */
+function resolveChromePath() {
+  const explicit = process.env.CHROME_PATH || process.env.CHROME_BIN;
+  if (explicit) return explicit;
+
+  const candidates = process.platform === 'darwin'
+    ? [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    ]
+    : [
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/snap/bin/chromium',
+    ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  // Nothing at a known absolute path. Fall back to the name and let PATH
+  // decide, which is what this did before and still works on most machines;
+  // the error below only fires if the spawn itself fails.
+  return process.platform === 'darwin' ? candidates[0] : 'google-chrome';
+}
+
+const chromePath = resolveChromePath();
 const screenshotDir = process.env.VIEWPORT_SCREENSHOT_DIR || '/tmp/web-katrain-viewport-check';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
