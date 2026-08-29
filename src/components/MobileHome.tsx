@@ -174,6 +174,26 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
     };
   }, [open]);
 
+  /**
+   * The stylesheet drops the PWA install banner to the screen edge while this
+   * overlay is up, so it stops floating over the action list -- but it keys off
+   * `:root[data-mobile-home='open']`, and nothing set that. The attribute below
+   * lives on this element as `data-mobile-home="true"`, which the rule cannot
+   * see and would not match anyway. The banner covered a recent-games row on
+   * every phone-width screen, exactly what the rule was written to prevent.
+   */
+  React.useEffect(() => {
+    const root = document.documentElement;
+    if (!open) {
+      root.removeAttribute('data-mobile-home');
+      return;
+    }
+    root.dataset.mobileHome = 'open';
+    return () => {
+      root.removeAttribute('data-mobile-home');
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const compactGamepadName = gamepadName ? formatGamepadLabel(gamepadName, 18) : null;
