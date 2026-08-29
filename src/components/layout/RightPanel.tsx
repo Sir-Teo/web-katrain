@@ -696,18 +696,26 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                               disabled={isInsertMode}
                               title={isInsertMode ? 'Finish inserting before navigating.' : 'Jump to move'}
                             >
-                              <span className="w-10 text-[0.625rem] font-mono text-[var(--ui-text-faint)]">
-                                {moveNumberLabel}
-                              </span>
-                              <span
-                                className={[
-                                  'text-[0.625rem] font-mono px-1.5 py-0.5 rounded',
-                                  playerChipClass,
-                                ].join(' ')}
-                              >
-                                {player}
-                              </span>
-                              <span className="text-xs font-medium">{label}</span>
+                              {move ? (
+                                <>
+                                  <span className="w-10 text-[0.625rem] font-mono text-[var(--ui-text-faint)]">
+                                    {moveNumberLabel}
+                                  </span>
+                                  <span
+                                    className={[
+                                      'text-[0.625rem] font-mono px-1.5 py-0.5 rounded',
+                                      playerChipClass,
+                                    ].join(' ')}
+                                  >
+                                    {player}
+                                  </span>
+                                  <span className="text-xs font-medium">{label}</span>
+                                </>
+                              ) : (
+                                <span className="text-xs font-medium">
+                                  {!node.parent ? 'Initial position' : label}
+                                </span>
+                              )}
                               {hasNote && (
                                 <span className="ml-auto text-[0.5625rem] uppercase tracking-wide text-[var(--ui-warning)]">note</span>
                               )}

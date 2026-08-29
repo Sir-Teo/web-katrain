@@ -113,6 +113,13 @@ describe('RightPanel layout', () => {
     expect(notesSource).not.toContain('const depth = currentNode.gameState.moveHistory.length');
   });
 
+  it('names the move-list root once instead of rendering placeholder columns', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+
+    expect(source).toContain("{!node.parent ? 'Initial position' : label}");
+    expect(source).toMatch(/\{move \? \([\s\S]{0,900}\) : \([\s\S]{0,180}Initial position/);
+  });
+
 
   it('marks the current move for assistive tech, not just with colour', () => {
     const panel = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
