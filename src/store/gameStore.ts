@@ -4828,24 +4828,58 @@ export const useGameStore = create<GameStore>((set, get) => ({
         applyKaAnalysis(newRoot, sgf.tree.props['KA']);
       }
 
-      const buildFromSgfNode = (parent: GameNode, node: NonNullable<ParsedSgf['tree']>) => {
-        const move = extractMove(node.props);
-        if (!move) {
-          const note = extractKaTrainUserNoteFromSgfComment(node.props['C']);
-          const propsNoComments = cloneProps(node.props);
-          delete propsNoComments['C'];
-          const hasAnalysis = !!(node.props['KT']?.length || node.props['KA']?.length);
-          const hasContent = Object.keys(propsNoComments).length > 0 || !!note || hasAnalysis;
-          if (!hasContent) {
-            for (const child of node.children) buildFromSgfNode(parent, child);
-            return;
+      // Depth-first with an explicit stack. Recursing here spent one frame per
+      // SGF node, and a game is a chain one node deep per move, so a long
+      // record overflowed the stack during import — the same ceiling the SGF
+      // parser's own walks had. Children are pushed in reverse so siblings are
+      // still built left to right, which is the order variations are shown in.
+      type SgfBuildTask = { parent: GameNode; node: NonNullable<ParsedSgf['tree']> };
+      const pushChildren = (stack: SgfBuildTask[], parent: GameNode, node: NonNullable<ParsedSgf['tree']>) => {
+        for (let i = node.children.length - 1; i >= 0; i--) {
+          stack.push({ parent, node: node.children[i]! });
+        }
+      };
+
+      const buildFromSgfNodes = (tasks: SgfBuildTask[]) => {
+        const stack = [...tasks].reverse();
+        while (stack.length > 0) {
+          const { parent, node } = stack.pop()!;
+          const move = extractMove(node.props);
+          if (!move) {
+            const note = extractKaTrainUserNoteFromSgfComment(node.props['C']);
+            const propsNoComments = cloneProps(node.props);
+            delete propsNoComments['C'];
+            const hasAnalysis = !!(node.props['KT']?.length || node.props['KA']?.length);
+            const hasContent = Object.keys(propsNoComments).length > 0 || !!note || hasAnalysis;
+            if (!hasContent) {
+              pushChildren(stack, parent, node);
+              continue;
+            }
+
+            const childNode = createNode(parent, null, cloneGameState(parent.gameState));
+            childNode.properties = propsNoComments;
+            if (note) childNode.note = note;
+            const rebuiltState = replayChildMove(parent, childNode);
+            childNode.gameState = rebuiltState ?? childNode.gameState;
+            if (node.props['KT'] && !childNode.analysis) {
+              applyKtAnalysis(childNode, node.props['KT']);
+            }
+            if (node.props['KA'] && !childNode.analysis) {
+              applyKaAnalysis(childNode, node.props['KA']);
+            }
+            parent.children.push(childNode);
+            pushChildren(stack, childNode, node);
+            continue;
           }
 
-          const childNode = createNode(parent, null, cloneGameState(parent.gameState));
-          childNode.properties = propsNoComments;
-          if (note) childNode.note = note;
-          const rebuiltState = replayChildMove(parent, childNode);
-          childNode.gameState = rebuiltState ?? childNode.gameState;
+          const childNode = applyMoveToNode(parent, move);
+          if (!childNode) continue;
+          childNode.properties = cloneProps(node.props);
+          applySetupPropsToNode(childNode, childNode.properties, boardSize);
+          applySgfPlayerToMoveToNode(childNode, childNode.properties);
+          const nodeNote = extractKaTrainUserNoteFromSgfComment(childNode.properties['C']);
+          if (nodeNote) childNode.note = nodeNote;
+          delete childNode.properties['C'];
           if (node.props['KT'] && !childNode.analysis) {
             applyKtAnalysis(childNode, node.props['KT']);
           }
@@ -4853,27 +4887,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             applyKaAnalysis(childNode, node.props['KA']);
           }
           parent.children.push(childNode);
-          for (const child of node.children) buildFromSgfNode(childNode, child);
-          return;
-        }
 
-        const childNode = applyMoveToNode(parent, move);
-        if (!childNode) return;
-        childNode.properties = cloneProps(node.props);
-        applySetupPropsToNode(childNode, childNode.properties, boardSize);
-        applySgfPlayerToMoveToNode(childNode, childNode.properties);
-        const nodeNote = extractKaTrainUserNoteFromSgfComment(childNode.properties['C']);
-        if (nodeNote) childNode.note = nodeNote;
-        delete childNode.properties['C'];
-        if (node.props['KT'] && !childNode.analysis) {
-          applyKtAnalysis(childNode, node.props['KT']);
+          pushChildren(stack, childNode, node);
         }
-        if (node.props['KA'] && !childNode.analysis) {
-          applyKaAnalysis(childNode, node.props['KA']);
-        }
-        parent.children.push(childNode);
-
-        for (const child of node.children) buildFromSgfNode(childNode, child);
       };
 
       if (rootMove) {
@@ -4892,10 +4908,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
             applyKaAnalysis(first, sgf.tree.props['KA']);
           }
           newRoot.children.push(first);
-          for (const child of sgf.tree.children) buildFromSgfNode(first, child);
+          buildFromSgfNodes(sgf.tree.children.map((child) => ({ parent: first, node: child })));
         }
       } else {
-        for (const child of sgf.tree.children) buildFromSgfNode(newRoot, child);
+        buildFromSgfNodes(sgf.tree.children.map((child) => ({ parent: newRoot, node: child })));
       }
     } else {
       // Legacy: just the main line (no SGF tree provided)

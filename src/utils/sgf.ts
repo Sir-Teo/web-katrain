@@ -260,12 +260,24 @@ const expandPointListPropertyValues = (values: string[] | undefined, boardSize: 
   });
 };
 
-const expandPointListPropertiesInTree = (node: ParsedSgfNode, boardSize: BoardSize): void => {
-  for (const key of POINT_LIST_PROPERTIES) {
-    const expanded = expandPointListPropertyValues(node.props[key], boardSize);
-    if (expanded) node.props[key] = expanded;
+/**
+ * Walks with an explicit stack rather than recursion. A linear game is a chain
+ * one node deep per move, so recursing here spent one frame per node and threw
+ * `RangeError: Maximum call stack size exceeded` at around 7,000 — reported to
+ * the reader as "Invalid SGF", which is a different and untrue statement. The
+ * scanner that builds this tree was already iterative; only the passes over it
+ * were not.
+ */
+const expandPointListPropertiesInTree = (root: ParsedSgfNode, boardSize: BoardSize): void => {
+  const stack: ParsedSgfNode[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    for (const key of POINT_LIST_PROPERTIES) {
+      const expanded = expandPointListPropertyValues(node.props[key], boardSize);
+      if (expanded) node.props[key] = expanded;
+    }
+    for (const child of node.children) stack.push(child);
   }
-  for (const child of node.children) expandPointListPropertiesInTree(child, boardSize);
 };
 
 export const generateSgf = (gameState: GameState): string => {
@@ -716,24 +728,30 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
         initialBoard = createEmptyBoard(boardSize);
     }
 
-    const validateMoveCoordinates = (node: SgfNode): void => {
-        for (const key of ['B', 'W'] as const) {
-            for (const coord of node.props[key] ?? []) {
-                if (coord === '' || coord === 'tt') continue;
-                const point = sgfCoordToXy(coord);
-                if (
-                    coord.length !== 2 ||
-                    !/^[a-z]{2}$/.test(coord) ||
-                    point.x < 0 ||
-                    point.y < 0 ||
-                    point.x >= boardSize ||
-                    point.y >= boardSize
-                ) {
-                    throw new Error(`Invalid SGF: ${key} move "${coord}" is outside the ${boardSize}x${boardSize} board`);
+    // Explicit stack, for the reason given on expandPointListPropertiesInTree:
+    // depth here is game length, not variation depth.
+    const validateMoveCoordinates = (rootNode: SgfNode): void => {
+        const stack: SgfNode[] = [rootNode];
+        while (stack.length > 0) {
+            const node = stack.pop()!;
+            for (const key of ['B', 'W'] as const) {
+                for (const coord of node.props[key] ?? []) {
+                    if (coord === '' || coord === 'tt') continue;
+                    const point = sgfCoordToXy(coord);
+                    if (
+                        coord.length !== 2 ||
+                        !/^[a-z]{2}$/.test(coord) ||
+                        point.x < 0 ||
+                        point.y < 0 ||
+                        point.x >= boardSize ||
+                        point.y >= boardSize
+                    ) {
+                        throw new Error(`Invalid SGF: ${key} move "${coord}" is outside the ${boardSize}x${boardSize} board`);
+                    }
                 }
             }
+            for (const child of node.children) stack.push(child);
         }
-        for (const child of node.children) validateMoveCoordinates(child);
     };
 
     validateMoveCoordinates(root);
