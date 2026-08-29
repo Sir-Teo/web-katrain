@@ -39,7 +39,7 @@ Measured 2026-08-29.
 | Saved-game library | IndexedDB, folders, zip | IndexedDB, JSON backup | localStorage, flat |
 | Auto-save + crash recovery | yes | yes | yes |
 | Error boundary | component + lazy-modal | inline + lazy-dialog | component + lazy-panel |
-| Command palette | yes | yes | no |
+| Command palette | yes | yes | yes |
 | Board / UI themes | yes | no | no |
 | Sound | yes | no | partial |
 | Haptics | yes | no | no |
