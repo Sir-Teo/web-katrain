@@ -1203,25 +1203,6 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             </div>
           )}
 
-          {/* Two cards, not three: "Coverage" was analyzedMoves/totalMoves as a
-              percent — the same fraction as its neighbour — and that card's own
-              progress bar repeated the status bar directly above. */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className={sectionClass}>
-              <div className={sectionTitleClass}>Phase</div>
-              <div className={`mt-2 text-lg font-semibold ${valueClass}`}>{phaseLabel}</div>
-              <div className={`mt-1 text-xs ${mutedClass}`}>Filter applies to report metrics.</div>
-            </div>
-            <div className={sectionClass}>
-              <div className={sectionTitleClass}>Analyzed Moves</div>
-              <div className={`mt-2 text-lg font-semibold ${valueClass}`}>
-                {analyzedMoves}/{totalMoves || 0}{' '}
-                <span className={`text-sm font-normal ${mutedClass}`}>· {fmtPct(coverage)}</span>
-              </div>
-              <div className={`mt-1 text-xs ${mutedClass}`}>Based on moves with analysis data.</div>
-            </div>
-          </div>
-
           <div className={sectionClass}>
             <div className={sectionTitleClass}>Phase Accuracy</div>
             <div className={['mt-3 grid gap-2 text-sm', statsPlayers.length === 2 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>

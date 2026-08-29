@@ -21,6 +21,14 @@ describe('GameReportModal empty state', () => {
     expect(html).not.toContain('aria-label="Report analysis coverage"');
   });
 
+  it('does not repeat the selected phase and coverage below their controls', () => {
+    const source = readFileSync('src/components/GameReportModal.tsx', 'utf8');
+
+    expect(source).toContain('aria-label="Report analysis coverage"');
+    expect(source).not.toContain('Filter applies to report metrics.');
+    expect(source).not.toContain('Based on moves with analysis data.');
+  });
+
   it('keeps the empty explanation above the footer in short landscape', () => {
     useGameStore.getState().startNewGame({ komi: 6.5, rules: 'japanese', boardSize: 19, handicap: 0 });
 
