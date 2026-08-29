@@ -263,6 +263,16 @@ async function chromeTarget(port) {
 
 async function evaluate(cdp, expression) {
   const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+  // A reply with no `result` means the call itself failed rather than the
+  // expression -- almost always because Chrome died. Saying so beats
+  // "Cannot read properties of undefined (reading 'exceptionDetails')",
+  // which is what a CI runner reported for a browser that could not start
+  // its sandbox.
+  if (!response || !response.result) {
+    throw new Error(
+      `Runtime.evaluate returned no result (Chrome likely exited). Reply: ${JSON.stringify(response)?.slice(0, 300)}`,
+    );
+  }
   if (response.result.exceptionDetails) {
     throw new Error(response.result.exceptionDetails.text ?? 'Runtime evaluation failed');
   }
@@ -696,15 +706,35 @@ async function main() {
   try {
     await waitForHttp(`http://127.0.0.1:${appPort}/`);
 
+    // --no-sandbox and --disable-dev-shm-usage are the pair headless Chrome
+    // needs on a CI runner: the sandbox cannot start in the container, and
+    // /dev/shm there is small enough that the renderer dies allocating in it.
+    // Without them Chrome exits during the first Runtime.evaluate and the only
+    // symptom is a CDP reply with no `result` field. Kept off locally, where
+    // the sandbox works and is worth having.
+    const ciChromeFlags = process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
+
+    // Chrome's stderr used to go to /dev/null, which is why the CI failure
+    // above said nothing about Chrome at all. Keep it and print it if the run
+    // fails.
     chrome = spawn(chromePath, [
       '--headless=new',
       '--disable-gpu',
       '--no-first-run',
       '--no-default-browser-check',
+      ...ciChromeFlags,
       `--remote-debugging-port=${devtoolsPort}`,
       '--window-size=1280,900',
       'about:blank',
-    ], { stdio: ['ignore', 'ignore', 'ignore'] });
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let chromeStderr = '';
+    chrome.stderr?.on('data', (chunk) => { chromeStderr += String(chunk); });
+    chrome.on('exit', (code, signal) => {
+      if (code !== 0 && code !== null) {
+        process.stderr.write(`Chrome exited with code ${code}${signal ? ` (${signal})` : ''}\n`);
+        if (chromeStderr) process.stderr.write(chromeStderr.slice(-2000) + '\n');
+      }
+    });
 
     const target = await chromeTarget(devtoolsPort);
     const cdp = connectDevtools(target);
