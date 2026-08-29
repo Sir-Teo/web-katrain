@@ -28,6 +28,37 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   hasControlBarAbove,
 }) => {
   const [pointerFocusedTab, setPointerFocusedTab] = React.useState<MobileTab | null>(null);
+
+  /**
+   * Arrow keys move between tabs, Home and End jump to the ends.
+   *
+   * A `role="tablist"` is expected to be one stop in the tab order, with the
+   * arrows moving inside it -- so the roving `tabIndex` below and this handler
+   * are two halves of one pattern, and neither works alone. Without them all
+   * four tabs sat in the tab sequence and the arrows did nothing, which is the
+   * shape of a group of buttons wearing tab roles.
+   *
+   * Selection follows focus, which the practices allow when switching is cheap
+   * and every panel is already mounted. Ported from web-xiangqi's
+   * `handleTablistKeyDown`; the two should stay the same.
+   */
+  const handleTabListKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    const { key } = event;
+    if (key !== 'ArrowRight' && key !== 'ArrowLeft' && key !== 'Home' && key !== 'End') return;
+    const tabButtons = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]:not(:disabled)'),
+    );
+    const from = tabButtons.indexOf(document.activeElement as HTMLButtonElement);
+    if (from === -1) return;
+    const next = key === 'Home'
+      ? 0
+      : key === 'End'
+        ? tabButtons.length - 1
+        : (from + (key === 'ArrowRight' ? 1 : -1) + tabButtons.length) % tabButtons.length;
+    event.preventDefault();
+    tabButtons[next].focus();
+    tabButtons[next].click();
+  }, []);
   const tabs: TabConfig[] = [
     {
       id: 'board',
@@ -62,6 +93,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       ].filter(Boolean).join(' ')}
       role="tablist"
       aria-label="Main sections"
+      onKeyDown={handleTabListKeyDown}
     >
       <div
         className="grid mobile-tabbar-grid"
@@ -91,6 +123,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               role="tab"
               aria-selected={isActive}
               aria-label={tab.label}
+              tabIndex={isActive ? 0 : -1}
               data-mobile-tab-focus-origin={pointerFocusedTab === tab.id ? 'pointer' : 'keyboard'}
             >
               <span className="relative">

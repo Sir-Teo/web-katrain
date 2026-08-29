@@ -418,6 +418,9 @@ function assertViewport(result) {
     if (result.noteEditorLifecycleFailures.length > 0) {
       failures.push(`mobile note editor lifecycle failures: ${result.noteEditorLifecycleFailures.join(', ')}`);
     }
+    if (result.mobileTabKeyboardFailures.length > 0) {
+      failures.push(`mobile tab bar keyboard failures: ${result.mobileTabKeyboardFailures.join(', ')}`);
+    }
     if (!result.boardTouchAction.includes('pinch-zoom') && result.boardTouchAction !== 'manipulation') {
       failures.push(`play-mode board touch-action does not allow pinch zoom (${result.boardTouchAction})`);
     }
@@ -2558,6 +2561,61 @@ async function main() {
           boardTab?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }
+        // The tab bar wears role="tablist", which promises one stop in the tab
+        // order with the arrows moving inside it. It used to keep all four tabs
+        // in the sequence and ignore the arrows entirely -- buttons wearing tab
+        // roles. Both halves are checked here because neither works alone: a
+        // roving tabIndex with no arrow handler traps focus on one tab.
+        let mobileTabKeyboardFailures = [];
+        if (${viewport.mobile}) {
+          const tabList = document.querySelector('[role="tablist"][aria-label="Main sections"]');
+          const readTabs = () => Array.from(tabList?.querySelectorAll('[role="tab"]') ?? []);
+          const pressKey = async (key) => {
+            document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          };
+          const tabButtons = readTabs();
+          if (tabButtons.length < 2) {
+            mobileTabKeyboardFailures.push('expected a tab list of at least two tabs, saw ' + tabButtons.length);
+          } else {
+            const inTabOrder = tabButtons.filter((tab) => tab.tabIndex === 0);
+            if (inTabOrder.length !== 1) {
+              mobileTabKeyboardFailures.push(inTabOrder.length + ' tabs are in the tab order, expected exactly 1');
+            } else if (inTabOrder[0].getAttribute('aria-selected') !== 'true') {
+              mobileTabKeyboardFailures.push('the tab in the tab order is not the selected one');
+            }
+
+            tabButtons[0].focus();
+            if (document.activeElement !== tabButtons[0]) {
+              mobileTabKeyboardFailures.push('the first tab could not take focus');
+            }
+            await pressKey('ArrowRight');
+            if (document.activeElement !== tabButtons[1]) {
+              mobileTabKeyboardFailures.push('ArrowRight did not move focus to the next tab');
+            }
+            if (tabButtons[1].getAttribute('aria-selected') !== 'true') {
+              mobileTabKeyboardFailures.push('ArrowRight moved focus without selecting the tab');
+            }
+            // Wrapping matters: the practices ask for a cycle, and the last tab
+            // is where a keyboard user most easily gets stuck.
+            await pressKey('End');
+            const lastTab = tabButtons[tabButtons.length - 1];
+            if (document.activeElement !== lastTab) {
+              mobileTabKeyboardFailures.push('End did not move focus to the last tab');
+            }
+            await pressKey('ArrowRight');
+            if (document.activeElement !== tabButtons[0]) {
+              mobileTabKeyboardFailures.push('ArrowRight did not wrap from the last tab to the first');
+            }
+            await pressKey('Home');
+            if (document.activeElement !== tabButtons[0]) {
+              mobileTabKeyboardFailures.push('Home did not move focus to the first tab');
+            }
+          }
+          const backToBoard = readTabs().find((tab) => tab.getAttribute('aria-label') === 'Board');
+          backToBoard?.click();
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        }
         let editModeSmallTouchTargets = [];
         let editModeBoardTouchAction = 'none';
         if (${viewport.mobile} && editButton) {
@@ -3019,6 +3077,7 @@ async function main() {
           noteEditorReachable,
           noteEditorKeyboardAware,
           noteEditorLifecycleFailures,
+          mobileTabKeyboardFailures,
           navigationSmokeFailures,
           captureSmokeFailures,
           fullscreenSmokeFailures,
