@@ -321,7 +321,12 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                     className="min-h-12 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-left hover:bg-[var(--ui-surface-2)]"
                     onClick={() => onOpenRecent(item)}
                   >
-                    <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{item.name}</div>
+                    {/* Two lines rather than one, because a game name is
+                        "Lee Sedol vs Gu Li - 7th Chinese League A, round 2" and
+                        one truncated line on a phone shows the players and
+                        nothing that tells two games of theirs apart. The title
+                        covers the rest, and a pointer that can hover. */}
+                    <div className="line-clamp-2 text-sm font-semibold text-[var(--ui-text)]" title={item.name}>{item.name}</div>
                     <div className="mt-1 truncate text-xs ui-text-faint">
                       {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
                     </div>

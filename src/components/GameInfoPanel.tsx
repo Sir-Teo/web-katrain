@@ -194,7 +194,7 @@ export const GameInfoPanel: React.FC = () => {
     >
       <div className="flex min-w-0 items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-[var(--ui-text)]">{title}</div>
+          <div className="truncate text-sm font-semibold text-[var(--ui-text)]" title={title}>{title}</div>
           {/* Only worth a line when it explains an empty-looking card — otherwise
               the players and details are right below. */}
           {hasMetadata ? null : <div className="mt-1 text-[0.6875rem] ui-text-faint">No metadata yet</div>}
