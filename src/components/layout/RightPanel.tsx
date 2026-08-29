@@ -385,6 +385,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       </button>
     </div>
   );
+  const gameInfoSection = renderSection({
+    show: showGameInfo,
+    title: 'Game Info',
+    icon: <FaInfoCircle size={12} />,
+    open: modePanels.infoOpen,
+    onToggle: () => updatePanels((current) => ({ infoOpen: !current.infoOpen })),
+    children: <GameInfoPanel />,
+  });
   /* Two 44px buttons had a 57px band of their own under a header that runs out
      of content at phone width (the title is hidden below 381px). They ride in
      that empty header space instead, and the band only appears when branch
@@ -502,15 +510,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-3">
           <div className={['flex flex-col min-h-0', isMobile && activeMobileTab === 'tree' ? 'h-full' : ''].join(' ')}>
-            {/* Game Info */}
-            {renderSection({
-              show: showGameInfo,
-              title: 'Game Info',
-              icon: <FaInfoCircle size={12} />,
-              open: modePanels.infoOpen,
-              onToggle: () => updatePanels((current) => ({ infoOpen: !current.infoOpen })),
-              children: <GameInfoPanel />,
-            })}
+            {/* Desktop keeps the familiar document order. Mobile Review is an
+                action workspace, so its lower-frequency metadata follows the
+                analysis and notes in both visual and accessibility order. */}
+            {!isMobile ? gameInfoSection : null}
 
             {/* Game Tree */}
             {renderSection({
@@ -912,6 +915,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 </div>
               ),
             })}
+
+            {isMobile ? gameInfoSection : null}
           </div>
         </div>
       </div>

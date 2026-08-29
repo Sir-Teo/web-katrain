@@ -8,6 +8,15 @@ describe('RightPanel layout', () => {
     expect(source).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain pb-3');
   });
 
+  it('puts review actions ahead of game metadata on mobile', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+
+    expect(source).toContain('{!isMobile ? gameInfoSection : null}');
+    expect(source).toContain('{isMobile ? gameInfoSection : null}');
+    expect(source).not.toContain("isMobile ? 'order-first'");
+    expect(source).not.toContain("isMobile ? 'order-last'");
+  });
+
   it('keeps the standalone mobile tree open without repeating its workspace title', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 
