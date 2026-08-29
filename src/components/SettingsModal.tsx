@@ -52,6 +52,7 @@ import {
     type SettingsTabId,
 } from '../utils/settingsTabs';
 import { formatEngineBackendLabel } from '../utils/engineStatusSummary';
+import { describeModelDownloadError } from '../utils/modelDownloadError';
 import {
     detectWebGpuAvailability,
     isKataGoBackendAvailable,
@@ -469,11 +470,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 setDownloadError('Loaded for this session, but browser storage could not save the download for reload.');
             }
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Download failed.';
-            const hint = message.toLowerCase().includes('failed to fetch')
-                ? 'Download blocked by browser (CORS). Use "Download" then "Upload Weights".'
-                : message;
-            setDownloadError(hint);
+            setDownloadError(describeModelDownloadError(error));
         } finally {
             setDownloadingUrl(null);
             setDownloadProgress(null);
