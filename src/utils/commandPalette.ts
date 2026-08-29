@@ -1,7 +1,8 @@
 import { readLocalStorage, writeLocalStorage } from './storage';
+import { MAX_SEARCH_QUERY_LENGTH } from './searchTerms';
 
 export const normalizeCommandQuery = (value: string): string =>
-  value.trim().toLowerCase();
+  value.slice(0, MAX_SEARCH_QUERY_LENGTH).trim().toLowerCase();
 
 export const RECENT_COMMANDS_STORAGE_KEY = 'web-katrain:recent_commands:v1';
 /**

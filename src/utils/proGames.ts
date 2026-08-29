@@ -2,6 +2,7 @@ import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { parseSgf } from './sgf';
 import { applyCapturesInPlace } from './gameLogic';
 import type { BoardState } from '../types';
+import { toSearchTerms } from './searchTerms';
 
 export interface ProGameMeta {
   id: string;
@@ -82,7 +83,7 @@ const proGameSearchText = (game: ProGameMeta): string =>
  * different fields and never end up adjacent.
  */
 export const filterProGames = (games: ProGameMeta[], query: string): ProGameMeta[] => {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = toSearchTerms(query);
   if (terms.length === 0) return games;
   return games.filter((game) => {
     const haystack = proGameSearchText(game);

@@ -1,6 +1,7 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { stripUnsafeFilenameControls } from './filename';
 import { getIndexedDB, readLocalStorage, writeLocalStorage } from './storage';
+import { toSearchTerms } from './searchTerms';
 
 export type LibraryBase = {
   id: string;
@@ -311,12 +312,7 @@ export const libraryNameRepeatsPlayers = (
   return name.toLowerCase().includes(`${blackName} vs ${whiteName}`.toLowerCase());
 };
 
-const librarySearchTokens = (query: string): string[] =>
-  query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
+const librarySearchTokens = (query: string): string[] => toSearchTerms(query);
 
 export const getLibraryItemSearchText = (item: LibraryItem): string => {
   const fields: Array<string | undefined> = [item.name, item.type];
