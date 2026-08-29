@@ -19,6 +19,23 @@ import { decodeKayaOwnership } from '../src/utils/kayaSgfAnalysis';
  * dangerous is not that it parses to the wrong thing, it is that it never
  * comes back.
  */
+/**
+ * What counts as "did not hang".
+ *
+ * This was 1000ms, which is roughly four times the slowest case on a developer
+ * machine and turned out not to be enough: `many properties on one node` runs
+ * in 171-231ms here and took 1043ms on a GitHub runner, failing the suite by
+ * 4%. Shared CI hardware is around five times slower than the machine this was
+ * calibrated on, so a budget with 4x headroom locally has none there.
+ *
+ * The number is deliberately generous rather than tuned. What this file is for
+ * is catching a parser that hangs or goes quadratic on hostile input -- failure
+ * modes measured in seconds and minutes, not in the difference between 200ms
+ * and 1000ms. Five seconds still catches all of those and leaves roughly five
+ * times headroom over the slowest run actually observed in CI.
+ */
+const BUDGET_MS = 5000;
+
 const NASTY: Array<[string, string]> = [
   ['empty', ''],
   ['bare paren', '('],
@@ -65,6 +82,6 @@ for (const [name, input] of NASTY) {
     decodeKayaOwnership(input);
 
     const elapsed = performance.now() - started;
-    expect(elapsed, `${name} took ${elapsed.toFixed(0)}ms`).toBeLessThan(1000);
+    expect(elapsed, `${name} took ${elapsed.toFixed(0)}ms`).toBeLessThan(BUDGET_MS);
   });
 }
