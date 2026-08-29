@@ -25,6 +25,7 @@ import {
 import { BOARD_AREA, BOARD_SIZE, PASS_MOVE, setBoardSize } from './fastBoard';
 import { postprocessKataGoV8 } from './evalV8';
 import { humanSlMetadataRow } from './humanSlProfile';
+import { detectSearchThreadCount } from '../../utils/workerThreads';
 
 let model: KataGoModelV8Tf | null = null;
 let loadedModelName: string | undefined;
@@ -119,9 +120,10 @@ async function initWasmBackend(): Promise<void> {
     // Without COOP/COEP headers, browsers disable threads and TFJS will fall back to single-threaded wasm.
     const isCrossOriginIsolated = (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
     if (isCrossOriginIsolated) {
-      const hc = (globalThis as unknown as { navigator?: { hardwareConcurrency?: number } }).navigator?.hardwareConcurrency ?? 1;
-      const numThreads = Math.max(1, Math.min(8, Math.floor(hc)));
-      setThreadsCount(numThreads);
+      // Cores minus headroom for the UI, held down further on a machine short
+      // of memory. See utils/workerThreads for why memory is only trusted
+      // below 4GB.
+      setThreadsCount(detectSearchThreadCount());
     }
     await tf.setBackend('wasm');
     await tf.ready();
