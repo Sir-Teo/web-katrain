@@ -421,6 +421,9 @@ function assertViewport(result) {
     if (result.mobileTabKeyboardFailures.length > 0) {
       failures.push(`mobile tab bar keyboard failures: ${result.mobileTabKeyboardFailures.join(', ')}`);
     }
+    if (result.mobileTabPanelFailures.length > 0) {
+      failures.push(`mobile tab/panel wiring failures: ${result.mobileTabPanelFailures.join(', ')}`);
+    }
     if (!result.boardTouchAction.includes('pinch-zoom') && result.boardTouchAction !== 'manipulation') {
       failures.push(`play-mode board touch-action does not allow pinch zoom (${result.boardTouchAction})`);
     }
@@ -2616,6 +2619,51 @@ async function main() {
           backToBoard?.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }
+        // Each tab has to name a panel that is really there, and that panel has
+        // to name the tab back. The invariant is checked in every tab state
+        // rather than once, because the library panel is mounted only while its
+        // own tab is active -- so a fixed aria-controls on that tab dangles in
+        // three states out of four, which is worse for a screen reader than
+        // having no aria-controls at all. Counting attributes would have missed
+        // that; resolving them does not.
+        let mobileTabPanelFailures = [];
+        if (${viewport.mobile}) {
+          const tabNames = ['Board', 'Tree', 'Review', 'Library'];
+          for (const name of tabNames) {
+            const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((candidate) => candidate.getAttribute('aria-label') === name);
+            if (!tab) { mobileTabPanelFailures.push('tab missing: ' + name); continue; }
+            tab.click();
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+            const allTabs = Array.from(document.querySelectorAll('[role="tab"]'));
+            for (const candidate of allTabs) {
+              const controls = candidate.getAttribute('aria-controls');
+              if (controls && !document.getElementById(controls)) {
+                mobileTabPanelFailures.push('with ' + name + ' active, ' + candidate.getAttribute('aria-label') + ' points at missing #' + controls);
+              }
+            }
+
+            const controlled = tab.getAttribute('aria-controls');
+            if (!controlled) {
+              mobileTabPanelFailures.push(name + ' is active but controls nothing');
+              continue;
+            }
+            const panel = document.getElementById(controlled);
+            if (!panel) {
+              mobileTabPanelFailures.push(name + ' controls missing #' + controlled);
+              continue;
+            }
+            if (panel.getAttribute('role') !== 'tabpanel') {
+              mobileTabPanelFailures.push(name + ' controls #' + controlled + ' which is not a tabpanel');
+            }
+            if (panel.getAttribute('aria-labelledby') !== tab.id) {
+              mobileTabPanelFailures.push(name + ' panel is labelled by ' + panel.getAttribute('aria-labelledby') + ', expected ' + tab.id);
+            }
+          }
+          const returnToBoard = Array.from(document.querySelectorAll('[role="tab"]')).find((tab) => tab.getAttribute('aria-label') === 'Board');
+          returnToBoard?.click();
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        }
         let editModeSmallTouchTargets = [];
         let editModeBoardTouchAction = 'none';
         if (${viewport.mobile} && editButton) {
@@ -3078,6 +3126,7 @@ async function main() {
           noteEditorKeyboardAware,
           noteEditorLifecycleFailures,
           mobileTabKeyboardFailures,
+          mobileTabPanelFailures,
           navigationSmokeFailures,
           captureSmokeFailures,
           fullscreenSmokeFailures,

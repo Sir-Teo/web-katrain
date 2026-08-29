@@ -5,8 +5,9 @@ import {
   FaProjectDiagram,
   FaThLarge,
 } from 'react-icons/fa';
+import { mobileTabId, tabPanelId, type MobileTab } from './mobileTabs';
 
-export type MobileTab = 'board' | 'tree' | 'info' | 'library';
+export type { MobileTab } from './mobileTabs';
 
 interface MobileTabBarProps {
   activeTab: MobileTab;
@@ -121,6 +122,8 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
                 pointerFocusedTab === tab.id ? 'mobile-tab-pointer-focus' : '',
               ].join(' ')}
               role="tab"
+              id={mobileTabId(tab.id)}
+              aria-controls={tabPanelId(tab.id, isActive)}
               aria-selected={isActive}
               aria-label={tab.label}
               tabIndex={isActive ? 0 : -1}

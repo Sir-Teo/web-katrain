@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
 import {
   FaTimes,
   FaFolderOpen,
@@ -1962,6 +1963,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         ref={panelRef}
         data-dropzone="library"
         data-layout-panel="library"
+        {...(isMobile
+          ? { role: 'tabpanel', id: MOBILE_TAB_PANEL_IDS.library, 'aria-labelledby': mobileTabId('library') }
+          : {})}
         className={[
           'library-panel ui-panel border-r flex flex-col overflow-x-hidden relative',
           'fixed inset-y-0 left-0 z-40 w-full max-w-none sm:max-w-sm',

@@ -65,7 +65,8 @@ import { TopControlBar } from './layout/TopControlBar';
 import { BottomControlBar } from './layout/BottomControlBar';
 import { RightPanel } from './layout/RightPanel';
 import { MobileMatchStrip } from './layout/MobileMatchStrip';
-import { MobileTabBar, type MobileTab } from './layout/MobileTabBar';
+import { MobileTabBar } from './layout/MobileTabBar';
+import { MOBILE_TAB_PANEL_IDS, mobileTabId, type MobileTab } from './layout/mobileTabs';
 import { NotificationToast } from './layout/NotificationToast';
 import { LibraryPanel } from './LibraryPanel';
 import { MobileHome } from './MobileHome';
@@ -3726,6 +3727,9 @@ export const Layout: React.FC = () => {
               />
             )}
             <div
+              // Only a tab panel on mobile: on desktop there is no tab bar, so the role
+              // and the aria-labelledby would point at tabs that are not rendered.
+              {...(isMobile ? { role: 'tabpanel', id: MOBILE_TAB_PANEL_IDS.board, 'aria-labelledby': mobileTabId('board') } : {})}
               className={[
                 'mobile-board-canvas flex-1 flex justify-center min-h-0 min-w-0',
                 // On mobile the Score (top-left) and Edit (bottom-left) launchers float

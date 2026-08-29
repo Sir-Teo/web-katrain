@@ -23,7 +23,7 @@ import { MoveTree } from '../MoveTree';
 import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import type { AnalysisControlsState, UiMode, UiState } from './types';
-import type { MobileTab } from './MobileTabBar';
+import { MOBILE_TAB_PANEL_IDS, mobileTabId, type MobileTab } from './mobileTabs';
 import type { MoveInsight } from '../../utils/moveInsight';
 import { SectionHeader } from './ui';
 import { formatMoveLabel, formatPositionSummary, panelCardBase, panelCardClosed, panelCardOpen, playerToShort } from './ui-utils';
@@ -428,6 +428,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       )}
       <div
         data-layout-panel="side"
+        // Tree and Review are two tabs over one container, so the panel names
+        // whichever of them is active rather than claiming a fixed owner.
+        {...(isMobile
+          ? {
+            role: 'tabpanel',
+            id: MOBILE_TAB_PANEL_IDS.tree,
+            'aria-labelledby': mobileTabId(activeMobileTab === 'info' ? 'info' : 'tree'),
+          }
+          : {})}
         className={[
           'ui-panel border-l flex flex-col overflow-hidden relative',
           'fixed inset-y-0 right-0 z-40 w-full max-w-none sm:max-w-md',
