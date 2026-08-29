@@ -51,3 +51,19 @@ jobs:
       # reached. Set ENGINE_TESTS=1 to run them anyway, and expect it to be slow.
       - name: Verify
         run: npm run verify
+
+      # This repo's only browser-level suite, and until now it ran in no
+      # workflow at all: not here, and not in deploy-pages.yml either. Both
+      # siblings run theirs in CI -- web-chess `test:ui:browser`, web-xiangqi
+      # `test:ui:layout` -- so katrain was the one of the three whose layout,
+      # touch-target and interaction checks were only ever run by hand.
+      #
+      # It is cheap to add: ~1 minute locally, it spawns its own vite server,
+      # and it needs no build output. Chrome comes with the ubuntu-latest
+      # image; the script resolves `google-chrome` on PATH and honours
+      # CHROME_PATH if that ever stops being true.
+      #
+      # Deliberately here and not in deploy-pages.yml: a browser suite that
+      # goes flaky should fail a pull request, not stop the site publishing.
+      - name: Viewport and interaction checks
+        run: npm run test:viewport
