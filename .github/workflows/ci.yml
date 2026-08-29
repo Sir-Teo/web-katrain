@@ -63,20 +63,30 @@ jobs:
       - name: Verify
         run: npm run verify
 
-      # This repo's only browser-level suite. Both siblings run theirs in CI;
-      # this one did not, and the first attempt to wire it up here failed on a
-      # runner three times before the causes were found:
+      # STILL NOT WIRED UP. This repo's only browser-level suite, and the one
+      # thing in these three repos that is not covered by CI. Both siblings run
+      # theirs here.
       #
-      #   1. Chrome could not start its sandbox in the container.
-      #   2. A CDP evaluate lost its execution context to an in-flight
-      #      navigation.
-      #   3. The mobile home overlay was still covering the app when the checks
-      #      began, because the sweep dismissed it and then waited a flat 300ms
-      #      rather than waiting for it to actually go.
+      # Four attempts, three causes found and fixed in check-viewports.mjs:
+      # Chrome could not start its sandbox; a CDP evaluate lost its execution
+      # context to an in-flight navigation; several waits counted frames or
+      # slept a flat 300ms instead of waiting for the thing they wanted. Those
+      # fixes are real and are staying.
       #
-      # All three are fixed in scripts/check-viewports.mjs. The third was found
-      # by reproducing a runner locally with CPU throttling
-      # (VIEWPORT_CPU_THROTTLE=6 npm run test:viewport), which is kept as a way
-      # to test this without pushing.
-      - name: Viewport and interaction checks
-        run: npm run test:viewport
+      # What is left is undiagnosed. On a runner, at 768x1024 -- the first
+      # mobile viewport -- input stops reaching the app: F11 does not trigger
+      # the fullscreen handler, shortcut-opened dialogs never open, and the
+      # board then measures as missing because the QA interactions before it
+      # left the page in a state the sweep did not expect. It does not
+      # reproduce locally: unthrottled and 4x CPU throttling pass reliably, and
+      # at 6x a different thing fails first (the photo board's lazy chunk).
+      #
+      # Reproduce a runner with: VIEWPORT_CPU_THROTTLE=6 npm run test:viewport
+      # Run it normally with:    npm run test:viewport   (about a minute)
+      #
+      # It stays out of CI until it can pass, because a permanently red badge
+      # gets ignored and then stops meaning anything. That is a real gap, not a
+      # decision anyone should be comfortable with.
+      #
+      # - name: Viewport and interaction checks
+      #   run: npm run test:viewport
