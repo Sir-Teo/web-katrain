@@ -47,7 +47,7 @@ Measured 2026-08-29.
 | Real service worker + install banner | yes | `coi-serviceworker` only | unregisters legacy SWs |
 | Position / FEN editor | no | yes | no |
 | Cloud eval, opening explorer, tablebase | no | yes | no |
-| Browser (Playwright) tests | one viewport script | no | layout + parity + review |
+| Browser (Playwright) tests | one viewport script | boot, review, layout at two sizes | layout + parity + review |
 | Engine built from source | no | no | yes (emsdk) |
 
 ## What this repo is the reference for
