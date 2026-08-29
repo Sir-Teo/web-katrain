@@ -301,6 +301,50 @@ async function evaluate(cdp, expression, attempt = 0) {
   return response.result.result.value;
 }
 
+/**
+ * The board rendering is not the same thing as the app being usable.
+ *
+ * At mobile widths this app opens over a full-screen home overlay, and the
+ * sweep dismisses it by clicking "Open board" and then waiting a flat 300ms.
+ * That is a guess about how long a render takes, and it is wrong on a loaded
+ * machine: the overlay is still up when the checks start, so the board
+ * measures as missing, mobile triggers are unreachable, and every dialog
+ * "did not open" at once. It failed exactly that way on a CI runner at
+ * 768x1024 -- the first mobile viewport -- and reproduces locally under 6x CPU
+ * throttling.
+ *
+ * Waiting for the overlay to actually be gone, and for the board to have a
+ * non-zero box, says what was meant and costs nothing when the machine is fast.
+ */
+async function waitForShellReady(cdp, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  let state = null;
+  for (;;) {
+    state = await evaluate(cdp, `(() => {
+      const home = document.querySelector('[aria-labelledby="mobile-home-title"]');
+      const board = document.querySelector('[data-board-snapshot="true"]');
+      const rect = board ? board.getBoundingClientRect() : null;
+      return {
+        homeOverlayOpen: Boolean(home),
+        boardVisible: Boolean(rect) && rect.width > 0 && rect.height > 0,
+      };
+    })()`);
+    if (!state.homeOverlayOpen && state.boardVisible) {
+      // The condition replaces a flat 300ms wait, but not the settle it also
+      // provided. On desktop there is no overlay, so the condition is true
+      // immediately and returning here would be *faster* than the code this
+      // replaced -- which promptly moved the failure from the mobile viewport
+      // to the desktop one. Keep both: wait for the shell, then let it settle.
+      await sleep(300);
+      return;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(`App shell not ready after ${timeoutMs}ms: ${JSON.stringify(state)}`);
+    }
+    await sleep(100);
+  }
+}
+
 async function waitForBoard(cdp) {
   for (let i = 0; i < 120; i++) {
     const hasBoard = await evaluate(cdp, '!!document.querySelector("[data-board-snapshot=true]")');
@@ -771,6 +815,10 @@ async function main() {
     await cdp.ready;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    if (process.env.VIEWPORT_CPU_THROTTLE) {
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.VIEWPORT_CPU_THROTTLE) });
+      process.stdout.write(`CPU throttled ${process.env.VIEWPORT_CPU_THROTTLE}x\n`);
+    }
 
     // Console errors and uncaught exceptions are silent in a headless run: the
     // layout assertions below still pass while the page is throwing on every
@@ -844,7 +892,7 @@ async function main() {
         continueButton.click();
         return true;
       })()`);
-      await sleep(300);
+      await waitForShellReady(cdp);
       const defaultLayout = await evaluate(cdp, `(() => {
         const board = document.querySelector('[data-board-snapshot="true"]');
         if (!board) return { board: null };
@@ -1673,13 +1721,27 @@ async function main() {
           }
           return failures;
         };
-        const waitForSelector = async (selector) => {
-          for (let i = 0; i < 60; i++) {
+        // Waits on wall-clock time, not on a frame count.
+        //
+        // This used to poll for 60 frames, which is about a second on an idle
+        // machine and an unknown, much shorter slice of work on a busy one --
+        // frames stretch exactly when the thing being waited for is slow. Every
+        // dialog here is a lazy() import, so opening one costs a chunk fetch
+        // plus a render, and on a loaded CI runner that overran the budget:
+        // "keyboard shortcuts did not open, paste SGF did not open, game report
+        // did not open, settings did not open", all at once, on a machine where
+        // all four open fine.
+        //
+        // A deadline says what is actually meant -- give it ten seconds -- and
+        // does not change meaning with load.
+        const waitForSelector = async (selector, timeoutMs = 10000) => {
+          const deadline = performance.now() + timeoutMs;
+          for (;;) {
             const el = document.querySelector(selector);
             if (el && isVisibleTarget(el)) return el;
-            await waitForFrames(1);
+            if (performance.now() >= deadline) return null;
+            await new Promise((resolve) => setTimeout(resolve, 16));
           }
-          return null;
         };
         const runNoteEditorLifecycleSmoke = async () => {
           const failures = [];
@@ -2033,8 +2095,17 @@ async function main() {
         };
         const smokeModal = async ({ name, selector, closeLabel, open, afterOpen }) => {
           try {
-            await open();
-            const dialog = await waitForSelector(selector);
+            // Most of these open by dispatching a keyboard shortcut, which is a
+            // fire-and-forget: if the app's handler is not listening yet the
+            // key is simply lost, and the only symptom is "did not open".
+            // Clicking can be retried and so can this -- try twice with a
+            // shorter first wait before giving up, which costs nothing when the
+            // first attempt works.
+            let dialog = null;
+            for (let attempt = 0; attempt < 2 && !dialog; attempt++) {
+              await open();
+              dialog = await waitForSelector(selector, attempt === 0 ? 4000 : 10000);
+            }
             if (!dialog) {
               modalSmokeFailures.push(\`\${name} did not open\`);
               return;
@@ -2464,8 +2535,16 @@ async function main() {
           };
 
           try {
-            await openPhotoBoard();
-            const dialog = await waitForSelector('[aria-labelledby="photo-board-title"]');
+            // Same retry as smokeModal, and for the same reason: opening this
+            // goes through a menu on mobile and a lazily-loaded dialog on both,
+            // so a single attempt turns a slow render into "did not open". This
+            // was the last thing still failing under CPU throttling once the
+            // shell-readiness wait was in place.
+            let dialog = null;
+            for (let attempt = 0; attempt < 2 && !dialog; attempt++) {
+              await openPhotoBoard();
+              dialog = await waitForSelector('[aria-labelledby="photo-board-title"]', attempt === 0 ? 4000 : 10000);
+            }
             if (!dialog) return ['photo board dialog did not open'];
             if (${viewport.mobile}) {
               const traceTab = dialog.querySelector('[data-photo-board-mobile-tab="trace"]');

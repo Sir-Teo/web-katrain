@@ -63,25 +63,20 @@ jobs:
       - name: Verify
         run: npm run verify
 
-      # NOT wired up yet, on purpose. check-viewports.mjs is this repo's only
-      # browser-level suite and it still runs in no workflow, which is a real
-      # gap -- both siblings run theirs in CI. It was added here and had to be
-      # taken out again, because it has never passed on a runner:
+      # This repo's only browser-level suite. Both siblings run theirs in CI;
+      # this one did not, and the first attempt to wire it up here failed on a
+      # runner three times before the causes were found:
       #
-      #   1. Chrome could not start its sandbox        -> --no-sandbox, fixed
-      #   2. A CDP evaluate lost its execution context -> bounded retry, fixed
-      #   3. At 768x1024 the app renders as nothing, and every check downstream
-      #      fails together: "board missing", a 0x0 turn indicator, missing
-      #      sheet triggers, clipboard smoke dead. That is this script's own
-      #      documented signature for the page being covered or unloaded, and
-      #      it is unresolved.
+      #   1. Chrome could not start its sandbox in the container.
+      #   2. A CDP evaluate lost its execution context to an in-flight
+      #      navigation.
+      #   3. The mobile home overlay was still covering the app when the checks
+      #      began, because the sweep dismissed it and then waited a flat 300ms
+      #      rather than waiting for it to actually go.
       #
-      # The first two fixes are in scripts/check-viewports.mjs and are worth
-      # keeping regardless. The third needs someone to reproduce a runner's
-      # timing, which is not a thing to leave failing in the meantime: a CI
-      # badge that is permanently red trains people to ignore it, which costs
-      # more than the missing coverage. Run it locally with `npm run
-      # test:viewport` until this is sorted.
-      #
-      # - name: Viewport and interaction checks
-      #   run: npm run test:viewport
+      # All three are fixed in scripts/check-viewports.mjs. The third was found
+      # by reproducing a runner locally with CPU throttling
+      # (VIEWPORT_CPU_THROTTLE=6 npm run test:viewport), which is kept as a way
+      # to test this without pushing.
+      - name: Viewport and interaction checks
+        run: npm run test:viewport
