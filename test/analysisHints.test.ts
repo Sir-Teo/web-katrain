@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CandidateMove } from '../src/types';
 import {
+  ANALYSIS_HINT_LIMIT,
   COMPACT_ANALYSIS_HINT_LIMIT,
   POLICY_HEATMAP_LABEL_GAP,
   hasAdjacentHintLabel,
@@ -37,10 +38,18 @@ describe('analysis hint density', () => {
     expect(selectAnalysisHintMoves(moves, true)).toHaveLength(COMPACT_ANALYSIS_HINT_LIMIT);
   });
 
-  it('preserves the engine order and full legal set on spacious boards', () => {
-    const moves = [move(2), move(0), { ...move(1), x: -1, y: -1 }, move(3)];
+  it('keeps a focused top-ten set on spacious boards', () => {
+    const pass = { ...move(20), x: -1, y: -1 };
+    const moves = [move(12), move(2), pass, move(0), move(11), move(9), move(8), move(7), move(6), move(5), move(4), move(3), move(10), move(1)];
 
-    expect(selectAnalysisHintMoves(moves, false)).toEqual([moves[0], moves[1], moves[3]]);
+    expect(selectAnalysisHintMoves(moves, false).map((candidate) => candidate.order)).toEqual(
+      Array.from({ length: ANALYSIS_HINT_LIMIT }, (_, order) => order),
+    );
+  });
+
+  it('allows an explicit limit for deliberate denser or sparser surfaces', () => {
+    expect(selectAnalysisHintMoves([move(3), move(1), move(2), move(0)], false, 2))
+      .toEqual([move(0), move(1)]);
   });
 });
 

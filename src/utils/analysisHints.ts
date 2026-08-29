@@ -1,5 +1,6 @@
 import type { CandidateMove } from '../types';
 
+export const ANALYSIS_HINT_LIMIT = 10;
 export const COMPACT_ANALYSIS_HINT_LIMIT = 5;
 export const COMPACT_ANALYSIS_CELL_SIZE = 24;
 
@@ -89,11 +90,13 @@ export function shouldDropHintLabel(
 export function selectAnalysisHintMoves(
   moves: readonly CandidateMove[],
   compact: boolean,
-  limit = COMPACT_ANALYSIS_HINT_LIMIT
+  limit = compact ? COMPACT_ANALYSIS_HINT_LIMIT : ANALYSIS_HINT_LIMIT
 ): CandidateMove[] {
   const legalMoves = moves.filter((move) => move.x >= 0 && move.y >= 0);
-  if (!compact) return legalMoves;
-
+  // "Top moves" is the focused alternative to the full-board heatmap. KataGo
+  // can return dozens of legal candidates, and drawing all of them makes these
+  // two modes visually indistinguishable. Keep the strongest ranked set here;
+  // Heatmap remains the deliberate way to inspect the complete policy field.
   return [...legalMoves]
     .sort((a, b) => a.order - b.order || b.visits - a.visits)
     .slice(0, Math.max(0, limit));
