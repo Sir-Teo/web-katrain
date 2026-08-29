@@ -25,10 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Matches deploy-pages.yml. They used to differ -- 20 here, 24 there -- so
+      # a pull request was verified on one major and the thing that actually
+      # ships was built on another. A change that works on 20 and breaks on 24
+      # passed review and failed the deploy.
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
 
       - name: Install dependencies
