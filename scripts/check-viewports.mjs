@@ -58,10 +58,7 @@ const VIEWPORTS = [
  * CHROME_PATH still wins outright, and CHROME_BIN is consulted because the
  * GitHub runner images set it.
  */
-function resolveChromePath() {
-  const explicit = process.env.CHROME_PATH || process.env.CHROME_BIN;
-  if (explicit) return explicit;
-
+function chromeCandidates() {
   const candidates = process.platform === 'darwin'
     ? [
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -75,14 +72,20 @@ function resolveChromePath() {
       '/snap/bin/chromium',
     ];
 
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
+  return candidates.map((path) => ({ path, exists: fs.existsSync(path) }));
+}
+
+function resolveChromePath() {
+  const explicit = process.env.CHROME_PATH || process.env.CHROME_BIN;
+  if (explicit) return explicit;
+
+  const found = chromeCandidates().find((candidate) => candidate.exists);
+  if (found) return found.path;
 
   // Nothing at a known absolute path. Fall back to the name and let PATH
-  // decide, which is what this did before and still works on most machines;
-  // the error below only fires if the spawn itself fails.
-  return process.platform === 'darwin' ? candidates[0] : 'google-chrome';
+  // decide, which still works on most machines; the 'error' handler on the
+  // spawn reports what was tried if it does not.
+  return process.platform === 'darwin' ? chromeCandidates()[0].path : 'google-chrome';
 }
 
 const chromePath = resolveChromePath();
@@ -729,6 +732,14 @@ async function main() {
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
     let chromeStderr = '';
     chrome.stderr?.on('data', (chunk) => { chromeStderr += String(chunk); });
+    // A binary that is not there fails with an 'error' event, not a non-zero
+    // 'exit'. Without this handler the only symptom was an eight-second wait
+    // and "Timed out waiting for Chrome devtools target", which says nothing
+    // about the binary.
+    chrome.on('error', (err) => {
+      process.stderr.write(`Failed to start Chrome at ${chromePath}: ${err.message}\n`);
+      process.stderr.write(`Candidates checked: ${JSON.stringify(chromeCandidates())}\n`);
+    });
     chrome.on('exit', (code, signal) => {
       if (code !== 0 && code !== null) {
         process.stderr.write(`Chrome exited with code ${code}${signal ? ` (${signal})` : ''}\n`);
