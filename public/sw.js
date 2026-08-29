@@ -34,6 +34,19 @@ const isCacheFirstAsset = (url) =>
   url.pathname.includes('/themes/') ||
   url.pathname.includes('/katrain/');
 
+/**
+ * Whether a response may go in the cache.
+ *
+ * `response.ok` is not the test: it is true for 206 Partial Content, and
+ * `cache.put()` throws on those — "Partial response (status code 206) is
+ * unsupported". Browsers issue Range requests for exactly the assets this app
+ * is largest in: the recommended network is ~96MB and the TFJS wasm files are
+ * megabytes each. Caching on `.ok` alone therefore meant a rejected promise on
+ * a perfectly ordinary request. Found by comparison with web-chess's worker,
+ * which had inherited the same shape.
+ */
+const isStorableResponse = (response) => response.status === 200;
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
@@ -73,9 +86,9 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           // Only cache successful navigations; a transient 404/500 must not
           // become the offline shell.
-          if (response.ok) {
+          if (isStorableResponse(response)) {
             const copy = response.clone();
-            caches.open(APP_SHELL_CACHE).then((cache) => cache.put('./', copy));
+            caches.open(APP_SHELL_CACHE).then((cache) => cache.put('./', copy)).catch(() => undefined);
           }
           return response;
         })
@@ -93,9 +106,9 @@ self.addEventListener('fetch', (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            if (response.ok) {
+            if (isStorableResponse(response)) {
               const copy = response.clone();
-              caches.open(APP_SHELL_CACHE).then((cache) => cache.put(request, copy));
+              caches.open(APP_SHELL_CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
             }
             return response;
           })
@@ -108,7 +121,11 @@ self.addEventListener('fetch', (event) => {
     caches.open(RUNTIME_CACHE).then(async (cache) => {
       try {
         const response = await fetch(request);
-        if (response.ok) cache.put(request, response.clone());
+        // Quota is the realistic failure here, and a cache miss later beats a
+        // rejected fetch now.
+        if (isStorableResponse(response)) {
+          cache.put(request, response.clone()).catch(() => undefined);
+        }
         return response;
       } catch {
         const cached = await cache.match(request);

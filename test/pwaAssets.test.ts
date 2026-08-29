@@ -89,12 +89,30 @@ describe('PWA assets', () => {
     const assetStart = sw.indexOf('isCacheFirstAsset(url)');
     expect(navigateStart).toBeGreaterThan(-1);
     expect(assetStart).toBeGreaterThan(navigateStart);
-    // The navigate handler must check response.ok before overwriting './',
+    // The navigate handler must check the response before overwriting './',
     // or a transient 404/500 permanently poisons offline navigation.
+    //
+    // The check is asserted by intent rather than by its exact text. It used to
+    // read `if (response.ok)` and now reads `isStorableResponse(response)`,
+    // which is stricter: `.ok` is also true for 206 Partial Content, and
+    // `cache.put` throws on those. Pinning the old spelling failed on a change
+    // that made the guard better.
     const navigateHandler = sw.slice(navigateStart, assetStart);
     expect(navigateHandler).toContain("cache.put('./'");
-    expect(navigateHandler.indexOf('if (response.ok)')).toBeGreaterThan(-1);
-    expect(navigateHandler.indexOf('if (response.ok)')).toBeLessThan(navigateHandler.indexOf("cache.put('./'"));
+    const guard = navigateHandler.indexOf('isStorableResponse(response)');
+    expect(guard, 'the navigate handler has no success guard').toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(navigateHandler.indexOf("cache.put('./'"));
+  });
+
+  it('never caches a partial response', () => {
+    const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
+    // `response.ok` is true for 206 Partial Content and `cache.put()` throws on
+    // those — verified in a browser. Browsers issue Range requests for exactly
+    // the assets this app is largest in: a ~96MB network and megabyte TFJS wasm
+    // files. Every cache write must go through the stricter check.
+    expect(sw).toContain('const isStorableResponse = (response) => response.status === 200;');
+    const writes = sw.match(/if \(response\.ok\)/g) ?? [];
+    expect(writes, 'a cache write still gates on response.ok').toEqual([]);
   });
 
   it('publishes crawl metadata for the public web deployment', () => {
