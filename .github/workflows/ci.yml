@@ -1,14 +1,25 @@
 name: CI
 
-# The deploy workflow runs the checks, but only on a push to main — which is
-# also when it publishes. That left a pull request with no verification at all,
-# and made "the checks passed" and "it is live" the same event. This runs the
-# same gates on every branch and pull request, and deploys nothing.
-# Pull requests only. Adding a `push` trigger as well fired both events for a
-# branch in this repo and ran everything twice per change. A push to main is
-# already covered by the deploy workflow, which runs the same gates.
+# Pull requests, and pushes to main.
+#
+# `push` was unrestricted here once, which fired alongside `pull_request` for
+# the same branch and ran this job twice per change; scoping it to main fixes
+# that -- a pull request gets one run, and the merge gets a separate run on
+# different content.
+#
+# The comment this replaces said a push to main was "already covered by the
+# deploy workflow, which runs the same gates". That was false, and it is the
+# gap this trigger closes: the deploy runs audit, lint, unit tests and the
+# build, but no deploy in any of the three sibling repos runs a browser suite.
+# Those live only here, so without a push trigger nothing browser-level ever
+# ran against main.
+#
+# This workflow deploys nothing. If it goes red the site still publishes, which
+# is the reason the browser suites belong here rather than in the deploy.
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # A new push to the same pull request supersedes the run in flight.

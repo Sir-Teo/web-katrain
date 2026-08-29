@@ -23,16 +23,19 @@ location; `typecheck` alone would miss it.
 
 ## Where each check runs
 
-| check | `verify` | `ci.yml` (pull requests) | deploy (push to `main`) |
+| check | `verify` | `ci.yml` (pull requests **and pushes to `main`**) | deploy (push to `main`) |
 | --- | --- | --- | --- |
 | typecheck / lint / unit tests | yes | via `verify` | yes |
 | `audit` | no | yes | yes |
-| browser suite (`test:viewport`) | no | **yes** | **no** |
+| browser suite (`test:viewport`) | no | **yes** | no |
 
-The last row is the one to remember: **a push to `main` does not run the browser
-suite.** It runs the deploy workflow, which does not include it. Trigger
-`ci.yml` on `main` via `workflow_dispatch` if you need that coverage after a
-direct push.
+The last row used to read "no" for the deploy *and* for `ci.yml`, because
+`ci.yml` was pull-request-only -- so nothing browser-level ever ran against
+`main`. `ci.yml` now also runs on pushes to `main`, which closes that.
+
+The browser suite still does not run **in the deploy**, and that is deliberate:
+`ci.yml` publishes nothing, so if a browser test goes flaky it turns CI red
+without stopping the site from shipping.
 
 ## How the three compare
 
@@ -45,7 +48,7 @@ and says which side of that line each item falls on.
 | --- | --- | --- | --- |
 | `verify` steps | typecheck, lint, test, build | typecheck, test:typecheck, lint, test, build | typecheck, lint, test, openings, library, smoke, parity, build:react |
 | Browser suite | `test:ui:browser` (Playwright) | `test:viewport` (raw CDP, no dependency) | `test:ui:layout` (Playwright) |
-| Where the browser suite runs | `ci.yml` | `ci.yml` | `ci.yml` |
+| Where the browser suite runs | `ci.yml` (PRs + main) | `ci.yml` (PRs + main) | `ci.yml` (PRs + main) |
 | Node in CI / deploy | 20 / 20 | 24 / 24 | 20 / 20 |
 | Deploy gates | audit, lint, test, build | audit, lint, test:typecheck, test, build | audit, build (WASM), verify |
 | Hostile-input sweep | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` |
@@ -60,10 +63,13 @@ agree *within* a repo, and all three now do.
 
 **Not deliberate, and worth fixing.**
 
-1. **A push to `main` runs no browser suite anywhere.** `ci.yml` is
-   pull-request-only in all three, and no deploy workflow runs a browser test.
-   Green CI on `main` therefore means less than it appears to. `ci.yml` accepts
-   `workflow_dispatch`, so it can be triggered on `main` by hand as a stopgap.
+1. ~~**A push to `main` runs no browser suite anywhere.**~~ **Fixed.** `ci.yml`
+   was pull-request-only in all three and no deploy runs a browser test, so
+   green CI on `main` meant less than it appeared to. All three now also run
+   `ci.yml` on pushes to `main`. It was originally made PR-only because an
+   *unrestricted* `push` trigger double-fired alongside `pull_request` on the
+   same branch; scoping the trigger to `main` gives the coverage without the
+   duplication.
 2. **Only one repo caps input *before* it parses it.** All three have ceilings,
    but they sit in different places: web-chess and web-katrain bound what they
    *write* (auto-save, backups, uploads), while web-xiangqi also bounds what it
