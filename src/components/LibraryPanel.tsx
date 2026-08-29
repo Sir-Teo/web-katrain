@@ -80,6 +80,7 @@ import {
   isLibraryMenuCloseKey,
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
@@ -2184,6 +2185,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search library"
                     placeholder="Search library…"
+                    // Matching truncates past this anyway; stopping it at the
+                    // input keeps a pasted record out of React state as well.
+                    maxLength={MAX_SEARCH_QUERY_LENGTH}
                     data-library-search="true"
                     className="w-full ui-input border rounded pl-8 pr-9 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
                   />
