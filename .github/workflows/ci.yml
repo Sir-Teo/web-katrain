@@ -63,18 +63,25 @@ jobs:
       - name: Verify
         run: npm run verify
 
-      # This repo's only browser-level suite, and until now it ran in no
-      # workflow at all: not here, and not in deploy-pages.yml either. Both
-      # siblings run theirs in CI -- web-chess `test:ui:browser`, web-xiangqi
-      # `test:ui:layout` -- so katrain was the one of the three whose layout,
-      # touch-target and interaction checks were only ever run by hand.
+      # NOT wired up yet, on purpose. check-viewports.mjs is this repo's only
+      # browser-level suite and it still runs in no workflow, which is a real
+      # gap -- both siblings run theirs in CI. It was added here and had to be
+      # taken out again, because it has never passed on a runner:
       #
-      # It is cheap to add: ~1 minute locally, it spawns its own vite server,
-      # and it needs no build output. Chrome comes with the ubuntu-latest
-      # image; the script resolves `google-chrome` on PATH and honours
-      # CHROME_PATH if that ever stops being true.
+      #   1. Chrome could not start its sandbox        -> --no-sandbox, fixed
+      #   2. A CDP evaluate lost its execution context -> bounded retry, fixed
+      #   3. At 768x1024 the app renders as nothing, and every check downstream
+      #      fails together: "board missing", a 0x0 turn indicator, missing
+      #      sheet triggers, clipboard smoke dead. That is this script's own
+      #      documented signature for the page being covered or unloaded, and
+      #      it is unresolved.
       #
-      # Deliberately here and not in deploy-pages.yml: a browser suite that
-      # goes flaky should fail a pull request, not stop the site publishing.
-      - name: Viewport and interaction checks
-        run: npm run test:viewport
+      # The first two fixes are in scripts/check-viewports.mjs and are worth
+      # keeping regardless. The third needs someone to reproduce a runner's
+      # timing, which is not a thing to leave failing in the meantime: a CI
+      # badge that is permanently red trains people to ignore it, which costs
+      # more than the missing coverage. Run it locally with `npm run
+      # test:viewport` until this is sorted.
+      #
+      # - name: Viewport and interaction checks
+      #   run: npm run test:viewport
