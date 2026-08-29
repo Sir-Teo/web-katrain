@@ -313,11 +313,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   );
 
   const visibleAnalysis = analysisData ?? currentNode.analysis ?? null;
-  // Analysis mode alone drives the board overlays: the individual overlay
-  // toggles (hints, dots, children, territory) are the user's control, and the
-  // stats bar, graph and report already read the same cached analysis without
-  // requiring a live continuous search. Turning analysis mode off clears them.
-  const hasAnalysisOverlay = isAnalysisMode;
+  // Analysis mode owns the review overlays until the board temporarily changes
+  // verbs. Setup/markup, manual scoring and region selection all need an
+  // uncluttered targeting surface: candidate circles, policy heatmaps and eval
+  // dots otherwise look like editable/scoring marks. Keep analysis mode itself
+  // on so the overlays return as soon as the temporary tool closes. Scoring's
+  // territory layer is derived separately below and remains visible.
+  const hasAnalysisOverlay =
+    isAnalysisMode && !isEditMode && !scoringMode && !isSelectingRegionOfInterest;
   const pvOverlayEnabled = hasAnalysisOverlay || forcePvOverlay;
   const boardSize = normalizeBoardSize(board.length, DEFAULT_BOARD_SIZE);
   const hoshiPoints = useMemo(() => getHoshiPoints(boardSize), [boardSize]);

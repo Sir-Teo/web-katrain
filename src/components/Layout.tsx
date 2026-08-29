@@ -1164,7 +1164,11 @@ export const Layout: React.FC = () => {
 
   // PV animation
   const activeHoverMove = reportHoverMove ?? hoveredMove;
-  const boardAnalysisOverlaysActive = isAnalysisMode;
+  // Candidate tiles follow the same ownership rule as the board canvases: a
+  // temporary board tool gets a quiet targeting surface without switching the
+  // user's analysis preference off.
+  const boardAnalysisOverlaysActive =
+    isAnalysisMode && !isEditMode && !scoringMode && !isSelectingRegionOfInterest;
   const pvOverlayEnabled = boardAnalysisOverlaysActive || !!reportHoverMove;
   const pvKey = useMemo(() => {
     const pv = activeHoverMove?.pv;

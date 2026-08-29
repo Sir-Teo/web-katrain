@@ -22,12 +22,16 @@ describe('GoBoard touch safety', () => {
     expect(source).not.toContain('select-none touch-none');
   });
 
-  it('ties analysis overlays to analysis mode, not to a live continuous search', () => {
+  it('ties analysis overlays to analysis mode and yields the board to temporary tools', () => {
     const source = readFileSync('src/components/GoBoard.tsx', 'utf8');
 
-    expect(source).toContain('const hasAnalysisOverlay = isAnalysisMode;');
+    expect(source).toContain(
+      'isAnalysisMode && !isEditMode && !scoringMode && !isSelectingRegionOfInterest;'
+    );
     // Overlays must clear when analysis mode is off, even for nodes that still
     // carry cached analysis, and must not need a live continuous search to draw.
+    // They also clear while another board verb owns the same points, without
+    // mutating the user's analysis-mode preference.
     expect(source).not.toContain('const hasAnalysisOverlay = isAnalysisMode || !!visibleAnalysis;');
     expect(source).not.toContain('isContinuousAnalysis');
     expect(source).toContain('if (!hasAnalysisOverlay || !settings.analysisShowEval || settings.showLastNMistakes === 0) return;');
@@ -36,6 +40,8 @@ describe('GoBoard touch safety', () => {
   it('keeps the Layout board-overlay gate in step with the board', () => {
     const source = readFileSync('src/components/Layout.tsx', 'utf8');
 
-    expect(source).toContain('const boardAnalysisOverlaysActive = isAnalysisMode;');
+    expect(source).toContain(
+      'isAnalysisMode && !isEditMode && !scoringMode && !isSelectingRegionOfInterest;'
+    );
   });
 });
