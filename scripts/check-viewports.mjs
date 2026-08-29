@@ -264,13 +264,32 @@ async function chromeTarget(port) {
   throw new Error('Timed out waiting for Chrome devtools target');
 }
 
-async function evaluate(cdp, expression) {
+/**
+ * `Inspected target navigated or closed` is CDP telling us the execution
+ * context was torn down underneath the call -- a navigation that had not
+ * finished settling when the next evaluate went out. It is transient by
+ * definition: the page is on its way to a new context, not broken.
+ *
+ * This never fires on a developer machine, where navigation completes long
+ * before the next poll. It failed a CI run at evaluation 56 of a viewport
+ * sweep that does eight navigations. Retrying briefly is the fix; failing on
+ * it is not, and neither is ignoring a reply with no result, which is what a
+ * dead browser looks like and must still be fatal.
+ */
+const TRANSIENT_CDP_MESSAGE = 'Inspected target navigated or closed';
+
+async function evaluate(cdp, expression, attempt = 0) {
   const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+
+  if (response?.error?.message?.includes(TRANSIENT_CDP_MESSAGE) && attempt < 10) {
+    await sleep(250);
+    return evaluate(cdp, expression, attempt + 1);
+  }
+
   // A reply with no `result` means the call itself failed rather than the
   // expression -- almost always because Chrome died. Saying so beats
   // "Cannot read properties of undefined (reading 'exceptionDetails')",
-  // which is what a CI runner reported for a browser that could not start
-  // its sandbox.
+  // which is what a CI runner reported before this existed.
   if (!response || !response.result) {
     throw new Error(
       `Runtime.evaluate returned no result (Chrome likely exited). Reply: ${JSON.stringify(response)?.slice(0, 300)}`,
