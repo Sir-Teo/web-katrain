@@ -26,4 +26,13 @@ describe('desktop sidebar mode switcher', () => {
       expect(tabs).toContain(`aria-pressed={mode === '${value}'}`);
     }
   });
+
+  it('distinguishes the review workspace from the analysis controls inside it', () => {
+    const text = source();
+    const start = text.indexOf('<div className="mode-tabs">');
+    const tabs = text.slice(start, text.indexOf('drawer-close', start));
+
+    expect(tabs).toContain('>Review</button>');
+    expect(tabs).not.toContain('>Analysis</button>');
+  });
 });

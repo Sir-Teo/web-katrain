@@ -487,7 +487,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 className={modeTabClass(mode === 'analyze')}
                 onClick={() => setMode('analyze')}
               >
-                Analysis
+                Review
               </button>
             </div>
           )}

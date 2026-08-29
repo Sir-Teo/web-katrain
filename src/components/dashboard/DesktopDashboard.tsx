@@ -897,11 +897,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         >
           {/* aria-pressed, not just the active class: without it the pair reads
               as two plain buttons, so which mode is on was visible only as an
-              underline. It also separates this "Analysis" from the collapsible
-              Analysis section below, which announces itself as a disclosure. */}
+              underline. "Review" also distinguishes this workspace switch from
+              the Analyze engine toggle and the Analysis disclosure below. */}
           <div className="mode-tabs">
             <button type="button" className={`mode-tab${mode === 'play' ? ' active' : ''}`} aria-pressed={mode === 'play'} onClick={() => setMode('play')}>Play</button>
-            <button type="button" className={`mode-tab${mode === 'analyze' ? ' active' : ''}`} aria-pressed={mode === 'analyze'} onClick={() => setMode('analyze')}>Analysis</button>
+            <button type="button" className={`mode-tab${mode === 'analyze' ? ' active' : ''}`} aria-pressed={mode === 'analyze'} onClick={() => setMode('analyze')}>Review</button>
             <button type="button" className="iconbtn drawer-close" title="Close" style={{ margin: '6px 6px 6px 0' }} onClick={() => setSidebarOpen(false)}><Icon name="x" size={14} /></button>
           </div>
           <div className="sidebar-scroll">

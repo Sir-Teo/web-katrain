@@ -17,6 +17,15 @@ describe('RightPanel layout', () => {
     expect(source).not.toContain("isMobile ? 'order-last'");
   });
 
+  it('uses the same Review workspace name as the mobile navigation', () => {
+    const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
+    const start = source.indexOf("modeTabClass(mode === 'play')");
+    const modeTabs = source.slice(start, source.indexOf("activeMobileTab === 'tree'", start));
+
+    expect(modeTabs).toContain('Review');
+    expect(modeTabs).not.toMatch(/>\s*Analysis\s*</);
+  });
+
   it('keeps the standalone mobile tree open without repeating its workspace title', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 
