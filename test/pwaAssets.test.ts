@@ -115,6 +115,24 @@ describe('PWA assets', () => {
     expect(writes, 'a cache write still gates on response.ok').toEqual([]);
   });
 
+  it('does not retain cache-busted update checks or unlimited old bundles', () => {
+    const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
+    const runtimeStart = sw.indexOf('caches.open(RUNTIME_CACHE)');
+    const runtimeHandler = sw.slice(runtimeStart);
+
+    // `version.json?t=...` is fetched with `cache: no-store` every five
+    // minutes. Ignoring that request mode creates a fresh permanent entry on
+    // every check because the timestamp is deliberately unique.
+    expect(sw).toContain("const isCacheableRequest = (request) => request.cache !== 'no-store';");
+    expect(runtimeHandler).toContain('isCacheableRequest(request)');
+
+    // Hashed JS/CSS names change on each deploy. Bound the runtime cache so
+    // several releases cannot grow into an unbounded origin-storage leak.
+    expect(sw).toContain('const MAX_RUNTIME_CACHE_ENTRIES = 64;');
+    expect(sw).toContain('keys.slice(0, excess)');
+    expect(runtimeHandler).toContain('putRuntimeResponse(cache, request, response.clone())');
+  });
+
   it('publishes crawl metadata for the public web deployment', () => {
     const robots = fs.readFileSync(path.join(publicDir, 'robots.txt'), 'utf8');
     const sitemap = fs.readFileSync(path.join(publicDir, 'sitemap.xml'), 'utf8');

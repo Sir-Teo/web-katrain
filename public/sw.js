@@ -1,6 +1,7 @@
-const CACHE_VERSION = 'web-katrain-v2';
+const CACHE_VERSION = 'web-katrain-v3';
 const APP_SHELL_CACHE = `${CACHE_VERSION}:shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}:runtime`;
+const MAX_RUNTIME_CACHE_ENTRIES = 64;
 
 const PRECACHE_URLS = [
   './',
@@ -46,6 +47,26 @@ const isCacheFirstAsset = (url) =>
  * which had inherited the same shape.
  */
 const isStorableResponse = (response) => response.status === 200;
+const isCacheableRequest = (request) => request.cache !== 'no-store';
+
+/**
+ * Keep old hashed bundles from accumulating across deployments. Cache keys are
+ * returned in insertion order, so deleting the excess from the front retains
+ * the most recently seen assets. Failures stay best-effort: caching must never
+ * turn a successful network response into a failed app request.
+ */
+const trimRuntimeCache = async (cache) => {
+  const keys = await cache.keys();
+  const excess = keys.length - MAX_RUNTIME_CACHE_ENTRIES;
+  if (excess <= 0) return;
+  await Promise.all(keys.slice(0, excess).map((key) => cache.delete(key)));
+};
+
+const putRuntimeResponse = (cache, request, response) =>
+  cache
+    .put(request, response)
+    .then(() => trimRuntimeCache(cache))
+    .catch(() => undefined);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -86,7 +107,7 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           // Only cache successful navigations; a transient 404/500 must not
           // become the offline shell.
-          if (isStorableResponse(response)) {
+          if (isCacheableRequest(request) && isStorableResponse(response)) {
             const copy = response.clone();
             caches.open(APP_SHELL_CACHE).then((cache) => cache.put('./', copy)).catch(() => undefined);
           }
@@ -106,7 +127,7 @@ self.addEventListener('fetch', (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            if (isStorableResponse(response)) {
+            if (isCacheableRequest(request) && isStorableResponse(response)) {
               const copy = response.clone();
               caches.open(APP_SHELL_CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
             }
@@ -123,8 +144,8 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(request);
         // Quota is the realistic failure here, and a cache miss later beats a
         // rejected fetch now.
-        if (isStorableResponse(response)) {
-          cache.put(request, response.clone()).catch(() => undefined);
+        if (isCacheableRequest(request) && isStorableResponse(response)) {
+          putRuntimeResponse(cache, request, response.clone());
         }
         return response;
       } catch {
