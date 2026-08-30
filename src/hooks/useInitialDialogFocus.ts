@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 /** Elements that can take focus, ordered as they appear in the DOM. */
 const FOCUSABLE_SELECTOR = [
@@ -46,17 +46,28 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
  */
 export function useInitialDialogFocus<T extends HTMLElement>(
   active = true,
-  options?: { focusContainer?: boolean; returnFocus?: HTMLElement | null },
+  options?: {
+    focusContainer?: boolean;
+    initialFocusRef?: RefObject<HTMLElement | null>;
+    returnFocus?: HTMLElement | null;
+  },
 ) {
   const ref = useRef<T>(null);
   const focusContainer = options?.focusContainer ?? true;
+  const initialFocusRef = options?.initialFocusRef ?? null;
   const returnFocus = options?.returnFocus ?? null;
 
   useEffect(() => {
     if (!active) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const node = ref.current;
-    if (focusContainer) node?.focus();
+    // A closing menu or popover can restore focus to its own trigger after this
+    // dialog mounts. Defer explicit control focus by one frame so the dialog's
+    // chosen safe action wins that race reliably.
+    const initialFocusFrame = initialFocusRef
+      ? window.requestAnimationFrame(() => initialFocusRef.current?.focus())
+      : null;
+    if (!initialFocusRef && focusContainer) node?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || event.defaultPrevented || !node) return;
@@ -82,6 +93,7 @@ export function useInitialDialogFocus<T extends HTMLElement>(
 
     node?.addEventListener('keydown', handleKeyDown);
     return () => {
+      if (initialFocusFrame !== null) window.cancelAnimationFrame(initialFocusFrame);
       node?.removeEventListener('keydown', handleKeyDown);
       // isConnected guards the case where the dialog's own action removed the
       // trigger from the DOM.
@@ -91,7 +103,7 @@ export function useInitialDialogFocus<T extends HTMLElement>(
     // focusContainer is a plain boolean, so listing it keeps the lint rule happy
     // without making the effect re-run on every render the way an unstable
     // onClose dependency would.
-  }, [active, focusContainer, returnFocus]);
+  }, [active, focusContainer, initialFocusRef, returnFocus]);
 
   return ref;
 }

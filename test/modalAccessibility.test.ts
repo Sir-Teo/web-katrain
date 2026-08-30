@@ -128,7 +128,8 @@ describe('modal accessibility semantics', () => {
     // Runs on the open/close transition only; depending on onClose identity would
     // re-run every render and yank focus back out of the dialog. focusContainer is
     // a plain boolean, so it is stable across renders.
-    expect(hook).toContain('}, [active, focusContainer, returnFocus]);');
+    expect(hook).toContain('}, [active, focusContainer, initialFocusRef, returnFocus]);');
+    expect(hook).toContain('window.requestAnimationFrame(() => initialFocusRef.current?.focus())');
     expect(hook).toContain("event.key !== 'Tab' || event.defaultPrevented");
     expect(hook).toContain('focusTarget?.isConnected');
     expect(hook).toContain('returnFocus?.isConnected ? returnFocus : previouslyFocused');

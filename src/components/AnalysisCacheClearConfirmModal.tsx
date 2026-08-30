@@ -28,7 +28,11 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onCancel]);
 
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
+  const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
+    focusContainer: false,
+    initialFocusRef: cancelButtonRef,
+  });
   const label = formatAnalysisCount(count);
 
   return (
@@ -69,6 +73,7 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
 
         <div className="ui-bar grid gap-2 border-t border-[var(--ui-border)] px-4 py-3 sm:flex sm:flex-wrap sm:justify-end">
           <button
+            ref={cancelButtonRef}
             type="button"
             onClick={onCancel}
             className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] sm:w-auto"

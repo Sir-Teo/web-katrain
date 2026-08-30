@@ -28,7 +28,11 @@ export const ResignConfirmModal: React.FC<ResignConfirmModalProps> = ({
   }, [onCancel]);
 
   const playerLabel = getPlayerLabel(player);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
+  const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
+    focusContainer: false,
+    initialFocusRef: cancelButtonRef,
+  });
   const winnerLabel = getResignWinnerLabel(player);
   const result = getResignResult(player);
 
@@ -73,6 +77,7 @@ export const ResignConfirmModal: React.FC<ResignConfirmModalProps> = ({
 
         <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
+            ref={cancelButtonRef}
             type="button"
             onClick={onCancel}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"

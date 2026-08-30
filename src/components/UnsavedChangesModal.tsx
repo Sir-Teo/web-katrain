@@ -14,7 +14,11 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
   const savesToLibrary = saveTarget === 'library';
   const SaveIcon = savesToLibrary ? FaSave : FaDownload;
   useEscapeToClose(() => onChoice('cancel'));
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
+  const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
+    focusContainer: false,
+    initialFocusRef: cancelButtonRef,
+  });
 
   return (
     <div
@@ -55,6 +59,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
 
         <div className="ui-bar grid grid-cols-2 gap-2 border-t border-[var(--ui-border)] px-4 py-3 sm:flex sm:flex-wrap sm:justify-end">
           <button
+            ref={cancelButtonRef}
             type="button"
             onClick={() => onChoice('cancel')}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"

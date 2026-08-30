@@ -17,7 +17,11 @@ export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
   // Shared minute-precision format: a recovery prompt needs the date, but not
   // the seconds a bare toLocaleString() was printing.
   const savedAtLabel = formatLibraryTimestamp(snapshot.savedAt) || 'an earlier session';
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
+  const restoreButtonRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
+    focusContainer: false,
+    initialFocusRef: restoreButtonRef,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -43,7 +47,7 @@ export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
             <button type="button" className="panel-action-button danger" onClick={onDiscard}>
               Discard Auto-Save
             </button>
-            <button type="button" className="panel-action-button active" onClick={onRestore} autoFocus>
+            <button ref={restoreButtonRef} type="button" className="panel-action-button active" onClick={onRestore} autoFocus>
               Restore Game
             </button>
           </div>

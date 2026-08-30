@@ -31,7 +31,9 @@ describe('confirm dialogs', () => {
   ])('lets the explicitly safe autoFocus action receive focus in %s', (path) => {
     const source = readFileSync(path, 'utf8');
 
-    expect(source).toContain('{ focusContainer: false }');
+    expect(source).toContain('focusContainer: false');
     expect(source).toContain('autoFocus');
+    expect(source).toContain('initialFocusRef:');
+    expect(source).toMatch(/ref=\{(?:cancel|restore)ButtonRef\}[\s\S]{0,500}autoFocus/);
   });
 });
