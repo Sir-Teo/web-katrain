@@ -81,7 +81,10 @@ describe('study tool components render without crashing', () => {
 
   it('LessonsModal lists the lessons', () => {
     const html = renderToString(<LessonsModal onClose={noop} />);
+    const styles = readFileSync('src/index.css', 'utf8');
+
     expect(html).toContain('Capturing a stone');
     expect(html).toContain('Two eyes mean life');
+    expect(styles).toMatch(/@media \(max-width: 419px\) and \(orientation: portrait\)[\s\S]*?\.lessons-board \{[\s\S]*?max-width: 13rem !important;[\s\S]*?\.lessons-copy \{[\s\S]*?line-height: 1\.25rem !important;/);
   });
 });

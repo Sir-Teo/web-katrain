@@ -5740,6 +5740,29 @@
     }
   }
 
+  @media (max-width: 419px) and (orientation: portrait) {
+    /* A 9×9 teaching diagram does not need to consume nearly the full phone
+       width. Keeping it compact leaves the instruction and interaction hint
+       visible above the persistent lesson actions instead of making every
+       step begin with a scroll. */
+    .lessons-body[data-lessons-active='true'] {
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+    }
+
+    .lessons-body[data-lessons-active='true'] > * {
+      margin-top: 8px !important;
+    }
+
+    .lessons-board {
+      max-width: 13rem !important;
+    }
+
+    .lessons-copy {
+      line-height: 1.25rem !important;
+    }
+  }
+
   @media (min-width: 420px) and (max-height: 520px) and (orientation: landscape) {
     .lessons-header,
     .lessons-footer {
