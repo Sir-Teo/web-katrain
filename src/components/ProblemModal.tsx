@@ -169,7 +169,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
         data-problem-modal="true"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
+        <div className="problem-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="problem-title" className="text-lg font-semibold text-[var(--ui-text)]">
             Problem Practice
           </h2>
@@ -202,8 +202,8 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
           </div>
         ) : (
           <>
-            <div className="flex-1 space-y-4 overflow-y-auto p-4">
-              <div className="flex items-center justify-between gap-2">
+            <div className="problem-body flex-1 space-y-4 overflow-y-auto p-4">
+              <div className="problem-toolbar flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-[var(--ui-text)]" data-problem-prompt="true">
                   {status === 'solving'
                     ? `${playerLabel(sideToMove)} to play`
@@ -216,7 +216,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
                 )}
               </div>
 
-              <div className="mx-auto w-full max-w-[340px]">
+              <div className="problem-board mx-auto w-full max-w-[340px]">
                 <StaticBoard
                   board={node.gameState.board}
                   lastMove={lastMove}
@@ -238,7 +238,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
               )}
             </div>
 
-            <div className="ui-bar flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ui-border)] px-4 py-3">
+            <div className="problem-footer ui-bar flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ui-border)] px-4 py-3">
               <div className="flex gap-2">
                 {problems.length > 1 && (
                   <>

@@ -5068,6 +5068,42 @@
   }
 
   @media (max-width: 1023px) and (orientation: landscape) {
+    .problem-body {
+      display: grid;
+      grid-template-columns: minmax(8rem, 0.72fr) minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px 16px;
+      padding: 8px 16px !important;
+    }
+
+    .problem-header,
+    .problem-footer {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
+    .problem-body > * {
+      margin-top: 0 !important;
+    }
+
+    .problem-toolbar {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .problem-board {
+      grid-column: 1;
+      grid-row: 1 / -1;
+      align-self: center;
+      max-width: 11.25rem !important;
+    }
+
+    [data-problem-message='true'] {
+      grid-column: 2;
+      grid-row: 2;
+      align-self: start;
+    }
+
     .score-quiz-body {
       display: grid;
       grid-template-columns: minmax(8rem, 0.72fr) minmax(0, 1fr);

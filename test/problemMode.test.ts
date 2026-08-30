@@ -144,4 +144,14 @@ describe('ProblemModal reply handling', () => {
     expect(source).not.toContain('if (problemIndex !== safeIndex) setProblemIndex(safeIndex);\n\n  const node');
     expect(source).toContain('}, [problemIndex, safeIndex]);');
   });
+
+  it('keeps the board and result side by side in short landscape', () => {
+    const source = readFileSync('src/components/ProblemModal.tsx', 'utf8');
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    expect(source).toContain('className="problem-body');
+    expect(source).toContain('className="problem-board');
+    expect(source).toContain('className="problem-toolbar');
+    expect(styles).toMatch(/@media \(max-width: 1023px\) and \(orientation: landscape\)[\s\S]*?\.problem-body \{[\s\S]*?grid-template-columns: minmax\(8rem, 0\.72fr\) minmax\(0, 1fr\);[\s\S]*?\.problem-board \{[\s\S]*?max-width: 11\.25rem !important;/);
+  });
 });
