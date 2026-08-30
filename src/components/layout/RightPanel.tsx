@@ -734,7 +734,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                                   className="move-tree-empty-state-action"
                                   onClick={onClose}
                                 >
-                                  Back to board
+                                  Play first move
                                 </button>
                               )}
                             </div>

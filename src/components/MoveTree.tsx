@@ -567,7 +567,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
                 className="move-tree-empty-state-action"
                 onClick={() => onSelectNode(rootNode)}
               >
-                Back to board
+                Play first move
               </button>
             )}
           </div>
