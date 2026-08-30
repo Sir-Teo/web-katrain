@@ -65,4 +65,26 @@ describe('CommandPaletteModal', () => {
 
     expect(css).toMatch(/\[data-command-palette-search='true'\]::-webkit-search-cancel-button\s*\{[^}]*display: none/);
   });
+
+  it('explains and blocks commands that are unavailable in the current position', () => {
+    const source = readFileSync('src/components/CommandPaletteModal.tsx', 'utf8');
+    const html = renderToStaticMarkup(
+      <CommandPaletteModal
+        onClose={() => undefined}
+        commands={[{
+          id: 'previous-move',
+          label: 'Previous move',
+          category: 'Navigation',
+          run: () => undefined,
+          disabledReason: 'No previous move',
+        }]}
+      />,
+    );
+
+    expect(html).toContain('disabled=""');
+    expect(html).toContain('title="No previous move"');
+    expect(html).toContain('Unavailable: No previous move');
+    expect(html).toContain('>No previous move</span>');
+    expect(source).toContain('if (command.disabledReason) return;');
+  });
 });

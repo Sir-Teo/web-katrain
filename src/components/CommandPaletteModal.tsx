@@ -24,6 +24,7 @@ export type CommandPaletteCommand = {
   run: () => void;
   shortcutId?: string;
   keywords?: string[];
+  disabledReason?: string;
 };
 
 interface CommandPaletteModalProps {
@@ -100,6 +101,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   }, [activeIndex, filteredCommands.length]);
 
   const runCommand = React.useCallback((command: CommandPaletteCommand) => {
+    if (command.disabledReason) return;
     writeRecentCommandIds(addRecentCommandId(command.id));
     onClose();
     command.run();
@@ -196,13 +198,22 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                     key={command.id}
                     type="button"
                     role="option"
-                    aria-label={[command.label, recentSet.has(command.id) ? 'Recent' : '', command.category, shortcut].filter(Boolean).join(', ')}
+                    aria-label={[
+                      command.label,
+                      command.disabledReason ? `Unavailable: ${command.disabledReason}` : '',
+                      recentSet.has(command.id) ? 'Recent' : '',
+                      command.category,
+                      shortcut,
+                    ].filter(Boolean).join(', ')}
                     aria-selected={selected}
+                    disabled={!!command.disabledReason}
+                    title={command.disabledReason || undefined}
                     className={[
                       'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
                       selected
                         ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
                         : 'border-transparent hover:border-[var(--ui-border)] hover:bg-[var(--ui-surface-2)]',
+                      command.disabledReason ? 'cursor-not-allowed opacity-50' : '',
                     ].join(' ')}
                     // Opening the palette from the mobile menu can place its new
                     // list underneath the stationary pointer. Mouse enter would
@@ -220,8 +231,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                         is for. It keeps its place beside the shortcut on the
                         widths that have room, and the full reading stays in the
                         option's accessible name either way. */}
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ui-text)]">
-                      {command.label}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-[var(--ui-text)]">
+                        {command.label}
+                      </span>
+                      {command.disabledReason && (
+                        <span className="block truncate text-xs text-[var(--ui-text-muted)]">
+                          {command.disabledReason}
+                        </span>
+                      )}
                     </span>
                     <span className="command-palette-category shrink-0 text-xs ui-text-faint">
                       {recentSet.has(command.id) ? `Recent · ${command.category}` : command.category}
