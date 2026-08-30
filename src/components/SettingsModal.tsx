@@ -535,10 +535,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     <div className="settings-search relative mb-4">
                         <input
                             type="search"
+                            role="combobox"
                             id="settings-search-input"
                             className="settings-search-input w-full rounded-lg border px-3 py-2 text-sm"
                             placeholder="Search settings"
                             aria-label="Search settings"
+                            aria-autocomplete="list"
                             aria-controls={settingsQuery.trim() ? 'settings-search-results' : undefined}
                             aria-expanded={settingsQuery.trim() !== ''}
                             aria-activedescendant={activeSettingsResult >= 0 ? `settings-search-result-${activeSettingsResult}` : undefined}
@@ -579,7 +581,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 role="option"
                                                 aria-selected={index === activeSettingsResult}
                                                 className="settings-search-result"
-                                                onMouseEnter={() => setActiveSettingsResult(index)}
+                                                onPointerMove={(event) => {
+                                                    if (event.pointerType !== 'touch') setActiveSettingsResult(index);
+                                                }}
                                                 onClick={() => goToSetting(entry)}
                                             >
                                                 <span className="settings-search-result-label">{entry.label}</span>

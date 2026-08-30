@@ -100,7 +100,10 @@ describe('settings search', () => {
 
     expect(source).toContain("e.key === 'ArrowDown'");
     expect(source).toContain("e.key === 'ArrowUp'");
+    expect(source).toContain('role="combobox"');
+    expect(source).toContain('aria-autocomplete="list"');
     expect(source).toContain('aria-activedescendant={activeSettingsResult');
     expect(source).toContain('aria-selected={index === activeSettingsResult}');
+    expect(source).toContain("if (event.pointerType !== 'touch') setActiveSettingsResult(index)");
   });
 });
