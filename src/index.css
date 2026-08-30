@@ -5068,6 +5068,11 @@
   }
 
   @media (max-width: 1023px) and (orientation: landscape) {
+    [data-photo-board-empty-source='true'] {
+      min-height: 4.5rem;
+      aspect-ratio: auto !important;
+    }
+
     .problem-body {
       display: grid;
       grid-template-columns: minmax(8rem, 0.72fr) minmax(0, 1fr);
@@ -5785,6 +5790,19 @@
   }
 
   @media (max-width: 419px) and (orientation: portrait) {
+    [data-photo-board-empty-source='true'] {
+      min-height: 7rem;
+      aspect-ratio: auto !important;
+    }
+
+    [data-photo-board-footer='true'][data-photo-board-empty='true'] button:disabled {
+      display: none;
+    }
+
+    [data-photo-board-footer='true'][data-photo-board-empty='true'] button:not(:disabled) {
+      grid-column: 1 / -1;
+    }
+
     .guess-move-footer {
       flex-wrap: nowrap !important;
       justify-content: space-between !important;

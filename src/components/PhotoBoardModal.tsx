@@ -1254,6 +1254,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
         <div
           className="ui-bar grid grid-cols-2 gap-2 border-t border-[var(--ui-border)] px-3 py-2 sm:px-4 sm:py-3 md:flex md:flex-wrap md:items-center md:justify-between"
           data-photo-board-footer="true"
+          data-photo-board-empty={counts.total === 0 ? 'true' : 'false'}
         >
           <button
             type="button"

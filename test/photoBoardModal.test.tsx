@@ -110,9 +110,13 @@ describe('PhotoBoardModal', () => {
         defaultKomi={6.5}
       />,
     );
+    const styles = readFileSync('src/index.css', 'utf8');
 
     expect(html).toContain('data-photo-board-empty-source="true"');
+    expect(html).toContain('data-photo-board-empty="true"');
     expect(html).toContain('No board photo selected');
+    expect(styles).toMatch(/data-photo-board-empty-source='true'[\s\S]*?min-height: 7rem;[\s\S]*?data-photo-board-footer='true'\]\[data-photo-board-empty='true'\] button:disabled[\s\S]*?display: none;/);
+    expect(styles).toMatch(/@media \(max-width: 1023px\) and \(orientation: landscape\)[\s\S]*?data-photo-board-empty-source='true'[\s\S]*?min-height: 4\.5rem;/);
   });
 
   it('exposes the selected next player as pressed', () => {
