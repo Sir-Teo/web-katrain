@@ -931,7 +931,7 @@ export const Layout: React.FC = () => {
     return () => window.clearTimeout(timeout);
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);
 
-  const dismissAutoSaveRecovery = useCallback(() => {
+  const discardAutoSaveRecovery = useCallback(() => {
     clearAutoSavedGame();
     setAutoSaveRecovery(null);
   }, []);
@@ -3016,7 +3016,7 @@ export const Layout: React.FC = () => {
           <AutoSaveRecoveryModal
             snapshot={autoSaveRecovery}
             onRestore={restoreAutoSavedGame}
-            onDismiss={dismissAutoSaveRecovery}
+            onDiscard={discardAutoSaveRecovery}
           />
         )}
         {isUnsavedChangesOpen && (

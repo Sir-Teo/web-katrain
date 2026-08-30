@@ -8,7 +8,6 @@ const modalSources = [
     titleId: 'analysis-cache-clear-title',
     escape: "window.addEventListener('keydown', handleKeyDown, true)",
   },
-  { path: 'src/components/AutoSaveRecoveryModal.tsx', titleId: 'auto-save-recovery-title', escape: 'useEscapeToClose(onDismiss)' },
   { path: 'src/components/CommandPaletteModal.tsx', titleId: 'command-palette-title', escape: 'useEscapeToClose(onClose)' },
   { path: 'src/components/PasteSgfModal.tsx', titleId: 'paste-sgf-title', escape: 'useEscapeToClose(onClose)' },
   { path: 'src/components/GameAnalysisModal.tsx', titleId: 'game-analysis-title', escape: 'useEscapeToClose(onClose)' },
@@ -60,6 +59,18 @@ describe('modal accessibility semantics', () => {
     for (const path of responsiveSurfaces) {
       expect(readFileSync(path, 'utf8'), path).toContain('dvh]');
     }
+  });
+
+  it('requires an explicit recovery choice instead of mapping close or Escape to data loss', () => {
+    const source = readFileSync('src/components/AutoSaveRecoveryModal.tsx', 'utf8');
+
+    expect(source).toContain('role="dialog"');
+    expect(source).toContain('aria-modal="true"');
+    expect(source).toContain('aria-labelledby="auto-save-recovery-title"');
+    expect(source).toContain('Discard Auto-Save');
+    expect(source).toContain('Restore Game');
+    expect(source).not.toContain('useEscapeToClose');
+    expect(source).not.toContain('aria-label="Close"');
   });
 
   it('keeps the Print Kifu header actions reachable on narrow screens', () => {

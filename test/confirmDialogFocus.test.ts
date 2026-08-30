@@ -17,7 +17,7 @@ describe('confirm dialogs', () => {
     const source = readFileSync(path, 'utf8');
 
     expect(source).toContain("from '../hooks/useInitialDialogFocus'");
-    expect(source).toContain('useInitialDialogFocus<HTMLDivElement>()');
+    expect(source).toContain('useInitialDialogFocus<HTMLDivElement>(');
     // The hook needs both to work: the ref to scope the Tab wrap, and
     // tabIndex={-1} so the container itself can take the opening focus.
     expect(source).toMatch(/ref=\{dialogRef\}\s*\n\s*tabIndex=\{-1\}\s*\n\s*role="dialog"/);
