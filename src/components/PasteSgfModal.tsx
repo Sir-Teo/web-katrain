@@ -21,6 +21,7 @@ interface PasteSgfModalProps {
 
 export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit, onOpenPhotoBoard, returnFocus }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const statusRef = React.useRef<HTMLDivElement>(null);
   const [text, setText] = React.useState('');
   const [status, setStatus] = React.useState<PasteSgfStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -31,6 +32,14 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   React.useEffect(() => {
     window.setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
+
+  React.useEffect(() => {
+    if (!status) return;
+    const frame = window.requestAnimationFrame(() => {
+      statusRef.current?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [status]);
 
   const updateText = (nextText: string) => {
     setText(nextText);
@@ -115,6 +124,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
           </div>
           {status && (
             <div
+              ref={statusRef}
               className={`rounded-lg border px-3 py-2 text-sm ${statusClass}`}
               role={status.tone === 'error' ? 'alert' : 'status'}
               aria-live="polite"

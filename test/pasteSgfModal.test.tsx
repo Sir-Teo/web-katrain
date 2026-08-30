@@ -49,6 +49,13 @@ describe('PasteSgfModal', () => {
     expect(css).toMatch(/\.paste-sgf-modal-textarea \{[^}]*min-height: 112px !important;/);
   });
 
+  it('scrolls validation feedback into view in compact dialogs', () => {
+    const source = readFileSync('src/components/PasteSgfModal.tsx', 'utf8');
+
+    expect(source).toContain('ref={statusRef}');
+    expect(source).toContain("statusRef.current?.scrollIntoView({ block: 'nearest' })");
+  });
+
   it('detects OGS game links and shows the exact game being downloaded', () => {
     const info = getPasteSgfInputInfo('https://online-go.com/game/81344851');
 
