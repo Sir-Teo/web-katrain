@@ -91,6 +91,7 @@ export default defineConfig({
           }
           if (id.includes('/react-icons/')) return 'icons';
           if (id.includes('/@tensorflow/')) return 'tfjs';
+          if (id.includes('/jszip/')) return 'jszip';
           return 'vendor';
         },
       },

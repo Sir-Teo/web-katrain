@@ -68,7 +68,6 @@ import { MobileMatchStrip } from './layout/MobileMatchStrip';
 import { MobileTabBar } from './layout/MobileTabBar';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId, type MobileTab } from './layout/mobileTabs';
 import { NotificationToast } from './layout/NotificationToast';
-import { LibraryPanel } from './LibraryPanel';
 import { MobileHome } from './MobileHome';
 import { DesktopDashboard } from './dashboard/DesktopDashboard';
 import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
@@ -130,6 +129,26 @@ const LessonsModal = lazy(() => import('./LessonsModal').then((module) => ({ def
 const GuessMoveModal = lazy(() => import('./GuessMoveModal').then((module) => ({ default: module.GuessMoveModal })));
 const ProblemModal = lazy(() => import('./ProblemModal').then((module) => ({ default: module.ProblemModal })));
 const KifuPrintModal = lazy(() => import('./KifuPrintModal').then((module) => ({ default: module.KifuPrintModal })));
+const LibraryPanel = lazy(() => import('./LibraryPanel').then((module) => ({ default: module.LibraryPanel })));
+
+const LibraryPanelLoading: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => (
+  <div
+    {...(isMobile
+      ? { role: 'tabpanel', id: MOBILE_TAB_PANEL_IDS.library, 'aria-labelledby': mobileTabId('library') }
+      : { 'aria-label': 'Game library' })}
+    className={[
+      'library-panel ui-panel border-r flex flex-col overflow-hidden relative',
+      isMobile ? 'fixed inset-0 z-40 mobile-safe-bottom mobile-safe-inset' : 'h-full w-full',
+    ].join(' ')}
+  >
+    <div className="ui-bar ui-bar-height ui-bar-pad border-b border-[var(--ui-border)] flex items-center">
+      <div className="text-sm font-semibold text-[var(--ui-text)]">Library</div>
+    </div>
+    <div className="flex flex-1 items-center justify-center p-6 text-sm text-[var(--ui-text-muted)]" role="status">
+      Loading game library…
+    </div>
+  </div>
+);
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
 const mainFileInputAccept = ['.sgf', PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
@@ -3437,25 +3456,27 @@ export const Layout: React.FC = () => {
             libraryOpen={libraryOpen && !focusMode}
             setLibraryOpen={setLibraryOpen}
             libraryWidth={leftPanelWidth}
-            libraryPanel={
-              <LibraryPanel
-                open={libraryOpen}
-                onClose={handleCloseLibrary}
-                docked
-                getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
-                onLoadSgf={handleLoadFromLibrary}
-                onToast={toast}
-                onOpenPhotoBoard={openPhotoBoard}
-                onLibraryUpdated={handleLibraryUpdated}
-                onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
-                loadedFileId={loadedLibraryFileId}
-                loadedFileDirty={currentGameDirty}
-                onLoadedFileChange={setLoadedLibraryFile}
-                externalFileUpdate={externalLibraryFileUpdate}
-                externalItemCreate={externalLibraryItemCreate}
-                showCloseButtonOnDesktop
-              />
-            }
+            libraryPanel={libraryOpen && !focusMode ? (
+              <Suspense fallback={<LibraryPanelLoading />}>
+                <LibraryPanel
+                  open
+                  onClose={handleCloseLibrary}
+                  docked
+                  getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+                  onLoadSgf={handleLoadFromLibrary}
+                  onToast={toast}
+                  onOpenPhotoBoard={openPhotoBoard}
+                  onLibraryUpdated={handleLibraryUpdated}
+                  onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
+                  loadedFileId={loadedLibraryFileId}
+                  loadedFileDirty={currentGameDirty}
+                  onLoadedFileChange={setLoadedLibraryFile}
+                  externalFileUpdate={externalLibraryFileUpdate}
+                  externalItemCreate={externalLibraryItemCreate}
+                  showCloseButtonOnDesktop
+                />
+              </Suspense>
+            ) : null}
             sidebarOpen={showSidebar && !focusMode}
             setSidebarOpen={setShowSidebar}
             isGameAnalysisRunning={isGameAnalysisRunning}
@@ -3533,24 +3554,28 @@ export const Layout: React.FC = () => {
 
       {!isDesktop && (
       <div className="flex flex-1 min-h-0 min-w-0 w-full overflow-hidden">
-        <LibraryPanel
-          open={libraryOpen && !focusMode}
-          onClose={handleCloseLibrary}
-          docked={isDesktop}
-          width={leftPanelWidth}
-          getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
-          onLoadSgf={handleLoadFromLibrary}
-          onToast={toast}
-          onOpenPhotoBoard={openPhotoBoard}
-          isMobile={isMobile}
-          onLibraryUpdated={handleLibraryUpdated}
-          onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
-          loadedFileId={loadedLibraryFileId}
-          loadedFileDirty={currentGameDirty}
-          onLoadedFileChange={setLoadedLibraryFile}
-          externalFileUpdate={externalLibraryFileUpdate}
-          externalItemCreate={externalLibraryItemCreate}
-        />
+        {libraryOpen && !focusMode ? (
+          <Suspense fallback={<LibraryPanelLoading isMobile={isMobile} />}>
+            <LibraryPanel
+              open
+              onClose={handleCloseLibrary}
+              docked={isDesktop}
+              width={leftPanelWidth}
+              getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+              onLoadSgf={handleLoadFromLibrary}
+              onToast={toast}
+              onOpenPhotoBoard={openPhotoBoard}
+              isMobile={isMobile}
+              onLibraryUpdated={handleLibraryUpdated}
+              onCurrentSaved={markCurrentGameCleanAndClearAutoSave}
+              loadedFileId={loadedLibraryFileId}
+              loadedFileDirty={currentGameDirty}
+              onLoadedFileChange={setLoadedLibraryFile}
+              externalFileUpdate={externalLibraryFileUpdate}
+              externalItemCreate={externalLibraryItemCreate}
+            />
+          </Suspense>
+        ) : null}
 
         {/* Main board column — a <main> landmark so assistive tech can skip
             straight here. This layout previously exposed no main/header at all,
