@@ -29,7 +29,10 @@ describe('mobile board screen behind a tab panel', () => {
     // Library is not RightPanel, so rightPanelOpen alone left the board screen
     // reachable behind the library's own full-viewport scrim — the same defect
     // this guard was added for, on the one tab it did not cover.
-    expect(layout).toContain('open={libraryOpen && !focusMode}');
+    // The panel is now lazy-mounted only while open; the shorthand prop keeps
+    // the mounted panel open without pulling its bundle onto the first load.
+    expect(layout).toContain('{libraryOpen && !focusMode ? (');
+    expect(layout).toMatch(/<LibraryPanel\s+open\s/);
     expect(layout).toContain('inert={rightPanelOpen || (libraryOpen && !focusMode)}');
   });
 
