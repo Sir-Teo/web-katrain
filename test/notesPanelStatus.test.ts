@@ -18,7 +18,9 @@ describe('NotesPanel analysis status line', () => {
     // analysis was switched on cold. Both read the same constant now.
     expect(block).toContain('if (engineStatus === \'loading\') return `${ENGINE_LOADING_LABEL}\u2026`;');
     expect(source).toContain("import { ENGINE_LOADING_LABEL } from '../utils/engineStatusSummary';");
-    expect(readFileSync('src/components/Layout.tsx', 'utf8')).toContain('? ENGINE_LOADING_LABEL');
+    const statusSummary = readFileSync('src/utils/engineStatusSummary.ts', 'utf8');
+    expect(statusSummary).toContain("return { state: 'loading', label: ENGINE_LOADING_LABEL }");
+    expect(readFileSync('src/components/Layout.tsx', 'utf8')).toContain('getEngineActivityPresentation({');
     expect(source).not.toContain("'Loading engine...'");
     // "(Tab to enable)" is an instruction a touch-only device cannot follow,
     // so the hint is dropped there and the state still named.
