@@ -563,6 +563,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             announces "complementary" twice with no way to tell them apart. */}
         <aside
           aria-label="Game library"
+          aria-hidden={!libraryOpen}
+          inert={!libraryOpen}
           className={`library${libraryPanel ? ' full-library' : ''}${libDrawer ? ' drawer' : ''}${libraryOpen ? ' open' : ''}`}
         >
           {libraryPanel ?? (

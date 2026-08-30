@@ -312,6 +312,9 @@
   min-width: 0; overflow: hidden;
   grid-column: 1 / 2;
 }
+.wk-dashboard[data-library="closed"] .library {
+  visibility: hidden;
+}
 .wk-dashboard .library.full-library {
   background: var(--panel);
 }

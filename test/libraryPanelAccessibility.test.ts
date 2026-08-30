@@ -90,6 +90,22 @@ describe('LibraryPanel accessibility', () => {
     }
   });
 
+  it('keeps desktop library row controls above the WCAG target-size floor', () => {
+    const styles = readFileSync('src/index.css', 'utf8');
+
+    expect(styles).toMatch(/\.library-tree-node-action \{[\s\S]*?width: 24px;[\s\S]*?height: 24px;/);
+    expect(styles).toMatch(/\.library-tree-node-select \{[\s\S]*?width: 24px;[\s\S]*?height: 24px;/);
+  });
+
+  it('removes the collapsed desktop library from focus and pointer audits', () => {
+    const dashboard = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const styles = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(dashboard).toContain('aria-hidden={!libraryOpen}');
+    expect(dashboard).toContain('inert={!libraryOpen}');
+    expect(styles).toMatch(/\.wk-dashboard\[data-library="closed"\] \.library \{\s*visibility: hidden;/);
+  });
+
   it('keeps infrequent library maintenance actions in one keyboard-accessible menu', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
