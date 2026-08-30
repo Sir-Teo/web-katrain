@@ -80,6 +80,8 @@ describe('LibraryPanel accessibility', () => {
 
     expect(source).toContain('aria-label="Go to parent folder"');
     expect(source).toContain('aria-label="Go to library root"');
+    expect(source).toContain("title={activeFolderId ? 'Go to library root' : 'Already at library root'}");
+    expect(source.match(/disabled=\{!activeFolderId\}/g) ?? []).toHaveLength(2);
     expect(source).toContain('aria-label={`Open folder ${crumb.name}`}');
     expect(source).toContain('aria-label="Move selected items"');
 

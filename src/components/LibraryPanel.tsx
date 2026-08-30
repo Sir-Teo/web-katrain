@@ -2257,7 +2257,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   type="button"
                   className="panel-icon-button"
                   onClick={() => setCurrentFolderId(null)}
-                  title="Go to library root"
+                  disabled={!activeFolderId}
+                  title={activeFolderId ? 'Go to library root' : 'Already at library root'}
                   aria-label="Go to library root"
                 >
                   <FaFolderOpen size={12} />
