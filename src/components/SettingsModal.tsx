@@ -231,7 +231,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         (label ?? control)?.scrollIntoView({ block: 'center', behavior: preferredScrollBehavior() });
         // Focused, not just scrolled to, so keyboard users land on the control
         // and can change it straight away.
-        control?.focus({ preventScroll: true });
+        const focusTarget = control?.getAttribute('role') === 'radiogroup'
+            ? control.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+            : control;
+        focusTarget?.focus({ preventScroll: true });
         const row = label?.closest<HTMLElement>('div') ?? control;
         if (!row) return;
         // A brief marker: in a panel this long, scrolling alone leaves it
@@ -360,6 +363,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         () => BOARD_THEME_OPTIONS.map((theme) => ({ ...theme, config: getBoardTheme(theme.value) })),
         []
     );
+    const focusBoardThemeChoice = (value: GameSettings['boardTheme']) => {
+        window.requestAnimationFrame(() => {
+            document.querySelector<HTMLElement>(`[data-board-theme-choice="${value}"]`)?.focus();
+        });
+    };
+    const handleBoardThemeChoiceKeyDown = (
+        event: React.KeyboardEvent<HTMLButtonElement>,
+        value: GameSettings['boardTheme']
+    ) => {
+        const currentIndex = boardThemeChoices.findIndex((theme) => theme.value === value);
+        let nextIndex = currentIndex;
+        if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = boardThemeChoices.length - 1;
+        else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+            nextIndex = (currentIndex + 1) % boardThemeChoices.length;
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+            nextIndex = (currentIndex - 1 + boardThemeChoices.length) % boardThemeChoices.length;
+        } else {
+            return;
+        }
+
+        event.preventDefault();
+        const nextTheme = boardThemeChoices[nextIndex];
+        if (!nextTheme) return;
+        updateSettings({ boardTheme: nextTheme.value });
+        focusBoardThemeChoice(nextTheme.value);
+    };
 
     React.useEffect(() => {
         syncUploadedModelUrl(settings.katagoModelUrl);
@@ -675,23 +705,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between gap-3">
-                                                {/* A label with htmlFor, matching the backend picker: the
-                                                    search index is derived from those, so a radiogroup
-                                                    labelled only by aria-labelledby cannot be found. */}
-                                                <label id="settings-board-theme-label" htmlFor="settings-board-theme" className="ui-text-muted">Board Theme</label>
+                                                <div id="settings-board-theme-label" className="ui-text-muted">Board Theme</div>
                                             </div>
-                                            <input
-                                                id="settings-board-theme"
-                                                className="sr-only"
-                                                tabIndex={-1}
-                                                readOnly
-                                                aria-hidden="true"
-                                                value={settings.boardTheme}
-                                            />
                                             <div
+                                                id="settings-board-theme"
                                                 className="grid grid-cols-2 gap-2 sm:grid-cols-3"
                                                 role="radiogroup"
                                                 aria-labelledby="settings-board-theme-label"
+                                                data-settings-search-id="settings-board-theme"
                                                 data-board-theme-picker="true"
                                             >
                                                 {boardThemeChoices.map((theme) => {
@@ -725,9 +746,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             type="button"
                                                             role="radio"
                                                             aria-checked={selected}
+                                                            tabIndex={selected ? 0 : -1}
                                                             aria-label={`Board theme ${theme.label}`}
                                                             data-board-theme-choice={theme.value}
                                                             onClick={() => updateSettings({ boardTheme: theme.value })}
+                                                            onKeyDown={(event) => handleBoardThemeChoiceKeyDown(event, theme.value)}
                                                             className={[
                                                                 'group rounded-lg border p-2 text-left transition-colors',
                                                                 selected

@@ -20,6 +20,8 @@ function labelledControlsInModal(): Array<{ id: string; tab: string }> {
     // setting the modal really has.
     const labelMatch = line.match(/<label[^>]*htmlFor="(settings-[a-z0-9-]+)"/);
     if (labelMatch) found.push({ id: labelMatch[1]!, tab });
+    const compositeMatch = line.match(/data-settings-search-id="(settings-[a-z0-9-]+)"/);
+    if (compositeMatch) found.push({ id: compositeMatch[1]!, tab });
   }
   return found;
 }

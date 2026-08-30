@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { SettingsModal } from '../src/components/SettingsModal';
+import { BOARD_THEME_OPTIONS } from '../src/utils/boardThemes';
 
 describe('SettingsModal', () => {
   it('uses theme-aware tab classes instead of hard-coded dark colors', () => {
@@ -73,6 +74,7 @@ describe('SettingsModal', () => {
 
   it('shows board theme descriptions in the theme picker', () => {
     const html = renderToStaticMarkup(<SettingsModal onClose={() => undefined} />);
+    const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
 
     // The native name is only appended when it differs from the English one, so
     // English renders bare rather than as "English (English)".
@@ -81,7 +83,13 @@ describe('SettingsModal', () => {
     expect(html).toContain('data-settings-locale="true"');
     expect(html).toContain('Traditional clamshell and slate stones');
     expect(html).toContain('id="settings-board-theme-label"');
+    expect(html).toContain('id="settings-board-theme"');
     expect(html).toContain('aria-labelledby="settings-board-theme-label"');
+    expect(html).not.toMatch(/<input[^>]*id="settings-board-theme"/);
+    expect(html.match(/role="radio"[^>]*tabindex="0"/g) ?? []).toHaveLength(1);
+    expect(html.match(/role="radio"[^>]*tabindex="-1"/g) ?? []).toHaveLength(BOARD_THEME_OPTIONS.length - 1);
+    expect(source).toContain("event.key === 'ArrowRight' || event.key === 'ArrowDown'");
+    expect(source).toContain("'[role=\"radio\"][aria-checked=\"true\"]'");
     expect(html).not.toContain('<label class="ui-text-muted block">Board Theme</label>');
   });
 

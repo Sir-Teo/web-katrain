@@ -13,7 +13,8 @@ export interface SettingsSearchEntry {
  *
  * The modal only mounts the active tab's panel, so a search box cannot find a
  * control by walking the DOM — it has to know where things are before going
- * there. Generated from the modal's own `<label htmlFor="settings-…">` markup;
+ * there. Generated from the modal's own `<label htmlFor="settings-…">` markup
+ * and `data-settings-search-id` markers on composite controls;
  * `settingsSearch.test.ts` re-derives it from the source and fails if the two
  * drift apart, so a control added to the modal cannot quietly go unsearchable.
  */
