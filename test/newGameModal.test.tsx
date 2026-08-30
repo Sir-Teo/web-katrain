@@ -122,7 +122,23 @@ describe('NewGameModal', () => {
     expect(detailsTag).not.toContain(' open');
     expect(html).toContain('Players &amp; game info');
     expect(html).toContain('>Optional</span>');
-    expect(html.indexOf('>Opponent</div>')).toBeLessThan(html.indexOf('>Clock</div>'));
+    expect(html.indexOf('>Opponent</div>')).toBeLessThan(html.indexOf('>Clock'));
+  });
+
+  it('summarizes clock defaults without expanding the full timer form', () => {
+    const byoYomi = renderModal({
+      timer: { mode: 'byo-yomi', mainTimeMinutes: 10, byoLengthSeconds: 30, byoPeriods: 5 },
+    });
+    const noTimer = renderModal({
+      timer: { mode: 'none', mainTimeMinutes: 0, byoLengthSeconds: 30, byoPeriods: 5 },
+    });
+    const detailsTag = byoYomi.match(/<details[^>]*data-new-game-clock-details="true"[^>]*>/)?.[0];
+
+    expect(detailsTag).toBeDefined();
+    expect(detailsTag).not.toContain(' open');
+    expect(byoYomi).toContain('10 min + 5 × 30s');
+    expect(noTimer).toContain('No timer');
+    expect(byoYomi).toContain('id="new-game-time-system"');
   });
 
   it('describes the correct first player for the selected handicap', () => {
