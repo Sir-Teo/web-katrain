@@ -157,23 +157,24 @@ export const ShortcutSettingsPanel: React.FC = () => {
   }, [collision, overrides]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border ui-surface p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+    <div className="space-y-3 sm:space-y-4">
+      <div className="rounded-xl border ui-surface p-3 sm:p-4">
+        <div className={hasCustomizations ? 'flex items-center justify-end gap-3 sm:justify-between' : 'hidden sm:flex sm:items-center sm:justify-between sm:gap-3'}>
+          <div className="hidden sm:block">
             <div className="text-xs font-semibold ui-text-muted tracking-[0.12em] uppercase">Shortcut Editor</div>
             <div className="mt-1 text-sm ui-text-faint">Record one binding per command, disable commands you do not use, and resolve collisions before saving.</div>
           </div>
-          <button
-            type="button"
-            className="self-start whitespace-nowrap px-3 py-2 rounded-lg ui-surface-2 border text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed sm:self-auto"
-            onClick={requestResetAll}
-            disabled={!hasCustomizations}
-            data-shortcut-reset-all="true"
-            title={hasCustomizations ? 'Reset custom shortcuts' : 'No custom shortcuts'}
-          >
-            Reset all
-          </button>
+          {hasCustomizations && (
+            <button
+              type="button"
+              className="whitespace-nowrap px-3 py-2 rounded-lg ui-surface-2 border text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
+              onClick={requestResetAll}
+              data-shortcut-reset-all="true"
+              title="Reset custom shortcuts"
+            >
+              Reset all
+            </button>
+          )}
         </div>
         {confirmResetAll && (
           <div
@@ -232,7 +233,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
             </div>
           </div>
         )}
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className={`${hasCustomizations ? 'mt-3' : ''} flex flex-col gap-2 sm:mt-4 sm:flex-row sm:items-center`}>
           <label className="relative flex-1 min-w-0">
             <FaSearch
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-faint)]"
@@ -263,36 +264,38 @@ export const ShortcutSettingsPanel: React.FC = () => {
             {visibleShortcutCount} command{visibleShortcutCount === 1 ? '' : 's'}
           </div>
         </div>
-        <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap gap-2" aria-label="Shortcut filter">
-            {filterOptions.map((option) => {
-              const isActive = statusFilter === option.id;
-              const isUnavailable = option.id !== 'all' && option.count === 0;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={[
-                    'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45',
-                    isActive
-                      ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
-                      : 'ui-surface-2 text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]',
-                  ].join(' ')}
-                  aria-pressed={isActive}
-                  data-shortcut-filter={option.id}
-                  disabled={isUnavailable}
-                  onClick={() => setStatusFilter(option.id)}
-                >
-                  {option.label}
-                  <span className="ml-2 font-mono ui-text-faint">{option.count}</span>
-                </button>
-              );
-            })}
+        {hasCustomizations && (
+          <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap gap-2" aria-label="Shortcut filter">
+              {filterOptions.map((option) => {
+                const isActive = statusFilter === option.id;
+                const isUnavailable = option.id !== 'all' && option.count === 0;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={[
+                      'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45',
+                      isActive
+                        ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]'
+                        : 'ui-surface-2 text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]',
+                    ].join(' ')}
+                    aria-pressed={isActive}
+                    data-shortcut-filter={option.id}
+                    disabled={isUnavailable}
+                    onClick={() => setStatusFilter(option.id)}
+                  >
+                    {option.label}
+                    <span className="ml-2 font-mono ui-text-faint">{option.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-xs ui-text-muted" aria-live="polite" data-shortcut-custom-summary="true">
+              {customShortcutCount} edited / {disabledShortcutCount} disabled
+            </div>
           </div>
-          <div className="text-xs ui-text-muted" aria-live="polite" data-shortcut-custom-summary="true">
-            {customShortcutCount} edited / {disabledShortcutCount} disabled
-          </div>
-        </div>
+        )}
       </div>
 
       {visibleShortcutGroups.map((group) => (

@@ -561,6 +561,11 @@
     appearance: none;
   }
 
+  [data-shortcut-search='true']::-webkit-search-cancel-button {
+    display: none;
+    appearance: none;
+  }
+
   [data-library-search='true']::-webkit-search-cancel-button {
     display: none;
     appearance: none;

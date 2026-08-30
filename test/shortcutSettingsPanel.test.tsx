@@ -1,16 +1,22 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ShortcutSettingsPanel } from '../src/components/ShortcutSettingsPanel';
 
 describe('ShortcutSettingsPanel', () => {
-  it('renders shortcut status filters and customization summary', () => {
+  it('keeps the default mobile editor focused on search and commands', () => {
     const html = renderToStaticMarkup(<ShortcutSettingsPanel />);
+    const source = readFileSync('src/components/ShortcutSettingsPanel.tsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
 
-    expect(html).toContain('data-shortcut-filter="all"');
-    expect(html).toContain('data-shortcut-filter="custom"');
-    expect(html).toContain('data-shortcut-filter="disabled"');
-    expect(html).toContain('data-shortcut-custom-summary="true"');
-    expect(html).toContain('0 edited / 0 disabled');
+    expect(source).toContain('space-y-3 sm:space-y-4');
+    expect(source).toContain('p-3 sm:p-4');
+    expect(source).toContain('data-shortcut-filter={option.id}');
+    expect(source).toContain('data-shortcut-custom-summary="true"');
+    expect(html).not.toContain('0 edited / 0 disabled');
+    expect(html).not.toContain('aria-label="Shortcut filter"');
+    expect(html).not.toContain('data-shortcut-reset-all="true"');
+    expect(css).toMatch(/\[data-shortcut-search='true'\]::-webkit-search-cancel-button\s*\{[\s\S]*?display:\s*none;/);
   });
 
   it('marks default rows as reset no-ops but still recordable', () => {
