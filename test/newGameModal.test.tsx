@@ -70,6 +70,7 @@ function aiConfig(args: {
 function renderModal(args: {
   ai?: AiConfigValues;
   timer?: TimerConfigValues;
+  handicap?: number;
 } = {}): string {
   return renderToStaticMarkup(
     <NewGameModal
@@ -78,7 +79,7 @@ function renderModal(args: {
       defaultKomi={6.5}
       defaultRules="japanese"
       defaultBoardSize={19}
-      defaultHandicap={0}
+      defaultHandicap={args.handicap ?? 0}
       defaultInfo={defaultInfo}
       defaultAiConfig={args.ai ?? aiConfig()}
       defaultTimerConfig={args.timer ?? { mode: 'none', mainTimeMinutes: 0, byoLengthSeconds: 30, byoPeriods: 5 }}
@@ -122,6 +123,16 @@ describe('NewGameModal', () => {
     expect(html).toContain('Players &amp; game info');
     expect(html).toContain('>Optional</span>');
     expect(html.indexOf('>Opponent</div>')).toBeLessThan(html.indexOf('>Clock</div>'));
+  });
+
+  it('describes the correct first player for the selected handicap', () => {
+    const evenGame = renderModal();
+    const handicapGame = renderModal({ handicap: 2 });
+
+    expect(evenGame).toContain('Black plays first.');
+    expect(evenGame).not.toContain('Placed on star points; White plays first.');
+    expect(handicapGame).toContain('Placed on star points; White plays first.');
+    expect(handicapGame).not.toContain('>Black plays first.</div>');
   });
 
   it('binds labels to the core game setup controls', () => {

@@ -28,9 +28,10 @@ const TraitBar: React.FC<{ label: string; value: number }> = ({ label, value }) 
 
 export const BotPersonaPicker: React.FC<BotPersonaPickerProps> = ({ selectedId, onSelect }) => {
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Choose a bot">
+    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Choose a bot">
       {BOT_PERSONAS.map((persona) => {
         const active = persona.id === selectedId;
+        const styleLabel = persona.styleTags.join(' · ');
         return (
           <button
             key={persona.id}
@@ -39,31 +40,34 @@ export const BotPersonaPicker: React.FC<BotPersonaPickerProps> = ({ selectedId, 
             aria-checked={active}
             onClick={() => onSelect(persona)}
             className={[
-              'flex flex-col gap-2 rounded-lg border p-3 text-left transition-colors',
+              'min-h-16 rounded-lg border p-2 text-left transition-colors',
               active
-                ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)]'
+                ? 'col-span-2 border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] p-3'
                 : 'border-[var(--ui-border)] bg-[var(--ui-surface)] hover:bg-[var(--ui-surface-2)]',
             ].join(' ')}
           >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="font-semibold text-[var(--ui-text)]">{persona.name}</span>
+            <div className="flex min-w-0 items-baseline justify-between gap-2">
+              <span className="truncate font-semibold text-[var(--ui-text)]">{persona.name}</span>
               <span className="shrink-0 rounded-full border border-[var(--ui-border)] px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--ui-text-muted)]">
                 {formatKyuRank(persona.rankKyu)}
               </span>
             </div>
-            <div className="flex flex-wrap gap-1">
-              {persona.styleTags.map((tag) => (
-                <span key={tag} className="rounded-full bg-[var(--ui-surface-2)] px-1.5 py-0.5 text-[0.625rem] uppercase tracking-wide text-[var(--ui-text-muted)]">
-                  {tag}
-                </span>
-              ))}
+            <div
+              className="mt-1 truncate text-[0.625rem] uppercase tracking-wide text-[var(--ui-text-muted)]"
+              title={styleLabel}
+            >
+              {styleLabel}
             </div>
-            <p className="text-xs text-[var(--ui-text-muted)]">{persona.blurb}</p>
-            <div className="mt-1 grid gap-1">
-              {TRAIT_LABELS.map(({ key, label }) => (
-                <TraitBar key={key} label={label} value={persona.traits[key]} />
-              ))}
-            </div>
+            {active && (
+              <>
+                <p className="mt-2 text-xs leading-5 text-[var(--ui-text-muted)]">{persona.blurb}</p>
+                <div className="mt-2 grid gap-1">
+                  {TRAIT_LABELS.map(({ key, label }) => (
+                    <TraitBar key={key} label={label} value={persona.traits[key]} />
+                  ))}
+                </div>
+              </>
+            )}
           </button>
         );
       })}
