@@ -306,16 +306,39 @@ describe('PWA helpers', () => {
     expect(target.removeEventListener).toHaveBeenCalledWith('focus', expect.any(Function));
   });
 
-  it('requests waiting service workers before reloading for updates', () => {
+  it('waits for a new service worker controller before reloading for updates', async () => {
     const postMessage = vi.fn();
     const reload = vi.fn();
+    const listeners: { controllerChange?: () => void } = {};
+    const serviceWorker = {
+      addEventListener: vi.fn((_type: 'controllerchange', listener: () => void) => {
+        listeners.controllerChange = listener;
+      }),
+      removeEventListener: vi.fn(),
+    };
 
-    requestPwaUpdateActivation(
+    const activation = requestPwaUpdateActivation(
       { waiting: { postMessage } as unknown as ServiceWorker },
-      { location: { reload } }
+      { location: { reload } },
+      serviceWorker,
+      10_000
     );
 
     expect(postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+    expect(reload).not.toHaveBeenCalled();
+
+    listeners.controllerChange?.();
+    await activation;
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(serviceWorker.removeEventListener).toHaveBeenCalledWith('controllerchange', expect.any(Function));
+  });
+
+  it('reloads immediately when no waiting worker needs activation', async () => {
+    const reload = vi.fn();
+
+    await requestPwaUpdateActivation(null, { location: { reload } }, null);
+
     expect(reload).toHaveBeenCalledTimes(1);
   });
 

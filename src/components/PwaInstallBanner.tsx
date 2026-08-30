@@ -156,7 +156,7 @@ export const PwaInstallBanner: React.FC = () => {
       return;
     }
     if (banner.type === 'update-ready') {
-      requestPwaUpdateActivation();
+      void requestPwaUpdateActivation();
       return;
     }
     setBanner(null);

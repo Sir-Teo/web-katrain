@@ -6,11 +6,16 @@ export const PWA_UPDATE_READY_EVENT = 'web-katrain:pwa-update-ready';
 export const PWA_INSTALL_DISMISSED_KEY = 'web-katrain:pwa-install-dismissed:v1';
 export const PWA_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 export const PWA_VERSION_UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+export const PWA_UPDATE_ACTIVATION_TIMEOUT_MS = 2_000;
 
 type PwaStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type PwaTimerTarget = Pick<Window, 'setInterval' | 'clearInterval'>;
 type PwaEventTarget = Pick<Window, 'addEventListener' | 'removeEventListener' | 'dispatchEvent'>;
 type PwaReloadTarget = { location?: Pick<Location, 'reload'> };
+type PwaControllerChangeTarget = {
+  addEventListener: (type: 'controllerchange', listener: () => void) => void;
+  removeEventListener: (type: 'controllerchange', listener: () => void) => void;
+};
 type PwaUpdateRegistration = Pick<ServiceWorkerRegistration, 'update' | 'waiting'>;
 type PwaVersionResponse = Pick<Response, 'ok' | 'json'>;
 type PwaVersionFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<PwaVersionResponse>;
@@ -23,6 +28,7 @@ type InstallPromptLike = {
 type IosInstallNavigator = Pick<Navigator, 'userAgent' | 'platform' | 'maxTouchPoints'>;
 
 let activePwaRegistration: ServiceWorkerRegistration | null = null;
+let activePwaServiceWorker: PwaControllerChangeTarget | null = null;
 
 function getNavigator(target?: Navigator | null): Navigator | null {
   if (target !== undefined) return target;
@@ -195,14 +201,38 @@ export function scheduleVersionMetadataUpdateChecks({
   };
 }
 
-export function requestPwaUpdateActivation(
+export async function requestPwaUpdateActivation(
   registration: Pick<PwaUpdateRegistration, 'waiting'> | null = activePwaRegistration,
-  target?: PwaReloadTarget | null
-): void {
-  try {
-    registration?.waiting?.postMessage({ type: 'SKIP_WAITING' });
-  } catch {
-    // Ignore blocked service worker messaging.
+  target?: PwaReloadTarget | null,
+  serviceWorker: PwaControllerChangeTarget | null = activePwaServiceWorker,
+  timeoutMs = PWA_UPDATE_ACTIVATION_TIMEOUT_MS
+): Promise<void> {
+  const waiting = registration?.waiting;
+  if (waiting && serviceWorker) {
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        serviceWorker.removeEventListener('controllerchange', finish);
+        if (timeoutId !== null) clearTimeout(timeoutId);
+        resolve();
+      };
+      try {
+        serviceWorker.addEventListener('controllerchange', finish);
+        timeoutId = setTimeout(finish, Math.max(0, timeoutMs));
+        waiting.postMessage({ type: 'SKIP_WAITING' });
+      } catch {
+        finish();
+      }
+    });
+  } else {
+    try {
+      waiting?.postMessage({ type: 'SKIP_WAITING' });
+    } catch {
+      // Ignore blocked service worker messaging.
+    }
   }
   try {
     const reloadTarget = target ?? (typeof window === 'undefined' ? null : window);
@@ -256,6 +286,7 @@ export function registerServiceWorker(): void {
   if (!serviceWorker) return;
 
   const swUrl = getServiceWorkerUrl(import.meta.env.BASE_URL || '/');
+  activePwaServiceWorker = serviceWorker;
   window.addEventListener('load', () => {
     serviceWorker
       .register(swUrl, { scope: import.meta.env.BASE_URL || '/' })
