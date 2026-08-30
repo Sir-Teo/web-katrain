@@ -87,4 +87,29 @@ describe('CommandPaletteModal', () => {
     expect(html).toContain('>No previous move</span>');
     expect(source).toContain('if (command.disabledReason) return;');
   });
+
+  it('places unavailable commands after actionable commands until search narrows the list', () => {
+    const html = renderToStaticMarkup(
+      <CommandPaletteModal
+        onClose={() => undefined}
+        commands={[
+          {
+            id: 'previous-move',
+            label: 'Previous move',
+            category: 'Navigation',
+            run: () => undefined,
+            disabledReason: 'No previous move',
+          },
+          {
+            id: 'settings',
+            label: 'Open settings',
+            category: 'Settings',
+            run: () => undefined,
+          },
+        ]}
+      />,
+    );
+
+    expect(html.indexOf('>Open settings</span>')).toBeLessThan(html.indexOf('>Previous move</span>'));
+  });
 });

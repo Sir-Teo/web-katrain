@@ -67,7 +67,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
 
   const filteredCommands = React.useMemo(() => {
     const normalizedQuery = normalizeCommandQuery(query);
-    if (!normalizedQuery) return orderCommandsByRecency(commands, recentIds);
+    if (!normalizedQuery) {
+      return orderCommandsByRecency(commands, recentIds)
+        .map((command, index) => ({ command, index }))
+        .sort((a, b) => (
+          Number(!!a.command.disabledReason) - Number(!!b.command.disabledReason) || a.index - b.index
+        ))
+        .map((entry) => entry.command);
+    }
     return commands.flatMap((command, index) => {
       const shortcut = command.shortcutId ? shortcutLabels.get(command.shortcutId) : '';
       const score = scoreCommandMatch({
