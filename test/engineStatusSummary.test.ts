@@ -1,9 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getEngineActivityPresentation,
   formatEngineBackendLabel,
   getEngineModelSource,
   getEngineStatusSummary,
 } from '../src/utils/engineStatusSummary';
+
+describe('getEngineActivityPresentation', () => {
+  const ready = {
+    status: 'ready' as const,
+    error: null,
+    isAiThinking: false,
+    isGameAnalysisRunning: false,
+    isContinuousAnalysis: false,
+    isAnalysisMode: false,
+  };
+
+  it('does not claim the engine is running when only analysis mode is visible', () => {
+    expect(getEngineActivityPresentation({ ...ready, isAnalysisMode: true })).toEqual({
+      state: 'ready',
+      label: 'Analysis mode',
+    });
+  });
+
+  it('prioritizes real engine activity and loading states', () => {
+    expect(getEngineActivityPresentation({ ...ready, isContinuousAnalysis: true })).toEqual({
+      state: 'running',
+      label: 'Analyzing…',
+    });
+    expect(getEngineActivityPresentation({ ...ready, isAiThinking: true })).toEqual({
+      state: 'running',
+      label: 'AI thinking…',
+    });
+    expect(getEngineActivityPresentation({ ...ready, status: 'loading', isAiThinking: true })).toEqual({
+      state: 'loading',
+      label: 'Loading model',
+    });
+  });
+});
 
 describe('engine status summary', () => {
   it('formats common backend names for humans', () => {

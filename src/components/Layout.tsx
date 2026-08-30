@@ -35,7 +35,7 @@ import { computeManualScoreEstimate, estimateDeadStonesByPlayout, estimateDeadSt
 import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
-import { ENGINE_LOADING_LABEL, getEngineStatusSummary } from '../utils/engineStatusSummary';
+import { getEngineActivityPresentation, getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
 import { LazyModalBoundary } from './LazyModalBoundary';
 import { isStaleBuildError } from '../utils/errorReporting';
@@ -1294,6 +1294,14 @@ export const Layout: React.FC = () => {
   const engineDot = engineSummary.dotClass;
   const engineMeta = engineSummary.compactLabel;
   const engineMetaTitle = engineSummary.title;
+  const engineActivity = getEngineActivityPresentation({
+    status: engineStatus,
+    error: engineError,
+    isAiThinking,
+    isGameAnalysisRunning,
+    isContinuousAnalysis,
+    isAnalysisMode,
+  });
 
   const statusText = engineError
     ? `Engine error: ${engineError}`
@@ -3418,28 +3426,8 @@ export const Layout: React.FC = () => {
             scoreLead={scoreLead ?? null}
             pointsLost={pointsLost}
             pointsLostLabel={pointsLostLabel}
-            engineState={
-              engineError
-                ? 'error'
-                : engineStatus === 'loading'
-                  ? 'loading'
-                  : isAiThinking || isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
-                    ? 'running'
-                    : 'ready'
-            }
-            enginePillLabel={
-              engineError
-                ? 'Engine error'
-                : engineStatus === 'loading'
-                  ? ENGINE_LOADING_LABEL
-                  : // An AI move can run for many seconds; name it so the wait is
-                    // legible rather than looking like a hang.
-                    isAiThinking
-                    ? 'AI thinking…'
-                    : isGameAnalysisRunning || isContinuousAnalysis || isAnalysisMode
-                      ? 'Analyzing…'
-                      : 'KataGo ready'
-            }
+            engineState={engineActivity.state}
+            enginePillLabel={engineActivity.label}
             engineMeta={engineMeta}
             engineMetaTitle={engineMetaTitle}
             engineBackend={engineBackend ?? ''}

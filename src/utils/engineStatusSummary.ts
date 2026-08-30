@@ -2,6 +2,33 @@ import type { KataGoBackendPreference } from '../types';
 
 export type EngineStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+export interface EngineActivityPresentationArgs {
+  status: EngineStatus;
+  error?: string | null;
+  isAiThinking: boolean;
+  isGameAnalysisRunning: boolean;
+  isContinuousAnalysis: boolean;
+  isAnalysisMode: boolean;
+}
+
+export interface EngineActivityPresentation {
+  state: 'loading' | 'running' | 'ready' | 'error';
+  label: string;
+}
+
+export function getEngineActivityPresentation(
+  args: EngineActivityPresentationArgs,
+): EngineActivityPresentation {
+  if (args.error) return { state: 'error', label: 'Engine error' };
+  if (args.status === 'loading') return { state: 'loading', label: ENGINE_LOADING_LABEL };
+  if (args.isAiThinking) return { state: 'running', label: 'AI thinking…' };
+  if (args.isGameAnalysisRunning || args.isContinuousAnalysis) {
+    return { state: 'running', label: 'Analyzing…' };
+  }
+  if (args.isAnalysisMode) return { state: 'ready', label: 'Analysis mode' };
+  return { state: 'ready', label: 'KataGo ready' };
+}
+
 /**
  * What the engine's loading state is called wherever there is room for a
  * sentence. `stateLabel` below stays the bare word because it is set beside the
