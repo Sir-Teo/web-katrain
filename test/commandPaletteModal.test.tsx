@@ -112,4 +112,28 @@ describe('CommandPaletteModal', () => {
 
     expect(html.indexOf('>Open settings</span>')).toBeLessThan(html.indexOf('>Previous move</span>'));
   });
+
+  it('announces the highlighted command from the focused search field', () => {
+    const html = renderToStaticMarkup(
+      <CommandPaletteModal
+        onClose={() => undefined}
+        commands={[{
+          id: 'settings',
+          label: 'Open settings',
+          category: 'Settings',
+          run: () => undefined,
+        }]}
+      />,
+    );
+    const controlsId = html.match(/aria-controls="([^"]+)"/)?.[1];
+    const activeOptionId = html.match(/aria-activedescendant="([^"]+)"/)?.[1];
+
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain('aria-autocomplete="list"');
+    expect(html).toContain('aria-expanded="true"');
+    expect(controlsId).toBeTruthy();
+    expect(activeOptionId).toBeTruthy();
+    expect(html).toContain(`id="${controlsId}"`);
+    expect(html).toContain(`id="${activeOptionId}"`);
+  });
 });

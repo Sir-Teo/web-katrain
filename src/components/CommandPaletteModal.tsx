@@ -38,6 +38,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const listboxId = React.useId();
   // The search field is the right landing spot here, so only the Tab wrap and the
   // focus restore are wanted from the dialog focus hook.
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
@@ -115,6 +116,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   }, [onClose]);
 
   const activeCommand = filteredCommands[activeIndex] ?? null;
+  const activeOptionId = activeCommand ? `${listboxId}-option-${activeIndex}` : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12dvh] mobile-safe-inset mobile-safe-area-bottom">
@@ -171,11 +173,16 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             <input
               ref={inputRef}
               type="search"
+              role="combobox"
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
               className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-12 text-sm text-[var(--ui-text)]"
               placeholder="Search commands"
               aria-label="Search commands"
+              aria-autocomplete="list"
+              aria-expanded="true"
+              aria-controls={listboxId}
+              aria-activedescendant={activeOptionId}
               data-command-palette-search="true"
             />
             {query && (
@@ -190,7 +197,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             )}
           </label>
         </div>
-        <div className="min-h-0 max-h-[56dvh] flex-1 overflow-y-auto overscroll-contain px-3 pb-3" role="listbox" aria-label="Commands">
+        <div id={listboxId} className="min-h-0 max-h-[56dvh] flex-1 overflow-y-auto overscroll-contain px-3 pb-3" role="listbox" aria-label="Commands">
           {filteredCommands.length === 0 ? (
             <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true">
               No commands match "{query.trim()}".
@@ -203,6 +210,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                 return (
                   <button
                     key={command.id}
+                    id={`${listboxId}-option-${index}`}
                     type="button"
                     role="option"
                     aria-label={[
