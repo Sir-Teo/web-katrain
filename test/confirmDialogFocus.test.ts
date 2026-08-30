@@ -22,4 +22,16 @@ describe('confirm dialogs', () => {
     // tabIndex={-1} so the container itself can take the opening focus.
     expect(source).toMatch(/ref=\{dialogRef\}\s*\n\s*tabIndex=\{-1\}\s*\n\s*role="dialog"/);
   });
+
+  it.each([
+    'src/components/ResignConfirmModal.tsx',
+    'src/components/AnalysisCacheClearConfirmModal.tsx',
+    'src/components/UnsavedChangesModal.tsx',
+    'src/components/AutoSaveRecoveryModal.tsx',
+  ])('lets the explicitly safe autoFocus action receive focus in %s', (path) => {
+    const source = readFileSync(path, 'utf8');
+
+    expect(source).toContain('{ focusContainer: false }');
+    expect(source).toContain('autoFocus');
+  });
 });

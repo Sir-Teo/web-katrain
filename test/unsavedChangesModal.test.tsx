@@ -13,6 +13,7 @@ describe('UnsavedChangesModal', () => {
     expect(html).toContain('aria-describedby="unsaved-changes-description"');
     expect(html).toContain('id="unsaved-changes-description"');
     expect(html).toContain('Save it to Library before replacing it?');
+    expect(html).toContain('aria-label="Close unsaved changes dialog"');
     expect(html).toContain('autofocus=""');
   });
 

@@ -28,7 +28,7 @@ export const ResignConfirmModal: React.FC<ResignConfirmModalProps> = ({
   }, [onCancel]);
 
   const playerLabel = getPlayerLabel(player);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
   const winnerLabel = getResignWinnerLabel(player);
   const result = getResignResult(player);
 

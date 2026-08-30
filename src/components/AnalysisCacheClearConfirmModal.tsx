@@ -28,7 +28,7 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onCancel]);
 
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
   const label = formatAnalysisCount(count);
 
   return (

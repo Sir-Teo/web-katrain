@@ -14,7 +14,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
   const savesToLibrary = saveTarget === 'library';
   const SaveIcon = savesToLibrary ? FaSave : FaDownload;
   useEscapeToClose(() => onChoice('cancel'));
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
 
   return (
     <div
@@ -39,7 +39,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
             type="button"
             onClick={() => onChoice('cancel')}
             className="ui-control grid place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-            aria-label="Cancel"
+            aria-label="Close unsaved changes dialog"
           >
             <FaTimes aria-hidden="true" />
           </button>
