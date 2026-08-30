@@ -203,7 +203,6 @@ describe('SettingsModal', () => {
       'settings-ai-edge-pick-frac',
       'settings-ai-edge-endgame',
       'settings-katago-model-url',
-      'settings-katago-backend',
       'settings-katago-visits',
       'settings-katago-fast-review-depth',
       'settings-katago-max-time',
@@ -247,6 +246,8 @@ describe('SettingsModal', () => {
     expect(source).toContain("unavailableDescription: 'Not available in this browser'");
     expect(source).toContain('if (!available) return;');
     expect(source).toContain('aria-labelledby="settings-katago-backend-label"');
+    expect(source).toContain('data-settings-search-id="settings-katago-backend"');
+    expect(source).not.toMatch(/<input[^>]*id="settings-katago-backend"/);
     expect(source).toContain('FaCheck aria-hidden="true"');
     expect(source).toContain('fallback from <span className="font-mono">{requestedBackendLabel}</span>');
     expect(source).toContain("event.key === 'ArrowRight'");

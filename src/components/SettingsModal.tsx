@@ -2348,19 +2348,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             ) : null}
                                         </div>
                                         <div className="space-y-2">
-                                            <label id="settings-katago-backend-label" htmlFor="settings-katago-backend" className="text-[var(--ui-text-muted)] block text-sm">Backend</label>
-                                            <input
-                                                id="settings-katago-backend"
-                                                className="sr-only"
-                                                tabIndex={-1}
-                                                readOnly
-                                                aria-hidden="true"
-                                                value={settings.katagoBackend}
-                                            />
+                                            <div id="settings-katago-backend-label" className="text-[var(--ui-text-muted)] block text-sm">Backend</div>
                                             <div
+                                                id="settings-katago-backend"
                                                 className="grid grid-cols-1 gap-2 sm:grid-cols-3"
                                                 role="radiogroup"
                                                 aria-labelledby="settings-katago-backend-label"
+                                                data-settings-search-id="settings-katago-backend"
                                                 data-katago-backend-selector="true"
                                             >
                                                 {backendOptions.map((option) => {
