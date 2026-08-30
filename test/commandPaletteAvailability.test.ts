@@ -11,4 +11,10 @@ describe('command palette availability', () => {
     expect(source).toContain("disabledReason: mistakeNavigation.previous ? undefined : 'No earlier analyzed mistake'");
     expect(source).toContain("disabledReason: mistakeNavigation.next ? undefined : 'No later analyzed mistake'");
   });
+
+  it('does not offer a no-op finish scoring command outside scoring mode', () => {
+    const source = readFileSync('src/components/Layout.tsx', 'utf8');
+
+    expect(source).toContain("disabledReason: scoringMode ? undefined : 'Scoring mode is not active'");
+  });
 });

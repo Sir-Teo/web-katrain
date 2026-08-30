@@ -2789,6 +2789,7 @@ export const Layout: React.FC = () => {
         id: 'score-done',
         label: 'Finish scoring',
         category: 'Game',
+        disabledReason: scoringMode ? undefined : 'Scoring mode is not active',
         run: () => setScoringMode(false),
         keywords: ['score', 'done', 'close'],
       },
