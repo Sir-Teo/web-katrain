@@ -246,6 +246,37 @@ describe('TopControlBar', () => {
     );
   });
 
+  it('disables unavailable analysis actions in the mobile Tools dialog', () => {
+    const idleHtml = renderToStaticMarkup(
+      <TopControlBar {...baseProps} viewMenuOpen={true} isMobile={true} />,
+    );
+    const activeHtml = renderToStaticMarkup(
+      <TopControlBar
+        {...baseProps}
+        viewMenuOpen={true}
+        isMobile={true}
+        canStopAnalysis={true}
+        canResetAnalysis={true}
+        canClearAnalysisCache={true}
+      />,
+    );
+    const buttonFor = (html: string, label: string) => (
+      html
+        .split('<button')
+        .slice(1)
+        .map((chunk) => `<button${chunk.split('</button>')[0]}`)
+        .find((button) => button.includes(`>${label}</span>`))
+    );
+
+    for (const label of ['Stop analysis', 'Reset analysis', 'Clear cache']) {
+      expect(buttonFor(idleHtml, label), label).toContain('disabled=""');
+      expect(buttonFor(activeHtml, label), label).not.toContain('disabled=""');
+    }
+    expect(buttonFor(idleHtml, 'Stop analysis')).toContain('title="No analysis is running"');
+    expect(buttonFor(idleHtml, 'Reset analysis')).toContain('title="This position has no analysis"');
+    expect(buttonFor(idleHtml, 'Clear cache')).toContain('title="Analysis cache is empty"');
+  });
+
   it('has one toolbar menu, so there is nothing to keep it exclusive with', () => {
     const source = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
 

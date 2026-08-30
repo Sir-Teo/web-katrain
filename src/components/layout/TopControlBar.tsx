@@ -111,6 +111,9 @@ interface TopControlBarProps {
   isSelectingRegionOfInterest: boolean;
   resetCurrentAnalysis: () => void;
   clearAnalysisCache: () => void;
+  canStopAnalysis?: boolean;
+  canResetAnalysis?: boolean;
+  canClearAnalysisCache?: boolean;
   toggleInsertMode: () => void;
   selfplayToEnd: () => void;
   toggleContinuousAnalysis: () => void;
@@ -171,6 +174,9 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   isSelectingRegionOfInterest,
   resetCurrentAnalysis,
   clearAnalysisCache,
+  canStopAnalysis = false,
+  canResetAnalysis = false,
+  canClearAnalysisCache = false,
   toggleInsertMode,
   selfplayToEnd,
   toggleContinuousAnalysis,
@@ -552,7 +558,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     </div>
   );
 
-  const mobileToolsGridBtn = "mobile-tools-action flex min-h-12 min-w-0 items-center gap-2 bg-[var(--ui-panel)] px-3 py-2 hover:bg-[var(--ui-surface-2)] text-left transition-colors";
+  const mobileToolsGridBtn = "mobile-tools-action flex min-h-12 min-w-0 items-center gap-2 bg-[var(--ui-panel)] px-3 py-2 hover:bg-[var(--ui-surface-2)] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[var(--ui-panel)]";
   const mobileToolsActionGrid = "grid grid-cols-2";
   const mobileToolsSectionLabel = "px-4 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider";
   const mobileToolsMenu = (
@@ -634,19 +640,37 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
               menu below, which never renders, so "Selfplay to end" ran with no
               way to halt it short of the game ending. Escape covers this on a
               keyboard; the sheet is where a phone can reach it. */}
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { analyzeExtra('stop'); closeMobileToolsAfterAction(); }}>
+          <button
+            type="button"
+            className={mobileToolsGridBtn}
+            disabled={!canStopAnalysis}
+            title={canStopAnalysis ? 'Stop the current analysis' : 'No analysis is running'}
+            onClick={() => { analyzeExtra('stop'); closeMobileToolsAfterAction(); }}
+          >
             <FaStop size={18} className="text-[var(--ui-danger)]" />
             <span className="text-sm font-medium">Stop analysis</span>
             <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels.escape}</span>
           </button>
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { resetCurrentAnalysis(); closeMobileToolsAfterAction(); }}>
+          <button
+            type="button"
+            className={mobileToolsGridBtn}
+            disabled={!canResetAnalysis}
+            title={canResetAnalysis ? 'Remove analysis from this position' : 'This position has no analysis'}
+            onClick={() => { resetCurrentAnalysis(); closeMobileToolsAfterAction(); }}
+          >
             <FaRedoAlt size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Reset analysis</span>
             <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['reset-analysis']}</span>
           </button>
           {/* Confirm-gated in Layout: it refuses while a game analysis is
               running, and skips the dialog outright when the cache is empty. */}
-          <button type="button" className={mobileToolsGridBtn} onClick={() => { clearAnalysisCache(); closeMobileToolsAfterAction(); }}>
+          <button
+            type="button"
+            className={mobileToolsGridBtn}
+            disabled={!canClearAnalysisCache}
+            title={canClearAnalysisCache ? 'Clear all cached analysis' : isGameAnalysisRunning ? 'Stop game analysis before clearing the cache' : 'Analysis cache is empty'}
+            onClick={() => { clearAnalysisCache(); closeMobileToolsAfterAction(); }}
+          >
             <FaTrash size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Clear cache</span>
           </button>

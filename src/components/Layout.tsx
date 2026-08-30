@@ -1323,6 +1323,10 @@ export const Layout: React.FC = () => {
   const pointsLost = computePointsLost({ currentNode });
   const winRate = analysisData?.rootWinRate ?? currentNode.analysis?.rootWinRate;
   const scoreLead = analysisData?.rootScoreLead ?? currentNode.analysis?.rootScoreLead;
+  const canStopAnalysis =
+    isAnalysisMode || isContinuousAnalysis || isSelfplayToEnd || isGameAnalysisRunning || isAiThinking;
+  const canResetAnalysis = analysisData !== null || currentNode.analysis !== null;
+  const canClearAnalysisCache = analysisCacheSize > 0 && !isGameAnalysisRunning;
   const showAnalysisCommandBar =
     settings.showAnalysisBar &&
     (mode === 'analyze' ||
@@ -3614,6 +3618,9 @@ export const Layout: React.FC = () => {
               isSelectingRegionOfInterest={isSelectingRegionOfInterest}
               resetCurrentAnalysis={resetCurrentAnalysis}
               clearAnalysisCache={requestClearAnalysisCache}
+              canStopAnalysis={canStopAnalysis}
+              canResetAnalysis={canResetAnalysis}
+              canClearAnalysisCache={canClearAnalysisCache}
               toggleInsertMode={toggleInsertMode}
               selfplayToEnd={selfplayToEnd}
               toggleContinuousAnalysis={toggleContinuousAnalysis}
