@@ -533,7 +533,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
           <div className="mt-2 border-t border-[var(--ui-border)] pt-2 space-y-2" data-menu-recent="true">
             <div className="text-xs ui-text-faint px-3 uppercase tracking-wide">Recent</div>
             <div className="space-y-1">
-              {recentItems.map((item) => (
+              {recentItems.slice(0, 3).map((item) => (
                 <button
                   type="button"
                   key={item.id}

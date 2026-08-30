@@ -44,6 +44,39 @@ describe('MenuDrawer', () => {
     expect(html).toContain('42 moves · 1.5 KB');
   });
 
+  it('keeps the mobile recent list to the same three-game budget as Home', () => {
+    const recentItems = Array.from({ length: 4 }, (_, index) => ({
+      ...recentFile,
+      id: `recent-${index + 1}`,
+      name: `Recent Game ${index + 1}`,
+      updatedAt: recentFile.updatedAt - index,
+    }));
+    const html = renderToStaticMarkup(
+      <MenuDrawer
+        open
+        onClose={() => undefined}
+        onQuickNewGame={() => undefined}
+        onNewGame={() => undefined}
+        onSave={() => undefined}
+        onSaveToLibrary={() => undefined}
+        onLoad={() => undefined}
+        onScanBoard={() => undefined}
+        onCopy={() => undefined}
+        onPaste={() => undefined}
+        onSettings={() => undefined}
+        onCommandPalette={() => undefined}
+        onKeyboardHelp={() => undefined}
+        onAbout={() => undefined}
+        recentItems={recentItems}
+        onOpenRecent={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('Recent Game 1');
+    expect(html).toContain('Recent Game 3');
+    expect(html).not.toContain('Recent Game 4');
+  });
+
   it('shows the save-copy shortcut beside the library save action', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
