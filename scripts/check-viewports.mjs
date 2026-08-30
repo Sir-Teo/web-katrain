@@ -2309,17 +2309,17 @@ async function main() {
           }
 
           if (${viewport.mobile}) {
-            const backToBoard = emptyState
-              ? findButtonByLabel('Back to board', emptyState)
+            const playFirstMove = emptyState
+              ? findButtonByLabel('Play first move', emptyState)
               : null;
-            if (!backToBoard) {
-              failures.push('move tree empty state Back to board action is missing');
+            if (!playFirstMove) {
+              failures.push('move tree empty state Play first move action is missing');
             } else {
-              const bounds = backToBoard.getBoundingClientRect();
+              const bounds = playFirstMove.getBoundingClientRect();
               if (bounds.width < 44 || bounds.height < 44) {
                 failures.push('move tree empty action is too small (' + Math.round(bounds.width) + 'x' + Math.round(bounds.height) + 'px)');
               }
-              backToBoard.click();
+              playFirstMove.click();
               await waitForFrames(3);
               const boardTab = Array.from(document.querySelectorAll('button[role="tab"]'))
                 .find((button) => button.getAttribute('aria-label') === 'Board');
