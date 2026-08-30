@@ -47,8 +47,12 @@ describe('study tool components render without crashing', () => {
     expect(guessMoveSource).toContain('Open SGF');
     expect(guessMoveSource).toContain('onClick={onBrowseProGames}');
     expect(guessMoveSource).toContain('onClick={onOpenSgf}');
+    expect(guessMoveSource).toContain('data-guess-move-phase={phase}');
+    expect(guessMoveSource).toContain('className="guess-move-label-compact"');
     expect(layoutSource).toContain('setIsProGamesOpen(true);');
     expect(layoutSource).toContain('handleLoadClick();');
+    const styles = readFileSync('src/index.css', 'utf8');
+    expect(styles).toMatch(/\.guess-move-footer \{[\s\S]*?flex-wrap: nowrap !important;[\s\S]*?data-guess-move-phase='revealed'[\s\S]*?\.guess-move-board \{[\s\S]*?max-width: 11rem !important;/);
   });
 
   it('TournamentModal renders the ladder setup', () => {

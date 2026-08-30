@@ -179,7 +179,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
           </div>
         ) : (
           <>
-            <div className="guess-move-body flex-1 space-y-4 overflow-y-auto p-4">
+            <div className="guess-move-body flex-1 space-y-4 overflow-y-auto p-4" data-guess-move-phase={phase}>
               <div className="guess-move-toolbar flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm text-[var(--ui-text-muted)]" data-guess-move-prompt="true">
                   {phase === 'guess' && current
@@ -260,20 +260,28 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
                 <button
                   type="button"
                   onClick={handleShowAnswer}
+                  aria-label="Show answer"
                   className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
                 >
-                  <span className="inline-flex items-center gap-2"><FaEye aria-hidden="true" /> Show answer</span>
+                  <span className="inline-flex items-center gap-2">
+                    <FaEye aria-hidden="true" />
+                    <span className="guess-move-label-full">Show answer</span>
+                    <span className="guess-move-label-compact">Answer</span>
+                  </span>
                 </button>
               ) : null}
               <button
                 type="button"
                 onClick={handleNext}
                 disabled={isLast}
+                aria-label={isLast ? 'End of game' : 'Next move'}
                 className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
                 data-guess-move-next="true"
               >
                 <span className="inline-flex items-center gap-2">
-                  {isLast ? 'End of game' : 'Next move'} <FaArrowRight aria-hidden="true" />
+                  <span className="guess-move-label-full">{isLast ? 'End of game' : 'Next move'}</span>
+                  <span className="guess-move-label-compact">{isLast ? 'End' : 'Next'}</span>
+                  <FaArrowRight aria-hidden="true" />
                 </span>
               </button>
             </div>
