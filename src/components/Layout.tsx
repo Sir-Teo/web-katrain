@@ -2975,6 +2975,32 @@ export const Layout: React.FC = () => {
     toast(`Gauntlet game ${gauntlet.index + 1}/4 vs ${formatKyuRank(opponentKyu)} started.`, 'success');
   }, [startNewGame, updateSettings, settings.gameRules, toast]);
 
+  const gamepadBlockedByOverlay = Boolean(
+    isSettingsOpen ||
+    isAboutOpen ||
+    autoSaveRecovery ||
+    isUnsavedChangesOpen ||
+    isGameAnalysisOpen ||
+    isKifuPrintOpen ||
+    isGameReportOpen ||
+    isCommandPaletteOpen ||
+    isKeyboardHelpOpen ||
+    isNewGameOpen ||
+    isScoreQuizOpen ||
+    isTournamentOpen ||
+    isProGamesOpen ||
+    isLessonsOpen ||
+    isGuessMoveOpen ||
+    isProblemOpen ||
+    isPhotoBoardOpen ||
+    isPasteSgfOpen ||
+    saveToLibraryDialog ||
+    pendingResignPlayer ||
+    isClearAnalysisCacheConfirmOpen ||
+    menuOpen ||
+    viewMenuOpen ||
+    (isMobile && libraryOpen)
+  );
   const gamepadStatus = useGamepadNavigation({
     enabled:
       settings.gamepadNavigation &&
@@ -2982,21 +3008,7 @@ export const Layout: React.FC = () => {
       !isSelectingRegionOfInterest &&
       !isInsertMode &&
       !isEditMode &&
-      !isSettingsOpen &&
-      !isGameAnalysisOpen &&
-      !isGameReportOpen &&
-      !isKeyboardHelpOpen &&
-      !isNewGameOpen &&
-      !isPhotoBoardOpen &&
-      !isPasteSgfOpen &&
-      !isUnsavedChangesOpen &&
-      !isScoreQuizOpen &&
-      !isTournamentOpen &&
-      !isProGamesOpen &&
-      !isLessonsOpen &&
-      !isGuessMoveOpen &&
-      !isProblemOpen &&
-      !pendingResignPlayer,
+      !gamepadBlockedByOverlay,
     handlers: {
       back: mode === 'play' ? handleUndo : navigateBack,
       forward: navigateForward,
