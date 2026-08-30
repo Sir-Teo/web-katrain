@@ -19,6 +19,9 @@ describe('study tool components render without crashing', () => {
 
   it('ScoreQuizModal renders the prompt and board', () => {
     const html = renderToString(<ScoreQuizModal onClose={noop} />);
+    const source = readFileSync('src/components/ScoreQuizModal.tsx', 'utf8');
+    const styles = readFileSync('src/index.css', 'utf8');
+
     expect(html).toContain('Score Estimation Quiz');
     expect(html).toContain('Who is ahead');
     expect(html).toContain('aria-label="Predicted leader"');
@@ -27,6 +30,11 @@ describe('study tool components render without crashing', () => {
     expect(html).toContain('This is the starting position.');
     expect(html).toContain('class="min-h-11 w-24');
     expect(html).toContain('<svg');
+    expect(source).toContain('className="score-quiz-instructions"');
+    expect(source).toContain('className="score-quiz-leader-label');
+    expect(source).toContain('className="score-quiz-label-compact"');
+    expect(styles).toMatch(/@media \(max-width: 419px\) and \(orientation: portrait\)[\s\S]*?\.score-quiz-board \{[\s\S]*?max-width: 11rem !important;/);
+    expect(styles).toMatch(/\.score-quiz-footer \{[\s\S]*?flex-wrap: nowrap !important;[\s\S]*?\.score-quiz-label-full \{[\s\S]*?display: none;/);
   });
 
   it('keeps compact study inputs and filters touch-sized', () => {

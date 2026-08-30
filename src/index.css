@@ -647,6 +647,10 @@
     display: none;
   }
 
+  .score-quiz-label-compact {
+    display: none;
+  }
+
   .keyboard-help-title {
     font-size: 1.125rem;
     line-height: 1.75rem;
@@ -5741,6 +5745,51 @@
   }
 
   @media (max-width: 419px) and (orientation: portrait) {
+    .score-quiz-footer {
+      flex-wrap: nowrap !important;
+      justify-content: space-between !important;
+    }
+
+    .score-quiz-footer > button {
+      min-width: 0;
+      flex: 1 1 0%;
+      padding-right: 12px !important;
+      padding-left: 12px !important;
+    }
+
+    .score-quiz-label-full {
+      display: none;
+    }
+
+    .score-quiz-label-compact {
+      display: inline;
+    }
+
+    .score-quiz-body {
+      padding: 12px 16px !important;
+    }
+
+    .score-quiz-body > * {
+      margin-top: 8px !important;
+    }
+
+    .score-quiz-instructions,
+    .score-quiz-leader-label {
+      display: none;
+    }
+
+    .score-quiz-board {
+      max-width: 11rem !important;
+    }
+
+    .score-quiz-response > * {
+      margin-top: 0 !important;
+    }
+
+    .score-quiz-response > :not(:last-child) {
+      margin-bottom: 8px !important;
+    }
+
     /* A 9×9 teaching diagram does not need to consume nearly the full phone
        width. Keeping it compact leaves the instruction and interaction hint
        visible above the persistent lesson actions instead of making every

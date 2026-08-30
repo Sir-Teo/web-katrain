@@ -140,7 +140,12 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           <p className="score-quiz-intro text-sm text-[var(--ui-text-muted)]">
             {quizPositions.length === 0
               ? 'This is the starting position. Play some moves or open a game for a more meaningful score estimate.'
-              : `Read the position, then estimate who is ahead and by how many points. Move ${moveNumber}.`}
+              : (
+                  <>
+                    <span className="score-quiz-instructions">Read the position, then estimate who is ahead and by how many points.</span>{' '}
+                    Move {moveNumber}.
+                  </>
+                )}
           </p>
 
           <div className="score-quiz-board mx-auto w-full max-w-[340px]">
@@ -149,7 +154,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
 
           {phase !== 'reveal' ? (
             <div className="score-quiz-response space-y-3">
-              <div className="text-sm font-semibold text-[var(--ui-text)]">Who is ahead?</div>
+              <div className="score-quiz-leader-label text-sm font-semibold text-[var(--ui-text)]">Who is ahead?</div>
               <div className="grid grid-cols-2 gap-2" role="group" aria-label="Predicted leader">
                 {(['black', 'white'] as Winner[]).map((w) => (
                   <button
@@ -222,10 +227,15 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
             type="button"
             onClick={handleRandom}
             disabled={quizPositions.length === 0}
+            aria-label="Random position"
             title={quizPositions.length === 0 ? 'This game has no positions to jump to yet' : 'Jump to another position in this game'}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="inline-flex items-center gap-2"><FaDice aria-hidden="true" /> Random position</span>
+            <span className="inline-flex items-center gap-2">
+              <FaDice aria-hidden="true" />
+              <span className="score-quiz-label-full">Random position</span>
+              <span className="score-quiz-label-compact">Random</span>
+            </span>
           </button>
           {phase === 'reveal' ? (
             <button
@@ -240,10 +250,22 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
               type="button"
               onClick={() => void handleReveal()}
               disabled={phase === 'evaluating'}
+              aria-label={phase === 'evaluating' ? 'Evaluating score' : 'Reveal score'}
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
             >
               <span className="inline-flex items-center gap-2">
-                <FaCheck aria-hidden="true" /> {phase === 'evaluating' ? 'Evaluating…' : 'Reveal score'}
+                <FaCheck aria-hidden="true" />
+                {phase === 'evaluating' ? (
+                  <>
+                    <span className="score-quiz-label-full">Evaluating…</span>
+                    <span className="score-quiz-label-compact">Working…</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="score-quiz-label-full">Reveal score</span>
+                    <span className="score-quiz-label-compact">Reveal</span>
+                  </>
+                )}
               </span>
             </button>
           )}
