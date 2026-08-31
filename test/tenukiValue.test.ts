@@ -3,7 +3,9 @@ import {
   computeTenukiValue,
   describeTenukiValue,
   opponentFollowUp,
+  summarizeTenukiRow,
   TENUKI_NEGLIGIBLE_POINTS,
+  type TenukiAnalysisState,
 } from '../src/utils/tenukiValue';
 import type { AnalysisResult, CandidateMove } from '../src/types';
 
@@ -91,5 +93,63 @@ describe('describeTenukiValue', () => {
 
   it('handles the unavailable case', () => {
     expect(describeTenukiValue(null)).toBe('Play elsewhere value is unavailable.');
+  });
+});
+
+describe('summarizeTenukiRow', () => {
+  const formatPoint = (x: number, y: number) => `P${x}${y}`;
+  const ready = (over: Partial<TenukiAnalysisState> = {}): TenukiAnalysisState => ({
+    nodeId: 'n1',
+    status: 'ready',
+    sideToMove: 'black',
+    value: computeTenukiValue({ sideToMove: 'black', scoreLeadNow: 4, scoreLeadAfterPass: -6 }),
+    followUp: candidate({ x: 15, y: 3 }),
+    afterPass: null,
+    ...over,
+  });
+
+  it('offers the search when there is an analysis to compare against', () => {
+    const row = summarizeTenukiRow({ tenuki: null, hasAnalysis: true, formatPoint });
+    expect(row).toMatchObject({ status: 'idle', disabled: false });
+    expect(row.disabledReason).toBeUndefined();
+  });
+
+  it('refuses with a reason when there is not', () => {
+    const row = summarizeTenukiRow({ tenuki: null, hasAnalysis: false, formatPoint });
+    expect(row.disabled).toBe(true);
+    expect(row.summary).toBe('Analyze the position first.');
+    expect(row.disabledReason).toMatch(/compare a pass against/);
+  });
+
+  it('locks the control while the search is in flight', () => {
+    const row = summarizeTenukiRow({
+      tenuki: ready({ status: 'running', value: null, followUp: null }),
+      hasAnalysis: true,
+      formatPoint,
+    });
+    expect(row).toMatchObject({ status: 'running', disabled: true });
+  });
+
+  it('states the size and where the opponent would play', () => {
+    const row = summarizeTenukiRow({ tenuki: ready(), hasAnalysis: true, formatPoint });
+    expect(row.summary).toBe('Playing here first is worth about 10.0 points. Opponent takes P153.');
+  });
+
+  it('omits the follow-up when the opponent would pass too', () => {
+    const row = summarizeTenukiRow({
+      tenuki: ready({ followUp: candidate({ x: -1, y: -1 }) }),
+      hasAnalysis: true,
+      formatPoint,
+    });
+    expect(row.summary).toBe('Playing here first is worth about 10.0 points.');
+  });
+
+  it('surfaces an engine failure and stays pressable', () => {
+    const row = summarizeTenukiRow({
+      tenuki: ready({ status: 'error', error: 'backend unavailable', value: null, followUp: null }),
+      hasAnalysis: true,
+      formatPoint,
+    });
+    expect(row).toMatchObject({ status: 'error', summary: 'backend unavailable', disabled: false });
   });
 });

@@ -16,7 +16,7 @@ import { isBoardThemeId } from '../utils/boardThemes';
 import { getPreferredAppLocaleId, isAppLocaleId } from '../utils/locales';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { makeAnalysisPositionKey, makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
-import { computeTenukiValue, opponentFollowUp, type TenukiValue } from '../utils/tenukiValue';
+import { computeTenukiValue, opponentFollowUp, type TenukiAnalysisState } from '../utils/tenukiValue';
 import {
   analysisQueue,
   isAnalysisQueueCanceledError,
@@ -213,19 +213,6 @@ interface GameStore extends GameState {
 
 type StoreNotification = NonNullable<GameStore['notification']>;
 
-export type TenukiAnalysisState = {
-  /** The node this describes. Navigation does not clear it; consumers compare. */
-  nodeId: string;
-  status: 'running' | 'ready' | 'error';
-  /** Whose move it would have been. */
-  sideToMove: Player;
-  value: TenukiValue | null;
-  /** The opponent's best reply once the side to move has passed. */
-  followUp: CandidateMove | null;
-  /** The full post-pass evaluation, so the board can lay out its variation. */
-  afterPass: AnalysisResult | null;
-  error?: string;
-};
 
 const createEmptyTerritory = (boardSize: number): number[][] =>
   Array.from({ length: boardSize }, () => Array.from({ length: boardSize }, () => 0));

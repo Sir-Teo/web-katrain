@@ -7,6 +7,7 @@ import type { AnalysisControlsState } from '../layout/types';
 import { formatMoveLabel } from '../layout/ui-utils';
 import { MoveTree } from '../MoveTree';
 import { ScoreWinrateGraph } from '../ScoreWinrateGraph';
+import { TenukiRow } from '../TenukiRow';
 import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
@@ -1022,6 +1023,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   </button>
                 </div>
                 )}
+                {mode === 'analyze' && <TenukiRow />}
                 {!showAnalysis && (
                   <div className="coach-card">
                     <div className="cc-head">

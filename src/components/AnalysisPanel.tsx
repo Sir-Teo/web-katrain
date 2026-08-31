@@ -14,8 +14,7 @@ import {
 import type { AnalysisControlsState } from './layout/types';
 import { EngineStatusBadge } from './layout/ui';
 import { useGameStore } from '../store/gameStore';
-import { describeTenukiValue } from '../utils/tenukiValue';
-import { formatMoveLabel } from './layout/ui-utils';
+import { TenukiRow } from './TenukiRow';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { DEFAULT_EVAL_THRESHOLDS } from '../utils/nodeAnalysis';
 import {
@@ -261,8 +260,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const treeVersion = useGameStore((state) => state.treeVersion);
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
-  const tenukiAnalysis = useGameStore((state) => state.tenukiAnalysis);
-  const analyzeTenuki = useGameStore((state) => state.analyzeTenuki);
   const [legendOpen, setLegendOpen] = React.useState(false);
   const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const [engineDetailsOpen, setEngineDetailsOpen] = React.useState(false);
@@ -515,45 +512,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
    * On demand rather than always-on: it costs a second full search, so it is a
    * button the reader presses, not another number that appears unbidden.
    */
-  const tenukiForThisNode = tenukiAnalysis?.nodeId === currentNode.id ? tenukiAnalysis : null;
-  const tenukiRunning = tenukiForThisNode?.status === 'running';
-  const canAskTenuki = !!currentNode.analysis && Number.isFinite(currentNode.analysis.rootScoreLead);
-  const tenukiSummary = (() => {
-    if (!tenukiForThisNode) {
-      return canAskTenuki ? 'Price the point at this position.' : 'Analyze the position first.';
-    }
-    if (tenukiForThisNode.status === 'running') return 'Evaluating the position after a pass…';
-    if (tenukiForThisNode.status === 'error') return tenukiForThisNode.error ?? 'Could not evaluate.';
-    const follow = tenukiForThisNode.followUp;
-    const followLabel =
-      follow && follow.x >= 0 && follow.y >= 0
-        ? ` Opponent takes ${formatMoveLabel(follow.x, follow.y, currentNode.gameState.board.length)}.`
-        : '';
-    return `${describeTenukiValue(tenukiForThisNode.value)}${followLabel}`;
-  })();
-  const tenukiRow = (
-    <div
-      className="mt-1.5 flex items-center gap-2 border-t border-[var(--ui-border)] pt-1.5"
-      data-analysis-tenuki="true"
-      data-analysis-tenuki-status={tenukiForThisNode?.status ?? 'idle'}
-    >
-      <button
-        type="button"
-        className="panel-action-button"
-        onClick={() => analyzeTenuki()}
-        disabled={!canAskTenuki || tenukiRunning}
-        title={
-          canAskTenuki
-            ? 'Evaluate the position again after a pass, to price the point here'
-            : 'Analyze the position first, then ask what playing elsewhere costs'
-        }
-        aria-label="Ask what playing elsewhere would cost"
-      >
-        {tenukiRunning ? 'Checking…' : 'Play elsewhere?'}
-      </button>
-      <div className="min-w-0 flex-1 text-[0.6875rem] ui-text-faint">{tenukiSummary}</div>
-    </div>
-  );
   const renderMoveReadout = (className: string, labelClassName = 'ui-text-faint') => (
     <div className={className}>
       <div className={labelClassName}>Move</div>
@@ -839,7 +797,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             {statsActions}
           </div>
         )}
-        {tenukiRow}
+        <TenukiRow />
       </div>
     </div>
   );
