@@ -134,6 +134,52 @@ describe('analyzeTenuki', () => {
     expect(useGameStore.getState().tenukiAnalysis).toBeNull();
   });
 
+  it('drops the readout the moment analysis is stopped, and stays dropped', async () => {
+    const { useGameStore } = await import('../src/store/gameStore');
+    // Cancelling an active queue job only aborts its signal; the rejection
+    // arrives whenever the engine call settles. Waiting for that would leave
+    // "Checking..." on screen after the user pressed stop. And when the late
+    // answer does arrive it must not reinstate itself -- it rejects with the
+    // queue's own error, not a KataGo one, which is why the handler tests
+    // `isAnalysisCanceled` rather than the KataGo predicate alone.
+    let settle: ((value: unknown) => void) | null = null;
+    analyzeMock.mockReturnValue(new Promise((resolve) => { settle = resolve; }));
+
+    useGameStore.getState().playMove(3, 3);
+    useGameStore.getState().currentNode.analysis = nodeAnalysis(4);
+    useGameStore.getState().analyzeTenuki();
+    await waitFor(() => useGameStore.getState().tenukiAnalysis?.status === 'running');
+
+    useGameStore.getState().stopAnalysis();
+    expect(useGameStore.getState().tenukiAnalysis).toBeNull();
+
+    settle!(payload(-6));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(useGameStore.getState().tenukiAnalysis).toBeNull();
+  });
+
+  it('treats a queue cancellation as a cancellation, not an engine failure', async () => {
+    const { useGameStore } = await import('../src/store/gameStore');
+    const { analysisQueue } = await import('../src/utils/analysisQueue');
+    // Changing the komi, among other things, clears the whole queue. That
+    // rejects with the queue's own `AnalysisQueueCanceledError`, which is not a
+    // KataGo cancellation -- so a handler that only recognised the KataGo kind
+    // put "Canceled tenuki analysis jobs" in the panel as an engine error.
+    let settle: ((value: unknown) => void) | null = null;
+    analyzeMock.mockReturnValue(new Promise((resolve) => { settle = resolve; }));
+
+    useGameStore.getState().playMove(3, 3);
+    useGameStore.getState().currentNode.analysis = nodeAnalysis(4);
+    useGameStore.getState().analyzeTenuki();
+    await waitFor(() => useGameStore.getState().tenukiAnalysis?.status === 'running');
+
+    analysisQueue.cancelWhere(() => true, 'Komi changed');
+    settle!(payload(-6));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(useGameStore.getState().tenukiAnalysis).toBeNull();
+  });
+
   it('clears on request', async () => {
     const { useGameStore } = await import('../src/store/gameStore');
     analyzeMock.mockResolvedValue(payload(-6));

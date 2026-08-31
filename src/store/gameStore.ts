@@ -213,7 +213,6 @@ interface GameStore extends GameState {
 
 type StoreNotification = NonNullable<GameStore['notification']>;
 
-
 const createEmptyTerritory = (boardSize: number): number[][] =>
   Array.from({ length: boardSize }, () => Array.from({ length: boardSize }, () => 0));
 
@@ -1121,6 +1120,9 @@ let continuousToken = 0;
 let selfplayToken = 0;
 let gameAnalysisToken = 0;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** Bumped per play-elsewhere request; see `analyzeTenuki`. */
+let tenukiToken = 0;
+
 const ANALYSIS_QUEUE_PRIORITY = {
   interactive: 100,
   aiMove: 70,
@@ -1328,7 +1330,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       continuousToken++;
       analysisQueue.cancelGroup('interactive');
       analysisQueue.cancelGroup('tenuki');
-      set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null });
+      // Cancelling an *active* queue job only aborts its signal; the rejection
+      // arrives when the engine call finally settles. Waiting for that would
+      // leave the play-elsewhere readout saying "Checking..." after the user
+      // pressed stop, so the readout is dropped here and the late rejection is
+      // ignored by its token.
+      tenukiToken++;
+      set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null, tenukiAnalysis: null });
   },
 
   clearTenukiAnalysis: () => set({ tenukiAnalysis: null }),
@@ -1373,6 +1381,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       komi,
       rules,
     });
+
+    // A second press supersedes the first through `staleKey`, and the loser
+    // rejects *after* the winner may already have resolved. Both handlers below
+    // check this token so a late rejection cannot clobber a newer answer.
+    const requestToken = ++tenukiToken;
+    const ownsResult = (s: GameStore) =>
+      requestToken === tenukiToken && s.tenukiAnalysis?.nodeId === node.id;
 
     set({
       tenukiAnalysis: {
@@ -1442,7 +1457,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           scoreLeadAfterPass: payload.rootScoreLead,
         });
         set((s) =>
-          s.tenukiAnalysis && s.tenukiAnalysis.nodeId === node.id
+          ownsResult(s)
             ? {
                 tenukiAnalysis: {
                   nodeId: node.id,
@@ -1457,13 +1472,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
         );
       })
       .catch((err: unknown) => {
-        if (isKataGoCanceledError(err)) {
-          set((s) => (s.tenukiAnalysis?.nodeId === node.id ? { tenukiAnalysis: null } : {}));
+        // `isAnalysisCanceled` covers all three: the engine cancelling, the
+        // queue cancelling, and the queue superseding this job with a newer
+        // press. Only the KataGo case was handled at first, so a second press
+        // rejected the first as a *failure* and could overwrite the answer the
+        // second had already produced.
+        if (isAnalysisCanceled(err)) {
+          set((s) => (ownsResult(s) ? { tenukiAnalysis: null } : {}));
           return;
         }
         const message = err instanceof Error ? err.message : String(err);
         set((s) =>
-          s.tenukiAnalysis && s.tenukiAnalysis.nodeId === node.id
+          ownsResult(s)
             ? {
                 tenukiAnalysis: {
                   nodeId: node.id,
