@@ -1,4 +1,5 @@
 import type { BoardSize, Player } from '../types';
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 import type { GameResult } from './tournament';
 
 // A fixed 4-game gauntlet against bots: lose any one game and the run ends.
@@ -73,10 +74,10 @@ export const applyGauntletResult = (state: GauntletState, result: GameResult): G
   return { ...state, wins, index: nextIndex, awaitingResult: false, history };
 };
 
+/** Guarded the same way, and for the same reason, as `loadLadder`. */
 export const loadGauntlet = (): GauntletState | null => {
-  if (typeof localStorage === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readLocalStorage(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<GauntletState>;
     if (!parsed || !Array.isArray(parsed.opponents) || typeof parsed.index !== 'number') return null;
@@ -87,14 +88,9 @@ export const loadGauntlet = (): GauntletState | null => {
 };
 
 export const saveGauntlet = (state: GauntletState | null): void => {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    if (!state) {
-      localStorage.removeItem(STORAGE_KEY);
-      return;
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Ignore storage failures (private mode, quota).
+  if (!state) {
+    removeLocalStorage(STORAGE_KEY);
+    return;
   }
+  writeLocalStorage(STORAGE_KEY, JSON.stringify(state));
 };

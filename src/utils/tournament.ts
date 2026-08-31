@@ -1,4 +1,5 @@
 import type { BoardSize, Player } from '../types';
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 
 export type GameResult = 'win' | 'loss';
 
@@ -81,10 +82,19 @@ export const applyResult = (state: LadderState, result: GameResult): LadderState
   };
 };
 
+/**
+ * Storage goes through the guarded helpers rather than touching `localStorage`
+ * directly. The direct form guarded itself with
+ * `typeof localStorage === 'undefined'`, which reads as defensive but is the
+ * opposite: `typeof` on a global property still runs its getter, and a browser
+ * that blocks site data makes that getter *throw*. The check sat outside the
+ * try, so it threw during module init -- and this module is imported by
+ * `tournamentStore`, whose initial state calls it, so the whole app rendered a
+ * blank page rather than losing a ladder.
+ */
 export const loadLadder = (): LadderState | null => {
-  if (typeof localStorage === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readLocalStorage(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LadderState>;
     if (!parsed || typeof parsed.currentKyu !== 'number') return null;
@@ -97,18 +107,13 @@ export const loadLadder = (): LadderState | null => {
 };
 
 export const saveLadder = (state: LadderState | null): void => {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    if (!state) {
-      localStorage.removeItem(STORAGE_KEY);
-      return;
-    }
-    const serializable = {
-      ...state,
-      bestKyu: Number.isFinite(state.bestKyu) ? state.bestKyu : null,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
-  } catch {
-    // Ignore storage failures (private mode, quota).
+  if (!state) {
+    removeLocalStorage(STORAGE_KEY);
+    return;
   }
+  const serializable = {
+    ...state,
+    bestKyu: Number.isFinite(state.bestKyu) ? state.bestKyu : null,
+  };
+  writeLocalStorage(STORAGE_KEY, JSON.stringify(serializable));
 };
