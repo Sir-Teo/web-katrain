@@ -1,4 +1,4 @@
-import type { CandidateMove, GameNode, GameState, BoardState, Player, FloatArray, BoardSize } from "../types";
+import type { AnalysisResult, CandidateMove, GameNode, GameState, BoardState, Player, FloatArray, BoardSize } from "../types";
 import { DEFAULT_BOARD_SIZE } from "../types";
 import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './katrainSgfAnalysis';
 import { encodeKayaKaFromAnalysis } from './kayaSgfAnalysis';
@@ -444,6 +444,41 @@ function rootPlacementsFromBoard(board: BoardState): { AB?: string[]; AW?: strin
     return out;
 }
 
+/**
+ * Encoding a node's analysis gzips its ownership and policy planes, and that is
+ * where an SGF export spends nearly all of its time: a 231-move analysed game
+ * measured at 45 ms an export, almost all of it here.
+ *
+ * Exports are not rare. The unsaved-changes check serializes the tree, and live
+ * analysis replaces one node's analysis every few hundred milliseconds -- so
+ * every other node gets re-gzipped to produce bytes it already produced.
+ *
+ * Analysis objects are replaced wholesale when they change and are never
+ * mutated in place, so object identity is a sound cache key. A WeakMap lets the
+ * entry die with the node. `kt` stays lazy because ownershipMode 'none' skips
+ * it, and board size is checked because it decides the plane length.
+ */
+type EncodedAnalysisProps = { boardSize: BoardSize; ka: string; kt: string[] | null };
+
+const encodedAnalysisProps = new WeakMap<AnalysisResult, EncodedAnalysisProps>();
+
+function getEncodedAnalysisProps(analysis: AnalysisResult, boardSize: BoardSize): EncodedAnalysisProps {
+    const cached = encodedAnalysisProps.get(analysis);
+    if (cached && cached.boardSize === boardSize) return cached;
+    const entry: EncodedAnalysisProps = {
+        boardSize,
+        ka: encodeKayaKaFromAnalysis({ analysis, boardSize }),
+        kt: null,
+    };
+    encodedAnalysisProps.set(analysis, entry);
+    return entry;
+}
+
+function encodedKt(entry: EncodedAnalysisProps, analysis: AnalysisResult): string[] {
+    if (!entry.kt) entry.kt = encodeKaTrainKtFromAnalysis({ analysis, boardSize: entry.boardSize });
+    return entry.kt;
+}
+
 function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfig): string {
     const move = node.move;
     const boardSize = normalizeBoardSize(node.gameState.board.length, DEFAULT_BOARD_SIZE);
@@ -458,8 +493,9 @@ function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
     // When disabled, we still export user notes and move tree without embedding analysis blobs.
     if (trainer.saveAnalysis && node.analysis) {
         const ownershipMode = node.analysis.ownershipMode ?? 'root';
-        props.KA = [encodeKayaKaFromAnalysis({ analysis: node.analysis, boardSize })];
-        if (ownershipMode !== 'none') props.KT = encodeKaTrainKtFromAnalysis({ analysis: node.analysis, boardSize });
+        const encoded = getEncodedAnalysisProps(node.analysis, boardSize);
+        props.KA = [encoded.ka];
+        if (ownershipMode !== 'none') props.KT = encodedKt(encoded, node.analysis);
     }
 
     if (move) {
@@ -549,8 +585,9 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
 
     if (trainer.saveAnalysis && rootNode.analysis) {
         const ownershipMode = rootNode.analysis.ownershipMode ?? 'root';
-        props.KA = [encodeKayaKaFromAnalysis({ analysis: rootNode.analysis, boardSize })];
-        if (ownershipMode !== 'none') props.KT = encodeKaTrainKtFromAnalysis({ analysis: rootNode.analysis, boardSize });
+        const encoded = getEncodedAnalysisProps(rootNode.analysis, boardSize);
+        props.KA = [encoded.ka];
+        if (ownershipMode !== 'none') props.KT = encodedKt(encoded, rootNode.analysis);
     }
 
     delete props.C;
