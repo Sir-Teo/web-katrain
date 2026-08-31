@@ -47,7 +47,7 @@ describe('storage that throws on access', () => {
     await withThrowingLocalStorage(() => {
       expect(() => loadLadder()).not.toThrow();
       expect(loadLadder()).toBeNull();
-      const ladder = createLadder({ startKyu: 15, boardSize: 9 });
+      const ladder = createLadder({ startKyu: 15, boardSize: 9, userColor: 'black', komi: 6.5, handicap: 0 });
       expect(() => saveLadder(ladder)).not.toThrow();
       expect(() => saveLadder(null)).not.toThrow();
     });

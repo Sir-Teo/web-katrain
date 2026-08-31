@@ -170,6 +170,11 @@ describe('computeMoveTimes', () => {
     expect(times.map((t) => t.secondsSpent)).toEqual([100, 500, 20]);
   });
 
+  it('carries the node id so callers can line entries up without re-deriving order', () => {
+    const nodes = line([{ player: 'black', props: { BL: ['10'] } }, { player: 'white', props: { WL: ['9'] } }]);
+    expect(computeMoveTimes(nodes).map((t) => t.nodeId)).toEqual(['n0', 'n1']);
+  });
+
   it('skips nodes without a move and numbers the rest in order', () => {
     const nodes = line([{ player: 'black', props: { BL: ['10'] } }]);
     const withRoot = [{ id: 'root', move: null, properties: {} } as unknown as GameNode, ...nodes];

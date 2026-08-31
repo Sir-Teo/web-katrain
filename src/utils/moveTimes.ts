@@ -14,6 +14,9 @@ import type { GameNode, Player } from '../types';
 export type ByoYomiSpec = { periods: number; periodSeconds: number };
 
 export type MoveTime = {
+  /** The node this move was played at, so callers can line it up with anything
+   *  else they know about that node without re-deriving the ordering. */
+  nodeId: string;
   /** 1-based index of the move within the line. */
   moveNumber: number;
   player: Player;
@@ -144,6 +147,7 @@ export function computeMoveTimes(
     }
 
     out.push({
+      nodeId: node.id,
       moveNumber,
       player,
       timeLeftSeconds,

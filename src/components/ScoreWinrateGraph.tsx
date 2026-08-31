@@ -157,13 +157,10 @@ export const ScoreWinrateGraph: React.FC<{
    */
   const timeValues = useMemo(() => {
     if (!showTime) return [];
-    const moveNodes = nodes.filter((node) => node.move);
-    const times = computeMoveTimes(nodes, rootNode.properties);
     const byNodeId = new Map<string, number>();
-    times.forEach((entry, index) => {
-      const node = moveNodes[index];
-      if (node && entry.secondsSpent !== null) byNodeId.set(node.id, entry.secondsSpent);
-    });
+    for (const entry of computeMoveTimes(nodes, rootNode.properties)) {
+      if (entry.secondsSpent !== null) byNodeId.set(entry.nodeId, entry.secondsSpent);
+    }
     return displayNodes.map((node) => byNodeId.get(node.id) ?? Number.NaN);
   }, [displayNodes, nodes, rootNode.properties, showTime]);
 
