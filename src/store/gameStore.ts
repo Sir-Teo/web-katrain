@@ -15,7 +15,8 @@ import { publicUrl } from '../utils/publicUrl';
 import { isBoardThemeId } from '../utils/boardThemes';
 import { getPreferredAppLocaleId, isAppLocaleId } from '../utils/locales';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
-import { makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
+import { makeAnalysisPositionKey, makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
+import { computeTenukiValue, opponentFollowUp, type TenukiValue } from '../utils/tenukiValue';
 import {
   analysisQueue,
   isAnalysisQueueCanceledError,
@@ -95,6 +96,14 @@ interface GameStore extends GameState {
    */
   notification: { message: string, type: 'info' | 'error' | 'success', copyText?: string, undoable?: boolean } | null;
   analysisData: AnalysisResult | null;
+  /**
+   * "What do I lose by playing elsewhere?", answered by evaluating the position
+   * again after the side to move passes. Kept off the game tree: it describes a
+   * position that was never played, and attaching it to a node would put it in
+   * exported SGF as if it had been. Carries the node id it belongs to rather
+   * than being cleared on navigation -- consumers check it still matches.
+   */
+  tenukiAnalysis: TenukiAnalysisState | null;
   analysisCacheSize: number;
   settings: GameSettings;
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
@@ -114,6 +123,9 @@ interface GameStore extends GameState {
   toggleAnalysisMode: () => void;
   toggleContinuousAnalysis: (quiet?: boolean) => void;
   stopAnalysis: () => void;
+  /** Evaluate the position after the side to move passes; see `tenukiAnalysis`. */
+  analyzeTenuki: () => void;
+  clearTenukiAnalysis: () => void;
   clearAnalysisCache: () => void;
   toggleTeachMode: () => void;
   clearNotification: () => void;
@@ -200,6 +212,20 @@ interface GameStore extends GameState {
 }
 
 type StoreNotification = NonNullable<GameStore['notification']>;
+
+export type TenukiAnalysisState = {
+  /** The node this describes. Navigation does not clear it; consumers compare. */
+  nodeId: string;
+  status: 'running' | 'ready' | 'error';
+  /** Whose move it would have been. */
+  sideToMove: Player;
+  value: TenukiValue | null;
+  /** The opponent's best reply once the side to move has passed. */
+  followUp: CandidateMove | null;
+  /** The full post-pass evaluation, so the board can lay out its variation. */
+  afterPass: AnalysisResult | null;
+  error?: string;
+};
 
 const createEmptyTerritory = (boardSize: number): number[][] =>
   Array.from({ length: boardSize }, () => Array.from({ length: boardSize }, () => 0));
@@ -1111,6 +1137,9 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 const ANALYSIS_QUEUE_PRIORITY = {
   interactive: 100,
   aiMove: 70,
+  // Asked for explicitly, so it should feel responsive -- but not at the cost
+  // of stalling a move the AI owes the user in a live game.
+  tenuki: 60,
   selfplay: 55,
   fullGame: 20,
   fastGame: 15,
@@ -1203,6 +1232,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isTeachMode: false,
   notification: null,
   analysisData: null,
+  tenukiAnalysis: null,
   analysisCacheSize: getAnalysisCacheSize(initialRoot),
   settings: initialSettings,
   engineStatus: 'idle',
@@ -1310,7 +1340,157 @@ export const useGameStore = create<GameStore>((set, get) => ({
   stopAnalysis: () => {
       continuousToken++;
       analysisQueue.cancelGroup('interactive');
+      analysisQueue.cancelGroup('tenuki');
       set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null });
+  },
+
+  clearTenukiAnalysis: () => set({ tenukiAnalysis: null }),
+
+  /**
+   * Ask what the move here is worth, by evaluating the same position after the
+   * side to move passes. The engine then reports what the opponent does with
+   * the point, and the gap between the two leads prices it.
+   *
+   * Deliberately not routed through `runAnalysis`: that writes onto the current
+   * node, and this describes a position that was never played. It would end up
+   * in exported SGF as though it had been, and it would overwrite the live
+   * analysis the board is drawing.
+   */
+  analyzeTenuki: () => {
+    const state = get();
+    const node = state.currentNode;
+    const current = node.analysis;
+
+    if (!current || !Number.isFinite(current.rootScoreLead)) {
+      set({ notification: { message: 'Analyze the position first, then ask what playing elsewhere costs.', type: 'error' } });
+      return;
+    }
+
+    const sideToMove = state.currentPlayer;
+    const opponent: Player = sideToMove === 'black' ? 'white' : 'black';
+    const passMove: Move = { x: -1, y: -1, player: sideToMove };
+    const rules = state.settings.gameRules;
+    const boardSize = getBoardSizeFromBoard(state.board);
+    const komi = komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi);
+    const modelUrl = resolveModelUrlForFetch(state.settings.katagoModelUrl);
+    const visits = Math.max(16, Math.min(state.settings.katagoVisits, ENGINE_MAX_VISITS));
+    const maxTimeMs = Math.max(25, Math.min(state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
+
+    // A pass leaves the stones alone, so the post-pass position sees the same
+    // board with the turn handed over and one more entry in the history.
+    const moveHistory = [...state.moveHistory, passMove];
+    const positionKey = makeAnalysisPositionKey({
+      board: state.board,
+      currentPlayer: opponent,
+      moveHistory,
+      komi,
+      rules,
+    });
+
+    set({
+      tenukiAnalysis: {
+        nodeId: node.id,
+        status: 'running',
+        sideToMove,
+        value: null,
+        followUp: null,
+        afterPass: null,
+      },
+    });
+
+    void analysisQueue
+      .enqueue<KataGoAnalysisPayload>({
+        id: `tenuki:${node.id}`,
+        label: 'Play elsewhere',
+        group: 'tenuki',
+        priority: ANALYSIS_QUEUE_PRIORITY.tenuki,
+        staleKey: 'tenuki-analysis',
+        cacheKey: analysisCacheKey('tenuki', positionKey, modelUrl, state.settings.katagoBackend, visits),
+        run: () =>
+          getKataGoEngineClient().analyze({
+            // A distinct position id, and `reuseTree` off: the worker keeps a
+            // search tree per position, and letting it re-root the live tree
+            // onto a position the player never entered would slow or skew the
+            // next interactive pass.
+            positionId: `${node.id}:pass`,
+            positionKey,
+            modelUrl,
+            backend: state.settings.katagoBackend,
+            board: state.board,
+            previousBoard: state.board,
+            previousPreviousBoard: node.parent?.gameState.board,
+            currentPlayer: opponent,
+            moveHistory,
+            komi,
+            rules,
+            topK: Math.max(1, Math.min(state.settings.katagoTopK, 50)),
+            analysisPvLen: state.settings.katagoAnalysisPvLen,
+            visits,
+            maxTimeMs,
+            batchSize: Math.max(1, Math.min(state.settings.katagoBatchSize, 64)),
+            maxChildren: Math.max(4, Math.min(state.settings.katagoMaxChildren, boardSize * boardSize)),
+            reuseTree: false,
+            ownershipMode: 'none',
+            // Background, not interactive: this must not supersede the live
+            // analysis the board is drawing.
+            analysisGroup: 'background',
+            conservativePass: state.settings.katagoConservativePass,
+            rootPolicyTemperature: state.settings.katagoRootPolicyTemperature,
+            fillDameBeforePass: state.settings.katagoFillDameBeforePass,
+          }),
+      })
+      .then((payload) => {
+        // The player may have moved on while this ran; the readout belongs to
+        // the node it was asked about, not to wherever they are now.
+        const afterPass: AnalysisResult = {
+          rootWinRate: payload.rootWinRate,
+          rootScoreLead: payload.rootScoreLead,
+          rootVisits: payload.rootVisits,
+          moves: payload.moves,
+          territory: createEmptyTerritory(boardSize),
+        };
+        const value = computeTenukiValue({
+          sideToMove,
+          scoreLeadNow: current.rootScoreLead,
+          scoreLeadAfterPass: payload.rootScoreLead,
+        });
+        set((s) =>
+          s.tenukiAnalysis && s.tenukiAnalysis.nodeId === node.id
+            ? {
+                tenukiAnalysis: {
+                  nodeId: node.id,
+                  status: 'ready',
+                  sideToMove,
+                  value,
+                  followUp: opponentFollowUp(afterPass),
+                  afterPass,
+                },
+              }
+            : {}
+        );
+      })
+      .catch((err: unknown) => {
+        if (isKataGoCanceledError(err)) {
+          set((s) => (s.tenukiAnalysis?.nodeId === node.id ? { tenukiAnalysis: null } : {}));
+          return;
+        }
+        const message = err instanceof Error ? err.message : String(err);
+        set((s) =>
+          s.tenukiAnalysis && s.tenukiAnalysis.nodeId === node.id
+            ? {
+                tenukiAnalysis: {
+                  nodeId: node.id,
+                  status: 'error',
+                  sideToMove,
+                  value: null,
+                  followUp: null,
+                  afterPass: null,
+                  error: message,
+                },
+              }
+            : {}
+        );
+      });
   },
 
   clearAnalysisCache: () => {
