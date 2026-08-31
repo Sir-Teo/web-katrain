@@ -126,7 +126,9 @@ describe('RightPanel layout', () => {
     const source = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
 
     expect(source).toContain("{!node.parent ? 'Initial position' : label}");
-    expect(source).toMatch(/\{move \? \([\s\S]{0,900}\) : \([\s\S]{0,180}Initial position/);
+    // The bound guards the *no-move* branch staying short and single-purpose;
+    // the move branch grew when the list gained its move-quality dot.
+    expect(source).toMatch(/\{move \? \([\s\S]{0,1000}\) : \([\s\S]{0,180}Initial position/);
   });
 
 

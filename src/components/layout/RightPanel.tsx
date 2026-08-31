@@ -25,6 +25,11 @@ import { Timer } from '../Timer';
 import type { AnalysisControlsState, UiMode, UiState } from './types';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId, type MobileTab } from './mobileTabs';
 import type { MoveInsight } from '../../utils/moveInsight';
+import {
+  getPrimaryMoveQualityMarker,
+  MOVE_TREE_NODE_MARKER_LABELS,
+  type MoveQualityMarker,
+} from '../../utils/moveTreeNodeMarkers';
 import { SectionHeader } from './ui';
 import { formatMoveLabel, formatPositionSummary, panelCardBase, panelCardClosed, panelCardOpen, playerToShort } from './ui-utils';
 import {
@@ -204,6 +209,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   };
 
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
+  // The same threshold the graphical tree marks its nodes with, so the two
+  // views never disagree about what counted as a mistake.
+  const mistakeThreshold = useGameStore((state) => state.settings.mistakeThreshold);
   const treeListNodes = React.useMemo(() => {
     void treeVersion;
     return getCurrentLineNodes(currentNode, activeBranchChildIds);
@@ -421,6 +429,22 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       </button>
     </>
   );
+  /**
+   * The list is the default view on a phone, and it used to say nothing about
+   * how a move played -- finding your blunders meant scrubbing the graph or
+   * opening the report. One dot, coloured exactly as the tree marks the same
+   * node, and named for assistive tech since colour is the only other signal.
+   */
+  const renderQualityDot = (marker: MoveQualityMarker | null) =>
+    marker ? (
+      <span
+        className={['move-list-quality-dot', marker].join(' ')}
+        title={MOVE_TREE_NODE_MARKER_LABELS[marker]}
+      >
+        <span className="sr-only">{MOVE_TREE_NODE_MARKER_LABELS[marker]}</span>
+      </span>
+    ) : null;
+
   const treeToolbarSeparatorClass = [
     'h-5 w-px bg-[var(--ui-border)] mx-1',
     isMobile ? 'hidden' : '',
@@ -664,6 +688,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                           const player = move ? playerToShort(move.player) : '—';
                           const moveNumberLabel = getNodeMoveNumberLabel(node);
                           const hasNote = !!node.note?.trim();
+                          const qualityMarker = getPrimaryMoveQualityMarker(node, mistakeThreshold);
                           const playerChipClass = !move
                             ? 'border border-[var(--ui-border)] bg-[var(--ui-surface-2)] text-[var(--ui-text-muted)]'
                             : move.player === 'black'
@@ -710,6 +735,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                                     {player}
                                   </span>
                                   <span className="text-xs font-medium">{label}</span>
+                                  {renderQualityDot(qualityMarker)}
                                 </>
                               ) : (
                                 <span className="text-xs font-medium">

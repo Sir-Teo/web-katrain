@@ -59,3 +59,28 @@ export function getMoveTreeNodeMarkers(
   }
   return markers;
 }
+
+/**
+ * The markers that say something about how good the move was, in the order a
+ * reader cares about them. `note` and `analysis` are excluded: they describe
+ * what the node carries, not how the move played.
+ */
+export type MoveQualityMarker = Extract<MoveTreeNodeMarker, 'blunder' | 'mistake' | 'setup' | 'best'>;
+
+const MOVE_QUALITY_PRIORITY: readonly MoveQualityMarker[] = ['blunder', 'mistake', 'setup', 'best'];
+
+/**
+ * The single most notable quality marker for a node, for surfaces with room for
+ * one mark rather than the tree's row of them -- the move list, most of all,
+ * which is the default view on a phone.
+ */
+export function getPrimaryMoveQualityMarker(
+  node: GameNode | undefined,
+  mistakeThreshold: number
+): MoveQualityMarker | null {
+  const markers = getMoveTreeNodeMarkers(node, mistakeThreshold);
+  for (const candidate of MOVE_QUALITY_PRIORITY) {
+    if (markers.includes(candidate)) return candidate;
+  }
+  return null;
+}

@@ -2607,6 +2607,22 @@
     fill: #a855f7;
   }
 
+  /* The move list's one-dot version of the tree's marker row. Same colours, so
+     a red dot means the same thing in both views. */
+  .move-list-quality-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    display: inline-block;
+    background: var(--ui-text-muted);
+  }
+
+  .move-list-quality-dot.mistake { background: var(--ui-danger); }
+  .move-list-quality-dot.blunder { background: #dc2626; }
+  .move-list-quality-dot.best { background: #22d3ee; }
+  .move-list-quality-dot.setup { background: #a855f7; }
+
   .move-tree-node-halo-best {
     fill: none;
     stroke: #22d3ee;
