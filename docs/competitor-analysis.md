@@ -125,3 +125,23 @@ was used for behavioral reference only).
 9. Longer-term/strategic: Tauri desktop builds with auto-update; larger pro-game corpus;
    tree minimap (Kaya: reactflow + worker layout, main line straight, variations offset
    per depth).
+
+## Beyond the competitors (2026-08-31)
+
+Two things shipped that neither Kaya nor Kifubara has, found by looking at what
+chess tooling does rather than at what other Go apps do:
+
+- **Time graph.** `BL`/`WL`/`OB`/`OW` are standard SGF properties that OGS, KGS,
+  Fox and Tygem all write, and we already preserved them through import *and*
+  export without ever reading them. Lichess's move-time chart is one of its
+  most-used review surfaces; `src/utils/moveTimes.ts` derives the same thing.
+  The care is in what the file cannot say -- a byo-yomi phase records the same
+  reading every move, so differencing it would draw a flat run of "instant
+  moves" across the most pressured stretch of the game.
+- **"Play elsewhere?"** (`src/utils/tenukiValue.ts`, `src/components/TenukiRow.tsx`).
+  Lichess's `x` shows the opponent's threat by handing them the move. Go can
+  express it more cleanly, because passing is legal: evaluate the position
+  again after the side to move passes, and the gap between the two leads is the
+  classic value of the point. Validated on an empty 19x19, where the answer is
+  knowable from theory -- roughly B+7 becomes roughly W+3.5, so the first move
+  prices at about 10.5 points.

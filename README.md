@@ -16,6 +16,11 @@ PWA. There is no analysis server to run.
   lead.
 - Quick, fast, and full-game analysis passes with per-position caching.
 - KaTrain-style move quality, phase summaries, and game reports.
+- "Play elsewhere?" prices the point: the engine evaluates the position again
+  after a pass, so you can see what the move here is worth and where the
+  opponent would go if you ignored it.
+- Time graph from the clock recorded in the SGF (`BL`/`WL`/`OB`/`OW`), for games
+  imported from OGS, KGS, Fox or Tygem.
 
 **Study and play**
 
