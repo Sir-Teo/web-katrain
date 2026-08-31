@@ -215,6 +215,7 @@ export const Layout: React.FC = () => {
     loadGame,
     applySetupStones,
     analyzeExtra,
+    analyzeTenuki,
     resetCurrentAnalysis,
     clearAnalysisCache,
     analysisCacheSize,
@@ -293,6 +294,7 @@ export const Layout: React.FC = () => {
       loadGame: state.loadGame,
       applySetupStones: state.applySetupStones,
       analyzeExtra: state.analyzeExtra,
+      analyzeTenuki: state.analyzeTenuki,
       resetCurrentAnalysis: state.resetCurrentAnalysis,
       clearAnalysisCache: state.clearAnalysisCache,
       analysisCacheSize: state.analysisCacheSize,
@@ -2636,6 +2638,16 @@ export const Layout: React.FC = () => {
           if (!settings.analysisShowPolicy) updateControls({ analysisShowPolicy: true });
         },
         keywords: ['probability label', 'score change', 'win-rate change', 'heatmap label'],
+      },
+      {
+        id: 'analyze-tenuki',
+        label: 'What does playing elsewhere cost?',
+        category: 'Analysis',
+        run: () => analyzeTenuki(),
+        disabledReason: currentNode.analysis
+          ? undefined
+          : 'Analyze the position first, so there is something to compare a pass against.',
+        keywords: ['tenuki', 'sente', 'gote', 'urgent', 'threat', 'how big', 'value of the point', 'pass'],
       },
       {
         id: 'toggle-territory',
