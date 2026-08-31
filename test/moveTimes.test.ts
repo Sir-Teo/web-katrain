@@ -94,6 +94,43 @@ describe('computeMoveTimes', () => {
     expect(times[1]!.inByoYomi).toBe(true);
   });
 
+  it('does not read a renewed byo-yomi period as an instant move', () => {
+    // A byo-yomi phase records the same reading move after move. Differencing
+    // it gives zero, but the player may have used the whole period.
+    const times = computeMoveTimes(
+      line([
+        { player: 'black', props: { BL: ['30'], OB: ['5'] } },
+        { player: 'black', props: { BL: ['30'], OB: ['5'] } },
+        { player: 'black', props: { BL: ['30'], OB: ['5'] } },
+      ]),
+      { TM: ['1800'], OT: ['5x30 byo-yomi'] }
+    );
+    expect(times.map((t) => t.secondsSpent)).toEqual([null, null, null]);
+    expect(times.every((t) => t.inByoYomi)).toBe(true);
+  });
+
+  it('still measures a clock that ticks down inside one period', () => {
+    const times = computeMoveTimes(
+      line([
+        { player: 'black', props: { BL: ['30'], OB: ['5'] } },
+        { player: 'black', props: { BL: ['18'], OB: ['5'] } },
+      ]),
+      { TM: ['1800'], OT: ['5x30 byo-yomi'] }
+    );
+    expect(times[1]!.secondsSpent).toBe(12);
+  });
+
+  it('keeps an unchanged main-time reading as a real instant move', () => {
+    const times = computeMoveTimes(
+      line([
+        { player: 'black', props: { BL: ['1750'] } },
+        { player: 'black', props: { BL: ['1750'] } },
+      ]),
+      { TM: ['1750'] }
+    );
+    expect(times.map((t) => t.secondsSpent)).toEqual([0, 0]);
+  });
+
   it('reports a crossed period boundary as unknown', () => {
     const times = computeMoveTimes(
       line([
@@ -104,6 +141,21 @@ describe('computeMoveTimes', () => {
     );
     expect(times[1]!.secondsSpent).toBeNull();
     expect(times[1]!.periodsLeft).toBe(4);
+  });
+
+  it('does not treat falling out of main time as one long move', () => {
+    // The readings either side of the transition measure different clocks: 1800
+    // main-time seconds against a 30-second period.
+    const times = computeMoveTimes(
+      line([
+        { player: 'black', props: { BL: ['40'] } },
+        { player: 'black', props: { BL: ['30'], OB: ['5'] } },
+        { player: 'black', props: { BL: ['21'], OB: ['5'] } },
+      ]),
+      { TM: ['1800'], OT: ['5x30 byo-yomi'] }
+    );
+    expect(times.map((t) => t.secondsSpent)).toEqual([1760, null, 9]);
+    expect(times.map((t) => t.inByoYomi)).toEqual([false, true, true]);
   });
 
   it('tracks the two players independently', () => {

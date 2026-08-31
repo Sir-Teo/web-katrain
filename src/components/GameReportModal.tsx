@@ -36,6 +36,8 @@ import { printWindow } from '../utils/print';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
+import { computeMoveTimes, hasMoveTimeData } from '../utils/moveTimes';
+import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { NO_VALUE } from '../utils/analysisSummary';
 
 interface GameReportModalProps {
@@ -156,9 +158,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     startFastGameAnalysis,
     stopGameAnalysis,
     humanSlProfile,
+    rootNode,
   } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
+      rootNode: state.rootNode,
       activeBranchChildIds: state.activeBranchChildIds,
       trainerEvalThresholds: state.settings.trainerEvalThresholds,
       treeVersion: state.treeVersion,
@@ -175,8 +179,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     shallow
   );
   const humanProfileLabel = describeHumanProfile(humanSlProfile);
+  const hasMoveTimes = useMemo(
+    () => hasMoveTimeData(computeMoveTimes(getCurrentLineNodes(currentNode, activeBranchChildIds), rootNode.properties)),
+    [activeBranchChildIds, currentNode, rootNode.properties]
+  );
   const [phaseFilter, setPhaseFilter] = useState<GameReportPhaseFilter>('all');
-  const [reportGraph, setReportGraph] = useState({ score: true, winrate: true });
+  const [reportGraph, setReportGraph] = useState({ score: true, winrate: true, time: false });
   const [playerFilter, setPlayerFilter] = useState<'all' | Player>('all');
   const [bucketFilter, setBucketFilter] = useState<number | null>(null);
   const [policyFilter, setPolicyFilter] = useState<MovePolicyCategory | null>(null);
@@ -1440,15 +1448,27 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   active={reportGraph.winrate}
                   onClick={() => setReportGraph((prev) => ({ ...prev, winrate: !prev.winrate }))}
                 />
+                {/* Only offered when the SGF carries a clock. Most local games
+                    have none, and a toggle that can only ever draw nothing is
+                    worse than no toggle. */}
+                {hasMoveTimes && (
+                  <PanelHeaderButton
+                    label="Time"
+                    colorClass="bg-amber-600/30"
+                    active={reportGraph.time}
+                    onClick={() => setReportGraph((prev) => ({ ...prev, time: !prev.time }))}
+                  />
+                )}
               </div>
             </div>
             <div className={`mt-3 p-2 ${insetSurfaceClass}`}>
-              {reportGraph.score || reportGraph.winrate ? (
+              {reportGraph.score || reportGraph.winrate || (hasMoveTimes && reportGraph.time) ? (
                 <div style={{ height: 160 }}>
                   <ScoreWinrateGraph
-                    key={`${graphRange?.start ?? 0}-${graphRange?.end ?? 'all'}-${treeVersion}-${gameAnalysisDone}-${graphTick}-${reportGraph.score ? 's' : ''}${reportGraph.winrate ? 'w' : ''}`}
+                    key={`${graphRange?.start ?? 0}-${graphRange?.end ?? 'all'}-${treeVersion}-${gameAnalysisDone}-${graphTick}-${reportGraph.score ? 's' : ''}${reportGraph.winrate ? 'w' : ''}${reportGraph.time ? 't' : ''}`}
                     showScore={reportGraph.score}
                     showWinrate={reportGraph.winrate}
+                    showTime={hasMoveTimes && reportGraph.time}
                     range={graphRange}
                   />
                 </div>
@@ -1458,6 +1478,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             </div>
             <div className={`mt-2 text-xs ${mutedClass}`}>
               Score lead and winrate are from the current analysis data.
+              {hasMoveTimes ? ' Time comes from the clock recorded in the SGF.' : ''}
             </div>
           </div>
 

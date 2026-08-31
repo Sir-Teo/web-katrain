@@ -77,6 +77,8 @@ export interface DesktopDashboardProps {
   startSelectRegionOfInterest: () => void;
 
   // ---- panel open state (owned by Layout for keyboard shortcuts) ----
+  /** True when the loaded SGF carries per-move clock data worth charting. */
+  hasMoveTimes?: boolean;
   libraryOpen: boolean;
   setLibraryOpen: (open: boolean) => void;
   libraryPanel?: React.ReactNode;
@@ -188,6 +190,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     mode, setMode, isContinuousAnalysis, toggleContinuousAnalysis,
     settings, updateControls, updateSettings,
     isInsertMode, toggleInsertMode, isSelectingRegionOfInterest, startSelectRegionOfInterest,
+    hasMoveTimes = false,
     libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, focusMode = false,
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
@@ -231,7 +234,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   // analysis is off, so the board keeps its size across a Tab. "closed" means
   // the user collapsed the bar and wants that space for the board.
   const commandbarState = commandbarVisible ? 'open' : commandbarOpen ? 'reserved' : 'closed';
-  const [legend, setLegend] = useState({ winrate: true, score: true });
+  const [legend, setLegend] = useState({ winrate: true, score: true, time: false });
   const [legendOpen, setLegendOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [layoutMode, setLayoutMode] = useState<DashboardLayoutMode>(() => {
@@ -964,7 +967,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   </div>
                 )}
                 <div className="graph-wrap">
-                  <ScoreWinrateGraph showScore={legend.score} showWinrate={legend.winrate} />
+                  <ScoreWinrateGraph
+                    showScore={legend.score}
+                    showWinrate={legend.winrate}
+                    showTime={hasMoveTimes && legend.time}
+                  />
                 </div>
                 <div className="graph-legend">
                   <button
@@ -989,6 +996,22 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
                     <span className="sw" style={{ background: 'var(--amber)' }} />Score
                   </button>
+                  {/* Only offered when the SGF carries a clock. Most local games
+                      have none, and a toggle that can only ever draw nothing is
+                      worse than no toggle. */}
+                  {hasMoveTimes && (
+                    <button
+                      type="button"
+                      className={`lg${legend.time ? ' on' : ''}`}
+                      aria-pressed={legend.time}
+                      aria-label={legend.time ? 'Hide time graph' : 'Show time graph'}
+                      title={legend.time ? 'Hide time graph' : 'Show time graph'}
+                      onClick={() => setLegend((l) => ({ ...l, time: !l.time }))}
+                    >
+                      <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
+                      <span className="sw" style={{ background: 'var(--amber)', opacity: 0.55 }} />Time
+                    </button>
+                  )}
                 </div>
                 {/* Overlay toggles and review actions are analyst tooling; the
                     Play tab stays focused on the game itself. */}

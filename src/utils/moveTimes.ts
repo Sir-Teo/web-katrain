@@ -73,14 +73,24 @@ export function parseByoYomi(properties: Record<string, string[]> | undefined): 
  *
  * `secondsSpent` is a plain difference between successive clock readings for
  * the same player, which is right for the whole main-time phase. It is reported
- * as null in three cases, all of them genuinely undetermined by the file:
+ * as null in four cases, all of them genuinely undetermined by the file:
  *
  * - the first move of a player when the root carries no `TM`, so there is no
  *   reading to subtract from;
  * - a move that crosses a byo-yomi period boundary (`OB`/`OW` changed), since
  *   the file records only the periods left, not how far into one the move fell;
  * - a move after which the clock reads *higher* than before it, which is a
- *   period renewing. The renewal discards exactly the number this would want.
+ *   period renewing. The renewal discards exactly the number this would want;
+ * - a move in byo-yomi after which the clock reads the *same* as before it,
+ *   which is also a renewal. This one matters: a whole byo-yomi phase records
+ *   the same reading move after move, so treating the zero difference as a
+ *   measurement would draw a long flat run of "instant moves" over what was
+ *   usually the most pressured stretch of the game. In main time an unchanged
+ *   reading really does mean an instant move, so the rule only tightens once
+ *   `OB`/`OW` say the player is counting periods;
+ * - the move on which a player falls out of main time into byo-yomi. The two
+ *   readings either side of it measure different clocks, so their difference is
+ *   the main time that was left, not the time this move took.
  *
  * Guessing through those would put invented numbers next to measured ones in
  * the same series, which is the one thing a time graph must not do.
@@ -100,6 +110,9 @@ export function computeMoveTimes(
     black: byoYomi ? byoYomi.periods : null,
     white: byoYomi ? byoYomi.periods : null,
   };
+  // Whether the player's previous reading was a byo-yomi one. A game starts in
+  // main time even when the root declares byo-yomi periods.
+  const previouslyInByoYomi: Record<Player, boolean> = { black: false, white: false };
 
   const out: MoveTime[] = [];
   let moveNumber = 0;
@@ -118,10 +131,16 @@ export function computeMoveTimes(
     const previousPeriodCount = previousPeriods[player];
 
     let secondsSpent: number | null = null;
+    const inByoYomi = periodsLeft !== null;
     const crossedPeriod =
-      periodsLeft !== null && previousPeriodCount !== null && periodsLeft !== previousPeriodCount;
-    if (timeLeftSeconds !== null && previous !== null && !crossedPeriod && timeLeftSeconds <= previous) {
-      secondsSpent = previous - timeLeftSeconds;
+      inByoYomi && previousPeriodCount !== null && periodsLeft !== previousPeriodCount;
+    // In byo-yomi only a strict decrease is a measurement; an unchanged reading
+    // is the period renewing, not an instant move.
+    const decreased = timeLeftSeconds !== null && previous !== null
+      && (inByoYomi ? timeLeftSeconds < previous : timeLeftSeconds <= previous);
+    const changedPhase = inByoYomi !== previouslyInByoYomi[player];
+    if (decreased && !crossedPeriod && !changedPhase) {
+      secondsSpent = previous! - timeLeftSeconds!;
     }
 
     out.push({
@@ -130,11 +149,12 @@ export function computeMoveTimes(
       timeLeftSeconds,
       periodsLeft,
       secondsSpent,
-      inByoYomi: periodsLeft !== null,
+      inByoYomi,
     });
 
     if (timeLeftSeconds !== null) previousTime[player] = timeLeftSeconds;
     if (periodsLeft !== null) previousPeriods[player] = periodsLeft;
+    previouslyInByoYomi[player] = inByoYomi;
   }
 
   return out;

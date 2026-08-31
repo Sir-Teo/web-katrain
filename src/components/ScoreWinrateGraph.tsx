@@ -7,12 +7,19 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { isGraphKeyboardNavigationKey, nextGraphKeyboardIndex } from '../utils/graphKeyboard';
 import { hasVisibleGraphData } from '../utils/graphDataAvailability';
+import { computeMoveTimes, formatMoveTime } from '../utils/moveTimes';
 import { getScoreWinrateGraphTheme } from '../utils/scoreWinrateGraphTheme';
 import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
 
 const SCORE_GRANULARITY = 5;
 const WINRATE_GRANULARITY = 10;
 const MIN_QUALITY_MARKER_LOSS = 0.5;
+/**
+ * The time bars live in a band at the foot of the graph. Both other series are
+ * anchored to the vertical centre, so keeping time out of that half stops a
+ * spiky magnitude from reading as a swing in the evaluation.
+ */
+const TIME_BAND_HEIGHT = 34;
 
 function computeSymmetricScale(values: number[], granularity: number): number {
   const finite = values.filter((v) => Number.isFinite(v));
@@ -64,10 +71,13 @@ function formatPointLoss(pointsLost: number): string {
 export const ScoreWinrateGraph: React.FC<{
   showScore: boolean;
   showWinrate: boolean;
+  /** Per-move thinking time from the SGF clock, drawn as bars along the foot. */
+  showTime?: boolean;
   range?: { start: number; end: number } | null;
-}> = ({ showScore, showWinrate, range = null }) => {
+}> = ({ showScore, showWinrate, showTime = false, range = null }) => {
   const {
     currentNode,
+    rootNode,
     activeBranchChildIds,
     jumpToNode,
     trainerTheme,
@@ -82,6 +92,7 @@ export const ScoreWinrateGraph: React.FC<{
   } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
+      rootNode: state.rootNode,
       activeBranchChildIds: state.activeBranchChildIds,
       jumpToNode: state.jumpToNode,
       trainerTheme: state.settings.trainerTheme,
@@ -137,11 +148,37 @@ export const ScoreWinrateGraph: React.FC<{
 
   const smoothedScoreValues = useMemo(() => smoothAnalysisGraphValues(scoreValues), [scoreValues]);
   const smoothedWinrateValues = useMemo(() => smoothAnalysisGraphValues(winrateValues), [winrateValues]);
+
+  /**
+   * Thinking time is derived over the *whole* line, not over `displayNodes`.
+   * Each figure is a difference against that player's previous reading, so a
+   * windowed range that started mid-game would otherwise lose the first move of
+   * each colour. Keying by node id re-aligns the full-line result to the window.
+   */
+  const timeValues = useMemo(() => {
+    if (!showTime) return [];
+    const moveNodes = nodes.filter((node) => node.move);
+    const times = computeMoveTimes(nodes, rootNode.properties);
+    const byNodeId = new Map<string, number>();
+    times.forEach((entry, index) => {
+      const node = moveNodes[index];
+      if (node && entry.secondsSpent !== null) byNodeId.set(node.id, entry.secondsSpent);
+    });
+    return displayNodes.map((node) => byNodeId.get(node.id) ?? Number.NaN);
+  }, [displayNodes, nodes, rootNode.properties, showTime]);
+
+  const timeScale = useMemo(() => {
+    const finite = timeValues.filter((v) => Number.isFinite(v));
+    return finite.length > 0 ? Math.max(...finite, 1) : 1;
+  }, [timeValues]);
+
   const hasGraphData = hasVisibleGraphData({
     showScore,
     showWinrate,
     scoreValues: smoothedScoreValues,
     winrateValues: smoothedWinrateValues,
+    showTime,
+    timeValues,
   });
   const emptyStateId = React.useId();
 
@@ -282,9 +319,16 @@ export const ScoreWinrateGraph: React.FC<{
       ? formatPointLoss(hoverPointsLost)
       : '';
   const hoverMetricsText = `${showWinrate ? `${(50 + hoverWin).toFixed(1)}%` : ''}${showScore && showWinrate ? ' - ' : ''}${showScore ? `${hoverScore >= 0 ? 'B' : 'W'}+${Math.abs(hoverScore).toFixed(1)}` : ''}`;
+  const hoverSeconds = hoverIndex !== null ? timeValues[hoverIndex] : undefined;
+  const hoverTimeText =
+    showTime && typeof hoverSeconds === 'number' && Number.isFinite(hoverSeconds)
+      ? formatMoveTime(hoverSeconds)
+      : '';
   const hoverTooltip =
     hoverIndex !== null
-      ? [`Move ${nodeMoveNumber(hoverNode)}`, hoverMetricsText, hoverLossText].filter(Boolean).join(' · ')
+      ? [`Move ${nodeMoveNumber(hoverNode)}`, hoverMetricsText, hoverTimeText, hoverLossText]
+          .filter(Boolean)
+          .join(' · ')
       : '';
 
   return (
@@ -316,6 +360,26 @@ export const ScoreWinrateGraph: React.FC<{
       onKeyDown={handleKeyDown}
     >
       <svg ref={svgRef} width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        {/* Thinking time, behind the evaluation lines. Bars rather than a line:
+            time is spiky and has a meaningful zero, and a line between a
+            two-second move and an eight-minute one implies a trend that is not
+            there. Gaps are moves the SGF does not determine a time for. */}
+        {showTime && timeValues.map((seconds, index) => {
+          if (!Number.isFinite(seconds)) return null;
+          const barHeight = Math.max(0.6, (seconds / timeScale) * TIME_BAND_HEIGHT);
+          return (
+            <line
+              key={`t${index}`}
+              x1={index * xScale}
+              x2={index * xScale}
+              y1={height}
+              y2={height - barHeight}
+              stroke={graphTheme.timeColor}
+              strokeWidth="1.4"
+              vectorEffect="non-scaling-stroke"
+            />
+          );
+        })}
         {/* Lines */}
         {showScore && (
           <path

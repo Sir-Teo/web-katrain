@@ -7,9 +7,14 @@ export function hasVisibleGraphData(args: {
   showWinrate: boolean;
   scoreValues: readonly number[];
   winrateValues: readonly number[];
+  // Clock data comes from the SGF rather than from analysis, so a game with no
+  // analysis at all can still have a graph worth showing and interacting with.
+  showTime?: boolean;
+  timeValues?: readonly number[];
 }): boolean {
   return (
     (args.showScore && hasFiniteGraphData(args.scoreValues)) ||
-    (args.showWinrate && hasFiniteGraphData(args.winrateValues))
+    (args.showWinrate && hasFiniteGraphData(args.winrateValues)) ||
+    (!!args.showTime && hasFiniteGraphData(args.timeValues ?? []))
   );
 }

@@ -91,7 +91,8 @@ import { useTournamentStore } from '../store/tournamentStore';
 import { formatKyuRank, type LadderState } from '../utils/tournament';
 import { currentGauntletOpponentKyu, type GauntletState } from '../utils/gauntlet';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
-import { getActiveChild, getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber } from '../utils/branchNavigation';
+import { getActiveChild, getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber, getCurrentLineNodes } from '../utils/branchNavigation';
+import { computeMoveTimes, hasMoveTimeData } from '../utils/moveTimes';
 import { getMistakeNavigationAvailability } from '../utils/mistakeNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
 import { AnalysisCacheClearConfirmModal } from './AnalysisCacheClearConfirmModal';
@@ -3045,6 +3046,17 @@ export const Layout: React.FC = () => {
     },
   });
   const currentGameDirty = hasUnsavedChanges();
+  /**
+   * Whether the loaded SGF carries a usable clock. Games played locally have
+   * none, so the graph's Time toggle is only offered when it can actually draw
+   * something.
+   */
+  const hasMoveTimes = useMemo(() => {
+    void treeVersion;
+    return hasMoveTimeData(
+      computeMoveTimes(getCurrentLineNodes(currentNode, activeBranchChildIds), rootNode.properties)
+    );
+  }, [activeBranchChildIds, currentNode, rootNode.properties, treeVersion]);
   const desktopBottomControlsHeight =
     !isMobile && settings.showBoardControls && bottomBarOpen ? 'var(--ui-bar-height)' : '0px';
   const mobileBottomControlsHeight =
@@ -3497,6 +3509,7 @@ export const Layout: React.FC = () => {
             libraryOpen={libraryOpen && !focusMode}
             setLibraryOpen={setLibraryOpen}
             libraryWidth={leftPanelWidth}
+            hasMoveTimes={hasMoveTimes}
             libraryPanel={libraryOpen && !focusMode ? (
               <Suspense fallback={<LibraryPanelLoading />}>
                 <LibraryPanel

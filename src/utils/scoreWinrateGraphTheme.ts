@@ -8,12 +8,16 @@ const KATRAN_WINRATE_COLOR = 'rgb(26, 204, 26)';
 const KATRAN_GRAPH_DOT_COLOR = 'rgb(217, 77, 77)';
 const KATRAN_GRAPH_BG_URL = publicUrl('katrain/graph_bg.png');
 const KATRAN_SCORE_MARKER_COLOR = 'rgb(51, 153, 204)';
+// The time band is drawn behind both lines, so it needs to read as texture
+// rather than as a third line competing with them.
+const KATRAN_TIME_COLOR = 'rgba(214, 170, 92, 0.55)';
 const KATRAN_WINRATE_MARKER_COLOR = 'rgb(13, 179, 13)';
 
 export type ScoreWinrateGraphTheme = {
   boxStyle: CSSProperties;
   scoreColor: string;
   winrateColor: string;
+  timeColor: string;
   dotColor: string;
   scoreMarkerColor: string;
   winrateMarkerColor: string;
@@ -39,6 +43,7 @@ export function getScoreWinrateGraphTheme(uiTheme: ResolvedUiThemeId): ScoreWinr
       },
       scoreColor: 'rgb(2, 132, 199)',
       winrateColor: 'rgb(22, 163, 74)',
+      timeColor: 'rgba(180, 130, 40, 0.5)',
       dotColor: 'rgb(225, 29, 72)',
       scoreMarkerColor: 'rgb(2, 132, 199)',
       winrateMarkerColor: 'rgb(22, 163, 74)',
@@ -60,6 +65,7 @@ export function getScoreWinrateGraphTheme(uiTheme: ResolvedUiThemeId): ScoreWinr
     },
     scoreColor: KATRAN_SCORE_COLOR,
     winrateColor: KATRAN_WINRATE_COLOR,
+    timeColor: KATRAN_TIME_COLOR,
     dotColor: KATRAN_GRAPH_DOT_COLOR,
     scoreMarkerColor: KATRAN_SCORE_MARKER_COLOR,
     winrateMarkerColor: KATRAN_WINRATE_MARKER_COLOR,
