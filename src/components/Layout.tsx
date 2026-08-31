@@ -765,8 +765,31 @@ export const Layout: React.FC = () => {
     }
   }, [isEditMode, isInsertMode, isSelectingRegionOfInterest, scoringMode]);
 
+  /**
+   * Serializing the tree is not cheap: with analysis saved, a 231-move game is
+   * a 700 KB SGF whose per-node ownership/policy blobs are gzipped on the way
+   * out, which measured at 45 ms a call. `hasUnsavedChanges` calls this on
+   * every Layout render and the auto-save effect calls it twice more per tree
+   * change, so stepping through an analysed game spent most of the main thread
+   * re-compressing analysis nobody had asked to save.
+   *
+   * `treeVersion` is the store's canonical "the tree changed" counter -- every
+   * mutation path bumps it -- so it is the right cache key, and reading it from
+   * the store rather than the closure keeps this callback's identity stable for
+   * the effects that depend on it.
+   */
+  const sgfCacheRef = useRef<{ treeVersion: number; options: KaTrainSgfExportOptions; sgf: string } | null>(null);
   const generateCurrentSgf = useCallback(
-    () => generateSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions),
+    () => {
+      const { rootNode: currentRoot, treeVersion: currentTreeVersion } = useGameStore.getState();
+      const cached = sgfCacheRef.current;
+      if (cached && cached.treeVersion === currentTreeVersion && cached.options === sgfExportOptions) {
+        return cached.sgf;
+      }
+      const sgf = generateSgfFromTree(currentRoot, sgfExportOptions);
+      sgfCacheRef.current = { treeVersion: currentTreeVersion, options: sgfExportOptions, sgf };
+      return sgf;
+    },
     [sgfExportOptions]
   );
 
