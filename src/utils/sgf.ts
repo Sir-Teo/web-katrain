@@ -686,28 +686,43 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
         return value;
     };
 
-    const parsePropIdent = (): string => {
-        let key = '';
+    /**
+     * Reads a property identifier, returning both what was written and the
+     * normalized key. Old SGF wrote identifiers with lowercase filler --
+     * `SiZe` for `SZ` -- so the lowercase letters are dropped.
+     *
+     * `raw` matters because an identifier that is *entirely* lowercase
+     * normalizes to nothing, and "no key" has to be told apart from "no
+     * identifier here at all". Conflating them left the cursor parked on the
+     * property's `[` with the node considered finished, and the whole file then
+     * died on `Invalid SGF: expected ")"` -- one odd property taking the game
+     * with it, from the very normalization meant to accept old files.
+     */
+    const parsePropIdent = (): { raw: string; key: string } => {
+        let raw = '';
         while (i < len && /[A-Za-z]/.test(sgfContent[i]!)) {
-            key += sgfContent[i]!;
+            raw += sgfContent[i]!;
             i++;
         }
-        // Normalize legacy properties like SiZe -> SZ.
-        return key.replace(/[a-z]/g, '');
+        return { raw, key: raw.replace(/[a-z]/g, '') };
     };
 
     const parseNode = (): SgfNode => {
         const props: Record<string, string[]> = {};
         skipWhitespace();
         while (i < len && /[A-Za-z]/.test(sgfContent[i]!)) {
-            const key = parsePropIdent();
-            if (!key) break;
+            const { raw, key } = parsePropIdent();
+            if (!raw) break;
             skipWhitespace();
             const values: string[] = [];
             while (i < len && sgfContent[i] === '[') {
                 values.push(parseValue());
                 skipWhitespace();
             }
+            // An identifier that normalized away is consumed and dropped, values
+            // and all. Skipping one property we cannot name beats refusing the
+            // game it belongs to.
+            if (!key) continue;
             if (values.length > 0) {
                 props[key] = props[key] ? props[key]!.concat(values) : values;
             } else if (!props[key]) {

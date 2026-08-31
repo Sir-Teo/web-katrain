@@ -153,3 +153,33 @@ describe('SGF Parser', () => {
       expect(getImportedSgfNameFromProperties({}, '')).toBe('Loaded SGF');
   });
 });
+
+describe('property identifiers that normalize away', () => {
+  it('keeps the game when a property identifier is entirely lowercase', () => {
+    // Old SGF wrote lowercase filler inside identifiers, which is why they are
+    // stripped. An all-lowercase one leaves nothing behind, and that used to
+    // park the cursor on the property's "[" with the node considered finished
+    // -- the whole file then died on `expected ")"`.
+    const parsed = parseSgf('(;GM[1]ff[4]SiZe[19]KM[6.5];B[dd];W[pp])');
+    expect(parsed.moves).toHaveLength(2);
+    expect(parsed.tree.props.SZ).toEqual(['19']);
+    expect(parsed.komi).toBe(6.5);
+  });
+
+  it('drops the unnameable property rather than misfiling its values', () => {
+    const parsed = parseSgf('(;GM[1]SZ[19]zz[keep me out];B[dd])');
+    expect(parsed.moves).toHaveLength(1);
+    expect(Object.values(parsed.tree.props).flat()).not.toContain('keep me out');
+  });
+
+  it('still normalizes the mixed-case identifiers the stripping is there for', () => {
+    const parsed = parseSgf('(;GM[1]FF[4]SiZe[9]KM[7];B[cc])');
+    expect(parsed.tree.props.SZ).toEqual(['9']);
+    expect(parsed.moves).toHaveLength(1);
+  });
+
+  it('handles a lowercase identifier on a move node too', () => {
+    const parsed = parseSgf('(;GM[1]SZ[19];B[dd]xx[1];W[pp])');
+    expect(parsed.moves).toHaveLength(2);
+  });
+});
