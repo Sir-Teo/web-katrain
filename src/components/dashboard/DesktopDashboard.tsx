@@ -3,7 +3,6 @@ import './dashboard.css';
 import { Icon, type IconName } from './icons';
 import type { GameNode, GameRules, GameSettings, Player } from '../../types';
 import type { BranchInfo } from '../../utils/branchNavigation';
-import type { LibraryFile } from '../../utils/library';
 import type { AnalysisControlsState } from '../layout/types';
 import { formatMoveLabel } from '../layout/ui-utils';
 import { MoveTree } from '../MoveTree';
@@ -134,11 +133,6 @@ export interface DesktopDashboardProps {
   onKeyboardHelp: (returnFocus?: HTMLElement | null) => void;
   onAbout: (returnFocus?: HTMLElement | null) => void;
 
-  // ---- library ----
-  recentItems: LibraryFile[];
-  loadedFileId: string | null;
-  onOpenRecent: (item: LibraryFile) => void;
-
   toast: (message: string, type?: 'info' | 'error' | 'success') => void;
 
   /** Routine status, rendered in the header's spare middle rather than over it. */
@@ -199,7 +193,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     passTurn, onUndo, onAiMove, onResign, onPlayBest,
     onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
-    recentItems, loadedFileId, onOpenRecent,
     toast, headerNotification,
   } = props;
   const rulesLabel = formatRulesLabel(rules);
@@ -236,7 +229,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   const commandbarState = commandbarVisible ? 'open' : commandbarOpen ? 'reserved' : 'closed';
   const [legend, setLegend] = useState({ winrate: true, score: true, time: false });
   const [legendOpen, setLegendOpen] = useState(false);
-  const [search, setSearch] = useState('');
   const [layoutMode, setLayoutMode] = useState<DashboardLayoutMode>(() => {
     if (typeof window === 'undefined') return 'wide';
     return getDashboardLayoutMode(window.innerWidth);
@@ -426,12 +418,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     );
   };
 
-  const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const items = recentItems.filter((it) => it.type === 'file');
-    if (!q) return items;
-    return items.filter((it) => it.name.toLowerCase().includes(q));
-  }, [recentItems, search]);
   const showCompactStartStrip = showHero && layoutMode === 'compact' && gamestripOpen;
   const renderStartActions = () => (
     <>
@@ -564,59 +550,19 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         {/* Library */}
         {/* Both sidebars are <aside>, so without distinct labels a screen reader
             announces "complementary" twice with no way to tell them apart. */}
+        {/* The docked library is `libraryPanel`, supplied by Layout. There used
+            to be a fallback library rendered here for when that prop was
+            absent, but Layout gates the panel and `libraryOpen` on exactly the
+            same condition, so the fallback could never be on screen -- it just
+            rebuilt a search box and a row per saved game into the DOM on every
+            render, one of which displayed the literal text "green". */}
         <aside
           aria-label="Game library"
           aria-hidden={!libraryOpen}
           inert={!libraryOpen}
           className={`library${libraryPanel ? ' full-library' : ''}${libDrawer ? ' drawer' : ''}${libraryOpen ? ' open' : ''}`}
         >
-          {libraryPanel ?? (
-            <>
-              <div className="library-head">
-                <span className="eyebrow">Library</span>
-                <div style={{ display: 'flex', gap: 2 }}>
-                  <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" size={14} /></button>
-                  <button type="button" className="iconbtn drawer-close" title="Close" aria-label="Close library" onClick={() => setLibraryOpen(false)}><Icon name="x" size={14} /></button>
-                </div>
-              </div>
-              <div className="library-search">
-                <Icon name="search" />
-                <input
-                  type="text"
-                  placeholder="Search games…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              <div className="library-list">
-                <div className="library-group">
-                  <span className="eyebrow">Recent</span>
-                  {filteredItems.length === 0 && (
-                    <div className="li-sub" style={{ padding: '6px 8px' }}>No saved games yet.</div>
-                  )}
-                  {filteredItems.map((it) => {
-                    const active = it.id === loadedFileId;
-                    const reviewed = !!it.metadata?.result;
-                    const grade = reviewed ? 'green' : 'none';
-                    return (
-                      <button
-                        key={it.id}
-                        type="button"
-                        className={`lib-item${active ? ' active' : ''}`}
-                        onClick={() => onOpenRecent(it)}
-                      >
-                        <div className="li-main">
-                          <div className="li-name">{it.name}</div>
-                          <div className="li-sub">{it.moveCount} moves{reviewed ? ' · reviewed' : ''}</div>
-                        </div>
-                        <span className={`grade-chip ${grade}`}>{grade === 'none' ? '—' : grade}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
+          {libraryPanel}
         </aside>
 
         {/* Board column */}

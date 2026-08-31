@@ -129,7 +129,11 @@ describe('desktop dashboard layout', () => {
 
     expect(dashboardSource).toContain('libraryPanel?: React.ReactNode');
     expect(dashboardSource).toContain("libraryPanel ? ' full-library' : ''");
-    expect(dashboardSource).toContain('libraryPanel ?? (');
+    // The column renders the supplied panel and nothing else. This used to
+    // assert on a `libraryPanel ?? (...)` fallback, but Layout gates the panel
+    // and `libraryOpen` on the same condition, so that fallback could never be
+    // on screen -- pinning it kept dead markup alive.
+    expect(dashboardSource).toContain('{libraryPanel}');
     expect(layoutSource).toContain('libraryPanel={');
     expect(layoutSource).toContain('showCloseButtonOnDesktop');
     expect(librarySource).toContain('aria-label="Import SGF, ZIP, or board image files"');

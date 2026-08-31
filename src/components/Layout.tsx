@@ -3574,9 +3574,6 @@ export const Layout: React.FC = () => {
             onCommandPalette={() => setIsCommandPaletteOpen(true)}
             onKeyboardHelp={openKeyboardHelp}
             onAbout={openAbout}
-            recentItems={recentLibraryItems}
-            loadedFileId={loadedLibraryFileId}
-            onOpenRecent={handleOpenRecent}
             toast={toast}
             headerNotification={
               notification && notification.type !== 'error' ? (
