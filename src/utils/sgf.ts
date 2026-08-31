@@ -476,7 +476,11 @@ function getEncodedAnalysisProps(analysis: AnalysisResult, boardSize: BoardSize)
 
 function encodedKt(entry: EncodedAnalysisProps, analysis: AnalysisResult): string[] {
     if (!entry.kt) entry.kt = encodeKaTrainKtFromAnalysis({ analysis, boardSize: entry.boardSize });
-    return entry.kt;
+    // A copy of the array, not the array: the caller drops it into a property
+    // bag that other code is free to edit, and an edit reaching back into the
+    // cache would corrupt every later export of this node. The strings are
+    // immutable and shared; only the three pointers are copied.
+    return [...entry.kt];
 }
 
 function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfig): string {
