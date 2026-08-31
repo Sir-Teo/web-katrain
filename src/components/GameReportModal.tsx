@@ -36,7 +36,8 @@ import { printWindow } from '../utils/print';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
-import { computeMoveTimes, hasMoveTimeData } from '../utils/moveTimes';
+import { computeMoveTimes, formatMoveTime, hasMoveTimeData } from '../utils/moveTimes';
+import { describeTimePressure, summarizePlayerTime, type PlayerTimeInsight } from '../utils/timeInsight';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { NO_VALUE } from '../utils/analysisSummary';
 
@@ -158,6 +159,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     startFastGameAnalysis,
     stopGameAnalysis,
     humanSlProfile,
+    mistakeThreshold,
     rootNode,
   } = useGameStore(
     (state) => ({
@@ -175,6 +177,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       startFastGameAnalysis: state.startFastGameAnalysis,
       stopGameAnalysis: state.stopGameAnalysis,
       humanSlProfile: state.settings.humanSlProfile,
+      mistakeThreshold: state.settings.mistakeThreshold,
     }),
     shallow
   );
@@ -474,6 +477,29 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       };
     });
   }, [reportsByPhase]);
+
+  /**
+   * What the clock cost each player. Only computed when the SGF carries one --
+   * most local games do not, and the section stays out of the report entirely
+   * rather than showing a row of dashes.
+   */
+  const timeInsights = useMemo(() => {
+    if (!hasMoveTimes) return null;
+    const times = computeMoveTimes(
+      getCurrentLineNodes(currentNode, activeBranchChildIds),
+      rootNode.properties
+    );
+    // Keyed by node, not move number: the two diverge once a line contains a
+    // setup node, and pairing them wrongly attaches a mistake to a neighbouring
+    // move's clock.
+    const pointsLostByNodeId = new Map<string, number>();
+    for (const entry of reportsByPhase.all?.moveEntries ?? []) {
+      pointsLostByNodeId.set(entry.node.id, entry.pointsLost);
+    }
+    const forPlayer = (player: Player) =>
+      summarizePlayerTime({ player, times, pointsLostByNodeId, mistakeThreshold });
+    return { black: forPlayer('black'), white: forPlayer('white') };
+  }, [activeBranchChildIds, currentNode, hasMoveTimes, mistakeThreshold, reportsByPhase, rootNode.properties]);
 
   const gameResult = useMemo(() => readRootInfoValue(rootPropertiesForNode(currentNode), 'RE'), [currentNode]);
   // Spoiler shield: hide the outcome-revealing sections until the user opts in,
@@ -1250,6 +1276,49 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               KaTrain-style accuracy per game phase; the small number is analyzed moves in that phase.
             </p>
           </div>
+
+          {timeInsights && (
+            <div className={sectionClass}>
+              <div className={sectionTitleClass}>Time</div>
+              <div className={['mt-3 grid gap-2 text-sm', statsPlayers.length === 2 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>
+                <div className={`text-xs uppercase tracking-wide ${faintClass}`}>Clock</div>
+                {statsPlayers.map((player) => (
+                  <div key={`time-head-${player}`} className={`min-w-0 truncate text-center text-xs font-semibold ${faintClass}`} title={playerNames[player]}>
+                    {playerNames[player]}
+                  </div>
+                ))}
+                {([
+                  ['Typical move', (i: PlayerTimeInsight) => (i.measuredMoves > 0 ? formatMoveTime(i.medianSeconds) : NO_VALUE)],
+                  ['Total', (i: PlayerTimeInsight) => (i.measuredMoves > 0 ? formatMoveTime(i.totalSeconds) : NO_VALUE)],
+                  ['Longest think', (i: PlayerTimeInsight) => (i.slowest ? `${formatMoveTime(i.slowest.seconds)} · #${i.slowest.moveNumber}` : NO_VALUE)],
+                  ['On mistakes', (i: PlayerTimeInsight) => (i.medianOnMistakes === null ? NO_VALUE : formatMoveTime(i.medianOnMistakes))],
+                ] as const).map(([label, read]) => (
+                  <React.Fragment key={`time-row-${label}`}>
+                    <div className={labelClass}>{label}</div>
+                    {statsPlayers.map((player) => (
+                      <div key={`time-${label}-${player}`} className="text-center font-mono">
+                        {read(timeInsights[player])}
+                      </div>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </div>
+              {statsPlayers.map((player) => {
+                const sentence = describeTimePressure(timeInsights[player]);
+                if (!sentence) return null;
+                return (
+                  <div key={`time-note-${player}`} className={`mt-2 text-xs ${mutedClass}`}>
+                    <span className="font-semibold">{playerNames[player]}:</span> {sentence}
+                  </div>
+                );
+              })}
+              <div className={`mt-2 text-xs ${faintClass}`}>
+                From the clock recorded in the SGF. Moves the file does not
+                determine a time for — a renewed byo-yomi period, most often —
+                are left out rather than counted as instant.
+              </div>
+            </div>
+          )}
 
           <div className={sectionClass}>
             <div className={sectionTitleClass}>Key Stats</div>
