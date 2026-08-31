@@ -65,6 +65,12 @@ const OWNERSHIP_GAMMA = 1.33;
 const EVAL_DOT_MIN_SIZE = 0.25;
 const EVAL_DOT_MAX_SIZE = 0.5;
 const STONE_SIZE = 0.505; // KaTrain Theme.STONE_SIZE
+/**
+ * The "if you play elsewhere" marker. Violet is not used by any move-quality
+ * tier on the board -- green, red, cyan and amber all already mean something
+ * that happened -- so it reads as a move nobody played.
+ */
+const TENUKI_MARKER_COLOR = 'rgba(168, 85, 247, 0.95)';
 const STONE_MIN_ALPHA = 0.85; // KaTrain Theme.STONE_MIN_ALPHA
 const MARK_SIZE = 0.42; // KaTrain Theme.MARK_SIZE
 const APPROX_BOARD_COLOR = [0.95, 0.75, 0.47, 1] as const;
@@ -192,6 +198,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     isAiPlaying,
     aiColor,
     treeVersion,
+    tenukiAnalysis,
     navigateBack,
     navigateForward,
     navigateNextMistake,
@@ -221,6 +228,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       isAiPlaying: state.isAiPlaying,
       aiColor: state.aiColor,
       treeVersion: state.treeVersion,
+      tenukiAnalysis: state.tenukiAnalysis,
       navigateBack: state.navigateBack,
       navigateForward: state.navigateForward,
       navigateNextMistake: state.navigateNextMistake,
@@ -340,6 +348,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const policyCanvasRef = useRef<HTMLCanvasElement>(null);
   const hintsCanvasRef = useRef<HTMLCanvasElement>(null);
   const evalCanvasRef = useRef<HTMLCanvasElement>(null);
+  const tenukiCanvasRef = useRef<HTMLCanvasElement>(null);
   const dotImageRef = useRef<HTMLImageElement | null>(null);
   const topMoveImageRef = useRef<HTMLImageElement | null>(null);
   const stoneImagesRef = useRef<{ black: HTMLImageElement[]; white: HTMLImageElement[]; inner: HTMLImageElement | null }>({
@@ -2353,6 +2362,46 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     visibleAnalysis,
   ]);
 
+  /**
+   * The opponent's reply if the side to move plays elsewhere, from the
+   * play-elsewhere search. A dashed ring rather than a filled marker: every
+   * solid mark on this board stands for something that happened, and this move
+   * was never played. Its own layer so it survives the hint layer redrawing.
+   */
+  useEffect(() => {
+    const canvas = tenukiCanvasRef.current;
+    if (!canvas) return;
+    const ctx = setupOverlayCanvas(canvas);
+    if (!ctx) return;
+    const tenuki = tenukiAnalysis?.nodeId === currentNode.id ? tenukiAnalysis : null;
+    const follow = tenuki?.status === 'ready' ? tenuki.followUp : null;
+    if (!follow || follow.x < 0 || follow.y < 0) return;
+
+    const d = toDisplay(follow.x, follow.y);
+    const cx = originX + d.x * cellSize;
+    const cy = originY + d.y * cellSize;
+    // Outside a top-move hint circle (HINT_SCALE 0.98), so on the point they
+    // usually share the ring encircles the hint instead of crowding it.
+    const radius = cellSize * STONE_SIZE * (HINT_SCALE + 0.34);
+    const dash = Math.max(2.5, cellSize * 0.16);
+
+    ctx.save();
+    ctx.setLineDash([dash, dash * 0.8]);
+    // A dark backing stroke first: the ring has to stay legible over a played
+    // stone of either colour as well as over bare wood.
+    ctx.lineWidth = Math.max(3.5, cellSize * 0.15);
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(2, cellSize * 0.095);
+    ctx.strokeStyle = TENUKI_MARKER_COLOR;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }, [cellSize, currentNode.id, originX, originY, setupOverlayCanvas, tenukiAnalysis, toDisplay]);
+
   useEffect(() => {
     const canvas = hintsCanvasRef.current;
     if (!canvas) return;
@@ -3027,6 +3076,18 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           }}
         />
 
+        {/* Where the opponent would play if you played elsewhere. */}
+        <canvas
+          ref={tenukiCanvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: boardWidth,
+            height: boardHeight,
+            zIndex: 18,
+          }}
+        />
         {/* PV Overlay (Hover) */}
         <canvas
           ref={pvCanvasRef}
