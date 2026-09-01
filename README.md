@@ -14,6 +14,9 @@ PWA. There is no analysis server to run.
 
 - Top-move hints, principal variations, ownership, policy, win rate, and score
   lead.
+- A Candidates list beside the board: rank, move, quality, win rate, score,
+  points lost and visits for every candidate at once. Hover a row to lay its
+  variation on the board; click it to play the move.
 - Quick, fast, and full-game analysis passes with per-position caching.
 - KaTrain-style move quality, phase summaries, and game reports.
 - "Play elsewhere?" prices the point: the engine evaluates the position again
