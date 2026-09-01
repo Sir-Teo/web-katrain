@@ -21,6 +21,10 @@ PWA. There is no analysis server to run.
   opponent would go if you ignored it.
 - Time graph from the clock recorded in the SGF (`BL`/`WL`/`OB`/`OW`), for games
   imported from OGS, KGS, Fox or Tygem.
+- Drill your mistakes: the board goes back to the position before each one with
+  the answer hidden -- hints, policy, best-move readout and all -- and grades
+  the move you play against what the engine wanted. From the game report, the
+  command palette, or Study & Practice.
 
 **Study and play**
 
