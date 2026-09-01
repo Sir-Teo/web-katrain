@@ -20,6 +20,7 @@ import {
   type GameReportPhaseFilter,
   type MoveReportEntry,
   type MovePolicyCategory,
+  describeStudyFocusEntry,
 } from '../utils/gameReport';
 import type { CandidateMove, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
@@ -1216,8 +1217,17 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 <div className={`mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--ui-border)] pt-3 text-xs ${mutedClass}`}>
                   <span className={`font-mono font-semibold ${valueClass}`}>#{studyFocus.topEntry.moveNumber}</span>
                   <span>{studyFocus.topEntry.player === 'black' ? 'B' : 'W'} {studyFocus.topEntry.move}</span>
-                  <span className="font-mono text-[var(--ui-danger)]">-{fmtNum(studyFocus.topEntry.pointsLost, 2)}</span>
-                  <span>Engine preferred {studyFocus.topEntry.topMove ?? NO_VALUE}</span>
+                  {(() => {
+                    const described = describeStudyFocusEntry(studyFocus.topEntry!);
+                    return (
+                      <>
+                        <span className={described.lostPoints ? 'font-mono text-[var(--ui-danger)]' : `font-mono ${faintClass}`}>
+                          {described.lossLabel}
+                        </span>
+                        <span>{described.engineLabel}</span>
+                      </>
+                    );
+                  })()}
                   <div className="ml-auto flex flex-wrap gap-2 print-hide">
                     <button
                       type="button"

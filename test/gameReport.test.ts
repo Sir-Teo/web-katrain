@@ -4,6 +4,7 @@ import { parseSgf } from '../src/utils/sgf';
 import {
   classifyMoveByRankAndPolicy,
   computeGameReport,
+  describeStudyFocusEntry,
   describeReportSwing,
   formatPolicyRank,
   GAME_REPORT_PHASES,
@@ -678,5 +679,59 @@ describe('humanPolicyStats', () => {
 
   it('reports nothing without the human network', () => {
     expect(humanPolicyStats({ move: { x: 3, y: 3 }, humanPolicy: undefined, boardSize: 9 })).toBeNull();
+  });
+});
+
+describe('the study-focus row', () => {
+  const entry = (over: Partial<MoveReportEntry>): MoveReportEntry => ({
+    node: null as never,
+    moveNumber: 1,
+    player: 'black',
+    move: 'R16',
+    pointsLost: 0,
+    pointsGained: 0,
+    scoreBefore: 0,
+    scoreAfter: 0,
+    scoreDelta: 0,
+    scoreSwing: 0,
+    winRateBefore: 0.5,
+    winRateAfter: 0.5,
+    winRateDelta: 0,
+    winRateSwing: 0,
+    phase: 'opening',
+    ...over,
+  });
+
+  it('does not report a loss on a move that lost nothing', () => {
+    // The row is the phase's worst move, which on a clean game gave up nothing.
+    // It used to print a hardcoded minus in the danger colour: "-0.00".
+    const described = describeStudyFocusEntry(entry({ pointsLost: 0 }));
+
+    expect(described.lostPoints).toBe(false);
+    expect(described.lossLabel).toBe('No points lost');
+    expect(described.lossLabel).not.toContain('0.00');
+  });
+
+  it('reports a real loss with a minus sign', () => {
+    const described = describeStudyFocusEntry(entry({ pointsLost: 4.25 }));
+
+    expect(described.lostPoints).toBe(true);
+    expect(described.lossLabel).toBe('\u22124.25');
+  });
+
+  it('does not correct a move with itself', () => {
+    // "Engine preferred R16" under a move that was R16.
+    expect(describeStudyFocusEntry(entry({ move: 'R16', topMove: 'R16' })).engineLabel).toBe(
+      "The engine's own move"
+    );
+    expect(describeStudyFocusEntry(entry({ move: 'R16', isTopMove: true })).engineLabel).toBe(
+      "The engine's own move"
+    );
+    expect(describeStudyFocusEntry(entry({ move: 'R16', topMove: 'D4' })).engineLabel).toBe(
+      'Engine preferred D4'
+    );
+    expect(describeStudyFocusEntry(entry({ move: 'R16' })).engineLabel).toBe(
+      'No engine preference recorded'
+    );
   });
 });

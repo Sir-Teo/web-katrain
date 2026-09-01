@@ -329,6 +329,38 @@ export function describeReportSwing(entry: MoveReportEntry): string {
   return `${side} gains ${entry.scoreSwing.toFixed(1)} points`;
 }
 
+
+/**
+ * How the study-focus row should describe its move.
+ *
+ * The row is the worst move of the phase for that player, which on a clean
+ * game -- or on any game whose analysis found no losses -- is a move that gave
+ * up nothing. It was rendered with a hardcoded minus sign in the danger colour
+ * and the line "Engine preferred R16" under a move that *was* R16: a loss of
+ * "-0.00" and a correction that corrected nothing.
+ */
+export function describeStudyFocusEntry(entry: MoveReportEntry): {
+  /** What the move cost, or a plain statement that it cost nothing. */
+  lossLabel: string;
+  /** Whether that cost is real, so the caller knows to paint it as a loss. */
+  lostPoints: boolean;
+  /** What the engine thought of it. */
+  engineLabel: string;
+} {
+  // Below this the figure rounds to zero at the two decimals the row shows.
+  const lostPoints = entry.pointsLost >= 0.005;
+  const isTopMove = entry.isTopMove === true || (!!entry.topMove && entry.topMove === entry.move);
+  return {
+    lossLabel: lostPoints ? `\u2212${entry.pointsLost.toFixed(2)}` : 'No points lost',
+    lostPoints,
+    engineLabel: isTopMove
+      ? "The engine's own move"
+      : entry.topMove
+        ? `Engine preferred ${entry.topMove}`
+        : 'No engine preference recorded',
+  };
+}
+
 const POLICY_CATEGORY_SEVERITY: Record<MovePolicyCategory, number> = {
   aiMove: 0,
   good: 1,
