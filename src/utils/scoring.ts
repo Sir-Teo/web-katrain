@@ -376,3 +376,25 @@ export function getTerritoryOwnerForDeadStone(stone: Player): ScoringOwner {
 export function getTerritoryOwnerPlayer(owner: ScoringOwner): Player | null {
   return playerForOwner(owner);
 }
+
+/**
+ * The score of nothing.
+ *
+ * `computeManualScoreEstimate` floods every empty region of the board, which is
+ * work worth doing only while the scoring panel is up. Callers that have to
+ * hold a value of this type while scoring is off can hold this one: it is
+ * stable across renders, and both readers -- the panel and the board's
+ * `scoreTerritory` -- ignore it unless scoring is active.
+ */
+export const NO_MANUAL_SCORE_ESTIMATE: ManualScoreEstimate = {
+  territory: [],
+  blackTerritory: 0,
+  whiteTerritory: 0,
+  neutralPoints: 0,
+  blackDeadStones: 0,
+  whiteDeadStones: 0,
+  blackScore: 0,
+  whiteScore: 0,
+  scoreLead: 0,
+  result: '',
+};

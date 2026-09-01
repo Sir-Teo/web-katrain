@@ -31,7 +31,7 @@ import type { CandidateMove, EditTool, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
-import { computeManualScoreEstimate, estimateDeadStonesByPlayout, estimateDeadStonesFromOwnership, toggleDeadStoneChain } from '../utils/scoring';
+import { computeManualScoreEstimate, estimateDeadStonesByPlayout, estimateDeadStonesFromOwnership, NO_MANUAL_SCORE_ESTIMATE, toggleDeadStoneChain } from '../utils/scoring';
 import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
@@ -564,16 +564,22 @@ export const Layout: React.FC = () => {
     setManualScoreMode('manual');
   }, [boardSize, currentNode.id]);
 
+  // Estimating the score floods every empty region of the board, and nothing
+  // reads the result while scoring is off: the panel renders only its launcher
+  // and the board ignores `scoreTerritory`. Computing it on every navigation
+  // anyway was the second-largest cost of stepping through a game.
   const manualScoreEstimate = useMemo(
     () =>
-      computeManualScoreEstimate({
-        board,
-        komi,
-        capturedBlack,
-        capturedWhite,
-        deadStones: manualDeadStones,
-      }),
-    [board, capturedBlack, capturedWhite, komi, manualDeadStones]
+      scoringMode
+        ? computeManualScoreEstimate({
+            board,
+            komi,
+            capturedBlack,
+            capturedWhite,
+            deadStones: manualDeadStones,
+          })
+        : NO_MANUAL_SCORE_ESTIMATE,
+    [board, capturedBlack, capturedWhite, komi, manualDeadStones, scoringMode]
   );
   const manualScoreOwnership = useMemo(() => {
     if (!currentNode.analysis || (currentNode.analysis.ownershipMode ?? 'root') === 'none') return null;
