@@ -210,3 +210,20 @@ describe('drill copy', () => {
     expect(drillSummaryText(0, 0)).toContain('No mistakes');
   });
 });
+
+describe('a drill cannot outlive the tree it describes', () => {
+  it('is cleared wherever the store replaces the root node', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync('src/store/gameStore.ts', 'utf8');
+
+    // A session is a list of node ids on one line of one tree. Loading a game,
+    // starting a new one or resetting swaps that tree out from under it, and a
+    // drill left running then points at positions that no longer exist.
+    const replacements = [...source.matchAll(/^[ \t]*rootNode: newRoot,$/gm)];
+    expect(replacements.length).toBeGreaterThanOrEqual(3);
+    for (const match of replacements) {
+      const preceding = source.slice(Math.max(0, match.index - 400), match.index);
+      expect(preceding, `no drill clear before offset ${match.index}`).toContain('mistakeDrill: null,');
+    }
+  });
+});

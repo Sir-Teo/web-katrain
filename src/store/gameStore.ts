@@ -4925,6 +4925,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       timerPeriodsUsed: { black: 0, white: 0 },
       ...clearEditHistory(),
 
+      // A drill describes positions in the tree being replaced, so it cannot
+      // survive the replacement.
+      mistakeDrill: null,
       rootNode: newRoot,
       currentNode: newRoot,
       activeBranchChildIds: {},
@@ -4978,6 +4981,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       timerMainTimeUsedSeconds: 0,
       timerPeriodsUsed: { black: 0, white: 0 },
       ...clearEditHistory(),
+
+      // A drill describes positions in the tree being replaced, so it cannot
+      // survive the replacement.
+      mistakeDrill: null,
 
       // Reset Tree
       rootNode: newRoot,
@@ -5275,6 +5282,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     set((state) => ({
+      // A drill describes positions in the tree being replaced, so it cannot
+      // survive the replacement.
+      mistakeDrill: null,
       rootNode: newRoot,
       currentNode: current,
       pinnedVariations: restorePinnedVariations(newRoot),
