@@ -4,7 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
 import { getEvaluationClass } from '../utils/nodeAnalysis';
-import { getKaTrainEvalColors } from '../utils/katrainTheme';
+import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
 
 interface CandidatePvTilesProps {
   /** `${x},${y}` of the currently pinned candidate, or null. */
@@ -108,8 +108,7 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
         const key = moveKey(move);
         const active = pinnedKey === key;
         const cls = getEvaluationClass(move.pointsLost, undefined, evalColors.length);
-        const [r, g, b] = evalColors[cls] ?? [148, 163, 184, 1];
-        const dot = `rgb(${r}, ${g}, ${b})`;
+        const dot = evalColorToCss(evalColors[cls] ?? evalColors[evalColors.length - 1]!);
         return (
           <button
             key={key}

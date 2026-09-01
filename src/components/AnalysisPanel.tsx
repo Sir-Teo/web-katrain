@@ -15,7 +15,7 @@ import type { AnalysisControlsState } from './layout/types';
 import { EngineStatusBadge } from './layout/ui';
 import { useGameStore } from '../store/gameStore';
 import { TenukiRow } from './TenukiRow';
-import { getKaTrainEvalColors } from '../utils/katrainTheme';
+import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
 import { DEFAULT_EVAL_THRESHOLDS } from '../utils/nodeAnalysis';
 import {
   ANALYSIS_VISIT_PRESETS,
@@ -70,7 +70,6 @@ interface AnalysisPanelProps {
 }
 
 type AnalysisOverlayControl = keyof AnalysisControlsState;
-type EvalColor = readonly [number, number, number, number];
 type QualityLegendItem = { label: string; range: string; color: string };
 type AnalysisStatsActionsProps = {
   onOpenGameAnalysis: () => void;
@@ -89,10 +88,6 @@ const ANALYSIS_OVERLAY_NAMES: Record<AnalysisOverlayControl, string> = {
   analysisShowPolicy: 'move heatmap',
   analysisShowOwnership: 'territory ownership',
 };
-
-function evalColorToCss(color: EvalColor): string {
-  return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${color[3]})`;
-}
 
 function pointsSummaryClass(tone: ReturnType<typeof summarizePointsLost>['tone']): string {
   if (tone === 'success') return 'text-[var(--ui-success)]';

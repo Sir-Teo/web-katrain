@@ -30,3 +30,18 @@ export function getKaTrainEvalColors(theme: unknown) {
   return KATRAIN_EVAL_COLORS_BY_THEME[resolveKaTrainEvalTheme(theme)];
 }
 
+/**
+ * A move-quality colour as CSS.
+ *
+ * The table above is KaTrain's, whose channels run 0..1. CSS wants 0..255, and
+ * a consumer that forgot the conversion did not get a wrong colour, it got
+ * black: `rgb(0.447, 0.129, 0.42)` is a valid declaration that rounds to
+ * nothing. Every reader of the table goes through here so there is one place
+ * that knows the scale.
+ */
+export type KaTrainEvalColor = readonly [number, number, number, number];
+
+export function evalColorToCss(color: KaTrainEvalColor, alphaOverride?: number): string {
+  const alpha = typeof alphaOverride === 'number' ? alphaOverride : color[3];
+  return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${alpha})`;
+}
