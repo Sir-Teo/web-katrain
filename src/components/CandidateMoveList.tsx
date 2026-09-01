@@ -41,12 +41,11 @@ interface CandidateMoveListProps {
 const moveKey = (move: CandidateMove) => `${move.x},${move.y}`;
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, boardSize, playMove, trainerTheme, thresholds, isAnalysisMode } = useGameStore(
+  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, isAnalysisMode } = useGameStore(
     (state) => ({
+      moves: state.currentNode.analysis?.moves ?? null,
       // A drill asking about this position is asking for exactly this list.
-      moves: isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id)
-        ? null
-        : state.currentNode.analysis?.moves ?? null,
+      drillHidesAnswer: isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id),
       boardSize: state.currentNode.gameState.board.length,
       playMove: state.playMove,
       trainerTheme: state.settings.trainerTheme,
@@ -60,16 +59,19 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   const evalThresholds = thresholds.length > 0 ? thresholds : DEFAULT_EVAL_THRESHOLDS;
 
   const rows = useMemo(
-    () => (moves ?? []).filter((move) => move.x >= 0 && move.y >= 0).slice(0, 24),
-    [moves]
+    () => (drillHidesAnswer ? [] : (moves ?? []).filter((move) => move.x >= 0 && move.y >= 0).slice(0, 24)),
+    [drillHidesAnswer, moves]
   );
 
   if (rows.length === 0) {
-    return (
-      <div className="px-3 py-2 text-[0.6875rem] ui-text-faint">
-        {isAnalysisMode ? 'No candidates for this position yet.' : 'Turn on analysis to rank the moves here.'}
-      </div>
-    );
+    // Three different nothings. Saying "no candidates" while a drill is
+    // deliberately withholding them would blame the engine for the silence.
+    const emptyText = drillHidesAnswer
+      ? 'Hidden while the drill is asking about this position.'
+      : isAnalysisMode
+        ? 'No candidates for this position yet.'
+        : 'Turn on analysis to rank the moves here.';
+    return <div className="px-3 py-2 text-[0.6875rem] ui-text-faint">{emptyText}</div>;
   }
 
   return (

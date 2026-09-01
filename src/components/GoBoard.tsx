@@ -3004,9 +3004,26 @@ export const GoBoard: React.FC<GoBoardProps> = ({
 
         {/* Mistake drill chip */}
         {mistakeDrill && !isEditMode && !scoringMode && (
-          <div className="absolute left-1/2 bottom-3 -translate-x-1/2 z-40 max-w-[calc(100%-1rem)]" data-mistake-drill={mistakeDrill.phase}>
-            <div className="ui-panel border rounded-lg shadow-xl pl-3 pr-1 py-1.5 text-xs font-semibold flex items-center gap-2">
-              <span className="min-w-0" role="status">
+          /* The chip covers part of the board, so put it on the half the
+             question is not about: the move being drilled sits next to the area
+             the answer is in, and on a 9x9 a chip over the wrong corner hides
+             the point being asked for. */
+          <div
+            className={[
+              'absolute left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1rem)] max-w-[34rem]',
+              drillMistake && toDisplay(drillMistake.played.x, drillMistake.played.y).y * 2 >= boardSize
+                ? 'top-3'
+                : 'bottom-3',
+            ].join(' ')}
+            data-mistake-drill={mistakeDrill.phase}
+          >
+            {/* Wrapping, not truncating: the prompt is the question being asked
+                and must be readable in full. `basis-48` gives the text a share
+                worth having before the actions wrap to their own row, which is
+                what stops a phone squeezing it into a one-word column as tall
+                as the board. */}
+            <div className="ui-panel border rounded-lg shadow-xl pl-3 pr-1 py-1.5 text-xs font-semibold flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="min-w-0 flex-1 basis-48" role="status">
                 {mistakeDrill.phase === 'done'
                   ? drillSummaryText(mistakeDrill.solvedIds.length, mistakeDrill.mistakes.length)
                   : !drillOnThisPosition
@@ -3017,6 +3034,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                         ? drillRevealText(drillMistake!, currentNode)
                         : drillVerdictText(mistakeDrill.verdict!)}
               </span>
+              {/* One group, so the actions wrap together instead of leaving the
+                  close button stranded on a row of its own. */}
+              <span className="ml-auto flex shrink-0 items-center gap-1">
               {mistakeDrill.phase !== 'done' && !drillOnThisPosition && (
                 <button type="button" className={DRILL_ACTION_CLASS} onClick={resumeMistakeDrill}>
                   Resume
@@ -3040,6 +3060,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
               >
                 <FaTimes size={11} />
               </button>
+              </span>
             </div>
           </div>
         )}

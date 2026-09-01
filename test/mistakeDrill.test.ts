@@ -227,3 +227,49 @@ describe('a drill cannot outlive the tree it describes', () => {
     }
   });
 });
+
+describe('nothing on screen answers the position the drill is asking about', () => {
+  const read = async (path: string) => {
+    const { readFileSync } = await import('node:fs');
+    return readFileSync(path, 'utf8');
+  };
+
+  it('withholds the engine top move wherever it is named', async () => {
+    // Hiding the board hints is not enough on its own: a metric strip reading
+    // "BEST MOVE G4", a panel readout labelled "Best", a row of candidate
+    // tiles or a candidate list all answer the question in full while the
+    // board sits there withholding it. Each of these was found on screen
+    // during a drill before it was gated.
+    for (const path of [
+      'src/components/AnalysisPanel.tsx',
+      'src/components/AnalysisCommandBar.tsx',
+      'src/components/CandidatePvTiles.tsx',
+      'src/components/CandidateMoveList.tsx',
+    ]) {
+      expect(await read(path), path).toContain('isDrillHidingAnswer');
+    }
+    // The dashboard takes the answer as a prop rather than reading the store.
+    expect(await read('src/components/dashboard/DesktopDashboard.tsx')).toContain('drillHidesAnswer ? null :');
+    expect(await read('src/components/Layout.tsx')).toContain('isDrillHidingAnswer(mistakeDrill, currentNode.id)');
+  });
+
+  it('covers every reader of the best-move summary', async () => {
+    // `getCurrentNodeBestMoveSummary` is the shared way to name the engine's
+    // move; a new caller that does not check the drill would leak it again.
+    const { execSync } = await import('node:child_process');
+    const hits = execSync("grep -rl 'getCurrentNodeBestMoveSummary' src/components || true")
+      .toString()
+      .split('\n')
+      .filter(Boolean);
+    expect(hits.length).toBeGreaterThan(0);
+    for (const path of hits) {
+      expect(await read(path), path).toContain('isDrillHidingAnswer');
+    }
+  });
+
+  it('hides the candidates without blaming the engine for the silence', async () => {
+    expect(await read('src/components/CandidateMoveList.tsx')).toContain(
+      'Hidden while the drill is asking about this position.'
+    );
+  });
+});
