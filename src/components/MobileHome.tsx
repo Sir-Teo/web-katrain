@@ -18,6 +18,7 @@ import { formatLibrarySize, formatLibraryTimestamp, type LibraryFile } from '../
 import { formatGamepadLabel } from '../utils/gamepadLabel';
 import { getQuickNewGameWarning } from '../utils/quickNewGame';
 import type { BoardSize } from '../types';
+import { isInsideOtherDialog } from '../utils/keyboardTarget';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 interface MobileHomeProps {
@@ -148,6 +149,13 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
       if (event.key !== 'Tab' || event.defaultPrevented) return;
       const home = homeRef.current;
       if (!home) return;
+      // A dialog opened on top of this overlay owns the keyboard until it
+      // closes. This listener runs in the capture phase on the document, so it
+      // sees Tab before that dialog's own trap does, reads focus as "outside
+      // the home", and hauls it back here -- which is what happened to the
+      // auto-save restore prompt, whose two buttons the user could not Tab
+      // between on any phone.
+      if (isInsideOtherDialog(event.target, home) || isInsideOtherDialog(document.activeElement, home)) return;
       const focusableElements = Array.from(home.querySelectorAll<HTMLElement>(focusableSelector))
         .filter((element) => element.getClientRects().length > 0);
       const first = focusableElements[0];

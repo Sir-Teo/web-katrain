@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DIALOG_TARGET_SELECTOR,
   isDialogTarget,
+  isInsideOtherDialog,
   isTextEntryTarget,
   isDialogOpen,
   shouldIgnoreGlobalPasteTarget,
@@ -151,5 +152,50 @@ describe('isDialogOpen', () => {
     expect(isDialogOpen(noDialog)).toBe(false);
     expect(isDialogOpen(null)).toBe(false);
     expect(isDialogOpen(undefined)).toBe(false);
+  });
+});
+
+describe('isInsideOtherDialog', () => {
+  // The mobile home overlay is itself a dialog and keeps Tab to itself with a
+  // capture-phase document listener. A dialog opened on top of it -- the
+  // auto-save restore prompt is the one users met -- was losing every Tab to
+  // that listener, which saw focus outside the home and pulled it back, so the
+  // prompt's two buttons could not be reached from the keyboard.
+  const home = { contains: (node: unknown) => node === home };
+  const otherDialog = {};
+
+  it('is true for a node inside a dialog that is not the container', () => {
+    const inOther = { closest: (selector: string) => (selector === DIALOG_TARGET_SELECTOR ? otherDialog : null) };
+    expect(isInsideOtherDialog(inOther as unknown as EventTarget, home as unknown as EventTarget)).toBe(true);
+  });
+
+  it('is false for a node inside the container itself', () => {
+    const inHome = { closest: (selector: string) => (selector === DIALOG_TARGET_SELECTOR ? home : null) };
+    expect(isInsideOtherDialog(inHome as unknown as EventTarget, home as unknown as EventTarget)).toBe(false);
+  });
+
+  it('is false for a dialog nested inside the container', () => {
+    const nested = { closest: () => nestedDialog };
+    const nestedDialog = {};
+    const container = { contains: (node: unknown) => node === nestedDialog };
+    expect(isInsideOtherDialog(nested as unknown as EventTarget, container as unknown as EventTarget)).toBe(false);
+  });
+
+  it('is false outside any dialog, and for missing nodes', () => {
+    expect(isInsideOtherDialog({ closest: () => null } as unknown as EventTarget, home as unknown as EventTarget)).toBe(false);
+    expect(isInsideOtherDialog(null, home as unknown as EventTarget)).toBe(false);
+    expect(isInsideOtherDialog({ closest: () => otherDialog } as unknown as EventTarget, null)).toBe(false);
+  });
+});
+
+describe('the mobile home Tab keeper stands down for dialogs above it', () => {
+  it('asks isInsideOtherDialog before wrapping focus', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync('src/components/MobileHome.tsx', 'utf8');
+
+    expect(source).toContain("import { isInsideOtherDialog } from '../utils/keyboardTarget';");
+    expect(source).toContain(
+      'if (isInsideOtherDialog(event.target, home) || isInsideOtherDialog(document.activeElement, home)) return;'
+    );
   });
 });

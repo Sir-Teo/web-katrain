@@ -47,6 +47,29 @@ export function isDialogTarget(target: EventTarget | null): boolean {
   return Boolean(element.closest?.(DIALOG_TARGET_SELECTOR));
 }
 
+
+/**
+ * Whether `node` sits inside a dialog other than `root`.
+ *
+ * An overlay that keeps focus to itself with a capture-phase Tab handler has to
+ * be able to stand down when something opens on top of it: the handler sees Tab
+ * before the new dialog's own trap does, reads focus as "not mine", and hauls
+ * it back. Since `root` is usually a dialog itself, the question is not "is
+ * this in a dialog" but "is this in a *different* one".
+ */
+export function isInsideOtherDialog(node: EventTarget | null, root: EventTarget | null): boolean {
+  if (!node || typeof node !== 'object' || !root || typeof root !== 'object') return false;
+  const element = node as { closest?: (selector: string) => unknown };
+  const dialog = element.closest?.(DIALOG_TARGET_SELECTOR) as
+    | { contains?: (other: unknown) => boolean }
+    | null
+    | undefined;
+  if (!dialog) return false;
+  if (dialog === root) return false;
+  const container = root as { contains?: (other: unknown) => boolean };
+  return !container.contains?.(dialog);
+}
+
 export function shouldIgnoreGlobalPasteTarget(target: EventTarget | null): boolean {
   return isTextEntryTarget(target) || isDialogTarget(target);
 }
