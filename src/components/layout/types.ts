@@ -24,6 +24,7 @@ export type UiState = {
       treeOpen: boolean;
       infoOpen: boolean;
       analysisOpen: boolean;
+      candidatesOpen: boolean;
       graphOpen: boolean;
       graph: GraphOptions;
       statsOpen: boolean;
@@ -63,6 +64,7 @@ export function defaultUiState(): UiState {
         treeOpen: true,
         infoOpen: true,
         analysisOpen: true,
+        candidatesOpen: false,
         graphOpen: false,
         graph: { score: true, winrate: false },
         statsOpen: true,
@@ -74,6 +76,7 @@ export function defaultUiState(): UiState {
         treeOpen: true,
         infoOpen: true,
         analysisOpen: true,
+        candidatesOpen: true,
         graphOpen: false,
         graph: { score: true, winrate: true },
         statsOpen: true,
@@ -108,6 +111,7 @@ export function loadUiState(): UiState {
         treeOpen: typeof src?.treeOpen === 'boolean' ? src.treeOpen : fallback.treeOpen,
         infoOpen: typeof src?.infoOpen === 'boolean' ? src.infoOpen : fallback.infoOpen,
         analysisOpen: typeof src?.analysisOpen === 'boolean' ? src.analysisOpen : fallback.analysisOpen,
+        candidatesOpen: typeof src?.candidatesOpen === 'boolean' ? src.candidatesOpen : fallback.candidatesOpen,
         graphOpen: typeof src?.graphOpen === 'boolean' ? src.graphOpen : fallback.graphOpen,
         graph: { ...fallback.graph, ...(src?.graph ?? {}) },
         statsOpen: typeof src?.statsOpen === 'boolean' ? src.statsOpen : fallback.statsOpen,

@@ -7,6 +7,7 @@ import {
   FaLevelUpAlt,
   FaSitemap,
   FaChartLine,
+  FaListOl,
   FaCommentDots,
   FaStar,
   FaListUl,
@@ -15,9 +16,10 @@ import {
   FaStickyNote,
   FaChevronLeft,
 } from 'react-icons/fa';
-import type { Player, GameNode } from '../../types';
+import type { Player, GameNode, CandidateMove } from '../../types';
 import { useGameStore } from '../../store/gameStore';
 import { AnalysisPanel } from '../AnalysisPanel';
+import { CandidateMoveList } from '../CandidateMoveList';
 import { GameInfoPanel } from '../GameInfoPanel';
 import { MoveTree } from '../MoveTree';
 import { NotesPanel } from '../NotesPanel';
@@ -111,6 +113,9 @@ interface RightPanelProps {
   isInsertMode: boolean;
   toast: (msg: string, type: 'info' | 'error' | 'success') => void;
   // Analysis
+  /** `${x},${y}` of the candidate whose variation is on the board, or null. */
+  hoveredCandidateKey: string | null;
+  onHoverCandidate: (move: CandidateMove | null) => void;
   winRate: number | null;
   scoreLead: number | null;
   pointsLost: number | null;
@@ -171,6 +176,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   makeCurrentNodeMainBranch,
   isInsertMode,
   toast,
+  hoveredCandidateKey,
+  onHoverCandidate,
   winRate,
   scoreLead,
   pointsLost,
@@ -814,6 +821,18 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   compact={isMobile}
                 />
               ),
+            })}
+
+            {/* Candidates */}
+            {renderSection({
+              show: showAnalysis && showAnalysisSection,
+              title: 'Candidates',
+              icon: <FaListOl size={12} />,
+              open: modePanels.candidatesOpen,
+              onToggle: () => updatePanels((current) => ({ candidatesOpen: !current.candidatesOpen })),
+              wrapperClassName: 'flex flex-col min-h-0',
+              contentClassName: 'panel-section-content p-0',
+              children: <CandidateMoveList hoveredKey={hoveredCandidateKey} onHover={onHoverCandidate} />,
             })}
 
             {/* Comment / Notes */}

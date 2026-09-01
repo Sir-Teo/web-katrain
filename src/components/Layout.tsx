@@ -3532,6 +3532,8 @@ export const Layout: React.FC = () => {
             dirty={currentGameDirty}
             currentNode={currentNode}
             drillHidesAnswer={drillHidesAnswer}
+            hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
+            onHoverCandidate={setReportHoverMove}
             branchInfo={branchInfo}
             showAnalysis={isAnalysisMode || mode === 'analyze'}
             winRate={winRate ?? null}
@@ -3907,6 +3909,8 @@ export const Layout: React.FC = () => {
         </main>
 
         <RightPanel
+          hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
+          onHoverCandidate={setReportHoverMove}
           open={rightPanelOpen}
           onClose={handleCloseRightPanel}
           width={isDesktop ? rightPanelWidth : undefined}

@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard.css';
 import { Icon, type IconName } from './icons';
-import type { GameNode, GameRules, GameSettings, Player } from '../../types';
+import type { CandidateMove, GameNode, GameRules, GameSettings, Player } from '../../types';
 import type { BranchInfo } from '../../utils/branchNavigation';
 import type { AnalysisControlsState } from '../layout/types';
 import { formatMoveLabel } from '../layout/ui-utils';
 import { MoveTree } from '../MoveTree';
 import { ScoreWinrateGraph } from '../ScoreWinrateGraph';
 import { TenukiRow } from '../TenukiRow';
+import { CandidateMoveList } from '../CandidateMoveList';
 import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
@@ -47,6 +48,9 @@ export interface DesktopDashboardProps {
   currentNode: GameNode;
   /** True while a mistake drill is asking about this position; see `mistakeDrill`. */
   drillHidesAnswer: boolean;
+  /** `${x},${y}` of the candidate whose variation is on the board, or null. */
+  hoveredCandidateKey: string | null;
+  onHoverCandidate: (move: CandidateMove | null) => void;
   branchInfo: BranchInfo;
 
   // ---- analysis ----
@@ -181,7 +185,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     boardControls,
     blackName, whiteName, blackRank, whiteRank,
     capturedBlack, capturedWhite, komi, boardSize, handicap, rules, result,
-    currentPlayer, moveCount, totalMoves, loadedFileName, dirty, currentNode, drillHidesAnswer, branchInfo,
+    currentPlayer, moveCount, totalMoves, loadedFileName, dirty, currentNode, drillHidesAnswer,
+    hoveredCandidateKey, onHoverCandidate, branchInfo,
     showAnalysis, winRate, scoreLead, pointsLost, pointsLostLabel,
     engineState, enginePillLabel, engineMetaTitle, engineBackend, engineModelLabel, analysisCacheSize,
     mode, setMode, isContinuousAnalysis, toggleContinuousAnalysis,
@@ -200,7 +205,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   } = props;
   const rulesLabel = formatRulesLabel(rules);
 
-  const [sections, setSections] = useState({ tree: true, analysis: true, notes: true });
+  const [sections, setSections] = useState({ tree: true, analysis: true, candidates: true, notes: true });
   // Top game-info strip and bottom metrics bar collapse like the side panels so
   // the board can take the full column; reopen handles mirror the edge toggles.
   const [gamestripOpen, setGamestripOpen] = useState(() => {
@@ -1054,6 +1059,15 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     hints or ownership.
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Candidates: the engine's moves as rows, for reading five of them
+                against each other rather than one hovered circle at a time. */}
+            <div className={`section${sections.candidates ? ' open' : ''}`}>
+              {sectionHead('candidates', 'Candidates', 'list')}
+              <div className="section-body flush">
+                <CandidateMoveList hoveredKey={hoveredCandidateKey} onHover={onHoverCandidate} />
               </div>
             </div>
 
