@@ -111,6 +111,31 @@ const parseEm = (value: string | undefined, base: number): number => {
   return num * base;
 };
 
+/**
+ * Assigning `ctx.font` is not a property write: the canvas implementation
+ * re-resolves the whole font stack behind it, and with the monospace fallback
+ * list this board uses that profiled at ~1.6ms a time -- more than everything
+ * else the stone layer does put together, paid once per redraw and so once per
+ * move navigated. The string is identical from one redraw to the next, so
+ * assign it only when it actually changed.
+ *
+ * The cache is per context and is dropped whenever the backing store is
+ * resized, because that resets canvas state -- including the font -- to its
+ * defaults. Keep every write to `ctx.font` on a canvas that uses this helper
+ * going through it, or the cache will believe a font that has been overwritten.
+ */
+const lastCanvasFont = new WeakMap<CanvasRenderingContext2D, string>();
+
+function setCanvasFont(ctx: CanvasRenderingContext2D, font: string): void {
+  if (lastCanvasFont.get(ctx) === font) return;
+  ctx.font = font;
+  lastCanvasFont.set(ctx, font);
+}
+
+function forgetCanvasFont(ctx: CanvasRenderingContext2D): void {
+  lastCanvasFont.delete(ctx);
+}
+
 function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
   const a = typeof alphaOverride === 'number' ? alphaOverride : color[3];
   return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${a})`;
@@ -598,8 +623,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       const height = Math.max(1, boardHeight);
       const pixelWidth = Math.max(1, Math.round(width * dpr));
       const pixelHeight = Math.max(1, Math.round(height * dpr));
-      if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
-      if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+      if (canvas.width !== pixelWidth) {
+        canvas.width = pixelWidth;
+        forgetCanvasFont(ctx);
+      }
+      if (canvas.height !== pixelHeight) {
+        canvas.height = pixelHeight;
+        forgetCanvasFont(ctx);
+      }
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -800,14 +831,53 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const whiteImages = stoneImagesRef.current.white;
     const stoneRadius = cellSize * STONE_SIZE;
     const stoneDiameter = 2 * stoneRadius;
-    const blackConfig = boardTheme.stones.black;
-    const whiteConfig = boardTheme.stones.white;
     const fontSize = stoneDiameter * 0.9;
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font =
-      `bold ${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
+    // Everything a stone's geometry depends on is a property of its colour and
+    // the cell size, not of where the stone sits. Reading it per stone meant
+    // parsing the same handful of theme strings -- each one a trim, a regex and
+    // a parseFloat -- 361 times a redraw, which profiled as the largest single
+    // cost of navigating a move.
+    const stoneStyleFor = (config: typeof boardTheme.stones.black) => {
+      const diameter = stoneDiameter * parsePercent(config.size, 1);
+      return {
+        diameter,
+        radius: diameter / 2,
+        offsetX: parseEm(config.imageOffsetX, stoneDiameter),
+        offsetY: parseEm(config.imageOffsetY, stoneDiameter),
+        shadowColor: config.shadowColor && config.shadowColor !== 'transparent' ? config.shadowColor : null,
+        shadowOffsetX: parseEm(config.shadowOffsetX, stoneDiameter),
+        shadowOffsetY: parseEm(config.shadowOffsetY, stoneDiameter),
+        shadowBlur: parseEm(config.shadowBlur, stoneDiameter),
+        borderWidth: parseEm(config.borderWidth, stoneDiameter),
+        borderColor: config.borderColor,
+        fillStyle: config.backgroundColor ?? null,
+      };
+    };
+    const blackStyle = stoneStyleFor(boardTheme.stones.black);
+    const whiteStyle = stoneStyleFor(boardTheme.stones.white);
+    const blackFill = blackStyle.fillStyle ?? rgba(STONE_COLORS.black);
+    const whiteFill = whiteStyle.fillStyle ?? rgba(STONE_COLORS.white);
+    const blackMarkStyle = rgba(STONE_COLORS.black);
+    const whiteMarkStyle = rgba(STONE_COLORS.white);
+    // The ownership mark's outline is the midpoint of the two stone colours, so
+    // it is the same colour whichever side owns the point.
+    const markOutlineStyle = rgba([
+      (STONE_COLORS.black[0] + STONE_COLORS.white[0]) / 2,
+      (STONE_COLORS.black[1] + STONE_COLORS.white[1]) / 2,
+      (STONE_COLORS.black[2] + STONE_COLORS.white[2]) / 2,
+      1,
+    ]);
+    const readsOwnership = scoringMode || showOwnership;
+
+    if (settings.showMoveNumbers) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      setCanvasFont(
+        ctx,
+        `bold ${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`
+      );
+    }
 
     for (let y = 0; y < boardSize; y++) {
       for (let x = 0; x < boardSize; x++) {
@@ -816,24 +886,16 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         const d = toDisplay(x, y);
         const cx = originX + d.x * cellSize;
         const cy = originY + d.y * cellSize;
-        const stoneConfig = cell === 'black' ? blackConfig : whiteConfig;
-        const scale = parsePercent(stoneConfig.size, 1);
-        const diameter = stoneDiameter * scale;
-        const radius = diameter / 2;
-        const offsetX = parseEm(stoneConfig.imageOffsetX, stoneDiameter);
-        const offsetY = parseEm(stoneConfig.imageOffsetY, stoneDiameter);
+        const style = cell === 'black' ? blackStyle : whiteStyle;
+        const radius = style.radius;
         const fuzzy = fuzzyStoneOffset(boardSize, x, y, settings.fuzzyStonePlacement);
         const stoneCx = cx + fuzzy.dxFactor * stoneDiameter;
         const stoneCy = cy + fuzzy.dyFactor * stoneDiameter;
-        const left = stoneCx - radius + offsetX;
-        const top = stoneCy - radius + offsetY;
+        const left = stoneCx - radius + style.offsetX;
+        const top = stoneCy - radius + style.offsetY;
 
-        const deadStoneKey = `${x},${y}`;
-        const isDeadScoringStone = scoringMode && !!deadStones?.has(deadStoneKey);
-        const ownershipVal =
-          (scoringMode || showOwnership) && territory
-            ? (territory[y]?.[x] ?? 0)
-            : null;
+        const isDeadScoringStone = scoringMode && !!deadStones?.has(`${x},${y}`);
+        const ownershipVal = readsOwnership && territory ? (territory[y]?.[x] ?? 0) : null;
         const ownershipAbs = ownershipVal !== null ? Math.min(1, Math.abs(ownershipVal)) : 0;
         const owner =
           ownershipVal !== null
@@ -850,15 +912,6 @@ export const GoBoard: React.FC<GoBoardProps> = ({
               : STONE_MIN_ALPHA
             : 1;
         const showMark = ownershipVal !== null && owner && cell !== owner && ownershipAbs > 0;
-        const markSize = Math.max(0, MARK_SIZE * ownershipAbs * stoneDiameter);
-        const markColor = owner === 'black' ? STONE_COLORS.black : STONE_COLORS.white;
-        const otherColor = owner === 'black' ? STONE_COLORS.white : STONE_COLORS.black;
-        const outlineColor = [
-          (markColor[0] + otherColor[0]) / 2,
-          (markColor[1] + otherColor[1]) / 2,
-          (markColor[2] + otherColor[2]) / 2,
-          1,
-        ] as const;
 
         ctx.globalAlpha = stoneAlpha;
         const moveNumber = moveNumbers?.[y]?.[x];
@@ -867,41 +920,39 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           ? Math.abs(((moveNumber ?? 0) + x * 7 + y * 13) % imageList.length)
           : 0;
         const img = imageList[variantIndex];
-        const shadowOffsetX = parseEm(stoneConfig.shadowOffsetX, stoneDiameter);
-        const shadowOffsetY = parseEm(stoneConfig.shadowOffsetY, stoneDiameter);
-        const shadowBlur = parseEm(stoneConfig.shadowBlur, stoneDiameter);
-        const hasShadow = stoneConfig.shadowColor && stoneConfig.shadowColor !== 'transparent';
         ctx.save();
-        if (hasShadow) {
-          ctx.shadowColor = stoneConfig.shadowColor!;
-          ctx.shadowOffsetX = shadowOffsetX;
-          ctx.shadowOffsetY = shadowOffsetY;
-          ctx.shadowBlur = shadowBlur;
+        if (style.shadowColor) {
+          ctx.shadowColor = style.shadowColor;
+          ctx.shadowOffsetX = style.shadowOffsetX;
+          ctx.shadowOffsetY = style.shadowOffsetY;
+          ctx.shadowBlur = style.shadowBlur;
         }
         if (img && img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, left, top, diameter, diameter);
+          ctx.drawImage(img, left, top, style.diameter, style.diameter);
         } else {
           ctx.beginPath();
-          ctx.fillStyle = stoneConfig.backgroundColor ?? rgba(cell === 'black' ? STONE_COLORS.black : STONE_COLORS.white);
+          ctx.fillStyle = cell === 'black' ? blackFill : whiteFill;
           ctx.arc(stoneCx, stoneCy, radius, 0, Math.PI * 2);
           ctx.fill();
-          const borderWidth = parseEm(stoneConfig.borderWidth, stoneDiameter);
-          if (borderWidth > 0 && stoneConfig.borderColor) {
-            ctx.lineWidth = borderWidth;
-            ctx.strokeStyle = stoneConfig.borderColor;
+          if (style.borderWidth > 0 && style.borderColor) {
+            ctx.lineWidth = style.borderWidth;
+            ctx.strokeStyle = style.borderColor;
             ctx.stroke();
           }
         }
         ctx.restore();
         ctx.globalAlpha = 1;
 
-        if (showMark && markSize > 0) {
-          ctx.fillStyle = rgba(markColor);
-          ctx.strokeStyle = rgba(outlineColor);
-          const markLeft = stoneCx - markSize / 2;
-          const markTop = stoneCy - markSize / 2;
-          ctx.fillRect(markLeft, markTop, markSize, markSize);
-          ctx.strokeRect(markLeft, markTop, markSize, markSize);
+        if (showMark) {
+          const markSize = Math.max(0, MARK_SIZE * ownershipAbs * stoneDiameter);
+          if (markSize > 0) {
+            ctx.fillStyle = owner === 'black' ? blackMarkStyle : whiteMarkStyle;
+            ctx.strokeStyle = markOutlineStyle;
+            const markLeft = stoneCx - markSize / 2;
+            const markTop = stoneCy - markSize / 2;
+            ctx.fillRect(markLeft, markTop, markSize, markSize);
+            ctx.strokeRect(markLeft, markTop, markSize, markSize);
+          }
         }
 
         if (isDeadScoringStone) {
