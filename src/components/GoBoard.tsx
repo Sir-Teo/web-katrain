@@ -642,6 +642,31 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     [boardHeight, boardWidth, canvasThemeVersion]
   );
 
+  /**
+   * Give back an overlay's backing store when the layer has nothing to draw.
+   *
+   * The board stacks twelve canvases, and each one that has been through
+   * `setupOverlayCanvas` holds width x height x devicePixelRatio squared bytes
+   * whether or not anything was ever painted on it. On a 690px board at 2x that
+   * is 7.2MB apiece, ~80MB for the stack -- and in an ordinary session most of
+   * the layers are empty: no analysis running means no hints, no eval dots, no
+   * policy, no child rings, no principal variation.
+   *
+   * Zeroing the element's size frees the buffer. The next `setupOverlayCanvas`
+   * allocates it again, so a layer coming back is one redraw away. The CSS box
+   * goes with it, which is what keeps the snapshot compositor from trying to
+   * `drawImage` a canvas the specification says it must refuse.
+   */
+  const releaseOverlayCanvas = useCallback((canvas: HTMLCanvasElement): void => {
+    if (canvas.width === 0 && canvas.height === 0) return;
+    const ctx = canvas.getContext('2d');
+    if (ctx) forgetCanvasFont(ctx);
+    canvas.width = 0;
+    canvas.height = 0;
+    canvas.style.width = '0px';
+    canvas.style.height = '0px';
+  }, []);
+
   // KaTrain-style coordinates and rotation behavior.
   const GTP_COORD = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'] as const;
   const gtpCoord = GTP_COORD.slice(0, boardSize);
@@ -1423,11 +1448,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   useEffect(() => {
     const canvas = lastMoveCanvasRef.current;
     if (!canvas) return;
+    const cell = lastMove && lastMove.x >= 0 && lastMove.y >= 0 ? board[lastMove.y]?.[lastMove.x] : null;
+    if (!lastMove || !cell) {
+      releaseOverlayCanvas(canvas);
+      return;
+    }
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
-    if (!lastMove || lastMove.x < 0 || lastMove.y < 0) return;
-    const cell = board[lastMove.y]?.[lastMove.x];
-    if (!cell) return;
 
     const d = toDisplay(lastMove.x, lastMove.y);
     const stoneDiameter = 2 * (cellSize * STONE_SIZE);
@@ -1463,15 +1490,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       ctx.lineWidth = Math.max(1.5, cellSize * 0.05);
       ctx.stroke();
     }
-  }, [board, cellSize, currentNode, lastMove, originX, originY, setupOverlayCanvas, stoneTextureVersion, toDisplay]);
+  }, [board, cellSize, currentNode, lastMove, originX, originY, setupOverlayCanvas, stoneTextureVersion, toDisplay, releaseOverlayCanvas]);
 
   useEffect(() => {
     const canvas = ringsCanvasRef.current;
     if (!canvas) return;
+    if (!hasAnalysisOverlay || !settings.analysisShowChildren || childMoveRings.length === 0) {
+      releaseOverlayCanvas(canvas);
+      return;
+    }
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
-    if (!hasAnalysisOverlay || !settings.analysisShowChildren) return;
-    if (childMoveRings.length === 0) return;
 
     const strokeWidth = Math.max(1, cellSize * 0.04);
     const ringRadius = Math.max(0, cellSize * STONE_SIZE - strokeWidth);
@@ -1508,6 +1537,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
     ctx.setLineDash([]);
   }, [
+    releaseOverlayCanvas,
     bestHintMoveCoords,
     cellSize,
     childMoveRings,
@@ -2163,9 +2193,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   useEffect(() => {
     const canvas = evalCanvasRef.current;
     if (!canvas) return;
+    if (!hasAnalysisOverlay || !settings.analysisShowEval || settings.showLastNMistakes === 0) {
+      releaseOverlayCanvas(canvas);
+      return;
+    }
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
-    if (!hasAnalysisOverlay || !settings.analysisShowEval || settings.showLastNMistakes === 0) return;
     void treeVersion;
 
     const dotImg = dotImageRef.current;
@@ -2269,6 +2302,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       count++;
     }
   }, [
+    releaseOverlayCanvas,
     board,
     cellSize,
     currentNode,
@@ -2290,15 +2324,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   useEffect(() => {
     const canvas = policyCanvasRef.current;
     if (!canvas) return;
-    const ctx = setupOverlayCanvas(canvas);
-    if (!ctx) return;
-    if (!hasAnalysisOverlay || !settings.analysisShowPolicy) return;
     // With the human SL net loaded, the same overlay can show how a player of the
     // configured rank would move instead of the engine's own policy.
-    if (!visibleAnalysis) return;
-    const humanPolicy = visibleAnalysis.humanPolicy;
-    const policy = settings.analysisPolicySource === 'human' && humanPolicy ? humanPolicy : visibleAnalysis.policy;
-    if (!policy) return;
+    const humanPolicy = visibleAnalysis?.humanPolicy;
+    const policy =
+      settings.analysisPolicySource === 'human' && humanPolicy ? humanPolicy : visibleAnalysis?.policy;
+    if (!hasAnalysisOverlay || !settings.analysisShowPolicy || !visibleAnalysis || !policy) {
+      releaseOverlayCanvas(canvas);
+      return;
+    }
+    const ctx = setupOverlayCanvas(canvas);
+    if (!ctx) return;
 
     let best = 0;
     for (let i = 0; i < boardSize * boardSize; i++) {
@@ -2396,6 +2432,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     }
   }, [
+    releaseOverlayCanvas,
     approxBoardColor,
     boardSize,
     cellSize,
@@ -2422,11 +2459,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   useEffect(() => {
     const canvas = tenukiCanvasRef.current;
     if (!canvas) return;
-    const ctx = setupOverlayCanvas(canvas);
-    if (!ctx) return;
     const tenuki = tenukiAnalysis?.nodeId === currentNode.id ? tenukiAnalysis : null;
     const follow = tenuki?.status === 'ready' ? tenuki.followUp : null;
-    if (!follow || follow.x < 0 || follow.y < 0) return;
+    if (!follow || follow.x < 0 || follow.y < 0) {
+      releaseOverlayCanvas(canvas);
+      return;
+    }
+    const ctx = setupOverlayCanvas(canvas);
+    if (!ctx) return;
 
     const d = toDisplay(follow.x, follow.y);
     const cx = originX + d.x * cellSize;
@@ -2451,17 +2491,18 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-  }, [cellSize, currentNode.id, originX, originY, setupOverlayCanvas, tenukiAnalysis, toDisplay]);
+  }, [cellSize, currentNode.id, originX, originY, setupOverlayCanvas, tenukiAnalysis, toDisplay, releaseOverlayCanvas]);
 
   useEffect(() => {
     const canvas = hintsCanvasRef.current;
     if (!canvas) return;
+    const moves = analysisHintMoves;
+    if (!shouldShowHints || !visibleAnalysis || moves.length === 0) {
+      releaseOverlayCanvas(canvas);
+      return;
+    }
     const ctx = setupOverlayCanvas(canvas);
     if (!ctx) return;
-    if (!shouldShowHints || !visibleAnalysis) return;
-
-    const moves = analysisHintMoves;
-    if (moves.length === 0) return;
 
     const topMoveImg = topMoveImageRef.current;
     const lowVisitsThreshold = Math.max(1, settings.trainerLowVisits);
@@ -2629,6 +2670,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     }
   }, [
+    releaseOverlayCanvas,
     altHeld,
     analysisHintMoves,
     approxBoardColor,
@@ -2672,15 +2714,16 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const canvas = pvCanvasRef.current;
     const container = boardSnapshotRef.current ?? containerRef.current;
     if (!canvas) return;
-    const ctx = setupOverlayCanvas(canvas);
-    if (!ctx) return;
     if (!pvOverlayEnabled || pvMoves.length === 0) {
+      releaseOverlayCanvas(canvas);
       if (container) {
         container.dataset.pvRendered = String(Date.now());
         container.dataset.pvCount = '0';
       }
       return;
     }
+    const ctx = setupOverlayCanvas(canvas);
+    if (!ctx) return;
 
     const blackImages = stoneImagesRef.current.black;
     const whiteImages = stoneImagesRef.current.white;
@@ -2713,6 +2756,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       container.dataset.pvCount = String(pvMoves.length);
     }
   }, [
+    releaseOverlayCanvas,
     cellSize,
     pvOverlayEnabled,
     originX,

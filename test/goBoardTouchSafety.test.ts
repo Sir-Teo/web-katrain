@@ -34,7 +34,11 @@ describe('GoBoard touch safety', () => {
     // mutating the user's analysis-mode preference.
     expect(source).not.toContain('const hasAnalysisOverlay = isAnalysisMode || !!visibleAnalysis;');
     expect(source).not.toContain('isContinuousAnalysis');
-    expect(source).toContain('if (!hasAnalysisOverlay || !settings.analysisShowEval || settings.showLastNMistakes === 0) return;');
+    // The eval layer now releases its backing store on the same condition
+    // rather than returning from a sized canvas, so the guard reads as a block.
+    expect(source).toContain(
+      'if (!hasAnalysisOverlay || !settings.analysisShowEval || settings.showLastNMistakes === 0) {'
+    );
   });
 
   it('keeps the Layout board-overlay gate in step with the board', () => {
