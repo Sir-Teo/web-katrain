@@ -45,6 +45,8 @@ export interface DesktopDashboardProps {
   loadedFileName: string | null;
   dirty: boolean;
   currentNode: GameNode;
+  /** True while a mistake drill is asking about this position; see `mistakeDrill`. */
+  drillHidesAnswer: boolean;
   branchInfo: BranchInfo;
 
   // ---- analysis ----
@@ -179,7 +181,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     boardControls,
     blackName, whiteName, blackRank, whiteRank,
     capturedBlack, capturedWhite, komi, boardSize, handicap, rules, result,
-    currentPlayer, moveCount, totalMoves, loadedFileName, dirty, currentNode, branchInfo,
+    currentPlayer, moveCount, totalMoves, loadedFileName, dirty, currentNode, drillHidesAnswer, branchInfo,
     showAnalysis, winRate, scoreLead, pointsLost, pointsLostLabel,
     engineState, enginePillLabel, engineMetaTitle, engineBackend, engineModelLabel, analysisCacheSize,
     mode, setMode, isContinuousAnalysis, toggleContinuousAnalysis,
@@ -357,7 +359,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   }, [pop, closePopWithFocus]);
 
   // ---- command bar metrics ----
-  const bestMove = currentNode.analysis?.moves?.[0] ?? null;
+  // A drill asking about this position is asking for exactly this move, so the
+  // metric strip has to withhold it too -- hiding the board hints and then
+  // printing "BEST MOVE G4" under the board answers the question anyway.
+  const bestMove = drillHidesAnswer ? null : currentNode.analysis?.moves?.[0] ?? null;
   // "Fast review" matches the command bar's name for the same operation;
   // avoid exposing MCTS jargon in one surface and not the other.
   const dashboardFastMctsTitle = isGameAnalysisRunning

@@ -32,6 +32,11 @@ import { getHorizontalSwipeNavigationAction } from '../utils/swipeNavigation';
 import { buildStonePlacementGrid } from '../utils/stonePlacementMove';
 import { getMoveAnimation } from '../utils/moveAnimation';
 import { getPunishQuizPrompt, gradePunishGuess, punishQuizPromptText, punishQuizVerdictText } from '../utils/punishQuiz';
+import { drillPromptText, drillRevealText, drillSummaryText, drillVerdictText } from '../utils/mistakeDrill';
+
+/** Shared look for the drill chip's actions, which match the punish quiz's. */
+const DRILL_ACTION_CLASS =
+  'min-h-11 shrink-0 rounded-md border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 font-semibold text-[var(--ui-accent)] hover:brightness-110 desktop-shell:min-h-8 lg:px-2.5';
 import {
   getWheelNavigationAction,
   WHEEL_NAVIGATION_THROTTLE_MS,
@@ -229,6 +234,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     navigateNextMistake,
     navigatePrevMistake,
     jumpToNode,
+    mistakeDrill,
+    answerMistakeDrill,
+    revealMistakeDrill,
+    advanceMistakeDrill,
+    resumeMistakeDrill,
+    stopMistakeDrill,
   } = useGameStore(
     (state) => ({
       board: state.board,
@@ -259,6 +270,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       navigateNextMistake: state.navigateNextMistake,
       navigatePrevMistake: state.navigatePrevMistake,
       jumpToNode: state.jumpToNode,
+      mistakeDrill: state.mistakeDrill,
+      answerMistakeDrill: state.answerMistakeDrill,
+      revealMistakeDrill: state.revealMistakeDrill,
+      advanceMistakeDrill: state.advanceMistakeDrill,
+      resumeMistakeDrill: state.resumeMistakeDrill,
+      stopMistakeDrill: state.stopMistakeDrill,
     }),
     shallow
   );
@@ -441,6 +458,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         ? { phase: 'offer', text: punishQuizPromptText(punishQuizOffer) }
         : null;
   const dismissPunishQuiz = () => setPunishQuizResponse({ nodeId: currentNode.id, phase: 'dismissed', text: '' });
+
+  // The mistake drill puts the board back into a position the player got wrong
+  // and asks for a better move. It only owns the board while it is asking about
+  // the position currently on it: navigating away leaves the drill running but
+  // hands the board back, so a player can look around before answering.
+  const drillMistake = mistakeDrill && mistakeDrill.phase !== 'done'
+    ? mistakeDrill.mistakes[mistakeDrill.index] ?? null
+    : null;
+  const drillOnThisPosition = !!drillMistake && drillMistake.parentNodeId === currentNode.id;
+  const drillAsking = drillOnThisPosition && mistakeDrill?.phase === 'asking' && !isEditMode && !scoringMode;
+  const drillAnswered = drillOnThisPosition && mistakeDrill?.phase === 'answered';
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const resolvedUiTheme = useResolvedUiTheme(settings.uiTheme);
   const [canvasThemeVersion, setCanvasThemeVersion] = useState(0);
@@ -730,11 +758,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   );
 
   const childMoveRings = useMemo(() => {
-    if (!hasAnalysisOverlay || !settings.analysisShowChildren) return [];
+    if (!hasAnalysisOverlay || !settings.analysisShowChildren || drillAsking) return [];
     return currentNode.children
       .map((c) => c.move)
       .filter((m): m is NonNullable<typeof m> => !!m && m.x >= 0 && m.y >= 0);
-  }, [currentNode, hasAnalysisOverlay, settings.analysisShowChildren]);
+  }, [currentNode, drillAsking, hasAnalysisOverlay, settings.analysisShowChildren]);
 
   const analysisHintMoves = useMemo(
     () => selectAnalysisHintMoves(visibleAnalysis?.moves ?? [], compactAnalysisHints),
@@ -759,9 +787,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const territory = (scoringMode ? scoreTerritory : null) ?? analysisTerritory ?? parentTerritory ?? null;
   // While a punish-quiz guess is armed, hide hints so the answer isn't on screen.
   const punishQuizArmed = punishQuiz?.phase === 'armed';
+  // A drill that is still asking hides every overlay that would answer it: the
+  // hints and the policy heatmap say where the engine wants to play, and the
+  // child rings and next-move ghost say what was played.
+  const hidesAnswer = punishQuizArmed || drillAsking;
+  const shouldShowPolicy = settings.analysisShowPolicy && !drillAsking;
   const shouldShowHints =
-    hasAnalysisOverlay && !!visibleAnalysis && settings.analysisShowHints && !settings.analysisShowPolicy && !punishQuizArmed;
-  const canHoverAnalysisMove = hasAnalysisOverlay && !!visibleAnalysis && (shouldShowHints || settings.analysisShowPolicy);
+    hasAnalysisOverlay && !!visibleAnalysis && settings.analysisShowHints && !settings.analysisShowPolicy && !hidesAnswer;
+  const canHoverAnalysisMove = hasAnalysisOverlay && !!visibleAnalysis && (shouldShowHints || shouldShowPolicy);
   const hoverMoveMap = useMemo(() => {
     if (!canHoverAnalysisMove || !visibleAnalysis) return null;
     const map = new Map<string, CandidateMove>();
@@ -1414,13 +1447,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     }
 
-    if (settings.showNextMovePreview) {
+    if (settings.showNextMovePreview && !drillAsking) {
       const nextMove = getActiveChild(currentNode, activeBranchChildIds)?.move;
       if (nextMove && nextMove.x >= 0 && nextMove.y >= 0 && !board[nextMove.y]?.[nextMove.x]) {
         drawGhost(nextMove.x, nextMove.y, nextMove.player, 0.35);
       }
     }
   }, [
+    drillAsking,
     board,
     cellSize,
     cursorPt,
@@ -1843,6 +1877,16 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       // Segment, freehand, and region tools are handled on pointer events.
       if (isSegmentTool || isDrawTool || isRegionTool) return;
       applyEditTool(pt.x, pt.y);
+      return;
+    }
+
+    // A drill that is asking about this position consumes the click as the
+    // answer. It comes before the punish quiz because a drill is something the
+    // player deliberately started, and before playing a move because answering
+    // must not add the guess to the game tree.
+    if (drillAsking) {
+      if (board[pt.y]?.[pt.x]) return; // an occupied point is not an answer
+      answerMistakeDrill(pt.x, pt.y);
       return;
     }
 
@@ -2329,7 +2373,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const humanPolicy = visibleAnalysis?.humanPolicy;
     const policy =
       settings.analysisPolicySource === 'human' && humanPolicy ? humanPolicy : visibleAnalysis?.policy;
-    if (!hasAnalysisOverlay || !settings.analysisShowPolicy || !visibleAnalysis || !policy) {
+    if (!hasAnalysisOverlay || !shouldShowPolicy || !visibleAnalysis || !policy) {
       releaseOverlayCanvas(canvas);
       return;
     }
@@ -2432,6 +2476,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       }
     }
   }, [
+    shouldShowPolicy,
     releaseOverlayCanvas,
     approxBoardColor,
     boardSize,
@@ -2929,8 +2974,78 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           </div>
         )}
 
+        {/* Mistake drill: the answer, once the player has committed to one. */}
+        {drillAnswered && drillMistake && (() => {
+          const best = currentNode.analysis?.moves?.find((move) => move.order === 0) ?? currentNode.analysis?.moves?.[0];
+          const marks: Array<{ key: string; x: number; y: number; label: string; tone: 'best' | 'played' }> = [];
+          if (best && best.x >= 0 && best.y >= 0) {
+            marks.push({ key: 'best', x: best.x, y: best.y, label: 'Engine', tone: 'best' });
+          }
+          marks.push({ key: 'played', x: drillMistake.played.x, y: drillMistake.played.y, label: 'Played', tone: 'played' });
+          return marks.map((mark) => {
+            const d = toDisplay(mark.x, mark.y);
+            return (
+              <div
+                key={mark.key}
+                className="drill-mark"
+                data-drill-mark={mark.tone}
+                style={{
+                  left: originX + d.x * cellSize,
+                  top: originY + d.y * cellSize,
+                  width: cellSize * 0.92,
+                  height: cellSize * 0.92,
+                }}
+              >
+                <span className="drill-mark-label">{mark.label}</span>
+              </div>
+            );
+          });
+        })()}
+
+        {/* Mistake drill chip */}
+        {mistakeDrill && !isEditMode && !scoringMode && (
+          <div className="absolute left-1/2 bottom-3 -translate-x-1/2 z-40 max-w-[calc(100%-1rem)]" data-mistake-drill={mistakeDrill.phase}>
+            <div className="ui-panel border rounded-lg shadow-xl pl-3 pr-1 py-1.5 text-xs font-semibold flex items-center gap-2">
+              <span className="min-w-0" role="status">
+                {mistakeDrill.phase === 'done'
+                  ? drillSummaryText(mistakeDrill.solvedIds.length, mistakeDrill.mistakes.length)
+                  : !drillOnThisPosition
+                    ? `Drill paused at position ${mistakeDrill.index + 1} of ${mistakeDrill.mistakes.length}.`
+                    : mistakeDrill.phase === 'asking'
+                      ? drillPromptText(drillMistake!, mistakeDrill.index, mistakeDrill.mistakes.length)
+                      : mistakeDrill.revealed
+                        ? drillRevealText(drillMistake!, currentNode)
+                        : drillVerdictText(mistakeDrill.verdict!)}
+              </span>
+              {mistakeDrill.phase !== 'done' && !drillOnThisPosition && (
+                <button type="button" className={DRILL_ACTION_CLASS} onClick={resumeMistakeDrill}>
+                  Resume
+                </button>
+              )}
+              {drillAsking && (
+                <button type="button" className={DRILL_ACTION_CLASS} onClick={revealMistakeDrill}>
+                  Show me
+                </button>
+              )}
+              {drillAnswered && (
+                <button type="button" className={DRILL_ACTION_CLASS} onClick={advanceMistakeDrill}>
+                  {mistakeDrill.index + 1 >= mistakeDrill.mistakes.length ? 'Finish' : 'Next'}
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="End mistake drill"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface)] hover:text-[var(--ui-text)] desktop-shell:h-8 desktop-shell:w-8"
+                onClick={stopMistakeDrill}
+              >
+                <FaTimes size={11} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Auto-offered "find the punish" quiz chip */}
-        {punishQuiz && !isEditMode && !scoringMode && (
+        {punishQuiz && !mistakeDrill && !isEditMode && !scoringMode && (
           <div
             className="absolute left-1/2 bottom-3 -translate-x-1/2 z-40 max-w-[calc(100%-1rem)]"
             data-punish-quiz={punishQuiz.phase}

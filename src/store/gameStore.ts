@@ -18,6 +18,15 @@ import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize
 import { makeAnalysisPositionKey, makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
 import { computeTenukiValue, opponentFollowUp, type TenukiAnalysisState } from '../utils/tenukiValue';
 import {
+  collectDrillMistakes,
+  drillSummaryText,
+  findNodeOnLine,
+  gradeDrillGuess,
+  isDrillSolved,
+  type DrillSide,
+  type MistakeDrillSession,
+} from '../utils/mistakeDrill';
+import {
   analysisQueue,
   isAnalysisQueueCanceledError,
   isAnalysisQueueStaleError,
@@ -104,6 +113,12 @@ interface GameStore extends GameState {
    * than being cleared on navigation -- consumers check it still matches.
    */
   tenukiAnalysis: TenukiAnalysisState | null;
+  /**
+   * A run through the mistakes on the line being reviewed, one position at a
+   * time, with the engine's answer hidden until the player commits to a move.
+   * Null when no drill is running.
+   */
+  mistakeDrill: MistakeDrillSession | null;
   analysisCacheSize: number;
   settings: GameSettings;
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
@@ -159,6 +174,17 @@ interface GameStore extends GameState {
   clearPinnedVariations: () => void;
   navigateNextMistake: () => void;
   navigatePrevMistake: () => void;
+  /** Begin drilling the mistakes on the current line; see `mistakeDrill`. */
+  startMistakeDrill: (side?: DrillSide) => void;
+  /** Grade a board point as the answer to the position being drilled. */
+  answerMistakeDrill: (x: number, y: number) => void;
+  /** Give up on the current position and show what the engine wanted. */
+  revealMistakeDrill: () => void;
+  /** Move on to the next position, or finish. */
+  advanceMistakeDrill: () => void;
+  /** Put the board back on the position the drill is asking about. */
+  resumeMistakeDrill: () => void;
+  stopMistakeDrill: () => void;
   resetGame: () => void;
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
@@ -210,6 +236,7 @@ interface GameStore extends GameState {
   rotateBoard: () => void;
   startNewGame: (opts: { komi: number; rules: GameRules; boardSize: BoardSize; handicap: number }) => void;
 }
+
 
 type StoreNotification = NonNullable<GameStore['notification']>;
 
@@ -1222,6 +1249,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   notification: null,
   analysisData: null,
   tenukiAnalysis: null,
+  mistakeDrill: null,
   analysisCacheSize: getAnalysisCacheSize(initialRoot),
   settings: initialSettings,
   engineStatus: 'idle',
@@ -4701,6 +4729,124 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearPinnedVariations: () => set((state) => {
     writeStoredPinnedVariations(getPinGameId(state.rootNode), []);
     return { pinnedVariations: [] };
+  }),
+
+
+  startMistakeDrill: (side: DrillSide = 'both') => {
+    const state = get();
+    const mistakes = collectDrillMistakes({
+      rootNode: state.rootNode,
+      activeBranchChildIds: state.activeBranchChildIds,
+      threshold: state.settings.mistakeThreshold,
+      side,
+    });
+    if (mistakes.length === 0) {
+      // Two different nothings, and the difference is the whole of what to do
+      // next: review the game, or pick a game with mistakes in it.
+      const analysed = collectDrillMistakes({
+        rootNode: state.rootNode,
+        activeBranchChildIds: state.activeBranchChildIds,
+        threshold: 0,
+        side,
+      }).length;
+      set({
+        notification: {
+          message: analysed === 0
+            ? 'Run a fast or full review first — a drill grades answers against the engine\u2019s candidate moves, which the quick pass does not compute.'
+            : `No move on this line gave up ${state.settings.mistakeThreshold} points or more.`,
+          type: 'info',
+        },
+      });
+      return;
+    }
+    const first = mistakes[0]!;
+    set({
+      mistakeDrill: {
+        mistakes,
+        index: 0,
+        phase: 'asking',
+        verdict: null,
+        revealed: false,
+        solvedIds: [],
+        side,
+      },
+    });
+    const target = findNodeOnLine(state.rootNode, state.activeBranchChildIds, first.parentNodeId);
+    if (target) get().jumpToNode(target);
+  },
+
+  answerMistakeDrill: (x: number, y: number) => {
+    const state = get();
+    const drill = state.mistakeDrill;
+    if (!drill || drill.phase !== 'asking') return;
+    const mistake = drill.mistakes[drill.index];
+    if (!mistake) return;
+    const parent = findNodeOnLine(state.rootNode, state.activeBranchChildIds, mistake.parentNodeId);
+    if (!parent) {
+      set({ mistakeDrill: null });
+      return;
+    }
+    const verdict = gradeDrillGuess(parent, { x, y }, mistake.pointsLost);
+    if (!verdict) return;
+    const solvedIds = isDrillSolved(verdict.kind) && !drill.solvedIds.includes(mistake.nodeId)
+      ? [...drill.solvedIds, mistake.nodeId]
+      : drill.solvedIds;
+    set({ mistakeDrill: { ...drill, phase: 'answered', verdict, revealed: false, solvedIds } });
+  },
+
+  revealMistakeDrill: () => set((state) => {
+    const drill = state.mistakeDrill;
+    if (!drill || drill.phase !== 'asking') return {};
+    return { mistakeDrill: { ...drill, phase: 'answered', verdict: null, revealed: true } };
+  }),
+
+  advanceMistakeDrill: () => {
+    const state = get();
+    const drill = state.mistakeDrill;
+    if (!drill || drill.phase === 'done') return;
+    const nextIndex = drill.index + 1;
+    if (nextIndex >= drill.mistakes.length) {
+      set({ mistakeDrill: { ...drill, phase: 'done', verdict: null, revealed: false } });
+      return;
+    }
+    const next = drill.mistakes[nextIndex]!;
+    set({ mistakeDrill: { ...drill, index: nextIndex, phase: 'asking', verdict: null, revealed: false } });
+    const target = findNodeOnLine(state.rootNode, state.activeBranchChildIds, next.parentNodeId);
+    if (target) get().jumpToNode(target);
+  },
+
+  resumeMistakeDrill: () => {
+    const state = get();
+    const drill = state.mistakeDrill;
+    const mistake = drill && drill.phase !== 'done' ? drill.mistakes[drill.index] : null;
+    if (!mistake) return;
+    const target = findNodeOnLine(state.rootNode, state.activeBranchChildIds, mistake.parentNodeId);
+    if (!target) {
+      // The drilled line is not the line the reviewer is on any more, which is
+      // a thing they did on purpose; say so rather than jumping them somewhere.
+      set({
+        notification: {
+          message: 'That position is on a different branch. Switch back to the reviewed line to continue the drill.',
+          type: 'info',
+        },
+      });
+      return;
+    }
+    get().jumpToNode(target);
+  },
+
+  stopMistakeDrill: () => set((state) => {
+    const drill = state.mistakeDrill;
+    if (!drill) return {};
+    // Say how it went on the way out, so a drill abandoned halfway still leaves
+    // the player with the one number they were working towards.
+    const attempted = drill.phase === 'done' ? drill.mistakes.length : drill.index + (drill.phase === 'answered' ? 1 : 0);
+    return {
+      mistakeDrill: null,
+      notification: attempted > 0
+        ? { message: drillSummaryText(drill.solvedIds.length, attempted), type: 'info' as const }
+        : state.notification,
+    };
   }),
 
   navigateNextMistake: () => {

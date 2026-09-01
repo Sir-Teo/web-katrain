@@ -6327,6 +6327,53 @@
 
 }
 
+/* Mistake drill: the two answers, once the player has committed to one. The
+   engine's move and the move that was actually played, named on the board so
+   the comparison does not have to be carried from the chip's text back to two
+   coordinates the reader then has to find. */
+.drill-mark {
+  position: absolute;
+  z-index: 36;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+
+.drill-mark[data-drill-mark='best'] {
+  color: #16a34a;
+}
+
+.drill-mark[data-drill-mark='played'] {
+  color: #dc2626;
+  border-style: dashed;
+}
+
+.drill-mark-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 3px);
+  transform: translateX(-50%);
+  padding: 1px 5px;
+  border-radius: 9999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.drill-mark[data-drill-mark='best'] .drill-mark-label {
+  color: #f0fdf4;
+  background: #16a34a;
+}
+
+.drill-mark[data-drill-mark='played'] .drill-mark-label {
+  color: #fef2f2;
+  background: #dc2626;
+}
+
 /* One-shot notable-move animations (score-loss pill, set-up sparkle). */
 .move-anim {
   position: absolute;

@@ -32,6 +32,7 @@ import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
 import { computeManualScoreEstimate, estimateDeadStonesByPlayout, estimateDeadStonesFromOwnership, NO_MANUAL_SCORE_ESTIMATE, toggleDeadStoneChain } from '../utils/scoring';
+import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
@@ -212,6 +213,9 @@ export const Layout: React.FC = () => {
     undoToMainBranch,
     makeCurrentNodeMainBranch,
     findMistake,
+    mistakeDrill,
+    startMistakeDrill,
+    stopMistakeDrill,
     loadGame,
     applySetupStones,
     analyzeExtra,
@@ -291,6 +295,9 @@ export const Layout: React.FC = () => {
       undoToMainBranch: state.undoToMainBranch,
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
       findMistake: state.findMistake,
+      mistakeDrill: state.mistakeDrill,
+      startMistakeDrill: state.startMistakeDrill,
+      stopMistakeDrill: state.stopMistakeDrill,
       loadGame: state.loadGame,
       applySetupStones: state.applySetupStones,
       analyzeExtra: state.analyzeExtra,
@@ -350,6 +357,9 @@ export const Layout: React.FC = () => {
   );
 
   const boardSize = normalizeBoardSize(board.length, DEFAULT_BOARD_SIZE);
+  // Surfaces that would name the engine's move have to withhold it while a
+  // drill is asking about the position they are describing.
+  const drillHidesAnswer = isDrillHidingAnswer(mistakeDrill, currentNode.id);
   const handicap = useMemo(() => {
     const raw = rootNode.properties?.HA?.[0];
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
@@ -2449,6 +2459,27 @@ export const Layout: React.FC = () => {
         keywords: ['review', 'blunder'],
       },
       {
+        id: 'drill-mistakes',
+        label: mistakeDrill ? 'End mistake drill' : 'Drill my mistakes',
+        category: 'Analysis',
+        run: () => (mistakeDrill ? stopMistakeDrill() : startMistakeDrill('both')),
+        keywords: ['review', 'blunder', 'practice', 'quiz', 'learn from mistakes', 'retry'],
+      },
+      {
+        id: 'drill-mistakes-black',
+        label: 'Drill Black\u2019s mistakes',
+        category: 'Analysis',
+        run: () => startMistakeDrill('black'),
+        keywords: ['review', 'blunder', 'practice', 'quiz'],
+      },
+      {
+        id: 'drill-mistakes-white',
+        label: 'Drill White\u2019s mistakes',
+        category: 'Analysis',
+        run: () => startMistakeDrill('white'),
+        keywords: ['review', 'blunder', 'practice', 'quiz'],
+      },
+      {
         id: 'toggle-library',
         label: libraryOpen ? 'Hide library' : 'Show library',
         category: 'View',
@@ -3499,6 +3530,7 @@ export const Layout: React.FC = () => {
             loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
             dirty={currentGameDirty}
             currentNode={currentNode}
+            drillHidesAnswer={drillHidesAnswer}
             branchInfo={branchInfo}
             showAnalysis={isAnalysisMode || mode === 'analyze'}
             winRate={winRate ?? null}

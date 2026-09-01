@@ -112,6 +112,26 @@ export function collectDrillMistakes(args: {
 }
 
 /**
+ * Finds a node by id on the line a drill was collected from.
+ *
+ * The drill holds ids rather than node references so a session stays a plain
+ * description of what to ask; this walks the same line `collectDrillMistakes`
+ * did to turn one back into the node to navigate to.
+ */
+export function findNodeOnLine(
+  rootNode: GameNode,
+  activeBranchChildIds: ActiveBranchMap,
+  nodeId: string
+): GameNode | null {
+  let node: GameNode | null = rootNode;
+  while (node) {
+    if (node.id === nodeId) return node;
+    node = getActiveChild(node, activeBranchChildIds);
+  }
+  return null;
+}
+
+/**
  * Grades a guess against the analysis the drilled position already carries.
  *
  * `parentNode` is the position being drilled, so its candidates are the moves
@@ -163,11 +183,44 @@ export function isDrillSolved(kind: DrillVerdictKind): boolean {
   return kind === 'best' || kind === 'good';
 }
 
+/**
+ * A drill in progress.
+ *
+ * `solvedIds` rather than a running count so a second attempt at the same
+ * position cannot inflate the tally, and so a player who goes back and forth
+ * still ends with a number that means what it says.
+ */
+export interface MistakeDrillSession {
+  mistakes: DrillMistake[];
+  /** Index into `mistakes` of the position being asked about. */
+  index: number;
+  phase: 'asking' | 'answered' | 'done';
+  /** The grade for the answer just given, or null when the answer was revealed. */
+  verdict: DrillVerdict | null;
+  /** True when the player asked to see the answer instead of finding it. */
+  revealed: boolean;
+  /** Ids of the mistakes solved on the first answer. */
+  solvedIds: string[];
+  side: DrillSide;
+}
+
+/**
+ * Whether the drill is currently withholding the answer for `nodeId`.
+ *
+ * Every surface that would name the engine's move has to ask this: the board's
+ * hints are only the most obvious one, and a metric strip reading "BEST MOVE
+ * G4" under the board answers the question just as completely.
+ */
+export function isDrillHidingAnswer(drill: MistakeDrillSession | null, nodeId: string): boolean {
+  if (!drill || drill.phase !== 'asking') return false;
+  return drill.mistakes[drill.index]?.parentNodeId === nodeId;
+}
+
 export function drillPromptText(mistake: DrillMistake, index: number, total: number): string {
   const side = mistake.player === 'black' ? 'Black' : 'White';
   return (
-    `${index + 1} of ${total} · move ${mistake.moveNumber}: ${side} gave up ` +
-    `${mistake.pointsLost.toFixed(1)} points here. Find a better move.`
+    `${index + 1}/${total} · Move ${mistake.moveNumber}: ${side} lost ` +
+    `${mistake.pointsLost.toFixed(1)} pts — find a better move.`
   );
 }
 
@@ -175,21 +228,35 @@ export function drillVerdictText(verdict: DrillVerdict): string {
   switch (verdict.kind) {
     case 'best':
       return `${verdict.guessLabel} is the engine's own move. Solved.`;
-    case 'good':
-      return (
-        `${verdict.guessLabel} gives up ${(verdict.guessPointsLost ?? 0).toFixed(1)} points — ` +
-        `good enough. The engine plays ${verdict.bestLabel}.`
-      );
+    case 'good': {
+      // A candidate can score fractionally better than the engine's own pick,
+      // and "gives up -1.1 points" is not a sentence. Nothing given up is
+      // nothing given up.
+      const lost = Math.max(0, verdict.guessPointsLost ?? 0);
+      return lost < 0.05
+        ? `${verdict.guessLabel} gives up nothing. The engine plays ${verdict.bestLabel}.`
+        : `${verdict.guessLabel} gives up ${lost.toFixed(1)} points — good enough. The engine plays ${verdict.bestLabel}.`;
+    }
     case 'better':
       return (
-        `${verdict.guessLabel} loses ${(verdict.guessPointsLost ?? 0).toFixed(1)} instead of ` +
+        `${verdict.guessLabel} loses ${Math.max(0, verdict.guessPointsLost ?? 0).toFixed(1)} instead of ` +
         `${verdict.playedPointsLost.toFixed(1)} — better, but ${verdict.bestLabel} is the move.`
       );
     default:
       return verdict.guessPointsLost === null
         ? `The engine did not consider ${verdict.guessLabel}. It plays ${verdict.bestLabel}.`
-        : `${verdict.guessLabel} still loses ${verdict.guessPointsLost.toFixed(1)}. The engine plays ${verdict.bestLabel}.`;
+        : `${verdict.guessLabel} still loses ${Math.max(0, verdict.guessPointsLost).toFixed(1)}. The engine plays ${verdict.bestLabel}.`;
   }
+}
+
+/** What to say when the player asked to be shown the answer instead of finding it. */
+export function drillRevealText(mistake: DrillMistake, parentNode: GameNode): string {
+  const boardSize = parentNode.gameState.board.length;
+  const played = formatBoardMoveLabel(mistake.played, boardSize);
+  const best = bestCandidate(parentNode.analysis?.moves ?? []);
+  const bestLabel = best ? formatBoardMoveLabel(best, boardSize) : null;
+  const cost = `${played} lost ${mistake.pointsLost.toFixed(1)} points`;
+  return bestLabel ? `${cost}. The engine plays ${bestLabel}.` : `${cost}.`;
 }
 
 export function drillSummaryText(solved: number, total: number): string {

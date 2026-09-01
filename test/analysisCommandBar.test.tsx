@@ -90,7 +90,10 @@ describe('AnalysisCommandBar', () => {
     expect(source).toContain("!metricScrollEdges.atEnd ? 'has-overflow-right' : ''");
     expect(source).toContain('data-analysis-metrics-overflow={horizontalOverflowLabel(metricScrollEdges)}');
     expect(source).toContain('void treeVersion');
-    expect(source).toContain('[currentNode, treeVersion]');
+    // Node analysis mutates in place, so the summary has to be keyed on
+    // treeVersion as well as the node. Matched loosely because the same memo
+    // also depends on whether a drill is withholding the answer.
+    expect(source).toMatch(/\}, \[currentNode,[^\]]*treeVersion\]\);/);
     expect(styles).toContain('.analysis-command-bar__actions.has-overflow-left.has-overflow-right');
     expect(styles).toContain('.analysis-command-bar__metrics.has-overflow-left.has-overflow-right');
     expect(styles).toContain('overscroll-behavior-x: contain;');

@@ -161,6 +161,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     humanSlProfile,
     mistakeThreshold,
     rootNode,
+    startMistakeDrill,
   } = useGameStore(
     (state) => ({
       currentNode: state.currentNode,
@@ -178,6 +179,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       stopGameAnalysis: state.stopGameAnalysis,
       humanSlProfile: state.settings.humanSlProfile,
       mistakeThreshold: state.settings.mistakeThreshold,
+      startMistakeDrill: state.startMistakeDrill,
     }),
     shallow
   );
@@ -1706,6 +1708,22 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   className={`px-3 py-1 text-xs font-semibold disabled:opacity-40 ${secondaryPillClass}`}
                 >
                   Review {topMistakes.length}
+                </button>
+                {/* The review queue walks the mistakes and shows each answer;
+                    the drill hides it and asks for the move instead. Closing
+                    the report is part of starting one -- the drill happens on
+                    the board this modal is covering. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    startMistakeDrill(playerFilter === 'all' ? 'both' : playerFilter);
+                  }}
+                  disabled={allMistakes.length === 0}
+                  title="Replay each mistake with the answer hidden and find a better move"
+                  className={`px-3 py-1 text-xs font-semibold disabled:opacity-40 ${secondaryPillClass}`}
+                >
+                  Drill
                 </button>
               </div>
             </div>

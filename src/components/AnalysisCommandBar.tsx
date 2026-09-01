@@ -22,6 +22,7 @@ import {
   nextTopMoveMetric,
 } from '../utils/topMoveMetric';
 import { getCurrentNodeBestMoveSummary } from '../utils/bestMoveSummary';
+import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import { summarizeGameAnalysisProgress } from '../utils/gameAnalysisProgress';
 import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import {
@@ -160,6 +161,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
   const showAnalysisBar = useGameStore((state) => state.settings.showAnalysisBar);
   const currentNode = useGameStore((state) => state.currentNode);
+  const drillHidesAnswer = useGameStore((state) => isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id));
   const treeVersion = useGameStore((state) => state.treeVersion);
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
@@ -276,8 +278,10 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const bestMoveSummary = React.useMemo(() => {
     // Node analysis mutates in place; treeVersion bumps whenever it changes.
     void treeVersion;
+    // A drill asking about this position is asking for this exact move.
+    if (drillHidesAnswer) return null;
     return getCurrentNodeBestMoveSummary(currentNode);
-  }, [currentNode, treeVersion]);
+  }, [currentNode, drillHidesAnswer, treeVersion]);
   const displayedMoveQuality = playedMoveQuality ?? nextMoveQuality;
   const moveQualityKind = playedMoveQuality ? 'played' : nextMoveQuality ? 'next' : 'quality';
   const moveQualityTone = displayedMoveQuality?.tone ?? pointsSummary.tone;

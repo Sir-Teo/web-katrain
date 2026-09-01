@@ -173,6 +173,16 @@ describe('gradeDrillGuess', () => {
     expect(drillVerdictText(verdict)).toContain('did not consider');
   });
 
+  it('does not write "gives up -1.1 points" when a candidate scores above the top move', () => {
+    const { root } = line();
+    root.analysis = analysis(10, [candidate(3, 3, 0, 0), candidate(15, 3, -1.1, 1)]);
+
+    const verdict = gradeDrillGuess(root, { x: 15, y: 3 }, 6)!;
+
+    expect(verdict.kind).toBe('good');
+    expect(drillVerdictText(verdict)).toBe('Q16 gives up nothing. The engine plays D16.');
+  });
+
   it('grades nothing without analysis to grade against', () => {
     const { root } = line();
     root.analysis = undefined;
@@ -188,10 +198,10 @@ describe('drill copy', () => {
 
     const prompt = drillPromptText(mistake, 0, 3);
 
-    expect(prompt).toContain('1 of 3');
-    expect(prompt).toContain('move 1');
+    expect(prompt).toContain('1/3');
+    expect(prompt).toContain('Move 1');
     expect(prompt).toContain('Black');
-    expect(prompt).toContain('6.0 points');
+    expect(prompt).toContain('6.0 pts');
   });
 
   it('reports the tally at the end', () => {
