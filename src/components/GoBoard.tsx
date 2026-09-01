@@ -1124,7 +1124,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       const fontSize = Math.max(10, Math.min(cellSize * 0.42, label.length > 2 ? (cellSize * 0.86) / label.length : cellSize * 0.42));
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `800 ${fontSize}px ${fontFamily}`;
+      setCanvasFont(ctx, `800 ${fontSize}px ${fontFamily}`);
       ctx.lineWidth = Math.max(2, fontSize * 0.16);
       ctx.strokeStyle = colors.halo;
       ctx.strokeText(label, pt.cx, pt.cy + fontSize * 0.02);
@@ -1355,7 +1355,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         ctx.beginPath();
         ctx.arc(cx, cy, r * 1.04, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.font = `800 ${Math.max(10, cellSize * 0.34)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
+        setCanvasFont(ctx, `800 ${Math.max(10, cellSize * 0.34)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = accent;
@@ -2349,9 +2349,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         if (label.length > longestLabel.length) longestLabel = label;
       }
     }
-    ctx.font = policyFont(1);
+    setCanvasFont(ctx, policyFont(1));
     const fontSize = longestLabel ? policyHeatmapFontSize(cellSize, ctx.measureText(longestLabel).width) : null;
-    ctx.font = policyFont(fontSize ?? 1);
+    setCanvasFont(ctx, policyFont(fontSize ?? 1));
 
     for (let y = 0; y < boardSize; y++) {
       for (let x = 0; x < boardSize; x++) {
@@ -2476,6 +2476,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
     const baseFontSize = 10;
     const subFontSize = 9;
+    const baseFont = `700 ${baseFontSize}px ${fontFamily}`;
+    const subFont = `700 ${subFontSize}px ${fontFamily}`;
 
     const getLabel = (move: CandidateMove, opt: typeof primary): string => {
       switch (opt) {
@@ -2533,7 +2535,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       const scale = isBest ? HINT_SCALE : uncertain ? UNCERTAIN_HINT_SCALE : ALTERNATIVE_HINT_SCALE;
       let singleLabel: string | null = null;
       if (singleMetric && showText && !uncertain) {
-        ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
+        setCanvasFont(ctx, baseFont);
         const candidate = getLabel(move, show[0] as typeof primary);
         const drop = shouldDropHintLabel(
           ctx.measureText(candidate).width,
@@ -2593,16 +2595,16 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         ctx.lineWidth = 2.5;
         ctx.lineJoin = 'round';
         if (singleMetric) {
-          ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
+          setCanvasFont(ctx, baseFont);
           const label = singleLabel ?? '';
           ctx.strokeText(label, cx, cy);
           ctx.fillText(label, cx, cy);
         } else {
           const primaryLabel = getLabel(move, show[0] as typeof primary);
           const secondaryLabel = getLabel(move, show[1] as typeof primary);
-          ctx.font = `700 ${subFontSize}px ${fontFamily}`;
+          setCanvasFont(ctx, subFont);
           const secondaryWidth = ctx.measureText(secondaryLabel).width;
-          ctx.font = `700 ${baseFontSize}px ${fontFamily}`;
+          setCanvasFont(ctx, baseFont);
           const primaryWidth = ctx.measureText(primaryLabel).width;
           const collapse = shouldCollapseHintLabel(
             Math.max(primaryWidth, secondaryWidth),
@@ -2617,7 +2619,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           } else {
             ctx.strokeText(primaryLabel, cx, cy - baseFontSize * 0.35);
             ctx.fillText(primaryLabel, cx, cy - baseFontSize * 0.35);
-            ctx.font = `700 ${subFontSize}px ${fontFamily}`;
+            setCanvasFont(ctx, subFont);
             ctx.globalAlpha = 0.9;
             ctx.strokeText(secondaryLabel, cx, cy + subFontSize * 0.55);
             ctx.fillText(secondaryLabel, cx, cy + subFontSize * 0.55);
@@ -2687,7 +2689,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const fontSize = cellSize / 1.45;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    setCanvasFont(ctx, `bold ${fontSize}px sans-serif`);
 
     for (const m of pvMoves) {
       const left = originX + m.x * cellSize - stoneRadius - 1;
