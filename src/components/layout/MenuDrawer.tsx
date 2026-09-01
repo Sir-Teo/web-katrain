@@ -18,6 +18,7 @@ import {
   FaGraduationCap,
   FaBalanceScale,
   FaBullseye,
+  FaRedo,
   FaPuzzlePiece,
 } from 'react-icons/fa';
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
@@ -50,6 +51,7 @@ interface MenuDrawerProps {
   onProGames?: () => void;
   onLessons?: () => void;
   onGuessMove?: () => void;
+  onDrillMistakes?: () => void;
   onProblem?: () => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -81,6 +83,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onProGames,
   onLessons,
   onGuessMove,
+  onDrillMistakes,
   onProblem,
   onCopy,
   onPaste,
@@ -368,7 +371,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
               </button>
             </div>
           </div>
-          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem) && (
+          {(onLessons || onScoreQuiz || onRankLadder || onProGames || onGuessMove || onProblem || onDrillMistakes) && (
             <div>
               <div className="px-3 text-xs uppercase tracking-wide ui-text-faint mb-2">Study &amp; Practice</div>
               <div className={menuActionGrid} data-menu-action-grid="study">
@@ -394,6 +397,19 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                     }}
                   >
                     <FaBalanceScale aria-hidden="true" /> Score Quiz
+                  </button>
+                )}
+                {onDrillMistakes && (
+                  <button
+                    type="button"
+                    className={menuAction}
+                    title="Replay your mistakes with the answer hidden and find a better move"
+                    onClick={() => {
+                      onDrillMistakes();
+                      onClose();
+                    }}
+                  >
+                    <FaRedo aria-hidden="true" /> Drill Mistakes
                   </button>
                 )}
                 {onGuessMove && (

@@ -3392,6 +3392,7 @@ export const Layout: React.FC = () => {
         onProGames={() => setIsProGamesOpen(true)}
         onLessons={() => setIsLessonsOpen(true)}
         onGuessMove={() => setIsGuessMoveOpen(true)}
+        onDrillMistakes={() => startMistakeDrill('both')}
         onProblem={() => setIsProblemOpen(true)}
         onCopy={handleCopySgf}
         onPaste={handlePasteSgf}
