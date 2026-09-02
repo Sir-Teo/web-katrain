@@ -1315,6 +1315,10 @@ const weightedPick = <T,>(entries: Array<{ move: T; weight: number }>): T | null
 };
 
 let selfplayToken = 0;
+// The node the player created with their last move or pass. Teach-mode undo
+// only ever judges that node: stepping through a loaded game, or navigating
+// while an analysis is in flight, must not undo anything.
+let lastPlayedNodeId: string | null = null;
 let setupPositionToken = 0;
 // Where the current play-to-end began, so the finished line can be folded away.
 let selfplayStartNodeId: string | null = null;
@@ -2415,6 +2419,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
             label: 'Selfplay move',
             id: `selfplay:${token}:${s.currentNode.id}:${safety}`,
           });
+          // The read was for the position we started from; if the user has
+          // moved elsewhere meanwhile, do not play its answer there.
+          if (get().currentNode.id !== s.currentNode.id) {
+            await sleep(50);
+            continue;
+          }
 
           const best = analysis.moves[0] ?? null;
           if (!best || best.x < 0 || best.y < 0) s.passTurn();
@@ -2485,6 +2495,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
             // A little root noise keeps generated games from repeating.
             wideRootNoise: 0.03,
           });
+          // The read was for the position we started from; if the user has
+          // moved elsewhere meanwhile, do not play its answer there.
+          if (get().currentNode.id !== s.currentNode.id) {
+            await sleep(50);
+            continue;
+          }
           if (token !== setupPositionToken) return;
 
           const candidates = analysis.moves.filter((move) => move.x >= 0 && move.y >= 0);
@@ -3329,7 +3345,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const latestState = get();
             if (!latestState.isTeachMode) return;
 
-            const current = latestState.currentNode;
+            // Judge the node this analysis was for, and only while it is the
+            // move the player just made and is still on: a result landing
+            // after they navigated elsewhere, or stepping through a loaded
+            // game, used to undo whichever node was current at the time.
+            const current = node;
+            if (latestState.currentNode.id !== current.id) return;
+            if (current.id !== lastPlayedNodeId) return;
+            if (current.children.length > 0) return;
             const move = current.move;
             const parent = current.parent;
             if (!move || !parent) return;
@@ -3453,7 +3476,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isGameAnalysisRunning: false,
         gameAnalysisType: null,
         ...history,
-        treeVersion: rulesChanged ? state.treeVersion + 1 : state.treeVersion,
+        // Every node's analysis was just nulled in place; the graph, the tree
+        // markers and the report key their reads on treeVersion and kept
+        // showing the wiped data until something else bumped it.
+        treeVersion: state.treeVersion + 1,
       };
     }),
 
@@ -3680,8 +3706,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     );
 
     if (existingChild && !isLoad) {
-       // Navigate to existing child
+       // Navigate to existing child. The AI and analysis still have to be
+       // woken as for a new move: after an undo (or a teaching undo) the
+       // same point replayed used to leave the game stalled on the human's
+       // clock, because only the new-move path scheduled the reply.
        get().jumpToNode(existingChild);
+       lastPlayedNodeId = existingChild.id;
+       const after = get();
+       if (after.isAiPlaying && after.currentPlayer === after.aiColor) {
+         setTimeout(() => get().makeAiMove(), 500);
+       }
+       if (after.isAnalysisMode && !after.isSelfplayToEnd) {
+         setTimeout(() => void get().runAnalysis(), 500);
+       }
        return;
     }
 
@@ -3763,6 +3800,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     const newNode = createNode(state.currentNode, move, newGameState);
+    lastPlayedNodeId = newNode.id;
     state.currentNode.children.push(newNode);
 
     set({
@@ -5827,6 +5865,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
 
       const newNode = createNode(state.currentNode, move, newGameState);
+      lastPlayedNodeId = newNode.id;
       state.currentNode.children.push(newNode);
 
       set({
