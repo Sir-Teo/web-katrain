@@ -112,6 +112,26 @@ function ensureBoardSizeForWorker(boardSize: number): void {
   searchKey = null;
 }
 
+/**
+ * Why the engine is not on the backend it was asked for. A fallback used to
+ * be silent: a browser whose WASM threads or WebGPU adapter failed to start
+ * showed a small "CPU" chip and analysis that was ten times slower, with no
+ * record anywhere of what had gone wrong.
+ */
+let backendNote: string | null = null;
+let postedBackendNote: string | null = null;
+
+function postBackendNote(): void {
+  if (!backendNote || backendNote === postedBackendNote) return;
+  postedBackendNote = backendNote;
+  post({ type: 'katago:notice', level: 'warn', message: backendNote });
+}
+
+function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 async function initWasmBackend(): Promise<void> {
   try {
     // Vite serves `public/` at the site root.
@@ -125,11 +145,15 @@ async function initWasmBackend(): Promise<void> {
       // below 4GB.
       setThreadsCount(detectSearchThreadCount());
     }
-    await tf.setBackend('wasm');
+    // setBackend resolves false, without throwing, when the backend fails to
+    // initialise; the old bare await treated that as success.
+    if (!(await tf.setBackend('wasm'))) throw new Error('tf.setBackend(\'wasm\') returned false');
     await tf.ready();
     return;
-  } catch {
-    // Fall through to CPU below.
+  } catch (err) {
+    backendNote = [backendNote, `WASM backend failed (${describeError(err)}); using the CPU backend`]
+      .filter(Boolean)
+      .join('. ');
   }
 
   await tf.setBackend('cpu');
@@ -145,11 +169,12 @@ async function initBackend(preferredBackend: KataGoBackendPreference): Promise<v
 
   if (preferredBackend === 'webgpu') {
     try {
-      await tf.setBackend('webgpu');
+      if (!(await tf.setBackend('webgpu'))) throw new Error('tf.setBackend(\'webgpu\') returned false');
       await tf.ready();
       return;
-    } catch {
+    } catch (err) {
       // Fall back to WASM/CPU if WebGPU isn't available or fails to initialize.
+      backendNote = `WebGPU backend failed (${describeError(err)}); trying WASM`;
     }
   }
 
@@ -245,6 +270,7 @@ async function switchToFallbackBackendForRequest(
 
 async function ensureModel(modelUrl: string, backend?: KataGoBackendPreference): Promise<void> {
   const requestedBackend = normalizeKataGoBackendPreference(backend);
+  if (!backendPromise || backendPreference !== requestedBackend) backendNote = null;
   await ensureBackend(requestedBackend);
   if (model && loadedModelUrl === modelUrl) return;
 
@@ -259,6 +285,7 @@ async function ensureModel(modelUrl: string, backend?: KataGoBackendPreference):
   while (true) {
     try {
       installModel(await createWarmedModel(parsed), parsed, modelUrl);
+      postBackendNote();
       return;
     } catch (err) {
       const fallbackBackend = getKataGoWarmupFallbackBackend({
@@ -271,6 +298,12 @@ async function ensureModel(modelUrl: string, backend?: KataGoBackendPreference):
       }
 
       attemptedFallbacks.add(fallbackBackend);
+      backendNote = [
+        backendNote,
+        `Model warm-up failed on ${tf.getBackend()} (${describeError(err)}); switching to ${fallbackBackend}`,
+      ]
+        .filter(Boolean)
+        .join('. ');
       await switchToFallbackBackendForRequest(requestedBackend, fallbackBackend);
     }
   }

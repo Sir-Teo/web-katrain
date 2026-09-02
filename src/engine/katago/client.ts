@@ -37,6 +37,9 @@ class KataGoEngineClient {
   private pendingEvalBatch = new Map<number, { resolve: (e: EvalBatchResult) => void; reject: (e: Error) => void }>();
   private backend: string | null = null;
   private modelName: string | null = null;
+  private lastLoggedBackendNote: string | null = null;
+  /** Why the engine is not on the backend it was asked for, if it is not. */
+  private backendNote: string | null = null;
   private lastLoggedEngineLabel: string | null = null;
   private lastHumanPolicyError: string | null = null;
   private crashed: Error | null = null;
@@ -56,6 +59,15 @@ class KataGoEngineClient {
       // The worker is clearly alive again, so future requests are allowed through.
       this.crashed = null;
       const msg = ev.data;
+      if (msg.type === 'katago:notice') {
+        if (msg.message !== this.lastLoggedBackendNote) {
+          this.lastLoggedBackendNote = msg.message;
+          this.backendNote = msg.message;
+          if (msg.level === 'warn') console.warn(`[katago] ${msg.message}`);
+          else console.info(`[katago] ${msg.message}`);
+        }
+        return;
+      }
       if (msg.type === 'katago:init_result') {
         const pendingInit = this.pendingInit;
         if (!pendingInit) return;
@@ -197,8 +209,8 @@ class KataGoEngineClient {
     console.info(`[katago] engine: ${label}`);
   }
 
-  getEngineInfo(): { backend: string | null; modelName: string | null } {
-    return { backend: this.backend, modelName: this.modelName };
+  getEngineInfo(): { backend: string | null; modelName: string | null; backendNote: string | null } {
+    return { backend: this.backend, modelName: this.modelName, backendNote: this.backendNote };
   }
 
   init(modelUrl: string, backend?: KataGoBackendPreference): Promise<void> {

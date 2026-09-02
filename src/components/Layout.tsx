@@ -260,6 +260,7 @@ export const Layout: React.FC = () => {
     engineStatus,
     engineError,
     engineBackend,
+    engineBackendNote,
     engineModelName,
     isAiThinking,
     isGameAnalysisRunning,
@@ -342,6 +343,7 @@ export const Layout: React.FC = () => {
       engineStatus: state.engineStatus,
       engineError: state.engineError,
       engineBackend: state.engineBackend,
+      engineBackendNote: state.engineBackendNote,
       engineModelName: state.engineModelName,
       isAiThinking: state.isAiThinking,
       isGameAnalysisRunning: state.isGameAnalysisRunning,
@@ -1330,9 +1332,10 @@ export const Layout: React.FC = () => {
     error: engineError,
     requestedBackend: settings.katagoBackend,
     activeBackend: engineBackend,
+    backendNote: engineBackendNote,
     modelLabel: engineModelLabel,
     modelUrl: settings.katagoModelUrl,
-  }), [engineBackend, engineError, engineModelLabel, engineStatus, settings.katagoBackend, settings.katagoModelUrl]);
+  }), [engineBackend, engineBackendNote, engineError, engineModelLabel, engineStatus, settings.katagoBackend, settings.katagoModelUrl]);
   const engineDot = engineSummary.dotClass;
   const engineMeta = engineSummary.compactLabel;
   const engineMetaTitle = engineSummary.title;

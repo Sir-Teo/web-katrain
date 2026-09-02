@@ -49,6 +49,8 @@ export interface EngineStatusSummaryArgs {
   activeBackend?: string | null;
   modelLabel?: string | null;
   modelUrl?: string | null;
+  /** Why the engine is not on the requested backend, from the worker. */
+  backendNote?: string | null;
 }
 
 export interface EngineStatusSummary {
@@ -125,6 +127,7 @@ function getEngineBackendReason(args: {
   activeBackendLabel: string;
   activeBackend?: string | null;
   isFallback: boolean;
+  backendNote?: string | null;
 }): string {
   if (args.error) {
     return args.isFallback
@@ -137,7 +140,9 @@ function getEngineBackendReason(args: {
   }
 
   if (args.isFallback) {
-    return `${args.requestedBackendLabel} was requested; ${args.activeBackendLabel} is running.`;
+    return args.backendNote
+      ? `${args.backendNote}.`
+      : `${args.requestedBackendLabel} was requested; ${args.activeBackendLabel} is running.`;
   }
 
   const normalized = args.activeBackend?.trim().toLowerCase();
@@ -184,6 +189,7 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
     activeBackendLabel,
     activeBackend: args.activeBackend,
     isFallback,
+    backendNote: args.backendNote,
   });
   const titleLines = [
     `State: ${stateLabel}`,

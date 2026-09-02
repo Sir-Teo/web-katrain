@@ -137,4 +137,32 @@ describe('engine status summary', () => {
     expect(summary.dotClass).toBe('bg-red-500');
     expect(summary.tone).toBe('error');
   });
+
+  it('says why the engine fell back when the worker recorded a reason', () => {
+    const summary = getEngineStatusSummary({
+      status: 'ready',
+      requestedBackend: 'webgpu',
+      activeBackend: 'wasm',
+      backendNote: "WebGPU backend failed (tf.setBackend('webgpu') returned false); trying WASM",
+      modelLabel: 'Bundled model',
+      modelUrl: 'models/katago-small.bin.gz',
+    });
+
+    expect(summary.isFallback).toBe(true);
+    expect(summary.reasonLabel).toBe(
+      "WebGPU backend failed (tf.setBackend('webgpu') returned false); trying WASM."
+    );
+    expect(summary.title).toContain('Reason: WebGPU backend failed');
+  });
+
+  it('keeps the generic fallback wording when no reason was recorded', () => {
+    const summary = getEngineStatusSummary({
+      status: 'ready',
+      requestedBackend: 'webgpu',
+      activeBackend: 'wasm',
+      backendNote: null,
+    });
+
+    expect(summary.reasonLabel).toBe('WebGPU was requested; CPU (WASM) is running.');
+  });
 });

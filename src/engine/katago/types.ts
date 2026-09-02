@@ -206,7 +206,15 @@ export interface KataGoEvalBatchResponse {
 }
 
 export type KataGoWorkerRequest = KataGoInitRequest | KataGoAnalyzeRequest | KataGoEvalRequest | KataGoEvalBatchRequest;
+/** A one-off diagnostic from the worker, such as why a backend fell back. */
+export interface KataGoNotice {
+  type: 'katago:notice';
+  level: 'warn' | 'info';
+  message: string;
+}
+
 export type KataGoWorkerResponse =
+  | KataGoNotice
   | KataGoInitResponse
   | KataGoAnalyzeUpdate
   | KataGoAnalyzeResponse

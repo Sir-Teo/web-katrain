@@ -124,6 +124,8 @@ interface GameStore extends GameState {
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
   engineError: string | null;
   engineBackend: string | null;
+  /** Why the engine is not on the backend it was asked for, when it is not. */
+  engineBackendNote: string | null;
   engineModelName: string | null;
   /** True while an AI move request is in flight, so the UI can say so. */
   isAiThinking: boolean;
@@ -1255,6 +1257,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   engineStatus: 'idle',
   engineError: null,
   engineBackend: null,
+  engineBackendNote: null,
   engineModelName: null,
   isAiThinking: false,
 
@@ -2337,7 +2340,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (get().gameAnalysisType !== 'quick') return;
             if (!metaSynced) {
               const engineInfo = getKataGoEngineClient().getEngineInfo();
-              set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName });
+              set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName, engineBackendNote: engineInfo.backendNote });
               metaSynced = true;
             }
 
@@ -2515,7 +2518,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (get().gameAnalysisType !== 'fast') return;
             if (!metaSynced) {
               const engineInfo = getKataGoEngineClient().getEngineInfo();
-              set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName });
+              set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName, engineBackendNote: engineInfo.backendNote });
               metaSynced = true;
             }
 
@@ -2707,7 +2710,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
             if (!metaSynced) {
               const engineInfo = getKataGoEngineClient().getEngineInfo();
-              set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName });
+              set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName, engineBackendNote: engineInfo.backendNote });
               metaSynced = true;
             }
 
@@ -2921,6 +2924,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 next.engineError = null;
                 next.engineBackend = engineInfo.backend;
                 next.engineModelName = engineInfo.modelName;
+                next.engineBackendNote = engineInfo.backendNote;
               }
               if (shouldBumpTree) next.treeVersion = s.treeVersion + 1;
               if (isFinal) next.analysisCacheSize = getAnalysisCacheSize(s.rootNode);
@@ -3576,7 +3580,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         })
         .then((analysis) => {
           const engineInfo = getKataGoEngineClient().getEngineInfo();
-          set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName });
+          set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName, engineBackendNote: engineInfo.backendNote });
 
           const latest = get();
           if (latest.currentNode.id !== nodeId) return;
