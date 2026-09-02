@@ -930,7 +930,7 @@ const rootSetupPropertiesMatchBoard = (
   });
 };
 
-const replayChildMove = (parent: GameNode, child: GameNode): GameState | null => {
+const replayChildMove = (parent: GameNode, child: GameNode, suicideLegal = false): GameState | null => {
   const move = child.move;
   const parentState = parent.gameState;
   if (!move) {
@@ -960,15 +960,24 @@ const replayChildMove = (parent: GameNode, child: GameNode): GameState | null =>
   const tentativeBoard = cloneBoard(parentState.board);
   tentativeBoard[move.y]![move.x] = move.player;
   const captured = applyCapturesInPlace(tentativeBoard, move.x, move.y, move.player);
+  // A group played to death is legal under New Zealand and Tromp-Taylor
+  // rules; playMove allows it, and a replay that refused it dropped the node
+  // and its whole subtree from a loaded or rebuilt game.
+  let selfCaptured = 0;
   if (captured.length === 0) {
-    const { liberties } = getLiberties(tentativeBoard, move.x, move.y);
-    if (liberties === 0) return null;
+    const { liberties, group } = getLiberties(tentativeBoard, move.x, move.y);
+    if (liberties === 0) {
+      if (!suicideLegal || group.length <= 1) return null;
+      selfCaptured = applySelfCaptureInPlace(tentativeBoard, move.x, move.y).length;
+    }
   }
 
   if (parent.parent && boardsEqual(tentativeBoard, parent.parent.gameState.board)) return null;
 
-  const newCapturedBlack = parentState.capturedBlack + (move.player === 'white' ? captured.length : 0);
-  const newCapturedWhite = parentState.capturedWhite + (move.player === 'black' ? captured.length : 0);
+  const newCapturedBlack =
+    parentState.capturedBlack + (move.player === 'white' ? captured.length : 0) + (move.player === 'black' ? selfCaptured : 0);
+  const newCapturedWhite =
+    parentState.capturedWhite + (move.player === 'black' ? captured.length : 0) + (move.player === 'white' ? selfCaptured : 0);
   return {
     board: applySetupPropsToBoard(tentativeBoard, child.properties),
     currentPlayer: playerFromSgfPlayerToMove(child.properties) ?? nextPlayer,
@@ -979,7 +988,7 @@ const replayChildMove = (parent: GameNode, child: GameNode): GameState | null =>
   };
 };
 
-const pasteBranchSnapshot = (parent: GameNode, source: BranchClipboardNode): GameNode | null => {
+const pasteBranchSnapshot = (parent: GameNode, source: BranchClipboardNode, suicideLegal = false): GameNode | null => {
   const node = createNode(parent, cloneMove(source.move), cloneGameState(parent.gameState));
   node.properties = cloneNodeProperties(source.properties);
   node.endState = source.endState;
@@ -987,22 +996,22 @@ const pasteBranchSnapshot = (parent: GameNode, source: BranchClipboardNode): Gam
   node.note = source.note;
   node.aiThoughts = source.aiThoughts;
 
-  const rebuiltState = replayChildMove(parent, node);
+  const rebuiltState = replayChildMove(parent, node, suicideLegal);
   if (!rebuiltState) return null;
   node.gameState = rebuiltState;
 
   for (const child of source.children) {
-    const pastedChild = pasteBranchSnapshot(node, child);
+    const pastedChild = pasteBranchSnapshot(node, child, suicideLegal);
     if (pastedChild) node.children.push(pastedChild);
   }
   return node;
 };
 
-const rebuildDescendants = (node: GameNode): number => {
+const rebuildDescendants = (node: GameNode, suicideLegal = false): number => {
   let pruned = 0;
   const kept: GameNode[] = [];
   for (const child of node.children) {
-    const rebuiltState = replayChildMove(node, child);
+    const rebuiltState = replayChildMove(node, child, suicideLegal);
     if (!rebuiltState) {
       pruned += countNodes(child);
       continue;
@@ -1010,7 +1019,7 @@ const rebuildDescendants = (node: GameNode): number => {
     child.gameState = rebuiltState;
     child.analysis = null;
     child.analysisVisitsRequested = 0;
-    pruned += rebuildDescendants(child);
+    pruned += rebuildDescendants(child, suicideLegal);
     kept.push(child);
   }
   node.children = kept;
@@ -2144,7 +2153,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       node.analysis = null;
       node.analysisVisitsRequested = 0;
       clearAnalysisInSubtree(node);
-      const pruned = rebuildDescendants(node);
+      const pruned = rebuildDescendants(node, isSuicideLegal(get().settings.gameRules));
 
       const setupWord =
         nextStone === 'black' ? 'black setup stone' : nextStone === 'white' ? 'white setup stone' : 'setup stone';
@@ -2195,7 +2204,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         node.analysis = null;
         node.analysisVisitsRequested = 0;
         clearAnalysisInSubtree(node);
-        const pruned = rebuildDescendants(node);
+        const pruned = rebuildDescendants(node, isSuicideLegal(get().settings.gameRules));
         const summary = pruned > 0 ? ` ${pruned} descendant ${pruned === 1 ? 'node was' : 'nodes were'} pruned.` : '';
         return {
           ...history,
@@ -2241,7 +2250,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const removed = removeSetupProperties(props);
 
       if (node.parent) {
-        const rebuilt = replayChildMove(node.parent, node);
+        const rebuilt = replayChildMove(node.parent, node, isSuicideLegal(get().settings.gameRules));
         if (rebuilt) node.gameState = rebuilt;
       } else {
         const boardSize = getBoardSizeFromBoard(node.gameState.board);
@@ -2258,7 +2267,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       node.analysis = null;
       node.analysisVisitsRequested = 0;
       clearAnalysisInSubtree(node);
-      const pruned = rebuildDescendants(node);
+      const pruned = rebuildDescendants(node, isSuicideLegal(get().settings.gameRules));
       const summary = pruned > 0 ? ` ${pruned} descendant ${pruned === 1 ? 'node was' : 'nodes were'} pruned.` : '';
       return {
         ...history,
@@ -2310,7 +2319,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       node.analysis = null;
       node.analysisVisitsRequested = 0;
       clearAnalysisInSubtree(node);
-      rebuildDescendants(node);
+      rebuildDescendants(node, isSuicideLegal(get().settings.gameRules));
 
       return {
         ...history,
@@ -3612,7 +3621,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
       syncRootSetupPropertiesFromBoard(root.properties, nextBoard, rootBoardSize, nextHandicap);
       clearAnalysisInSubtree(root);
-      rebuildDescendants(root);
+      rebuildDescendants(root, isSuicideLegal(get().settings.gameRules));
       const currentNode = findNodeById(root, state.currentNode.id) ?? root;
 
       return {
@@ -5141,7 +5150,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!source) {
           return { notification: { message: 'No copied branch to paste.', type: 'info' } };
       }
-      const pasted = pasteBranchSnapshot(state.currentNode, source);
+      const pasted = pasteBranchSnapshot(state.currentNode, source, isSuicideLegal(state.settings.gameRules));
       if (!pasted) {
           return { notification: { message: 'Cannot paste branch at this position.', type: 'error' } };
       }
@@ -5640,17 +5649,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	      const captured = applyCapturesInPlace(tentativeBoard, move.x, move.y, move.player);
 	      const newBoard = tentativeBoard;
 
+      let selfCaptured = 0;
       if (captured.length === 0) {
-        const { liberties } = getLiberties(newBoard, move.x, move.y);
-        if (liberties === 0) return null;
+        const { liberties, group } = getLiberties(newBoard, move.x, move.y);
+        if (liberties === 0) {
+          if (!isSuicideLegal(rules) || group.length <= 1) return null;
+          selfCaptured = applySelfCaptureInPlace(newBoard, move.x, move.y).length;
+        }
       }
 
       if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) {
         return null;
       }
 
-      const newCapturedBlack = parentState.capturedBlack + (move.player === 'white' ? captured.length : 0);
-      const newCapturedWhite = parentState.capturedWhite + (move.player === 'black' ? captured.length : 0);
+      const newCapturedBlack =
+        parentState.capturedBlack + (move.player === 'white' ? captured.length : 0) + (move.player === 'black' ? selfCaptured : 0);
+      const newCapturedWhite =
+        parentState.capturedWhite + (move.player === 'black' ? captured.length : 0) + (move.player === 'white' ? selfCaptured : 0);
 
       const newMove: Move = { x: move.x, y: move.y, player: move.player };
       const newGameState: GameState = {
@@ -5718,7 +5733,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const childNode = createNode(parent, null, cloneGameState(parent.gameState));
             childNode.properties = propsNoComments;
             if (note) childNode.note = note;
-            const rebuiltState = replayChildMove(parent, childNode);
+            const rebuiltState = replayChildMove(parent, childNode, isSuicideLegal(rules));
             childNode.gameState = rebuiltState ?? childNode.gameState;
             if (node.props['KT'] && !childNode.analysis) {
               applyKtAnalysis(childNode, node.props['KT']);
