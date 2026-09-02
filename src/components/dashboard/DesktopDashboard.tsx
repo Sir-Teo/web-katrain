@@ -17,7 +17,9 @@ import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/da
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
-import { formatEngineBackendLabel } from '../../utils/engineStatusSummary';
+import { formatEngineBackendLabel, getEngineModelSource } from '../../utils/engineStatusSummary';
+import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../../utils/nodeAnalysis';
+import { evalColorToCss, getKaTrainEvalColors } from '../../utils/katrainTheme';
 import { ANALYSIS_VISIT_PRESETS, clampAnalysisVisits, visitPresetLabel } from '../../utils/visitPresets';
 import { formatRulesLabel } from '../../utils/gameInfoDisplay';
 import { formatReadableScoreLead, formatWinRateFavorLabel } from '../../utils/analysisSummary';
@@ -147,13 +149,29 @@ export interface DesktopDashboardProps {
   headerNotification?: React.ReactNode;
 }
 
-function evalColorForPointsLost(pl: number): string {
-  if (pl >= 5) return 'var(--eval-blunder)';
-  if (pl >= 2) return 'var(--eval-mistake)';
-  if (pl >= 1) return 'var(--eval-inaccuracy)';
-  if (pl >= 0.5) return 'var(--eval-slight)';
-  if (pl >= 0.1) return 'var(--eval-good)';
-  return 'var(--eval-best)';
+const EVAL_CLASS_LABELS = ['Blunder', 'Mistake', 'Inaccuracy', 'Slight loss', 'Good', 'Best'] as const;
+
+/**
+ * The quality colour for a loss, from the same thresholds and palette the
+ * candidate list, the eval dots and the analysis panel use. This shell used
+ * to carry its own 5/2/1/0.5 scale, so a 4-point loss was an orange
+ * "Mistake" in the command bar and a yellow "Inaccuracy" in the list beside it.
+ */
+function evalColorForPointsLost(pl: number, thresholds: readonly number[], theme: unknown): string {
+  const colors = getKaTrainEvalColors(theme);
+  const index = getEvaluationClass(pl, thresholds, colors.length);
+  return evalColorToCss(colors[index] ?? colors[colors.length - 1]!);
+}
+
+function evalLegendRows(thresholds: readonly number[], theme: unknown): Array<[string, string, string]> {
+  const t = thresholds.length > 0 ? thresholds : DEFAULT_EVAL_THRESHOLDS;
+  const colors = getKaTrainEvalColors(theme);
+  const ranges = [`${t[0]}+`, `${t[1]}-${t[0]}`, `${t[2]}-${t[1]}`, `${t[3]}-${t[2]}`, `${t[4]}-${t[3]}`, `0-${t[4]}`];
+  return EVAL_CLASS_LABELS.map((label, index) => [
+    label,
+    evalColorToCss(colors[index] ?? colors[colors.length - 1]!),
+    `${ranges[index]} pt`,
+  ]);
 }
 
 function formatVisitCount(n: number): string {
@@ -734,7 +752,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     <div className="k">Played</div>
                     <div className="v">
                       {pointsLost != null ? (
-                        <><span className="cb-quality-dot" style={{ background: evalColorForPointsLost(pointsLost) }} />{pointsLostLabel}</>
+                        <><span className="cb-quality-dot" style={{ background: evalColorForPointsLost(pointsLost, settings.trainerEvalThresholds, settings.trainerTheme) }} />{pointsLostLabel}</>
                       ) : '—'}
                     </div>
                     <div className={`sub ${pointsLost != null && pointsLost > 1.5 ? 'delta-bad' : 'delta-good'}`}>
@@ -989,14 +1007,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <div id="dashboard-analysis-quality-legend" className="qlegend">
                     <div className="eyebrow">Move quality · points lost</div>
                     <div className="qgrid">
-                      {[
-                        ['Blunder', 'var(--eval-blunder)', '5+ pt'],
-                        ['Mistake', 'var(--eval-mistake)', '2–5 pt'],
-                        ['Inaccuracy', 'var(--eval-inaccuracy)', '1–2 pt'],
-                        ['Slight', 'var(--eval-slight)', '.5–1 pt'],
-                        ['Good', 'var(--eval-good)', '0–.5 pt'],
-                        ['Best', 'var(--eval-best)', '0 pt'],
-                      ].map(([label, color, range]) => (
+                      {evalLegendRows(settings.trainerEvalThresholds, settings.trainerTheme).map(([label, color, range]) => (
                         <div className="qi" key={label}>
                           <span className="qd" style={{ background: color }} />
                           <span className="ql">{label}</span>
@@ -1079,7 +1090,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <div className={`section${sections.notes ? ' open' : ''}`}>
               {sectionHead('notes', 'Comment', 'comment')}
               <div className="section-body flush">
-                <NotesPanel showInfo detailed showNotes />
+                {/* "Lock AI details (Play mode)" is a teacher's setting; the
+                    other shell honours it, this one used to show the PV and
+                    policy text regardless. */}
+                <NotesPanel showInfo detailed={!(mode === 'play' && settings.trainerLockAi)} showNotes />
               </div>
             </div>
           </div>
@@ -1099,6 +1113,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           engineState={engineState}
           backend={engineBackend}
           model={engineModelLabel}
+          modelSource={getEngineModelSource(settings.katagoModelUrl)}
           cacheSize={analysisCacheSize}
           visits={settings.katagoVisits}
           visitsDisabled={isGameAnalysisRunning}
@@ -1195,12 +1210,13 @@ const EnginePopover: React.FC<{
   engineState: EngineState;
   backend: string;
   model: string;
+  modelSource: string;
   cacheSize: number;
   visits: number;
   visitsDisabled: boolean;
   onVisitsChange: (visits: number) => void;
   onClearCache: () => void;
-}> = ({ rect, engineState, backend, model, cacheSize, visits, visitsDisabled, onVisitsChange, onClearCache }) => {
+}> = ({ rect, engineState, backend, model, modelSource, cacheSize, visits, visitsDisabled, onVisitsChange, onClearCache }) => {
   const states: Record<EngineState, [string, string]> = {
     ready: ['Ready', 'var(--green)'],
     running: ['Analyzing', 'var(--live)'],
@@ -1224,9 +1240,9 @@ const EnginePopover: React.FC<{
       <div className="engine-detail">
         <dl className="ed-grid">
           <div><dt>State</dt><dd style={{ color }}>{label}</dd></div>
-          <div><dt>Backend</dt><dd>{backend || 'WebGPU'}</dd></div>
+          <div><dt>Backend</dt><dd>{formatEngineBackendLabel(backend)}</dd></div>
           <div><dt>Model</dt><dd>{model || '—'}</dd></div>
-          <div><dt>Source</dt><dd>Bundled</dd></div>
+          <div><dt>Source</dt><dd>{modelSource}</dd></div>
         </dl>
         <div className="ed-row ed-row-depth" data-analysis-live-visit-presets="true">
           <div className="ed-depth-heading">
