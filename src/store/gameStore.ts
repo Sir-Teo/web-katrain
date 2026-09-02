@@ -1328,6 +1328,22 @@ let selfplayToken = 0;
 // only ever judges that node: stepping through a loaded game, or navigating
 // while an analysis is in flight, must not undo anything.
 let lastPlayedNodeId: string | null = null;
+
+/**
+ * After a setup edit changed the stones on the board: the analysis in flight
+ * was for the old position and would land on the new one by node id, and
+ * nothing asked for a fresh read (Layout's effect keys on the node id, which
+ * did not change). Cancel the old, request the new.
+ */
+const afterBoardEdit = (get: () => GameStore): void => {
+  analysisQueue.cancelGroup('interactive');
+  analysisQueue.cancelGroup('tenuki');
+  tenukiToken++;
+  const state = get();
+  if (state.isAnalysisMode && !state.isSelfplayToEnd) {
+    setTimeout(() => void get().runAnalysis({ force: true }), 0);
+  }
+};
 let setupPositionToken = 0;
 // Where the current play-to-end began, so the finished line can be folded away.
 let selfplayStartNodeId: string | null = null;
@@ -2080,7 +2096,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }),
 
-  applyEditTool: (x, y, options = {}) =>
+  applyEditTool: (x, y, options = {}) => {
+    const boardBefore = get().board;
     set((state) => {
       const boardSize = state.board.length;
       if (x < 0 || y < 0 || x >= boardSize || y >= boardSize) return {};
@@ -2179,7 +2196,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         treeVersion: state.treeVersion + 1,
         notification: { message: `Edited ${setupWord}.${summary}`, type: pruned > 0 ? 'success' : 'info', undoable: true },
       };
-    }),
+    });
+    if (get().board !== boardBefore) afterBoardEdit(get);
+  },
 
   toggleBoardPointMarkup: (x, y) =>
     set((state) => {
@@ -2250,7 +2269,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }),
 
-  clearCurrentNodeSetupStones: () => set((state) => {
+  clearCurrentNodeSetupStones: () => {
+    const boardBefore = get().board;
+    set((state) => {
       const node = state.currentNode;
       const props = ensureNodeProperties(node);
       const setupCount = SETUP_PROPERTIES.reduce((total, key) => total + (props[key]?.length ?? 0), 0);
@@ -2290,7 +2311,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         treeVersion: state.treeVersion + 1,
         notification: { message: `Cleared ${removed} setup stone${removed === 1 ? '' : 's'}.${summary}`, type: pruned > 0 ? 'success' : 'info', undoable: true },
       };
-    }),
+    });
+    if (get().board !== boardBefore) afterBoardEdit(get);
+  },
 
   applySetupStones: (stones) => {
     let changed = 0;
@@ -2342,6 +2365,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         treeVersion: state.treeVersion + 1,
       };
     });
+    if (changed > 0) afterBoardEdit(get);
     return changed;
   },
 
@@ -3241,6 +3265,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           };
 
           const applyAnalysis = (analysis: KataGoAnalysisPayload, isFinal: boolean, now = getAnimationNow()) => {
+            if (nodeAnalysisPositionKey(node, rules) !== requestPositionKey) return;
             const showOwnership = get().settings.analysisShowOwnership;
             const shouldUpdateTerritory =
               isFinal || (showOwnership && progressApplyMinMs > 0 && now - lastTerritoryUpdateAt >= progressApplyMinMs);
@@ -3291,10 +3316,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
               }
             : undefined;
 
+      // What the board looked like when this was asked for. A setup edit
+      // swaps the node's position in place, and a result for the old stones
+      // must not be drawn on the new ones just because the node id matches.
+      const requestPositionKey = nodeAnalysisPositionKey(node, rules);
       const interactiveCacheKey = analysisCacheKey(
         'interactive',
         node.id,
-        nodeAnalysisPositionKey(node, rules),
+        requestPositionKey,
         modelUrl,
         state.settings.katagoBackend,
         rules,
