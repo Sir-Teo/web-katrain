@@ -29,7 +29,7 @@ function moveLabel(move: CandidateMove, boardSize: number): string {
 export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, onPin }) => {
   const stripRef = useRef<HTMLDivElement>(null);
   const [scrollEdges, setScrollEdges] = useState({ overflow: false, atStart: true, atEnd: true });
-  const { moves, boardSize, nodeId, trainerTheme } = useGameStore(
+  const { moves, boardSize, nodeId, trainerTheme, addPvVariation } = useGameStore(
     (state) => ({
       // These tiles are the engine's candidate moves, which is the answer a
       // drill is asking for; show nothing while it is asking.
@@ -39,6 +39,7 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
       boardSize: state.currentNode.gameState.board.length,
       nodeId: state.currentNode.id,
       trainerTheme: state.settings.trainerTheme,
+      addPvVariation: state.addPvVariation,
     }),
     shallow
   );
@@ -91,6 +92,8 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
     };
   }, [tiles, updateScrollEdges]);
 
+  const pinnedMove = pinnedKey ? tiles.find((move) => moveKey(move) === pinnedKey) ?? null : null;
+
   if (tiles.length === 0) return null;
 
   return (
@@ -128,6 +131,16 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
           </button>
         );
       })}
+      {pinnedMove?.pv && pinnedMove.pv.length > 0 && (
+        <button
+          type="button"
+          onClick={() => addPvVariation(pinnedMove.pv ?? [])}
+          className="candidate-pv-tile shrink-0 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2 py-1 text-xs font-semibold text-[var(--ui-accent)] hover:brightness-110 touch-manipulation"
+          title={`Add the ${moveLabel(pinnedMove, boardSize)} continuation to the move tree`}
+        >
+          Keep in tree
+        </button>
+      )}
       {pinnedKey && (
         <button
           type="button"

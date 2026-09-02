@@ -20,6 +20,15 @@ import { preferredScrollBehavior } from '../utils/mediaQuery';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../utils/boardThemes';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { UI_THEME_OPTIONS } from '../utils/uiThemes';
+import { RULES_OPTIONS, rulesOf } from '../utils/goRules';
+import { describeAiStrength, estimateAiRank } from '../utils/aiStrength';
+import {
+  HANDICAP_PDA_LIMIT,
+  automaticHandicapPda,
+  clampHandicapPda,
+  countRootHandicapStones,
+  describeHandicapPda,
+} from '../utils/handicapAi';
 import { APP_LOCALE_OPTIONS } from '../utils/locales';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
@@ -161,16 +170,20 @@ const ADVANCED_ENGINE_SETTING_IDS = new Set([
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     useEscapeToClose(onClose);
     const dialogRef = useInitialDialogFocus<HTMLDivElement>();
-    const { settings, updateSettings, engineBackend, engineModelName } = useGameStore(
+    const { settings, updateSettings, engineBackend, engineModelName, komi, handicapStoneCount } = useGameStore(
         (state) => ({
             settings: state.settings,
             updateSettings: state.updateSettings,
             engineBackend: state.engineBackend,
             engineModelName: state.engineModelName,
+            komi: state.komi,
+            handicapStoneCount: countRootHandicapStones(state.rootNode),
         }),
         shallow
     );
     const engineModelLabel = getEngineModelLabel(engineModelName, settings.katagoModelUrl);
+    // KaTrain shows what the current AI configuration is worth in rank terms.
+    const aiStrength = React.useMemo(() => estimateAiRank(settings.aiStrategy, settings), [settings]);
     const modelUploadInputRef = React.useRef<HTMLInputElement>(null);
     const humanModelUploadInputRef = React.useRef<HTMLInputElement>(null);
     const humanBlobUrlRef = React.useRef<string | null>(null);
@@ -263,6 +276,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
     const DEFAULT_ANIM_PV_TIME = 0.5;
+    const DEFAULT_ANIM_PV_MOVES = 100;
     const SMALL_MODEL_URL = publicUrl(KATAGO_SMALL_MODEL_PATH);
     const isUploadedModel = isUploadedModelUrl(settings.katagoModelUrl);
     const sectionClass = 'settings-section rounded-xl border ui-surface p-4 sm:p-5';
@@ -1080,6 +1094,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </div>
 
                                             <div className="space-y-1">
+                                                <label htmlFor="settings-pv-animation-moves" className="text-[var(--ui-text-muted)] block text-sm">PV Animation Moves</label>
+                                                <input
+                                                    id="settings-pv-animation-moves"
+                                                    type="number"
+                                                    min={0}
+                                                    step={1}
+                                                    value={settings.animPvMoves ?? DEFAULT_ANIM_PV_MOVES}
+                                                    onChange={(e) =>
+                                                        updateSettings({
+                                                            animPvMoves: Math.max(0, Math.round(parseFloat(e.target.value || String(DEFAULT_ANIM_PV_MOVES)))),
+                                                        })
+                                                    }
+                                                    className={inputClass}
+                                                />
+                                                <p className={subtextClass}>How many moves of a variation to lay on the board (0 shows the whole sequence at once).</p>
+                                            </div>
+
+                                            <div className="space-y-1">
                                                 <label htmlFor="settings-game-rules" className="text-[var(--ui-text-muted)] block text-sm">Rules</label>
                                                 <select
                                                     id="settings-game-rules"
@@ -1087,10 +1119,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     onChange={(e) => updateSettings({ gameRules: e.target.value as GameSettings['gameRules'] })}
                                                     className={selectClass}
                                                 >
-                                                    <option value="japanese">Japanese (KaTrain default)</option>
-                                                    <option value="chinese">Chinese</option>
-                                                    <option value="korean">Korean</option>
+                                                    {RULES_OPTIONS.map((option) => (
+                                                        <option key={option.id} value={option.id}>
+                                                            {option.id === 'japanese' ? `${option.label} (KaTrain default)` : option.label}
+                                                        </option>
+                                                    ))}
                                                 </select>
+                                                <p className={subtextClass}>{rulesOf(settings.gameRules).summary}</p>
                                             </div>
                                         </div>
                                     </div>  
@@ -1485,6 +1520,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         >
                                             <option value="default">Default (engine top move)</option>
                                             <option value="human">Human (KataGo human net)</option>
+                                            <option value="handicap">KataHandicap (KaTrain)</option>
+                                            <option value="antimirror">KataAntiMirror (KaTrain)</option>
                                             <option value="rank">Rank (KaTrain)</option>
                                             <option value="simple">Simple Ownership (KaTrain)</option>
                                             <option value="settle">Settle Stones (KaTrain)</option>
@@ -1499,6 +1536,73 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <option value="influence">Influence (KaTrain)</option>
                                         </select>
                                     </div>
+
+                                    <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2">
+                                        <span className="text-sm text-[var(--ui-text-muted)]">Estimated strength</span>
+                                        <span
+                                            className="text-sm font-semibold text-[var(--ui-text)]"
+                                            data-ai-strength={aiStrength.label ?? 'none'}
+                                            title={describeAiStrength(aiStrength)}
+                                        >
+                                            {aiStrength.label ?? '—'}
+                                        </span>
+                                    </div>
+                                    <p className={subtextClass}>{describeAiStrength(aiStrength)}</p>
+
+                                    {settings.aiStrategy === 'handicap' && (
+                                        <div className="mt-3 space-y-3">
+                                            <p className={subtextClass}>
+                                                Full-strength KataGo reading the board as if one side had more search, so it keeps
+                                                pressing in a handicap game instead of settling for a decided result.
+                                            </p>
+                                            <div className="flex items-center justify-between gap-3">
+                                                <label htmlFor="settings-ai-handicap-automatic" className={labelClass}>
+                                                    Set automatically from handicap
+                                                </label>
+                                                <input
+                                                    id="settings-ai-handicap-automatic"
+                                                    type="checkbox"
+                                                    checked={settings.aiHandicapAutomatic !== false}
+                                                    onChange={(e) => updateSettings({ aiHandicapAutomatic: e.target.checked })}
+                                                    className="toggle"
+                                                />
+                                            </div>
+                                            {settings.aiHandicapAutomatic === false ? (
+                                                <div className="space-y-1">
+                                                    <label htmlFor="settings-ai-handicap-pda" className="text-[var(--ui-text-muted)] block text-sm">
+                                                        Search advantage
+                                                    </label>
+                                                    <input
+                                                        id="settings-ai-handicap-pda"
+                                                        type="number"
+                                                        step={0.25}
+                                                        min={-HANDICAP_PDA_LIMIT}
+                                                        max={HANDICAP_PDA_LIMIT}
+                                                        value={settings.aiHandicapPda ?? 0}
+                                                        onChange={(e) => updateSettings({ aiHandicapPda: clampHandicapPda(parseFloat(e.target.value || '0')) })}
+                                                        className={inputClass}
+                                                    />
+                                                    <p className={subtextClass}>
+                                                        {describeHandicapPda(clampHandicapPda(settings.aiHandicapPda ?? 0))}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className={subtextClass}>
+                                                    {describeHandicapPda(
+                                                        automaticHandicapPda({ handicapStones: handicapStoneCount, komi })
+                                                    )}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {settings.aiStrategy === 'antimirror' && (
+                                        <p className={`${subtextClass} mt-3`}>
+                                            Watches for mirror go and breaks the symmetry when it sees it — taking the centre
+                                            point, or leaning on an opponent stone already sitting there. Plays its normal game
+                                            otherwise.
+                                        </p>
+                                    )}
 
                                     {settings.aiStrategy === 'rank' && (
                                         <div className="mt-3 space-y-1">

@@ -1,4 +1,5 @@
-import type { BoardState, Player } from '../types';
+import type { BoardState, GameRules, Player } from '../types';
+import { groupTaxPerRegion, handicapBonusForWhite, isAreaScoring } from './goRules';
 import { applyCapturesInPlace, getLegalMoves, isEye } from './gameLogic';
 import { formatResultScoreLead } from './manualScore';
 
@@ -345,18 +346,120 @@ export function countDeadStones(board: BoardState, deadStones: ReadonlySet<strin
   return { blackDeadStones, whiteDeadStones };
 }
 
+/** Living stones each colour has on the board, ignoring anything marked dead. */
+export function countLivingStones(
+  board: BoardState,
+  deadStones: ReadonlySet<string>
+): { blackStones: number; whiteStones: number } {
+  let blackStones = 0;
+  let whiteStones = 0;
+  for (let y = 0; y < board.length; y++) {
+    const row = board[y] ?? [];
+    for (let x = 0; x < row.length; x++) {
+      const stone = row[x] ?? null;
+      if (!stone || deadStones.has(scoringPointKey(x, y))) continue;
+      if (stone === 'black') blackStones++;
+      else whiteStones++;
+    }
+  }
+  return { blackStones, whiteStones };
+}
+
+/**
+ * Living groups per colour, for the rulesets that tax each group. Stones the
+ * players marked dead are lifted first, so a dead group is not taxed.
+ */
+export function countLivingGroups(
+  board: BoardState,
+  deadStones: ReadonlySet<string>
+): { blackGroups: number; whiteGroups: number } {
+  const size = board.length;
+  const seen = new Set<string>();
+  let blackGroups = 0;
+  let whiteGroups = 0;
+
+  const alive = (x: number, y: number): Player | null => {
+    const stone = board[y]?.[x] ?? null;
+    if (!stone || deadStones.has(scoringPointKey(x, y))) return null;
+    return stone;
+  };
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < (board[y]?.length ?? 0); x++) {
+      const stone = alive(x, y);
+      if (!stone) continue;
+      const key = scoringPointKey(x, y);
+      if (seen.has(key)) continue;
+
+      if (stone === 'black') blackGroups++;
+      else whiteGroups++;
+
+      const stack: Point[] = [{ x, y }];
+      seen.add(key);
+      while (stack.length > 0) {
+        const point = stack.pop()!;
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ] as const) {
+          const nx = point.x + dx;
+          const ny = point.y + dy;
+          if (nx < 0 || ny < 0 || ny >= size || nx >= (board[ny]?.length ?? 0)) continue;
+          const nextKey = scoringPointKey(nx, ny);
+          if (seen.has(nextKey)) continue;
+          if (alive(nx, ny) !== stone) continue;
+          seen.add(nextKey);
+          stack.push({ x: nx, y: ny });
+        }
+      }
+    }
+  }
+
+  return { blackGroups, whiteGroups };
+}
+
 export function computeManualScoreEstimate(args: {
   board: BoardState;
   komi: number;
   capturedBlack: number;
   capturedWhite: number;
   deadStones: ReadonlySet<string>;
+  /** Defaults to Japanese-style territory scoring. */
+  rules?: GameRules;
+  /** Handicap stones Black took, for the rulesets that compensate White. */
+  handicapStones?: number;
 }): ManualScoreEstimate {
   const territoryScore = calculateTerritoryScore(args.board, args.deadStones);
   const deadCounts = countDeadStones(args.board, args.deadStones);
+  const rules = args.rules ?? 'japanese';
 
-  const blackScore = territoryScore.blackTerritory + args.capturedWhite + deadCounts.whiteDeadStones;
-  const whiteScore = territoryScore.whiteTerritory + args.capturedBlack + deadCounts.blackDeadStones + args.komi;
+  let blackScore: number;
+  let whiteScore: number;
+  if (isAreaScoring(rules)) {
+    // Area scoring: your territory plus the stones you have alive on the board.
+    // Prisoners do not matter, but handicap stones are compensated for.
+    const { blackStones, whiteStones } = countLivingStones(args.board, args.deadStones);
+    blackScore = territoryScore.blackTerritory + blackStones;
+    whiteScore =
+      territoryScore.whiteTerritory +
+      whiteStones +
+      args.komi +
+      handicapBonusForWhite(rules, args.handicapStones ?? 0);
+
+    // Ancient Chinese "stone scoring" taxes every living group a couple of
+    // points, which is what makes it play differently from modern Chinese.
+    const tax = groupTaxPerRegion(rules);
+    if (tax > 0) {
+      const groups = countLivingGroups(args.board, args.deadStones);
+      blackScore -= tax * groups.blackGroups;
+      whiteScore -= tax * groups.whiteGroups;
+    }
+  } else {
+    blackScore = territoryScore.blackTerritory + args.capturedWhite + deadCounts.whiteDeadStones;
+    whiteScore = territoryScore.whiteTerritory + args.capturedBlack + deadCounts.blackDeadStones + args.komi;
+  }
   const scoreLead = Math.round((blackScore - whiteScore) * 10) / 10;
 
   return {

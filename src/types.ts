@@ -5,7 +5,14 @@ export const KOMI = 6.5;
 export type Player = 'black' | 'white';
 export type Intersection = Player | null;
 export type BoardState = Intersection[][];
-export type GameRules = 'japanese' | 'chinese' | 'korean';
+export type GameRules =
+  | 'japanese'
+  | 'chinese'
+  | 'korean'
+  | 'aga'
+  | 'new-zealand'
+  | 'tromp-taylor'
+  | 'stone-scoring';
 export type KataGoBackendPreference = 'wasm' | 'webgpu' | 'cpu';
 export type FloatArray = Float32Array | number[];
 
@@ -121,6 +128,7 @@ export interface GameNode {
   note?: string; // User-editable note (SGF C), KaTrain-style.
   properties?: Record<string, string[]>;
   drawings?: BoardDrawing[]; // Freehand pen/highlight strokes, session-only.
+  collapsed?: boolean; // Move-tree branch collapsed at this node; view state, never saved to SGF.
 }
 
 export type BoardThemeId =
@@ -156,6 +164,10 @@ export interface GameSettings {
   hapticFeedback: boolean;
   defaultBoardSize: BoardSize;
   defaultHandicap: number;
+  tsumegoFrameMargin: number; // KaTrain tsumego frame wall distance
+  tsumegoFrameKoAllowed: boolean; // KaTrain tsumego frame "ko allowed?"
+  setupPositionMove: number; // KaTrain game/setup_move
+  setupPositionAdvantage: number; // KaTrain game/setup_advantage (points, Black-positive)
   timerSound: boolean; // KaTrain timer/sound
   timerMainTimeMinutes: number; // KaTrain timer/main_time (minutes)
   timerByoLengthSeconds: number; // KaTrain timer/byo_length (seconds)
@@ -166,6 +178,7 @@ export interface GameSettings {
   loadSgfRewind: boolean; // KaTrain general/load_sgf_rewind
   loadSgfFastAnalysis: boolean; // KaTrain general/load_fast_analysis
   animPvTimeSeconds: number; // KaTrain general/anim_pv_time
+  animPvMoves: number; // KaTrain general/anim_pv_moves (0 shows the whole sequence at once)
   gameRules: GameRules; // KataGo rules preset (KaTrain default: japanese)
   trainerLowVisits: number; // KaTrain trainer/low_visits
   trainerTheme: 'theme:normal' | 'theme:red-green-colourblind'; // KaTrain trainer/theme
@@ -227,6 +240,8 @@ export interface GameSettings {
   aiStrategy:
     | 'default'
     | 'human' // KataGo human SL net: plays like the configured rank
+    | 'handicap'
+    | 'antimirror'
     | 'rank'
     | 'scoreloss'
     | 'policy'
@@ -239,6 +254,8 @@ export interface GameSettings {
     | 'jigo'
     | 'simple'
     | 'settle';
+  aiHandicapAutomatic: boolean; // KaTrain ai:handicap/automatic
+  aiHandicapPda: number; // KaTrain ai:handicap/pda (manual playoutDoublingAdvantage)
   aiRankKyu: number; // KaTrain ai:p:rank/kyu_rank
   aiScoreLossStrength: number; // KaTrain ai:scoreloss/strength
   aiPolicyOpeningMoves: number; // KaTrain ai:policy/opening_moves

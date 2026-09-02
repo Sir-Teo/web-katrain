@@ -31,6 +31,8 @@ const POINTER_HELP = [
   { control: 'Pinch', action: 'Zoom the board on touch screens' },
   { control: 'Wheel', action: 'Previous/next move over the board or move tree' },
   { control: 'Shift + wheel', action: 'Previous/next mistake over the board or move tree' },
+  { control: 'Wheel over a candidate', action: 'Step through that move\u2019s variation on the board' },
+  { control: 'Middle-click a candidate', action: 'Add the previewed variation to the move tree' },
 ] as const;
 
 export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, onOpenShortcutSettings, returnFocus }) => {

@@ -1,4 +1,5 @@
 import type { GameNode, Player } from '../types';
+import { countMoveTreeDescendants } from './moveTreeCollapse';
 
 export type MoveTreeLayoutItem = {
   id: string;
@@ -7,6 +8,8 @@ export type MoveTreeLayoutItem = {
   player: Player | null;
   isRoot: boolean;
   autoUndo: boolean;
+  /** Moves hidden below this node because its branch is collapsed (0 when expanded). */
+  collapsedCount: number;
 };
 
 export type MoveTreeLayoutNode = MoveTreeLayoutItem & {
@@ -68,6 +71,7 @@ const NODE_RADIUS = 6;
 const X_STEP = 22;
 const Y_STEP = 18;
 const MARGIN = 12;
+const COLLAPSED_STUB_PAD = 20;
 
 export function moveTreeNodeLabel(node: GameNode): string {
   const move = node.move;
@@ -86,13 +90,26 @@ export function moveTreeNodeLabel(node: GameNode): string {
   return `${col}${row}`;
 }
 
-export function flattenMoveTree(root: GameNode): MoveTreeLayoutItem[] {
+/**
+ * Flatten the tree for layout.
+ *
+ * `revealAncestorIds` holds the strict ancestors of the current move: a
+ * collapsed branch that the player has navigated back into opens up for as long
+ * as they stand inside it, so the tree never hides where the board is. It folds
+ * shut again on its own once they leave.
+ */
+export function flattenMoveTree(
+  root: GameNode,
+  revealAncestorIds?: ReadonlySet<string>
+): MoveTreeLayoutItem[] {
   const items: MoveTreeLayoutItem[] = [];
   const stack: GameNode[] = [root];
 
   while (stack.length > 0) {
     const node = stack.pop()!;
     const move = node.move;
+    const collapsed =
+      node.collapsed === true && node.children.length > 0 && !revealAncestorIds?.has(node.id);
     items.push({
       id: node.id,
       parentId: node.parent?.id ?? null,
@@ -100,8 +117,11 @@ export function flattenMoveTree(root: GameNode): MoveTreeLayoutItem[] {
       player: move?.player ?? null,
       isRoot: node.parent === null,
       autoUndo: node.autoUndo === true,
+      collapsedCount: collapsed ? countMoveTreeDescendants(node) : 0,
     });
 
+    // A collapsed branch keeps its head visible and hides everything below it.
+    if (collapsed) continue;
     for (let i = node.children.length - 1; i >= 0; i--) {
       stack.push(node.children[i]!);
     }
@@ -171,11 +191,18 @@ export function computeMoveTreeLayout(
     });
   }
 
+  // A collapsed branch draws a short stub past its head; keep it inside the canvas.
+  const stubPad = items.some((item) => item.collapsedCount > 0) ? COLLAPSED_STUB_PAD : 0;
+
   return {
     nodes,
     edges,
-    width: MARGIN * 2 + (direction === 'horizontal' ? maxX * X_STEP : maxY * Y_STEP) + NODE_RADIUS * 2 + 8,
-    height: MARGIN * 2 + (direction === 'horizontal' ? maxY * Y_STEP : maxX * X_STEP) + NODE_RADIUS * 2 + 8,
+    width:
+      MARGIN * 2 + (direction === 'horizontal' ? maxX * X_STEP : maxY * Y_STEP) + NODE_RADIUS * 2 + 8 +
+      (direction === 'horizontal' ? stubPad : 0),
+    height:
+      MARGIN * 2 + (direction === 'horizontal' ? maxY * Y_STEP : maxX * X_STEP) + NODE_RADIUS * 2 + 8 +
+      (direction === 'horizontal' ? 0 : stubPad),
     radius: NODE_RADIUS,
     xStep: direction === 'horizontal' ? X_STEP : Y_STEP,
     yStep: direction === 'horizontal' ? Y_STEP : X_STEP,

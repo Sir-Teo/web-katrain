@@ -161,6 +161,46 @@ describe('SGF export trainer options', () => {
     expect(sgf).toContain('SQ[ba]');
   });
 
+  it('explains a move the teacher took back, the way KaTrain does', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+    store.playMove(3, 3);
+
+    const root = useGameStore.getState().rootNode;
+    const played = root.children[0]!;
+    root.analysis = analysis({
+      rootScoreLead: 0,
+      rootWinRate: 0.5,
+      moves: [{ x: 15, y: 3, winRate: 0.55, scoreLead: 1.2, visits: 100, pointsLost: 0, order: 0 }],
+    });
+    played.analysis = analysis({
+      rootScoreLead: -5,
+      rootWinRate: 0.4,
+      moves: [
+        { x: 15, y: 15, winRate: 0.6, scoreLead: 5, visits: 100, pointsLost: 0, order: 0, pv: ['Q4', 'D16'] },
+      ],
+    });
+
+    const options = {
+      trainer: {
+        saveAnalysis: false,
+        saveMarks: false,
+        evalThresholds: [12, 6, 3, 1.5, 0.5, 0],
+        saveFeedback: [true, true, true, true, true, true],
+        saveCommentsPlayer: { black: true, white: true },
+      },
+    };
+
+    // Nothing about undo until the node is actually marked auto-undone.
+    expect(generateSgfFromTree(root, options)).not.toContain('automatically undone');
+
+    played.autoUndo = true;
+    const sgf = generateSgfFromTree(root, options);
+    expect(sgf).toContain('Move was automatically undone in teaching mode.');
+    // Follow-up comes from the undone node's own top candidate, for the next player.
+    expect(sgf).toContain('Predicted follow-up: WQ4 D16');
+  });
+
   it('groups multi-value SGF properties under one property identifier', () => {
     const store = useGameStore.getState();
     store.resetGame();

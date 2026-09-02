@@ -1,4 +1,5 @@
 import type { GameRules } from '../types';
+import { rulesLabel } from './goRules';
 
 export type SgfRootProperties = Record<string, string[] | undefined>;
 
@@ -45,17 +46,7 @@ export const formatGameInfoTitle = (rootProps: SgfRootProperties): string => {
   return readRootInfoValue(rootProps, 'EV') || 'Untitled game';
 };
 
-export const formatRulesLabel = (rules: GameRules): string => {
-  switch (rules) {
-    case 'chinese':
-      return 'Chinese';
-    case 'korean':
-      return 'Korean';
-    case 'japanese':
-    default:
-      return 'Japanese';
-  }
-};
+export const formatRulesLabel = (rules: GameRules): string => rulesLabel(rules);
 
 export const formatKomiLabel = (komi: number): string =>
   Number.isFinite(komi) ? String(Number(komi.toFixed(2))) : '6.5';

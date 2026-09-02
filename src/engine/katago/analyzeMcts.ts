@@ -31,6 +31,7 @@ import {
   isAdjacentToColor,
   isNonPassAliveSelfConnection,
   wouldBeCapture,
+  computeIndependentLifeAreaInto,
   computeLibertyMap,
   computeLibertyMapInto,
   updateLibertyMapForSeeds,
@@ -46,6 +47,7 @@ import {
   simpleRepetitionBoundGt,
 } from './graphHash';
 import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
+import { areaFeatureModeForRules } from '../../utils/goRules';
 import { POLICY_OPTIMISM, ROOT_POLICY_OPTIMISM } from './searchParams';
 
 export type OwnershipMode = 'none' | 'root' | 'tree';
@@ -672,6 +674,8 @@ async function buildRootEval(args: {
   rootSymmetryPruning?: boolean;
   forcedRootMoves?: Uint8Array | null;
   avoidRootMoves?: Int32Array | null;
+  playoutDoublingAdvantage?: number;
+  playoutDoublingAdvantagePla?: Player;
   outputScaleMultiplier: number;
   /** KataGo ignorePreRootHistory: the root's history planes stay empty. */
   ignorePreRootHistory: boolean;
@@ -714,6 +718,8 @@ async function buildRootEval(args: {
     rootSymmetrySamples: args.rootSymmetrySamples,
     policyOptimism: ROOT_POLICY_OPTIMISM,
     komi: args.komi,
+    playoutDoublingAdvantage: args.playoutDoublingAdvantage,
+    playoutDoublingAdvantagePla: args.playoutDoublingAdvantagePla,
     outputScaleMultiplier: args.outputScaleMultiplier,
     state: {
       stones: args.rootStones,
@@ -2908,6 +2914,8 @@ async function evaluateRootEval(args: {
   rootSymmetrySamples?: number;
   policyOptimism: number;
   komi: number;
+  playoutDoublingAdvantage?: number;
+  playoutDoublingAdvantagePla?: Player;
   outputScaleMultiplier: number;
   state: EvalState;
 }): Promise<NeuralEval> {
@@ -2921,6 +2929,8 @@ async function evaluateRootEval(args: {
         nnRandomize: false,
         policyOptimism: args.policyOptimism,
         komi: args.komi,
+        playoutDoublingAdvantage: args.playoutDoublingAdvantage,
+        playoutDoublingAdvantagePla: args.playoutDoublingAdvantagePla,
         states: [{ ...args.state, symmetry: args.state.symmetry ?? 0 }],
       })
     )[0]!;
@@ -2939,6 +2949,8 @@ async function evaluateRootEval(args: {
       nnRandomize: false,
       policyOptimism: args.policyOptimism,
       komi: args.komi,
+      playoutDoublingAdvantage: args.playoutDoublingAdvantage,
+      playoutDoublingAdvantagePla: args.playoutDoublingAdvantagePla,
       states,
     }),
     args.outputScaleMultiplier
@@ -3071,6 +3083,10 @@ async function evaluateBatch(args: {
   nnRandomize: boolean;
   policyOptimism: number;
   komi: number;
+  /** Doublings of search one side is treated as having; 0 disables it. */
+  playoutDoublingAdvantage?: number;
+  /** Which colour that advantage belongs to. */
+  playoutDoublingAdvantagePla?: Player;
   states: EvalState[];
 }): Promise<NeuralEval[]> {
   const { model, states } = args;
@@ -3078,7 +3094,10 @@ async function evaluateBatch(args: {
   const rules = args.rules;
   const nnRandomize = args.nnRandomize;
   const policyOptimism = Math.max(0, Math.min(args.policyOptimism, 1));
-  const includeAreaFeature = rules === 'chinese';
+  const areaMode = areaFeatureModeForRules(rules);
+  const includeAreaFeature = areaMode !== 'none';
+  const pda = args.playoutDoublingAdvantage ?? 0;
+  const pdaPla = args.playoutDoublingAdvantagePla ?? 'black';
   const batch = states.length;
   const scratch = getEvalScratch({ batch, includeAreaFeature });
   const spatialBatch = scratch.spatialBatch.subarray(0, batch * BOARD_AREA * 22);
@@ -3094,9 +3113,13 @@ async function evaluateBatch(args: {
     const libertyMap = libertyMapScratch.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA);
     if (state.libertyMap) libertyMap.set(state.libertyMap);
     else computeLibertyMapInto(state.stones, libertyMap);
-    const areaMap = includeAreaFeature
-      ? computeAreaMapV7KataGoInto(state.stones, areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA))
-      : EMPTY_AREA_MAP;
+    let areaMap: Uint8Array = EMPTY_AREA_MAP;
+    if (includeAreaFeature) {
+      const slot = areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA);
+      if (areaMode === 'independent-life') computeIndependentLifeAreaInto(state.stones, slot, { keepStones: true });
+      else computeAreaMapV7KataGoInto(state.stones, slot);
+      areaMap = slot;
+    }
     if (hasLadderCandidates(libertyMap)) {
       computeLadderFeaturesV7KataGoInto({
         stones: state.stones,
@@ -3167,6 +3190,9 @@ async function evaluateBatch(args: {
       conservativePassAndIsRoot: state.conservativePassAndIsRoot,
       maxHistory: maxTurnsOfHistoryToInclude,
       enablePassingHacks: state.enablePassingHacks,
+      // KataGo signs the advantage per node: it belongs to one colour, so it
+      // flips whenever the side to move flips.
+      playoutDoublingAdvantage: pda === 0 ? 0 : state.currentPlayer === pdaPla ? pda : -pda,
       libertyMap,
       areaMap: includeAreaFeature ? areaMap : undefined,
       ladderedStones: scratch.ladderedStonesScratch,
@@ -3302,6 +3328,8 @@ export class MctsSearch {
   readonly nnRandomize: boolean;
   readonly conservativePass: boolean;
   readonly wideRootNoise: number;
+  readonly playoutDoublingAdvantage: number;
+  readonly playoutDoublingAdvantagePla: Player;
   readonly rootSymmetrySamples: number;
   private readonly outputScaleMultiplier: number;
 
@@ -3402,6 +3430,8 @@ export class MctsSearch {
     nnRandomize: boolean;
     conservativePass: boolean;
     wideRootNoise: number;
+    playoutDoublingAdvantage: number;
+    playoutDoublingAdvantagePla: Player;
     rootSymmetrySamples: number;
     rootStones: Uint8Array<ArrayBuffer>;
     rootKoPoint: number;
@@ -3450,6 +3480,8 @@ export class MctsSearch {
     this.nnRandomize = args.nnRandomize;
     this.conservativePass = args.conservativePass;
     this.wideRootNoise = args.wideRootNoise;
+    this.playoutDoublingAdvantage = args.playoutDoublingAdvantage;
+    this.playoutDoublingAdvantagePla = args.playoutDoublingAdvantagePla;
     this.rootSymmetrySamples = args.rootSymmetrySamples;
 
     this.rootStones = args.rootStones;
@@ -3605,6 +3637,9 @@ export class MctsSearch {
     maxChildren: number;
     ownershipMode: OwnershipMode;
     wideRootNoise: number;
+    /** Doublings of search one colour is treated as having; 0 disables it. */
+    playoutDoublingAdvantage?: number;
+    playoutDoublingAdvantagePla?: Player;
     rootSymmetrySamples?: number;
     regionOfInterest?: RegionOfInterest | null;
     rootSymmetryPruning?: boolean;
@@ -3735,6 +3770,8 @@ export class MctsSearch {
       forcedRootMoves,
       avoidRootMoves:
         args.currentPlayer === 'black' ? (args.avoidMoveUntilBlack ?? null) : (args.avoidMoveUntilWhite ?? null),
+      playoutDoublingAdvantage: args.playoutDoublingAdvantage,
+      playoutDoublingAdvantagePla: args.playoutDoublingAdvantagePla,
       outputScaleMultiplier,
       ignorePreRootHistory,
       enablePassingHacks,
@@ -3775,6 +3812,8 @@ export class MctsSearch {
       nnRandomize: args.nnRandomize,
       conservativePass: args.conservativePass,
       wideRootNoise: args.wideRootNoise,
+      playoutDoublingAdvantage: args.playoutDoublingAdvantage ?? 0,
+      playoutDoublingAdvantagePla: args.playoutDoublingAdvantagePla ?? 'black',
       rootSymmetrySamples,
       rootStones,
       rootKoPoint,
@@ -3890,6 +3929,8 @@ export class MctsSearch {
       rootMoves,
       maxChildren: this.maxChildren,
       regionOfInterest: args.regionOfInterest,
+      playoutDoublingAdvantage: this.playoutDoublingAdvantage,
+      playoutDoublingAdvantagePla: this.playoutDoublingAdvantagePla,
       outputScaleMultiplier: this.outputScaleMultiplier,
       ignorePreRootHistory: this.ignorePreRootHistory,
       enablePassingHacks: this.enablePassingHacks,
@@ -4438,6 +4479,8 @@ export class MctsSearch {
         nnRandomize: this.nnRandomize,
         policyOptimism: POLICY_OPTIMISM,
         komi: this.komi,
+        playoutDoublingAdvantage: this.playoutDoublingAdvantage,
+        playoutDoublingAdvantagePla: this.playoutDoublingAdvantagePla,
         states: jobs,
       });
       timeCheckCounter = 0;

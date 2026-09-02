@@ -30,6 +30,7 @@ import {
   FaChartLine,
   FaCrosshairs,
   FaFastForward,
+  FaBorderAll,
   FaFileAlt,
   FaGraduationCap,
   FaLayerGroup,
@@ -83,6 +84,7 @@ const TOP_CONTROL_SHORTCUT_IDS = [
   'selfplay',
   'game-analysis-modal',
   'game-report-modal',
+  'tsumego-frame-modal',
 ] as const;
 
 type TopControlShortcutId = (typeof TOP_CONTROL_SHORTCUT_IDS)[number];
@@ -129,6 +131,7 @@ interface TopControlBarProps {
   stopGameAnalysis: () => void;
   setIsGameAnalysisOpen: (v: boolean) => void;
   setIsGameReportOpen: (v: boolean) => void;
+  onOpenTsumegoFrame: () => void;
   // Menu callbacks
   onOpenMenu: (inputMode: 'pointer' | 'keyboard') => void;
   onQuickNewGame: () => void;
@@ -191,6 +194,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   stopGameAnalysis,
   setIsGameAnalysisOpen,
   setIsGameReportOpen,
+  onOpenTsumegoFrame,
   onOpenMenu,
   onQuickNewGame,
   onNewGame,
@@ -635,6 +639,11 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <FaFastForward size={18} className="text-[var(--ui-text-muted)]" />
             <span className="text-sm font-medium">Selfplay to end</span>
             <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels.selfplay}</span>
+          </button>
+          <button type="button" className={mobileToolsGridBtn} onClick={() => { onOpenTsumegoFrame(); closeMobileToolsAfterAction(); }}>
+            <FaBorderAll size={18} className="text-[var(--ui-text-muted)]" />
+            <span className="text-sm font-medium">Frame as tsumego</span>
+            <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['tsumego-frame-modal']}</span>
           </button>
           {/* Stop had no touch route at all: its only caller was the analysis
               menu below, which never renders, so "Selfplay to end" ran with no

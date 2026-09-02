@@ -1,6 +1,7 @@
 import type { BoardState, GameRules, Move, Player } from '../../types';
 import { BOARD_SIZE } from './fastBoard';
 import { getOpponent } from '../../utils/gameLogic';
+import { rulesOf } from '../../utils/goRules';
 
 const INPUT_SPATIAL_CHANNELS_V7 = 22;
 const INPUT_GLOBAL_CHANNELS_V7 = 19;
@@ -41,6 +42,8 @@ export function fillInputsV7(args: {
   komi: number;
   rules?: GameRules;
   conservativePassAndIsRoot?: boolean;
+  /** Signed for the side to move; 0 disables the feature. */
+  playoutDoublingAdvantage?: number;
   outSpatial: Float32Array; // len 19*19*22
   outGlobal: Float32Array; // len 19
   scratch?: KataGoInputsV7Scratch;
@@ -201,16 +204,38 @@ export function fillInputsV7(args: {
   const selfKomi = pla === 'white' ? komi : -komi;
   global[5] = selfKomi / 20.0;
 
-  if (rules === 'japanese' || rules === 'korean') {
-    global[9] = 1.0;
-    global[10] = 1.0;
+  // KataGo fillRowV7 rule inputs, straight from the ruleset table.
+  const ruleset = rulesOf(rules);
+  if (ruleset.ko === 'positional') {
+    global[6] = 1.0;
+    global[7] = 0.5;
+  } else if (ruleset.ko === 'situational') {
+    global[6] = 1.0;
+    global[7] = -0.5;
   }
+  if (ruleset.multiStoneSuicideLegal) global[8] = 1.0;
+  if (ruleset.scoring === 'territory') global[9] = 1.0;
+  if (ruleset.tax === 'seki') {
+    global[10] = 1.0;
+  } else if (ruleset.tax === 'all') {
+    global[10] = 1.0;
+    global[11] = 1.0;
+  }
+  if (ruleset.hasButton) global[17] = 1.0;
 
   // passWouldEndPhase: in simple rules, if previous move was pass, another pass ends the game.
   // KataGo conservativePassAndIsRoot suppresses this signal at the root.
   global[14] = !suppressHistory && passWouldEndGame ? 1.0 : 0.0;
 
-  if (rules === 'chinese') {
+  // KataGo fillRowV7: playoutDoublingAdvantage, already signed for the side to move.
+  const playoutDoublingAdvantage = args.playoutDoublingAdvantage ?? 0;
+  if (playoutDoublingAdvantage !== 0) {
+    global[15] = 1.0;
+    global[16] = 0.5 * playoutDoublingAdvantage;
+  }
+
+  // KataGo applies the komi parity wave under any area scoring.
+  if (ruleset.scoring === 'area') {
     // Komi parity wave (area scoring, 19x19).
     const boardAreaIsEven = (BOARD_SIZE * BOARD_SIZE) % 2 === 0;
     const drawableKomisAreEven = boardAreaIsEven;
@@ -238,6 +263,7 @@ export function extractInputsV7(args: {
   komi: number;
   rules?: GameRules;
   conservativePassAndIsRoot?: boolean;
+  playoutDoublingAdvantage?: number;
 }): KataGoInputsV7 {
   const spatial = new Float32Array(BOARD_SIZE * BOARD_SIZE * INPUT_SPATIAL_CHANNELS_V7);
   const global = new Float32Array(INPUT_GLOBAL_CHANNELS_V7);

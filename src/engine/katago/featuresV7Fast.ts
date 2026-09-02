@@ -1,6 +1,7 @@
 import type { GameRules, Player } from '../../types';
 import { getOpponent } from '../../utils/gameLogic';
-import { BLACK, WHITE, EMPTY, PASS_MOVE, BOARD_SIZE, computeLibertyMap, computeAreaMapV7KataGo, type StoneColor } from './fastBoard';
+import { areaFeatureModeForRules, rulesOf } from '../../utils/goRules';
+import { BLACK, WHITE, EMPTY, PASS_MOVE, BOARD_SIZE, computeLibertyMap, computeAreaMapV7KataGo, computeIndependentLifeArea, type StoneColor } from './fastBoard';
 
 const INPUT_SPATIAL_CHANNELS_V7 = 22;
 // KataGo NNPos::KOMI_CLIP_RADIUS.
@@ -50,6 +51,8 @@ export function fillInputsV7Fast(args: {
    * nothing; it only bites on a komi that could produce a jigo in the first place.
    */
   drawEquivalentWinsForWhite?: number;
+  /** Signed for the side to move; 0 disables the feature. */
+  playoutDoublingAdvantage?: number;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable
@@ -61,6 +64,7 @@ export function fillInputsV7Fast(args: {
 }): void {
   const { stones, koPoint, currentPlayer, recentMoves, komi } = args;
   const rules: GameRules = args.rules ?? 'japanese';
+  const playoutDoublingAdvantage = args.playoutDoublingAdvantage ?? 0;
   const pla = currentPlayer;
   const opp = getOpponent(pla);
   const plaColor = playerToColor(pla);
@@ -126,10 +130,16 @@ export function fillInputsV7Fast(args: {
   // KataGo counts the score this feature implies while it fills it in, so that the
   // passing hacks below can ask whether ending the game right now would be a win.
   // Note it uses the unclamped komi here, and the clamped one for the komi plane.
-  const hasAreaFeature = rules === 'chinese';
+  const areaMode = areaFeatureModeForRules(rules);
+  const hasAreaFeature = areaMode !== 'none';
   let boardScoreForPla = 0;
   if (hasAreaFeature) {
-    const area = args.areaMap ?? computeAreaMapV7KataGo(stones);
+    // Callers pass the map in; the fallback keeps this usable standalone.
+    const area =
+      args.areaMap ??
+      (areaMode === 'independent-life'
+        ? computeIndependentLifeArea(stones, { keepStones: true }).area
+        : computeAreaMapV7KataGo(stones));
     for (let y = 0; y < BOARD_SIZE; y++) {
       for (let x = 0; x < BOARD_SIZE; x++) {
         const pos = y * BOARD_SIZE + x;
@@ -190,15 +200,37 @@ export function fillInputsV7Fast(args: {
   const clampedSelfKomi = Math.max(-komiClipBound, Math.min(komiClipBound, selfKomi));
   global[5] = clampedSelfKomi / 20.0;
 
-  if (rules === 'japanese' || rules === 'korean') {
-    // KataGo "Japanese": territory scoring + seki tax.
-    global[9] = 1.0; // scoring: territory
-    global[10] = 1.0; // tax: seki
+  // KataGo fillRowV7 rule inputs, straight from the ruleset table.
+  const ruleset = rulesOf(rules);
+  if (ruleset.ko === 'positional') {
+    global[6] = 1.0;
+    global[7] = 0.5;
+  } else if (ruleset.ko === 'situational') {
+    global[6] = 1.0;
+    global[7] = -0.5;
   }
+  if (ruleset.multiStoneSuicideLegal) global[8] = 1.0;
+  if (ruleset.scoring === 'territory') global[9] = 1.0;
+  if (ruleset.tax === 'seki') {
+    global[10] = 1.0;
+  } else if (ruleset.tax === 'all') {
+    global[10] = 1.0;
+    global[11] = 1.0;
+  }
+  if (ruleset.hasButton) global[17] = 1.0;
 
   global[14] = !suppressHistory && passWouldEndGame ? 1.0 : 0.0;
 
-  if (rules === 'chinese') {
+  // KataGo fillRowV7: playoutDoublingAdvantage, already signed for the side to
+  // move. Tells the net to evaluate as if this side had that many doublings of
+  // search over the opponent.
+  if (playoutDoublingAdvantage !== 0) {
+    global[15] = 1.0;
+    global[16] = 0.5 * playoutDoublingAdvantage;
+  }
+
+  // KataGo applies the komi parity wave under any area scoring.
+  if (ruleset.scoring === 'area') {
     const boardAreaIsEven = (BOARD_SIZE * BOARD_SIZE) % 2 === 0;
     const drawableKomisAreEven = boardAreaIsEven;
 
@@ -245,6 +277,8 @@ export function extractInputsV7Fast(args: {
    * nothing; it only bites on a komi that could produce a jigo in the first place.
    */
   drawEquivalentWinsForWhite?: number;
+  /** Signed for the side to move; 0 disables the feature. */
+  playoutDoublingAdvantage?: number;
   libertyMap?: Uint8Array; // per-point liberties capped to 3, for stones only
   areaMap?: Uint8Array; // KataGo-style area map for planes 18/19
   ladderedStones?: Uint8Array; // V7 plane 14, 1 where stones are ladder-capturable

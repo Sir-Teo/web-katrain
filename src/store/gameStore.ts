@@ -1,7 +1,7 @@
 import { createWithEqualityFn as create } from 'zustand/traditional';
 import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type BoardDrawing, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
 import { findMistakeNavigationTarget } from '../utils/mistakeNavigation';
-import { applyCapturesInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
+import { applyCapturesInPlace, applySelfCaptureInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
 import { coordinateToSgf, expandSgfPointList, extractKaTrainUserNoteFromSgfComment, formatSgfDate, type ParsedSgf } from '../utils/sgf';
 import { getKataGoEngineClient, isKataGoCanceledError } from '../engine/katago/client';
@@ -45,6 +45,18 @@ import { ensurePinGameId, getNodePath, getPinGameId, resolveNodePath, restorePin
 import { describeHumanBotPick, pickHumanBotMove } from '../utils/humanBotMove';
 import { komiWithHandicapBonus } from '../utils/handicap';
 import { humanBotPresets } from '../engine/katago/chosenMove';
+import {
+  countMoveTreeDescendants,
+  expandAllMoveTreeBranches,
+  getMoveTreeCollapseTarget,
+  isNodeDescendantOf,
+} from '../utils/moveTreeCollapse';
+import { parseGtpMove } from '../lib/gtp';
+import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
+import { isSuicideLegal, rulesFromSgf, rulesOf, rulesToSgf } from '../utils/goRules';
+import { superkoRejectionMessage, violatesSuperko, type SuperkoPosition } from '../utils/superko';
+import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
+import { countRootHandicapStones, handicapPlayoutDoublingAdvantage } from '../utils/handicapAi';
 import { getResignResult } from '../utils/resign';
 import {
   admitNotification,
@@ -89,6 +101,8 @@ interface GameStore extends GameState {
   editUndoCount: number;
   editRedoCount: number;
   isSelfplayToEnd: boolean;
+  /** Progress of a KaTrain-style "set up position" generation, or null when idle. */
+  setupPositionProgress: { move: number; untilMove: number } | null;
   isGameAnalysisRunning: boolean;
   gameAnalysisType: 'quick' | 'fast' | 'full' | null;
   gameAnalysisDone: number;
@@ -160,6 +174,9 @@ interface GameStore extends GameState {
   undoToBranchPoint: () => void;
   undoToMainBranch: () => void;
   makeCurrentNodeMainBranch: () => void;
+  toggleBranchCollapse: (nodeId?: string) => void;
+  addPvVariation: (pv: string[], upToMove?: number) => void;
+  expandAllBranches: () => void;
   shiftCurrentVariation: (direction: 'left' | 'right') => void;
   findMistake: (direction: 'undo' | 'redo') => void;
   deleteCurrentNode: () => void;
@@ -220,12 +237,15 @@ interface GameStore extends GameState {
   toggleBoardPointMarkup: (x: number, y: number) => void;
   clearCurrentNodeSetupStones: () => void;
   applySetupStones: (stones: Array<{ x: number; y: number; player: Player | null }>) => number;
+  frameAsTsumego: (opts: { margin: number; koAllowed: boolean }) => void;
   clearCurrentNodeAnnotations: () => void;
   addSegmentMarkup: (prop: SegmentProperty, sx: number, sy: number, ex: number, ey: number) => void;
   addNodeDrawing: (drawing: BoardDrawing) => void;
   clearNodeDrawings: () => void;
   selfplayToEnd: () => void;
   stopSelfplayToEnd: () => void;
+  generateSetupPosition: (opts: { untilMove: number; targetAdvantage: number }) => void;
+  stopSetupPositionGeneration: () => void;
   startQuickGameAnalysis: () => void;
   startFastGameAnalysis: (opts?: { moveRange?: [number, number] | null }) => void;
   startFullGameAnalysis: (opts: { visits: number; moveRange?: [number, number] | null; mistakesOnly?: boolean }) => void;
@@ -381,26 +401,9 @@ const saveStoredSettings = (settings: GameSettings): void => {
   writeLocalStorage(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 };
 
-const rulesToSgfRu = (rules: GameRules): string => {
-  switch (rules) {
-    case 'japanese':
-      return 'Japanese';
-    case 'chinese':
-      return 'Chinese';
-    case 'korean':
-      return 'Korean';
-  }
-};
+const rulesToSgfRu = (rules: GameRules): string => rulesToSgf(rules);
 
-const parseSgfRu = (ru: string | undefined): GameRules | null => {
-  if (!ru) return null;
-  const v = ru.trim().toLowerCase();
-  if (!v) return null;
-  if (v === 'jp' || v.includes('japanese')) return 'japanese';
-  if (v === 'ko' || v.includes('korean')) return 'korean';
-  if (v === 'cn' || v.includes('chinese')) return 'chinese';
-  return null;
-};
+const parseSgfRu = (ru: string | undefined): GameRules | null => rulesFromSgf(ru);
 
 const ownershipToTerritoryGrid = (ownership: ArrayLike<number>, boardSize: number): number[][] => {
   const territory: number[][] = Array(boardSize)
@@ -1039,6 +1042,10 @@ const defaultSettings: GameSettings = {
   hapticFeedback: true,
   defaultBoardSize: DEFAULT_BOARD_SIZE,
   defaultHandicap: 0,
+  tsumegoFrameMargin: 4,
+  tsumegoFrameKoAllowed: false,
+  setupPositionMove: 100,
+  setupPositionAdvantage: 20,
   timerSound: true,
   timerMainTimeMinutes: 0,
   timerByoLengthSeconds: 30,
@@ -1049,6 +1056,7 @@ const defaultSettings: GameSettings = {
   loadSgfRewind: true,
   loadSgfFastAnalysis: false,
   animPvTimeSeconds: 0.5,
+  animPvMoves: 100,
   gameRules: 'japanese',
   trainerLowVisits: 25,
   trainerTheme: 'theme:normal',
@@ -1092,6 +1100,8 @@ const defaultSettings: GameSettings = {
   teachNumUndoPrompts: [1, 1, 1, 0.5, 0, 0],
 
   aiStrategy: 'rank',
+  aiHandicapAutomatic: true,
+  aiHandicapPda: 0,
   aiRankKyu: 4.0,
   aiScoreLossStrength: 0.2,
   aiPolicyOpeningMoves: 22,
@@ -1146,7 +1156,194 @@ const initialSettings: GameSettings = {
 };
 
 let continuousToken = 0;
+/**
+ * Append `move` to `parent` as a new child, applying captures, suicide and
+ * simple-ko rules. Returns null when the move is not legal there.
+ *
+ * Shared by insert mode and "add this variation to the tree": both replay moves
+ * onto an existing node rather than going through the interactive play path.
+ */
+const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false): GameNode | null => {
+  const st = parent.gameState;
+  if (st.currentPlayer !== move.player) return null;
+
+  if (isPassMove(move)) {
+    const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
+    const nextState: GameState = {
+      board: st.board,
+      currentPlayer: nextPlayer,
+      moveHistory: [...st.moveHistory, move],
+      capturedBlack: st.capturedBlack,
+      capturedWhite: st.capturedWhite,
+      komi: st.komi,
+    };
+    const child = createNode(parent, move, nextState);
+    parent.children.push(child);
+    return child;
+  }
+
+  if (st.board[move.y]?.[move.x] !== null) return null;
+  const tentativeBoard = st.board.map((row) => [...row]);
+  tentativeBoard[move.y]![move.x] = st.currentPlayer;
+  const captured = applyCapturesInPlace(tentativeBoard, move.x, move.y, st.currentPlayer);
+  const newBoard = tentativeBoard;
+  let selfCaptured = 0;
+  if (captured.length === 0) {
+    const { liberties, group } = getLiberties(newBoard, move.x, move.y);
+    if (liberties === 0) {
+      if (!suicideLegal || group.length <= 1) return null;
+      selfCaptured = applySelfCaptureInPlace(newBoard, move.x, move.y).length;
+    }
+  }
+  if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) return null;
+
+  const newCapturedBlack =
+    st.capturedBlack +
+    (st.currentPlayer === 'white' ? captured.length : 0) +
+    (st.currentPlayer === 'black' ? selfCaptured : 0);
+  const newCapturedWhite =
+    st.capturedWhite +
+    (st.currentPlayer === 'black' ? captured.length : 0) +
+    (st.currentPlayer === 'white' ? selfCaptured : 0);
+  const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
+  const nextState: GameState = {
+    board: newBoard,
+    currentPlayer: nextPlayer,
+    moveHistory: [...st.moveHistory, move],
+    capturedBlack: newCapturedBlack,
+    capturedWhite: newCapturedWhite,
+    komi: st.komi,
+  };
+
+  const child = createNode(parent, move, nextState);
+  parent.children.push(child);
+  return child;
+};
+
+/**
+ * One fast engine read of the current position, used by the play-to-end and
+ * set-up-position generators. Both walk the game forward move by move, so they
+ * always analyze wherever the board currently is.
+ */
+const analyzeForPlayout = (
+  s: GameStore,
+  opts: { group: string; label: string; id: string; wideRootNoise?: number }
+): Promise<KataGoAnalysisPayload> => {
+  const node = s.currentNode;
+  const parentBoard = node.parent?.gameState.board;
+  const grandparentBoard = node.parent?.parent?.gameState.board;
+  const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
+  const rules = s.settings.gameRules;
+  const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, ENGINE_MAX_VISITS));
+  const maxTimeMs = Math.max(250, Math.min(s.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
+  const wideRootNoise = opts.wideRootNoise ?? 0.0;
+  return analysisQueue.enqueue<KataGoAnalysisPayload>({
+    id: opts.id,
+    label: opts.label,
+    group: opts.group,
+    priority: ANALYSIS_QUEUE_PRIORITY.selfplay,
+    cacheKey: analysisCacheKey(
+      opts.group,
+      node.id,
+      nodeAnalysisPositionKey(node, rules),
+      modelUrl,
+      s.settings.katagoBackend,
+      rules,
+      visits,
+      maxTimeMs,
+      s.settings.katagoBatchSize,
+      s.settings.katagoMaxChildren,
+      s.settings.katagoConservativePass,
+      wideRootNoise
+    ),
+    run: () => getKataGoEngineClient().analyze({
+      positionId: node.id,
+      parentPositionId: node.parent?.id,
+      positionKey: nodeAnalysisPositionKey(node, rules),
+      parentPositionKey: parentAnalysisPositionKey(node, rules),
+      modelUrl,
+      backend: s.settings.katagoBackend,
+      board: s.board,
+      previousBoard: parentBoard,
+      previousPreviousBoard: grandparentBoard,
+      currentPlayer: s.currentPlayer,
+      moveHistory: s.moveHistory,
+      komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, s.komi),
+      rules,
+      topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
+      analysisPvLen: Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 30)),
+      includeMovesOwnership: false,
+      wideRootNoise,
+      rootPolicyTemperature: 1.0,
+      fillDameBeforePass: s.settings.katagoFillDameBeforePass,
+      nnRandomize: false,
+      conservativePass: s.settings.katagoConservativePass,
+      visits,
+      maxTimeMs,
+      batchSize: s.settings.katagoBatchSize,
+      maxChildren: s.settings.katagoMaxChildren,
+      reuseTree: false,
+      ownershipMode: 'none',
+      analysisGroup: 'background',
+    }),
+  });
+};
+
+/** Black-positive score lead as "B+3.5" / "W+3.5" / "even". */
+const formatScoreLead = (score: number): string => {
+  if (Math.abs(score) < 0.05) return 'even';
+  return `${score > 0 ? 'B' : 'W'}+${Math.abs(score).toFixed(1)}`;
+};
+
+/** Pick one entry with probability proportional to its weight. */
+const weightedPick = <T,>(entries: Array<{ move: T; weight: number }>): T | null => {
+  const total = entries.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
+  if (!(total > 0)) return entries[0]?.move ?? null;
+  let roll = Math.random() * total;
+  for (const entry of entries) {
+    roll -= Math.max(0, entry.weight);
+    if (roll <= 0) return entry.move;
+  }
+  return entries[entries.length - 1]?.move ?? null;
+};
+
 let selfplayToken = 0;
+let setupPositionToken = 0;
+// Where the current play-to-end began, so the finished line can be folded away.
+let selfplayStartNodeId: string | null = null;
+
+/**
+ * Fold a finished play-to-end line into a collapsed branch and step back to
+ * where it started, the way KaTrain adds the playout as a shortcut.
+ */
+const collapseFinishedSelfplay = (
+  state: GameStore
+): Partial<GameStore> => {
+  const startId = selfplayStartNodeId;
+  selfplayStartNodeId = null;
+  if (!startId) return {};
+  const start = findNodeById(state.rootNode, startId);
+  if (!start || !isNodeDescendantOf(state.currentNode, start)) return {};
+  const head = start.children.find((child) => isNodeDescendantOf(state.currentNode, child) || child.id === state.currentNode.id);
+  if (!head || head.children.length === 0) return {};
+  head.collapsed = true;
+  const hidden = countMoveTreeDescendants(head);
+  return {
+    currentNode: start,
+    board: start.gameState.board,
+    currentPlayer: start.gameState.currentPlayer,
+    moveHistory: start.gameState.moveHistory,
+    capturedBlack: start.gameState.capturedBlack,
+    capturedWhite: start.gameState.capturedWhite,
+    analysisData: start.analysis || null,
+    activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, start),
+    treeVersion: state.treeVersion + 1,
+    notification: {
+      message: `Played out ${hidden + 1} moves and folded them into a collapsed branch.`,
+      type: 'info' as const,
+    },
+  };
+};
 let gameAnalysisToken = 0;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 /** Bumped per play-elsewhere request; see `analyzeTenuki`. */
@@ -1239,6 +1436,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   editUndoCount: 0,
   editRedoCount: 0,
   isSelfplayToEnd: false,
+  setupPositionProgress: null,
   isGameAnalysisRunning: false,
   gameAnalysisType: null,
   gameAnalysisDone: 0,
@@ -1549,6 +1747,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           analysisCacheSize: 0,
           isContinuousAnalysis: false,
           isSelfplayToEnd: false,
+          setupPositionProgress: null,
           isGameAnalysisRunning: false,
           gameAnalysisType: null,
           engineStatus: 'idle',
@@ -1609,6 +1808,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (mode === 'stop') {
       s.stopAnalysis();
       s.stopSelfplayToEnd();
+      s.stopSetupPositionGeneration();
       s.stopGameAnalysis();
       return;
     }
@@ -1762,58 +1962,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let from: GameNode | null = insertAfter;
     let to: GameNode = s.currentNode;
 
-    const tryCreateChild = (parent: GameNode, move: Move): GameNode | null => {
-      const st = parent.gameState;
-      if (st.currentPlayer !== move.player) return null;
-
-      if (isPassMove(move)) {
-        const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
-        const nextState: GameState = {
-          board: st.board,
-          currentPlayer: nextPlayer,
-          moveHistory: [...st.moveHistory, move],
-          capturedBlack: st.capturedBlack,
-          capturedWhite: st.capturedWhite,
-          komi: st.komi,
-        };
-        const child = createNode(parent, move, nextState);
-        parent.children.push(child);
-        return child;
-      }
-
-	      if (st.board[move.y]?.[move.x] !== null) return null;
-	      const tentativeBoard = st.board.map((row) => [...row]);
-	      tentativeBoard[move.y]![move.x] = st.currentPlayer;
-	      const captured = applyCapturesInPlace(tentativeBoard, move.x, move.y, st.currentPlayer);
-	      const newBoard = tentativeBoard;
-	      if (captured.length === 0) {
-	        const { liberties } = getLiberties(newBoard, move.x, move.y);
-	        if (liberties === 0) return null;
-	      }
-      if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) return null;
-
-      const newCapturedBlack = st.capturedBlack + (st.currentPlayer === 'white' ? captured.length : 0);
-      const newCapturedWhite = st.capturedWhite + (st.currentPlayer === 'black' ? captured.length : 0);
-      const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
-      const nextState: GameState = {
-        board: newBoard,
-        currentPlayer: nextPlayer,
-        moveHistory: [...st.moveHistory, move],
-        capturedBlack: newCapturedBlack,
-        capturedWhite: newCapturedWhite,
-        komi: st.komi,
-      };
-
-      const child = createNode(parent, move, nextState);
-      parent.children.push(child);
-      return child;
-    };
 
     while (from) {
       const move = from.move;
       if (!move) break;
       if (!insertedMoves.has(moveKey(move))) {
-        const child = tryCreateChild(to, move);
+        const child = createChildForMove(to, move, isSuicideLegal(s.settings.gameRules));
         if (!child) break;
         to = child;
         numCopied++;
@@ -2162,9 +2316,70 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return changed;
   },
 
+  /**
+   * KaTrain's F10: wall the current problem off and fill the rest of the board,
+   * so the engine reads the life and death instead of shrugging at a nearly
+   * empty board. Added as a child node, leaving the bare problem in the tree.
+   */
+  frameAsTsumego: ({ margin, koAllowed }) => {
+    const state = get();
+    const board = state.board;
+    if (!canFrameAsTsumego(board)) {
+      set({ notification: { message: 'Place a life-and-death problem on the board first.', type: 'info' } });
+      return;
+    }
+
+    const frame = buildTsumegoFrame(board, {
+      komi: state.komi,
+      blackToPlay: state.currentPlayer === 'black',
+      koAllowed,
+      margin,
+    });
+    if (frame.black.length === 0 && frame.white.length === 0) {
+      set({ notification: { message: 'This position leaves no room for a frame.', type: 'info' } });
+      return;
+    }
+
+    const boardSize = getBoardSizeFromBoard(board);
+    set((current) => {
+      const parent = current.currentNode;
+      const history = pushEditHistory(current);
+      const node = createNode(parent, null, cloneGameState(parent.gameState));
+      const props: Record<string, string[]> = {};
+      if (frame.black.length > 0) props.AB = frame.black.map((p) => coordinateToSgf(p.x, p.y));
+      if (frame.white.length > 0) props.AW = frame.white.map((p) => coordinateToSgf(p.x, p.y));
+      node.properties = props;
+      applySetupPropsToNode(node, props, boardSize);
+      parent.children.push(node);
+
+      const total = frame.black.length + frame.white.length;
+      return {
+        ...history,
+        currentNode: node,
+        board: node.gameState.board,
+        currentPlayer: node.gameState.currentPlayer,
+        moveHistory: node.gameState.moveHistory,
+        capturedBlack: node.gameState.capturedBlack,
+        capturedWhite: node.gameState.capturedWhite,
+        analysisData: null,
+        activeBranchChildIds: rememberActiveBranchPath(current.activeBranchChildIds, node),
+        regionOfInterest: normalizeRegionOfInterest(frame.region, boardSize),
+        isAnalysisMode: true,
+        treeVersion: current.treeVersion + 1,
+        notification: {
+          message: `Framed as a tsumego with ${total} stones. The rest of the board is settled, so only this problem decides the game.`,
+          type: 'info' as const,
+        },
+      };
+    });
+  },
+
   selfplayToEnd: () => {
     const token = ++selfplayToken;
     analysisQueue.cancelGroup('selfplay');
+    // KaTrain folds the playout away when it finishes and puts you back where
+    // you started, so a 200-move "what if" never buries the real game.
+    selfplayStartNodeId = get().currentNode.id;
     set({ isSelfplayToEnd: true });
 
     void (async () => {
@@ -2178,71 +2393,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const last = mh[mh.length - 1];
         const prev = mh[mh.length - 2];
         if (isPassMove(last) && isPassMove(prev)) {
-          set({ isSelfplayToEnd: false });
+          set((cur) => ({ isSelfplayToEnd: false, ...collapseFinishedSelfplay(cur) }));
           return;
         }
         if (safety++ > 2000) {
           const notification = { message: 'Selfplay stopped (move limit).', type: 'error' as const };
-          set({ isSelfplayToEnd: false, notification });
+          set((cur) => ({ ...collapseFinishedSelfplay(cur), isSelfplayToEnd: false, notification }));
           return;
         }
 
         try {
-          const node = s.currentNode;
-          const parentBoard = node.parent?.gameState.board;
-          const grandparentBoard = node.parent?.parent?.gameState.board;
-          const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
-          const rules = s.settings.gameRules;
-          const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, ENGINE_MAX_VISITS));
-          const maxTimeMs = Math.max(250, Math.min(s.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
-          const analysis = await analysisQueue.enqueue<KataGoAnalysisPayload>({
-            id: `selfplay:${token}:${node.id}:${safety}`,
-            label: 'Selfplay move',
+          const analysis = await analyzeForPlayout(s, {
             group: 'selfplay',
-            priority: ANALYSIS_QUEUE_PRIORITY.selfplay,
-            cacheKey: analysisCacheKey(
-              'selfplay',
-              node.id,
-              nodeAnalysisPositionKey(node, rules),
-              modelUrl,
-              s.settings.katagoBackend,
-              rules,
-              visits,
-              maxTimeMs,
-              s.settings.katagoBatchSize,
-              s.settings.katagoMaxChildren,
-              s.settings.katagoConservativePass
-            ),
-            run: () => getKataGoEngineClient().analyze({
-            positionId: node.id,
-            parentPositionId: node.parent?.id,
-            positionKey: nodeAnalysisPositionKey(node, rules),
-            parentPositionKey: parentAnalysisPositionKey(node, rules),
-            modelUrl,
-            backend: s.settings.katagoBackend,
-            board: s.board,
-            previousBoard: parentBoard,
-            previousPreviousBoard: grandparentBoard,
-            currentPlayer: s.currentPlayer,
-            moveHistory: s.moveHistory,
-            komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, s.komi),
-            rules,
-            topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
-            analysisPvLen: Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 30)),
-            includeMovesOwnership: false,
-            wideRootNoise: 0.0,
-            rootPolicyTemperature: 1.0,
-            fillDameBeforePass: s.settings.katagoFillDameBeforePass,
-            nnRandomize: false,
-            conservativePass: s.settings.katagoConservativePass,
-            visits,
-            maxTimeMs,
-            batchSize: s.settings.katagoBatchSize,
-            maxChildren: s.settings.katagoMaxChildren,
-            reuseTree: false,
-            ownershipMode: 'none',
-            analysisGroup: 'background',
-            }),
+            label: 'Selfplay move',
+            id: `selfplay:${token}:${s.currentNode.id}:${safety}`,
           });
 
           const best = analysis.moves[0] ?? null;
@@ -2262,10 +2426,128 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })();
   },
 
+  /**
+   * KaTrain's "Set up Position": let the engine play both sides toward a chosen
+   * score at a chosen move number, so you can practise from a realistic
+   * middlegame instead of an empty board.
+   *
+   * Each move is sampled from the candidates whose score lands near a target
+   * that ramps linearly from today's score to the requested advantage, skipping
+   * anything that throws away more than a few points. When the position drifts
+   * far from the ramp it plays the move that closes the gap fastest.
+   */
+  generateSetupPosition: ({ untilMove, targetAdvantage }) => {
+    const token = ++setupPositionToken;
+    analysisQueue.cancelGroup('setup-position');
+    const startDepth = get().currentNode.gameState.moveHistory.length;
+    const target = Math.max(startDepth + 1, Math.floor(untilMove));
+    let startScore: number | null = null;
+
+    set({ setupPositionProgress: { move: startDepth, untilMove: target } });
+
+    const finish = (message: string, type: 'info' | 'error' = 'info') => {
+      if (token !== setupPositionToken) return;
+      analysisQueue.cancelGroup('setup-position');
+      set((state) => ({
+        setupPositionProgress: null,
+        treeVersion: state.treeVersion + 1,
+        notification: { message, type },
+      }));
+    };
+
+    void (async () => {
+      const MAX_POINTS_LOST = 5;
+      while (true) {
+        const s = get();
+        if (token !== setupPositionToken) return;
+        if (!s.setupPositionProgress) return;
+
+        const depth = s.currentNode.gameState.moveHistory.length;
+        if (depth >= target) {
+          const score = s.currentNode.analysis?.rootScoreLead;
+          const lead = typeof score === 'number' ? formatScoreLead(score) : `about ${formatScoreLead(targetAdvantage)}`;
+          finish(`Set up a position at move ${depth} (${lead}).`);
+          return;
+        }
+
+        try {
+          const analysis = await analyzeForPlayout(s, {
+            group: 'setup-position',
+            label: 'Set up position',
+            id: `setup-position:${token}:${s.currentNode.id}:${depth}`,
+            // A little root noise keeps generated games from repeating.
+            wideRootNoise: 0.03,
+          });
+          if (token !== setupPositionToken) return;
+
+          const candidates = analysis.moves.filter((move) => move.x >= 0 && move.y >= 0);
+          if (candidates.length === 0) {
+            finish(`Set up a position at move ${depth} (the engine wanted to pass).`);
+            return;
+          }
+          if (startScore === null) startScore = analysis.rootScoreLead;
+
+          // Straight line from the score we started at to the score asked for.
+          const remaining = Math.max(1, target - startDepth);
+          const targetScore = startScore + ((depth - startDepth + 1) * (targetAdvantage - startScore)) / remaining;
+          const stddev = Math.min(3, 0.5 + (target - depth) * 0.15);
+
+          let chosen: CandidateMove;
+          if (Math.abs(analysis.rootScoreLead - targetScore) < 3 * stddev) {
+            const weighted = candidates
+              .filter((move, index) => move.pointsLost < MAX_POINTS_LOST || index === 0)
+              .map((move) => ({
+                move,
+                weight: Math.exp(-0.5 * ((move.scoreLead - targetScore) / stddev) ** 2),
+              }));
+            chosen = weightedPick(weighted) ?? candidates[0]!;
+          } else {
+            // Too far off the ramp to be picky: close the gap.
+            chosen = candidates.reduce((best, move) =>
+              Math.abs(move.scoreLead - targetScore) < Math.abs(best.scoreLead - targetScore) ? move : best
+            );
+          }
+
+          s.playMove(chosen.x, chosen.y);
+          const played = get().currentNode.gameState.moveHistory.length;
+          set({ setupPositionProgress: { move: played, untilMove: target } });
+          if (played === depth) {
+            finish('Could not continue generating this position.', 'error');
+            return;
+          }
+        } catch (err) {
+          if (isAnalysisCanceled(err)) {
+            if (token !== setupPositionToken) return;
+            await sleep(25);
+            continue;
+          }
+          finish('The engine stopped while generating the position.', 'error');
+          return;
+        }
+
+        await sleep(20);
+      }
+    })();
+  },
+
+  stopSetupPositionGeneration: () => {
+    setupPositionToken++;
+    analysisQueue.cancelGroup('setup-position');
+    const depth = get().currentNode.gameState.moveHistory.length;
+    set((state) =>
+      state.setupPositionProgress
+        ? {
+            setupPositionProgress: null,
+            notification: { message: `Stopped generating at move ${depth}.`, type: 'info' as const },
+          }
+        : {}
+    );
+  },
+
   stopSelfplayToEnd: () => {
     selfplayToken++;
     analysisQueue.cancelGroup('selfplay');
-    set({ isSelfplayToEnd: false });
+    set((cur) => ({ isSelfplayToEnd: false, ...collapseFinishedSelfplay(cur) }));
   },
 
   startQuickGameAnalysis: () => {
@@ -3160,6 +3442,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         analysisCacheSize: 0,
         isContinuousAnalysis: false,
         isSelfplayToEnd: false,
+        setupPositionProgress: null,
         isGameAnalysisRunning: false,
         gameAnalysisType: null,
         ...history,
@@ -3209,6 +3492,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         analysisCacheSize: 0,
         isContinuousAnalysis: false,
         isSelfplayToEnd: false,
+        setupPositionProgress: null,
         isGameAnalysisRunning: false,
         gameAnalysisType: null,
         engineStatus: 'idle',
@@ -3309,6 +3593,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         analysisCacheSize: 0,
         isContinuousAnalysis: false,
         isSelfplayToEnd: false,
+        setupPositionProgress: null,
         isGameAnalysisRunning: false,
         gameAnalysisType: null,
         engineStatus: 'idle',
@@ -3395,7 +3680,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // New Move Logic
     // Validate against the same simple-ko/no-suicide rules used by the engine presets exposed in the UI.
-    if (!isValidMove(state.board, x, y, state.currentPlayer, state.currentNode.parent?.gameState.board)) return;
+    if (
+      !isValidMove(state.board, x, y, state.currentPlayer, state.currentNode.parent?.gameState.board, {
+        multiStoneSuicideLegal: isSuicideLegal(state.settings.gameRules),
+      })
+    )
+      return;
 
 	    const tentativeBoard = state.board.map((row) => [...row]);
 	    tentativeBoard[y][x] = state.currentPlayer;
@@ -3403,18 +3693,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	    const captured = applyCapturesInPlace(tentativeBoard, x, y, state.currentPlayer);
 	    const newBoard = tentativeBoard;
 
-	    // Suicide check
-	    if (captured.length === 0) {
-	      const { liberties } = getLiberties(newBoard, x, y);
-      if (liberties === 0) return;
+    // Suicide check. Rulesets that allow it still only allow it for a group of
+    // more than one stone, matching isValidMove above, and the group it kills
+    // comes off the board as the opponent's prisoners.
+    let selfCaptured = 0;
+    if (captured.length === 0) {
+      const { liberties, group } = getLiberties(newBoard, x, y);
+      if (liberties === 0) {
+        if (!isSuicideLegal(state.settings.gameRules) || group.length <= 1) return;
+        selfCaptured = applySelfCaptureInPlace(newBoard, x, y).length;
+      }
     }
 
-    // Ko check
-    // Simple Ko: Check just the state from 2 moves ago?
-    // Let's traverse up one step (parent).
+    // Simple ko: the position two plies back must not come straight back.
     if (state.currentNode.parent && boardsEqual(newBoard, state.currentNode.parent.gameState.board)) {
-        // Found Ko, illegal move
         return;
+    }
+
+    // Superko, where the ruleset asks for it: walk this line's history and
+    // refuse anything that repeats a position we have already been in.
+    const koRule = rulesOf(state.settings.gameRules).ko;
+    if (koRule !== 'simple') {
+      const nextPlayerToMove: Player = state.currentPlayer === 'black' ? 'white' : 'black';
+      const history: SuperkoPosition[] = [];
+      for (let node: GameNode | null = state.currentNode; node; node = node.parent) {
+        history.push({ board: node.gameState.board, playerToMove: node.gameState.currentPlayer });
+      }
+      if (violatesSuperko({ ko: koRule, next: { board: newBoard, playerToMove: nextPlayerToMove }, history })) {
+        set({ notification: { message: superkoRejectionMessage(koRule), type: 'error' } });
+        return;
+      }
     }
 
     if (!isLoad) {
@@ -3426,8 +3734,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    const newCapturedBlack = state.capturedBlack + (state.currentPlayer === 'white' ? captured.length : 0);
-    const newCapturedWhite = state.capturedWhite + (state.currentPlayer === 'black' ? captured.length : 0);
+    const newCapturedBlack =
+      state.capturedBlack +
+      (state.currentPlayer === 'white' ? captured.length : 0) +
+      (state.currentPlayer === 'black' ? selfCaptured : 0);
+    const newCapturedWhite =
+      state.capturedWhite +
+      (state.currentPlayer === 'black' ? captured.length : 0) +
+      (state.currentPlayer === 'white' ? selfCaptured : 0);
     const nextPlayer: Player = state.currentPlayer === 'black' ? 'white' : 'black';
 
     const move: Move = { x, y, player: state.currentPlayer };
@@ -3493,6 +3807,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const conservativePass = state.settings.katagoConservativePass;
         const aiNeedsMovesOwnership = state.settings.aiStrategy === 'simple' || state.settings.aiStrategy === 'settle';
         const aiWantsHumanPolicy = state.settings.aiStrategy === 'human' && !!state.settings.humanSlModelUrl;
+        // KataHandicap: read the position as if one side had more search, which
+        // is what makes a strong bot keep pressing in a handicap game instead of
+        // trading down into a quiet, already-decided endgame.
+        const handicapPda =
+          state.settings.aiStrategy === 'handicap'
+            ? handicapPlayoutDoublingAdvantage({
+                automatic: state.settings.aiHandicapAutomatic !== false,
+                manualPda: state.settings.aiHandicapPda ?? 0,
+                handicapStones: countRootHandicapStones(state.rootNode),
+                komi: state.komi,
+              })
+            : 0;
         const aiOwnershipMode = aiNeedsMovesOwnership ? 'tree' : state.settings.katagoOwnershipMode;
         const topK =
           state.settings.aiStrategy === 'default'
@@ -3538,7 +3864,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             state.settings.katagoReuseTree,
             aiOwnershipMode,
             state.settings.aiStrategy,
-            aiWantsHumanPolicy ? state.settings.humanSlProfile : ''
+            aiWantsHumanPolicy ? state.settings.humanSlProfile : '',
+            handicapPda
           ),
           preempt: true,
           run: () => getKataGoEngineClient().analyze({
@@ -3561,6 +3888,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             wideRootNoise,
             rootPolicyTemperature,
             fillDameBeforePass,
+            playoutDoublingAdvantage: handicapPda,
+            playoutDoublingAdvantagePla: 'black',
             nnRandomize,
             conservativePass,
             humanModelUrl: aiWantsHumanPolicy ? state.settings.humanSlModelUrl : undefined,
@@ -3710,6 +4039,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 x: best.x,
                 y: best.y,
                 thoughts: `Human profile unavailable, played the engine's move ${bestLabel}.`,
+              };
+            }
+
+            if (strategy === 'antimirror') {
+              if (!best) return null;
+              const mirroring = isOpponentMirroring({
+                moveHistory: latest.moveHistory,
+                boardSize,
+                rootPlayer: playerAtStart,
+              });
+              if (!mirroring) {
+                return {
+                  x: best.x,
+                  y: best.y,
+                  thoughts: `AntiMirror: opponent is not mirroring, played top move ${bestLabel}.`,
+                };
+              }
+              const choice = chooseAntiMirrorMove({
+                candidates,
+                board: latest.board,
+                boardSize,
+                opponent: playerAtStart === 'black' ? 'white' : 'black',
+              });
+              if (!choice) {
+                return {
+                  x: best.x,
+                  y: best.y,
+                  thoughts: `AntiMirror: mirror detected, but no centre move was affordable — played ${bestLabel}.`,
+                };
+              }
+              const label =
+                choice.move.x < 0 || choice.move.y < 0
+                  ? 'pass'
+                  : `${String.fromCharCode(65 + (choice.move.x >= 8 ? choice.move.x + 1 : choice.move.x))}${boardSize - choice.move.y}`;
+              return {
+                x: choice.move.x,
+                y: choice.move.y,
+                thoughts: `AntiMirror: mirror detected, ${choice.reason} with ${label} (pointsLost ${choice.move.pointsLost.toFixed(1)}).`,
               };
             }
 
@@ -4465,6 +4832,107 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return { ...history, treeVersion: state.treeVersion + 1 };
   }),
 
+  // KaTrain's 'c': fold the run of moves back to the previous branch point away,
+  // leaving its head as the handle. View-only, so no edit-history entry.
+  toggleBranchCollapse: (nodeId?: string) => set((state) => {
+    const from = nodeId ? findNodeById(state.rootNode, nodeId) : state.currentNode;
+    if (!from) return {};
+    const target = getMoveTreeCollapseTarget(from);
+    if (!target) {
+      return { notification: { message: 'No branch to collapse here.', type: 'info' as const } };
+    }
+    const collapsing = target.collapsed !== true;
+    target.collapsed = collapsing;
+    const hidden = countMoveTreeDescendants(target);
+    const patch: Partial<GameStore> = {
+      treeVersion: state.treeVersion + 1,
+      notification: {
+        message: collapsing
+          ? `Collapsed ${hidden} move${hidden === 1 ? '' : 's'} into one branch.`
+          : `Expanded ${hidden} move${hidden === 1 ? '' : 's'}.`,
+        type: 'info' as const,
+      },
+    };
+    // Standing inside the run we just folded away: step out to its head so the
+    // tree and the board agree about where we are.
+    if (collapsing && isNodeDescendantOf(state.currentNode, target)) {
+      return {
+        ...patch,
+        currentNode: target,
+        board: target.gameState.board,
+        currentPlayer: target.gameState.currentPlayer,
+        moveHistory: target.gameState.moveHistory,
+        capturedBlack: target.gameState.capturedBlack,
+        capturedWhite: target.gameState.capturedWhite,
+        analysisData: target.analysis || null,
+        activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, target),
+      };
+    }
+    return patch;
+  }),
+
+  // KaTrain's middle-click on a candidate: drop the variation you are previewing
+  // into the tree, only as far as you have scrolled through it.
+  addPvVariation: (pv: string[], upToMove?: number) => set((state) => {
+    const limit = typeof upToMove === 'number' ? Math.floor(upToMove) : pv.length;
+    const moves = pv.slice(0, Math.max(0, Math.min(pv.length, limit)));
+    if (moves.length === 0) {
+      return { notification: { message: 'Nothing to add from this variation.', type: 'info' as const } };
+    }
+    const boardSize = normalizeBoardSize(state.board.length, DEFAULT_BOARD_SIZE);
+    const history = pushEditHistory(state);
+
+    let parent = state.currentNode;
+    let created = 0;
+    let reused = 0;
+    let activeBranchChildIds = state.activeBranchChildIds;
+
+    for (const gtp of moves) {
+      const parsed = parseGtpMove(gtp, boardSize);
+      if (!parsed) break;
+      const player = parent.gameState.currentPlayer;
+      const move: Move = parsed.kind === 'pass'
+        ? { x: -1, y: -1, player }
+        : { x: parsed.x, y: parsed.y, player };
+      // Re-adding a variation should extend the existing line, not fork a twin.
+      const existing = parent.children.find(
+        (child) => child.move && child.move.x === move.x && child.move.y === move.y && child.move.player === move.player
+      );
+      const next = existing ?? createChildForMove(parent, move, isSuicideLegal(state.settings.gameRules));
+      if (!next) break;
+      if (existing) reused += 1;
+      else created += 1;
+      activeBranchChildIds = { ...activeBranchChildIds, [parent.id]: next.id };
+      parent = next;
+    }
+
+    if (created === 0 && reused === 0) {
+      return { notification: { message: 'That variation is not playable from here.', type: 'error' as const } };
+    }
+    const total = created + reused;
+    return {
+      ...history,
+      activeBranchChildIds,
+      treeVersion: state.treeVersion + 1,
+      notification: {
+        message: created === 0
+          ? `That variation is already in the tree (${total} move${total === 1 ? '' : 's'}).`
+          : `Added ${created} move${created === 1 ? '' : 's'} from this variation to the tree.`,
+        type: 'info' as const,
+      },
+    };
+  }),
+
+  expandAllBranches: () => set((state) => {
+    if (!expandAllMoveTreeBranches(state.rootNode)) {
+      return { notification: { message: 'No collapsed branches.', type: 'info' as const } };
+    }
+    return {
+      treeVersion: state.treeVersion + 1,
+      notification: { message: 'Expanded all branches.', type: 'info' as const },
+    };
+  }),
+
   shiftCurrentVariation: (direction) => set((state) => {
       const node = state.currentNode;
       const parent = node.parent;
@@ -4919,6 +5387,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isEditMode: false,
       editTool: 'setup-black',
       isSelfplayToEnd: false,
+      setupPositionProgress: null,
       isAiPlaying: false,
       isAiThinking: false,
       aiColor: null,
@@ -4976,6 +5445,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isEditMode: false,
       editTool: 'setup-black',
       isSelfplayToEnd: false,
+      setupPositionProgress: null,
       isAiPlaying: false,
       isAiThinking: false,
       aiColor: null,

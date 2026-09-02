@@ -1,4 +1,5 @@
 import type { BoardState, GameRules, Move, Player } from '../../types';
+import { areaFeatureModeForRules } from '../../utils/goRules';
 import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
 import {
   BLACK,
@@ -7,6 +8,7 @@ import {
   PASS_MOVE,
   WHITE,
   computeAreaMapV7KataGoInto,
+  computeIndependentLifeAreaInto,
   computeLadderFeaturesV7KataGoInto,
   computeLadderedStonesV7KataGoInto,
   computeLibertyMapInto,
@@ -134,6 +136,8 @@ export function fillInputsV7FastForPosition(args: {
   komi: number;
   rules: GameRules;
   conservativePassAndIsRoot: boolean;
+  /** Signed for the side to move; 0 disables the feature. */
+  playoutDoublingAdvantage?: number;
   outSpatial: Float32Array;
   outGlobal: Float32Array;
 }): void {
@@ -167,7 +171,14 @@ export function fillInputsV7FastForPosition(args: {
   const prevPrevLadderKoPoint = numTurnsOfHistoryIncluded < 2 ? prevLadderKoPoint : prevPrevKoPoint;
 
   computeLibertyMapInto(s.stones, s.libertyMap);
-  if (args.rules === 'chinese') computeAreaMapV7KataGoInto(s.stones, s.areaMap);
+  // Pass-alive area for plain area scoring; independent-life area once a group
+  // tax applies, matching KataGo's split in fillRowV7.
+  const areaMode = areaFeatureModeForRules(args.rules);
+  const useAreaFeature = areaMode !== 'none';
+  if (areaMode === 'pass-alive') computeAreaMapV7KataGoInto(s.stones, s.areaMap);
+  else if (areaMode === 'independent-life') {
+    computeIndependentLifeAreaInto(s.stones, s.areaMap, { keepStones: true });
+  }
 
   computeLadderFeaturesV7KataGoInto({
     stones: s.stones,
@@ -195,8 +206,9 @@ export function fillInputsV7FastForPosition(args: {
     komi: args.komi,
     rules: args.rules,
     conservativePassAndIsRoot: args.conservativePassAndIsRoot,
+    playoutDoublingAdvantage: args.playoutDoublingAdvantage,
     libertyMap: s.libertyMap,
-    areaMap: args.rules === 'chinese' ? s.areaMap : undefined,
+    areaMap: useAreaFeature ? s.areaMap : undefined,
     ladderedStones: s.ladderedStones,
     prevLadderedStones: s.prevLadderedStones,
     prevPrevLadderedStones: s.prevPrevLadderedStones,

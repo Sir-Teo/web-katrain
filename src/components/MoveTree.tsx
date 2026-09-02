@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { FaArrowsAltH, FaArrowsAltV, FaCompressArrowsAlt, FaCrosshairs, FaMapMarkedAlt, FaProjectDiagram } from 'react-icons/fa';
+import { FaArrowsAltH, FaArrowsAltV, FaCompressArrowsAlt, FaCrosshairs, FaExpandArrowsAlt, FaMapMarkedAlt, FaProjectDiagram } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import type { GameNode } from '../types';
 import {
@@ -35,6 +35,7 @@ import {
   WHEEL_NAVIGATION_THROTTLE_MS,
 } from '../utils/wheelNavigation';
 import { getMoveTreeCommandFromEvent, MOVE_TREE_COMMAND_EVENT } from '../utils/moveTreeCommands';
+import { hasCollapsedMoveTreeBranches } from '../utils/moveTreeCollapse';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 
 type LayoutWorkerResponse =
@@ -73,6 +74,8 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     navigateForward,
     navigateNextMistake,
     navigatePrevMistake,
+    toggleBranchCollapse,
+    expandAllBranches,
   } = useGameStore(
     (state) => ({
       rootNode: state.rootNode,
@@ -85,6 +88,8 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       navigateForward: state.navigateForward,
       navigateNextMistake: state.navigateNextMistake,
       navigatePrevMistake: state.navigatePrevMistake,
+      toggleBranchCollapse: state.toggleBranchCollapse,
+      expandAllBranches: state.expandAllBranches,
     }),
     shallow
   );
@@ -119,9 +124,27 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   const shortcutLabels = useShortcutLabels(MOVE_TREE_SHORTCUT_IDS);
   const withShortcut = (label: string, id: MoveTreeShortcutId) => `${label} (${shortcutLabels[id]})`;
 
+  // Strict ancestors of the current move: a collapsed branch we are standing
+  // inside stays open until we navigate out of it.
+  const revealAncestorIds = useMemo(() => {
+    void treeVersion;
+    const ids = new Set<string>();
+    let node = currentNode.parent ?? null;
+    while (node) {
+      ids.add(node.id);
+      node = node.parent ?? null;
+    }
+    return ids;
+  }, [currentNode, treeVersion]);
+
   const flatTree = useMemo(() => {
     void treeVersion;
-    return flattenMoveTree(rootNode);
+    return flattenMoveTree(rootNode, revealAncestorIds);
+  }, [rootNode, treeVersion, revealAncestorIds]);
+
+  const hasCollapsedBranches = useMemo(() => {
+    void treeVersion;
+    return hasCollapsedMoveTreeBranches(rootNode);
   }, [rootNode, treeVersion]);
 
   const nodeById = useMemo(() => {
@@ -439,6 +462,17 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
         >
           {layoutDirection === 'horizontal' ? <FaArrowsAltV size={11} /> : <FaArrowsAltH size={11} />}
         </button>
+        {hasCollapsedBranches && (
+          <button
+            type="button"
+            className="move-tree-control-button"
+            onClick={() => expandAllBranches()}
+            title="Expand all collapsed branches"
+            aria-label="Expand all collapsed branches"
+          >
+            <FaExpandArrowsAlt size={11} />
+          </button>
+        )}
         {shouldRenderMinimap && (
           <button
             type="button"
@@ -498,10 +532,19 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           const markerTitle = markers.map((marker) => MOVE_TREE_NODE_MARKER_LABELS[marker]).join(', ');
 
           const selectableNode = !isInsertMode && node ? node : null;
+          const collapsedCount = layoutNode.collapsedCount;
+          const isCollapsed = collapsedCount > 0;
+          const collapsedLabel = isCollapsed
+            ? `Expand ${collapsedCount} hidden move${collapsedCount === 1 ? '' : 's'}`
+            : '';
+          const stubLength = Math.max(10, layout.xStep * 0.62);
+          const stubX = layoutDirection === 'horizontal' ? layoutNode.x + stubLength : layoutNode.x;
+          const stubY = layoutDirection === 'horizontal' ? layoutNode.y : layoutNode.y + stubLength;
           const keyboardLabel = [
             isRoot ? 'Root' : isSetupNode ? layoutNode.label : `Move ${layoutNode.label}`,
             markerTitle,
             isCurrent ? 'current move' : '',
+            isCollapsed ? `${collapsedCount} hidden move${collapsedCount === 1 ? '' : 's'}` : '',
           ].filter(Boolean).join(', ');
 
           const handleKeyDown = (event: React.KeyboardEvent<SVGGElement>) => {
@@ -531,6 +574,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
               role="treeitem"
               aria-label={keyboardLabel}
               aria-current={isCurrent ? 'true' : undefined}
+              aria-expanded={isCollapsed ? false : undefined}
               aria-level={layoutNode.gridX + 1}
               tabIndex={selectableNode && isCurrent ? 0 : -1}
               data-move-tree-node="true"
@@ -582,6 +626,45 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
                   <title>{MOVE_TREE_NODE_MARKER_LABELS[marker]}</title>
                 </circle>
               ))}
+              {isCollapsed && (
+                <g
+                  className="move-tree-collapsed-stub"
+                  data-move-tree-collapsed="true"
+                  data-move-tree-collapsed-count={collapsedCount}
+                  role="button"
+                  tabIndex={-1}
+                  aria-label={collapsedLabel}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleBranchCollapse(layoutNode.id);
+                  }}
+                >
+                  <line
+                    x1={layoutNode.x}
+                    y1={layoutNode.y}
+                    x2={stubX}
+                    y2={stubY}
+                    className="move-tree-collapsed-stub-line"
+                  />
+                  <circle
+                    cx={stubX}
+                    cy={stubY}
+                    r={Math.max(11, layout.radius * 2.1)}
+                    className="move-tree-collapsed-stub-hit"
+                  />
+                  <circle cx={stubX} cy={stubY} r={layout.radius * 0.9} className="move-tree-collapsed-stub-dot" />
+                  <text
+                    x={stubX}
+                    y={stubY}
+                    className="move-tree-collapsed-stub-count"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    {collapsedCount > 99 ? '99+' : collapsedCount}
+                  </text>
+                  <title>{collapsedLabel}</title>
+                </g>
+              )}
             </g>
           );
         })}

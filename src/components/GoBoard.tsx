@@ -25,7 +25,7 @@ import {
 import { gestureForPointer } from '../utils/pointerGesture';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
-import { getEvaluationClass } from '../utils/nodeAnalysis';
+import { computeNodePointsLost, getEvaluationClass } from '../utils/nodeAnalysis';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
 import { expandSgfPointList, sgfCoordToXy } from '../utils/sgf';
 import { getHorizontalSwipeNavigationAction } from '../utils/swipeNavigation';
@@ -181,6 +181,12 @@ interface GoBoardProps {
   hoveredMove: CandidateMove | null;
   onHoverMove: (move: CandidateMove | null) => void;
   pvUpToMove: number | null;
+  /** Wheel over a hovered candidate steps through its variation. */
+  onPvScroll?: (direction: 1 | -1) => void;
+  /** Middle-click commits the previewed variation to the move tree. */
+  onPvCommit?: () => void;
+  /** Step readout shown while the wheel is walking a variation. */
+  pvScrollHint?: { shown: number; total: number } | null;
   uiMode: 'play' | 'analyze';
   forcePvOverlay?: boolean;
   scoringMode?: boolean;
@@ -198,6 +204,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   hoveredMove,
   onHoverMove,
   pvUpToMove,
+  onPvScroll,
+  onPvCommit,
+  pvScrollHint = null,
   uiMode,
   forcePvOverlay = false,
   scoringMode = false,
@@ -338,6 +347,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         wheelThrottleRef.current = null;
       }, WHEEL_NAVIGATION_THROTTLE_MS);
 
+      // Over a candidate move, the wheel walks its variation instead of the
+      // game — the same gesture KaTrain uses to read a sequence out. React's
+      // wheel listener is passive, so this consumes the gesture by returning
+      // rather than by preventDefault, exactly like the navigation branch.
+      if (onPvScroll && hoveredMove?.pv && hoveredMove.pv.length > 0 && (action === 'back' || action === 'forward')) {
+        onPvScroll(action === 'forward' ? 1 : -1);
+        return;
+      }
+
       switch (action) {
         case 'prevMistake':
           navigatePrevMistake();
@@ -359,7 +377,22 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       navigateNextMistake,
       navigatePrevMistake,
       scoringMode,
+      hoveredMove,
+      onPvScroll,
     ]
+  );
+
+  // Middle-click over a candidate keeps the variation you are reading: the
+  // pointer never leaves the board, and the preview becomes a real branch.
+  const handleAuxClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 1) return;
+      if (!onPvCommit || !hoveredMove?.pv || hoveredMove.pv.length === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onPvCommit();
+    },
+    [hoveredMove, onPvCommit]
   );
 
   const visibleAnalysis = analysisData ?? currentNode.analysis ?? null;
@@ -839,6 +872,20 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     const placedAt = placementGrid[cursorPt.y]?.[cursorPt.x];
     return placedAt != null && placedAt > 0 ? placedAt : null;
   }, [board, cursorPt, hoverFromHoveringPointer, isEditMode, placementGrid, scoringMode]);
+
+  /**
+   * What that move cost, when we have already analyzed it. KaTrain shows a
+   * played move's statistics on click; the same number is more useful sitting
+   * in the tooltip that is already following the cursor.
+   */
+  const hoveredStonePointsLost = useMemo(() => {
+    if (hoveredStoneMoveNumber === null) return null;
+    let node: GameNode | null = currentNode;
+    while (node && node.gameState.moveHistory.length > hoveredStoneMoveNumber) node = node.parent;
+    if (!node || node.gameState.moveHistory.length !== hoveredStoneMoveNumber) return null;
+    const lost = computeNodePointsLost(node);
+    return typeof lost === 'number' && Number.isFinite(lost) ? lost : null;
+  }, [currentNode, hoveredStoneMoveNumber]);
 
   useEffect(() => {
     if (!canHoverAnalysisMove && hoveredMove) onHoverMove(null);
@@ -2941,6 +2988,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
         onWheel={handleWheel}
+        onAuxClick={handleAuxClick}
         tabIndex={0}
         aria-label="Go board"
       >
@@ -2970,6 +3018,31 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           >
             <div className="ui-panel border rounded-md px-2 py-1 text-xs font-semibold shadow-lg whitespace-nowrap">
               {regionChip.text}
+            </div>
+          </div>
+        )}
+
+        {/* Wheel-stepping a variation: where you are, and how to keep it */}
+        {pvScrollHint && !isEditMode && !scoringMode && (
+          <div
+            className="absolute left-1/2 bottom-14 z-40 max-w-[calc(100%-1rem)] -translate-x-1/2"
+            role="status"
+            aria-live="polite"
+            data-pv-scroll-hint="true"
+          >
+            <div className="ui-panel flex items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-xl">
+              <span>
+                Variation {pvScrollHint.shown} / {pvScrollHint.total}
+              </span>
+              {onPvCommit && (
+                <button
+                  type="button"
+                  className="min-h-11 shrink-0 rounded-md border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 font-semibold text-[var(--ui-accent)] hover:brightness-110 lg:min-h-8 lg:px-2.5"
+                  onClick={onPvCommit}
+                >
+                  Keep in tree
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -3415,6 +3488,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 data-stone-move-tooltip={hoveredStoneMoveNumber}
               >
                 <span className="font-semibold">Move {hoveredStoneMoveNumber}</span>
+                {hoveredStonePointsLost !== null && (
+                  <span
+                    className="ui-text-faint"
+                    style={hoveredStonePointsLost >= 0.5 ? { color: 'var(--ui-danger)' } : undefined}
+                  >
+                    {' · '}
+                    {hoveredStonePointsLost >= 0.05
+                      ? `−${hoveredStonePointsLost.toFixed(1)} pts`
+                      : 'no loss'}
+                  </span>
+                )}
                 <span className="ui-text-faint"> · Alt-click to jump</span>
               </div>
             );

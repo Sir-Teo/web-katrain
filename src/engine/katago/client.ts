@@ -253,6 +253,8 @@ class KataGoEngineClient {
     analysisPvLen?: number;
     includeMovesOwnership?: boolean;
     wideRootNoise?: number;
+    playoutDoublingAdvantage?: number;
+    playoutDoublingAdvantagePla?: Player;
     nnRandomize?: boolean;
     conservativePass?: boolean;
     visits?: number;
@@ -296,6 +298,8 @@ class KataGoEngineClient {
       analysisPvLen: args.analysisPvLen,
       includeMovesOwnership: args.includeMovesOwnership,
       wideRootNoise: args.wideRootNoise,
+      playoutDoublingAdvantage: args.playoutDoublingAdvantage,
+      playoutDoublingAdvantagePla: args.playoutDoublingAdvantagePla,
       nnRandomize: args.nnRandomize,
       conservativePass: args.conservativePass,
       visits: args.visits,

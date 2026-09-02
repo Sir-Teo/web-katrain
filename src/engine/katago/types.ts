@@ -38,6 +38,10 @@ export interface KataGoAnalyzeRequest {
   wideRootNoise?: number;
   /** KataGo rootPolicyTemperature: above 1 flattens the root policy, widening the search. */
   rootPolicyTemperature?: number;
+  /** KataGo playoutDoublingAdvantage: doublings of search one colour is treated as having. */
+  playoutDoublingAdvantage?: number;
+  /** Which colour that advantage belongs to (defaults to black). */
+  playoutDoublingAdvantagePla?: Player;
   nnRandomize?: boolean;
   conservativePass?: boolean;
   /** KataGo fillDameBeforePass: under territory scoring, don't pass while dame remain. */

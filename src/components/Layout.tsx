@@ -117,6 +117,7 @@ import { resetSoundFailureReport, setSoundInitErrorHandler } from '../utils/soun
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
+const TsumegoFrameModal = lazy(() => import('./TsumegoFrameModal').then((module) => ({ default: module.TsumegoFrameModal })));
 const GameReportModal = lazy(() => import('./GameReportModal').then((module) => ({ default: module.GameReportModal })));
 const CommandPaletteModal = lazy(() => import('./CommandPaletteModal').then((module) => ({ default: module.CommandPaletteModal })));
 const KeyboardHelpModal = lazy(() => import('./KeyboardHelpModal').then((module) => ({ default: module.KeyboardHelpModal })));
@@ -268,6 +269,8 @@ export const Layout: React.FC = () => {
     gameAnalysisDone,
     gameAnalysisTotal,
     startQuickGameAnalysis,
+    frameAsTsumego,
+    generateSetupPosition,
     startFastGameAnalysis,
     stopGameAnalysis,
     rotateBoard,
@@ -351,6 +354,8 @@ export const Layout: React.FC = () => {
       gameAnalysisDone: state.gameAnalysisDone,
       gameAnalysisTotal: state.gameAnalysisTotal,
       startQuickGameAnalysis: state.startQuickGameAnalysis,
+      frameAsTsumego: state.frameAsTsumego,
+      generateSetupPosition: state.generateSetupPosition,
       startFastGameAnalysis: state.startFastGameAnalysis,
       stopGameAnalysis: state.stopGameAnalysis,
       rotateBoard: state.rotateBoard,
@@ -381,6 +386,7 @@ export const Layout: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isGameAnalysisOpen, setIsGameAnalysisOpen] = useState(false);
+  const [isTsumegoFrameOpen, setIsTsumegoFrameOpen] = useState(false);
   const [isGameReportOpen, setIsGameReportOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
@@ -2186,6 +2192,7 @@ export const Layout: React.FC = () => {
     openSgf: handleLoadClick,
     setIsSettingsOpen,
     setIsGameAnalysisOpen,
+    setIsTsumegoFrameOpen,
     setIsGameReportOpen,
     setViewMenuOpen,
     setMenuOpen,
@@ -2791,6 +2798,14 @@ export const Layout: React.FC = () => {
         keywords: ['depth', 'range'],
       },
       {
+        id: 'tsumego-frame',
+        label: 'Frame as tsumego',
+        category: 'Analysis',
+        shortcutId: 'tsumego-frame-modal',
+        run: () => openSimpleModal(() => setIsTsumegoFrameOpen(true)),
+        keywords: ['tsumego', 'frame', 'wall', 'life and death', 'problem', 'fill'],
+      },
+      {
         id: 'pass',
         label: 'Pass',
         category: 'Game',
@@ -3058,6 +3073,7 @@ export const Layout: React.FC = () => {
     autoSaveRecovery ||
     isUnsavedChangesOpen ||
     isGameAnalysisOpen ||
+    isTsumegoFrameOpen ||
     isKifuPrintOpen ||
     isGameReportOpen ||
     isCommandPaletteOpen ||
@@ -3170,6 +3186,18 @@ export const Layout: React.FC = () => {
           />
         )}
         {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
+        {isTsumegoFrameOpen && (
+          <TsumegoFrameModal
+            defaultMargin={settings.tsumegoFrameMargin}
+            defaultKoAllowed={settings.tsumegoFrameKoAllowed}
+            onClose={() => setIsTsumegoFrameOpen(false)}
+            onApply={({ margin, koAllowed }) => {
+              updateSettings({ tsumegoFrameMargin: margin, tsumegoFrameKoAllowed: koAllowed });
+              frameAsTsumego({ margin, koAllowed });
+              setIsTsumegoFrameOpen(false);
+            }}
+          />
+        )}
         {isKifuPrintOpen && <KifuPrintModal onClose={() => setIsKifuPrintOpen(false)} />}
         {isGameReportOpen && (
           <GameReportModal
@@ -3271,8 +3299,17 @@ export const Layout: React.FC = () => {
         {isNewGameOpen && (
           <NewGameModal
             onClose={() => setIsNewGameOpen(false)}
-            onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap }) => {
+            defaultSetupPosition={{
+              enabled: false,
+              untilMove: settings.setupPositionMove,
+              targetAdvantage: settings.setupPositionAdvantage,
+            }}
+            onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap, setupPosition }) => {
             startNewGame({ komi: nextKomi, rules, boardSize: nextBoardSize, handicap: nextHandicap });
+            if (setupPosition.enabled) {
+              updateSettings({ setupPositionMove: setupPosition.untilMove, setupPositionAdvantage: setupPosition.targetAdvantage });
+              generateSetupPosition({ untilMove: setupPosition.untilMove, targetAdvantage: setupPosition.targetAdvantage });
+            }
             setLoadedLibraryFile(null);
             setRootProperty('PB', info.blackName);
             setRootProperty('PW', info.whiteName);
@@ -3738,6 +3775,7 @@ export const Layout: React.FC = () => {
               stopGameAnalysis={stopGameAnalysis}
               setIsGameAnalysisOpen={setIsGameAnalysisOpen}
               setIsGameReportOpen={setIsGameReportOpen}
+              onOpenTsumegoFrame={() => setIsTsumegoFrameOpen(true)}
               onOpenMenu={(inputMode) => {
                 setMenuFocusInputMode(inputMode);
                 setMenuOpen(true);

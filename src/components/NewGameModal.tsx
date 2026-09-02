@@ -1,6 +1,13 @@
 import React from 'react';
 import type { BoardSize, GameRules, GameSettings, Player } from '../types';
 import { BOARD_SIZES, getMaxHandicap } from '../utils/boardSize';
+import {
+  clampSetupPositionAdvantage,
+  clampSetupPositionMove,
+  setupPositionSummary,
+} from '../utils/setupPosition';
+import { RULES_OPTIONS, rulesOf } from '../utils/goRules';
+import { describeAiStrength, estimateAiRank } from '../utils/aiStrength';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { BotPersonaPicker } from './BotPersonaPicker';
 import { botPersonaAiPatch, type BotPersona } from '../data/botPersonas';
@@ -67,6 +74,12 @@ export type AiConfigValues = {
   | 'aiOwnershipTenukiPenalty'
 >;
 
+export type SetupPositionValues = {
+  enabled: boolean;
+  untilMove: number;
+  targetAdvantage: number;
+};
+
 export type TimerConfigValues = {
   mode: 'none' | 'byo-yomi';
   mainTimeMinutes: number;
@@ -84,6 +97,7 @@ interface NewGameModalProps {
     info: GameInfoValues;
     aiConfig: AiConfigValues;
     timerConfig: TimerConfigValues;
+    setupPosition: SetupPositionValues;
   }) => void;
   defaultKomi: number;
   defaultRules: GameRules;
@@ -92,6 +106,7 @@ interface NewGameModalProps {
   defaultInfo: GameInfoValues;
   defaultAiConfig: AiConfigValues;
   defaultTimerConfig: TimerConfigValues;
+  defaultSetupPosition: SetupPositionValues;
 }
 
 export const NewGameModal: React.FC<NewGameModalProps> = ({
@@ -104,6 +119,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   defaultInfo,
   defaultAiConfig,
   defaultTimerConfig,
+  defaultSetupPosition,
 }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
@@ -114,9 +130,13 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   const [gameInfo, setGameInfo] = React.useState<GameInfoValues>(() => defaultInfo);
   const [aiConfig, setAiConfig] = React.useState<AiConfigValues>(() => defaultAiConfig);
   const [timerConfig, setTimerConfig] = React.useState<TimerConfigValues>(() => defaultTimerConfig);
+  const [setupPosition, setSetupPosition] = React.useState<SetupPositionValues>(() => defaultSetupPosition);
   const maxHandicap = React.useMemo(() => getMaxHandicap(boardSize), [boardSize]);
 
   const showAiOptions = aiConfig.opponent !== 'none';
+  // The AI panel only edits the ai* fields; a handful of table lookups is far
+  // cheaper than memoising it.
+  const aiStrength = estimateAiRank(aiConfig.aiStrategy, aiConfig as unknown as GameSettings);
   const [personaId, setPersonaId] = React.useState<string | null>(null);
   const [showAdvancedAi, setShowAdvancedAi] = React.useState(false);
   const updateAiConfig = (patch: Partial<AiConfigValues>) =>
@@ -345,10 +365,13 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 onChange={(e) => setRules(e.target.value as GameRules)}
                 className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
               >
-                <option value="japanese">Japanese</option>
-                <option value="chinese">Chinese</option>
-                <option value="korean">Korean</option>
+                {RULES_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
+              <p className="text-xs ui-text-faint">{rulesOf(rules).summary}</p>
             </div>
           </div>
           {/* Both hold 1–3 characters, so they pair up even on a phone — matching
@@ -432,6 +455,8 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   >
                     <option value="default">Default (engine top move)</option>
                     <option value="human">Human (KataGo human net)</option>
+                    <option value="handicap">KataHandicap (KaTrain)</option>
+                    <option value="antimirror">KataAntiMirror (KaTrain)</option>
                     <option value="rank">Rank (KaTrain)</option>
                     <option value="simple">Simple Ownership</option>
                     <option value="settle">Settle Stones</option>
@@ -445,6 +470,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     <option value="territory">Territory</option>
                     <option value="influence">Influence</option>
                   </select>
+                  <p className="text-xs ui-text-faint" data-new-game-ai-strength={aiStrength.label ?? 'none'}>
+                    {describeAiStrength(aiStrength)}
+                  </p>
                 </div>
                 {aiConfig.aiStrategy === 'human' && (
                   <div className="space-y-1">
@@ -1073,8 +1101,70 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
               )}
             </div>
           </details>
-          <div className="text-xs ui-text-faint">
-            Start a new {boardSize}×{boardSize} game with the selected rules and optional game info.
+          <div className="new-game-setup-position space-y-3 border-t border-[var(--ui-border)] pt-3">
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="new-game-setup-position" className="text-sm font-semibold text-[var(--ui-text)]">
+                Start from a generated position
+              </label>
+              <input
+                id="new-game-setup-position"
+                type="checkbox"
+                checked={setupPosition.enabled}
+                onChange={(e) => setSetupPosition((prev) => ({ ...prev, enabled: e.target.checked }))}
+                className="toggle"
+              />
+            </div>
+            <p className="text-xs ui-text-faint">
+              The engine plays both sides to a realistic middlegame, aiming for the score you pick — practice
+              from a position that matters instead of an empty board.
+            </p>
+            {setupPosition.enabled && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="new-game-setup-until" className="text-[var(--ui-text-muted)] text-sm">
+                    Generate until move
+                  </label>
+                  <input
+                    id="new-game-setup-until"
+                    type="number"
+                    min={2}
+                    max={400}
+                    step={1}
+                    value={setupPosition.untilMove}
+                    onChange={(e) =>
+                      setSetupPosition((prev) => ({
+                        ...prev,
+                        untilMove: clampSetupPositionMove(parseInt(e.target.value || '2', 10)),
+                      }))
+                    }
+                    className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="new-game-setup-advantage" className="text-[var(--ui-text-muted)] text-sm">
+                    Target score for Black
+                  </label>
+                  <input
+                    id="new-game-setup-advantage"
+                    type="number"
+                    min={-100}
+                    max={100}
+                    step={0.5}
+                    value={setupPosition.targetAdvantage}
+                    onChange={(e) => {
+                      setSetupPosition((prev) => ({
+                        ...prev,
+                        targetAdvantage: clampSetupPositionAdvantage(parseFloat(e.target.value || '0')),
+                      }));
+                    }}
+                    className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
+                  />
+                </div>
+                <div className="text-xs ui-text-faint sm:col-span-2">
+                  {setupPositionSummary(setupPosition)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="new-game-modal-footer px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2 ui-bar">
@@ -1095,10 +1185,11 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 info: gameInfo,
                 aiConfig,
                 timerConfig,
+                setupPosition,
               })
             }
           >
-            Start
+            {setupPosition.enabled ? 'Generate' : 'Start'}
           </button>
         </div>
       </div>

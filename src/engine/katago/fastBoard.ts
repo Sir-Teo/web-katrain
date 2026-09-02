@@ -753,6 +753,162 @@ export function computeAreaMapV7KataGoInto(stones: Uint8Array, out: Uint8Array, 
 }
 
 // ---------------------------------------------------------------------------------------------
+// Independent life area, following `Board::calculateIndependentLifeArea` and its helper.
+//
+// Area scoring with a group tax (KataGo's TAX_SEKI / TAX_ALL, i.e. Ancient Chinese "stone
+// scoring") needs to know which owned regions are alive on their own rather than sharing
+// liberties in seki. Regions touching dame, or containing a stone of the owner in atari, are
+// treated as seki and dropped; what is left is counted as independent life.
+// ---------------------------------------------------------------------------------------------
+
+/** Liberties of the chain at `p`, capped at 2 -- enough to answer "is it in atari?". */
+function groupLibertyCount(stones: Uint8Array, p: number): number {
+  const color = stones[p] as StoneColor;
+  if (color === EMPTY) return 0;
+  return collectGroupAndLiberties(stones, p, color, 2).liberties;
+}
+
+const INDEPENDENT_LIFE_SEKI = new Uint8Array(BOARD_AREA);
+const INDEPENDENT_LIFE_QUEUE = new Int16Array(BOARD_AREA);
+let INDEPENDENT_LIFE_BASIC = new Uint8Array(BOARD_AREA);
+
+export type IndependentLifeOptions = {
+  /** Keep points the owner holds as territory rather than as stones. */
+  keepTerritories?: boolean;
+  /** Keep the owner's own stones standing inside their area. */
+  keepStones?: boolean;
+  /** Rules version 3: skip territory next to a friendly chain in atari. */
+  excludeTerritoryAdjacentToAtari?: boolean;
+  isMultiStoneSuicideLegal?: boolean;
+};
+
+export type IndependentLifeResult = {
+  /** Positive when White has more independently alive regions than Black. */
+  whiteMinusBlackIndependentLifeRegionCount: number;
+};
+
+export function computeIndependentLifeAreaInto(
+  stones: Uint8Array,
+  out: Uint8Array,
+  options: IndependentLifeOptions = {}
+): IndependentLifeResult {
+  if (out.length !== BOARD_AREA) {
+    throw new Error(`computeIndependentLifeAreaInto: expected out length ${BOARD_AREA}, got ${out.length}`);
+  }
+  if (INDEPENDENT_LIFE_BASIC.length !== BOARD_AREA) INDEPENDENT_LIFE_BASIC = new Uint8Array(BOARD_AREA);
+
+  const basicArea = INDEPENDENT_LIFE_BASIC;
+  computeAreaMapV7KataGoInto(stones, basicArea, options.isMultiStoneSuicideLegal ?? false);
+
+  out.fill(EMPTY);
+  const seki = INDEPENDENT_LIFE_SEKI.subarray(0, BOARD_AREA);
+  seki.fill(0);
+  const queue = INDEPENDENT_LIFE_QUEUE;
+
+  // Mark every owned region that touches dame, or holds a stone of its owner in
+  // atari, as seki -- flooding across the whole region.
+  for (let p = 0; p < BOARD_AREA; p++) {
+    const owner = basicArea[p] as StoneColor;
+    if (owner === EMPTY || seki[p]) continue;
+
+    let isSeki = false;
+    if ((stones[p] as StoneColor) === owner && groupLibertyCount(stones, p) === 1) isSeki = true;
+    if (!isSeki) {
+      const nStart = NEIGHBOR_START[p]!;
+      const nCount = NEIGHBOR_COUNT[p]!;
+      for (let i = 0; i < nCount; i++) {
+        const n = NEIGHBORS[nStart + i]!;
+        if ((stones[n] as StoneColor) === EMPTY && (basicArea[n] as StoneColor) === EMPTY) {
+          isSeki = true;
+          break;
+        }
+      }
+    }
+    if (!isSeki) continue;
+
+    let head = 0;
+    let tail = 0;
+    seki[p] = 1;
+    queue[tail++] = p;
+    while (head !== tail) {
+      const next = queue[head++]!;
+      const nStart = NEIGHBOR_START[next]!;
+      const nCount = NEIGHBOR_COUNT[next]!;
+      for (let i = 0; i < nCount; i++) {
+        const adj = NEIGHBORS[nStart + i]!;
+        if ((basicArea[adj] as StoneColor) === owner && !seki[adj]) {
+          seki[adj] = 1;
+          queue[tail++] = adj;
+        }
+      }
+    }
+  }
+
+  // Whatever is left is independently alive; copy it out and count the regions.
+  let whiteMinusBlack = 0;
+  for (let p = 0; p < BOARD_AREA; p++) {
+    const owner = basicArea[p] as StoneColor;
+    if (owner === EMPTY || seki[p] || (out[p] as StoneColor) === owner) continue;
+
+    whiteMinusBlack += owner === WHITE ? 1 : -1;
+    out[p] = owner;
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = p;
+    while (head !== tail) {
+      const next = queue[head++]!;
+      const nStart = NEIGHBOR_START[next]!;
+      const nCount = NEIGHBOR_COUNT[next]!;
+      for (let i = 0; i < nCount; i++) {
+        const adj = NEIGHBORS[nStart + i]!;
+        if ((basicArea[adj] as StoneColor) === owner && (out[adj] as StoneColor) !== owner) {
+          out[adj] = owner;
+          queue[tail++] = adj;
+        }
+      }
+    }
+  }
+
+  if (options.keepTerritories) {
+    for (let p = 0; p < BOARD_AREA; p++) {
+      const owner = basicArea[p] as StoneColor;
+      if (owner === EMPTY || owner === (stones[p] as StoneColor)) continue;
+      let adjChainInAtari = false;
+      if (options.excludeTerritoryAdjacentToAtari && (stones[p] as StoneColor) === EMPTY) {
+        const nStart = NEIGHBOR_START[p]!;
+        const nCount = NEIGHBOR_COUNT[p]!;
+        for (let i = 0; i < nCount; i++) {
+          const adj = NEIGHBORS[nStart + i]!;
+          if ((stones[adj] as StoneColor) === owner && groupLibertyCount(stones, adj) === 1) {
+            adjChainInAtari = true;
+            break;
+          }
+        }
+      }
+      if (!adjChainInAtari) out[p] = owner;
+    }
+  }
+
+  if (options.keepStones) {
+    for (let p = 0; p < BOARD_AREA; p++) {
+      const owner = basicArea[p] as StoneColor;
+      if (owner !== EMPTY && owner === (stones[p] as StoneColor)) out[p] = owner;
+    }
+  }
+
+  return { whiteMinusBlackIndependentLifeRegionCount: whiteMinusBlack };
+}
+
+export function computeIndependentLifeArea(
+  stones: Uint8Array,
+  options: IndependentLifeOptions = {}
+): { area: Uint8Array; whiteMinusBlackIndependentLifeRegionCount: number } {
+  const area = new Uint8Array(BOARD_AREA);
+  const { whiteMinusBlackIndependentLifeRegionCount } = computeIndependentLifeAreaInto(stones, area, options);
+  return { area, whiteMinusBlackIndependentLifeRegionCount };
+}
+
+// ---------------------------------------------------------------------------------------------
 // Ladder features for KataGo V7 inputs (spatial planes 14-17), following `iterLadders` in
 // `cpp/neuralnet/nninputs.cpp` and ladder search in `cpp/game/board.cpp`.
 

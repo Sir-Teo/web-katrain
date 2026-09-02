@@ -33,11 +33,22 @@ PWA. There is no analysis server to run.
 
 - Play against browser KataGo with KaTrain-style AI strategies: `default`,
   `rank`, `scoreloss`, `policy`, `weighted`, `pick`, `local`, `tenuki`,
-  `territory`, `influence`, `jigo`, `simple`, and `settle`.
+  `territory`, `influence`, `jigo`, `simple`, `settle`, `handicap`
+  (KataHandicap, which reads the board as if one side had more search), and
+  `antimirror` (breaks mirror go). Each configuration shows KaTrain's
+  calibrated strength estimate, so you know what rank you are playing.
 - Teach mode, byo-yomi clocks, resign/pass handling, manual scoring, and 9x9,
   13x13, or 19x19 boards.
-- Branching move trees with notes, setup stones, markup, and SGF-compatible
-  export.
+- Japanese, Korean, Chinese, AGA, New Zealand, Tromp-Taylor, and Ancient
+  Chinese (stone scoring) rules, honored by the engine inputs, move legality
+  (including superko and suicide), and area or territory scoring with the
+  group tax where it applies.
+- Generate a practice position: the engine plays both sides to a chosen move
+  number and score, so study starts from a real middlegame.
+- Branching move trees with collapsible variations, notes, setup stones,
+  markup, and SGF-compatible export.
+- Frame a life-and-death problem as a tsumego (F10): walls the problem off and
+  settles the rest of the board so the engine actually reads it.
 - Study tools: interactive fundamentals lessons, a score-estimation quiz, a
   "climb the ranks" tournament ladder against calibrated bots, and a
   searchable pro game library. Open any of them from the menu's Study &

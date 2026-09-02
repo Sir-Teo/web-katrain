@@ -18,6 +18,7 @@ const item = (id: string, parentId: string | null, player: 'black' | 'white' | n
   player,
   isRoot: parentId === null,
   autoUndo: false,
+  collapsedCount: 0,
 });
 
 const makeState = (): GameState => ({

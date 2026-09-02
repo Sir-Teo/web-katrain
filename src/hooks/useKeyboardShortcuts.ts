@@ -19,6 +19,7 @@ interface UseKeyboardShortcutsOptions {
   setIsSettingsOpen: (v: boolean) => void;
   setIsGameAnalysisOpen: (v: boolean) => void;
   setIsGameReportOpen: (v: boolean) => void;
+  setIsTsumegoFrameOpen: (v: boolean) => void;
   setViewMenuOpen: (v: boolean) => void;
   setMenuOpen: (v: boolean) => void;
   setIsCommandPaletteOpen: (v: boolean) => void;
@@ -45,6 +46,7 @@ export function useKeyboardShortcuts({
   setIsSettingsOpen,
   setIsGameAnalysisOpen,
   setIsGameReportOpen,
+  setIsTsumegoFrameOpen,
   setViewMenuOpen,
   setMenuOpen,
   setIsCommandPaletteOpen,
@@ -72,6 +74,7 @@ export function useKeyboardShortcuts({
     undoToBranchPoint,
     undoToMainBranch,
     makeCurrentNodeMainBranch,
+    toggleBranchCollapse,
     undoEdit,
     redoEdit,
     editUndoCount,
@@ -106,6 +109,7 @@ export function useKeyboardShortcuts({
       undoToBranchPoint: state.undoToBranchPoint,
       undoToMainBranch: state.undoToMainBranch,
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
+      toggleBranchCollapse: state.toggleBranchCollapse,
       undoEdit: state.undoEdit,
       redoEdit: state.redoEdit,
       editUndoCount: state.editUndoCount,
@@ -527,6 +531,17 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      // Alt+C (collapse/expand the branch back to the previous branch point)
+      if (matches('toggle-branch-collapse')) {
+        e.preventDefault();
+        if (isInsertMode) {
+          toast('Finish inserting before collapsing branches.', 'error');
+          return;
+        }
+        toggleBranchCollapse();
+        return;
+      }
+
       // Enter (AI move)
       if (matches('ai-move')) {
         e.preventDefault();
@@ -543,6 +558,11 @@ export function useKeyboardShortcuts({
       if (matches('game-report-modal')) {
         e.preventDefault();
         setIsGameReportOpen(true);
+        return;
+      }
+      if (matches('tsumego-frame-modal')) {
+        e.preventDefault();
+        setIsTsumegoFrameOpen(true);
         return;
       }
       if (matches('settings-modal')) {
@@ -594,6 +614,7 @@ export function useKeyboardShortcuts({
     undoToBranchPoint,
     undoToMainBranch,
     makeCurrentNodeMainBranch,
+    toggleBranchCollapse,
     undoEdit,
     redoEdit,
     editUndoCount,
@@ -605,7 +626,8 @@ export function useKeyboardShortcuts({
     setIsSettingsOpen,
     setIsGameAnalysisOpen,
     setIsGameReportOpen,
-    setViewMenuOpen,
+    setIsTsumegoFrameOpen,
+      setViewMenuOpen,
     setMenuOpen,
     setIsCommandPaletteOpen,
     setIsKeyboardHelpOpen,

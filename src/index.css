@@ -2541,6 +2541,12 @@
       gap: 0.375rem;
       padding-top: 0.5rem;
       padding-right: 0.5rem;
+      /* A mainline game lays the tree out as a single row across the top, which
+         a zero-height control bar sat straight on top of — the buttons covered
+         about seven moves and there is no hover to reveal what is under them.
+         Give the bar its own band. The phone's tree pane is far taller than any
+         ordinary tree, so the row costs nothing that was being used. */
+      height: auto;
       padding-bottom: 0.5rem;
     }
 
@@ -2628,6 +2634,56 @@
     stroke: #22d3ee;
     stroke-width: 1.75;
     opacity: 0.9;
+  }
+
+  .move-tree-collapsed-stub {
+    cursor: pointer;
+  }
+
+  /* Generous tap target for a deliberately small marker. */
+  .move-tree-collapsed-stub-hit {
+    fill: transparent;
+    stroke: none;
+  }
+
+  .move-tree-collapsed-stub-line {
+    stroke: var(--ui-accent);
+    stroke-width: 1.25;
+    stroke-dasharray: 2.5 2.5;
+    stroke-linecap: round;
+    opacity: 0.75;
+  }
+
+  .move-tree-collapsed-stub-dot {
+    fill: var(--ui-accent-soft);
+    stroke: var(--ui-accent);
+    stroke-width: 1.25;
+    stroke-dasharray: 2.5 2;
+  }
+
+  .move-tree-collapsed-stub-count {
+    fill: var(--ui-accent);
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-dot,
+  .move-tree-collapsed-stub:focus-visible .move-tree-collapsed-stub-dot {
+    fill: var(--ui-accent);
+    stroke-dasharray: none;
+  }
+
+  .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-count,
+  .move-tree-collapsed-stub:focus-visible .move-tree-collapsed-stub-count {
+    fill: var(--ui-accent-contrast);
+  }
+
+  .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-line,
+  .move-tree-collapsed-stub:focus-visible .move-tree-collapsed-stub-line {
+    opacity: 1;
   }
 
   .move-tree-keyboard-focus {

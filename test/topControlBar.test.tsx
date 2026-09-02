@@ -45,6 +45,7 @@ const baseProps = {
   stopGameAnalysis: noop,
   setIsGameAnalysisOpen: noop,
   setIsGameReportOpen: noop,
+  onOpenTsumegoFrame: noop,
   onOpenMenu: noop,
   onQuickNewGame: noop,
   onNewGame: noop,

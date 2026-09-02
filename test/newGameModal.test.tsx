@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { NewGameModal, type AiConfigValues, type GameInfoValues, type TimerConfigValues } from '../src/components/NewGameModal';
+import { NewGameModal, type AiConfigValues, type GameInfoValues, type SetupPositionValues, type TimerConfigValues } from '../src/components/NewGameModal';
 import { useGameStore } from '../src/store/gameStore';
 import type { GameSettings, Player } from '../src/types';
 
@@ -71,6 +71,7 @@ function renderModal(args: {
   ai?: AiConfigValues;
   timer?: TimerConfigValues;
   handicap?: number;
+  setupPosition?: SetupPositionValues;
 } = {}): string {
   return renderToStaticMarkup(
     <NewGameModal
@@ -83,6 +84,7 @@ function renderModal(args: {
       defaultInfo={defaultInfo}
       defaultAiConfig={args.ai ?? aiConfig()}
       defaultTimerConfig={args.timer ?? { mode: 'none', mainTimeMinutes: 0, byoLengthSeconds: 30, byoPeriods: 5 }}
+      defaultSetupPosition={args.setupPosition ?? { enabled: false, untilMove: 100, targetAdvantage: 20 }}
     />
   );
 }
@@ -112,6 +114,26 @@ describe('NewGameModal', () => {
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.new-game-modal \{[^}]*max-height: calc\(100dvh - 16px\) !important;/);
     expect(css).toMatch(/\.new-game-modal-header,[\s\S]{0,100}\.new-game-modal-footer \{[^}]*padding-top: 8px !important;[^}]*padding-bottom: 8px !important;/);
     expect(css).toMatch(/\.new-game-modal-body \{[^}]*display: flex;[^}]*gap: 12px;[^}]*padding: 12px !important;/);
+  });
+
+  it('renders boolean setup controls as the themed 44px switch', () => {
+    const html = renderModal();
+    const css = readFileSync('src/index.css', 'utf8');
+
+    // The switch styles were scoped to `.settings-modal`, so the same `toggle`
+    // class fell back to a bare 13px native checkbox everywhere else — a third
+    // of the minimum touch target.
+    expect(html).toContain('class="toggle"');
+    expect(css).not.toContain('.settings-modal .toggle');
+    expect(css).toMatch(/\n {2}\.toggle \{[^}]*width: 44px;[^}]*height: 44px;/);
+  });
+
+  it('does not restate the dialog in a line above its own button', () => {
+    const html = renderModal();
+
+    // "New Game", the board-size field and a "Start" button already said this.
+    expect(html).not.toContain('with the selected rules and optional game info');
+    expect(html).not.toContain('then play on from there');
   });
 
   it('keeps optional player and record metadata collapsed by default', () => {

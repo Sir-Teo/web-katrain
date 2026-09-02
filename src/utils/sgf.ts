@@ -157,7 +157,9 @@ function buildKaTrainAutoCommentSegment(args: { node: GameNode; trainer: KaTrain
     const player = playerToSgfShort(move.player);
     const moveGtp = xyToGtp(move.x, move.y, boardSize);
 
-    if (!node.analysis) return 'Analyzing move...';
+    // KaTrain writes "No analysis available" into saved files; "Analyzing move..."
+    // is what it shows live, and would read oddly in an exported record.
+    if (!node.analysis) return 'No analysis available';
 
     let text = `Move ${depth}: ${player} ${moveGtp}\n`;
     text += `Score: ${formatScoreLead(node.analysis.rootScoreLead)}\n`;
@@ -184,6 +186,17 @@ function buildKaTrainAutoCommentSegment(args: { node: GameNode; trainer: KaTrain
         if (stats) {
             text += `Move was #${stats.rank} according to policy  (${(stats.prob * 100).toFixed(2)}%).\n`;
             if (stats.rank !== 1) text += `Top policy move was ${stats.bestMove} (${(stats.bestProb * 100).toFixed(1)}%).\n`;
+        }
+    }
+
+    // KaTrain adds these for moves the teacher took back, so a review of a
+    // teaching game explains both the undo and what it expected to follow.
+    if (node.autoUndo) {
+        text += 'Move was automatically undone in teaching mode.\n';
+        const ownTop = bestMoveFromCandidates(node.analysis?.moves);
+        if (ownTop?.pv && ownTop.pv.length > 0) {
+            const nextPlayer = playerToSgfShort(move.player === 'black' ? 'white' : 'black');
+            text += `Predicted follow-up: ${nextPlayer}${ownTop.pv.join(' ')}\n`;
         }
     }
 

@@ -60,6 +60,8 @@ export type Position = {
   komi: number;
   rules?: GameRules;
   conservativePass?: boolean;
+  /** Signed for the side to move, as KataGo's search passes it to the net. */
+  playoutDoublingAdvantage?: number;
 };
 
 export type RawEval = {
@@ -116,6 +118,7 @@ export async function rawEval(position: Position): Promise<RawEval> {
     komi: position.komi,
     rules: position.rules ?? 'japanese',
     conservativePassAndIsRoot: position.conservativePass ?? true,
+    playoutDoublingAdvantage: position.playoutDoublingAdvantage,
     outSpatial: spatial,
     outGlobal: global,
   });

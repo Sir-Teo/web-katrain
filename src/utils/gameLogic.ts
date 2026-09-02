@@ -92,7 +92,37 @@ export const checkCaptures = (board: BoardState, x: number, y: number, player: P
   return { captured, newBoard };
 };
 
-export const isValidMove = (board: BoardState, x: number, y: number, player: Player, previousBoard?: BoardState): boolean => {
+/**
+ * Lift the just-played group when it has no liberties, for the rulesets that
+ * allow suicide. Returns the stones removed, which become the opponent's
+ * prisoners. Call this only after opponent captures have been resolved.
+ */
+export const applySelfCaptureInPlace = (
+    board: BoardState,
+    x: number,
+    y: number
+): {x: number, y: number}[] => {
+    const { liberties, group } = getLiberties(board, x, y);
+    if (liberties > 0) return [];
+    for (const stone of group) {
+        board[stone.y]![stone.x] = null;
+    }
+    return group;
+};
+
+export type MoveLegalityOptions = {
+    /** New Zealand and Tromp-Taylor allow a group to be played to death. */
+    multiStoneSuicideLegal?: boolean;
+};
+
+export const isValidMove = (
+    board: BoardState,
+    x: number,
+    y: number,
+    player: Player,
+    previousBoard?: BoardState,
+    options?: MoveLegalityOptions
+): boolean => {
     const size = board.length;
     // 1. Bounds
     if (x < 0 || x >= size || y < 0 || y >= size) return false;
@@ -109,8 +139,12 @@ export const isValidMove = (board: BoardState, x: number, y: number, player: Pla
 
     // 4. Suicide Check
     if (captured.length === 0) {
-        const { liberties } = getLiberties(tentativeBoard, x, y);
-        if (liberties === 0) return false;
+        const { liberties, group } = getLiberties(tentativeBoard, x, y);
+        if (liberties === 0) {
+            // Single-stone suicide stays illegal everywhere; rulesets that allow
+            // suicide only allow it for a group of more than one stone.
+            if (!options?.multiStoneSuicideLegal || group.length <= 1) return false;
+        }
     }
 
     // 5. Ko Check (Simple Ko)
@@ -174,12 +208,17 @@ export const isEye = (board: BoardState, x: number, y: number, player: Player): 
     return true;
 };
 
-export const getLegalMoves = (board: BoardState, player: Player, previousBoard?: BoardState): {x: number, y: number}[] => {
+export const getLegalMoves = (
+    board: BoardState,
+    player: Player,
+    previousBoard?: BoardState,
+    options?: MoveLegalityOptions
+): {x: number, y: number}[] => {
     const moves: {x: number, y: number}[] = [];
     const size = board.length;
     for(let y=0; y<size; y++) {
         for(let x=0; x<size; x++) {
-            if (isValidMove(board, x, y, player, previousBoard)) {
+            if (isValidMove(board, x, y, player, previousBoard, options)) {
                 moves.push({x, y});
             }
         }

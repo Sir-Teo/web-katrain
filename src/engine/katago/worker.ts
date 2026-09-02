@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import * as tf from '@tensorflow/tfjs';
+import { isGameRules } from '../../utils/goRules';
 import '@tensorflow/tfjs-backend-webgpu';
 import '@tensorflow/tfjs-backend-wasm';
 import { setThreadsCount, setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
@@ -86,6 +87,8 @@ let searchKey: {
   wideRootNoise: number;
   rootPolicyTemperature: number;
   fillDameBeforePass: boolean;
+  playoutDoublingAdvantage: number;
+  playoutDoublingAdvantagePla: 'black' | 'white';
   rootSymmetrySamples: number;
   rules: GameRules;
   nnRandomize: boolean;
@@ -458,7 +461,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const boardSize = BOARD_SIZE;
 
     const conservativePass = msg.conservativePass !== false;
-    const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
+    const rules: GameRules = isGameRules(msg.rules) ? msg.rules : 'japanese';
 
     fillInputsV7FastForPosition({
       board: msg.board,
@@ -511,7 +514,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     if (!model) throw new Error('Model not loaded');
 
     const conservativePass = msg.conservativePass !== false;
-    const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
+    const rules: GameRules = isGameRules(msg.rules) ? msg.rules : 'japanese';
 
     const batch = msg.positions.length;
     if (batch <= 0) {
@@ -630,7 +633,10 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const wideRootNoise = Math.max(0, Math.min(msg.wideRootNoise ?? 0.04, 5));
     const rootPolicyTemperature = Math.max(0.01, Math.min(msg.rootPolicyTemperature ?? 1, 100));
     const fillDameBeforePass = msg.fillDameBeforePass !== false;
-    const rules: GameRules = msg.rules === 'chinese' ? 'chinese' : msg.rules === 'korean' ? 'korean' : 'japanese';
+    // KataGo clamps playoutDoublingAdvantage to +/-3 in its own configs.
+    const playoutDoublingAdvantage = Math.max(-3, Math.min(msg.playoutDoublingAdvantage ?? 0, 3));
+    const playoutDoublingAdvantagePla = msg.playoutDoublingAdvantagePla === 'white' ? 'white' : 'black';
+    const rules: GameRules = isGameRules(msg.rules) ? msg.rules : 'japanese';
     const nnRandomize = msg.nnRandomize !== false;
     const rootSymmetrySamples = rootSymmetrySamplesForBackend(tf.getBackend());
     const conservativePass = msg.conservativePass !== false;
@@ -731,6 +737,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       searchKey.wideRootNoise === wideRootNoise &&
       searchKey.rootPolicyTemperature === rootPolicyTemperature &&
       searchKey.fillDameBeforePass === fillDameBeforePass &&
+      searchKey.playoutDoublingAdvantage === playoutDoublingAdvantage &&
+      searchKey.playoutDoublingAdvantagePla === playoutDoublingAdvantagePla &&
       searchKey.rootSymmetrySamples === rootSymmetrySamples &&
       searchKey.rules === rules &&
       searchKey.nnRandomize === nnRandomize &&
@@ -760,6 +768,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         searchKey.wideRootNoise === wideRootNoise &&
         searchKey.rootPolicyTemperature === rootPolicyTemperature &&
         searchKey.fillDameBeforePass === fillDameBeforePass &&
+        searchKey.playoutDoublingAdvantage === playoutDoublingAdvantage &&
+        searchKey.playoutDoublingAdvantagePla === playoutDoublingAdvantagePla &&
         searchKey.rootSymmetrySamples === rootSymmetrySamples &&
         searchKey.rules === rules &&
         searchKey.nnRandomize === nnRandomize &&
@@ -798,6 +808,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
               wideRootNoise,
               rootPolicyTemperature,
               fillDameBeforePass,
+              playoutDoublingAdvantage,
+              playoutDoublingAdvantagePla,
               rootSymmetrySamples,
               rules,
               nnRandomize,
@@ -828,6 +840,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         wideRootNoise,
         rootPolicyTemperature,
         fillDameBeforePass,
+        playoutDoublingAdvantage,
+        playoutDoublingAdvantagePla,
         rootSymmetrySamples,
         regionOfInterest: msg.regionOfInterest,
         humanPolicy: humanMovePriors,
@@ -848,6 +862,8 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           wideRootNoise,
           rootPolicyTemperature,
           fillDameBeforePass,
+          playoutDoublingAdvantage,
+          playoutDoublingAdvantagePla,
           rootSymmetrySamples,
           rules,
           nnRandomize,
