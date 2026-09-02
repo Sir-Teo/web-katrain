@@ -625,7 +625,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               <FaStickyNote size={11} aria-hidden="true" />
               <span>{hasShapeCoachNoteBlock ? 'In note' : 'Add to note'}</span>
             </button>
-            {showProDetails && moveInsight.learnMoreUrl ? (
+            {moveInsight.learnMoreUrl ? (
               <a
                 href={moveInsight.learnMoreUrl}
                 target="_blank"

@@ -40,6 +40,13 @@ interface CandidateMoveListProps {
 
 const moveKey = (move: CandidateMove) => `${move.x},${move.y}`;
 
+/** Coach wording for a candidate: the quality word and, when it costs something, the gap to the top move in plain points. */
+const coachQualityText = (quality: string, pointsLost: number): string => {
+  const lost = Number.isFinite(pointsLost) ? Math.max(0, pointsLost) : 0;
+  if (lost < 0.05) return `${quality} — the engine's top choice`;
+  return `${quality}, ${lost.toFixed(1)} points behind the best move`;
+};
+
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
   const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode } = useGameStore(
     (state) => ({
@@ -128,8 +135,16 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                   onHover(null);
                   playMove(move.x, move.y);
                 }}
-                title={`${hoveredKey === key ? 'Play' : 'Preview'} ${label}. ${formatCandidateWinRate(move.winRate)} win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidateVisits(move.visits)} visits.`}
-                aria-label={`Candidate ${rank}: ${label}, ${formatCandidateWinRate(move.winRate)} win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidatePointsLost(move.pointsLost)} points. ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`}
+                title={
+                  isPro
+                    ? `${hoveredKey === key ? 'Play' : 'Preview'} ${label}. ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidateVisits(move.visits)} visits.`
+                    : `${hoveredKey === key ? 'Play' : 'Preview'} ${label}: ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.`
+                }
+                aria-label={
+                  isPro
+                    ? `Candidate ${rank}: ${label}, ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidatePointsLost(move.pointsLost)} points. ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
+                    : `Candidate ${rank}: ${label}, ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}. ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
+                }
               >
                 <span className="cl-rank">{rank}</span>
                 <span className="cl-move">
