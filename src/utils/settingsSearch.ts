@@ -46,6 +46,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-analysis-show-children', tab: 'analysis', label: "Show Children" },
   { id: 'settings-analysis-evaluation-dots', tab: 'analysis', label: "Evaluation Dots" },
   { id: 'settings-analysis-top-moves', tab: 'analysis', label: "Top Moves (Hints)" },
+  { id: 'settings-analysis-experience', tab: 'analysis', label: "Analysis Detail (Coach / Pro)" },
   { id: 'settings-analysis-policy', tab: 'analysis', label: "Move Heatmap" },
   { id: 'settings-analysis-ownership', tab: 'analysis', label: "Ownership (Territory)" },
   { id: 'settings-analysis-evaluation-theme', tab: 'analysis', label: "Evaluation Theme" },

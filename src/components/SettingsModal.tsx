@@ -1140,6 +1140,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 aria-labelledby="tab-analysis"
                                 tabIndex={0}
                             >  
+                                {/* Analysis detail: the Coach/Pro switch the panels carry, findable here too */}
+                                <div className={sectionClass} data-settings-analysis-experience="true">
+                                    <h3 className={sectionTitleClass}>Analysis Detail</h3>
+                                    <div className="mt-4 space-y-2">
+                                        <div className={rowClass}>
+                                            <label htmlFor="settings-analysis-experience" className={labelClass}>Detail level</label>
+                                            <select
+                                                id="settings-analysis-experience"
+                                                value={settings.analysisExperience}
+                                                onChange={(e) => updateSettings({ analysisExperience: e.target.value as GameSettings['analysisExperience'] })}
+                                                className="ui-input text-[var(--ui-text)] rounded px-2 py-1 text-sm border"
+                                            >
+                                                <option value="coach">Coach</option>
+                                                <option value="pro">Pro</option>
+                                            </select>
+                                        </div>
+                                        <p className={subtextClass}>
+                                            Coach keeps the review to move quality and plain-language guidance. Pro adds win rate, score,
+                                            visits, policy and the engine&apos;s own detail everywhere. The same switch sits at the top of the
+                                            Analysis panel.
+                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* Analysis Overlays Section */}  
                                 <div className={sectionClass}>  
                                     <h3 className={sectionTitleClass}>Analysis Overlays</h3>
@@ -1228,6 +1252,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         onChange={(e) => updateSettings({ trainerLowVisits: Math.max(1, parseInt(e.target.value || '1', 10)) })}
                                                         className={inputClass}
                                                     />
+                                                    <p className={subtextClass}>Candidates searched fewer times than this are drawn faded: the engine has barely looked at them, so their numbers are rough.</p>
                                                 </div>
 
                                                 <div className="space-y-1">
@@ -1244,6 +1269,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             </option>
                                                         ))}
                                                     </select>
+                                                    <p className={subtextClass}>The figure written on each top-move hint on the board.</p>
                                                 </div>
 
                                                 <div className="space-y-1">
@@ -1262,6 +1288,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                             </option>
                                                         ))}
                                                     </select>
+                                                    <p className={subtextClass}>A second, smaller figure under the first on each hint.</p>
                                                 </div>
 
                                                 <div className="space-y-1">
@@ -1291,6 +1318,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         onChange={(e) => updateSettings({ trainerExtraPrecision: e.target.checked })}
                                                         className="toggle"
                                                     />
+                                                    <p className={subtextClass}>Show points lost to two decimals instead of one.</p>
                                                 </div>
 
                                                 <div className={rowClass}>
@@ -1302,6 +1330,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         onChange={(e) => updateSettings({ trainerEvalShowAi: e.target.checked })}
                                                         className="toggle"
                                                     />
+                                                    <p className={subtextClass}>Draw the quality dot on moves the AI played, not only on yours.</p>
                                                 </div>
 
                                                 <div className={rowClass}>
@@ -1342,6 +1371,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                     onChange={(e) => updateSettings({ trainerLockAi: e.target.checked })}
                                                     className="toggle"
                                                 />
+                                                <p className={subtextClass}>In Play mode, hide the engine's move-by-move detail (PV, policy, top move) so a game against the AI is played without it.</p>
                                             </div>
                                         </div>
                                     </div>  
@@ -2550,6 +2580,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 onChange={(e) => updateSettings({ katagoVisits: Math.max(16, parseInt(e.target.value || '0', 10)) })}
                                                 className={inputClass}
                                             />
+                                            <p className={subtextClass}>How many positions the search reads per move while live analysis is on. More is stronger and slower; the presets in the Analysis panel set the same number.</p>
                                         </div>
                                         <div className="space-y-1">
                                             <label htmlFor="settings-katago-fast-review-depth" className="text-[var(--ui-text-muted)] block text-sm">Fast review depth</label>
