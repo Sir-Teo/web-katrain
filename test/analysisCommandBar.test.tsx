@@ -71,10 +71,19 @@ describe('AnalysisCommandBar', () => {
     expect(html).toContain('title="Show move heatmap"');
     expect(html).toContain('title="Hide territory ownership"');
     expect(html).not.toContain('aria-label="Hide top move hints"');
-    // Value chips: the name opens with the text printed on the chip.
-    expect(html).toContain('aria-label="Hint: Delta \u2014 cycle top move hint label"');
-    expect(html).toContain('aria-label="Map: Prob. \u2014 cycle move heatmap metric"');
-    expect(html).toContain('aria-label="Depth: 5k \u2014 5000 visits"');
+    // Coach mode (the default) keeps the metric cyclers and the visit count
+    // off the bar; they are engine vocabulary.
+    expect(html).not.toContain('aria-label="Hint: Delta');
+    expect(html).not.toContain('aria-label="Map: Prob.');
+    expect(html).toContain('Depth: Thorough');
+    // Value chips in Pro: the name opens with the text printed on the chip.
+    // Server rendering reads the store's initial snapshot, so Pro is passed
+    // as the override prop the component keeps for exactly this.
+    const pro = renderToStaticMarkup(<AnalysisCommandBar {...baseProps} analysisExperienceOverride="pro" />);
+    expect(pro).toContain('aria-label="Hint: Delta \u2014 cycle top move hint label"');
+    expect(pro).toContain('aria-label="Map: Prob. \u2014 cycle move heatmap metric"');
+    expect(pro).toContain('aria-label="Depth: 5k \u2014 5000 visits"');
+    expect(pro).toContain('Depth: 5k');
     expect(html).toContain('aria-label="Open the full game report"');
     expect(html).toContain('data-analysis-metrics-overflow="none"');
     expect(html).toContain('data-analysis-actions-overflow="none"');

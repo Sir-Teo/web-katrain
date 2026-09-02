@@ -47,3 +47,6 @@ export function summarizePointsLost(pointsLost: number | null | undefined): Poin
   if (pointsLost < 1) return { label: `Lost ${absolute.toFixed(1)}`, tone: 'warning' };
   return { label: `Lost ${absolute.toFixed(1)}`, tone: 'danger' };
 }
+
+/** The one sentence every quality readout leans on; it used to be defined nowhere. */
+export const POINTS_LOST_EXPLANATION = "How many points of final score a move gives away compared with the engine's best move.";

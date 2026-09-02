@@ -1,4 +1,5 @@
 import React from 'react';
+import type { AnalysisExperience } from '../types';
 import {
   FaChartBar,
   FaFileAlt,
@@ -74,6 +75,8 @@ interface AnalysisCommandBarProps {
   startFastGameAnalysis: (opts?: { moveRange?: [number, number] | null }) => void;
   stopGameAnalysis: () => void;
   onOpenGameReport: () => void;
+  /** Test/embedding override; the application normally uses the persisted setting. */
+  analysisExperienceOverride?: AnalysisExperience;
 }
 
 type HorizontalScrollEdges = { overflow: boolean; atStart: boolean; atEnd: boolean };
@@ -155,10 +158,15 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   startFastGameAnalysis,
   stopGameAnalysis,
   onOpenGameReport,
+  analysisExperienceOverride,
 }) => {
   const topMoveMetric = useGameStore((state) => state.settings.trainerTopMovesShow);
   const policyHeatmapMetric = useGameStore((state) => state.settings.analysisPolicyMetric);
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
+  const analysisExperience = useGameStore((state) => state.settings.analysisExperience);
+  // Coach keeps this bar to what a move costs; the metric cyclers and the
+  // visit count are engine vocabulary and wait for Pro.
+  const isPro = (analysisExperienceOverride ?? analysisExperience) === 'pro';
   const showAnalysisBar = useGameStore((state) => state.settings.showAnalysisBar);
   const currentNode = useGameStore((state) => state.currentNode);
   const drillHidesAnswer = useGameStore((state) => isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id));
@@ -568,7 +576,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
             <span className="analysis-command-bar__value analysis-command-bar__value--best">
               {bestMoveSummary.moveLabel}
             </span>
-            <span className="analysis-command-bar__label">{bestMoveSummary.detailLabel || 'Best move'}</span>
+            <span className="analysis-command-bar__label">{isPro ? bestMoveSummary.detailLabel || 'Best move' : 'Best move'}</span>
           </div>
         )}
       </div>
@@ -635,7 +643,8 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           aria-label={`Depth: ${liveVisitCountLabel} — ${liveVisits} visits`}
         >
           <FaSearch size={12} aria-hidden="true" />
-          <span>Depth: {liveVisitCountLabel}</span>
+          <span>Depth: {isPro ? liveVisitCountLabel : liveVisitLabel}</span>
+          {isPro && (
           <span
             className="analysis-command-bar__depth-meter"
             aria-hidden="true"
@@ -652,6 +661,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
               />
             ))}
           </span>
+          )}
         </button>
         <button
           type="button"
@@ -664,6 +674,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           <FaLayerGroup size={12} aria-hidden="true" />
           <span>Top moves</span>
         </button>
+        {isPro && (
         <button
           type="button"
           className={['analysis-command-bar__button', analysisControls.analysisShowHints && !topMovesHiddenByPolicy ? 'active' : ''].join(' ')}
@@ -675,6 +686,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           <FaChartBar size={12} aria-hidden="true" />
           <span>Hint: {topMoveMetricLabel}</span>
         </button>
+        )}
         <button
           type="button"
           className={['analysis-command-bar__button', analysisControls.analysisShowPolicy ? 'active' : ''].join(' ')}
@@ -685,6 +697,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           <FaThLarge size={12} aria-hidden="true" />
           <span>Heatmap</span>
         </button>
+        {isPro && (
         <button
           type="button"
           className={[
@@ -699,6 +712,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           <FaChartBar size={12} aria-hidden="true" />
           <span>Map: {policyHeatmapMetricLabel}</span>
         </button>
+        )}
         <button
           type="button"
           className={['analysis-command-bar__button', analysisControls.analysisShowOwnership ? 'active' : ''].join(' ')}

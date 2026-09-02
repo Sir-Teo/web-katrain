@@ -24,7 +24,7 @@ import {
   mergeVisitPresets,
   visitPresetLabel,
 } from '../utils/visitPresets';
-import { NO_VALUE, formatAnalysisScoreLead, summarizePointsLost } from '../utils/analysisSummary';
+import { NO_VALUE, formatAnalysisScoreLead, summarizePointsLost, POINTS_LOST_EXPLANATION } from '../utils/analysisSummary';
 import { getCurrentNodeBestMoveSummary } from '../utils/bestMoveSummary';
 import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
@@ -110,6 +110,7 @@ export const AnalysisQualityLegend: React.FC<{ items: QualityLegendItem[] }> = (
       <div className="font-semibold text-[var(--ui-text)]">Move quality</div>
       <div className="ui-text-faint">Points lost</div>
     </div>
+    <p className="mb-1 ui-text-faint">{POINTS_LOST_EXPLANATION}</p>
     <div className="grid grid-cols-2 gap-x-2 gap-y-1">
       {items.map((item) => (
         <div key={item.label} className="flex min-w-0 items-center gap-1.5">
@@ -470,7 +471,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           {bestMoveSummary.moveLabel}
         </div>
         <div className="mt-0.5 truncate text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
-          {bestMoveSummary.detailLabel}
+          {isPro ? bestMoveSummary.detailLabel : "Engine's pick"}
         </div>
       </div>
     ) : null;
@@ -758,7 +759,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
               {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
               <div className="px-2 py-1">
-                <div className="text-[0.6875rem] ui-text-faint">Winrate</div>
+                <div className="text-[0.6875rem] ui-text-faint">Black win</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
                   {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : NO_VALUE}
                 </div>
@@ -783,7 +784,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
             {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
             <div className="px-2 py-1">
-              <div className="text-[0.6875rem] ui-text-faint">Winrate</div>
+              <div className="text-[0.6875rem] ui-text-faint">Black win</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">
                 {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : NO_VALUE}
               </div>

@@ -22,7 +22,7 @@ import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../../utils/nodeAna
 import { evalColorToCss, getKaTrainEvalColors } from '../../utils/katrainTheme';
 import { ANALYSIS_VISIT_PRESETS, clampAnalysisVisits, visitPresetLabel } from '../../utils/visitPresets';
 import { formatRulesLabel } from '../../utils/gameInfoDisplay';
-import { formatReadableScoreLead, formatWinRateFavorLabel } from '../../utils/analysisSummary';
+import { formatReadableScoreLead, formatWinRateFavorLabel, POINTS_LOST_EXPLANATION } from '../../utils/analysisSummary';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
 
@@ -387,6 +387,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   // metric strip has to withhold it too -- hiding the board hints and then
   // printing "BEST MOVE G4" under the board answers the question anyway.
   const bestMove = drillHidesAnswer ? null : currentNode.analysis?.moves?.[0] ?? null;
+  const isProDetail = settings.analysisExperience === 'pro';
   // "Fast review" matches the command bar's name for the same operation;
   // avoid exposing MCTS jargon in one surface and not the other.
   const dashboardFastMctsTitle = isGameAnalysisRunning
@@ -744,8 +745,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <div className="cb-metric">
                     <div className="k">Best move</div>
                     <div className="v best">{bestMove ? formatMoveLabel(bestMove.x, bestMove.y, boardSize) : '—'}</div>
-                    <div className="sub" title={bestMove ? `${(bestMove.winRate * 100).toFixed(1)}% win rate · ${bestMove.visits} visits` : undefined}>
-                      {bestMove ? `${(bestMove.winRate * 100).toFixed(0)}% · ${formatVisitCount(bestMove.visits)}` : ''}
+                    <div className="sub" title={bestMove && isProDetail ? `${(bestMove.winRate * 100).toFixed(1)}% Black win rate · ${bestMove.visits} visits` : undefined}>
+                      {bestMove ? (isProDetail ? `${(bestMove.winRate * 100).toFixed(0)}% Black win · ${formatVisitCount(bestMove.visits)} visits` : "Engine's pick") : ''}
                     </div>
                   </div>
                   <div className="cb-metric">
@@ -1006,6 +1007,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 {legendOpen && (
                   <div id="dashboard-analysis-quality-legend" className="qlegend">
                     <div className="eyebrow">Move quality · points lost</div>
+                    <p className="qlegend-note">{POINTS_LOST_EXPLANATION}</p>
                     <div className="qgrid">
                       {evalLegendRows(settings.trainerEvalThresholds, settings.trainerTheme).map(([label, color, range]) => (
                         <div className="qi" key={label}>

@@ -68,8 +68,10 @@ describe('DesktopDashboard', () => {
     expect(metricBlock).toContain('padding: 7px 10px;');
     expect(css).not.toContain('.wk-dashboard[data-layout="compact"] .cb-metric {');
     expect(source).not.toContain('<div className="sub">score lead</div>');
-    expect(source).toContain("`${(bestMove.winRate * 100).toFixed(0)}% · ${formatVisitCount(bestMove.visits)}`");
-    expect(source).toContain("`${(bestMove.winRate * 100).toFixed(1)}% win rate · ${bestMove.visits} visits`");
+    expect(source).toContain("`${(bestMove.winRate * 100).toFixed(0)}% Black win · ${formatVisitCount(bestMove.visits)} visits`");
+    expect(source).toContain("`${(bestMove.winRate * 100).toFixed(1)}% Black win rate · ${bestMove.visits} visits`");
+    // Coach mode keeps the engine's numbers off the best-move tile.
+    expect(source).toContain("isProDetail ? `${(bestMove.winRate * 100).toFixed(0)}% Black win");
     expect(css).toMatch(/\.wk-dashboard\[data-layout="compact"\] \.cb-metric \.sub \{\s*display: none;/);
   });
 

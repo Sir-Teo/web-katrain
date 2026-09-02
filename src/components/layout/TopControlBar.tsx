@@ -815,7 +815,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       <div className="hidden 2xl:flex items-center gap-1.5 text-xs shrink-0">
         {winRateLabel && (
           <div className="px-2 py-0.5 rounded-md ui-success-soft border text-[var(--ui-success)] font-medium">
-            Win {winRateLabel}
+            B win {winRateLabel}
           </div>
         )}
         {scoreLeadLabel && (
