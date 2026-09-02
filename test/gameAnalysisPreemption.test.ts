@@ -76,13 +76,16 @@ describe('game review survives queue preemption', () => {
     });
 
     // The aborted review chunk rejects as canceled even though its engine work
-    // then completes.
+    // then completes. The review comes back to that node rather than skipping
+    // it, so the line's three nodes take four engine calls.
     held[0]!.resolve(analysisPayload());
     await waitFor(() => analyzeMock.mock.calls.length === 2);
 
     held[1]!.resolve(analysisPayload());
     await waitFor(() => analyzeMock.mock.calls.length === 3);
     held[2]!.resolve(analysisPayload());
+    await waitFor(() => analyzeMock.mock.calls.length === 4);
+    held[3]!.resolve(analysisPayload());
 
     await waitFor(() => !useGameStore.getState().isGameAnalysisRunning);
 
@@ -90,7 +93,13 @@ describe('game review survives queue preemption', () => {
     expect(state.gameAnalysisType).toBeNull();
     expect(state.engineStatus).not.toBe('error');
     expect(state.notification).toBeNull();
-    expect(analyzeMock).toHaveBeenCalledTimes(3);
+    expect(analyzeMock).toHaveBeenCalledTimes(4);
+    // No hole where the preemption landed: every node on the line was analysed.
+    let node: typeof state.rootNode | undefined = state.rootNode;
+    while (node) {
+      expect(node.analysis, `node ${node.id} analysed`).not.toBeNull();
+      node = node.children[0];
+    }
   });
 
   it('still stops immediately when the user presses stop during review', async () => {

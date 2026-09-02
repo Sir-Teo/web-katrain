@@ -1539,6 +1539,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       const token = ++continuousToken;
+      let errorBackoffMs = 1000;
       void (async () => {
           while (true) {
               const state = get();
@@ -1570,6 +1571,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 reuseTree: true,
                 ownershipRefreshIntervalMs: state.settings.katagoOwnershipMode === 'tree' ? 500 : undefined,
               });
+              if (get().engineStatus === 'error') {
+                  // A dead engine rejects at once; retrying every 50ms raised
+                  // an identical error toast as fast as one could be dismissed.
+                  errorBackoffMs = Math.min(30_000, errorBackoffMs * 2);
+                  await sleep(errorBackoffMs);
+                  continue;
+              }
+              errorBackoffMs = 1000;
               await sleep(50);
           }
       })();
@@ -2608,6 +2617,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       const evalBatchSize = Math.max(1, Math.min(get().settings.katagoBatchSize, 8));
 
+      let chunkRetries = 0;
       for (let start = 0; start < nodes.length; start += evalBatchSize) {
         if (token !== gameAnalysisToken) return;
         if (!get().isGameAnalysisRunning) return;
@@ -2679,11 +2689,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (isAnalysisCanceled(err)) {
               // Queue-level preemption (e.g. live analysis while the user
               // navigates) aborts the active job without bumping the token.
-              // Skip the chunk and keep reviewing instead of silently dying
-              // with the progress UI stuck on "running".
-              if (stillOwnsRun()) continue;
-              return;
+              // Come back to this chunk rather than leaving a hole in the graph.
+              if (!stillOwnsRun()) return;
+              if (chunkRetries < 3) {
+                chunkRetries += 1;
+                await sleep(25);
+                start -= evalBatchSize;
+              }
+              continue;
             }
+            chunkRetries = 0;
             failed += toEval.length;
             lastFailure = errorMessage(err);
           }
@@ -2759,8 +2774,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let metaSynced = false;
       const stillOwnsRun = () =>
         token === gameAnalysisToken && get().isGameAnalysisRunning && get().gameAnalysisType === 'fast';
+      // A node whose job was preempted by the user's own live analysis is
+      // retried, not skipped: skipping left holes in the graph at exactly the
+      // moves they looked at, and a count that ended short of the total.
+      const preemptedRetries = new Map<string, number>();
 
-      for (const node of nodes) {
+      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+        const node = nodes[nodeIndex]!;
         if (token !== gameAnalysisToken) return;
         if (!get().isGameAnalysisRunning) return;
         if (get().gameAnalysisType !== 'fast') return;
@@ -2860,10 +2880,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (isAnalysisCanceled(err)) {
               // Queue-level preemption (e.g. live analysis while the user
               // navigates) aborts the active job without bumping the token.
-              // Skip the node and keep reviewing instead of silently dying
-              // with the progress UI stuck on "running".
-              if (stillOwnsRun()) continue;
-              return;
+              if (!stillOwnsRun()) return;
+              const tries = preemptedRetries.get(node.id) ?? 0;
+              if (tries < 3) {
+                preemptedRetries.set(node.id, tries + 1);
+                await sleep(25);
+                nodeIndex -= 1;
+              }
+              continue;
             }
             failed++;
             lastFailure = errorMessage(err);
@@ -2939,8 +2963,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let metaSynced = false;
       const stillOwnsRun = () =>
         token === gameAnalysisToken && get().isGameAnalysisRunning && get().gameAnalysisType === 'full';
+      // A node whose job was preempted by the user's own live analysis is
+      // retried, not skipped: skipping left holes in the graph at exactly the
+      // moves they looked at, and a count that ended short of the total.
+      const preemptedRetries = new Map<string, number>();
 
-      for (const node of nodes) {
+      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+        const node = nodes[nodeIndex]!;
         if (token !== gameAnalysisToken) return;
         if (!get().isGameAnalysisRunning) return;
         if (get().gameAnalysisType !== 'full') return;
@@ -3053,10 +3082,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (isAnalysisCanceled(err)) {
               // Queue-level preemption (e.g. live analysis while the user
               // navigates) aborts the active job without bumping the token.
-              // Skip the node and keep reviewing instead of silently dying
-              // with the progress UI stuck on "running".
-              if (stillOwnsRun()) continue;
-              return;
+              if (!stillOwnsRun()) return;
+              const tries = preemptedRetries.get(node.id) ?? 0;
+              if (tries < 3) {
+                preemptedRetries.set(node.id, tries + 1);
+                await sleep(25);
+                nodeIndex -= 1;
+              }
+              continue;
             }
             failed++;
             lastFailure = errorMessage(err);
@@ -5095,6 +5128,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set({ notification: { message: 'No edit to undo.', type: 'info' } });
           return;
       }
+      // The tree about to be restored is a clone with the same node ids, so
+      // a running review would keep writing into the discarded one; stop it.
+      continuousToken++;
+      selfplayToken++;
+      gameAnalysisToken++;
       analysisQueue.cancelWhere(() => true, 'Undo edit');
       set((state) => {
           const current = captureEditHistory(state);
@@ -5115,6 +5153,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set({ notification: { message: 'No edit to redo.', type: 'info' } });
           return;
       }
+      // The tree about to be restored is a clone with the same node ids, so
+      // a running review would keep writing into the discarded one; stop it.
+      continuousToken++;
+      selfplayToken++;
+      gameAnalysisToken++;
       analysisQueue.cancelWhere(() => true, 'Redo edit');
       set((state) => {
           const current = captureEditHistory(state);
