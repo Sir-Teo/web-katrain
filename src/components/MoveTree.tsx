@@ -6,6 +6,7 @@ import type { GameNode } from '../types';
 import {
   MOVE_TREE_LAYOUT_WORKER_THRESHOLD,
   computeMoveTreeLayout,
+  moveTreeStructureKey,
   flattenMoveTree,
   getMoveTreeMinimapViewportRect,
   getMoveTreeMinimapTransform,
@@ -137,10 +138,21 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     return ids;
   }, [currentNode, treeVersion]);
 
-  const flatTree = useMemo(() => {
+  // treeVersion moves on every analysis result -- up to four times a second on
+  // the current node while the engine runs -- and none of those change where a
+  // node sits. The flat tree, and so the layout, the worker round trip and the
+  // full re-render they cause, is keyed on the tree's structure instead and
+  // only recomputes when a node is added, removed, reordered, collapsed or
+  // marked.
+  const structureKey = useMemo(() => {
     void treeVersion;
+    return moveTreeStructureKey(rootNode);
+  }, [rootNode, treeVersion]);
+
+  const flatTree = useMemo(() => {
+    void structureKey;
     return flattenMoveTree(rootNode, revealAncestorIds);
-  }, [rootNode, treeVersion, revealAncestorIds]);
+  }, [rootNode, structureKey, revealAncestorIds]);
 
   const hasCollapsedBranches = useMemo(() => {
     void treeVersion;
@@ -154,7 +166,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
 
   const workerAvailable = getWorkerConstructor() !== null;
   const shouldUseWorker = workerAvailable && flatTree.length >= MOVE_TREE_LAYOUT_WORKER_THRESHOLD;
-  const layoutKey = `${rootNode.id}:${treeVersion}:${flatTree.length}:${layoutDirection}`;
+  const layoutKey = `${rootNode.id}:${structureKey}:${layoutDirection}`;
   const syncLayout = useMemo(
     () => (shouldUseWorker ? null : computeMoveTreeLayout(flatTree, layoutDirection)),
     [flatTree, layoutDirection, shouldUseWorker]
@@ -383,6 +395,33 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     () => (layout ? shouldShowMoveTreeMinimap(layout, viewport, MINIMAP_SIZE) : false),
     [layout, viewport]
   );
+
+  // The minimap draws every node and edge. It used to be rebuilt on each
+  // scroll frame, because the viewport rectangle over it changes then; the
+  // picture underneath only changes with the layout or the current move.
+  const minimapPicture = useMemo(() => {
+    if (!layout) return null;
+    return (
+      <>
+        {layout.edges.map((edge) => (
+          <polyline key={edge.id} points={edge.points} className="move-tree-minimap-edge" />
+        ))}
+        {layout.nodes.map((node) => (
+          <circle
+            key={node.id}
+            cx={node.x}
+            cy={node.y}
+            r={node.id === currentNode.id ? layout.radius + 2 : layout.radius}
+            className={[
+              'move-tree-minimap-node',
+              node.player === 'white' ? 'white' : node.player === 'black' ? 'black' : 'root',
+              node.id === currentNode.id ? 'current' : '',
+            ].join(' ')}
+          />
+        ))}
+      </>
+    );
+  }, [currentNode.id, layout]);
 
   const handleMinimapClick = (event: React.MouseEvent<SVGSVGElement>) => {
     const container = containerRef.current;
@@ -717,22 +756,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           >
             <rect x="0" y="0" width={MINIMAP_SIZE.width} height={MINIMAP_SIZE.height} rx="6" className="move-tree-minimap-bg" />
             <g transform={`translate(${minimapTransform.offsetX} ${minimapTransform.offsetY}) scale(${minimapTransform.scale})`}>
-              {layout.edges.map((edge) => (
-                <polyline key={edge.id} points={edge.points} className="move-tree-minimap-edge" />
-              ))}
-              {layout.nodes.map((node) => (
-                <circle
-                  key={node.id}
-                  cx={node.x}
-                  cy={node.y}
-                  r={node.id === currentNode.id ? layout.radius + 2 : layout.radius}
-                  className={[
-                    'move-tree-minimap-node',
-                    node.player === 'white' ? 'white' : node.player === 'black' ? 'black' : 'root',
-                    node.id === currentNode.id ? 'current' : '',
-                  ].join(' ')}
-                />
-              ))}
+              {minimapPicture}
             </g>
             <rect
               x={minimapViewport.x}
