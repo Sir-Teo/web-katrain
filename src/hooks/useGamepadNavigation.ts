@@ -39,6 +39,7 @@ export function useGamepadNavigation({
     let lastAt = 0;
     let lastName: string | null = null;
     let lastCount = 0;
+    let stopped = false;
 
     const updateStatus = (name: string | null, count: number) => {
       if (name === lastName && count === lastCount) return;
@@ -48,19 +49,26 @@ export function useGamepadNavigation({
     };
 
     const tick = () => {
+      frame = null;
       const { active: gamepad, count } = getGamepadConnectionSnapshot(navigator);
       updateStatus(gamepad?.id ?? null, count);
 
-      if (gamepad) {
-        const input = getGamepadNavigationInput(gamepad);
-        const now = getAnimationNow();
-        if (!input) {
-          lastKey = null;
-        } else if (input.key !== lastKey || now - lastAt >= repeatMs) {
-          handlersRef.current[input.command]();
-          lastKey = input.key;
-          lastAt = now;
-        }
+      // Browsers emit gamepadconnected when a controller becomes available.
+      // Stop polling completely while none is present instead of waking the
+      // main thread at display refresh rate for the entire app session.
+      if (!gamepad || stopped) {
+        lastKey = null;
+        return;
+      }
+
+      const input = getGamepadNavigationInput(gamepad);
+      const now = getAnimationNow();
+      if (!input) {
+        lastKey = null;
+      } else if (input.key !== lastKey || now - lastAt >= repeatMs) {
+        handlersRef.current[input.command]();
+        lastKey = input.key;
+        lastAt = now;
       }
 
       frame = requestAnimationFrameSafe(tick);
@@ -69,13 +77,21 @@ export function useGamepadNavigation({
     const handleConnectChange = () => {
       const { active: gamepad, count } = getGamepadConnectionSnapshot(navigator);
       updateStatus(gamepad?.id ?? null, count);
+      if (!gamepad) {
+        lastKey = null;
+        cancelAnimationFrameSafe(frame);
+        frame = null;
+        return;
+      }
+      if (frame === null) frame = requestAnimationFrameSafe(tick);
     };
 
     window.addEventListener('gamepadconnected', handleConnectChange);
     window.addEventListener('gamepaddisconnected', handleConnectChange);
-    tick();
+    handleConnectChange();
 
     return () => {
+      stopped = true;
       cancelAnimationFrameSafe(frame);
       window.removeEventListener('gamepadconnected', handleConnectChange);
       window.removeEventListener('gamepaddisconnected', handleConnectChange);
