@@ -82,6 +82,7 @@ import {
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
+import { getSgfImportSizeError, MAX_SGF_IMPORT_LABEL } from '../utils/sgfImportLimits';
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
@@ -1258,6 +1259,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let openedPhotoBoard = false;
     let skippedUnsupportedPhotoImages = 0;
     let skippedInvalidSgfFiles = 0;
+    let skippedOversizedSgfFiles = 0;
     const pushImportedItem = (item: LibraryItem) => {
       const uniqueName = getUniqueLibraryItemName(item.name, [...items, ...imported], item.parentId ?? null);
       imported.push(uniqueName === item.name ? item : { ...item, name: uniqueName });
@@ -1281,6 +1283,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           continue;
         }
         if (!name.endsWith('.sgf')) continue;
+        if (getSgfImportSizeError(file.size)) {
+          skippedOversizedSgfFiles += 1;
+          continue;
+        }
         const text = await file.text();
         try {
           assertValidLibrarySgfImport(text);
@@ -1299,10 +1305,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           ? 'Opened photo board from image.'
           : skippedUnsupportedPhotoImages > 0
             ? PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE
+            : skippedOversizedSgfFiles > 0
+              ? `SGF files are limited to ${MAX_SGF_IMPORT_LABEL}. ${skippedOversizedSgfFiles} file${skippedOversizedSgfFiles === 1 ? '' : 's'} skipped.`
             : skippedInvalidSgfFiles > 0
               ? 'No valid SGF games were imported.'
               : 'No SGF, ZIP, or board image files were imported.',
-        (skippedUnsupportedPhotoImages > 0 || skippedInvalidSgfFiles > 0) && !openedPhotoBoard ? 'error' : 'info'
+        (skippedUnsupportedPhotoImages > 0 || skippedOversizedSgfFiles > 0 || skippedInvalidSgfFiles > 0) && !openedPhotoBoard ? 'error' : 'info'
       );
       return;
     }

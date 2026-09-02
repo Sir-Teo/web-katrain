@@ -114,6 +114,7 @@ import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { appendRestoredAnalysisSummary } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { resetSoundFailureReport, setSoundInitErrorHandler } from '../utils/sound';
+import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -1795,6 +1796,11 @@ export const Layout: React.FC = () => {
         toast('Choose an SGF file, board photo, or KataGo model weights.', 'error');
         return;
       }
+      const sizeError = getSgfImportSizeError(file.size);
+      if (sizeError) {
+        toast(sizeError, 'error');
+        return;
+      }
       const text = await file.text();
       await loadLocalSgfText(text, file.name);
     } catch {
@@ -1938,6 +1944,11 @@ export const Layout: React.FC = () => {
     }
     if (file.name.toLowerCase().endsWith('.sgf') || file.type === 'application/x-go-sgf') {
       try {
+        const sizeError = getSgfImportSizeError(file.size);
+        if (sizeError) {
+          toast(sizeError, 'error');
+          return;
+        }
         const text = await file.text();
         await loadLocalSgfText(text, file.name);
       } catch {
@@ -2148,6 +2159,11 @@ export const Layout: React.FC = () => {
       return;
     }
     try {
+      const sizeError = getSgfImportSizeError(file.size);
+      if (sizeError) {
+        toast(sizeError, 'error');
+        return;
+      }
       const text = await file.text();
       await loadLocalSgfText(text, file.name);
     } catch {

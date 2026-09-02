@@ -6,6 +6,7 @@ import { createEmptyBoard, normalizeBoardSize } from './boardSize';
 import { getEvaluationClass } from './nodeAnalysis';
 import { downloadBlob } from './objectUrl';
 import { stripUnsafeFilenameControls } from './filename';
+import { assertSgfImportSize } from './sgfImportLimits';
 
 // KaTrain convention: auto-generated SGF comments are marked so user notes remain editable.
 export const KATRAIN_SGF_INTERNAL_COMMENTS_MARKER = "\u3164\u200b";
@@ -654,6 +655,7 @@ export interface ParsedSgf {
 }
 
 export const parseSgf = (sgfContent: string): ParsedSgf => {
+    assertSgfImportSize(sgfContent);
     const moves: { x: number, y: number, player: Player }[] = [];
     let boardSize: BoardSize = DEFAULT_BOARD_SIZE;
     let initialBoard: BoardState = createEmptyBoard(boardSize);
