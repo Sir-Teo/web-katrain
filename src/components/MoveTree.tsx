@@ -89,6 +89,15 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     shallow
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  // The scroller is a different element before and after the layout arrives
+  // (the placeholder's shell, then a child of the real shell), so listeners
+  // keyed on the element itself follow it; a mount-only effect would stay on
+  // the placeholder and never see a scroll.
+  const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
+  const setContainerRef = useCallback((element: HTMLDivElement | null) => {
+    containerRef.current = element;
+    setContainerElement(element);
+  }, []);
   const nodeElementRefs = useRef(new Map<string, SVGGElement>());
   const workerRef = useRef<Worker | null>(null);
   const wheelDeltaRef = useRef(0);
@@ -127,7 +136,14 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     () => (shouldUseWorker ? null : computeMoveTreeLayout(flatTree, layoutDirection)),
     [flatTree, layoutDirection, shouldUseWorker]
   );
-  const workerLayout = shouldUseWorker && workerResult?.key === layoutKey ? workerResult.layout : null;
+  // While the worker lays out a new version, keep drawing the previous one:
+  // dropping to the placeholder unmounts the scroller, which resets its scroll
+  // and loses keyboard focus on every analysis tick of a long game.
+  const reusableWorkerLayout =
+    workerResult && workerResult.key.startsWith(`${rootNode.id}:`) && workerResult.key.endsWith(`:${layoutDirection}`)
+      ? workerResult.layout
+      : null;
+  const workerLayout = shouldUseWorker ? reusableWorkerLayout : null;
   const layout = syncLayout ?? workerLayout;
   const layoutStatus = shouldUseWorker
     ? workerResult?.key === layoutKey
@@ -137,14 +153,14 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
 
   const centerCurrentNode = useCallback((behavior: ScrollBehavior = preferredScrollBehavior()) => {
     const container = containerRef.current;
-    const activeLayout = syncLayout ?? (shouldUseWorker && workerResult?.key === layoutKey ? workerResult.layout : null);
+    const activeLayout = syncLayout ?? (shouldUseWorker ? reusableWorkerLayout : null);
     if (!container || !activeLayout) return;
     const pos = activeLayout.nodes.find((node) => node.id === currentNode.id);
     if (!pos) return;
     const targetLeft = Math.max(0, pos.x - container.clientWidth * 0.5);
     const targetTop = Math.max(0, pos.y - container.clientHeight * 0.5);
     container.scrollTo({ left: targetLeft, top: targetTop, behavior });
-  }, [currentNode.id, layoutKey, shouldUseWorker, syncLayout, workerResult]);
+  }, [currentNode.id, reusableWorkerLayout, shouldUseWorker, syncLayout]);
 
   useEffect(() => {
     const handleMoveTreeCommand = (event: Event) => {
@@ -287,19 +303,24 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   }, []);
 
   useEffect(() => {
-    const container = containerRef.current;
+    const container = containerElement;
     if (!container) return;
     let frame: AnimationFrameHandle | null = null;
     const update = () => {
       cancelAnimationFrameSafe(frame);
       frame = requestAnimationFrameSafe(() => {
         frame = null;
-        setViewport({
+        const next = {
           left: container.scrollLeft,
           top: container.scrollTop,
           width: container.clientWidth || EMPTY_VIEWPORT.width,
           height: container.clientHeight || EMPTY_VIEWPORT.height,
-        });
+        };
+        setViewport((prev) =>
+          prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.height === next.height
+            ? prev
+            : next
+        );
       });
     };
 
@@ -313,11 +334,21 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       container.removeEventListener('scroll', update);
       resizeObserver?.disconnect();
     };
-  }, []);
+  }, [containerElement]);
 
+  // Centre when the current move changes or when the tree first has a layout
+  // to centre in -- not on every layout recompute, which during analysis
+  // happens up to four times a second and used to drag the tree back from
+  // wherever the user had scrolled it.
+  const hasLayout = layout !== null;
+  const centeredRef = useRef<{ nodeId: string; container: HTMLDivElement | null } | null>(null);
   useEffect(() => {
-    centerCurrentNode();
-  }, [centerCurrentNode]);
+    if (!hasLayout) return;
+    const last = centeredRef.current;
+    if (last && last.nodeId === currentNode.id && last.container === containerElement) return;
+    centeredRef.current = { nodeId: currentNode.id, container: containerElement };
+    centerCurrentNode(last ? preferredScrollBehavior() : 'auto');
+  }, [centerCurrentNode, containerElement, currentNode.id, hasLayout]);
 
   const visible = useMemo(() => (layout ? getVisibleMoveTreeItems(layout, viewport) : null), [layout, viewport]);
   const minimapViewport = useMemo(
@@ -369,7 +400,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
 
   if (!layout || !visible) {
     return (
-      <div ref={containerRef} className="relative w-full h-full min-h-28 overflow-auto ui-surface">
+      <div ref={setContainerRef} className="relative w-full h-full min-h-28 overflow-auto ui-surface">
         <div className="absolute inset-0 grid place-items-center text-[0.6875rem] uppercase tracking-wide ui-text-muted">
           Laying out move tree
         </div>
@@ -422,7 +453,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
         )}
       </div>
       <div
-        ref={containerRef}
+        ref={setContainerRef}
         className="relative min-h-0 w-full flex-1 overflow-auto"
         onWheel={handleWheel}
       >
