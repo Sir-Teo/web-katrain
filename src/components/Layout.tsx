@@ -69,6 +69,7 @@ import { MobileMatchStrip } from './layout/MobileMatchStrip';
 import { MobileTabBar } from './layout/MobileTabBar';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId, type MobileTab } from './layout/mobileTabs';
 import { NotificationToast } from './layout/NotificationToast';
+import { MobileHome } from './MobileHome';
 import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
 import { AboutDialog } from './AboutDialog';
 import type { CommandPaletteCommand } from './CommandPaletteModal';
@@ -133,7 +134,6 @@ const GuessMoveModal = lazy(() => import('./GuessMoveModal').then((module) => ({
 const ProblemModal = lazy(() => import('./ProblemModal').then((module) => ({ default: module.ProblemModal })));
 const KifuPrintModal = lazy(() => import('./KifuPrintModal').then((module) => ({ default: module.KifuPrintModal })));
 const LibraryPanel = lazy(() => import('./LibraryPanel').then((module) => ({ default: module.LibraryPanel })));
-const MobileHome = lazy(() => import('./MobileHome').then((module) => ({ default: module.MobileHome })));
 const DesktopDashboard = lazy(() => import('./dashboard/DesktopDashboard').then((module) => ({ default: module.DesktopDashboard })));
 
 const LibraryPanelLoading: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => (
@@ -3467,7 +3467,6 @@ export const Layout: React.FC = () => {
       />
 
       {isMobile && (
-        <Suspense fallback={null}>
         <MobileHome
           open={mobileHomeOpen}
           blackName={blackName}
@@ -3524,7 +3523,6 @@ export const Layout: React.FC = () => {
             void handleOpenRecent(item);
           }}
         />
-        </Suspense>
       )}
 
       {isDesktop && (
