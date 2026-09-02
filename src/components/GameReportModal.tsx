@@ -84,6 +84,12 @@ function fmtWinRate(value: number | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+/** A Black-perspective win rate, read from the side that played the move. */
+function moverWinRate(value: number | undefined, player: 'black' | 'white'): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return value;
+  return player === 'black' ? value : 1 - value;
+}
+
 function fmtWinSwing(value: number | undefined): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return NO_VALUE;
   const points = value * 100;
@@ -825,8 +831,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   {entry.humanRank ? ` · #${entry.humanRank}` : ''}
                 </span>
               )}
+              {/* The root win rate is Black's; the swing is signed for the
+                  mover. Printing one beside the other read "Black's win rate
+                  went up (-5.0pp)" under a White mistake, so both are shown
+                  from the mover's side, and say whose. */}
               <span>
-                Win: {fmtWinRate(entry.winRateBefore)} {'->'} {fmtWinRate(entry.winRateAfter)} ({fmtWinSwing(entry.winRateSwing)})
+                {entry.player === 'black' ? 'Black' : 'White'} win: {fmtWinRate(moverWinRate(entry.winRateBefore, entry.player))} {'->'} {fmtWinRate(moverWinRate(entry.winRateAfter, entry.player))} ({fmtWinSwing(entry.winRateSwing)})
               </span>
               <span>PV: {formatPv(entry.pv)}</span>
             </div>
