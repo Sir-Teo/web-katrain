@@ -155,6 +155,16 @@ export function classifyMoveByRankAndPolicy(rank: number, relativePrior: number)
   return MOVE_POLICY_CATEGORIES[Math.min(rankIndex, priorIndex)] ?? 'blunder';
 }
 
+function rawPolicyPrior(
+  policy: FloatArray | number[] | undefined,
+  move: { x: number; y: number },
+  boardSize: number
+): number {
+  if (!policy) return 0;
+  const index = move.x < 0 || move.y < 0 ? boardSize * boardSize : move.y * boardSize + move.x;
+  return finitePrior(policy[index]);
+}
+
 function finitePrior(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
 }
@@ -170,15 +180,34 @@ function createPolicyDistribution(): MovePolicyDistribution {
   };
 }
 
+/**
+ * The policy's own view of the move played.
+ *
+ * "Of top" is measured against the highest prior among the candidates, which
+ * is what the policy net actually preferred. It used to be measured against
+ * the prior of the move the *search* preferred, so a played move with a bigger
+ * prior than the search's pick read as "179% of top" -- a figure that made no
+ * sense to anyone reading the report.
+ *
+ * A move the search never listed still has a prior: the raw policy array is
+ * kept on the analysis, so it is read from there rather than rounded to zero.
+ */
 function policyClassification(args: {
   move: { x: number; y: number };
   candidates: CandidateMove[];
   topCandidate: CandidateMove | null;
+  policy?: FloatArray | number[];
+  boardSize: number;
 }): MoveReportEntry['policy'] | undefined {
   const playedCandidate = args.candidates.find((candidate) => candidate.x === args.move.x && candidate.y === args.move.y) ?? null;
-  const topPrior = finitePrior(args.topCandidate?.prior);
-  const playedPrior = finitePrior(playedCandidate?.prior);
-  const relativePrior = topPrior > 0 ? playedPrior / topPrior : 0;
+  const topPrior = args.candidates.reduce(
+    (best, candidate) => Math.max(best, finitePrior(candidate.prior)),
+    finitePrior(args.topCandidate?.prior)
+  );
+  const playedPrior = playedCandidate
+    ? finitePrior(playedCandidate.prior)
+    : rawPolicyPrior(args.policy, args.move, args.boardSize);
+  const relativePrior = topPrior > 0 ? Math.min(1, playedPrior / topPrior) : 0;
   const rank = playedCandidate ? candidateRank(playedCandidate, args.candidates) : 0;
 
   return {
@@ -644,7 +673,13 @@ export function computeGameReport(args: {
     if (approved) aiApprovedMoveCount[player] += 1;
 
     const human = humanPolicyStats({ move, humanPolicy: parent.analysis?.humanPolicy, boardSize });
-    const policy = policyClassification({ move, candidates: cands, topCandidate: top });
+    const policy = policyClassification({
+      move,
+      candidates: cands,
+      topCandidate: top,
+      policy: parent.analysis?.policy,
+      boardSize,
+    });
     if (policy) {
       if (policy.rank >= 1 && policy.rank <= 5) aiTop5MoveCount[player] += 1;
       policyDistributions[player][policy.category] += 1;
