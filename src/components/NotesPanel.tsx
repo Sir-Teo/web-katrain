@@ -267,6 +267,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     engineError,
     noteFontScale,
     humanSlProfile,
+    analysisExperience,
     updateSettings,
   } = useGameStore(
     (state) => ({
@@ -280,6 +281,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       engineError: state.engineError,
       noteFontScale: state.settings.noteFontScale,
       humanSlProfile: state.settings.humanSlProfile,
+      analysisExperience: state.settings.analysisExperience,
       updateSettings: state.updateSettings,
     }),
     shallow
@@ -295,6 +297,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const parentBoard = currentNode.parent?.gameState.board ?? null;
   const moveInsight = useMemo(() => getMoveInsight(move, boardSize, parentBoard), [boardSize, move, parentBoard]);
   const moveInsightCoach = useMemo(() => (moveInsight ? getMoveInsightCoach(moveInsight) : null), [moveInsight]);
+  const showProDetails = detailed && analysisExperience === 'pro';
   const shapeCoachNoteBlock = useMemo(
     () => (moveInsight && moveInsightCoach ? formatShapeCoachNoteBlock(moveInsight, moveInsightCoach) : ''),
     [moveInsight, moveInsightCoach]
@@ -307,7 +310,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const label = moveToLabel(move, boardSize);
   const currentNoMoveLabel = noMoveNodeLabel(currentNode);
   const policyStats = useMemo(() => {
-    if (!detailed) return null;
+    if (!showProDetails) return null;
     if (!move || !parentPolicy) return null;
     const policy = parentPolicy;
     const rankList = policyRanking(policy, boardSize);
@@ -323,13 +326,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       ) + 1;
     const best = rankList[0] ?? null;
     return { rank: rank > 0 ? rank : null, prob, best };
-  }, [boardSize, detailed, move, parentPolicy]);
+  }, [boardSize, move, parentPolicy, showProDetails]);
 
   // How often a player of the configured rank plays the move that was actually
   // played, from KataGo's human network. This is the number that tells a reviewer
   // whether a move was a normal choice at their level or an unusual one.
   const humanStats = useMemo(() => {
-    if (!detailed || !move || !parentHumanPolicy) return null;
+    if (!showProDetails || !move || !parentHumanPolicy) return null;
     const idx = move.x < 0 || move.y < 0 ? boardSize * boardSize : move.y * boardSize + move.x;
     const prob = parentHumanPolicy[idx] ?? -1;
     if (!(prob >= 0)) return null;
@@ -339,7 +342,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
         move.x < 0 || move.y < 0 ? m.isPass : !m.isPass && m.x === move.x && m.y === move.y
       ) + 1;
     return { prob, rank: rank > 0 ? rank : null, best: rankList[0] ?? null };
-  }, [boardSize, detailed, move, parentHumanPolicy]);
+  }, [boardSize, move, parentHumanPolicy, showProDetails]);
 
   const topMove = useMemo(() => bestMoveFromCandidates(parent?.analysis?.moves), [parent?.analysis?.moves]);
   const topMoveLabel =
@@ -526,21 +529,21 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
 
     let text = moveLine;
 
-    if (detailed && topMove && topMoveLabel) {
+    if (showProDetails && topMove && topMoveLabel) {
       const topScore = typeof topMove.scoreLead === 'number' ? `${topMove.scoreLead > 0 ? '+' : ''}${topMove.scoreLead.toFixed(1)}` : '?';
       if (topMoveLabel !== label) text += `Top move: ${topMoveLabel} (${topScore})\n`;
       else text += 'Best move\n';
       if (topMove.pv && topMove.pv.length > 0) text += `PV: ${playerToShort(move.player)} ${topMove.pv.join(' ')}\n`;
     }
 
-    if (detailed && policyStats?.rank) {
+    if (showProDetails && policyStats?.rank) {
       text += `Policy rank: #${policyStats.rank} (${(policyStats.prob * 100).toFixed(2)}%)\n`;
       if (policyStats.rank !== 1 && policyStats.best) {
         text += `Policy best: ${policyStats.best.isPass ? 'Pass' : moveToLabel({ x: policyStats.best.x, y: policyStats.best.y, player: move.player }, boardSize)} (${(policyStats.best.prob * 100).toFixed(2)}%)\n`;
       }
     }
 
-    if (detailed && humanStats) {
+    if (showProDetails && humanStats) {
       const rankPart = humanStats.rank ? ` #${humanStats.rank}` : '';
       text += `Human ${humanProfileLabel}${rankPart}: ${(humanStats.prob * 100).toFixed(2)}%\n`;
       if (humanStats.rank !== 1 && humanStats.best) {
@@ -551,7 +554,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       }
     }
 
-    if (detailed && currentNode.aiThoughts) text += `\nAI thoughts: ${currentNode.aiThoughts}`;
+    if (showProDetails && currentNode.aiThoughts) text += `\nAI thoughts: ${currentNode.aiThoughts}`;
 
     return text;
   })();
@@ -594,7 +597,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               <span className="font-semibold text-[var(--ui-text)]">Beginner: </span>
               <span className="ui-text-muted">{moveInsightCoach.beginner}</span>
             </div>
-            {detailed && (
+            {showProDetails && (
               <div>
                 <span className="font-semibold text-[var(--ui-text)]">Pro: </span>
                 <span className="ui-text-muted">{moveInsightCoach.pro}</span>
@@ -622,7 +625,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               <FaStickyNote size={11} aria-hidden="true" />
               <span>{hasShapeCoachNoteBlock ? 'In note' : 'Add to note'}</span>
             </button>
-            {detailed && moveInsight.learnMoreUrl ? (
+            {showProDetails && moveInsight.learnMoreUrl ? (
               <a
                 href={moveInsight.learnMoreUrl}
                 target="_blank"

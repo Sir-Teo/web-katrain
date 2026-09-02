@@ -12,6 +12,7 @@ import {
   FaCopy,
 } from 'react-icons/fa';
 import type { AnalysisControlsState } from './layout/types';
+import type { AnalysisExperience } from '../types';
 import { EngineStatusBadge } from './layout/ui';
 import { useGameStore } from '../store/gameStore';
 import { TenukiRow } from './TenukiRow';
@@ -68,6 +69,8 @@ interface AnalysisPanelProps {
   scoreLead: number | null;
   pointsLost: number | null;
   compact?: boolean;
+  /** Test/embedding override; the application normally uses the persisted setting. */
+  analysisExperienceOverride?: AnalysisExperience;
 }
 
 type AnalysisOverlayControl = keyof AnalysisControlsState;
@@ -247,10 +250,12 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   scoreLead,
   pointsLost,
   compact = false,
+  analysisExperienceOverride,
 }) => {
   const trainerTheme = useGameStore((state) => state.settings.trainerTheme);
   const trainerEvalThresholds = useGameStore((state) => state.settings.trainerEvalThresholds);
   const katagoVisits = useGameStore((state) => state.settings.katagoVisits);
+  const analysisExperience = useGameStore((state) => state.settings.analysisExperience);
   const isAnalysisMode = useGameStore((state) => state.isAnalysisMode);
   const currentNode = useGameStore((state) => state.currentNode);
   const treeVersion = useGameStore((state) => state.treeVersion);
@@ -259,6 +264,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const [legendOpen, setLegendOpen] = React.useState(false);
   const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const [engineDetailsOpen, setEngineDetailsOpen] = React.useState(false);
+  const isPro = (analysisExperienceOverride ?? analysisExperience) === 'pro';
   const engineSummary = React.useMemo(() => getEngineStatusSummary({
     status: engineStatus,
     error: engineError,
@@ -572,7 +578,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           showErrorTag={!!engineError}
           maxWidthClassName="max-w-[180px]"
         />
-        {compact ? (
+        {compact && isPro ? (
           <button
             type="button"
             className={['panel-icon-button ml-auto', engineDetailsOpen ? 'active' : ''].join(' ')}
@@ -604,7 +610,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
       )}
       <div className="panel-section-content border-b border-[var(--ui-border)]">
-        {(!compact || engineDetailsOpen) && (
+        {isPro && (!compact || engineDetailsOpen) && (
           <div id="analysis-engine-details" data-analysis-engine-details="true">
             {/* State and backend are the badge above (its label is exactly
                 "state · backend"), so this grid only carries what the badge omits. */}
@@ -651,7 +657,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             )}
           </div>
         )}
-        {liveVisitPresetControls}
+        {isPro && liveVisitPresetControls}
       </div>
       {!compact && (
         <div className="panel-toolbar">

@@ -34,6 +34,7 @@ const baseProps = {
   winRate: null,
   scoreLead: null,
   pointsLost: null,
+  analysisExperienceOverride: 'pro' as const,
 };
 
 describe('AnalysisPanel', () => {
@@ -138,5 +139,15 @@ describe('AnalysisPanel', () => {
 
     expect(html).toContain('>Move prob.</span>');
     expect(html).toContain('>Likely moves</span>');
+  });
+
+  it('keeps engine diagnostics and visit tuning behind Pro disclosure', () => {
+    const html = renderToStaticMarkup(
+      <AnalysisPanel {...baseProps} compact analysisExperienceOverride="coach" />,
+    );
+
+    expect(html).not.toContain('data-analysis-engine-details="true"');
+    expect(html).not.toContain('data-analysis-live-visit-presets="true"');
+    expect(html).not.toContain('aria-label="Show engine details"');
   });
 });

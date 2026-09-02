@@ -41,7 +41,7 @@ interface CandidateMoveListProps {
 const moveKey = (move: CandidateMove) => `${move.x},${move.y}`;
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, isAnalysisMode } = useGameStore(
+  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
       // A drill asking about this position is asking for exactly this list.
@@ -50,6 +50,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
       playMove: state.playMove,
       trainerTheme: state.settings.trainerTheme,
       thresholds: state.settings.trainerEvalThresholds,
+      analysisExperience: state.settings.analysisExperience,
       isAnalysisMode: state.isAnalysisMode,
     }),
     shallow
@@ -57,6 +58,8 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
 
   const evalColors = useMemo(() => getKaTrainEvalColors(trainerTheme), [trainerTheme]);
   const evalThresholds = thresholds.length > 0 ? thresholds : DEFAULT_EVAL_THRESHOLDS;
+  const isPro = analysisExperience === 'pro';
+  const qualityLabels = ['Blunder', 'Mistake', 'Inaccuracy', 'Slight', 'Good', 'Best'] as const;
 
   const rows = useMemo(
     () => (drillHidesAnswer ? [] : (moves ?? []).filter((move) => move.x >= 0 && move.y >= 0).slice(0, 24)),
@@ -77,15 +80,22 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   return (
     <div
       className="candidate-list"
+      data-analysis-experience={analysisExperience}
       style={{ maxHeight: `calc(${maxRows} * var(--candidate-row-height, 1.75rem) + 1.5rem)` }}
     >
       <div className="candidate-list-head" aria-hidden="true">
         <span className="cl-rank">#</span>
         <span className="cl-move">Move</span>
-        <span className="cl-num">Win</span>
-        <span className="cl-num">Score</span>
-        <span className="cl-num">Lost</span>
-        <span className="cl-num">Visits</span>
+        {isPro ? (
+          <>
+            <span className="cl-num">Win</span>
+            <span className="cl-num">Score</span>
+            <span className="cl-num">Lost</span>
+            <span className="cl-num">Visits</span>
+          </>
+        ) : (
+          <span className="cl-quality">Quality</span>
+        )}
       </div>
       <ul className="candidate-list-rows">
         {rows.map((move, index) => {
@@ -126,10 +136,16 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                   <span className="cl-dot" style={{ backgroundColor: dot }} aria-hidden="true" />
                   {label}
                 </span>
-                <span className="cl-num">{formatCandidateWinRate(move.winRate)}</span>
-                <span className="cl-num">{formatCandidateScore(move.scoreLead)}</span>
-                <span className="cl-num cl-lost">{formatCandidatePointsLost(move.pointsLost)}</span>
-                <span className="cl-num ui-text-faint">{formatCandidateVisits(move.visits)}</span>
+                {isPro ? (
+                  <>
+                    <span className="cl-num">{formatCandidateWinRate(move.winRate)}</span>
+                    <span className="cl-num">{formatCandidateScore(move.scoreLead)}</span>
+                    <span className="cl-num cl-lost">{formatCandidatePointsLost(move.pointsLost)}</span>
+                    <span className="cl-num ui-text-faint">{formatCandidateVisits(move.visits)}</span>
+                  </>
+                ) : (
+                  <span className="cl-quality" style={{ color: dot }}>{qualityLabels[cls] ?? 'Good'}</span>
+                )}
               </button>
             </li>
           );

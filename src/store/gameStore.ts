@@ -377,6 +377,12 @@ const loadStoredSettings = (): Partial<GameSettings> | null => {
         delete (parsed as { appLocale?: unknown }).appLocale;
       }
     }
+    if ('analysisExperience' in parsed) {
+      const experience = (parsed as { analysisExperience?: unknown }).analysisExperience;
+      if (experience !== 'coach' && experience !== 'pro') {
+        delete (parsed as { analysisExperience?: unknown }).analysisExperience;
+      }
+    }
     if ('defaultBoardSize' in parsed) {
       const sizeRaw = (parsed as { defaultBoardSize?: unknown }).defaultBoardSize;
       const sizeNum = typeof sizeRaw === 'number' ? sizeRaw : Number.parseInt(String(sizeRaw ?? ''), 10);
@@ -1038,6 +1044,7 @@ const defaultSettings: GameSettings = {
   // 'system' resolves to noir/light per the device's color-scheme preference.
   uiTheme: 'system',
   uiDensity: 'comfortable',
+  analysisExperience: 'coach',
   gamepadNavigation: true,
   hapticFeedback: true,
   defaultBoardSize: DEFAULT_BOARD_SIZE,

@@ -6417,6 +6417,54 @@
   text-align: right;
 }
 
+.candidate-list[data-analysis-experience='coach'] .candidate-list-head,
+.candidate-list[data-analysis-experience='coach'] .candidate-row {
+  grid-template-columns: 1.25rem minmax(4rem, 1fr) 5rem;
+}
+
+.candidate-list .cl-quality {
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.analysis-experience-toggle {
+  display: inline-flex;
+  overflow: hidden;
+  flex: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.375rem;
+  background: var(--ui-surface);
+}
+
+.analysis-experience-toggle > button {
+  min-height: 1.75rem;
+  border: 0;
+  border-right: 1px solid var(--ui-border);
+  padding: 0 0.45rem;
+  background: transparent;
+  color: var(--ui-text-faint);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.analysis-experience-toggle > button:last-child {
+  border-right: 0;
+}
+
+.analysis-experience-toggle > button:hover,
+.analysis-experience-toggle > button:focus-visible {
+  color: var(--ui-text);
+  background: var(--ui-surface-2);
+}
+
+.analysis-experience-toggle > button.active {
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+}
+
 .candidate-list-head {
   padding-block: 0.25rem;
   color: var(--ui-text-faint);
@@ -6484,6 +6532,11 @@
 @media (pointer: coarse) {
   .candidate-list {
     --candidate-row-height: 2.75rem;
+  }
+
+  .analysis-experience-toggle > button {
+    min-height: 2.75rem;
+    padding-inline: 0.65rem;
   }
 }
 

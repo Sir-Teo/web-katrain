@@ -50,7 +50,7 @@ describe('NotesPanel human policy line', () => {
     // this a normal move at my level, or an unusual one? The line only appears
     // when that network produced a policy for the parent position.
     expect(source).toContain('const parentHumanPolicy = parent?.analysis?.humanPolicy;');
-    expect(source).toContain('if (!detailed || !move || !parentHumanPolicy) return null;');
+    expect(source).toContain('if (!showProDetails || !move || !parentHumanPolicy) return null;');
     expect(source).toContain('text += `Human ${humanProfileLabel}${rankPart}:');
     expect(source).toContain('text += `Human pick: ${bestLabel}');
   });

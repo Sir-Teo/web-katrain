@@ -145,6 +145,7 @@ export type BoardThemeId =
 export type ResolvedUiThemeId = 'noir' | 'kaya' | 'studio' | 'light';
 export type UiThemeId = ResolvedUiThemeId | 'system';
 export type UiDensityId = 'compact' | 'comfortable' | 'large';
+export type AnalysisExperience = 'coach' | 'pro';
 export type AppLocaleId = 'en' | 'zh' | 'zh-TW' | 'ko' | 'ja' | 'fr' | 'de' | 'es' | 'it' | 'uk' | 'ru' | 'pt' | 'vi';
 
 export interface GameSettings {
@@ -160,6 +161,7 @@ export interface GameSettings {
   boardTheme: BoardThemeId;
   uiTheme: UiThemeId;
   uiDensity: UiDensityId;
+  analysisExperience: AnalysisExperience; // Coach explains decisions; Pro exposes full engine detail.
   gamepadNavigation: boolean;
   hapticFeedback: boolean;
   defaultBoardSize: BoardSize;

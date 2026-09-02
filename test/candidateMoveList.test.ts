@@ -69,4 +69,11 @@ describe('the candidate list', () => {
       expect(readFileSync(path, 'utf8'), path).toContain('<CandidateMoveList');
     }
   });
+
+  it('uses plain-language quality in Coach and comparative engine columns in Pro', () => {
+    expect(source).toContain("const isPro = analysisExperience === 'pro';");
+    expect(source).toContain('<span className="cl-quality">Quality</span>');
+    expect(source).toContain('<span className="cl-num">Visits</span>');
+    expect(source).toContain('data-analysis-experience={analysisExperience}');
+  });
 });

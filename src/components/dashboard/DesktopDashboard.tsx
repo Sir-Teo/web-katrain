@@ -9,6 +9,7 @@ import { MoveTree } from '../MoveTree';
 import { ScoreWinrateGraph } from '../ScoreWinrateGraph';
 import { TenukiRow } from '../TenukiRow';
 import { CandidateMoveList } from '../CandidateMoveList';
+import { AnalysisExperienceToggle } from '../AnalysisExperienceToggle';
 import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
@@ -904,7 +905,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             {/* Analysis */}
             <div className={`section${sections.analysis ? ' open' : ''}`}>
               {sectionHead('analysis', 'Analysis', 'chart', (
-                <button
+                <div className="flex items-center gap-1">
+                  <AnalysisExperienceToggle />
+                  <button
                   type="button"
                   className={`pbtn pico${legendOpen ? ' on' : ''}`}
                   title={legendOpen ? 'Hide move-quality legend' : 'Show move-quality legend'}
@@ -912,7 +915,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   aria-expanded={legendOpen}
                   aria-controls={legendOpen ? 'dashboard-analysis-quality-legend' : undefined}
                   onClick={() => setLegendOpen((v) => !v)}
-                ><Icon name="info" size={12} /></button>
+                  ><Icon name="info" size={12} /></button>
+                </div>
               ))}
               <div className="section-body flush">
                 {isGameAnalysisRunning && (

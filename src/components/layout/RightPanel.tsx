@@ -20,6 +20,7 @@ import type { Player, GameNode, CandidateMove } from '../../types';
 import { useGameStore } from '../../store/gameStore';
 import { AnalysisPanel } from '../AnalysisPanel';
 import { CandidateMoveList } from '../CandidateMoveList';
+import { AnalysisExperienceToggle } from '../AnalysisExperienceToggle';
 import { GameInfoPanel } from '../GameInfoPanel';
 import { MoveTree } from '../MoveTree';
 import { NotesPanel } from '../NotesPanel';
@@ -787,6 +788,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               icon: <FaChartLine size={12} />,
               open: modePanels.analysisOpen,
               onToggle: () => updatePanels((current) => ({ analysisOpen: !current.analysisOpen })),
+              actions: <AnalysisExperienceToggle />,
               wrapperClassName: 'flex flex-col min-h-0',
               contentClassName: 'panel-section-content p-0',
               children: (
