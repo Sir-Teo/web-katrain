@@ -4185,6 +4185,16 @@
     backdrop-filter: blur(14px);
   }
 
+  /* The desktop analysis panel owns the right edge. A transient install/update
+     card must not cover its candidates or comment controls; place the card in
+     the board column whenever that panel is open. `--sidebar-w` is shared with
+     the dashboard grid, so the two stay aligned as the panel grows. */
+  @media (min-width: 1024px) {
+    :root:has(.wk-dashboard[data-sidebar='open']) .pwa-install-banner {
+      right: calc(var(--sidebar-w) + max(12px, env(safe-area-inset-right)));
+    }
+  }
+
   .pwa-install-icon {
     display: grid;
     place-items: center;
