@@ -3068,11 +3068,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         {/* Auto-offered "find the punish" quiz chip */}
         {punishQuiz && !mistakeDrill && !isEditMode && !scoringMode && (
           <div
-            className="absolute left-1/2 bottom-3 -translate-x-1/2 z-40 max-w-[calc(100%-1rem)]"
+            /* w-max: an absolutely positioned box at left 50% shrinks to fit
+               the space right of that point, so without an explicit width the
+               chip could never be wider than half the board and the prompt
+               truncated to "find the pu…" on every desktop. */
+            className="absolute left-1/2 bottom-3 w-max max-w-[calc(100%-1rem)] -translate-x-1/2 z-40"
             data-punish-quiz={punishQuiz.phase}
           >
             <div className="ui-panel border rounded-lg shadow-xl pl-3 pr-1 py-1.5 text-xs font-semibold flex items-center gap-2">
-              <span className="min-w-0 truncate">{punishQuiz.text}</span>
+              {/* Wrap rather than truncate on a board too narrow for the line:
+                  the prompt is the question, and "find the pu…" asks nothing. */}
+              <span className="min-w-0">{punishQuiz.text}</span>
               {punishQuiz.phase === 'offer' && (
                 <button
                   type="button"
