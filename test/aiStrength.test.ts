@@ -75,3 +75,12 @@ describe('describeAiStrength', () => {
     expect(describeAiStrength(estimateAiRank('jigo', baseSettings()))).toContain('No calibrated strength');
   });
 });
+
+describe('human-net bot strength', () => {
+  it('names the profile it imitates instead of a search calibration', () => {
+    const estimate = estimateAiRank('human', withSettings({ humanSlProfile: 'rank_5k' }));
+    expect(estimate.label).toBe('5 kyu');
+    expect(estimate.calibrated).toBe(false);
+    expect(describeAiStrength(estimate)).toBe("Plays like a 5 kyu player, from KataGo's human network.");
+  });
+});

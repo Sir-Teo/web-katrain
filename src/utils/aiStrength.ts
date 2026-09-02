@@ -1,4 +1,5 @@
 import type { GameSettings } from '../types';
+import { describeHumanProfile } from './humanProfileLabel';
 
 /**
  * Estimated playing strength of an AI configuration.
@@ -95,6 +96,8 @@ export type AiStrengthEstimate = {
   label: string | null;
   /** True when the number comes from KaTrain's measurements rather than a fixed value. */
   calibrated: boolean;
+  /** Set for the human-net bot, whose strength is the profile it imitates, not a search setting. */
+  imitates?: string;
 };
 
 /** KaTrain `rank_label`: 1 and up is dan, below that is kyu. */
@@ -163,6 +166,13 @@ export const estimateAiRank = (
     case 'jigo':
       // KaTrain has no rank for a bot that aims for a half-point win.
       return { rank: null, label: null, calibrated: false };
+    case 'human': {
+      // The human network plays like the profile it is given; the label is the
+      // profile itself, and no search calibration applies.
+      const profile = settings.humanSlProfile?.trim();
+      if (!profile) return { rank: null, label: null, calibrated: false };
+      return { rank: null, label: describeHumanProfile(profile), calibrated: false, imitates: profile };
+    }
     default: {
       const rank = FIXED_STRENGTH[strategy];
       return rank === undefined ? { rank: null, label: null, calibrated: false } : fixed(rank);
@@ -172,6 +182,7 @@ export const estimateAiRank = (
 
 /** One line for the settings panel. */
 export const describeAiStrength = (estimate: AiStrengthEstimate): string => {
+  if (estimate.imitates && estimate.label) return `Plays like a ${estimate.label} player, from KataGo's human network.`;
   if (!estimate.label) return 'No calibrated strength for this style.';
   return estimate.calibrated
     ? `Estimated strength: about ${estimate.label}.`
