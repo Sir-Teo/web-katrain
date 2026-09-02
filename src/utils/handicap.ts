@@ -1,3 +1,4 @@
+import { handicapBonusForWhite } from './goRules';
 import type { BoardState, GameRules } from '../types';
 
 /**
@@ -34,10 +35,14 @@ export function countHandicapStones(rootBoard: BoardState): number {
   return black;
 }
 
-/** KataGo whiteHandicapBonusRule: `N` under Chinese rules, `0` under Japanese. */
+/**
+ * KataGo whiteHandicapBonusRule: `N` under Chinese rules, `N-1` under AGA,
+ * `0` under Japanese. One table, in goRules, decides: this used to say
+ * "Chinese or nothing" while the scorer read the table, so a 4-stone AGA game
+ * was scored 3 points apart by the engine and by the app's own count.
+ */
 export function whiteHandicapBonus(rules: GameRules, handicapStones: number): number {
-  if (handicapStones <= 0) return 0;
-  return rules === 'chinese' ? handicapStones : 0;
+  return handicapBonusForWhite(rules, handicapStones);
 }
 
 /**

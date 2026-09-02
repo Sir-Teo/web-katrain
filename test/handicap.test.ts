@@ -124,3 +124,12 @@ describe.skipIf(!runsEngineSuites())('what the compensation is worth', () => {
     expect(uncompensated - compensated).toBeGreaterThan(1);
   }, 120000);
 });
+
+describe('whiteHandicapBonus follows the rules table', () => {
+  it('gives White N-1 under AGA and nothing under Japanese, like the scorer', () => {
+    expect(whiteHandicapBonus('aga', 4)).toBe(3);
+    expect(whiteHandicapBonus('chinese', 4)).toBe(4);
+    expect(whiteHandicapBonus('japanese', 4)).toBe(0);
+    expect(whiteHandicapBonus('new-zealand', 4)).toBe(0);
+  });
+});
