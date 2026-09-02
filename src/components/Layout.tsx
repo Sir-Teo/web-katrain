@@ -115,6 +115,7 @@ import { appendRestoredAnalysisSummary } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { resetSoundFailureReport, setSoundInitErrorHandler } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
+import { getPvAnimationProgress } from '../utils/pvAnimation';
 
 const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
 const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
@@ -382,8 +383,7 @@ export const Layout: React.FC = () => {
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
-  const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number } | null>(null);
-  const [pvAnimNowMs, setPvAnimNowMs] = useState(0);
+  const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isGameAnalysisOpen, setIsGameAnalysisOpen] = useState(false);
@@ -1259,8 +1259,7 @@ export const Layout: React.FC = () => {
       return;
     }
     const now = getAnimationNow();
-    setPvAnim((prev) => (prev?.key === pvKey ? prev : { key: pvKey, startMs: now }));
-    setPvAnimNowMs(now);
+    setPvAnim((prev) => (prev?.key === pvKey ? prev : { key: pvKey, startMs: now, upToMove: 0 }));
   }, [pvKey, pvAnimTimeS]);
 
   const pvLen = activeHoverMove?.pv?.length ?? 0;
@@ -1270,25 +1269,29 @@ export const Layout: React.FC = () => {
     if (pvLen <= 0) return;
 
     const delayMs = Math.max(pvAnimTimeS, 0.1) * 1000;
-    let frame: AnimationFrameHandle | null = null;
+    let timer: number | null = null;
     const tick = () => {
       const now = getAnimationNow();
-      setPvAnimNowMs(now);
-      const upToMove = Math.min(pvLen, (now - pvAnim.startMs) / delayMs);
-      if (upToMove < pvLen) frame = requestAnimationFrameSafe(tick);
+      const progress = getPvAnimationProgress(now - pvAnim.startMs, delayMs, pvLen);
+      setPvAnim((current) => {
+        if (!current || current.key !== pvAnim.key || current.upToMove === progress.upToMove) return current;
+        return { ...current, upToMove: progress.upToMove };
+      });
+      if (progress.nextDelayMs !== null) timer = window.setTimeout(tick, progress.nextDelayMs);
     };
-    frame = requestAnimationFrameSafe(tick);
-    return () => cancelAnimationFrameSafe(frame);
+    tick();
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, [pvAnim, pvAnimTimeS, pvKey, pvLen]);
 
   const pvUpToMove = useMemo(() => {
     const pv = activeHoverMove?.pv;
     if (!pvOverlayEnabled || !pv || pv.length === 0) return null;
     if (pvAnimTimeS <= 0) return pv.length;
-    if (!pvAnim || pvAnim.key !== pvKey) return pv.length;
-    const delayMs = Math.max(pvAnimTimeS, 0.1) * 1000;
-    return Math.min(pv.length, (pvAnimNowMs - pvAnim.startMs) / delayMs);
-  }, [activeHoverMove, pvOverlayEnabled, pvAnim, pvAnimNowMs, pvAnimTimeS, pvKey]);
+    if (!pvAnim || pvAnim.key !== pvKey) return 0;
+    return pvAnim.upToMove;
+  }, [activeHoverMove, pvOverlayEnabled, pvAnim, pvAnimTimeS, pvKey]);
 
   const passPv = useMemo(() => {
     const pv = activeHoverMove?.pv;
