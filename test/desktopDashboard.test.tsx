@@ -44,6 +44,22 @@ describe('DesktopDashboard', () => {
     expect(swing).toContain('play ${label} from the previous move to compare against it');
   });
 
+  it('makes Play best mean the engine\u2019s pick, not the configured bot\u2019s move', () => {
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+    const dashboard = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+
+    // Both buttons used to call requestAiMove, so review mode carried two
+    // adjacent controls doing exactly the same thing -- and makeAiMove follows
+    // settings.aiStrategy, so "Play best" played whatever bot was configured.
+    expect(layout).toContain('onPlayBest={playBestAnalysisMove}');
+    expect(layout).toContain('onAiMove={requestAiMove}');
+    expect(layout).toContain("node.analysis?.moves?.find((move) => move.order === 0)");
+    // The engine ranks passing like any other move; it must not become a stone.
+    expect(layout).toMatch(/if \(best\.x < 0 \|\| best\.y < 0\) \{\s*\n\s*passTurn\(\);/);
+    // And the button cannot promise a move the analysis has not produced.
+    expect(dashboard).toContain('disabled={!bestMove}');
+  });
+
   it('keeps the language switcher on the wide desktop dashboard header', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');

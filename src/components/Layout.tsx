@@ -724,9 +724,37 @@ export const Layout: React.FC = () => {
     setScoringMode((prev) => !prev);
   }, [isEditMode, isInsertMode, isSelectingRegionOfInterest, scoringMode, toast]);
 
-  // On-demand "AI move" / "Play best" buttons: play one engine move for the
-  // side to move, even when not in a game vs AI or when it's the human's turn.
+  // On-demand "AI move" button: play one engine move for the side to move, even
+  // when not in a game vs AI or when it's the human's turn. It follows the
+  // configured AI strategy, which is the point -- it is the bot moving.
   const requestAiMove = useCallback(() => makeAiMove({ force: true }), [makeAiMove]);
+
+  /**
+   * "Play best": the move the analysis ranked first, played as a variation.
+   *
+   * This used to call `requestAiMove`, so review mode carried two adjacent
+   * buttons -- "AI move" and "Play best" -- that did exactly the same thing.
+   * They are not the same thing. `makeAiMove` follows `settings.aiStrategy`, so
+   * for anyone who had configured a weak bot to play against, a button labelled
+   * "Play best" played that bot's deliberately weak move. Here it means the
+   * engine's own pick, which is also what the swing map needs to compare
+   * against.
+   */
+  const playBestAnalysisMove = useCallback(() => {
+    const node = useGameStore.getState().currentNode;
+    const best = node.analysis?.moves?.find((move) => move.order === 0);
+    if (!best) {
+      toast('Analyze this position first, so there is a best move to play.', 'info');
+      return;
+    }
+    // The engine ranks passing like any other move, and it is the right move at
+    // the end of a game; playing it as a stone at (-1,-1) would not be.
+    if (best.x < 0 || best.y < 0) {
+      passTurn();
+      return;
+    }
+    playMove(best.x, best.y);
+  }, [passTurn, playMove, toast]);
 
   const clearManualDeadStones = useCallback(() => {
     setManualDeadStones(new Set());
@@ -3755,7 +3783,7 @@ export const Layout: React.FC = () => {
             onUndo={handleUndo}
             onAiMove={requestAiMove}
             onResign={handleResign}
-            onPlayBest={requestAiMove}
+            onPlayBest={playBestAnalysisMove}
             engineOpponent={isAiPlaying ? aiColor : null}
             onPlayFromHere={handlePlayFromHere}
             onNewGame={() => void openNewGameWithGuard()}

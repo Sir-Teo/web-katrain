@@ -953,7 +953,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   >
                     <Icon name="levelUp" size={14} /><span className="tbtn-label">Play on</span>
                   </button>
-                  <button type="button" className="tbtn primary" title="Play best" onClick={onPlayBest}><Icon name="play" size={14} /><span className="tbtn-label">Play best</span></button>
+                  {/* Named and disabled from the same reading the command bar
+                      shows, so the button cannot promise a move the analysis
+                      has not produced. */}
+                  <button
+                    type="button"
+                    className="tbtn primary"
+                    disabled={!bestMove}
+                    title={bestMove
+                      ? `Play ${formatMoveLabel(bestMove.x, bestMove.y, boardSize)}, the move the engine ranked first`
+                      : 'Analyze this position first, so there is a best move to play'}
+                    onClick={onPlayBest}
+                  >
+                    <Icon name="play" size={14} /><span className="tbtn-label">Play best</span>
+                  </button>
                 </>
               )}
             </div>
