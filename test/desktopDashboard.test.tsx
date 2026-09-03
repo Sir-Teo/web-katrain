@@ -28,12 +28,20 @@ describe('DesktopDashboard', () => {
     expect(css).toContain('.wk-dashboard .tbtn.on');
   });
 
-  it('tells the Swing chip why it has nothing to show, rather than nothing', () => {
+  it('tells the Swing chip what it is measuring against, and why not', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
-    // Turning a toggle on and seeing no change reads as broken, and the two
-    // reasons for an empty swing want different things from the reader.
-    expect(source).toContain("'needs this move and the one before it analysed'");
-    expect(source).toContain("'nothing moved here'");
+    const swing = readFileSync('src/utils/territorySwing.ts', 'utf8');
+
+    // Turning a toggle on and seeing no change reads as broken, and each reason
+    // wants something different from the reader: wait, play a move, or "that is
+    // the answer". The reasons live with the resolver that decides between them.
+    expect(source).toContain('resolveSwingBaseline(currentNode, settings.analysisSwingCompare');
+    expect(source).toContain("if (baseline.kind === 'unavailable') return baseline.reason;");
+    // And the chip names the baseline, so "13 toward Black" is never ambiguous
+    // about what it is 13 more than.
+    expect(source).toContain("baseline.kind === 'best' ? `vs ${baseline.label}` : 'vs the move before'");
+    expect(swing).toContain("'needs this move and the one before it analysed'");
+    expect(swing).toContain('play ${label} from the previous move to compare against it');
   });
 
   it('keeps the language switcher on the wide desktop dashboard header', () => {

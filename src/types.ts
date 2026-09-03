@@ -214,6 +214,11 @@ export interface GameSettings {
   analysisShowOwnership: boolean; // T
   /** Paint what the played move changed instead of who owns what. */
   analysisShowSwing: boolean;
+  /**
+   * What the swing map holds the current position against: the move before it,
+   * or the engine's own move played out as a variation.
+   */
+  analysisSwingCompare: 'previous' | 'best';
   katagoModelUrl: string;
   katagoBackend: KataGoBackendPreference;
   katagoVisits: number;

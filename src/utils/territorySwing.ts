@@ -102,6 +102,74 @@ export function computeTerritorySwing(
   return { grid, peak, towardBlack, towardWhite };
 }
 
+/**
+ * The node the current one should be held against, and what to call it.
+ *
+ * "Previous" is the move that reached this position: the map then says what
+ * the move did. "Best" is the engine's own move at the same turn, played out
+ * as a variation, and the map then says what your move gave away relative to
+ * it -- which is the question a review is actually asking.
+ *
+ * The engine's move has to exist as a real, analysed sibling. There is no way
+ * around that: ownership for a position nobody evaluated does not exist, and
+ * the candidate list carries a score for the move but not a map. Playing it is
+ * what buys the map, which is why this returns a reason rather than inventing
+ * one.
+ */
+export type SwingBaseline =
+  | { kind: 'previous'; territory: number[][] }
+  | { kind: 'best'; territory: number[][]; label: string }
+  | { kind: 'unavailable'; reason: string };
+
+/**
+ * Structural, not `GameNode`: the resolver needs four fields and nothing else,
+ * and naming them keeps it testable without building a whole tree.
+ */
+type SwingNode = {
+  move?: { x: number; y: number } | null;
+  analysis?: {
+    territory?: number[][];
+    moves?: Array<{ x: number; y: number; order: number }>;
+  } | null;
+  parent?: SwingNode | null;
+  children?: SwingNode[];
+};
+
+/** Where the swing at `node` should measure from, under `compare`. */
+export function resolveSwingBaseline(
+  node: SwingNode | null | undefined,
+  compare: 'previous' | 'best',
+  formatMove: (x: number, y: number) => string
+): SwingBaseline {
+  const parent = node?.parent;
+  if (!node || !parent) return { kind: 'unavailable', reason: 'there is no move before this one' };
+
+  if (compare === 'previous') {
+    const territory = parent.analysis?.territory;
+    return territory
+      ? { kind: 'previous', territory }
+      : { kind: 'unavailable', reason: 'needs this move and the one before it analysed' };
+  }
+
+  const best = parent.analysis?.moves?.find((move) => move.order === 0);
+  if (!best || best.x < 0 || best.y < 0) {
+    return { kind: 'unavailable', reason: 'needs the previous position analysed, so the engine has a move to compare' };
+  }
+  if (node.move && node.move.x === best.x && node.move.y === best.y) {
+    return { kind: 'unavailable', reason: 'this is the engine\u2019s move' };
+  }
+  const sibling = (parent.children ?? []).find(
+    (child) => child !== node && child.move?.x === best.x && child.move?.y === best.y
+  );
+  const label = formatMove(best.x, best.y);
+  if (!sibling) {
+    return { kind: 'unavailable', reason: `play ${label} from the previous move to compare against it` };
+  }
+  const territory = sibling.analysis?.territory;
+  if (!territory) return { kind: 'unavailable', reason: `${label} is not analysed yet` };
+  return { kind: 'best', territory, label };
+}
+
 /** True when at least one point changed hands, so there is something to draw. */
 export function hasVisibleSwing(swing: TerritorySwing | null): swing is TerritorySwing {
   return !!swing && swing.towardBlack + swing.towardWhite > 0;

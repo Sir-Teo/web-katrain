@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeTerritorySwing,
+  resolveSwingBaseline,
   describeTerritorySwing,
   hasVisibleSwing,
   SWING_MIN_ALPHA,
@@ -132,5 +133,77 @@ describe('describeTerritorySwing', () => {
     const swing = computeTerritorySwing(grid([[0, 0]]), grid([[0.05, -0.03]]));
     expect(hasVisibleSwing(swing)).toBe(false);
     expect(describeTerritorySwing(swing)).toBeNull();
+  });
+});
+
+describe('resolveSwingBaseline', () => {
+  const grid9 = () => [[0, 0], [0, 0]];
+  const label = (x: number, y: number) => `pt${x}${y}`;
+  type Fake = {
+    move?: { x: number; y: number } | null;
+    analysis?: { territory?: number[][]; moves?: Array<{ x: number; y: number; order: number }> } | null;
+    parent?: Fake | null;
+    children?: Fake[];
+  };
+  const parentWith = (best: { x: number; y: number } | null, children: Fake[] = []): Fake => ({
+    analysis: best
+      ? { territory: grid9(), moves: [{ x: best.x, y: best.y, order: 0 }] }
+      : { territory: grid9(), moves: [] },
+    children,
+  });
+
+  it('measures from the move before, when asked for previous', () => {
+    const parent = parentWith(null);
+    const node = { parent, move: { x: 1, y: 1 }, analysis: { territory: grid9() } };
+    expect(resolveSwingBaseline(node, 'previous', label)).toEqual({ kind: 'previous', territory: grid9() });
+  });
+
+  it('has nothing to measure from at the root', () => {
+    const node = { parent: null, move: null, analysis: { territory: grid9() } };
+    expect(resolveSwingBaseline(node, 'previous', label).kind).toBe('unavailable');
+    expect(resolveSwingBaseline(node, 'best', label).kind).toBe('unavailable');
+  });
+
+  it("names the engine's move and where to find it when the variation is missing", () => {
+    const parent = parentWith({ x: 3, y: 3 });
+    const node = { parent, move: { x: 1, y: 1 }, analysis: { territory: grid9() } };
+    const baseline = resolveSwingBaseline(node, 'best', label);
+    expect(baseline.kind).toBe('unavailable');
+    expect(baseline.kind === 'unavailable' && baseline.reason).toBe('play pt33 from the previous move to compare against it');
+  });
+
+  it('uses the sibling once it exists and is analysed', () => {
+    const sibling = { move: { x: 3, y: 3 }, analysis: { territory: [[1, 0], [0, 0]] } };
+    const parent = parentWith({ x: 3, y: 3 }, [sibling]);
+    const node = { parent, move: { x: 1, y: 1 }, analysis: { territory: grid9() } };
+    const baseline = resolveSwingBaseline(node, 'best', label);
+    expect(baseline).toEqual({ kind: 'best', territory: [[1, 0], [0, 0]], label: 'pt33' });
+  });
+
+  it('waits for the sibling to be analysed rather than comparing against nothing', () => {
+    const sibling = { move: { x: 3, y: 3 }, analysis: null };
+    const parent = parentWith({ x: 3, y: 3 }, [sibling]);
+    const node = { parent, move: { x: 1, y: 1 }, analysis: { territory: grid9() } };
+    const baseline = resolveSwingBaseline(node, 'best', label);
+    expect(baseline.kind === 'unavailable' && baseline.reason).toBe('pt33 is not analysed yet');
+  });
+
+  it('says so when the move played was the engine\u2019s own', () => {
+    const parent = parentWith({ x: 1, y: 1 });
+    const node = { parent, move: { x: 1, y: 1 }, analysis: { territory: grid9() } };
+    const baseline = resolveSwingBaseline(node, 'best', label);
+    expect(baseline.kind === 'unavailable' && baseline.reason).toBe('this is the engine\u2019s move');
+  });
+
+  it('picks the sibling, not the played node, out of the same child list', () => {
+    // Both are children of the same parent. Matching on coordinates alone would
+    // be enough here, but the played node is in that list too, so the search
+    // has to exclude it by identity rather than by position.
+    const node: Fake = { move: { x: 1, y: 1 }, analysis: { territory: [[9, 9], [9, 9]] } };
+    const sibling: Fake = { move: { x: 3, y: 3 }, analysis: { territory: [[2, 0], [0, 0]] } };
+    const parent = parentWith({ x: 3, y: 3 }, [node, sibling]);
+    node.parent = parent;
+    const baseline = resolveSwingBaseline(node, 'best', label);
+    expect(baseline).toEqual({ kind: 'best', territory: [[2, 0], [0, 0]], label: 'pt33' });
   });
 });

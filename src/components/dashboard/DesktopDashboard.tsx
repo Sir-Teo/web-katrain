@@ -15,7 +15,7 @@ import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { getResizeObserverConstructor } from '../../utils/resizeObserver';
-import { computeTerritorySwing, describeTerritorySwing } from '../../utils/territorySwing';
+import { computeTerritorySwing, describeTerritorySwing, resolveSwingBaseline } from '../../utils/territorySwing';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
@@ -469,14 +469,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
    * `territorySwing.ts` on why an ownership total must not be quoted as a score.
    */
   const swingSummary = useMemo(() => {
-    const before = currentNode.parent?.analysis?.territory;
     const after = currentNode.analysis?.territory;
+    const baseline = resolveSwingBaseline(currentNode, settings.analysisSwingCompare, (x, y) =>
+      formatMoveLabel(x, y, boardSize)
+    );
     // Say why there is nothing rather than nothing at all: turning the chip on
-    // and seeing the board unchanged reads as a broken toggle, and the two
-    // reasons for it want different things from the reader.
-    if (!before || !after) return 'needs this move and the one before it analysed';
-    return describeTerritorySwing(computeTerritorySwing(before, after)) ?? 'nothing moved here';
-  }, [currentNode.analysis?.territory, currentNode.parent?.analysis?.territory]);
+    // and seeing the board unchanged reads as a broken toggle, and each reason
+    // wants something different from the reader -- wait, play a move, or "that
+    // is the answer".
+    if (baseline.kind === 'unavailable') return baseline.reason;
+    if (!after) return 'needs this move analysed';
+    const against = baseline.kind === 'best' ? `vs ${baseline.label}` : 'vs the move before';
+    const summary = describeTerritorySwing(computeTerritorySwing(baseline.territory, after));
+    return summary ? `${against}: ${summary}` : `${against}: nothing moved`;
+  }, [boardSize, currentNode, settings.analysisSwingCompare]);
 
   const overlayBtn = (
     keyName: DashboardOverlayKey,

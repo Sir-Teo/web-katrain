@@ -2737,6 +2737,31 @@ export const Layout: React.FC = () => {
         keywords: ['swing', 'ownership', 'territory', 'difference', 'where', 'lost points', 'delta'],
       },
       {
+        id: 'swing-compare',
+        /**
+         * The map is more useful held against the engine's move than against
+         * the move before, but that needs the engine's move played out as a
+         * variation: ownership for a position nobody evaluated does not exist.
+         * "Play best" at the previous move is what creates it, and the chip
+         * says so when it is missing.
+         */
+        label: settings.analysisSwingCompare === 'best'
+          ? 'Swing map: compare with the move before'
+          : "Swing map: compare with the engine's move",
+        category: 'Analysis',
+        run: () => {
+          const next = settings.analysisSwingCompare === 'best' ? 'previous' : 'best';
+          updateSettings({ analysisSwingCompare: next });
+          toast(
+            next === 'best'
+              ? "The swing map now measures against the engine's move, once that move exists as a variation."
+              : 'The swing map now measures against the move before this one.',
+            'info'
+          );
+        },
+        keywords: ['swing', 'compare', 'baseline', 'best move', 'alternative', 'what it cost'],
+      },
+      {
         id: 'toggle-shape-coach',
         label: shapeCoachEnabled ? 'Hide Shape Coach' : 'Show Shape Coach',
         category: 'Analysis',

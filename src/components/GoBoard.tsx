@@ -56,7 +56,7 @@ import {
   type BoardKeyboardPoint,
 } from '../utils/boardKeyboardNavigation';
 import { boardToQaString, countBoardStones } from '../utils/boardQaSnapshot';
-import { computeTerritorySwing, hasVisibleSwing, swingAlpha } from '../utils/territorySwing';
+import { computeTerritorySwing, hasVisibleSwing, resolveSwingBaseline, swingAlpha } from '../utils/territorySwing';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -838,18 +838,21 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const territorySwing = useMemo(() => {
     if (!hasAnalysisOverlay || !settings.analysisShowSwing || scoringMode || hidesAnswer) return null;
     const after = currentNode.analysis;
-    const before = currentNode.parent?.analysis;
-    if (!after || !before) return null;
-    if ((after.ownershipMode ?? 'root') === 'none' || (before.ownershipMode ?? 'root') === 'none') return null;
-    const swing = computeTerritorySwing(before.territory, after.territory);
+    if (!after || (after.ownershipMode ?? 'root') === 'none') return null;
+    const baseline = resolveSwingBaseline(currentNode, settings.analysisSwingCompare, (x, y) =>
+      formatBoardMoveLabel({ x, y }, boardSize)
+    );
+    if (baseline.kind === 'unavailable') return null;
+    const swing = computeTerritorySwing(baseline.territory, after.territory);
     return hasVisibleSwing(swing) ? swing : null;
   }, [
-    currentNode.analysis,
-    currentNode.parent?.analysis,
+    boardSize,
+    currentNode,
     hasAnalysisOverlay,
     hidesAnswer,
     scoringMode,
     settings.analysisShowSwing,
+    settings.analysisSwingCompare,
   ]);
   const shouldShowPolicy = settings.analysisShowPolicy && !drillAsking;
   const shouldShowHints =
