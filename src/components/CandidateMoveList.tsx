@@ -73,10 +73,11 @@ const coachQualityText = (quality: string, pointsLost: number): string => {
 };
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, addPvVariation } = useGameStore(
+  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, lowVisits, addPvVariation } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
       topK: state.settings.katagoTopK,
+      lowVisits: state.settings.trainerLowVisits,
       addPvVariation: state.addPvVariation,
       // A drill asking about this position is asking for exactly this list.
       drillHidesAnswer: isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id),
@@ -91,6 +92,16 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   );
 
   const evalColors = useMemo(() => getKaTrainEvalColors(trainerTheme), [trainerTheme]);
+  /**
+   * The board fades a candidate the search has barely looked at, and Settings
+   * promises it does ("Candidates searched fewer times than this are drawn
+   * faded: the engine has barely looked at them, so their numbers are rough").
+   * This list did not, so a move read once sat beside the top move with the
+   * same weight -- and once the columns became sortable, sorting by Score put
+   * its noise at the top. Same rule as `GoBoard`, including the exemption for
+   * the engine's own pick, which is the best reading available however thin.
+   */
+  const lowVisitsThreshold = Math.max(1, lowVisits);
   const evalThresholds = thresholds.length > 0 ? thresholds : DEFAULT_EVAL_THRESHOLDS;
   const isPro = analysisExperience === 'pro';
   const qualityLabels = ['Blunder', 'Mistake', 'Inaccuracy', 'Slight', 'Good', 'Best'] as const;
@@ -180,11 +191,16 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
           const cls = getEvaluationClass(move.pointsLost, evalThresholds, evalColors.length);
           const dot = evalColorToCss(evalColors[cls] ?? evalColors[evalColors.length - 1]!);
           const rank = Number.isFinite(move.order) && move.order >= 0 ? move.order + 1 : index + 1;
+          const uncertain = move.order !== 0 && move.visits < lowVisitsThreshold;
+          const uncertainNote = uncertain
+            ? ` Read only ${formatCandidateVisits(move.visits)} times, so these numbers are rough.`
+            : '';
           return (
             <li key={key}>
               <button
                 type="button"
-                className={`candidate-row${hoveredKey === key ? ' is-active' : ''}`}
+                data-candidate-uncertain={uncertain ? 'true' : undefined}
+                className={`candidate-row${hoveredKey === key ? ' is-active' : ''}${uncertain ? ' is-uncertain' : ''}`}
                 onMouseEnter={() => onHover(move)}
                 onMouseLeave={() => onHover(null)}
                 onFocus={() => onHover(move)}
@@ -206,13 +222,13 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                 }}
                 title={
                   isPro
-                    ? `${hoveredKey === key ? 'Play' : 'Preview'} ${label}. ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidateVisits(move.visits)} visits.`
-                    : `${hoveredKey === key ? 'Play' : 'Preview'} ${label}: ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.`
+                    ? `${hoveredKey === key ? 'Play' : 'Preview'} ${label}. ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidateVisits(move.visits)} visits.${uncertainNote}`
+                    : `${hoveredKey === key ? 'Play' : 'Preview'} ${label}: ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.${uncertainNote}`
                 }
                 aria-label={
                   isPro
-                    ? `Candidate ${rank}: ${label}, ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidatePointsLost(move.pointsLost)} points. ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
-                    : `Candidate ${rank}: ${label}, ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}. ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
+                    ? `Candidate ${rank}: ${label}, ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidatePointsLost(move.pointsLost)} points.${uncertainNote} ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
+                    : `Candidate ${rank}: ${label}, ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.${uncertainNote} ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
                 }
               >
                 <span className="cl-rank">{rank}</span>

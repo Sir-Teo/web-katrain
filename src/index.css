@@ -6547,6 +6547,15 @@
   border-color: var(--ui-accent);
 }
 
+/* The engine has barely looked at these, so their figures are rough; the board
+   fades the same candidates and Settings says both surfaces do. The move label
+   and its quality dot keep full contrast -- what is uncertain is the numbers,
+   not which point the row is about. */
+.candidate-row.is-uncertain .cl-num,
+.candidate-row.is-uncertain .cl-quality {
+  opacity: 0.55;
+}
+
 .candidate-list .cl-quality {
   overflow: hidden;
   text-align: right;
