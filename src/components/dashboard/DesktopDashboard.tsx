@@ -133,6 +133,9 @@ export interface DesktopDashboardProps {
   onPlayBest: () => void;
   /** The colour the engine is currently playing, or null when it is not. */
   engineOpponent: Player | null;
+  /** KaTrain's teach mode: prompt an undo after a move that cost too much. */
+  isTeachMode: boolean;
+  onToggleTeachMode: () => void;
   /** Hand the position on screen to the engine, or take it back. */
   onPlayFromHere: () => void;
 
@@ -230,6 +233,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     navigateBack, navigateForward, canNavigateBack, canNavigateForward, navigateStart, navigateEnd, navigateToMove,
     jumpBack, jumpForward, findMistake, canFindPreviousMistake, canFindNextMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
     passTurn, onUndo, onAiMove, onResign, onPlayBest, engineOpponent, onPlayFromHere,
+    isTeachMode, onToggleTeachMode,
     onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
     toast, headerNotification,
@@ -925,6 +929,21 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 onClick={toggleInsertMode}
               >
                 <Icon name="layers" size={13} /><span className="bc-label">Insert</span>
+              </button>
+              {/* Teach mode had exactly one control in the whole app, in the
+                  mobile tools sheet, so on this shell it could be configured in
+                  Settings and never switched on. It is a board interaction mode
+                  like its neighbours here. */}
+              <button
+                type="button"
+                className={`board-chip${isTeachMode ? ' on' : ''}`}
+                aria-pressed={isTeachMode}
+                title={isTeachMode
+                  ? 'Stop offering to take back costly moves'
+                  : 'Teach mode: offer to take back a move that costs too much'}
+                onClick={onToggleTeachMode}
+              >
+                <Icon name="levelUp" size={13} /><span className="bc-label">Teach</span>
               </button>
               {boardControls ? <div className="board-extra-tools">{boardControls}</div> : null}
             </div>

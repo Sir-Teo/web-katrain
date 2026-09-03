@@ -2790,6 +2790,27 @@ export const Layout: React.FC = () => {
         keywords: ['swing', 'compare', 'baseline', 'best move', 'alternative', 'what it cost'],
       },
       {
+        id: 'toggle-teach-mode',
+        /**
+         * Until now this had one control in the whole app, in the mobile tools
+         * sheet, so on the desktop shell teach mode could be configured in
+         * Settings -- thresholds, undo prompts, dots, save-sgf -- and never
+         * switched on.
+         */
+        label: isTeachMode ? 'Turn off teach mode' : 'Turn on teach mode',
+        category: 'Game',
+        run: () => {
+          toggleTeachMode();
+          toast(
+            isTeachMode
+              ? 'Teach mode off.'
+              : 'Teach mode on: a move that costs too much will offer to be taken back.',
+            'info'
+          );
+        },
+        keywords: ['teach', 'learn', 'beginner', 'undo prompt', 'coach', 'take back', 'katrain'],
+      },
+      {
         id: 'toggle-shape-coach',
         label: shapeCoachEnabled ? 'Hide Shape Coach' : 'Show Shape Coach',
         category: 'Analysis',
@@ -3786,6 +3807,8 @@ export const Layout: React.FC = () => {
             onPlayBest={playBestAnalysisMove}
             engineOpponent={isAiPlaying ? aiColor : null}
             onPlayFromHere={handlePlayFromHere}
+            isTeachMode={isTeachMode}
+            onToggleTeachMode={toggleTeachMode}
             onNewGame={() => void openNewGameWithGuard()}
             onSaveSgf={handleSaveCurrentSgf}
             onCopySgf={handleCopySgf}

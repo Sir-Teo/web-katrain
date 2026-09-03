@@ -60,6 +60,23 @@ describe('DesktopDashboard', () => {
     expect(dashboard).toContain('disabled={!bestMove}');
   });
 
+  it('offers teach mode on the shell where it could only be configured', () => {
+    const dashboard = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+    const topBar = readFileSync('src/components/layout/TopControlBar.tsx', 'utf8');
+
+    // The only control in the app was in TopControlBar's mobile tools sheet, so
+    // on the desktop dashboard Settings could configure teach mode -- undo
+    // prompts, thresholds, dots, save-sgf -- with no way to switch it on.
+    expect(topBar).toContain('toggleTeachMode()');
+    expect(dashboard).toContain('onToggleTeachMode');
+    expect(dashboard).toContain('aria-pressed={isTeachMode}');
+    expect(layout).toContain('isTeachMode={isTeachMode}');
+    expect(layout).toContain('onToggleTeachMode={toggleTeachMode}');
+    // And a palette entry, so it is reachable by search on both shells.
+    expect(layout).toContain("id: 'toggle-teach-mode'");
+  });
+
   it('keeps the language switcher on the wide desktop dashboard header', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
