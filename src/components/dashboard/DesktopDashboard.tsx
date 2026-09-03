@@ -14,6 +14,7 @@ import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
+import { getResizeObserverConstructor } from '../../utils/resizeObserver';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
@@ -294,6 +295,38 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   // Only on a fresh, untouched game: the board stays playable underneath, and
   // the card hides itself as soon as a move exists or the game has edits.
   const showHero = !heroDismissed && totalMoves === 0 && !dirty;
+
+  /**
+   * The start rail is the last row of the board column, and the PWA install
+   * card is fixed to the bottom of that same column. A first visit is exactly
+   * when both appear, so the card landed on top of the onboarding buttons it
+   * shares the corner with. Publish the rail's height the way Layout publishes
+   * the bottom control bar's, and let the card stack above it.
+   */
+  const [startRailEl, setStartRailEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!startRailEl) {
+      root.style.removeProperty('--desktop-start-rail-height');
+      return;
+    }
+    const updateHeight = () => {
+      root.style.setProperty(
+        '--desktop-start-rail-height',
+        `${Math.ceil(startRailEl.getBoundingClientRect().height)}px`
+      );
+    };
+    updateHeight();
+    const ResizeObserverConstructor = getResizeObserverConstructor();
+    const observer = ResizeObserverConstructor ? new ResizeObserverConstructor(updateHeight) : null;
+    observer?.observe(startRailEl);
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateHeight);
+      root.style.removeProperty('--desktop-start-rail-height');
+    };
+  }, [startRailEl]);
 
   useEffect(() => {
     libraryOpenRef.current = libraryOpen;
@@ -687,7 +720,13 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               <div className="goban-frame">{board}</div>
             </div>
             {showHero && !showCompactStartStrip && (
-              <div className="hero-card" data-dashboard-hero="true" role="region" aria-label="Get started">
+              <div
+                ref={setStartRailEl}
+                className="hero-card"
+                data-dashboard-hero="true"
+                role="region"
+                aria-label="Get started"
+              >
                 <button
                   type="button"
                   className="iconbtn hero-close"

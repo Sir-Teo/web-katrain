@@ -4165,7 +4165,7 @@
     right: max(12px, env(safe-area-inset-right));
     bottom: calc(
       var(--ui-bar-height) + var(--desktop-bottom-controls-height, 0px) +
-        max(12px, env(safe-area-inset-bottom))
+        var(--desktop-start-rail-height, 0px) + max(12px, env(safe-area-inset-bottom))
     );
     z-index: 45;
     display: grid;
