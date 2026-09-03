@@ -22,6 +22,17 @@ PWA. There is no analysis server to run.
 - "Play elsewhere?" prices the point: the engine evaluates the position again
   after a pass, so you can see what the move here is worth and where the
   opponent would go if you ignored it.
+- Swing map: instead of who owns what now, paint what changed. Subtracting two
+  analysed positions' ownership maps says which intersections moved and by how
+  much, so "this move lost 5.2 points" gains a *where*. It measures against the
+  move before by default, or against the engine's own move once that move
+  exists as a variation -- which is the comparison a review is actually after,
+  because it separates the move's error from its legitimate gain. It reports no
+  points total on purpose: ownership and score come from different heads of the
+  net and need not agree, so the score readout keeps "how much".
+- Play on from here: hand the position on screen to the engine and keep going,
+  branching off the game rather than replacing it. The move you regret is one
+  click from being tried again against something that answers back.
 - Time graph from the clock recorded in the SGF (`BL`/`WL`/`OB`/`OW`), for games
   imported from OGS, KGS, Fox or Tygem.
 - Drill your mistakes: the board goes back to the position before each one with

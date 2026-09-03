@@ -138,6 +138,22 @@ chess tooling does rather than at what other Go apps do:
   The care is in what the file cannot say -- a byo-yomi phase records the same
   reading every move, so differencing it would draw a flat run of "instant
   moves" across the most pressured stretch of the game.
+- **The swing map.** (`src/utils/territorySwing.ts`.) Chess engines answer "how
+  much" and leave "where" to the board, because in chess the board *is* the
+  answer -- the material is visible. Go's equivalent is ownership, which every
+  tool draws as a wash of who owns what *now*. None of them draws the
+  difference between two positions, even though that is the question review
+  asks: not "who owns this" but "what did that move change". KaTrain, Kaya and
+  kifubara all show ownership; none subtracts.
+
+  Two things had to be got right. The map reports no score, because ownership
+  and score are separate heads of the net: measured on the bundled test net over
+  eight consecutive 9x9 positions, the change in ownership sum and the change in
+  score lead differed by 8 to 25 points, so a total printed from ownership would
+  sometimes have contradicted the score lead beside it. And the raw difference
+  is unreadable -- on a real move it painted 325 of 441 intersections, because
+  subtracting two whole-board estimates leaves a haze everywhere. Gated at 0.25
+  ownership it paints 24, which is the answer.
 - **"Play elsewhere?"** (`src/utils/tenukiValue.ts`, `src/components/TenukiRow.tsx`).
   Lichess's `x` shows the opponent's threat by handing them the move. Go can
   express it more cleanly, because passing is legal: evaluate the position
