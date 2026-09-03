@@ -734,7 +734,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               {showAnalysis ? (
                 <>
                   <div className="cb-metric">
-                    <div className="k">Win rate</div>
+                    <div className="k">Black win</div>
                     <div className="v win">{winRate != null ? `${(winRate * 100).toFixed(1)}%` : '—'}</div>
                     <div className="sub">{formatWinRateFavorLabel(winRate)}</div>
                   </div>

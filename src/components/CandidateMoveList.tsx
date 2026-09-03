@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { isDrillHidingAnswer } from '../utils/mistakeDrill';
@@ -40,6 +40,30 @@ interface CandidateMoveListProps {
 
 const moveKey = (move: CandidateMove) => `${move.x},${move.y}`;
 
+type SortKey = 'rank' | 'win' | 'score' | 'lost' | 'visits' | 'prior' | 'stdev';
+
+/** Column order for a sort: the engine's rank, or the column's own value best-first. */
+const sortCandidates = (moves: CandidateMove[], key: SortKey): CandidateMove[] => {
+  if (key === 'rank') return moves;
+  const value = (m: CandidateMove): number => {
+    switch (key) {
+      case 'win': return m.winRate;
+      case 'score': return m.scoreLead;
+      case 'lost': return -m.pointsLost;
+      case 'visits': return m.visits;
+      case 'prior': return m.prior ?? -1;
+      case 'stdev': return -(m.scoreStdev ?? Infinity);
+    }
+  };
+  return [...moves].sort((a, b) => value(b) - value(a) || a.order - b.order);
+};
+
+const formatPrior = (prior: number | undefined): string =>
+  typeof prior === 'number' && Number.isFinite(prior) ? `${(prior * 100).toFixed(prior >= 0.1 ? 0 : 1)}%` : '—';
+
+const formatStdev = (stdev: number | undefined): string =>
+  typeof stdev === 'number' && Number.isFinite(stdev) ? `±${stdev.toFixed(1)}` : '—';
+
 /** Coach wording for a candidate: the quality word and, when it costs something, the gap to the top move in plain points. */
 const coachQualityText = (quality: string, pointsLost: number): string => {
   const lost = Number.isFinite(pointsLost) ? Math.max(0, pointsLost) : 0;
@@ -48,9 +72,10 @@ const coachQualityText = (quality: string, pointsLost: number): string => {
 };
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode } = useGameStore(
+  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
+      topK: state.settings.katagoTopK,
       // A drill asking about this position is asking for exactly this list.
       drillHidesAnswer: isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id),
       boardSize: state.currentNode.gameState.board.length,
@@ -67,10 +92,32 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   const evalThresholds = thresholds.length > 0 ? thresholds : DEFAULT_EVAL_THRESHOLDS;
   const isPro = analysisExperience === 'pro';
   const qualityLabels = ['Blunder', 'Mistake', 'Inaccuracy', 'Slight', 'Good', 'Best'] as const;
+  const [sortKey, setSortKey] = useState<SortKey>('rank');
+  // Pro can open two more columns: the policy prior and the score's spread.
+  // Off by default so the narrow panel keeps its four figures readable.
+  const [detail, setDetail] = useState(false);
+  const showDetail = isPro && detail;
 
-  const rows = useMemo(
-    () => (drillHidesAnswer ? [] : (moves ?? []).filter((move) => move.x >= 0 && move.y >= 0).slice(0, 24)),
-    [drillHidesAnswer, moves]
+  // The list used to stop at 24 rows whatever Settings said; the engine
+  // itself is asked for up to 50.
+  const visibleCap = Math.max(1, Math.min(Number.isFinite(topK) ? topK : 10, 50));
+  const rows = useMemo(() => {
+    if (drillHidesAnswer) return [];
+    const onBoard = (moves ?? []).filter((move) => move.x >= 0 && move.y >= 0).slice(0, visibleCap);
+    return sortCandidates(onBoard, isPro ? sortKey : 'rank');
+  }, [drillHidesAnswer, isPro, moves, sortKey, visibleCap]);
+
+  const sortButton = (key: SortKey, label: string, title: string) => (
+    <button
+      type="button"
+      className={`cl-num cl-sort${sortKey === key ? ' is-sorted' : ''}`}
+      onClick={() => setSortKey(sortKey === key ? 'rank' : key)}
+      title={`${title}. Click to sort by it; click again for the engine's order.`}
+      aria-label={`Sort by ${label.toLowerCase()}`}
+      aria-pressed={sortKey === key}
+    >
+      {label}
+    </button>
   );
 
   if (rows.length === 0) {
@@ -88,20 +135,38 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
     <div
       className="candidate-list"
       data-analysis-experience={analysisExperience}
+      data-candidate-detail={showDetail ? 'true' : 'false'}
+      data-candidate-sort={isPro ? sortKey : 'rank'}
       style={{ maxHeight: `calc(${maxRows} * var(--candidate-row-height, 1.75rem) + 1.5rem)` }}
     >
-      <div className="candidate-list-head" aria-hidden="true">
-        <span className="cl-rank">#</span>
-        <span className="cl-move">Move</span>
+      <div className="candidate-list-head">
+        <span className="cl-rank" aria-hidden="true">#</span>
+        <span className="cl-move">
+          <span aria-hidden="true">Move</span>
+          {isPro && (
+            <button
+              type="button"
+              className={`cl-detail-toggle${showDetail ? ' is-on' : ''}`}
+              onClick={() => setDetail((v) => !v)}
+              aria-pressed={showDetail}
+              aria-label={showDetail ? 'Hide prior and spread columns' : 'Show prior and spread columns'}
+              title={showDetail ? 'Hide the policy prior and score spread' : 'Show the policy prior and score spread'}
+            >
+              {showDetail ? '−' : '+'}
+            </button>
+          )}
+        </span>
         {isPro ? (
           <>
-            <span className="cl-num">Win</span>
-            <span className="cl-num">Score</span>
-            <span className="cl-num">Lost</span>
-            <span className="cl-num">Visits</span>
+            {sortButton('win', 'B win', "Black's win rate after this move, whoever is to play")}
+            {sortButton('score', 'Score', 'Score lead for Black after this move')}
+            {sortButton('lost', 'Lost', 'Points behind the top candidate')}
+            {sortButton('visits', 'Visits', 'How many times the search read this move')}
+            {showDetail && sortButton('prior', 'Prior', "The policy net's first instinct for this move, before any search")}
+            {showDetail && sortButton('stdev', 'Std', 'Spread of the score estimates behind this move: wider means less settled')}
           </>
         ) : (
-          <span className="cl-quality">Quality</span>
+          <span className="cl-quality" aria-hidden="true">Quality</span>
         )}
       </div>
       <ul className="candidate-list-rows">
@@ -157,6 +222,8 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                     <span className="cl-num">{formatCandidateScore(move.scoreLead)}</span>
                     <span className="cl-num cl-lost">{formatCandidatePointsLost(move.pointsLost)}</span>
                     <span className="cl-num ui-text-faint">{formatCandidateVisits(move.visits)}</span>
+                    {showDetail && <span className="cl-num ui-text-faint">{formatPrior(move.prior)}</span>}
+                    {showDetail && <span className="cl-num ui-text-faint">{formatStdev(move.scoreStdev)}</span>}
                   </>
                 ) : (
                   <span className="cl-quality" style={{ color: dot }}>{qualityLabels[cls] ?? 'Good'}</span>

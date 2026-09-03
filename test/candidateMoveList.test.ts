@@ -72,8 +72,10 @@ describe('the candidate list', () => {
 
   it('uses plain-language quality in Coach and comparative engine columns in Pro', () => {
     expect(source).toContain("const isPro = analysisExperience === 'pro';");
-    expect(source).toContain('<span className="cl-quality">Quality</span>');
-    expect(source).toContain('<span className="cl-num">Visits</span>');
+    expect(source).toContain('<span className="cl-quality" aria-hidden="true">Quality</span>');
+    expect(source).toContain("sortButton('visits', 'Visits'");
+    // Pro honours the Settings cap instead of a private 24-row limit.
+    expect(source).toContain('Math.min(Number.isFinite(topK) ? topK : 10, 50)');
     expect(source).toContain('data-analysis-experience={analysisExperience}');
   });
 });
