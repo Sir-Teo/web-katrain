@@ -4261,6 +4261,20 @@
     filter: none;
   }
 
+  /* A transient notice must never sit on top of a modal.
+     The mobile More Controls sheet is `z-50`, but it renders inside an
+     ancestor with `zIndex: 20`, so that 50 is local to a stacking context
+     that sits *below* this banner's root-level 45. Measured on a 390px
+     phone with the sheet open, `elementFromPoint` at each button's centre
+     returned the banner: Rotate board was 98% covered, Resign and Play on
+     from here 85%, and all three were unclickable. Raising the sheet would
+     mean editing a stacking context several other things sit in; yielding
+     is the smaller and more obviously correct change, and the banner comes
+     straight back when the sheet closes. */
+  :root:has([data-bottom-more-sheet='true']) .pwa-install-banner {
+    display: none;
+  }
+
   @media (max-width: 640px) {
     .pwa-install-banner {
       grid-template-columns: auto minmax(0, 1fr);
