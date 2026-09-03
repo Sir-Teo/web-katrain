@@ -6452,6 +6452,69 @@
   text-underline-offset: 2px;
 }
 
+.candidate-row .cl-pv-toggle {
+  margin-left: auto;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-text-faint);
+  font-weight: 700;
+  transition: transform 120ms ease;
+}
+.candidate-row .cl-pv-toggle:hover,
+.candidate-row .cl-pv-toggle:focus-visible {
+  color: var(--ui-text);
+  background: var(--ui-surface-2);
+}
+.candidate-row .cl-pv-toggle.is-open {
+  transform: rotate(90deg);
+}
+
+/* A candidate's principal variation opened as text under its row. */
+.candidate-list .cl-pv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.25rem 0.5rem 0.4rem 2.2rem;
+  font-family: var(--ui-font-mono);
+  font-size: 0.6875rem;
+  color: var(--ui-text-muted);
+  background: var(--ui-surface-2);
+  border-bottom: 1px solid var(--ui-border);
+}
+.candidate-list .cl-pv-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  flex: 1 1 12rem;
+}
+.candidate-list .cl-pv-step:nth-child(odd) {
+  color: var(--ui-text);
+}
+.candidate-list .cl-pv-actions {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+.candidate-list .cl-pv-action {
+  border: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+  color: var(--ui-text-muted);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  font: inherit;
+  cursor: pointer;
+}
+.candidate-list .cl-pv-action:hover,
+.candidate-list .cl-pv-action:focus-visible {
+  color: var(--ui-text);
+  border-color: var(--ui-accent);
+}
+
 .candidate-list-head .cl-detail-toggle {
   border: 1px solid var(--ui-border);
   background: var(--ui-surface);

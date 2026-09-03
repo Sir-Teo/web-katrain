@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
+import { copyTextToClipboard } from '../utils/clipboard';
 import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
@@ -72,10 +73,11 @@ const coachQualityText = (quality: string, pointsLost: number): string => {
 };
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK } = useGameStore(
+  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, addPvVariation } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
       topK: state.settings.katagoTopK,
+      addPvVariation: state.addPvVariation,
       // A drill asking about this position is asking for exactly this list.
       drillHidesAnswer: isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id),
       boardSize: state.currentNode.gameState.board.length,
@@ -97,6 +99,8 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   // Off by default so the narrow panel keeps its four figures readable.
   const [detail, setDetail] = useState(false);
   const showDetail = isPro && detail;
+  // One row at a time may open its principal variation as text.
+  const [pvOpenKey, setPvOpenKey] = useState<string | null>(null);
 
   // The list used to stop at 24 rows whatever Settings said; the engine
   // itself is asked for up to 50.
@@ -215,6 +219,28 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                 <span className="cl-move">
                   <span className="cl-dot" style={{ backgroundColor: dot }} aria-hidden="true" />
                   {label}
+                  {isPro && (move.pv?.length ?? 0) > 1 && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className={`cl-pv-toggle${pvOpenKey === key ? ' is-open' : ''}`}
+                      aria-expanded={pvOpenKey === key}
+                      aria-label={pvOpenKey === key ? `Hide the variation after ${label}` : `Show the variation after ${label} as text`}
+                      title={pvOpenKey === key ? 'Hide variation' : 'Show variation as text'}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPvOpenKey((open) => (open === key ? null : key));
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setPvOpenKey((open) => (open === key ? null : key));
+                      }}
+                    >
+                      ›
+                    </span>
+                  )}
                 </span>
                 {isPro ? (
                   <>
@@ -229,6 +255,31 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                   <span className="cl-quality" style={{ color: dot }}>{qualityLabels[cls] ?? 'Good'}</span>
                 )}
               </button>
+              {isPro && pvOpenKey === key && move.pv && move.pv.length > 1 && (
+                <div className="cl-pv" data-candidate-pv={key}>
+                  <span className="cl-pv-line">
+                    {move.pv.map((step, stepIndex) => (
+                      <span key={`${step}-${stepIndex}`} className="cl-pv-step">{step}</span>
+                    ))}
+                  </span>
+                  <span className="cl-pv-actions">
+                    <button
+                      type="button"
+                      className="cl-pv-action"
+                      onClick={() => {
+                        void copyTextToClipboard(move.pv!.join(' ')).then((ok) =>
+                          useGameStore.setState({ notification: { message: ok ? 'Variation copied.' : 'Could not copy the variation.', type: ok ? 'success' : 'error' } })
+                        );
+                      }}
+                    >
+                      Copy
+                    </button>
+                    <button type="button" className="cl-pv-action" onClick={() => addPvVariation(move.pv ?? [])}>
+                      Keep in tree
+                    </button>
+                  </span>
+                </div>
+              )}
             </li>
           );
         })}
