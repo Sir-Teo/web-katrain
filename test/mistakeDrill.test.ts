@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisResult, CandidateMove, GameNode, GameState, Move } from '../src/types';
+import { resolveSwingBaseline } from '../src/utils/territorySwing';
 import {
   collectDrillMistakes,
   drillPromptText,
@@ -265,6 +266,44 @@ describe('nothing on screen answers the position the drill is asking about', () 
     for (const path of hits) {
       expect(await read(path), path).toContain('isDrillHidingAnswer');
     }
+  });
+
+  it('keeps the swing map\u2019s baseline off the answer the drill is withholding', () => {
+    /**
+     * The drill sits on `parentNodeId` -- the position *before* the mistake --
+     * so the answer is the best move at the node the board is showing. The
+     * swing map's "compare with the engine's move" reads one level further up,
+     * `parent.analysis`, which is the previous position's best move and not the
+     * answer. That is the only reason its chip may name a move during a drill,
+     * and it is worth pinning: pointing the baseline at the current node's own
+     * analysis would turn that tooltip into an answer key.
+     */
+    const answerAtTheDrillPosition = { x: 7, y: 7, order: 0 };
+    const bestOneMoveEarlier = { x: 3, y: 3, order: 0 };
+    type Fake = {
+      move?: { x: number; y: number } | null;
+      analysis?: {
+        territory?: number[][];
+        moves?: Array<{ x: number; y: number; order: number }>;
+      } | null;
+      parent?: Fake | null;
+      children?: Fake[];
+    };
+    const parent: Fake = {
+      analysis: { territory: [[0]], moves: [bestOneMoveEarlier] },
+      children: [],
+    };
+    const node: Fake = {
+      parent,
+      move: { x: 1, y: 1 },
+      analysis: { territory: [[0]], moves: [answerAtTheDrillPosition] },
+    };
+    parent.children = [node];
+
+    const baseline = resolveSwingBaseline(node, 'best', (x, y) => `${x},${y}`);
+    expect(baseline.kind).toBe('unavailable');
+    expect(baseline.kind === 'unavailable' && baseline.reason).toContain('3,3');
+    expect(baseline.kind === 'unavailable' && baseline.reason).not.toContain('7,7');
   });
 
   it('hides the candidates without blaming the engine for the silence', async () => {
