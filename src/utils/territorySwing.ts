@@ -127,15 +127,18 @@ export function swingAlpha(value: number, peak: number): number {
 }
 
 /**
- * The swing in words, counting intersections rather than points -- see the
- * header for why this must not be phrased as a score. Null when nothing moved.
+ * The swing in words. Null when nothing moved.
+ *
+ * "Intersections", not "points". In Go the two words mean the same thing on the
+ * board and different things on the scoresheet, and this count is emphatically
+ * not a score -- "8 points toward Black" beside a score readout saying White
+ * leads is the exact confusion the header exists to avoid.
  */
 export function describeTerritorySwing(swing: TerritorySwing | null): string | null {
   if (!hasVisibleSwing(swing)) return null;
-  const parts: string[] = [];
-  if (swing.towardBlack > 0) parts.push(`${swing.towardBlack} toward Black`);
-  if (swing.towardWhite > 0) parts.push(`${swing.towardWhite} toward White`);
-  if (parts.length === 0) return null;
-  const points = swing.towardBlack + swing.towardWhite === 1 ? 'point' : 'points';
-  return `${parts.join(', ')} ${points}`;
+  const { towardBlack, towardWhite } = swing;
+  const noun = (n: number) => (n === 1 ? 'intersection' : 'intersections');
+  if (towardWhite === 0) return `${towardBlack} ${noun(towardBlack)} toward Black`;
+  if (towardBlack === 0) return `${towardWhite} ${noun(towardWhite)} toward White`;
+  return `${towardBlack} ${noun(towardBlack)} toward Black, ${towardWhite} toward White`;
 }

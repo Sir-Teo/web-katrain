@@ -103,12 +103,22 @@ describe('describeTerritorySwing', () => {
       grid([[0, 0], [0, 0]]),
       grid([[0.9, 0.6], [-0.7, 0]])
     );
-    expect(describeTerritorySwing(swing)).toBe('2 toward Black, 1 toward White points');
+    expect(describeTerritorySwing(swing)).toBe('2 intersections toward Black, 1 toward White');
   });
 
-  it('uses the singular for a single point', () => {
+  it('uses the singular for a single intersection', () => {
     const swing = computeTerritorySwing(grid([[0, 0]]), grid([[0.9, 0]]));
-    expect(describeTerritorySwing(swing)).toBe('1 toward Black point');
+    expect(describeTerritorySwing(swing)).toBe('1 intersection toward Black');
+  });
+
+  it('never says "points", which would read as a score beside the score readout', () => {
+    const swing = computeTerritorySwing(grid([[0, 0], [0, 0]]), grid([[0.9, 0.6], [-0.7, 0]]));
+    expect(describeTerritorySwing(swing)).not.toMatch(/points?\b/);
+  });
+
+  it('names only the side that moved when one side did not', () => {
+    const white = computeTerritorySwing(grid([[0, 0]]), grid([[-0.9, -0.5]]));
+    expect(describeTerritorySwing(white)).toBe('2 intersections toward White');
   });
 
   it('says nothing when only haze moved', () => {
