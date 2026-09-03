@@ -4749,7 +4749,11 @@
     .notification-toast-region,
     .notification-toast-region--below-command-bar {
       top: auto;
-      bottom: 0.5rem;
+      /* The edit toolbar is an absolutely positioned sibling in this same
+         parent, at the same z-index 40 and also bottom-anchored, so DOM order
+         decided which one was visible and the toolbar won. Sit above whatever
+         it occupies; the variable is unset unless that toolbar is open. */
+      bottom: calc(0.5rem + var(--mobile-edit-toolbar-inset, 0px));
     }
   }
 

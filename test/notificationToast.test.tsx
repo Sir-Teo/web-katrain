@@ -112,6 +112,22 @@ describe('NotificationToast', () => {
     expect(css).toContain('height: 45px;');
   });
 
+  it('sits above the mobile edit toolbar instead of behind it', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const toolbar = readFileSync('src/components/EditToolbar.tsx', 'utf8');
+
+    // The two are absolutely positioned siblings in one parent at the same
+    // z-index 40, both bottom-anchored, so DOM order decided and the toolbar
+    // won. Measured on a 390x844 phone before the fix: toast 530-581, toolbar
+    // 454-577, every edit-mode confirmation hidden behind the panel.
+    expect(css).toContain('bottom: calc(0.5rem + var(--mobile-edit-toolbar-inset, 0px));');
+    expect(toolbar).toContain("root.style.setProperty('--mobile-edit-toolbar-inset'");
+    expect(toolbar).toContain("root.style.removeProperty('--mobile-edit-toolbar-inset')");
+    // The extent from the parent's bottom, not the panel's height: the toast
+    // has to clear where the panel sits, not merely how tall it is.
+    expect(toolbar).toContain('parent.bottom - rect.top');
+  });
+
   it('overlays mobile notifications without resizing the board', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
@@ -119,7 +135,12 @@ describe('NotificationToast', () => {
     expect(css).toContain('inset: 0.5rem 0.5rem auto;');
     expect(css).toContain('.notification-toast-region--below-command-bar {\n      top: 4rem;');
     expect(css).toContain('@media (max-width: 480px) and (min-height: 700px) and (orientation: portrait)');
-    expect(css).toContain('bottom: 0.5rem;');
+    // Anchored to that block rather than to the string anywhere in the file:
+    // `bottom: 0.5rem;` appears in several unrelated rules, so the bare
+    // toContain kept passing after this rule stopped saying it.
+    expect(css).toMatch(
+      /@media \(max-width: 480px\) and \(min-height: 700px\) and \(orientation: portrait\) \{[\s\S]{0,700}?\.notification-toast-region,[\s\S]{0,700}?bottom: calc\(0\.5rem \+ var\(--mobile-edit-toolbar-inset, 0px\)\);/
+    );
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\) \{[\s\S]*?\.notification-toast-region,[\s\S]*?justify-content: flex-end;/);
     expect(css).toContain('max-width: min(18rem, calc(100% - 1rem));');
   });

@@ -30,6 +30,7 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { EDIT_TOOL_SHORTCUT_ID_BY_TOOL, EDIT_TOOL_SHORTCUT_IDS } from '../utils/shortcuts';
+import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import type { EditTool } from '../types';
 
 type EditToolItem = {
@@ -253,10 +254,49 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   // When the launcher lives elsewhere (e.g. the mobile bottom bar), render
   // nothing while idle so the board area stays clear; the active editing strip
   // still appears once edit mode is on.
+  /**
+   * How much of the board shell's bottom edge this toolbar occupies, so the
+   * notification toast can sit above it.
+   *
+   * The two are absolutely positioned siblings in the same parent at the same
+   * `z-index: 40`, both anchored to its bottom -- so DOM order decided, and the
+   * toolbar won. Measured on a 390x844 phone: the toast region sat at 530-581
+   * and the toolbar at 454-577, which put every edit-mode confirmation --
+   * "Added label B", "Undid edit", the ones this mode produces most -- entirely
+   * behind the panel. Publishing the extent rather than a height keeps the two
+   * apart whatever the panel grows to.
+   */
+  const [mobilePanelEl, setMobilePanelEl] = React.useState<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    const root = document.documentElement;
+    const clear = () => root.style.removeProperty('--mobile-edit-toolbar-inset');
+    if (!mobilePanelEl || !isMobile || docked || !isEditMode) {
+      clear();
+      return;
+    }
+    const update = () => {
+      const parent = mobilePanelEl.offsetParent?.getBoundingClientRect();
+      const rect = mobilePanelEl.getBoundingClientRect();
+      if (!parent) return;
+      root.style.setProperty('--mobile-edit-toolbar-inset', `${Math.max(0, Math.ceil(parent.bottom - rect.top))}px`);
+    };
+    update();
+    const ResizeObserverConstructor = getResizeObserverConstructor();
+    const observer = ResizeObserverConstructor ? new ResizeObserverConstructor(update) : null;
+    observer?.observe(mobilePanelEl);
+    window.addEventListener('resize', update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+      clear();
+    };
+  }, [docked, isEditMode, isMobile, mobilePanelEl]);
+
   if (!isEditMode && hideIdleLauncher) return null;
 
   return (
     <div
+      ref={setMobilePanelEl}
       data-edit-toolbar
       className={
         docked
