@@ -38,6 +38,26 @@ const baseProps = {
 };
 
 describe('BottomControlBar', () => {
+  // The sheet's contents only exist once it is opened, and these render
+  // statically, so this reads the source the way the sibling sheet tests do.
+  it('offers play-on-from-here in the mobile sheet, labelled by the engine colour', () => {
+    const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+
+    expect(componentSource).toContain('{onPlayFromHere && (');
+    expect(componentSource).toContain('Play on from here vs the engine');
+    expect(componentSource).toContain('aria-pressed={!!engineOpponent}');
+    // Labelled by the colour the engine holds, not by the side to move: while
+    // it is thinking those are the same and the label would lie.
+    expect(componentSource).toContain("`Stop the engine playing ${engineOpponent === 'black' ? 'Black' : 'White'}`");
+  });
+
+  it('leaves the sheet entry out when the host does not supply the action', () => {
+    const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+    // Guarded like its neighbours, so a host that does not pass the action -- a
+    // problem or tsumego shell -- does not get a dead row.
+    expect(componentSource).toMatch(/\{onPlayFromHere && \([\s\S]{0,900}Play on from here vs the engine/);
+  });
+
   it('shows Kaya-style branch navigation beside the desktop move counter', () => {
     const html = renderToStaticMarkup(<BottomControlBar {...baseProps} isMobile={false} />);
 
@@ -116,7 +136,7 @@ describe('BottomControlBar', () => {
     expect(componentSource).toMatch(/data-bottom-more-close="true"[\s\S]{0,220}min-h-11 min-w-11/);
     expect(componentSource).toContain("closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer')");
     expect(componentSource).toContain('const closeMoreControlsFromAction = React.useCallback');
-    expect(componentSource.match(/closeMoreControlsFromAction\(event\)/g) ?? []).toHaveLength(14);
+    expect(componentSource.match(/closeMoreControlsFromAction\(event\)/g) ?? []).toHaveLength(15);
     expect(componentSource.match(/setMoreOpen\(false\)/g) ?? []).toHaveLength(1);
     expect(componentSource).toContain("data-bottom-more-focus-origin={suppressMoreTriggerFocusRing ? 'pointer' : 'keyboard'}");
     expect(componentSource).toContain('suppressFocusTooltip={suppressMoreTriggerFocusRing}');

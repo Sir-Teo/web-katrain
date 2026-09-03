@@ -13,6 +13,7 @@ import {
   FaSyncAlt,
   FaEllipsisH,
   FaUndo,
+  FaLevelUpAlt,
   FaRobot,
   FaFlag,
   FaEdit,
@@ -82,6 +83,10 @@ interface BottomControlBarProps {
   isMobile?: boolean;
   onUndo?: () => void;
   onAiMove?: () => void;
+  /** The colour the engine is currently playing, or null when it is not. */
+  engineOpponent?: 'black' | 'white' | null;
+  /** Hand the position on screen to the engine, or take it back. */
+  onPlayFromHere?: () => void;
   onResign?: () => void;
   unsavedChanges?: boolean;
   autoSaveStatus?: AutoSaveStatus | null;
@@ -130,6 +135,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   isMobile = false,
   onUndo,
   onAiMove,
+  engineOpponent,
+  onPlayFromHere,
   onResign,
   unsavedChanges = false,
   autoSaveStatus = null,
@@ -810,6 +817,28 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                         <FaRobot size={14} />
                       </div>
                       <div className="flex-1 font-medium text-teal-400">Request AI move</div>
+                    </button>
+                  )}
+
+                  {/* The desktop review row carries this as a toggle; on a
+                      phone the sheet is where the same action belongs. */}
+                  {onPlayFromHere && (
+                    <button type="button"
+                      className={mobileMoreActionClass}
+                      aria-pressed={!!engineOpponent}
+                      onClick={(event) => {
+                        onPlayFromHere();
+                        closeMoreControlsFromAction(event);
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-teal-400">
+                        <FaLevelUpAlt size={14} />
+                      </div>
+                      <div className="flex-1 font-medium text-teal-400">
+                        {engineOpponent
+                          ? `Stop the engine playing ${engineOpponent === 'black' ? 'Black' : 'White'}`
+                          : 'Play on from here vs the engine'}
+                      </div>
                     </button>
                   )}
 

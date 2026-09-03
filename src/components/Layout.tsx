@@ -4127,6 +4127,8 @@ export const Layout: React.FC = () => {
                     isMobile={true}
                     onUndo={handleUndo}
                     onAiMove={requestAiMove}
+                    engineOpponent={isAiPlaying ? aiColor : null}
+                    onPlayFromHere={handlePlayFromHere}
                     onResign={handleResign}
                     unsavedChanges={currentGameDirty}
                     autoSaveStatus={autoSaveStatus}
