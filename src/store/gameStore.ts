@@ -53,7 +53,7 @@ import {
 } from '../utils/moveTreeCollapse';
 import { parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
-import { isSuicideLegal, rulesFromSgf, rulesOf, rulesToSgf } from '../utils/goRules';
+import { isSuicideLegal, rulesFromSgf, rulesOf, rulesToSgf, type KoRule } from '../utils/goRules';
 import { superkoRejectionMessage, violatesSuperko, type SuperkoPosition } from '../utils/superko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
 import { countRootHandicapStones, handicapPlayoutDoublingAdvantage } from '../utils/handicapAi';
@@ -1179,7 +1179,22 @@ let continuousToken = 0;
  * Shared by insert mode and "add this variation to the tree": both replay moves
  * onto an existing node rather than going through the interactive play path.
  */
-const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false): GameNode | null => {
+/**
+ * Whether playing to `newBoard` repeats a position already seen on this line,
+ * under the ruleset's ko rule. Simple ko is checked separately by the callers
+ * (it needs only the grandparent); this walks the whole line for the
+ * positional and situational superko that AGA, New Zealand and Tromp-Taylor ask for.
+ */
+export const lineViolatesSuperko = (from: GameNode, newBoard: BoardState, nextPlayerToMove: Player, koRule: KoRule): boolean => {
+  if (koRule === 'simple') return false;
+  const history: SuperkoPosition[] = [];
+  for (let node: GameNode | null = from; node; node = node.parent) {
+    history.push({ board: node.gameState.board, playerToMove: node.gameState.currentPlayer });
+  }
+  return violatesSuperko({ ko: koRule, next: { board: newBoard, playerToMove: nextPlayerToMove }, history });
+};
+
+const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false, koRule: KoRule = 'simple'): GameNode | null => {
   const st = parent.gameState;
   if (st.currentPlayer !== move.player) return null;
 
@@ -1212,6 +1227,8 @@ const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false):
     }
   }
   if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) return null;
+  const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
+  if (lineViolatesSuperko(parent, newBoard, nextPlayer, koRule)) return null;
 
   const newCapturedBlack =
     st.capturedBlack +
@@ -1221,7 +1238,6 @@ const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false):
     st.capturedWhite +
     (st.currentPlayer === 'black' ? captured.length : 0) +
     (st.currentPlayer === 'white' ? selfCaptured : 0);
-  const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
   const nextState: GameState = {
     board: newBoard,
     currentPlayer: nextPlayer,
@@ -2012,7 +2028,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const move = from.move;
       if (!move) break;
       if (!insertedMoves.has(moveKey(move))) {
-        const child = createChildForMove(to, move, isSuicideLegal(s.settings.gameRules));
+        const child = createChildForMove(to, move, isSuicideLegal(s.settings.gameRules), rulesOf(s.settings.gameRules).ko);
         if (!child) break;
         to = child;
         numCopied++;
@@ -3508,6 +3524,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         'katagoNnRandomize',
         'katagoConservativePass',
         'gameRules',
+        'humanSlEnabled',
+        'humanSlModelUrl',
+        'humanSlProfile',
+        'humanSlBotStyle',
       ];
 
       const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
@@ -3828,13 +3848,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Superko, where the ruleset asks for it: walk this line's history and
     // refuse anything that repeats a position we have already been in.
     const koRule = rulesOf(state.settings.gameRules).ko;
-    if (koRule !== 'simple') {
+    {
       const nextPlayerToMove: Player = state.currentPlayer === 'black' ? 'white' : 'black';
-      const history: SuperkoPosition[] = [];
-      for (let node: GameNode | null = state.currentNode; node; node = node.parent) {
-        history.push({ board: node.gameState.board, playerToMove: node.gameState.currentPlayer });
-      }
-      if (violatesSuperko({ ko: koRule, next: { board: newBoard, playerToMove: nextPlayerToMove }, history })) {
+      if (lineViolatesSuperko(state.currentNode, newBoard, nextPlayerToMove, koRule)) {
         set({ notification: { message: superkoRejectionMessage(koRule), type: 'error' } });
         return;
       }
@@ -3981,6 +3997,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             aiOwnershipMode,
             state.settings.aiStrategy,
             aiWantsHumanPolicy ? state.settings.humanSlProfile : '',
+            aiWantsHumanPolicy ? state.settings.humanSlModelUrl : '',
+            aiWantsHumanPolicy ? state.settings.humanSlBotStyle : '',
             handicapPda
           ),
           preempt: true,
@@ -5014,7 +5032,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const existing = parent.children.find(
         (child) => child.move && child.move.x === move.x && child.move.y === move.y && child.move.player === move.player
       );
-      const next = existing ?? createChildForMove(parent, move, isSuicideLegal(state.settings.gameRules));
+      const next = existing ?? createChildForMove(parent, move, isSuicideLegal(state.settings.gameRules), rulesOf(state.settings.gameRules).ko);
       if (!next) break;
       if (existing) reused += 1;
       else created += 1;
@@ -6070,8 +6088,19 @@ const makeHeuristicMove = (store: GameStore) => {
     const line3Far = boardSize - 3;
     const line4Far = boardSize - 4;
 
-    // 1. Get all legal moves
-    const legalMoves = getLegalMoves(board, currentPlayer, parentBoard);
+    // 1. Get all legal moves, under the same rules playMove will apply: the
+    // fallback used to offer a move playMove then refused, and the AI passed
+    // on nothing.
+    const rules = store.settings.gameRules;
+    const koRule = rulesOf(rules).ko;
+    const nextPlayer: Player = currentPlayer === 'black' ? 'white' : 'black';
+    const legalMoves = getLegalMoves(board, currentPlayer, parentBoard, { multiStoneSuicideLegal: isSuicideLegal(rules) }).filter((m) => {
+        if (koRule === 'simple') return true;
+        const tentative = board.map((row) => [...row]);
+        tentative[m.y]![m.x] = currentPlayer;
+        applyCapturesInPlace(tentative, m.x, m.y, currentPlayer);
+        return !lineViolatesSuperko(currentNode, tentative, nextPlayer, koRule);
+    });
 
     if (legalMoves.length === 0) {
         store.passTurn();
