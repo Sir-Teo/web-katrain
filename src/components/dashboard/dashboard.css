@@ -236,6 +236,10 @@
 }
 .wk-dashboard .tbtn:hover { background: var(--panel-soft); border-color: var(--line-strong); }
 .wk-dashboard .tbtn svg { width: 14px; height: 14px; }
+/* A tbtn that is a toggle rather than an action, matching .pbtn.on. Without
+   this, aria-pressed was the only trace of the engine being on -- true for a
+   screen reader and invisible to everyone else. */
+.wk-dashboard .tbtn.on { color: var(--ink); border-color: var(--ink); background: var(--panel-soft); font-weight: 600; }
 .wk-dashboard .tbtn.primary { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
 .wk-dashboard .tbtn.primary:hover { background: var(--ink-strong); }
 .wk-dashboard .tbtn:focus-visible { outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, var(--ui-panel)); outline-offset: 2px; }

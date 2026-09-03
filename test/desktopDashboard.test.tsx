@@ -16,6 +16,18 @@ describe('DesktopDashboard', () => {
     expect(APP_ISSUE_REPORT_URL).toBe('https://github.com/Sir-Teo/web-katrain/issues/new/choose');
   });
 
+  it('puts the play-on toggle beside the review actions, with a visible pressed state', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(source).toContain('onPlayFromHere');
+    expect(source).toContain('aria-pressed={!!engineOpponent}');
+    // aria-pressed alone was true for a screen reader and invisible to
+    // everyone else: .tbtn had no pressed style before this toggle existed.
+    expect(source).toContain("`tbtn${engineOpponent ? ' on' : ''}`");
+    expect(css).toContain('.wk-dashboard .tbtn.on');
+  });
+
   it('keeps the language switcher on the wide desktop dashboard header', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');

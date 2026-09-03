@@ -131,6 +131,10 @@ export interface DesktopDashboardProps {
   onAiMove: () => void;
   onResign: () => void;
   onPlayBest: () => void;
+  /** The colour the engine is currently playing, or null when it is not. */
+  engineOpponent: Player | null;
+  /** Hand the position on screen to the engine, or take it back. */
+  onPlayFromHere: () => void;
 
   // ---- file / header actions ----
   onNewGame: () => void;
@@ -225,7 +229,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
     navigateBack, navigateForward, canNavigateBack, canNavigateForward, navigateStart, navigateEnd, navigateToMove,
     jumpBack, jumpForward, findMistake, canFindPreviousMistake, canFindNextMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
-    passTurn, onUndo, onAiMove, onResign, onPlayBest,
+    passTurn, onUndo, onAiMove, onResign, onPlayBest, engineOpponent, onPlayFromHere,
     onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
     toast, headerNotification,
@@ -927,6 +931,20 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               ) : (
                 <>
                   <button type="button" className="tbtn" title="AI move" onClick={onAiMove}><Icon name="bot" size={14} /><span className="tbtn-label">AI move</span></button>
+                  {/* Review is where this is wanted: you are reading a game,
+                      you reach the move you regret, and you want to try the
+                      other one against something that answers back. */}
+                  <button
+                    type="button"
+                    className={`tbtn${engineOpponent ? ' on' : ''}`}
+                    aria-pressed={!!engineOpponent}
+                    title={engineOpponent
+                      ? `Stop the engine playing ${engineOpponent === 'black' ? 'Black' : 'White'}`
+                      : 'Play on from here against the engine. Your moves branch off the game.'}
+                    onClick={onPlayFromHere}
+                  >
+                    <Icon name="levelUp" size={14} /><span className="tbtn-label">Play on</span>
+                  </button>
                   <button type="button" className="tbtn primary" title="Play best" onClick={onPlayBest}><Icon name="play" size={14} /><span className="tbtn-label">Play best</span></button>
                 </>
               )}

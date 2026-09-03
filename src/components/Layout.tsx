@@ -2869,21 +2869,8 @@ export const Layout: React.FC = () => {
           ? `Stop the engine playing ${aiColor === 'black' ? 'Black' : 'White'}`
           : 'Play on from here against the engine',
         category: 'Game',
-        run: () => {
-          // While the engine is thinking it *is* the side to move, so the side
-          // not to move would be the human. Read the colour it already holds.
-          const engineColor = isAiPlaying && aiColor
-            ? aiColor
-            : currentPlayer === 'black' ? 'white' : 'black';
-          const turningOn = !(isAiPlaying && aiColor === engineColor);
-          useGameStore.getState().toggleAi(engineColor);
-          toast(
-            turningOn
-              ? `The engine plays ${engineColor === 'black' ? 'Black' : 'White'} from here. Your moves branch off the game.`
-              : 'The engine has stopped playing.',
-            'success'
-          );
-        },
+        // Declared below the registry, so defer the reference to call time.
+        run: () => handlePlayFromHere(),
         keywords: ['continue', 'play from here', 'vs computer', 'bot', 'try again', 'takeover', 'resume', 'sparring'],
       },
       {
@@ -3062,6 +3049,29 @@ export const Layout: React.FC = () => {
   const handleResign = () => {
     setPendingResignPlayer(currentPlayer);
   };
+
+  /**
+   * Hand the position on screen to the engine, or take it back.
+   *
+   * Shared by the palette entry and the board control bar's button so the two
+   * cannot drift: they are the same action, and one of them saying "Play on"
+   * while the other says "Stop" would be worse than having only one.
+   */
+  const handlePlayFromHere = useCallback(() => {
+    // While the engine is thinking it *is* the side to move, so the side not to
+    // move would be the human. Read the colour it already holds.
+    const engineColor = isAiPlaying && aiColor
+      ? aiColor
+      : currentPlayer === 'black' ? 'white' : 'black';
+    const turningOn = !(isAiPlaying && aiColor === engineColor);
+    useGameStore.getState().toggleAi(engineColor);
+    toast(
+      turningOn
+        ? `The engine plays ${engineColor === 'black' ? 'Black' : 'White'} from here. Your moves branch off the game.`
+        : 'The engine has stopped playing.',
+      'success'
+    );
+  }, [aiColor, currentPlayer, isAiPlaying, toast]);
 
   const confirmResign = useCallback(() => {
     const resigningPlayer = pendingResignPlayer ?? currentPlayer;
@@ -3721,6 +3731,8 @@ export const Layout: React.FC = () => {
             onAiMove={requestAiMove}
             onResign={handleResign}
             onPlayBest={requestAiMove}
+            engineOpponent={isAiPlaying ? aiColor : null}
+            onPlayFromHere={handlePlayFromHere}
             onNewGame={() => void openNewGameWithGuard()}
             onSaveSgf={handleSaveCurrentSgf}
             onCopySgf={handleCopySgf}
