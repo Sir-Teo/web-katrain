@@ -2854,6 +2854,39 @@ export const Layout: React.FC = () => {
         keywords: ['engine', 'play for me', 'computer'],
       },
       {
+        id: 'play-from-here',
+        /**
+         * Continue the position in front of you against the engine.
+         *
+         * Every other path to a bot game runs `startNewGame` first, so the one
+         * thing a reviewer actually wants -- "I lost it here, let me try the
+         * other move against something that punishes" -- could not be done at
+         * all. `toggleAi` has always worked from any node; nothing but a way to
+         * ask for it was missing. The line branches at the current move, so the
+         * game being reviewed is left intact.
+         */
+        label: isAiPlaying && aiColor
+          ? `Stop the engine playing ${aiColor === 'black' ? 'Black' : 'White'}`
+          : 'Play on from here against the engine',
+        category: 'Game',
+        run: () => {
+          // While the engine is thinking it *is* the side to move, so the side
+          // not to move would be the human. Read the colour it already holds.
+          const engineColor = isAiPlaying && aiColor
+            ? aiColor
+            : currentPlayer === 'black' ? 'white' : 'black';
+          const turningOn = !(isAiPlaying && aiColor === engineColor);
+          useGameStore.getState().toggleAi(engineColor);
+          toast(
+            turningOn
+              ? `The engine plays ${engineColor === 'black' ? 'Black' : 'White'} from here. Your moves branch off the game.`
+              : 'The engine has stopped playing.',
+            'success'
+          );
+        },
+        keywords: ['continue', 'play from here', 'vs computer', 'bot', 'try again', 'takeover', 'resume', 'sparring'],
+      },
+      {
         id: 'rotate-board',
         label: 'Rotate board',
         category: 'Game',
