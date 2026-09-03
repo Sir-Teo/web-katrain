@@ -1215,6 +1215,7 @@ export const Layout: React.FC = () => {
           analysisShowHints: settings.analysisShowHints,
           analysisShowPolicy: settings.analysisShowPolicy,
           analysisShowOwnership: settings.analysisShowOwnership,
+          analysisShowSwing: settings.analysisShowSwing,
         },
       },
     }));
@@ -1224,6 +1225,7 @@ export const Layout: React.FC = () => {
     settings.analysisShowHints,
     settings.analysisShowPolicy,
     settings.analysisShowOwnership,
+    settings.analysisShowSwing,
   ]);
 
   // Auto-run analysis when in analysis mode
@@ -2722,6 +2724,17 @@ export const Layout: React.FC = () => {
         shortcutId: 'toggle-territory',
         run: () => updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }),
         keywords: ['ownership', 'area'],
+      },
+      {
+        id: 'toggle-swing',
+        label: settings.analysisShowSwing ? 'Hide what this move changed' : 'Show what this move changed',
+        category: 'Analysis',
+        run: () => updateControls({ analysisShowSwing: !settings.analysisShowSwing }),
+        disabledReason:
+          currentNode.analysis && currentNode.parent?.analysis
+            ? undefined
+            : 'Analyze this move and the one before it, so there are two territory maps to compare.',
+        keywords: ['swing', 'ownership', 'territory', 'difference', 'where', 'lost points', 'delta'],
       },
       {
         id: 'toggle-shape-coach',

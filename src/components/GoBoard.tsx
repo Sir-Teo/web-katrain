@@ -56,6 +56,7 @@ import {
   type BoardKeyboardPoint,
 } from '../utils/boardKeyboardNavigation';
 import { boardToQaString, countBoardStones } from '../utils/boardQaSnapshot';
+import { computeTerritorySwing, hasVisibleSwing, swingAlpha } from '../utils/territorySwing';
 
 const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
@@ -824,6 +825,32 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   // hints and the policy heatmap say where the engine wants to play, and the
   // child rings and next-move ghost say what was played.
   const hidesAnswer = punishQuizArmed || drillAsking;
+  /**
+   * What the move that reached this position changed, rather than who owns
+   * what now. Both maps have to come from a real analysis of their own node --
+   * the `parentTerritory` fallback above exists so the wash survives a node
+   * that has not been read yet, and differencing a map against itself would
+   * paint a confident blank board.
+   *
+   * Gated on `hidesAnswer` with the hints: the swing is drawn from the played
+   * move, so during a drill it is the answer.
+   */
+  const territorySwing = useMemo(() => {
+    if (!hasAnalysisOverlay || !settings.analysisShowSwing || scoringMode || hidesAnswer) return null;
+    const after = currentNode.analysis;
+    const before = currentNode.parent?.analysis;
+    if (!after || !before) return null;
+    if ((after.ownershipMode ?? 'root') === 'none' || (before.ownershipMode ?? 'root') === 'none') return null;
+    const swing = computeTerritorySwing(before.territory, after.territory);
+    return hasVisibleSwing(swing) ? swing : null;
+  }, [
+    currentNode.analysis,
+    currentNode.parent?.analysis,
+    hasAnalysisOverlay,
+    hidesAnswer,
+    scoringMode,
+    settings.analysisShowSwing,
+  ]);
   const shouldShowPolicy = settings.analysisShowPolicy && !drillAsking;
   const shouldShowHints =
     hasAnalysisOverlay && !!visibleAnalysis && settings.analysisShowHints && !settings.analysisShowPolicy && !hidesAnswer;
@@ -2236,8 +2263,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const ownershipTexture = useMemo(() => {
-    if (!scoringMode && (!hasAnalysisOverlay || !settings.analysisShowOwnership)) return null;
-    if (!territory) return null;
+    // The swing and the ownership wash are the same visual channel -- a tint on
+    // an intersection saying who has it -- so they share the layer rather than
+    // stacking into mud. Swing wins while it is on, and says so in its label.
+    const swingGrid = territorySwing?.grid ?? null;
+    if (!swingGrid && !scoringMode && (!hasAnalysisOverlay || !settings.analysisShowOwnership)) return null;
+    const source = swingGrid ?? territory;
+    if (!source) return null;
+    const peak = territorySwing?.peak ?? 0;
 
     const width = boardSize + 2;
     const height = boardSize + 2;
@@ -2253,9 +2286,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         const clampedDisplayY = Math.max(0, Math.min(displayY, boardSize - 1));
         const internal = toInternal(clampedDisplayX, clampedDisplayY);
 
-        const val = territory[internal.y]?.[internal.x] ?? 0;
+        const val = source[internal.y]?.[internal.x] ?? 0;
         const base = val > 0 ? OWNERSHIP_COLORS.black : OWNERSHIP_COLORS.white;
-        let alpha = inBoard ? Math.abs(val) : 0;
+        // The swing is normalised against its own peak: an endgame exchange
+        // moves ownership by a fraction of what a capture does, and against a
+        // fixed scale it would render as a blank board.
+        let alpha = inBoard ? (swingGrid ? swingAlpha(val, peak) : Math.abs(val)) : 0;
         if (alpha > 1) alpha = 1;
         alpha = alpha ** (1 / OWNERSHIP_GAMMA);
         alpha = base[3] * alpha;
@@ -2269,7 +2305,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
 
     return { width, height, bytes };
-  }, [boardSize, hasAnalysisOverlay, scoringMode, settings.analysisShowOwnership, territory, toInternal]);
+  }, [boardSize, hasAnalysisOverlay, scoringMode, settings.analysisShowOwnership, territory, territorySwing, toInternal]);
 
   useEffect(() => {
     const canvas = ownershipCanvasRef.current;

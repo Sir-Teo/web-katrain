@@ -91,6 +91,7 @@ const ANALYSIS_OVERLAY_NAMES: Record<AnalysisOverlayControl, string> = {
   analysisShowHints: 'top move hints',
   analysisShowPolicy: 'move heatmap',
   analysisShowOwnership: 'territory ownership',
+  analysisShowSwing: 'territory swing',
 };
 
 function pointsSummaryClass(tone: ReturnType<typeof summarizePointsLost>['tone']): string {

@@ -531,6 +531,11 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           shortcut: shortcutLabels['toggle-territory'],
           onToggle: () => updateControls({ analysisShowOwnership: !settings.analysisShowOwnership }),
         })}
+        {viewToggleRow({
+          label: 'Swing',
+          on: settings.analysisShowSwing,
+          onToggle: () => updateControls({ analysisShowSwing: !settings.analysisShowSwing }),
+        })}
 
         <div className="border-t border-[var(--ui-border)] w-full mt-auto" />
         <div className="px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-surface-2)] w-full">Themes</div>

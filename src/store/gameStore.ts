@@ -1092,6 +1092,7 @@ const defaultSettings: GameSettings = {
   analysisShowPolicy: false,
   analysisPolicyMetric: 'policy',
   analysisShowOwnership: true,
+  analysisShowSwing: false,
   katagoModelUrl: publicUrl(KATAGO_SMALL_MODEL_PATH),
   katagoBackend: 'webgpu',
   katagoVisits: DEFAULT_KATAGO_VISITS,

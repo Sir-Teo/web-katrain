@@ -3,7 +3,8 @@ import {
   computeTerritorySwing,
   describeTerritorySwing,
   hasVisibleSwing,
-  SWING_PEAK_FLOOR,
+  SWING_MIN_ALPHA,
+  SWING_POINT_THRESHOLD,
   swingAlpha,
 } from '../src/utils/territorySwing';
 
@@ -62,17 +63,33 @@ describe('computeTerritorySwing', () => {
     expect(hasVisibleSwing(swing)).toBe(false);
     expect(describeTerritorySwing(swing)).toBeNull();
   });
+
+  it('draws nothing when every point moved but none crossed the threshold', () => {
+    const swing = computeTerritorySwing(grid([[0, 0], [0, 0]]), grid([[0.2, -0.2], [0.24, -0.1]]));
+    expect(swing?.peak).toBeCloseTo(0.24, 6);
+    expect(hasVisibleSwing(swing)).toBe(false);
+    expect(swingAlpha(swing!.grid[1]![0]!, swing!.peak)).toBe(0);
+  });
 });
 
 describe('swingAlpha', () => {
-  it('paints the peak fully and scales the rest against it', () => {
+  it('paints the peak fully and ramps the rest down to the visible minimum', () => {
     expect(swingAlpha(0.8, 0.8)).toBe(1);
-    expect(swingAlpha(-0.4, 0.8)).toBeCloseTo(0.5, 6);
+    expect(swingAlpha(-0.4, 0.8)).toBeCloseTo(SWING_MIN_ALPHA + (1 - SWING_MIN_ALPHA) * (0.15 / 0.55), 6);
     expect(swingAlpha(0, 0.8)).toBe(0);
   });
 
-  it('paints nothing when the whole board sits under the floor', () => {
-    expect(swingAlpha(SWING_PEAK_FLOOR / 2, SWING_PEAK_FLOOR / 2)).toBe(0);
+  it('paints nothing below the threshold, so the haze stays off the board', () => {
+    expect(swingAlpha(SWING_POINT_THRESHOLD - 0.001, 0.9)).toBe(0);
+    expect(swingAlpha(SWING_POINT_THRESHOLD, 0.9)).toBeCloseTo(SWING_MIN_ALPHA, 6);
+  });
+
+  it('paints nothing when the whole board sits under the threshold', () => {
+    expect(swingAlpha(0.1, 0.1)).toBe(0);
+  });
+
+  it('paints a lone qualifying point fully rather than dividing by nothing', () => {
+    expect(swingAlpha(SWING_POINT_THRESHOLD, SWING_POINT_THRESHOLD)).toBe(1);
   });
 
   it('never exceeds one, even if a reading runs past the peak', () => {

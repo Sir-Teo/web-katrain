@@ -15,6 +15,7 @@ import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { getResizeObserverConstructor } from '../../utils/resizeObserver';
+import { computeTerritorySwing, describeTerritorySwing } from '../../utils/territorySwing';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
@@ -188,7 +189,12 @@ type PopoverInputMode = 'pointer' | 'keyboard';
 const HERO_DISMISSED_KEY = 'wk-getting-started-dismissed';
 type DashboardOverlayKey = keyof Pick<
   GameSettings,
-  'analysisShowChildren' | 'analysisShowEval' | 'analysisShowHints' | 'analysisShowPolicy' | 'analysisShowOwnership'
+  | 'analysisShowChildren'
+  | 'analysisShowEval'
+  | 'analysisShowHints'
+  | 'analysisShowPolicy'
+  | 'analysisShowOwnership'
+  | 'analysisShowSwing'
 >;
 
 const DASHBOARD_OVERLAY_NAMES: Record<DashboardOverlayKey, string> = {
@@ -197,6 +203,7 @@ const DASHBOARD_OVERLAY_NAMES: Record<DashboardOverlayKey, string> = {
   analysisShowHints: 'top move hints',
   analysisShowPolicy: 'move heatmap',
   analysisShowOwnership: 'territory ownership',
+  analysisShowSwing: 'what this move changed',
 };
 
 export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
@@ -452,18 +459,34 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   );
 
   // ---- overlay toggle helper ----
+  /**
+   * What the move that reached this position changed, for the Swing chip's
+   * tooltip. Counted in intersections rather than points on purpose -- see
+   * `territorySwing.ts` on why an ownership total must not be quoted as a score.
+   */
+  const swingSummary = useMemo(
+    () =>
+      describeTerritorySwing(
+        computeTerritorySwing(currentNode.parent?.analysis?.territory, currentNode.analysis?.territory)
+      ),
+    [currentNode.analysis?.territory, currentNode.parent?.analysis?.territory]
+  );
+
   const overlayBtn = (
     keyName: DashboardOverlayKey,
     label: string,
     iconName: IconName,
-    disabled?: boolean
+    disabled?: boolean,
+    detail?: string | null
   ) => {
     const on = !!settings[keyName];
     const overlayActionLabel = on ? `Hide ${DASHBOARD_OVERLAY_NAMES[keyName]}` : `Show ${DASHBOARD_OVERLAY_NAMES[keyName]}`;
     const topMovesHiddenByPolicy = keyName === 'analysisShowHints' && disabled;
     const overlayTitle = topMovesHiddenByPolicy
       ? 'Move heatmap is showing; top move hints are hidden'
-      : overlayActionLabel;
+      : detail
+        ? `${overlayActionLabel} — ${detail}`
+        : overlayActionLabel;
     // No aria-label: the accessible name is the visible chip text, so voice
     // control can act on the word the user reads, and aria-pressed carries the
     // on/off state on its own. A "Hide …"/"Show …" name states it a second
@@ -1041,6 +1064,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   {overlayBtn('analysisShowHints', 'Top moves', 'layers', settings.analysisShowPolicy)}
                   {overlayBtn('analysisShowPolicy', 'Heatmap', 'grid')}
                   {overlayBtn('analysisShowOwnership', 'Territory', 'map')}
+                  {overlayBtn('analysisShowSwing', 'Swing', 'chart', false, swingSummary)}
                 </div>
                 )}
                 {legendOpen && (

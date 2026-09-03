@@ -23,15 +23,23 @@
  */
 
 /**
- * Below this the strongest point on the board barely moved, so there is nothing
- * worth painting: a whole-board wash built out of rounding would read as a
- * finding. 0.15 is a fifth of one intersection changing hands, well under what
- * any real transfer moves.
+ * A point has meaningfully changed hands past this much ownership.
+ *
+ * One threshold serves both the count and the wash, so the two can never
+ * disagree: every point the overlay paints is a point the caption counted.
+ * Without it the wash is unreadable -- measured live on a real move, 325 of 441
+ * intersections carried some non-zero difference, because subtracting two
+ * whole-board estimates leaves a haze everywhere. Painting that haze says
+ * "the whole board moved", which is exactly the wrong answer.
  */
-export const SWING_PEAK_FLOOR = 0.15;
-
-/** A point has meaningfully changed hands past this much ownership. */
 export const SWING_POINT_THRESHOLD = 0.25;
+
+/**
+ * How faint the weakest painted point may be. A point that only just clears the
+ * threshold still has to be visible, or the overlay silently drops the edges of
+ * the area it is describing.
+ */
+export const SWING_MIN_ALPHA = 0.35;
 
 export type TerritorySwing = {
   /**
@@ -94,23 +102,28 @@ export function computeTerritorySwing(
   return { grid, peak, towardBlack, towardWhite };
 }
 
-/** True when the swing has something on it worth drawing. */
+/** True when at least one point changed hands, so there is something to draw. */
 export function hasVisibleSwing(swing: TerritorySwing | null): swing is TerritorySwing {
-  return !!swing && swing.peak >= SWING_PEAK_FLOOR;
+  return !!swing && swing.towardBlack + swing.towardWhite > 0;
 }
 
 /**
  * How strongly to paint one point, 0..1.
  *
- * Normalised against the board's own peak rather than against a fixed scale:
- * the interesting comparison is between points in *this* swing, and a fixed
- * scale renders a quiet endgame exchange as a blank board even though that
- * exchange is the whole story of the move.
+ * Points under the threshold are haze and paint nothing. Above it the ramp is
+ * normalised against the board's own peak rather than a fixed scale, because
+ * the interesting comparison is between points in *this* swing: a quiet
+ * endgame exchange moves ownership by a fraction of what a capture does, and a
+ * fixed scale would render it as a blank board even though that exchange is
+ * the whole story of the move.
  */
 export function swingAlpha(value: number, peak: number): number {
-  if (!Number.isFinite(value) || !Number.isFinite(peak) || peak < SWING_PEAK_FLOOR) return 0;
-  const alpha = Math.abs(value) / peak;
-  return alpha > 1 ? 1 : alpha;
+  const magnitude = Math.abs(value);
+  if (!Number.isFinite(magnitude) || !Number.isFinite(peak)) return 0;
+  if (magnitude < SWING_POINT_THRESHOLD || peak < SWING_POINT_THRESHOLD) return 0;
+  const span = peak - SWING_POINT_THRESHOLD;
+  const ramp = span > 1e-6 ? Math.min(1, (magnitude - SWING_POINT_THRESHOLD) / span) : 1;
+  return SWING_MIN_ALPHA + (1 - SWING_MIN_ALPHA) * ramp;
 }
 
 /**

@@ -212,6 +212,8 @@ export interface GameSettings {
   analysisShowPolicy: boolean; // R
   analysisPolicyMetric: 'policy' | 'delta_score' | 'delta_winrate';
   analysisShowOwnership: boolean; // T
+  /** Paint what the played move changed instead of who owns what. */
+  analysisShowSwing: boolean;
   katagoModelUrl: string;
   katagoBackend: KataGoBackendPreference;
   katagoVisits: number;

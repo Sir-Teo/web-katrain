@@ -146,6 +146,7 @@ describe('TopControlBar', () => {
       'Top moves',
       'Heatmap',
       'Territory',
+      'Swing',
     ];
 
     for (const label of toggleLabels) {

@@ -2,6 +2,7 @@ import React from 'react';
 import type { AnalysisExperience } from '../types';
 import {
   FaChartBar,
+  FaExchangeAlt,
   FaFileAlt,
   FaLayerGroup,
   FaMap,
@@ -274,6 +275,12 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const heatmapToggleLabel = analysisControls.analysisShowPolicy ? 'Hide move heatmap' : 'Show move heatmap';
   const policyHeatmapMetricAriaLabel = `Map: ${policyHeatmapMetricLabel} — cycle move heatmap metric`;
   const territoryToggleLabel = analysisControls.analysisShowOwnership ? 'Hide territory ownership' : 'Show territory ownership';
+  // The swing shares the territory wash, so its label has to say what it
+  // replaces -- a user who turns it on and sees a different map otherwise
+  // reads the ownership overlay as broken.
+  const swingToggleLabel = analysisControls.analysisShowSwing
+    ? 'Hide what this move changed'
+    : 'Show what this move changed, in place of the territory wash';
   const gameReportLabel = 'Open the full game report';
   const playedMoveQuality = React.useMemo(
     () => getPlayedMoveQuality(currentNode, pointsLost),
@@ -722,6 +729,17 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         >
           <FaMap size={12} aria-hidden="true" />
           <span>Territory</span>
+        </button>
+        <button
+          type="button"
+          className={['analysis-command-bar__button', analysisControls.analysisShowSwing ? 'active' : ''].join(' ')}
+          onClick={() => toggleOverlay('analysisShowSwing')}
+          aria-pressed={analysisControls.analysisShowSwing}
+          title={swingToggleLabel}
+          data-analysis-swing-toggle="true"
+        >
+          <FaExchangeAlt size={12} aria-hidden="true" />
+          <span>Swing</span>
         </button>
         <button
           type="button"
