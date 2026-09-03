@@ -121,6 +121,13 @@ describe('describeTerritorySwing', () => {
     expect(describeTerritorySwing(white)).toBe('2 intersections toward White');
   });
 
+  it('is null when nothing moved, so callers can word the empty state themselves', () => {
+    // The dashboard chip distinguishes "not analysed yet" from "nothing moved";
+    // returning a sentence for the second would flatten the two together.
+    expect(describeTerritorySwing(computeTerritorySwing(grid([[0]]), grid([[0]])))).toBeNull();
+    expect(describeTerritorySwing(null)).toBeNull();
+  });
+
   it('says nothing when only haze moved', () => {
     const swing = computeTerritorySwing(grid([[0, 0]]), grid([[0.05, -0.03]]));
     expect(hasVisibleSwing(swing)).toBe(false);

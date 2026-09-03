@@ -28,6 +28,14 @@ describe('DesktopDashboard', () => {
     expect(css).toContain('.wk-dashboard .tbtn.on');
   });
 
+  it('tells the Swing chip why it has nothing to show, rather than nothing', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    // Turning a toggle on and seeing no change reads as broken, and the two
+    // reasons for an empty swing want different things from the reader.
+    expect(source).toContain("'needs this move and the one before it analysed'");
+    expect(source).toContain("'nothing moved here'");
+  });
+
   it('keeps the language switcher on the wide desktop dashboard header', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');

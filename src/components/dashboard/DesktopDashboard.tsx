@@ -468,13 +468,15 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
    * tooltip. Counted in intersections rather than points on purpose -- see
    * `territorySwing.ts` on why an ownership total must not be quoted as a score.
    */
-  const swingSummary = useMemo(
-    () =>
-      describeTerritorySwing(
-        computeTerritorySwing(currentNode.parent?.analysis?.territory, currentNode.analysis?.territory)
-      ),
-    [currentNode.analysis?.territory, currentNode.parent?.analysis?.territory]
-  );
+  const swingSummary = useMemo(() => {
+    const before = currentNode.parent?.analysis?.territory;
+    const after = currentNode.analysis?.territory;
+    // Say why there is nothing rather than nothing at all: turning the chip on
+    // and seeing the board unchanged reads as a broken toggle, and the two
+    // reasons for it want different things from the reader.
+    if (!before || !after) return 'needs this move and the one before it analysed';
+    return describeTerritorySwing(computeTerritorySwing(before, after)) ?? 'nothing moved here';
+  }, [currentNode.analysis?.territory, currentNode.parent?.analysis?.territory]);
 
   const overlayBtn = (
     keyName: DashboardOverlayKey,
