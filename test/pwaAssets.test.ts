@@ -75,12 +75,37 @@ describe('PWA assets', () => {
     expect(indexHtml).toContain('property="og:image" content="%BASE_URL%pwa/screenshot-wide.png"');
     expect(indexHtml).toContain('name="twitter:card" content="summary_large_image"');
 
+    // The install icons are precached; the screenshots deliberately are not.
+    // See "precaches what offline needs" below for why, and for the guard that
+    // keeps them out.
     const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
     expect(sw).toContain('./pwa/icon-192.png');
     expect(sw).toContain('./pwa/icon-512.png');
     expect(sw).toContain('./pwa/apple-touch-icon.png');
-    expect(sw).toContain('./pwa/screenshot-wide.png');
-    expect(sw).toContain('./pwa/screenshot-mobile.png');
+  });
+
+  it('precaches what offline needs and not the install dialog\u2019s decoration', () => {
+    const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
+    const precache = sw.slice(sw.indexOf('const PRECACHE_URLS'), sw.indexOf('];', sw.indexOf('const PRECACHE_URLS')));
+
+    // The engine and its runtime are the offline promise; measured live, the
+    // shell cache holds the model and all three wasm variants.
+    expect(precache).toContain('./models/katago-small.bin.gz');
+    expect(precache.match(/\.wasm'/g) ?? []).toHaveLength(3);
+
+    /**
+     * The manifest's screenshots are 504KB of the install dialog's preview and
+     * of index.html's social card -- shown by the browser, the OS or a crawler,
+     * never by the running app. Precaching them cost every first visit 8% of a
+     * 6.4MB install for something offline never needs.
+     */
+    expect(precache).not.toContain('screenshot-wide');
+    expect(precache).not.toContain('screenshot-mobile');
+    // Still cache-first if something ever does ask for them.
+    expect(sw).toMatch(/isCacheFirstAsset[\s\S]{0,200}png/);
+    // And still declared, so the install dialog can show them.
+    const manifest = JSON.parse(fs.readFileSync(path.join(publicDir, 'manifest.webmanifest'), 'utf8'));
+    expect(manifest.screenshots.map((s: { src: string }) => s.src)).toContain('pwa/screenshot-wide.png');
   });
 
   it('never caches failed navigations as the offline shell', () => {

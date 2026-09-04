@@ -11,8 +11,11 @@ const PRECACHE_URLS = [
   './pwa/icon-192.png',
   './pwa/icon-512.png',
   './pwa/apple-touch-icon.png',
-  './pwa/screenshot-wide.png',
-  './pwa/screenshot-mobile.png',
+  // The manifest's screenshots are not here on purpose. They are 504KB of the
+  // install dialog's rich preview and of the social card in index.html -- shown
+  // by the browser, the OS or a crawler, never by the running app, and never
+  // wanted offline. They stay runtime-cacheable like any other image, so
+  // nothing is lost if something does ask for them.
   './models/katago-small.bin.gz',
   './tfjs/tfjs-backend-wasm.wasm',
   './tfjs/tfjs-backend-wasm-simd.wasm',
