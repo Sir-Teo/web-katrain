@@ -63,6 +63,16 @@ function indexNodes(root: GameNode): Map<string, GameNode> {
   return map;
 }
 
+/**
+ * Below this gap between moves, centring the tree jumps instead of gliding: a
+ * smooth scroll in Chrome runs for roughly 300ms, so anything faster only
+ * queues animations that interrupt each other.
+ */
+const RAPID_NAVIGATION_MS = 250;
+
+const nowMs = (): number =>
+  typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
+
 export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = ({ onSelectNode }) => {
   const {
     rootNode,
@@ -404,12 +414,27 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   // wherever the user had scrolled it.
   const hasLayout = layout !== null;
   const centeredRef = useRef<{ nodeId: string; container: HTMLDivElement | null } | null>(null);
+  const centeredAtRef = useRef(0);
   useEffect(() => {
     if (!hasLayout) return;
     const last = centeredRef.current;
     if (last && last.nodeId === currentNode.id && last.container === containerElement) return;
     centeredRef.current = { nodeId: currentNode.id, container: containerElement };
-    centerCurrentNode(last ? preferredScrollBehavior() : 'auto');
+    /**
+     * A smooth scroll is worth it for a deliberate step and costs nothing.
+     * Held down, it is a different thing: each step starts an animation the
+     * next one interrupts, and every frame of every one of them fires a scroll
+     * event that schedules a viewport update and re-renders the tree. In a
+     * profile of 60 steps those two -- the scroll and the update it drives --
+     * were the top two entries in app code.
+     *
+     * So: smooth when the last centre has had time to finish, instant when the
+     * moves are arriving faster than the animation can play.
+     */
+    const now = nowMs();
+    const rapid = now - centeredAtRef.current < RAPID_NAVIGATION_MS;
+    centeredAtRef.current = now;
+    centerCurrentNode(last && !rapid ? preferredScrollBehavior() : 'auto');
   }, [centerCurrentNode, containerElement, currentNode.id, hasLayout]);
 
   const visible = useMemo(() => (layout ? getVisibleMoveTreeItems(layout, viewport) : null), [layout, viewport]);

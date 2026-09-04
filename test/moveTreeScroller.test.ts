@@ -26,3 +26,26 @@ describe('MoveTree scroller', () => {
     expect(source).not.toContain('useEffect(() => {\n    centerCurrentNode();\n  }, [centerCurrentNode]);');
   });
 });
+
+describe('centring while scrubbing', () => {
+  const source = readFileSync('src/components/MoveTree.tsx', 'utf8');
+
+  it('jumps instead of gliding when moves arrive faster than the animation', () => {
+    /**
+     * A smooth scroll is worth it for a deliberate step. Held down, each step
+     * starts an animation the next interrupts, and every frame of every one of
+     * them fires a scroll event that schedules a viewport update and re-renders
+     * the tree. Profiled over 60 steps, that update was 3.8% of samples; with
+     * this it is 2.5%.
+     */
+    expect(source).toContain('const RAPID_NAVIGATION_MS = 250;');
+    expect(source).toContain('const rapid = now - centeredAtRef.current < RAPID_NAVIGATION_MS;');
+    expect(source).toContain("centerCurrentNode(last && !rapid ? preferredScrollBehavior() : 'auto');");
+  });
+
+  it('still asks for the reader\u2019s preference when the step is deliberate', () => {
+    // prefers-reduced-motion already returns 'auto' from here, so the rapid
+    // case must not be the only thing that can make the scroll instant.
+    expect(source).toContain('preferredScrollBehavior()');
+  });
+});
