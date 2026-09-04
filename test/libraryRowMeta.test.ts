@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { libraryNameRepeatsPlayers } from '../src/utils/library';
+import { tagsFromResult } from '../src/utils/narrativeTags';
 
 describe('libraryNameRepeatsPlayers', () => {
   it('spots the pair an imported record leads with', () => {
@@ -48,5 +49,35 @@ describe('library file row layout', () => {
     expect(styles).toMatch(
       /\.library-tree-node\[data-library-row='file'\] \.library-tree-node-actions \{\s*grid-column: 5;\s*grid-row: 1 \/ 3;/
     );
+  });
+});
+
+describe('the result in a library row', () => {
+  const panel = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+  it('prints the result, which the row stored and never showed', () => {
+    // `extractLibraryMetadata` has always read RE into `metadata.result`, and
+    // the row only ever fed it to `tagsFromResult`. Measured on a saved game:
+    // "Game 8 - 2026-09-03 - 10 moves - 0.2 KB", with no sign of who won.
+    expect(panel).toContain("{item.metadata.result ? `${item.metadata.result} · ` : ''}");
+  });
+
+  it('drops only the tags that restate the result', () => {
+    // A plain margin produces no tag at all, which is why an ordinary game
+    // showed nothing: the row depended entirely on the narrative chips.
+    expect(tagsFromResult('W+7.0')).toEqual([]);
+    // These three say what the result string already says.
+    expect(tagsFromResult('W+R').map((tag) => tag.id)).toEqual(['resign']);
+    expect(tagsFromResult('W+T').map((tag) => tag.id)).toEqual(['time']);
+    expect(tagsFromResult('0').map((tag) => tag.id)).toEqual(['draw']);
+    expect(panel).toContain("const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw'])");
+    expect(panel).toContain('RESULT_RESTATING_TAGS.has(tag.id)');
+  });
+
+  it('keeps the tags that add something the result does not say', () => {
+    const wide = tagsFromResult('B+40.5').map((tag) => tag.id);
+    expect(wide).toContain('blowout');
+    // and the filter must not reach them
+    for (const id of wide) expect(['resign', 'time', 'draw']).not.toContain(id);
   });
 });

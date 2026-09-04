@@ -57,6 +57,12 @@ import {
   type LibraryFolder,
 } from '../utils/library';
 import { tagsFromResult } from '../utils/narrativeTags';
+
+/**
+ * Narrative tags that say nothing the result string has not already said:
+ * `W+R` is a resignation, `W+T` a timeout, and a draw prints as such.
+ */
+const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { stripUnsafeFilenameControls } from '../utils/filename';
@@ -1529,10 +1535,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             ? `${item.metadata.black ?? 'Black'} vs ${item.metadata.white ?? 'White'} · `
             : ''}
           {item.metadata.date ? `${item.metadata.date} · ` : ''}
+          {item.metadata.result ? `${item.metadata.result} · ` : ''}
           {moveSummary} · {(item.size / 1024).toFixed(1)} KB
-          {tagsFromResult(item.metadata.result).map((tag) => (
-            <span key={tag.id} className="ml-1 opacity-80" title={tag.title}>· {tag.label}</span>
-          ))}
+          {/* Tags that only restate the result are dropped now the result is
+              shown: "W+R · Resignation" and "0 · Draw" spend the row's width
+              saying one thing twice, and this line already truncates the name
+              at phone widths -- the same concern `libraryNameRepeatsPlayers`
+              exists for. Blowout, Close and the rest still say something the
+              raw result does not. */}
+          {tagsFromResult(item.metadata.result)
+            .filter((tag) => !(item.metadata.result && RESULT_RESTATING_TAGS.has(tag.id)))
+            .map((tag) => (
+              <span key={tag.id} className="ml-1 opacity-80" title={tag.title}>· {tag.label}</span>
+            ))}
           {(item.tags ?? []).length > 0 && (
             <span className="ml-1 text-[var(--ui-accent)]">
               {' · '}
