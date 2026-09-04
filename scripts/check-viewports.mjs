@@ -1441,6 +1441,33 @@ async function main() {
             failures.push('pointer focus displayed the keyboard cursor');
           }
 
+          // A click focuses the board as well, and the arrows are the app's move
+          // navigation, so the board has to leave them alone: an arrow pressed
+          // here must reach the global shortcut rather than raise the cursor.
+          // See boardKeyboardCursorHandlesKey in boardKeyboardNavigation.ts.
+          boardEl.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'ArrowRight',
+            bubbles: true,
+            cancelable: true,
+          }));
+          await waitForFrames(2);
+          if (boardEl.getAttribute('data-board-input-mode') !== 'pointer') {
+            failures.push('an arrow after a board click activated keyboard-only board feedback');
+          }
+          if (boardEl.querySelector('[data-board-keyboard-cursor="true"]')) {
+            failures.push('an arrow after a board click displayed the keyboard cursor');
+          }
+
+          // Reaching the board by keyboard is what raises the cursor, which is
+          // the distinction this section is really about.
+          // React binds onFocus/onBlur to focusin/focusout, and a headless
+          // window will not deliver real ones, so drive them the same way this
+          // section already drives pointer and key events.
+          boardEl.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+          await waitForFrames(1);
+          boardEl.focus({ preventScroll: true });
+          boardEl.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+          await waitForFrames(2);
           boardEl.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'ArrowRight',
             bubbles: true,
