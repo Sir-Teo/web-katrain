@@ -4165,7 +4165,7 @@
     right: max(12px, env(safe-area-inset-right));
     bottom: calc(
       var(--ui-bar-height) + var(--desktop-bottom-controls-height, 0px) +
-        var(--desktop-start-rail-height, 0px) + max(12px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-bottom))
     );
     z-index: 45;
     display: grid;
@@ -4272,6 +4272,19 @@
      is the smaller and more obviously correct change, and the banner comes
      straight back when the sheet closes. */
   :root:has([data-bottom-more-sheet='true']) .pwa-install-banner {
+    display: none;
+  }
+
+  /* The two install promos also step aside for the first-run start rail. The
+     card is fixed inside the board column, so on a first visit its only choices
+     are the rail or the board -- lifting it clear of the rail put it over 14
+     intersections, N1 to T2, where a click reached the card and did nothing.
+     Two first-run invitations in one corner is one too many anyway, and asking
+     someone to install lands better once they have started a game.
+     `offline-ready` and `update-ready` are not promos and still show: they say
+     something happened, and the stage reserve below keeps them off the board. */
+  :root[data-pwa-banner='install']:has([data-dashboard-hero='true']) .pwa-install-banner,
+  :root[data-pwa-banner='ios-install']:has([data-dashboard-hero='true']) .pwa-install-banner {
     display: none;
   }
 

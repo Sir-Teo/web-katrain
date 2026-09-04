@@ -435,8 +435,19 @@
   flex: 1 1 0; min-height: 0; min-width: 0;
   display: grid; place-items: center;
   padding: var(--stage-pad);
+  /* The install card is fixed to the bottom-right of this column, so with no
+     reserve the board simply grows underneath it. Measured on a 1440x900
+     desktop: 14 intersections in the bottom-right corner, N1 to T2, returned
+     the card from `elementFromPoint`, and a click on any of them did nothing at
+     all. Reserved the same way, and for the same reason, as the command bar
+     just below. */
+  --pwa-stage-reserve: 0px;
+  padding-bottom: calc(var(--stage-pad) + var(--pwa-stage-reserve));
   position: relative;
   overflow: hidden;
+}
+:root[data-pwa-banner] .wk-dashboard .board-stage {
+  --pwa-stage-reserve: var(--pwa-banner-height, 0px);
 }
 
 /* Analysis toggles constantly (Tab), and .board-stage is flex:1, so every
@@ -450,7 +461,7 @@
    focus mode both still hand the space back, since there the bigger board is
    exactly what was asked for. */
 .wk-dashboard[data-commandbar="reserved"]:not([data-focus="on"]) .board-stage {
-  padding-bottom: calc(var(--stage-pad) + var(--commandbar-reserve));
+  padding-bottom: calc(var(--stage-pad) + var(--commandbar-reserve) + var(--pwa-stage-reserve));
 }
 .wk-dashboard .board-wrap {
   position: relative; aspect-ratio: 1;
