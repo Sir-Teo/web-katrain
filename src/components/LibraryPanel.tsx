@@ -65,10 +65,10 @@ import { tagsFromResult } from '../utils/narrativeTags';
 const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
+import { describeLibraryImport } from '../utils/libraryImportSummary';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
-  PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
   isPhotoBoardImageFile,
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
@@ -88,7 +88,7 @@ import {
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
-import { getSgfImportSizeError, MAX_SGF_IMPORT_LABEL } from '../utils/sgfImportLimits';
+import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
@@ -1270,6 +1270,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       const uniqueName = getUniqueLibraryItemName(item.name, [...items, ...imported], item.parentId ?? null);
       imported.push(uniqueName === item.name ? item : { ...item, name: uniqueName });
     };
+    let unreadableFiles = 0;
     for (const file of Array.from(files)) {
       const name = file.name.toLowerCase();
       try {
@@ -1302,36 +1303,36 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         }
         pushImportedItem(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
       } catch {
-        // ignore per-file failures
+        // A file that throws here -- unreadable, or a ZIP that will not open --
+        // used to vanish without a counter, so the summary reported only what
+        // survived.
+        unreadableFiles += 1;
       }
     }
     if (imported.length === 0) {
-      onToast(
-        openedPhotoBoard
-          ? 'Opened photo board from image.'
-          : skippedUnsupportedPhotoImages > 0
-            ? PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE
-            : skippedOversizedSgfFiles > 0
-              ? `SGF files are limited to ${MAX_SGF_IMPORT_LABEL}. ${skippedOversizedSgfFiles} file${skippedOversizedSgfFiles === 1 ? '' : 's'} skipped.`
-            : skippedInvalidSgfFiles > 0
-              ? 'No valid SGF games were imported.'
-              : 'No SGF, ZIP, or board image files were imported.',
-        (skippedUnsupportedPhotoImages > 0 || skippedOversizedSgfFiles > 0 || skippedInvalidSgfFiles > 0) && !openedPhotoBoard ? 'error' : 'info'
-      );
+      const report = describeLibraryImport({
+        importedEntries: 0,
+        importedFiles: 0,
+        openedPhotoBoard,
+        skippedUnsupportedPhotoImages,
+        skippedOversizedSgfFiles,
+        skippedInvalidSgfFiles,
+        unreadableFiles,
+      });
+      onToast(report.message, report.tone);
       return;
     }
     setItems((prev) => [...imported, ...prev]);
-    const importedFiles = imported.filter(isFile).length;
-    const skippedUnsupportedSummary = skippedUnsupportedPhotoImages > 0
-      ? ` Skipped ${skippedUnsupportedPhotoImages} unsupported board image${skippedUnsupportedPhotoImages === 1 ? '' : 's'}.`
-      : '';
-    const skippedInvalidSgfSummary = skippedInvalidSgfFiles > 0
-      ? ` Skipped ${skippedInvalidSgfFiles} invalid SGF file${skippedInvalidSgfFiles === 1 ? '' : 's'}.`
-      : '';
-    onToast(
-      `Imported ${importedFiles} file${importedFiles === 1 ? '' : 's'}${openedPhotoBoard ? ' and opened photo board image' : ''}.${skippedUnsupportedSummary}${skippedInvalidSgfSummary}`,
-      'success'
-    );
+    const report = describeLibraryImport({
+      importedEntries: imported.length,
+      importedFiles: imported.filter(isFile).length,
+      openedPhotoBoard,
+      skippedUnsupportedPhotoImages,
+      skippedOversizedSgfFiles,
+      skippedInvalidSgfFiles,
+      unreadableFiles,
+    });
+    onToast(report.message, report.tone);
   };
 
   const handleImportFiles = async (files: FileList | null) =>

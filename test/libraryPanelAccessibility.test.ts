@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { describeLibraryImport } from '../src/utils/libraryImportSummary';
 
 describe('LibraryPanel accessibility', () => {
   it('leaves the mobile library the way its sibling tabs are left', () => {
@@ -224,8 +225,26 @@ describe('LibraryPanel accessibility', () => {
 
     expect(source).toContain("import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';");
     expect(source).toContain('assertValidLibrarySgfImport(text);');
-    expect(source).toContain('No valid SGF games were imported.');
-    expect(source).toContain('invalid SGF file');
+    expect(source).toContain('skippedInvalidSgfFiles += 1;');
+
+    // The wording moved into describeLibraryImport when every import outcome
+    // was gathered there. What matters is that an invalid file is still named
+    // both when it is the only thing dropped and when others came in with it.
+    const report = (over: Record<string, number>) =>
+      describeLibraryImport({
+        importedEntries: 0,
+        importedFiles: 0,
+        openedPhotoBoard: false,
+        skippedUnsupportedPhotoImages: 0,
+        skippedOversizedSgfFiles: 0,
+        skippedInvalidSgfFiles: 0,
+        unreadableFiles: 0,
+        ...over,
+      });
+    expect(report({ skippedInvalidSgfFiles: 1 }).message).toBe('No valid SGF games were imported.');
+    expect(report({ importedEntries: 2, importedFiles: 2, skippedInvalidSgfFiles: 1 }).message).toContain(
+      'invalid SGF file'
+    );
   });
 
   it('states the full scope of irreversible Library deletions', () => {
