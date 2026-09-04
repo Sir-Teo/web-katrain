@@ -2577,7 +2577,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 min={16}
                                                 max={ENGINE_MAX_VISITS}
                                                 value={settings.katagoVisits}
-                                                onChange={(e) => updateSettings({ katagoVisits: Math.max(16, parseInt(e.target.value || '0', 10)) })}
+                                                onChange={(e) => updateSettings({ katagoVisits: clampSettingsVisits(parseInt(e.target.value || '0', 10)) })}
                                                 className={inputClass}
                                             />
                                             <p className={subtextClass}>How many positions the search reads per move while live analysis is on. More is stronger and slower; the presets in the Analysis panel set the same number.</p>

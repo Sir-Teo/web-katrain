@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { ENGINE_MAX_VISITS } from '../src/engine/katago/limits';
 import { describe, expect, it } from 'vitest';
 import {
   ANALYSIS_VISIT_PRESETS,
@@ -66,5 +68,50 @@ describe('visit preset utilities', () => {
     expect(sliderValueToVisitCount(ANALYSIS_VISIT_SLIDER_MAX + 1)).toBe(50000);
     expect(visitSliderFillPercent(16)).toBeCloseTo(0);
     expect(visitSliderFillPercent(50000)).toBeCloseTo(100);
+  });
+});
+
+describe('the store clamps visits in one place', () => {
+  const store = readFileSync('src/store/gameStore.ts', 'utf8');
+
+  /**
+   * `Math.max(16, Math.min(x, ENGINE_MAX_VISITS))` was written out by hand
+   * fourteen times in the store, and the copy driving live analysis had lost
+   * its `Math.min`.
+   *
+   * That one mattered: `runAnalysis` caps what it will request at
+   * ENGINE_MAX_VISITS, so the achieved visit count can never pass 50,000. With
+   * an unbounded target -- reachable by typing a larger number into Settings,
+   * whose `max` attribute only governs the spinner -- `normalizedVisits <
+   * target` stayed true forever, the "settled" branch was unreachable, and the
+   * loop re-ran a full search every 50ms for as long as the tab stayed open.
+   */
+  it('escalates live analysis toward a bounded target', () => {
+    const target = /const target = ([^;]+);/.exec(
+      store.slice(store.indexOf('const token = ++continuousToken;'))
+    )?.[1];
+    expect(target, 'the live-analysis target moved').toBeDefined();
+    expect(target).toContain('clampAnalysisVisits');
+  });
+
+  it('leaves no hand-rolled copy of the clamp to drift again', () => {
+    expect(store).not.toMatch(/Math\.max\(16, Math\.min\([^;]*ENGINE_MAX_VISITS\)\)/);
+    // Any remaining lower bound must be against an already-bounded value, not
+    // against a raw setting.
+    expect(store).not.toMatch(/Math\.max\(16, [^)]*settings\.katago\w*Visits\)/);
+  });
+
+  it('is reachable: the settled branch needs target <= what runAnalysis grants', () => {
+    // The two halves of the invariant, asserted against the real helper rather
+    // than against the spelling of either site.
+    expect(clampAnalysisVisits(999_999)).toBe(ENGINE_MAX_VISITS);
+    expect(clampAnalysisVisits(ENGINE_MAX_VISITS + 1)).toBeLessThanOrEqual(ENGINE_MAX_VISITS);
+    // And the other half: what runAnalysis actually grants is bounded too, so
+    // the achieved count can reach the target. Asserted by what the line does,
+    // not how it is spelled -- pinning the old `Math.min(...)` text broke the
+    // moment the clamp was consolidated.
+    const desired = /const desiredVisits = ([^;]+);/.exec(store)?.[1];
+    expect(desired, 'runAnalysis no longer computes desiredVisits').toBeDefined();
+    expect(desired).toContain('clampAnalysisVisits');
   });
 });

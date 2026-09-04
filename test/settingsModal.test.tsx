@@ -306,3 +306,33 @@ describe('SettingsModal', () => {
     expect(row).toContain('flex-wrap');
   });
 });
+
+describe('visit fields cannot exceed what the engine will run', () => {
+  const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
+
+  /**
+   * `max={ENGINE_MAX_VISITS}` only governs the spinner: a typed number sails
+   * past it and reaches `onChange`. The Fast-review field beside it already
+   * clamped; the Visits field, one line above, was `Math.max(16, ...)` and so
+   * had a lower bound only.
+   *
+   * That fed the live-analysis loop's ceiling, and `runAnalysis` caps what it
+   * requests at ENGINE_MAX_VISITS -- so a larger setting made the loop's
+   * "settled" branch unreachable and it re-ran a full search every 50ms.
+   */
+  it('clamps every visits field on the way in, not just in the spinner', () => {
+    // Only the writes that carry a *typed* value need the clamp; the preset
+    // buttons beside them write constants from ANALYSIS_VISIT_PRESETS.
+    const typed = [...source.matchAll(/updateSettings\(\{ (katago\w*Visits): ([^}]*parseInt[^}]*)\}\)/g)];
+    expect(typed.length, 'the typed visits fields moved').toBeGreaterThanOrEqual(2);
+    for (const [, field, expr] of typed) {
+      expect(expr, `${field} writes an unclamped typed value`).toContain('clampSettingsVisits');
+    }
+  });
+
+  it('clamps to the engine ceiling, not just away from zero', () => {
+    const clamp = /function clampSettingsVisits[\s\S]*?\n}/.exec(source)?.[0] ?? '';
+    expect(clamp).toContain('ENGINE_MAX_VISITS');
+    expect(clamp).toContain('Number.isFinite');
+  });
+});

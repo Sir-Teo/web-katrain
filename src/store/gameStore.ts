@@ -7,6 +7,7 @@ import { coordinateToSgf, expandSgfPointList, extractKaTrainUserNoteFromSgfComme
 import { getKataGoEngineClient, isKataGoCanceledError } from '../engine/katago/client';
 import type { KataGoAnalysisPayload } from '../engine/katago/types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
+import { clampAnalysisVisits } from '../utils/visitPresets';
 import { KATAGO_HUMAN_MODEL_URL, KATAGO_RECOMMENDED_MODEL_URL, KATAGO_SMALL_MODEL_PATH } from '../engine/katago/modelDefaults';
 import { KATAGO_HUMAN_PROFILE_DEFAULT } from '../engine/katago/searchParams';
 import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katrainSgfAnalysis';
@@ -1297,7 +1298,7 @@ const analyzeForPlayout = (
   const grandparentBoard = node.parent?.parent?.gameState.board;
   const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
   const rules = s.settings.gameRules;
-  const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, ENGINE_MAX_VISITS));
+  const visits = clampAnalysisVisits(s.settings.katagoFastVisits);
   const maxTimeMs = Math.max(250, Math.min(s.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
   const wideRootNoise = opts.wideRootNoise ?? 0.0;
   return analysisQueue.enqueue<KataGoAnalysisPayload>({
@@ -1611,7 +1612,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
               if (!state.isContinuousAnalysis) return;
               if (!state.isAnalysisMode) return;
 
-              const target = Math.max(16, state.settings.katagoVisits);
+              // Clamped, or the loop below never settles. `runAnalysis` caps
+              // what it will actually request at ENGINE_MAX_VISITS, so a target
+              // above that leaves `normalizedVisits < target` true forever and
+              // re-runs a full search every 50ms for as long as the tab is open.
+              const target = clampAnalysisVisits(state.settings.katagoVisits);
               const rawFast = state.settings.katagoFastVisits;
               const fast = Number.isFinite(rawFast) ? rawFast : 25;
               const initialVisits = Math.max(16, Math.min(target, Math.floor(fast)));
@@ -1690,7 +1695,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const boardSize = getBoardSizeFromBoard(state.board);
     const komi = komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi);
     const modelUrl = resolveModelUrlForFetch(state.settings.katagoModelUrl);
-    const visits = Math.max(16, Math.min(state.settings.katagoVisits, ENGINE_MAX_VISITS));
+    const visits = clampAnalysisVisits(state.settings.katagoVisits);
     const maxTimeMs = Math.max(25, Math.min(state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
 
     // A pass leaves the stones alone, so the post-pass position sees the same
@@ -1916,9 +1921,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     if (mode === 'extra') {
-      const base = Math.max(16, Math.min(s.settings.katagoVisits, ENGINE_MAX_VISITS));
+      const base = clampAnalysisVisits(s.settings.katagoVisits);
       const prev = Math.max(0, Math.min(s.currentNode.analysisVisitsRequested ?? base, ENGINE_MAX_VISITS));
-      const visits = Math.max(16, Math.min(prev + base, ENGINE_MAX_VISITS));
+      const visits = clampAnalysisVisits(prev + base);
       toast(`Extra analysis: ${visits} visits`);
       void s.runAnalysis({ force: true, visits, maxTimeMs: longTimeMs });
       return;
@@ -1932,14 +1937,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       const maxMoveVisits = analysis.moves.reduce((acc, cur) => Math.max(acc, cur.visits), 1);
       const target = Math.max(maxMoveVisits * analysis.moves.length, s.currentNode.analysisVisitsRequested ?? s.settings.katagoVisits);
-      const visits = Math.max(16, Math.min(target, ENGINE_MAX_VISITS));
+      const visits = clampAnalysisVisits(target);
       toast(`Equalize: ${visits} visits`);
       void s.runAnalysis({ force: true, visits, maxTimeMs: longTimeMs });
       return;
     }
 
     if (mode === 'sweep') {
-      const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, ENGINE_MAX_VISITS));
+      const visits = clampAnalysisVisits(s.settings.katagoFastVisits);
       const boardSize = getBoardSizeFromBoard(s.board);
       const maxChildren = boardSize * boardSize;
       toast(`Sweep: ${visits} visits, maxChildren ${maxChildren}`);
@@ -1962,7 +1967,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return;
       }
       const label = `${String.fromCharCode(65 + (top.x >= 8 ? top.x + 1 : top.x))}${s.board.length - top.y}`;
-      const visits = Math.max(16, Math.min(s.settings.katagoVisits, ENGINE_MAX_VISITS));
+      const visits = clampAnalysisVisits(s.settings.katagoVisits);
       toast(`Analyzing without ${label}: ${visits} visits`);
       void s.runAnalysis({
         force: true,
@@ -1975,7 +1980,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     if (mode === 'alternative') {
-      const visits = Math.max(16, Math.min(s.settings.katagoFastVisits, ENGINE_MAX_VISITS));
+      const visits = clampAnalysisVisits(s.settings.katagoFastVisits);
       const wideRootNoise = Math.max(s.settings.katagoWideRootNoise, 0.12);
       toast(`Alternative: ${visits} visits, noise ${wideRootNoise.toFixed(2)}`);
       void s.runAnalysis({
@@ -2832,7 +2837,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     void (async () => {
       const boardSize = getBoardSizeFromBoard(state.board);
-      const fastVisits = Math.max(16, Math.min(get().settings.katagoFastVisits, ENGINE_MAX_VISITS));
+      const fastVisits = clampAnalysisVisits(get().settings.katagoFastVisits);
       const maxTimeMs = Math.max(50, Math.min(600, Math.floor(get().settings.katagoMaxTimeMs * 0.15)));
       const batchSize = Math.max(1, Math.min(get().settings.katagoBatchSize, 64));
       const maxChildren = Math.max(4, Math.min(get().settings.katagoMaxChildren, boardSize * boardSize));
@@ -3003,7 +3008,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     analysisQueue.cancelGroup('game-analysis');
     const state = get();
 
-    const visits = Math.max(16, Math.min(Math.floor(opts.visits || 0), ENGINE_MAX_VISITS));
+    const visits = clampAnalysisVisits(opts.visits || 0);
     const moveRangeRaw = opts.moveRange ?? null;
     const moveRange: [number, number] | null = moveRangeRaw
       ? [Math.min(moveRangeRaw[0]!, moveRangeRaw[1]!), Math.max(moveRangeRaw[0]!, moveRangeRaw[1]!)]
@@ -3211,7 +3216,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!state.isAnalysisMode) return;
 
       // Check if current node already has analysis
-      const desiredVisits = Math.max(16, Math.min(opts?.visits ?? state.settings.katagoVisits, ENGINE_MAX_VISITS));
+      const desiredVisits = clampAnalysisVisits(opts?.visits ?? state.settings.katagoVisits);
       const avoidMoves = opts?.avoidMoves && opts.avoidMoves.length > 0 ? opts.avoidMoves : undefined;
       if (!opts?.force && !avoidMoves && state.currentNode.analysis) {
         const existing = state.currentNode.analysis;
@@ -3242,7 +3247,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           const fillDameBeforePass = state.settings.katagoFillDameBeforePass;
           const nnRandomize = opts?.nnRandomize ?? state.settings.katagoNnRandomize;
           const conservativePass = opts?.conservativePass ?? state.settings.katagoConservativePass;
-          const visits = Math.max(16, Math.min(opts?.visits ?? state.settings.katagoVisits, ENGINE_MAX_VISITS));
+          const visits = clampAnalysisVisits(opts?.visits ?? state.settings.katagoVisits);
           const maxTimeMs = Math.max(25, Math.min(opts?.maxTimeMs ?? state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
           const batchSize = Math.max(1, Math.min(opts?.batchSize ?? state.settings.katagoBatchSize, 64));
           const boardSize = getBoardSizeFromBoard(state.board);
@@ -3988,7 +3993,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           state.settings.aiStrategy === 'default'
             ? state.settings.katagoTopK
             : Math.max(state.settings.katagoTopK, 30);
-        const visits = Math.max(16, Math.min(state.settings.katagoVisits, ENGINE_MAX_VISITS));
+        const visits = clampAnalysisVisits(state.settings.katagoVisits);
         const maxTimeMs = Math.max(25, Math.min(state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
         const batchSize = state.settings.katagoBatchSize;
         const maxChildren = state.settings.katagoMaxChildren;
