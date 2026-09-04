@@ -208,6 +208,8 @@ interface GameStore extends GameState {
   loadGame: (sgf: ParsedSgf) => void;
   passTurn: () => void;
   resign: (player?: Player) => void;
+  /** Write the result of a counted game onto the record; see the action. */
+  recordCountedResult: (result: string) => void;
   runAnalysis: (opts?: {
     force?: boolean;
     visits?: number;
@@ -6027,6 +6029,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
       aiColor: null,
       treeVersion: s.treeVersion + 1,
     }));
+  },
+
+  /**
+   * Record the result of a game that was played out and counted.
+   *
+   * Resigning wrote `RE`; counting did not, so the ordinary way to finish a Go
+   * game -- two passes and a count -- was the one that lost its result. The
+   * panel showed W+7.0, and the exported SGF carried no result at all, which
+   * also left the library and any reopened copy with nothing.
+   *
+   * Only for a position that really is the end. Scoring can be opened mid-game
+   * to estimate, and an estimate is not a result.
+   */
+  recordCountedResult: (result: string) => {
+    const state = get();
+    const node = state.currentNode;
+    const bothPassed = isPassMove(node.move) && isPassMove(node.parent?.move);
+    if (!bothPassed) return;
+    // Never overwrite a result the game already carries: a loaded SGF's RE is
+    // what the players agreed, and a count here is only this app's arithmetic.
+    if (node.endState) return;
+
+    node.endState = result;
+    if (!state.rootNode.properties) state.rootNode.properties = {};
+    if (!state.rootNode.properties.RE?.[0]) state.rootNode.properties.RE = [result];
+
+    set((s) => ({ treeVersion: s.treeVersion + 1 }));
   },
 
   rotateBoard: () =>

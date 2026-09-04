@@ -56,3 +56,57 @@ describe('game end announcement', () => {
     expect(useGameStore.getState().notification?.message).toContain('Both players passed');
   });
 });
+
+/**
+ * Resigning wrote `RE`; counting did not. So the ordinary way to finish a Go
+ * game -- play it out, pass twice, count -- was the one whose result vanished:
+ * the panel showed W+7.0 and the exported SGF carried no result at all.
+ */
+describe('recording a counted result', () => {
+  beforeEach(() => {
+    analysisQueue.cancelWhere(() => true, 'test reset');
+    analysisQueue.clearCache();
+    useGameStore.getState().resetGame();
+    useGameStore.getState().startNewGame({ boardSize: 9, komi: 7, rules: 'japanese', handicap: 0 });
+    useGameStore.setState({ notification: null });
+  });
+
+  it('writes the result onto the node and the root once both players have passed', () => {
+    useGameStore.getState().playMove(2, 2);
+    useGameStore.getState().passTurn();
+    useGameStore.getState().passTurn();
+    useGameStore.getState().recordCountedResult('W+7.0');
+
+    expect(useGameStore.getState().currentNode.endState).toBe('W+7.0');
+    expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBe('W+7.0');
+  });
+
+  it('ignores a mid-game estimate, which is not a result', () => {
+    useGameStore.getState().playMove(2, 2);
+    useGameStore.getState().recordCountedResult('B+3.0');
+
+    // A fresh node carries null here, not undefined.
+    expect(useGameStore.getState().currentNode.endState ?? null).toBeNull();
+    expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBeUndefined();
+  });
+
+  it('does not overwrite a result the game already carries', () => {
+    // A loaded game's RE is what the players agreed; a count here is only this
+    // app's arithmetic, and it must not quietly replace the record.
+    useGameStore.getState().playMove(2, 2);
+    useGameStore.getState().passTurn();
+    useGameStore.getState().passTurn();
+    useGameStore.getState().recordCountedResult('W+7.0');
+    useGameStore.getState().recordCountedResult('B+99.0');
+
+    expect(useGameStore.getState().currentNode.endState).toBe('W+7.0');
+    expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBe('W+7.0');
+  });
+
+  it('leaves resignation alone, which already recorded itself', () => {
+    useGameStore.getState().playMove(2, 2);
+    useGameStore.getState().resign('black');
+    expect(useGameStore.getState().currentNode.endState).toBe('W+R');
+    expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBe('W+R');
+  });
+});

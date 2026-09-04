@@ -197,6 +197,7 @@ export const Layout: React.FC = () => {
     startNewGame,
     passTurn,
     resign,
+    recordCountedResult,
     playMove,
     makeAiMove,
     isAiPlaying,
@@ -282,6 +283,7 @@ export const Layout: React.FC = () => {
       startNewGame: state.startNewGame,
       passTurn: state.passTurn,
       resign: state.resign,
+      recordCountedResult: state.recordCountedResult,
       playMove: state.playMove,
       makeAiMove: state.makeAiMove,
       isAiPlaying: state.isAiPlaying,
@@ -755,6 +757,22 @@ export const Layout: React.FC = () => {
     }
     playMove(best.x, best.y);
   }, [passTurn, playMove, toast]);
+
+  /**
+   * Closing the score panel on a finished game writes the result down.
+   *
+   * Resigning recorded `RE`; counting did not, so the ordinary way to finish a
+   * Go game was the one whose result vanished -- the panel said W+7.0 and the
+   * exported SGF carried nothing. Records the string the panel showed, not a
+   * recomputation of it, so the file agrees with what was on screen.
+   *
+   * The store ignores this unless the position really is a two-pass end, so
+   * closing a mid-game estimate stays a no-op.
+   */
+  const finishScoring = useCallback(() => {
+    recordCountedResult(manualScoreEstimate.result);
+    setScoringMode(false);
+  }, [manualScoreEstimate.result, recordCountedResult]);
 
   const clearManualDeadStones = useCallback(() => {
     setManualDeadStones(new Set());
@@ -3706,7 +3724,7 @@ export const Layout: React.FC = () => {
                   canAutoEstimate={scoreEstimateSource !== null}
                   estimateSource={scoreEstimateSource}
                   onClear={clearManualDeadStones}
-                  onDone={() => setScoringMode(false)}
+                  onDone={finishScoring}
                 />}
               </>
             }
@@ -4010,7 +4028,7 @@ export const Layout: React.FC = () => {
               canAutoEstimate={scoreEstimateSource !== null}
               estimateSource={scoreEstimateSource}
               onClear={clearManualDeadStones}
-              onDone={() => setScoringMode(false)}
+              onDone={finishScoring}
             />
             <div
               ref={analysisCommandBarRef}
