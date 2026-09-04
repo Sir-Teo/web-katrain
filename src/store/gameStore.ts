@@ -1196,6 +1196,22 @@ export const lineViolatesSuperko = (from: GameNode, newBoard: BoardState, nextPl
   return violatesSuperko({ ko: koRule, next: { board: newBoard, playerToMove: nextPlayerToMove }, history });
 };
 
+/**
+ * Both players have passed, so the game is over.
+ *
+ * The only sign of this was a small "Game ended" chip in the game strip, which
+ * assumes the reader already knows that Go ends on two passes and that someone
+ * now has to count. Say it, and name the control that does the counting.
+ */
+const announceGameEnd = (set: (partial: { notification: StoreNotification }) => void) => {
+  set({
+    notification: {
+      message: 'Both players passed, so the game is over. Choose Score to count the territory.',
+      type: 'info',
+    },
+  });
+};
+
 const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false, koRule: KoRule = 'simple'): GameNode | null => {
   const st = parent.gameState;
   if (st.currentPlayer !== move.player) return null;
@@ -5952,6 +5968,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
            get().jumpToNode(existingChild);
            const after = get();
            const ended = isPassMove(after.currentNode.move) && isPassMove(after.currentNode.parent?.move);
+           if (ended) announceGameEnd(set);
            if (!ended && after.isAiPlaying && after.aiColor && after.currentPlayer === after.aiColor) {
              setTimeout(() => after.makeAiMove(), 500);
            }
@@ -5987,6 +6004,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       const after = get();
       const ended = isPassMove(after.currentNode.move) && isPassMove(after.currentNode.parent?.move);
+      if (ended) announceGameEnd(set);
       if (!ended && after.isAiPlaying && after.aiColor && after.currentPlayer === after.aiColor) {
         setTimeout(() => after.makeAiMove(), 500);
       }
