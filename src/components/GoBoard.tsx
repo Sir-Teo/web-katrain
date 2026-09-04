@@ -51,6 +51,7 @@ import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { getBoardTooltipPlacement } from '../utils/boardTooltipPlacement';
 import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
 import {
+  boardKeyboardCursorHandlesKey,
   getInitialBoardKeyboardCursor,
   moveBoardKeyboardCursor,
   type BoardKeyboardPoint,
@@ -1770,7 +1771,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
 
   const handleBoardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
-    boardPointerFocusRef.current = false;
+    // Read before anything clears it: this is the only record of whether the
+    // board was reached by Tab or by a click, and the two want opposite things
+    // from the arrow keys.
+    const pointerFocused = boardPointerFocusRef.current;
 
     const movement: Record<string, [number, number] | undefined> = {
       ArrowUp: [0, -1],
@@ -1779,7 +1783,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       ArrowRight: [1, 0],
     };
     const delta = movement[event.key];
+    const cursorOwnsKey = boardKeyboardCursorHandlesKey(event.key, {
+      active: isKeyboardCursorActive,
+      pointerFocused,
+    });
     if (delta) {
+      // Left for the app's move navigation when the board was only clicked.
+      if (!cursorOwnsKey) return;
+      boardPointerFocusRef.current = false;
       event.preventDefault();
       event.stopPropagation();
       clearPendingTap();
@@ -1806,6 +1817,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
 
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    // Same rule: Enter is the global "AI move" shortcut when the cursor is off.
+    if (!cursorOwnsKey) return;
+    boardPointerFocusRef.current = false;
     event.preventDefault();
     event.stopPropagation();
     clearPendingTap();
