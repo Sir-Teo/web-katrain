@@ -1,7 +1,7 @@
 import type { CandidateMove, FloatArray, GameNode, Player } from '../types';
 import { isReportReadyAnalysis } from './analysisCoverage';
 import { getCurrentLineNodes, type ActiveBranchMap } from './branchNavigation';
-import { getEvaluationClass } from './nodeAnalysis';
+import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from './nodeAnalysis';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
 const KAYA_PHASE_THRESHOLDS: Record<number, { openingEnd: number; middleEnd: number }> = {
@@ -95,8 +95,8 @@ export function getPhaseAnalysisMoveRange(boardSize: number, phase: GameReportPh
   return [start, end];
 }
 
-export function getPointLossBucket(pointsLost: number, thresholds: number[]): number {
-  const safeThresholds = thresholds.length ? thresholds : [12, 6, 3, 1.5, 0.5, 0];
+export function getPointLossBucket(pointsLost: number, thresholds: readonly number[]): number {
+  const safeThresholds = thresholds.length ? thresholds : DEFAULT_EVAL_THRESHOLDS;
   return getEvaluationClass(Math.max(0, pointsLost), safeThresholds, safeThresholds.length);
 }
 
@@ -309,7 +309,7 @@ export type MoveReportEntry = {
 };
 
 export type GameReport = {
-  thresholds: number[];
+  thresholds: readonly number[];
   labels: string[];
   histogram: Array<Record<Player, number>>;
   stats: Record<Player, PlayerReportStats>;
@@ -583,12 +583,12 @@ export function getReportStudyFocus(args: {
 
 export function computeGameReport(args: {
   currentNode: GameNode;
-  thresholds: number[];
+  thresholds: readonly number[];
   activeBranchChildIds?: ActiveBranchMap;
   depthFilter?: [number, number] | null;
   phaseFilter?: GameReportPhaseFilter;
 }): GameReport {
-  const thresholds = args.thresholds?.length ? args.thresholds : [12, 6, 3, 1.5, 0.5, 0];
+  const thresholds = args.thresholds?.length ? args.thresholds : DEFAULT_EVAL_THRESHOLDS;
   const depthFilter = args.depthFilter ?? null;
   const phaseFilter = args.phaseFilter ?? 'all';
   const [fromFrac, toFrac] = depthFilter ?? [0, 1e9]; // KaTrain uses fractions of board area.

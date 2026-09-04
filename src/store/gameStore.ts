@@ -8,6 +8,7 @@ import { getKataGoEngineClient, isKataGoCanceledError } from '../engine/katago/c
 import type { KataGoAnalysisPayload } from '../engine/katago/types';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import { clampAnalysisVisits } from '../utils/visitPresets';
+import { DEFAULT_EVAL_THRESHOLDS } from '../utils/nodeAnalysis';
 import { KATAGO_HUMAN_MODEL_URL, KATAGO_RECOMMENDED_MODEL_URL, KATAGO_SMALL_MODEL_PATH } from '../engine/katago/modelDefaults';
 import { KATAGO_HUMAN_PROFILE_DEFAULT } from '../engine/katago/searchParams';
 import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katrainSgfAnalysis';
@@ -1090,7 +1091,7 @@ const defaultSettings: GameSettings = {
   gameRules: 'japanese',
   trainerLowVisits: 25,
   trainerTheme: 'theme:normal',
-  trainerEvalThresholds: [12, 6, 3, 1.5, 0.5, 0],
+  trainerEvalThresholds: [...DEFAULT_EVAL_THRESHOLDS],
   trainerShowDots: [true, true, true, true, true, true],
   trainerSaveFeedback: [true, true, true, true, false, false],
   trainerEvalShowAi: true,
@@ -3015,7 +3016,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       : null;
     const mistakesOnly = opts.mistakesOnly === true;
 
-    const thresholds = state.settings.trainerEvalThresholds?.length ? state.settings.trainerEvalThresholds : [12, 6, 3, 1.5, 0.5, 0];
+    const thresholds = state.settings.trainerEvalThresholds?.length ? state.settings.trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS;
     const mistakesThreshold =
       thresholds.length >= 4 ? thresholds[thresholds.length - 4]! : 3;
     const nodes = selectFullGameAnalysisNodes({
@@ -3490,7 +3491,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const pointsLost = (move.player === 'black' ? 1 : -1) * (parentScore - childScore);
             const thresholds = latestState.settings.trainerEvalThresholds?.length
               ? latestState.settings.trainerEvalThresholds
-              : ([12, 6, 3, 1.5, 0.5, 0] as const);
+              : DEFAULT_EVAL_THRESHOLDS;
 
             let i = 0;
             while (i < thresholds.length - 1 && pointsLost < thresholds[i]!) i++;

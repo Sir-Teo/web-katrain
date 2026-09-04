@@ -25,7 +25,7 @@ import {
 import { gestureForPointer } from '../utils/pointerGesture';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
-import { computeNodePointsLost, getEvaluationClass } from '../utils/nodeAnalysis';
+import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
 import { expandSgfPointList, sgfCoordToXy } from '../utils/sgf';
 import { getHorizontalSwipeNavigationAction } from '../utils/swipeNavigation';
@@ -59,7 +59,6 @@ import {
 import { boardToQaString, countBoardStones } from '../utils/boardQaSnapshot';
 import { computeTerritorySwing, hasVisibleSwing, resolveSwingBaseline, swingAlpha } from '../utils/territorySwing';
 
-const KATRAN_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0] as const;
 const OWNERSHIP_COLORS = {
   black: [0.0, 0.0, 0.1, 0.75],
   white: [0.92, 0.92, 1.0, 0.8],
@@ -543,7 +542,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const [isKeyboardCursorActive, setIsKeyboardCursorActive] = useState(false);
   const boardPointerFocusRef = useRef(false);
 
-  const evalThresholds: readonly number[] = settings.trainerEvalThresholds?.length ? settings.trainerEvalThresholds : KATRAN_EVAL_THRESHOLDS;
+  const evalThresholds: readonly number[] = settings.trainerEvalThresholds?.length ? settings.trainerEvalThresholds : DEFAULT_EVAL_THRESHOLDS;
   const boardTheme = useMemo(() => getBoardTheme(settings.boardTheme), [settings.boardTheme]);
   const evalColors = useMemo(() => getKaTrainEvalColors(settings.trainerTheme), [settings.trainerTheme]);
   const showEvalDotsForPlayer = useMemo(() => {

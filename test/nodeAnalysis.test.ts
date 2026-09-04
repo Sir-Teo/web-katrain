@@ -83,21 +83,28 @@ describe('one table decides what counts as a mistake', () => {
     expect(declarers).toEqual(['src/utils/nodeAnalysis.ts']);
   });
 
-  it('is what the surfaces that grade moves actually use', () => {
-    // Each of these falls back to the shared table when the user has not set
-    // their own; none may reach for a private copy of the numbers.
-    const graders = [
-      'src/components/GameReportModal.tsx',
-      'src/components/SettingsModal.tsx',
-      'src/components/ScoreWinrateGraph.tsx',
-      'src/components/CandidateMoveList.tsx',
-      'src/components/AnalysisPanel.tsx',
-      'src/components/dashboard/DesktopDashboard.tsx',
-    ];
-    for (const file of graders) {
+  it('has the numbers written down in exactly one file', () => {
+    /**
+     * Checked across the whole tree rather than against a list of graders. The
+     * first version of this guard looked only for a redeclared
+     * `DEFAULT_EVAL_THRESHOLDS` in six named components, so it did not see the
+     * two bare copies of the literal that were sitting in the fallbacks inside
+     * gameReport.ts -- the module that actually computes the report.
+     */
+    const spelledOut = files.filter((file) => /\[12, 6, 3, 1\.5, 0\.5, 0\]/.test(readFileSync(file, 'utf8')));
+    expect(spelledOut).toEqual(['src/utils/nodeAnalysis.ts']);
+  });
+
+  it('is imported by every module that falls back to it', () => {
+    const users = files.filter((file) => {
       const source = readFileSync(file, 'utf8');
-      expect(source, file).toMatch(/import \{[^}]*DEFAULT_EVAL_THRESHOLDS[^}]*\} from '[^']*nodeAnalysis'/);
-      expect(source, `${file} still spells the numbers out`).not.toMatch(/\[12, 6, 3, 1\.5, 0\.5, 0\]/);
+      return file !== 'src/utils/nodeAnalysis.ts' && source.includes('DEFAULT_EVAL_THRESHOLDS');
+    });
+    expect(users.length, 'nothing uses the shared table any more').toBeGreaterThanOrEqual(6);
+    for (const file of users) {
+      expect(readFileSync(file, 'utf8'), file).toMatch(
+        /import \{[^}]*DEFAULT_EVAL_THRESHOLDS[^}]*\} from '[^']*nodeAnalysis'/
+      );
     }
   });
 });

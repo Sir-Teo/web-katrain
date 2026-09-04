@@ -3,7 +3,7 @@ import { DEFAULT_BOARD_SIZE } from "../types";
 import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './katrainSgfAnalysis';
 import { encodeKayaKaFromAnalysis } from './kayaSgfAnalysis';
 import { createEmptyBoard, normalizeBoardSize } from './boardSize';
-import { getEvaluationClass } from './nodeAnalysis';
+import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from './nodeAnalysis';
 import { downloadBlob } from './objectUrl';
 import { stripUnsafeFilenameControls } from './filename';
 import { assertSgfImportSize } from './sgfImportLimits';
@@ -60,7 +60,7 @@ export type KaTrainSgfExportOptions = {
 };
 
 const DEFAULT_TRAINER_CONFIG: KaTrainSgfExportTrainerConfig = {
-    evalThresholds: [12, 6, 3, 1.5, 0.5, 0],
+    evalThresholds: [...DEFAULT_EVAL_THRESHOLDS],
     saveFeedback: [true, true, true, true, false, false],
     saveCommentsPlayer: { black: true, white: true },
     saveAnalysis: true,
