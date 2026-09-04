@@ -1,6 +1,6 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { stripUnsafeFilenameControls } from './filename';
-import { getIndexedDB, readLocalStorage, writeLocalStorage } from './storage';
+import { getIndexedDB, getLocalStorage, readLocalStorage, writeLocalStorage } from './storage';
 import { toSearchTerms } from './searchTerms';
 
 export type LibraryBase = {
@@ -565,9 +565,21 @@ const loadFallbackLibrary = (): LibraryItem[] => {
   return memoryItems;
 };
 
-const saveFallbackLibrary = (items: LibraryItem[]): void => {
+/**
+ * Last resort when IndexedDB is gone.
+ *
+ * Reports whether the bytes actually landed, which used to be dropped on the
+ * floor here. `writeLocalStorage` answers false for two very different things,
+ * so they are separated: a store that is simply *absent* -- SSR, a Node test,
+ * a browser with site data switched off -- is a standing condition the app
+ * already runs in, memory-only and not worth an error on every save. A store
+ * that exists and *refuses* the write is out of room, and that is the one
+ * nobody was being told about.
+ */
+const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-storage' => {
   memoryItems = normalizeLibraryItems(items);
-  writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems));
+  if (!getLocalStorage()) return 'no-storage';
+  return writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems)) ? 'saved' : 'rejected';
 };
 
 // Set when reading IndexedDB failed while IndexedDB itself is available.
@@ -614,17 +626,38 @@ export const loadLibrary = async (): Promise<LibraryItem[]> => {
   }
 };
 
+/**
+ * Thrown when neither IndexedDB nor localStorage would take the library.
+ *
+ * Every caller already handles a rejection, and each does the right thing with
+ * it: the panel shows its inline error status instead of "ready", saving to the
+ * Library reports the failure rather than a green "Saved", and updating a
+ * loaded file falls back to downloading the SGF. What none of them could do was
+ * notice a save that quietly persisted nothing.
+ */
+export const LIBRARY_SAVE_FAILED_MESSAGE =
+  'Could not save the library: browser storage is full or unavailable.';
+
+/**
+ * Persist the library, preferring IndexedDB and falling back to localStorage.
+ *
+ * Rejects if neither accepted the write. It used to resolve regardless, so a
+ * device out of storage got "Saved to Library." and, on that same path, had its
+ * autosave cleared straight afterwards -- the games were only in `memoryItems`
+ * and went with the tab. Throwing runs the callers' existing catch blocks
+ * *before* that cleanup, which is what keeps the fallback copy alive.
+ */
 export const saveLibrary = async (items: LibraryItem[]): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
   if (!getIndexedDB() || idbLoadFailed) {
-    saveFallbackLibrary(normalized);
+    if (saveFallbackLibrary(normalized) === 'rejected') throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
     return;
   }
   try {
     await saveToIndexedDb(normalized);
     memoryItems = normalized;
   } catch {
-    saveFallbackLibrary(normalized);
+    if (saveFallbackLibrary(normalized) === 'rejected') throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
   }
 };
 
