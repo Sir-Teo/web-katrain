@@ -81,6 +81,20 @@ jobs:
       # reproduce locally: unthrottled and 4x CPU throttling pass reliably, and
       # at 6x a different thing fails first (the photo board's lazy chunk).
       #
+      # Two data points since, neither a fix:
+      #
+      # The page is unfocused in headless -- `document.hasFocus()` is false on a
+      # local run too -- so `Emulation.setFocusEmulationEnabled` is now on in
+      # check-viewports.mjs. That is the usual remedy for input not reaching a
+      # headless page, it costs nothing locally (the suite still passes), and it
+      # is worth trying a run with this step uncommented to see. It is not known
+      # to be the cause.
+      #
+      # The 6x throttle does not reproduce the runner at all: it gets to the
+      # last viewport (1440x900) and fails on lazily-loaded dialogs, not at
+      # 768x1024. Those waits are already condition-based with two attempts and
+      # a 4s then 10s timeout, so slowness alone is not what the runner hits.
+      #
       # Reproduce a runner with: VIEWPORT_CPU_THROTTLE=6 npm run test:viewport
       # Run it normally with:    npm run test:viewport   (about a minute)
       #

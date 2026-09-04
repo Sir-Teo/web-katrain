@@ -815,6 +815,15 @@ async function main() {
     await cdp.ready;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    // Headless Chrome has no focused window, so `document.hasFocus()` is false
+    // and the page is treated as background: measured here, it is false on a
+    // local run too. Focus emulation makes it report as focused, which is what
+    // a real browser tab does while someone is looking at it -- the state every
+    // assertion below is written about. It is also the standard remedy for
+    // "input stops reaching the app" on a runner, which is the symptom keeping
+    // this suite out of CI; whether it is *the* cause there is unverified, and
+    // the step below stays commented out until someone can watch a run.
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
     if (process.env.VIEWPORT_CPU_THROTTLE) {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.VIEWPORT_CPU_THROTTLE) });
       process.stdout.write(`CPU throttled ${process.env.VIEWPORT_CPU_THROTTLE}x\n`);
