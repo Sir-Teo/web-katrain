@@ -27,9 +27,22 @@ const TraitBar: React.FC<{ label: string; value: number }> = ({ label, value }) 
 );
 
 export const BotPersonaPicker: React.FC<BotPersonaPickerProps> = ({ selectedId, onSelect }) => {
+  /**
+   * Weakest first. The list was in declaration order, which ran 15k, 7k, 1d,
+   * then 9d -- so the strongest bot in the app sat fourth, and 3k bots came
+   * after 3d ones. Someone choosing an opponent is scanning for a rank near
+   * their own, and that only works if the ranks are in order.
+   *
+   * The sort is stable, so bots that share a rank keep the order they are
+   * declared in.
+   */
+  const ordered = React.useMemo(
+    () => [...BOT_PERSONAS].sort((a, b) => b.rankKyu - a.rankKyu),
+    []
+  );
   return (
     <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Choose a bot">
-      {BOT_PERSONAS.map((persona) => {
+      {ordered.map((persona) => {
         const active = persona.id === selectedId;
         const styleLabel = persona.styleTags.join(' · ');
         return (
