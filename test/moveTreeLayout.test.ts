@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { GameNode, GameState } from '../src/types';
 import {
@@ -155,5 +156,36 @@ describe('move tree layout', () => {
     expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'End')).toEqual({ left: 800, top: 400 });
     expect(getMoveTreeMinimapKeyboardScroll(layout, { left: 760, top: 390, width: 200, height: 100 }, 'ArrowRight')).toEqual({ left: 800, top: 390 });
     expect(getMoveTreeMinimapKeyboardScroll(layout, viewport, 'Enter')).toBeNull();
+  });
+});
+
+describe('the layout is keyed on shape, not on identity', () => {
+  const source = readFileSync('src/components/MoveTree.tsx', 'utf8');
+
+  it('does not re-lay-out on every navigation step', () => {
+    /**
+     * `revealAncestorIds` is a fresh Set on each navigation, so `flatTree` is a
+     * fresh array too. Listing it in the layout effect's dependencies sent a
+     * worker round trip per step rather than per change of shape -- measured on
+     * a 254-node tree, 30 forward steps produced 30 round trips; keyed on
+     * `layoutKey` they produce none. `structureKey` exists precisely to stop
+     * this, and the dependency array was defeating it.
+     */
+    const start = source.indexOf('if (!shouldUseWorker || !workerAvailable) return;');
+    expect(start).toBeGreaterThan(-1);
+    const deps = source.slice(source.indexOf('}, [', start), source.indexOf(');', source.indexOf('}, [', start)));
+    expect(deps).toContain('layoutKey');
+    expect(deps).not.toContain('flatTree');
+    expect(deps).not.toContain('layoutDirection');
+  });
+
+  it('carries the revealed collapsed branches in the key', () => {
+    // A reveal changes the flattened tree but not the structure hash, so
+    // dropping flatTree from the deps would otherwise have frozen the layout
+    // when navigating into a collapsed branch.
+    expect(source).toContain('`${rootNode.id}:${structureKey}:${revealKey}:${layoutDirection}`');
+    // Empty whenever nothing is collapsed, which is what keeps ordinary
+    // navigation off the relayout path.
+    expect(source).toContain("if (!hasCollapsedBranches) return '';");
   });
 });

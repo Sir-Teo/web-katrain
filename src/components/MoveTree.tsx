@@ -164,9 +164,31 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     return indexNodes(rootNode);
   }, [rootNode, treeVersion]);
 
+  /**
+   * Which collapsed branches the current move is inside, and so temporarily
+   * revealed. `structureKey` cannot cover this -- it hashes the tree, and a
+   * reveal is a property of where you are standing -- but it does change the
+   * flattened tree, so the layout key needs it.
+   *
+   * Empty whenever nothing is collapsed, which is the ordinary case. That
+   * matters: `revealAncestorIds` is a fresh Set on every navigation, so keying
+   * the layout on it directly re-laid the tree out on every single step.
+   */
+  const revealKey = useMemo(() => {
+    void treeVersion;
+    if (!hasCollapsedBranches) return '';
+    const revealed: string[] = [];
+    let node: GameNode | null = currentNode.parent ?? null;
+    while (node) {
+      if (node.collapsed === true) revealed.push(node.id);
+      node = node.parent ?? null;
+    }
+    return revealed.join(',');
+  }, [currentNode, hasCollapsedBranches, treeVersion]);
+
   const workerAvailable = getWorkerConstructor() !== null;
   const shouldUseWorker = workerAvailable && flatTree.length >= MOVE_TREE_LAYOUT_WORKER_THRESHOLD;
-  const layoutKey = `${rootNode.id}:${structureKey}:${layoutDirection}`;
+  const layoutKey = `${rootNode.id}:${structureKey}:${revealKey}:${layoutDirection}`;
   const syncLayout = useMemo(
     () => (shouldUseWorker ? null : computeMoveTreeLayout(flatTree, layoutDirection)),
     [flatTree, layoutDirection, shouldUseWorker]
@@ -295,6 +317,18 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     writeLocalStorage(LAYOUT_DIRECTION_STORAGE_KEY, layoutDirection);
   }, [layoutDirection]);
 
+  /**
+   * The inputs the effect below needs but must not re-run for. They change
+   * identity on every navigation; `layoutKey` says when they changed in a way
+   * the layout can see.
+   */
+  const latest = useRef({ flatTree, layoutDirection });
+  // Declared before the effect that reads it, so it is already up to date by
+  // the time that one runs: effects fire in declaration order.
+  useEffect(() => {
+    latest.current = { flatTree, layoutDirection };
+  }, [flatTree, layoutDirection]);
+
   useEffect(() => {
     if (!shouldUseWorker || !workerAvailable) return;
 
@@ -302,7 +336,11 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     const key = layoutKey;
     const applyFallback = () => {
       if (requestId !== requestIdRef.current) return;
-      setWorkerResult({ key, layout: computeMoveTreeLayout(flatTree, layoutDirection), status: 'fallback' });
+      setWorkerResult({
+        key,
+        layout: computeMoveTreeLayout(latest.current.flatTree, latest.current.layoutDirection),
+        status: 'fallback',
+      });
     };
     try {
       if (!workerRef.current) {
@@ -323,11 +361,18 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       worker.onerror = () => {
         applyFallback();
       };
-      worker.postMessage({ requestId, items: flatTree, direction: layoutDirection });
+      worker.postMessage({ requestId, items: latest.current.flatTree, direction: latest.current.layoutDirection });
     } catch {
       queueMicrotask(applyFallback);
     }
-  }, [flatTree, layoutDirection, layoutKey, shouldUseWorker, workerAvailable]);
+    // Keyed on `layoutKey`, not on `flatTree`. The flat tree is rebuilt on every
+    // navigation -- `revealAncestorIds` is a new Set each time -- so listing it
+    // here sent a worker round trip per step instead of per change of shape,
+    // and 30 quick steps through a game were enough for React to report
+    // "Maximum update depth exceeded" from the setState below. `layoutKey`
+    // already carries everything the layout depends on: the tree's structure,
+    // which collapsed branches are revealed, and the direction.
+  }, [layoutKey, shouldUseWorker, workerAvailable]);
 
   useEffect(() => {
     return () => {
