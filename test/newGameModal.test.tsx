@@ -72,6 +72,7 @@ function renderModal(args: {
   timer?: TimerConfigValues;
   handicap?: number;
   setupPosition?: SetupPositionValues;
+  teachModeOn?: boolean;
 } = {}): string {
   return renderToStaticMarkup(
     <NewGameModal
@@ -85,6 +86,7 @@ function renderModal(args: {
       defaultAiConfig={args.ai ?? aiConfig()}
       defaultTimerConfig={args.timer ?? { mode: 'none', mainTimeMinutes: 0, byoLengthSeconds: 30, byoPeriods: 5 }}
       defaultSetupPosition={args.setupPosition ?? { enabled: false, untilMove: 100, targetAdvantage: 20 }}
+      teachModeOn={args.teachModeOn ?? false}
     />
   );
 }
@@ -277,5 +279,29 @@ describe('NewGameModal', () => {
 
     const territoryHtml = renderModal({ ai: aiConfig({ opponent: 'white', strategy: 'territory' }) });
     expectLabelPair(territoryHtml, 'new-game-ai-edge-threshold', 'Threshold');
+  });
+});
+
+describe('teach mode offer', () => {
+  it('is offered only once an opponent that can teach you is chosen', () => {
+    expect(renderModal({ ai: aiConfig({ opponent: 'none' }) })).not.toContain('data-new-game-teach-mode');
+    const vsAi = renderModal({ ai: aiConfig({ opponent: 'white' }) });
+    expect(vsAi).toContain('data-new-game-teach-mode');
+    expect(vsAi).toContain('Teach me as I play');
+    // Says what it will do, since it takes moves back off the board.
+    expect(vsAi).toContain('Offers to take back a move that costs too much');
+  });
+
+  it('reflects whether the mode is already on rather than assuming off', () => {
+    expect(renderModal({ ai: aiConfig({ opponent: 'white' }), teachModeOn: false })).not.toContain('checked=""');
+    expect(renderModal({ ai: aiConfig({ opponent: 'white' }), teachModeOn: true })).toContain('checked=""');
+  });
+
+  it('toggles the mode only when the box disagrees with it', () => {
+    // `toggleTeachMode` flips, and also switches analysis on. Calling it for a
+    // box that was already ticked would turn the mode straight back off.
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+    expect(layout).toContain('if (teachMode !== useGameStore.getState().isTeachMode)');
+    expect(layout).toContain('teachModeOn={isTeachMode}');
   });
 });

@@ -98,7 +98,11 @@ interface NewGameModalProps {
     aiConfig: AiConfigValues;
     timerConfig: TimerConfigValues;
     setupPosition: SetupPositionValues;
+    /** Start the game with KaTrain's teaching undo armed. */
+    teachMode: boolean;
   }) => void;
+  /** Whether teach mode is already on, so the box reflects the live state. */
+  teachModeOn: boolean;
   defaultKomi: number;
   defaultRules: GameRules;
   defaultBoardSize: BoardSize;
@@ -120,6 +124,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   defaultAiConfig,
   defaultTimerConfig,
   defaultSetupPosition,
+  teachModeOn,
 }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
@@ -129,6 +134,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   const [handicap, setHandicap] = React.useState(() => defaultHandicap);
   const [gameInfo, setGameInfo] = React.useState<GameInfoValues>(() => defaultInfo);
   const [aiConfig, setAiConfig] = React.useState<AiConfigValues>(() => defaultAiConfig);
+  const [teachMode, setTeachMode] = React.useState(teachModeOn);
   const [timerConfig, setTimerConfig] = React.useState<TimerConfigValues>(() => defaultTimerConfig);
   const [setupPosition, setSetupPosition] = React.useState<SetupPositionValues>(() => defaultSetupPosition);
   const maxHandicap = React.useMemo(() => getMaxHandicap(boardSize), [boardSize]);
@@ -434,6 +440,24 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                   <div className="text-[var(--ui-text-muted)] text-sm">Choose a bot</div>
                   <BotPersonaPicker selectedId={personaId} onSelect={selectPersona} />
                 </div>
+                {/* Offered here because this is the moment it is wanted: the
+                    chip on the board is only findable by someone who already
+                    knows the feature exists. */}
+                <label className="flex items-start gap-2 text-sm text-[var(--ui-text)]">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={teachMode}
+                    onChange={(e) => setTeachMode(e.target.checked)}
+                    data-new-game-teach-mode="true"
+                  />
+                  <span>
+                    Teach me as I play
+                    <span className="block text-xs ui-text-faint">
+                      Offers to take back a move that costs too much, and says what it cost.
+                    </span>
+                  </span>
+                </label>
                 <button
                   type="button"
                   onClick={() => setShowAdvancedAi((prev) => !prev)}
@@ -1184,6 +1208,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 handicap,
                 info: gameInfo,
                 aiConfig,
+                teachMode: aiConfig.opponent === 'none' ? teachModeOn : teachMode,
                 timerConfig,
                 setupPosition,
               })

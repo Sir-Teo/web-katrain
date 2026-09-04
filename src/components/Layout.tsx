@@ -3447,13 +3447,14 @@ export const Layout: React.FC = () => {
         )}
         {isNewGameOpen && (
           <NewGameModal
+            teachModeOn={isTeachMode}
             onClose={() => setIsNewGameOpen(false)}
             defaultSetupPosition={{
               enabled: false,
               untilMove: settings.setupPositionMove,
               targetAdvantage: settings.setupPositionAdvantage,
             }}
-            onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap, setupPosition }) => {
+            onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap, setupPosition, teachMode }) => {
             startNewGame({ komi: nextKomi, rules, boardSize: nextBoardSize, handicap: nextHandicap });
             if (setupPosition.enabled) {
               updateSettings({ setupPositionMove: setupPosition.untilMove, setupPositionAdvantage: setupPosition.targetAdvantage });
@@ -3534,6 +3535,12 @@ export const Layout: React.FC = () => {
             });
             const opponent = aiConfig.opponent === 'none' ? null : aiConfig.opponent;
             useGameStore.setState({ isAiPlaying: !!opponent, aiColor: opponent });
+            // Only when it changes: toggleTeachMode also switches analysis on,
+            // and calling it for a box that was already ticked would turn the
+            // mode straight back off.
+            if (teachMode !== useGameStore.getState().isTeachMode) {
+              useGameStore.getState().toggleTeachMode();
+            }
             const after = useGameStore.getState();
             if (after.isAiPlaying && after.aiColor === after.currentPlayer) {
               window.setTimeout(() => after.makeAiMove(), 0);
