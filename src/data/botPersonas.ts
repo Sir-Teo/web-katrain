@@ -22,6 +22,35 @@ export interface BotPersona {
 // has real kyu calibration; ranks on other personas are hand-tuned approximations,
 // and the trait bars are descriptive rather than measured.
 export const BOT_PERSONAS: BotPersona[] = [
+  /**
+   * The weak end of the roster.
+   *
+   * Before these two the list ran 15k, 7k, then eight bots at 3k and stronger,
+   * so someone starting out had one option and someone improving had an
+   * eight-stone gap to cross. 18k is the floor on purpose: it is the weakest
+   * rank `CALIBRATED_RANK_ELO` names, and inventing a 25k bot would be
+   * inventing a calibration that does not exist.
+   */
+  {
+    id: 'sprout',
+    name: 'Sprout',
+    strategy: 'rank',
+    styleTags: ['New', 'Gentle'],
+    blurb: 'Brand new to the board. Answers what is right in front of it and misses what is not.',
+    traits: { reading: 10, fighting: 12, territory: 35, risk: 15 },
+    rankKyu: 18,
+    overrides: { aiRankKyu: 18 },
+  },
+  {
+    id: 'heron',
+    name: 'Heron',
+    strategy: 'rank',
+    styleTags: ['Patient', 'Steady'],
+    blurb: 'Mid-kyu and unhurried. Builds a framework, then defends what it has built.',
+    traits: { reading: 32, fighting: 28, territory: 55, risk: 25 },
+    rankKyu: 11,
+    overrides: { aiRankKyu: 11 },
+  },
   {
     id: 'pebble',
     name: 'Pebble',

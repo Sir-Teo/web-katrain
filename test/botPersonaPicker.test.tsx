@@ -10,7 +10,9 @@ describe('BotPersonaPicker', () => {
     const html = renderToStaticMarkup(<BotPersonaPicker selectedId={null} onSelect={() => undefined} />);
 
     expect(html).toContain('grid grid-cols-2 gap-2');
-    expect(html.match(/role="radio"/g)).toHaveLength(10);
+    // Counted from the roster rather than pinned, so adding a bot is a
+    // one-line change here instead of a puzzle about which number is stale.
+    expect(html.match(/role="radio"/g)).toHaveLength(BOT_PERSONAS.length);
     expect(html).toContain('Gentle · Balanced');
     expect(html).not.toContain('A patient beginner.');
     expect(html).not.toContain('>Reading</span>');
@@ -37,6 +39,23 @@ describe('BotPersonaPicker', () => {
     // Declaration order ran 15k, 7k, 1d, 9d, so the strongest bot in the app
     // sat fourth. Someone picking an opponent scans for a rank near their own.
     expect(shown).not.toEqual(BOT_PERSONAS.map((persona) => formatKyuRank(persona.rankKyu)));
+  });
+
+  it('offers a bot at the weak end, and does not invent a rank below the calibration', () => {
+    const ranks = BOT_PERSONAS.map((persona) => persona.rankKyu);
+    // The roster ran 15k, 7k, then eight bots at 3k and stronger: one option
+    // for a beginner and an eight-stone gap for anyone improving.
+    expect(Math.max(...ranks)).toBe(18);
+    expect(ranks.filter((kyu) => kyu >= 10).length).toBeGreaterThanOrEqual(3);
+    // 18k is the weakest rank CALIBRATED_RANK_ELO names; anything below it
+    // would be a calibration this app does not have.
+    const aiStrength = readFileSync('src/utils/aiStrength.ts', 'utf8');
+    const weakest = Number(/CALIBRATED_RANK_ELO[\s\S]*?=\s*\[\[[^,]+,\s*(\d+)\]/.exec(aiStrength)?.[1]);
+    // Assert the reading itself: a regex that stops matching would otherwise
+    // turn this into `<= NaN` and take the whole check down with it.
+    expect(Number.isFinite(weakest), 'could not read the weakest calibrated rank').toBe(true);
+    expect(weakest).toBe(18);
+    expect(Math.max(...ranks)).toBeLessThanOrEqual(weakest);
   });
 
   it('sorts stably, so bots sharing a rank keep their declared order', () => {
