@@ -62,6 +62,7 @@ import {
 } from '../utils/settingsTabs';
 import { formatEngineBackendLabel } from '../utils/engineStatusSummary';
 import { describeModelDownloadError } from '../utils/modelDownloadError';
+import { DEFAULT_EVAL_THRESHOLDS } from '../utils/nodeAnalysis';
 import {
     detectWebGpuAvailability,
     isKataGoBackendAvailable,
@@ -298,7 +299,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             document.getElementById(`tab-${tabId}`)?.focus();
         });
     };
-    const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
     const DEFAULT_SHOW_DOTS = [true, true, true, true, true, true];
     const DEFAULT_SAVE_FEEDBACK = [true, true, true, true, false, false];
     const DEFAULT_ANIM_PV_TIME = 0.5;

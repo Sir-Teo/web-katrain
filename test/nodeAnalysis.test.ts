@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { AnalysisResult, GameNode, Move } from '../src/types';
 import { computeNodePointsLost, getEvaluationClass } from '../src/utils/nodeAnalysis';
@@ -54,5 +56,48 @@ describe('node analysis helpers', () => {
     expect(getEvaluationClass(13, [12, 6, 3, 1.5, 0.5, 0], 6)).toBe(0);
     expect(getEvaluationClass(5.9, [12, 6, 3, 1.5, 0.5, 0], 6)).toBe(2);
     expect(getEvaluationClass(-1, [12, 6, 3, 1.5, 0.5, 0], 6)).toBe(5);
+  });
+});
+
+describe('one table decides what counts as a mistake', () => {
+  const files = readdirSync('src', { recursive: true, encoding: 'utf8' })
+    .filter((f) => f.endsWith('.ts') || f.endsWith('.tsx'))
+    .map((f) => join('src', f));
+
+  /**
+   * `[12, 6, 3, 1.5, 0.5, 0]` is the points-lost boundary between a blunder, a
+   * mistake and an inaccuracy, and the user can retune it in Settings. Five
+   * components import it from here; two -- the game report and the settings
+   * editor that *edits* it -- had written their own copy of the same numbers.
+   *
+   * They agreed, so nothing was wrong yet. What they could not do is stay
+   * agreed: retuning the defaults would have left the report grading against
+   * the old table while the board, the candidate list and the graph used the
+   * new one, and "reset to default" in Settings would restore numbers the
+   * grading no longer used.
+   */
+  it('is declared in exactly one place', () => {
+    const declarers = files.filter((file) =>
+      /(?:const|let)\s+DEFAULT_EVAL_THRESHOLDS\s*(?::[^=]+)?=/.test(readFileSync(file, 'utf8'))
+    );
+    expect(declarers).toEqual(['src/utils/nodeAnalysis.ts']);
+  });
+
+  it('is what the surfaces that grade moves actually use', () => {
+    // Each of these falls back to the shared table when the user has not set
+    // their own; none may reach for a private copy of the numbers.
+    const graders = [
+      'src/components/GameReportModal.tsx',
+      'src/components/SettingsModal.tsx',
+      'src/components/ScoreWinrateGraph.tsx',
+      'src/components/CandidateMoveList.tsx',
+      'src/components/AnalysisPanel.tsx',
+      'src/components/dashboard/DesktopDashboard.tsx',
+    ];
+    for (const file of graders) {
+      const source = readFileSync(file, 'utf8');
+      expect(source, file).toMatch(/import \{[^}]*DEFAULT_EVAL_THRESHOLDS[^}]*\} from '[^']*nodeAnalysis'/);
+      expect(source, `${file} still spells the numbers out`).not.toMatch(/\[12, 6, 3, 1\.5, 0\.5, 0\]/);
+    }
   });
 });

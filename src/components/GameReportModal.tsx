@@ -41,13 +41,13 @@ import { computeMoveTimes, formatMoveTime, hasMoveTimeData } from '../utils/move
 import { describeTimePressure, summarizePlayerTime, type PlayerTimeInsight } from '../utils/timeInsight';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { NO_VALUE } from '../utils/analysisSummary';
+import { DEFAULT_EVAL_THRESHOLDS } from '../utils/nodeAnalysis';
 
 interface GameReportModalProps {
   onClose: () => void;
   setReportHoverMove: (move: CandidateMove | null) => void;
 }
 
-const DEFAULT_EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0];
 const HISTOGRAM_COLORS = ['#fb7185', '#f97316', '#f59e0b', '#84cc16', '#38bdf8', '#94a3b8'];
 const CRITICAL_SWING_THRESHOLD = 5;
 const RECOVERY_THRESHOLD = 1.5;
