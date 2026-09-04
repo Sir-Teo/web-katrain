@@ -90,4 +90,47 @@ describe('loading an SGF that holds an illegal move', () => {
     load('(;GM[1]FF[4]SZ[19]KM[6.5];B[pd];W[dp])');
     expect(useGameStore.getState().sgfLoadWarning).toBeNull();
   });
+  it('reads "1 move" as a move', () => {
+    const two = SUICIDE_AT_MOVE_8.replace(';B[aa];W[ca])', ';B[aa])');
+    load(two);
+    expect(useGameStore.getState().sgfLoadWarning).toContain('It and the move after it were not loaded.');
+  });
+});
+
+/**
+ * The warning must not fire on a file that is simply played under other rules.
+ * Black encloses (1,1) and (2,1); White fills both, and the second fills its own
+ * group's last liberty while capturing nothing. That is multi-stone suicide:
+ * legal in New Zealand, illegal everywhere else this app implements -- and
+ * illegal even in New Zealand if it were a lone stone, which is why the plain
+ * single-stone case cannot tell these rulesets apart.
+ */
+describe('honouring the ruleset the file declares', () => {
+  const MULTI_STONE_SUICIDE =
+    'AB[ab][ba][bc][db][ca][cc];W[bb];B[ss];W[cb];B[sr])';
+  const withRules = (ru: string) =>
+    `(;GM[1]FF[4]SZ[19]KM[6.5]RU[${ru}]${MULTI_STONE_SUICIDE}`;
+
+  beforeEach(() => {
+    analysisQueue.cancelWhere(() => true, 'test reset');
+    analysisQueue.clearCache();
+    useGameStore.getState().resetGame();
+    useGameStore.setState({ notification: null, sgfLoadWarning: null });
+  });
+
+  it('loads the whole game, silently, when the file says New Zealand', () => {
+    load(withRules('NZ'));
+    expect(mainLineLength()).toBe(4);
+    expect(useGameStore.getState().sgfLoadWarning).toBeNull();
+  });
+
+  it('stops on the same move under rules that forbid it', () => {
+    for (const ru of ['Japanese', 'Chinese', 'AGA']) {
+      useGameStore.getState().resetGame();
+      useGameStore.setState({ sgfLoadWarning: null });
+      load(withRules(ru));
+      expect(mainLineLength(), ru).toBe(2);
+      expect(useGameStore.getState().sgfLoadWarning, ru).toContain('Move 3 (White C18)');
+    }
+  });
 });

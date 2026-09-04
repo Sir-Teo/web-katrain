@@ -5989,7 +5989,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         rejected.lines > 1
           ? `${rejected.moves} moves across ${rejected.lines} lines were not loaded.`
           : rejected.moves > 1
-            ? `It and the ${rejected.moves - 1} move${rejected.moves === 2 ? '' : 's'} after it were not loaded.`
+            ? `It and the ${rejected.moves === 2 ? 'move' : `${rejected.moves - 1} moves`} after it were not loaded.`
             : 'It was not loaded.';
       return `${rejected.firstLabel} is not legal under ${rulesLabel(rules)} rules. ${detail}`;
     };
