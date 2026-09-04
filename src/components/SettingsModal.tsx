@@ -135,6 +135,32 @@ const SETTINGS_TABS = [
     { id: 'shortcuts', label: 'Shortcuts', compactLabel: 'Keys' },
 ] as const satisfies ReadonlyArray<{ id: SettingsTabId; label: string; compactLabel: string }>;
 
+/**
+ * The engine's own ceilings, which the worker re-applies to every request it
+ * receives (`src/engine/katago/worker.ts`). These drive both the input's
+ * min/max attributes and the clamp on the way in, from one place.
+ *
+ * They were written twice: once as `max={...}` and once, without the ceiling,
+ * in `onChange`. `max` only governs the spinner, so a typed 500 in Top K was
+ * stored and displayed as 500 while every search kept using 50 -- the field
+ * quietly disagreed with the engine, and the number went into the analysis
+ * cache key, so editing it invalidated cached searches that would have been
+ * identical.
+ */
+const ENGINE_FIELD_RANGE = {
+    katagoMaxTimeMs: { min: 25, max: ENGINE_MAX_TIME_MS },
+    katagoBatchSize: { min: 1, max: 64 },
+    katagoMaxChildren: { min: 4, max: 361 },
+    katagoTopK: { min: 1, max: 50 },
+    katagoAnalysisPvLen: { min: 0, max: 60 },
+} as const;
+
+function clampEngineField(field: keyof typeof ENGINE_FIELD_RANGE, value: number): number {
+    const { min, max } = ENGINE_FIELD_RANGE[field];
+    if (!Number.isFinite(value)) return min;
+    return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
 function clampSettingsVisits(value: number): number {
     if (!Number.isFinite(value)) return MIN_ANALYSIS_VISITS;
     return Math.max(MIN_ANALYSIS_VISITS, Math.min(ENGINE_MAX_VISITS, Math.floor(value)));
@@ -2642,10 +2668,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <input
                                                 id="settings-katago-max-time"
                                                 type="number"
-                                                min={25}
-                                                max={ENGINE_MAX_TIME_MS}
+                                                min={ENGINE_FIELD_RANGE.katagoMaxTimeMs.min}
+                                                max={ENGINE_FIELD_RANGE.katagoMaxTimeMs.max}
                                                 value={settings.katagoMaxTimeMs}
-                                                onChange={(e) => updateSettings({ katagoMaxTimeMs: Math.max(25, parseInt(e.target.value || '0', 10)) })}
+                                                onChange={(e) => updateSettings({ katagoMaxTimeMs: clampEngineField('katagoMaxTimeMs', parseInt(e.target.value || '0', 10)) })}
                                                 className={inputClass}
                                             />
                                         </div>
@@ -2654,10 +2680,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <input
                                                 id="settings-katago-batch-size"
                                                 type="number"
-                                                min={1}
-                                                max={64}
+                                                min={ENGINE_FIELD_RANGE.katagoBatchSize.min}
+                                                max={ENGINE_FIELD_RANGE.katagoBatchSize.max}
                                                 value={settings.katagoBatchSize}
-                                                onChange={(e) => updateSettings({ katagoBatchSize: Math.max(1, parseInt(e.target.value || '0', 10)) })}
+                                                onChange={(e) => updateSettings({ katagoBatchSize: clampEngineField('katagoBatchSize', parseInt(e.target.value || '0', 10)) })}
                                                 className={inputClass}
                                             />
                                         </div>
@@ -2666,10 +2692,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <input
                                                 id="settings-katago-max-children"
                                                 type="number"
-                                                min={4}
-                                                max={361}
+                                                min={ENGINE_FIELD_RANGE.katagoMaxChildren.min}
+                                                max={ENGINE_FIELD_RANGE.katagoMaxChildren.max}
                                                 value={settings.katagoMaxChildren}
-                                                onChange={(e) => updateSettings({ katagoMaxChildren: Math.max(4, parseInt(e.target.value || '0', 10)) })}
+                                                onChange={(e) => updateSettings({ katagoMaxChildren: clampEngineField('katagoMaxChildren', parseInt(e.target.value || '0', 10)) })}
                                                 className={inputClass}
                                             />
                                         </div>
@@ -2680,10 +2706,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         <input
                                             id="settings-katago-top-moves"
                                             type="number"
-                                            min={1}
-                                            max={50}
+                                            min={ENGINE_FIELD_RANGE.katagoTopK.min}
+                                            max={ENGINE_FIELD_RANGE.katagoTopK.max}
                                             value={settings.katagoTopK}
-                                            onChange={(e) => updateSettings({ katagoTopK: Math.max(1, parseInt(e.target.value || '0', 10)) })}
+                                            onChange={(e) => updateSettings({ katagoTopK: clampEngineField('katagoTopK', parseInt(e.target.value || '0', 10)) })}
                                             className={inputClass}
                                         />
                                     </div>
@@ -2732,11 +2758,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             <input
                                                 id="settings-katago-pv-len"
                                                 type="number"
-                                                min={0}
-                                                max={60}
+                                                min={ENGINE_FIELD_RANGE.katagoAnalysisPvLen.min}
+                                                max={ENGINE_FIELD_RANGE.katagoAnalysisPvLen.max}
                                                 step={1}
                                                 value={settings.katagoAnalysisPvLen}
-                                                onChange={(e) => updateSettings({ katagoAnalysisPvLen: Math.max(0, parseInt(e.target.value || '0', 10)) })}
+                                                onChange={(e) => updateSettings({ katagoAnalysisPvLen: clampEngineField('katagoAnalysisPvLen', parseInt(e.target.value || '0', 10)) })}
                                                 className={inputClass}
                                             />
                                             <p className={subtextClass}>KataGo analysisPVLen (moves after the first).</p>

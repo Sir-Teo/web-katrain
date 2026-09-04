@@ -336,3 +336,55 @@ describe('visit fields cannot exceed what the engine will run', () => {
     expect(clamp).toContain('Number.isFinite');
   });
 });
+
+describe('engine fields agree with the engine', () => {
+  const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
+  const worker = readFileSync('src/engine/katago/worker.ts', 'utf8');
+
+  /**
+   * The worker re-clamps every request it gets, so a field that accepts a
+   * bigger number does not make the engine do more -- it just displays one
+   * thing while the search does another, and drags that number into the
+   * analysis cache key on the way.
+   *
+   * Both halves used to be written out separately: `max={50}` on the input and
+   * `Math.max(1, parseInt(...))` in `onChange`. `max` only governs the spinner.
+   */
+  it('enforces the ceiling each field declares, not just in the spinner', () => {
+    const inputs = [...source.matchAll(/<input\b[\s\S]{0,900}?\/>/g)].map((m) => m[0]);
+    const declaring = inputs.filter((block) => /type="number"/.test(block) && /max=\{/.test(block));
+    expect(declaring.length, 'the engine number fields moved').toBeGreaterThanOrEqual(5);
+
+    for (const block of declaring) {
+      const field = /updateSettings\(\{\s*(\w+):/.exec(block)?.[1];
+      if (!field) continue;
+      const onChange = /updateSettings\(\{\s*\w+:\s*([^}]+?)\s*\}\)/.exec(block)?.[1] ?? '';
+      // Either a clamp helper or an inline `Math.min` -- what matters is that
+      // the ceiling is applied, not which spelling applies it.
+      expect(onChange, `${field} declares a max it does not apply`).toMatch(/clamp|Math\.min/i);
+    }
+  });
+
+  it('uses the same bounds the worker will apply', () => {
+    // Drift here is invisible: the engine silently wins, and the field lies.
+    const symbols: Record<string, number> = { ENGINE_MAX_TIME_MS: 300_000, BOARD_AREA: 361 };
+    const resolve = (raw: string) => symbols[raw] ?? Number(raw);
+
+    for (const [, min, field, max] of worker.matchAll(
+      /Math\.max\((\d+), Math\.min\(msg\.(\w+) \?\?[^,]*, (\w+|\d+)\)\)/g
+    )) {
+      const uiField = `katago${field[0]!.toUpperCase()}${field.slice(1)}`;
+      const range = new RegExp(`${uiField}: \\{ min: (\\d+), max: (\\w+|\\d+) \\}`).exec(source);
+      if (!range) continue; // not every worker knob is exposed in Settings
+      expect(Number(range[1]), `${uiField} min`).toBe(Number(min));
+      expect(resolve(range[2]!), `${uiField} max`).toBe(resolve(max!));
+    }
+  });
+
+  it('covers every engine field the settings screen exposes', () => {
+    const range = /const ENGINE_FIELD_RANGE = \{([\s\S]*?)\} as const;/.exec(source)?.[1] ?? '';
+    for (const field of ['katagoMaxTimeMs', 'katagoBatchSize', 'katagoMaxChildren', 'katagoTopK', 'katagoAnalysisPvLen']) {
+      expect(range, field).toContain(field);
+    }
+  });
+});
