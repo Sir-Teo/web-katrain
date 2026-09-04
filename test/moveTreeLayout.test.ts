@@ -162,21 +162,23 @@ describe('move tree layout', () => {
 describe('the layout is keyed on shape, not on identity', () => {
   const source = readFileSync('src/components/MoveTree.tsx', 'utf8');
 
-  it('does not re-lay-out on every navigation step', () => {
+  it('does not rebuild the flat tree on every navigation step', () => {
     /**
-     * `revealAncestorIds` is a fresh Set on each navigation, so `flatTree` is a
-     * fresh array too. Listing it in the layout effect's dependencies sent a
-     * worker round trip per step rather than per change of shape -- measured on
-     * a 254-node tree, 30 forward steps produced 30 round trips; keyed on
-     * `layoutKey` they produce none. `structureKey` exists precisely to stop
-     * this, and the dependency array was defeating it.
+     * The reveal set used to be built from `currentNode`, so it was a fresh Set
+     * on every step and `flatTree` a fresh array with it. That put the layout on
+     * the critical path of walking a game: measured on a 254-node tree, 30
+     * forward steps produced 30 worker round trips, and none of them changed
+     * where a node sat. `structureKey` exists precisely to stop this.
+     *
+     * The set is derived from `revealKey` instead -- a string, so it is stable
+     * by value -- which keeps `flatTree` stable for every consumer rather than
+     * only for the one effect that was hurting.
      */
-    const start = source.indexOf('if (!shouldUseWorker || !workerAvailable) return;');
-    expect(start).toBeGreaterThan(-1);
-    const deps = source.slice(source.indexOf('}, [', start), source.indexOf(');', source.indexOf('}, [', start)));
-    expect(deps).toContain('layoutKey');
-    expect(deps).not.toContain('flatTree');
-    expect(deps).not.toContain('layoutDirection');
+    expect(source).toContain("const revealAncestorIds = useMemo(");
+    const start = source.indexOf('const revealAncestorIds = useMemo(');
+    const block = source.slice(start, source.indexOf(');', source.indexOf('}, [', start)));
+    expect(block).toContain('revealKey');
+    expect(block).not.toContain('currentNode');
   });
 
   it('carries the revealed collapsed branches in the key', () => {

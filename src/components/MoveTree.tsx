@@ -125,18 +125,39 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
   const shortcutLabels = useShortcutLabels(MOVE_TREE_SHORTCUT_IDS);
   const withShortcut = (label: string, id: MoveTreeShortcutId) => `${label} (${shortcutLabels[id]})`;
 
-  // Strict ancestors of the current move: a collapsed branch we are standing
-  // inside stays open until we navigate out of it.
-  const revealAncestorIds = useMemo(() => {
+  const hasCollapsedBranches = useMemo(() => {
     void treeVersion;
-    const ids = new Set<string>();
-    let node = currentNode.parent ?? null;
+    return hasCollapsedMoveTreeBranches(rootNode);
+  }, [rootNode, treeVersion]);
+
+  /**
+   * Which collapsed branches the current move is standing inside, as a string.
+   *
+   * A collapsed branch opens while the player is inside it and folds shut again
+   * when they leave, so this genuinely changes the flattened tree -- but only
+   * ever for collapsed nodes, which is all `flattenMoveTree` consults the set
+   * for. Empty whenever nothing is collapsed, which is the ordinary case.
+   *
+   * It is a string so the value is stable: the set it replaces was rebuilt on
+   * every navigation, which made `flatTree` a new array every step and put the
+   * whole layout on the critical path of walking a game.
+   */
+  const revealKey = useMemo(() => {
+    void treeVersion;
+    if (!hasCollapsedBranches) return '';
+    const revealed: string[] = [];
+    let node: GameNode | null = currentNode.parent ?? null;
     while (node) {
-      ids.add(node.id);
+      if (node.collapsed === true) revealed.push(node.id);
       node = node.parent ?? null;
     }
-    return ids;
-  }, [currentNode, treeVersion]);
+    return revealed.join(',');
+  }, [currentNode, hasCollapsedBranches, treeVersion]);
+
+  const revealAncestorIds = useMemo(
+    () => new Set(revealKey === '' ? [] : revealKey.split(',')),
+    [revealKey]
+  );
 
   // treeVersion moves on every analysis result -- up to four times a second on
   // the current node while the engine runs -- and none of those change where a
@@ -154,37 +175,10 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     return flattenMoveTree(rootNode, revealAncestorIds);
   }, [rootNode, structureKey, revealAncestorIds]);
 
-  const hasCollapsedBranches = useMemo(() => {
-    void treeVersion;
-    return hasCollapsedMoveTreeBranches(rootNode);
-  }, [rootNode, treeVersion]);
-
   const nodeById = useMemo(() => {
     void treeVersion;
     return indexNodes(rootNode);
   }, [rootNode, treeVersion]);
-
-  /**
-   * Which collapsed branches the current move is inside, and so temporarily
-   * revealed. `structureKey` cannot cover this -- it hashes the tree, and a
-   * reveal is a property of where you are standing -- but it does change the
-   * flattened tree, so the layout key needs it.
-   *
-   * Empty whenever nothing is collapsed, which is the ordinary case. That
-   * matters: `revealAncestorIds` is a fresh Set on every navigation, so keying
-   * the layout on it directly re-laid the tree out on every single step.
-   */
-  const revealKey = useMemo(() => {
-    void treeVersion;
-    if (!hasCollapsedBranches) return '';
-    const revealed: string[] = [];
-    let node: GameNode | null = currentNode.parent ?? null;
-    while (node) {
-      if (node.collapsed === true) revealed.push(node.id);
-      node = node.parent ?? null;
-    }
-    return revealed.join(',');
-  }, [currentNode, hasCollapsedBranches, treeVersion]);
 
   const workerAvailable = getWorkerConstructor() !== null;
   const shouldUseWorker = workerAvailable && flatTree.length >= MOVE_TREE_LAYOUT_WORKER_THRESHOLD;
@@ -317,18 +311,6 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     writeLocalStorage(LAYOUT_DIRECTION_STORAGE_KEY, layoutDirection);
   }, [layoutDirection]);
 
-  /**
-   * The inputs the effect below needs but must not re-run for. They change
-   * identity on every navigation; `layoutKey` says when they changed in a way
-   * the layout can see.
-   */
-  const latest = useRef({ flatTree, layoutDirection });
-  // Declared before the effect that reads it, so it is already up to date by
-  // the time that one runs: effects fire in declaration order.
-  useEffect(() => {
-    latest.current = { flatTree, layoutDirection };
-  }, [flatTree, layoutDirection]);
-
   useEffect(() => {
     if (!shouldUseWorker || !workerAvailable) return;
 
@@ -338,7 +320,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       if (requestId !== requestIdRef.current) return;
       setWorkerResult({
         key,
-        layout: computeMoveTreeLayout(latest.current.flatTree, latest.current.layoutDirection),
+        layout: computeMoveTreeLayout(flatTree, layoutDirection),
         status: 'fallback',
       });
     };
@@ -361,7 +343,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       worker.onerror = () => {
         applyFallback();
       };
-      worker.postMessage({ requestId, items: latest.current.flatTree, direction: latest.current.layoutDirection });
+      worker.postMessage({ requestId, items: flatTree, direction: layoutDirection });
     } catch {
       queueMicrotask(applyFallback);
     }
@@ -372,7 +354,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     // "Maximum update depth exceeded" from the setState below. `layoutKey`
     // already carries everything the layout depends on: the tree's structure,
     // which collapsed branches are revealed, and the direction.
-  }, [layoutKey, shouldUseWorker, workerAvailable]);
+  }, [flatTree, layoutDirection, layoutKey, shouldUseWorker, workerAvailable]);
 
   useEffect(() => {
     return () => {
