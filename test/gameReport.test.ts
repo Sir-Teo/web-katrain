@@ -20,6 +20,7 @@ import {
   type MoveReportEntry,
   type MovePolicyCategory, humanPolicyStats,} from '../src/utils/gameReport';
 import type { AnalysisResult, CandidateMove } from '../src/types';
+import { DEFAULT_EVAL_THRESHOLDS } from '../src/utils/nodeAnalysis';
 
 const EMPTY_TERRITORY: number[][] = Array.from({ length: 19 }, () => Array.from({ length: 19 }, () => 0));
 
@@ -733,5 +734,72 @@ describe('the study-focus row', () => {
     expect(describeStudyFocusEntry(entry({ move: 'R16' })).engineLabel).toBe(
       'No engine preference recorded'
     );
+  });
+});
+
+describe('falling back to the shared threshold table', () => {
+  afterEach(() => {
+    useGameStore.getState().resetGame();
+  });
+
+  /**
+   * Every other call in this file passes thresholds explicitly, so the branch
+   * that reaches for the default was never run here -- which is how it went
+   * unnoticed that `gameReport.ts` held two more copies of the six numbers in
+   * exactly that branch. They now come from `DEFAULT_EVAL_THRESHOLDS`, and this
+   * pins that the fallback still grades a game identically to passing the table
+   * in by hand.
+   */
+  const buildScoredGame = () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+    store.playMove(0, 0); // B
+    store.playMove(1, 0); // W
+
+    const root = useGameStore.getState().rootNode;
+    const n1 = root.children[0]!;
+    const n2 = n1.children[0]!;
+    // Candidates are what make a node report-ready, so each parent carries them.
+    root.analysis = analysis({
+      rootScoreLead: 0,
+      rootWinRate: 0.5,
+      rootVisits: 100,
+      moves: [
+        { x: 5, y: 5, winRate: 0.55, scoreLead: 0, visits: 100, pointsLost: 0, order: 0, prior: 0.6 },
+        { x: 0, y: 0, winRate: 0.44, scoreLead: -7, visits: 50, pointsLost: 7, order: 1, prior: 0.4 },
+      ],
+    });
+    // -7 then -0.4: a blunder for Black, then a small loss for White, so the
+    // buckets at either end of the table are both exercised.
+    n1.analysis = analysis({
+      rootScoreLead: -7,
+      rootWinRate: 0.4,
+      rootVisits: 100,
+      moves: [
+        { x: 6, y: 6, winRate: 0.61, scoreLead: 7.4, visits: 100, pointsLost: 0, order: 0, prior: 0.7 },
+        { x: 1, y: 0, winRate: 0.6, scoreLead: 7, visits: 40, pointsLost: 0.4, order: 1, prior: 0.3 },
+      ],
+    });
+    n2.analysis = analysis({ rootScoreLead: -7.4, rootWinRate: 0.39, rootVisits: 100 });
+    return root;
+  };
+
+  it('grades the same with no thresholds as with the table passed in', () => {
+    const explicit = computeGameReport({ currentNode: buildScoredGame(), thresholds: [...DEFAULT_EVAL_THRESHOLDS] });
+    const fallback = computeGameReport({ currentNode: buildScoredGame(), thresholds: [] });
+
+    expect(fallback.stats).toEqual(explicit.stats);
+    expect(fallback.histogram).toEqual(explicit.histogram);
+    // And it actually graded something, so this is not two empty reports.
+    expect(explicit.stats.black.numMoves).toBe(1);
+    expect(explicit.stats.white.numMoves).toBe(1);
+  });
+
+  it('buckets a points loss the same way with an empty threshold list', () => {
+    for (const pointsLost of [20, 12, 6.5, 3, 1.6, 0.6, 0.1, 0]) {
+      expect(getPointLossBucket(pointsLost, []), `${pointsLost} points`).toBe(
+        getPointLossBucket(pointsLost, [...DEFAULT_EVAL_THRESHOLDS])
+      );
+    }
   });
 });
