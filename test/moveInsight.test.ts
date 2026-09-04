@@ -412,3 +412,57 @@ describe('move insights', () => {
     });
   });
 });
+
+describe('shape names', () => {
+  /**
+   * These are the words the app teaches, each with a Sensei's Library link
+   * beside it, and none of the geometry behind them was covered: an off-by-one
+   * in an offset table would have called a keima an ogeima to a beginner
+   * learning the term, and every test here would still have passed.
+   *
+   * (10, 8) on purpose -- not a star point and not near an edge, so the corner,
+   * side and named-point labels that run first do not claim the move.
+   */
+  const MX = 10;
+  const MY = 8;
+  const withFriend = (dx: number, dy: number, blocked?: { x: number; y: number }): BoardState => {
+    const board = emptyBoard(19);
+    board[MY + dy]![MX + dx] = 'black';
+    if (blocked) board[blocked.y]![blocked.x] = 'white';
+    return board;
+  };
+  const labelFor = (dx: number, dy: number, blocked?: { x: number; y: number }) =>
+    getMoveInsight(blackMove(MX, MY), 19, withFriend(dx, dy, blocked))?.label;
+
+  it('names the small knight in every orientation', () => {
+    // The keima is two-and-one, so all eight offsets are the same shape.
+    for (const [dx, dy] of [[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [1, -2], [-1, 2], [-1, -2]] as const) {
+      expect(labelFor(dx, dy), `keima (${dx}, ${dy})`).toBe('Small knight');
+    }
+  });
+
+  it('names the large knight in every orientation, and does not call it a small one', () => {
+    for (const [dx, dy] of [[3, 1], [3, -1], [-3, 1], [-3, -1], [1, 3], [1, -3], [-1, 3], [-1, -3]] as const) {
+      expect(labelFor(dx, dy), `ogeima (${dx}, ${dy})`).toBe('Large knight');
+    }
+  });
+
+  it('names the jumps, the stretch and the diagonals', () => {
+    expect(labelFor(1, 1)).toBe('Diagonal (kosumi)');
+    expect(labelFor(-1, 1)).toBe('Diagonal (kosumi)');
+    expect(labelFor(2, 0)).toBe('One-point jump');
+    expect(labelFor(0, 2)).toBe('One-point jump');
+    expect(labelFor(3, 0)).toBe('Two-point jump');
+    expect(labelFor(1, 0)).toBe('Stretch');
+    expect(labelFor(0, 1)).toBe('Stretch');
+    expect(labelFor(2, 2)).toBe('Diagonal jump');
+  });
+
+  it('will not call it a keima when the gap is already occupied', () => {
+    // A keima is a relationship through empty points. With an opponent stone in
+    // one of the two gaps at (11, 8) the stones are still two-and-one apart,
+    // but the shape is not what the name promises.
+    expect(labelFor(2, 1)).toBe('Small knight');
+    expect(labelFor(2, 1, { x: MX + 1, y: MY })).not.toBe('Small knight');
+  });
+});
