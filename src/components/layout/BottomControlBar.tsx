@@ -826,6 +826,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                     <button type="button"
                       className={mobileMoreActionClass}
                       aria-pressed={!!engineOpponent}
+                      /* The visible label is short on purpose: this grid is two
+                         169px columns at 360px, and the full phrasing wrapped to
+                         a second line, growing its row -- and its row partner --
+                         from 48px to 60px. The sentence lives here instead. */
+                      title={engineOpponent
+                        ? `Stop the engine playing ${engineOpponent === 'black' ? 'Black' : 'White'}`
+                        : 'Play on from here against the engine'}
                       onClick={(event) => {
                         onPlayFromHere();
                         closeMoreControlsFromAction(event);
@@ -835,9 +842,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                         <FaLevelUpAlt size={14} />
                       </div>
                       <div className="flex-1 font-medium text-teal-400">
-                        {engineOpponent
-                          ? `Stop the engine playing ${engineOpponent === 'black' ? 'Black' : 'White'}`
-                          : 'Play on from here vs the engine'}
+                        {engineOpponent ? 'Stop the engine' : 'Play from here'}
                       </div>
                     </button>
                   )}

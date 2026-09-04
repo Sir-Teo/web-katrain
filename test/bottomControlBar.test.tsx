@@ -44,18 +44,37 @@ describe('BottomControlBar', () => {
     const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
 
     expect(componentSource).toContain('{onPlayFromHere && (');
-    expect(componentSource).toContain('Play on from here vs the engine');
     expect(componentSource).toContain('aria-pressed={!!engineOpponent}');
     // Labelled by the colour the engine holds, not by the side to move: while
-    // it is thinking those are the same and the label would lie.
+    // it is thinking those are the same and the label would lie. It lives in
+    // the title now -- see the length rule below.
     expect(componentSource).toContain("`Stop the engine playing ${engineOpponent === 'black' ? 'Black' : 'White'}`");
+  });
+
+  it('keeps the sheet label short enough not to wrap its row', () => {
+    const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+    const entry = /\{onPlayFromHere && \([\s\S]{0,1600}?<\/button>/.exec(componentSource)?.[0] ?? '';
+    const label = /\{engineOpponent \? '([^']+)' : '([^']+)'\}/.exec(entry);
+
+    expect(label, 'the sheet label moved').not.toBeNull();
+    /**
+     * This grid is two 169px columns at 360px wide, and the row is `min-h-12`,
+     * so a label that wraps to a second line grows its own row *and its row
+     * partner* from 48px to 60px -- which is what the viewport check calls a
+     * ragged sheet. Both states have to stay inside one line; the sentence
+     * belongs in the title, which is asserted above.
+     */
+    for (const text of [label![1]!, label![2]!]) {
+      expect(text.length, `"${text}" is long enough to wrap the row`).toBeLessThanOrEqual(18);
+    }
+    expect(entry).toContain('title={engineOpponent');
   });
 
   it('leaves the sheet entry out when the host does not supply the action', () => {
     const componentSource = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
     // Guarded like its neighbours, so a host that does not pass the action -- a
     // problem or tsumego shell -- does not get a dead row.
-    expect(componentSource).toMatch(/\{onPlayFromHere && \([\s\S]{0,900}Play on from here vs the engine/);
+    expect(componentSource).toMatch(/\{onPlayFromHere && \([\s\S]{0,1400}Play from here/);
   });
 
   it('shows Kaya-style branch navigation beside the desktop move counter', () => {
