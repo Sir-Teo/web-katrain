@@ -27,3 +27,24 @@ describe('board pointer gestures', () => {
     expect(suppressions.length).toBeGreaterThanOrEqual(8);
   });
 });
+
+describe('pass marker', () => {
+  it('is not drawn over the board while the game is being counted', () => {
+    const source = readFileSync('src/components/GoBoard.tsx', 'utf8');
+
+    // The marker is 22.7% of the board at 0.7 alpha, so on a 9x9 it covers the
+    // middle intersections. Clicks already pass through it; sight does not, and
+    // scoring is when the board most needs reading -- a beginner has to decide
+    // whether the group under it is dead. Measured live: absent while scoring,
+    // back at 156px on a 690px board once Done is pressed.
+    const start = source.indexOf('const passCircle = useMemo(');
+    expect(start).toBeGreaterThan(-1);
+    const block = source.slice(start, source.indexOf('}, [', start));
+    expect(block).toContain('if (scoringMode) return null;');
+
+    // The memo has to watch the mode it now reads, or the marker only changes
+    // when something else happens to move the board.
+    const deps = source.slice(source.indexOf('}, [', start), source.indexOf(');', source.indexOf('}, [', start)));
+    expect(deps).toContain('scoringMode');
+  });
+});

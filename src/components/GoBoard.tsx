@@ -2936,11 +2936,18 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const passCircle = useMemo(() => {
     const m = lastMove;
     if (!m || m.x >= 0 || m.y >= 0) return null;
+    // Not while counting. The marker is 22.7% of the board at 0.7 alpha, and
+    // scoring is when the board most needs reading: on a 9x9 it covers the
+    // middle intersections, which is where a beginner may have to decide
+    // whether a group is dead. Clicks already pass through it; sight does not.
+    // Nothing is lost -- the game strip says "Game ended" and the score panel
+    // is open on top of it.
+    if (scoringMode) return null;
     const cx = originX + ((boardSize - 1) / 2) * cellSize;
     const cy = originY + ((boardSize - 1) / 2) * cellSize;
     const size = Math.min(boardWidth, boardHeight) * 0.227;
     return { cx, cy, size };
-  }, [boardHeight, boardWidth, boardSize, cellSize, lastMove, originX, originY]);
+  }, [boardHeight, boardWidth, boardSize, cellSize, lastMove, originX, originY, scoringMode]);
 
   const pendingTapMarker = useMemo(() => {
     if (!pendingTap) return null;
