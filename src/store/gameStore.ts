@@ -53,7 +53,7 @@ import {
 } from '../utils/moveTreeCollapse';
 import { parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
-import { isSuicideLegal, rulesFromSgf, rulesOf, rulesToSgf, type KoRule } from '../utils/goRules';
+import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, type KoRule } from '../utils/goRules';
 import { superkoRejectionMessage, violatesSuperko, type SuperkoPosition } from '../utils/superko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
 import { countRootHandicapStones, handicapPlayoutDoublingAdvantage } from '../utils/handicapAi';
@@ -118,6 +118,17 @@ interface GameStore extends GameState {
    * single click on the board and are easy to trigger by accident.
    */
   notification: { message: string, type: 'info' | 'error' | 'success', copyText?: string, undoable?: boolean } | null;
+  /**
+   * Set by `loadGame` when an SGF held a move this ruleset rejects.
+   *
+   * A rejected move takes the rest of its line with it, so a long record can
+   * come in as a handful of moves. That is worth saying out loud: it is not a
+   * parse failure, nothing throws, and the game simply looks shorter than the
+   * file. It is separate from `notification` because every caller of
+   * `loadGame` toasts its own success message straight afterwards, which would
+   * overwrite a notification set here.
+   */
+  sgfLoadWarning: string | null;
   analysisData: AnalysisResult | null;
   /**
    * "What do I lose by playing elsewhere?", answered by evaluating the position
@@ -1519,6 +1530,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isContinuousAnalysis: false,
   isTeachMode: false,
   notification: null,
+  sgfLoadWarning: null,
   analysisData: null,
   tenukiAnalysis: null,
   mistakeDrill: null,
@@ -5735,6 +5747,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return null;
     };
 
+    /**
+     * `applyMoveToNode` returns null for a move this ruleset will not play --
+     * an occupied point, a suicide, or a repeat of the grandparent position --
+     * and the builder then skips that node *and everything under it*, because
+     * there is no parent to hang the rest of the line on. A file whose eighth
+     * move is illegal therefore loads as a seven-move game, which used to
+     * happen in complete silence: no throw, no toast, just a short game. The
+     * counts here are what turns that into a sentence.
+     */
+    const COLUMN_LETTERS = 'ABCDEFGHJKLMNOPQRST';
+    const rejected = { moves: 0, lines: 0, firstLabel: '' };
+    const countMovesIn = (node: NonNullable<ParsedSgf['tree']>): number => {
+      let total = 0;
+      const stack = [node];
+      while (stack.length > 0) {
+        const next = stack.pop()!;
+        if (extractMove(next.props)) total += 1;
+        for (const child of next.children) stack.push(child);
+      }
+      return total;
+    };
+    const noteRejectedMove = (parent: GameNode, move: Move, movesLost: number) => {
+      rejected.moves += Math.max(1, movesLost);
+      rejected.lines += 1;
+      if (rejected.firstLabel) return;
+      // The parent chain includes the root, so its length is the move number
+      // the rejected move would have had.
+      let moveNumber = 0;
+      for (let node: GameNode | null = parent; node; node = node.parent) moveNumber += 1;
+      const player = move.player === 'black' ? 'Black' : 'White';
+      const point =
+        move.x < 0 || move.y < 0
+          ? 'pass'
+          : `${COLUMN_LETTERS[move.x] ?? '?'}${boardSize - move.y}`;
+      rejected.firstLabel = `Move ${moveNumber} (${player} ${point})`;
+    };
+
     const applyMoveToNode = (parent: GameNode, move: Move): GameNode | null => {
       const parentState = parent.gameState;
       const nextPlayer: Player = move.player === 'black' ? 'white' : 'black';
@@ -5857,7 +5906,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
 
           const childNode = applyMoveToNode(parent, move);
-          if (!childNode) continue;
+          if (!childNode) {
+            noteRejectedMove(parent, move, countMovesIn(node));
+            continue;
+          }
           childNode.properties = cloneProps(node.props);
           applySetupPropsToNode(childNode, childNode.properties, boardSize);
           applySgfPlayerToMoveToNode(childNode, childNode.properties);
@@ -5878,6 +5930,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       if (rootMove) {
         const first = applyMoveToNode(newRoot, rootMove);
+        if (!first) {
+          noteRejectedMove(newRoot, rootMove, 1 + sgf.tree.children.reduce((n, child) => n + countMovesIn(child), 0));
+        }
         if (first) {
           first.properties = cloneProps(sgf.tree.props);
           applySetupPropsToNode(first, first.properties, boardSize);
@@ -5900,9 +5955,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } else {
       // Legacy: just the main line (no SGF tree provided)
       let cursor: GameNode = newRoot;
-      for (const mv of sgf.moves) {
+      for (const [index, mv] of sgf.moves.entries()) {
         const child = applyMoveToNode(cursor, { x: mv.x, y: mv.y, player: mv.player });
-        if (!child) break;
+        if (!child) {
+          noteRejectedMove(cursor, { x: mv.x, y: mv.y, player: mv.player }, sgf.moves.length - index);
+          break;
+        }
         cursor.children.push(child);
         cursor = child;
       }
@@ -5925,10 +5983,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       while (current.children.length > 0) current = current.children[0]!;
     }
 
+    const describeRejected = (): string | null => {
+      if (!rejected.firstLabel) return null;
+      const detail =
+        rejected.lines > 1
+          ? `${rejected.moves} moves across ${rejected.lines} lines were not loaded.`
+          : rejected.moves > 1
+            ? `It and the ${rejected.moves - 1} move${rejected.moves === 2 ? '' : 's'} after it were not loaded.`
+            : 'It was not loaded.';
+      return `${rejected.firstLabel} is not legal under ${rulesLabel(rules)} rules. ${detail}`;
+    };
+
     set((state) => ({
       // A drill describes positions in the tree being replaced, so it cannot
       // survive the replacement.
       mistakeDrill: null,
+      sgfLoadWarning: describeRejected(),
       rootNode: newRoot,
       currentNode: current,
       pinnedVariations: restorePinnedVariations(newRoot),

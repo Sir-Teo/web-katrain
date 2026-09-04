@@ -699,6 +699,21 @@ export const Layout: React.FC = () => {
     useGameStore.getState().undoEdit();
   }, []);
 
+  /**
+   * An SGF can hold a move this ruleset will not play, and the loader stops the
+   * line there -- so a 250-move record can arrive as a seven-move game. Every
+   * caller of `loadGame` toasts its own "Loaded..." success straight afterwards,
+   * which is why the store records this separately instead of raising a
+   * notification: this effect runs after that toast and replaces it, because a
+   * load that dropped moves is not a success worth confirming.
+   */
+  const sgfLoadWarning = useGameStore((state) => state.sgfLoadWarning);
+  useEffect(() => {
+    if (!sgfLoadWarning) return;
+    toast(sgfLoadWarning, 'error');
+    useGameStore.setState({ sgfLoadWarning: null });
+  }, [sgfLoadWarning, toast]);
+
   useEffect(() => {
     setSoundInitErrorHandler((error) => {
       updateSettings({ soundEnabled: false });
