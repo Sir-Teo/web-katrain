@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { BOARD_THEME_OPTIONS, getBoardTheme } from '../src/utils/boardThemes';
+import type { BoardThemeId } from '../src/types';
+import { useGameStore } from '../src/store/gameStore';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(rootDir, 'public');
@@ -170,6 +173,51 @@ describe('PWA assets', () => {
     expect(sitemap).toContain('<loc>https://sir-teo.github.io/web-katrain/</loc>');
     expect(sitemap).toContain('<lastmod>2026-06-03</lastmod>');
     expect(sitemap).toContain('<changefreq>weekly</changefreq>');
+  });
+
+  it('precaches the board every visit draws, not the themes most visits never pick', () => {
+    const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
+    const precache = sw.slice(sw.indexOf('const PRECACHE_URLS'), sw.indexOf('];', sw.indexOf('const PRECACHE_URLS')));
+
+    /**
+     * 660KB of `katrain/` images were precached, of which 484KB belonged to
+     * board themes that are not the default: `board.png` is bamboo's texture
+     * and the two stone images are bamboo's, flat's and dark's. Every first
+     * visit paid for all three regardless of which board it then drew.
+     *
+     * Derived from the theme table rather than listed, so changing the default
+     * theme or retexturing one moves this guard with it.
+     */
+    const defaultTheme = useGameStore.getState().settings.boardTheme;
+    // `getBoardTheme` hands back resolved URLs, so match the tail rather than
+    // the raw `katrain/...` the theme table is written with.
+    const katrainAssets = (id: BoardThemeId) => {
+      const theme = getBoardTheme(id);
+      return [theme.board.texture, theme.stones.black.image, theme.stones.white.image]
+        .map((asset) => /(katrain\/[\w.-]+)$/.exec(asset ?? '')?.[1])
+        .filter((asset): asset is string => asset !== undefined);
+    };
+
+    const usedByDefault = new Set(katrainAssets(defaultTheme));
+    const onlyOtherThemes = [
+      ...new Set(BOARD_THEME_OPTIONS.flatMap((option) => katrainAssets(option.value))),
+    ].filter((asset) => !usedByDefault.has(asset));
+
+    // The premise: the default board reaches for none of them.
+    expect(usedByDefault.size).toBe(0);
+    expect(onlyOtherThemes.length).toBeGreaterThanOrEqual(3);
+    for (const asset of onlyOtherThemes) expect(precache).not.toContain(asset);
+
+    // What GoBoard draws under every theme stays precached -- this is the half
+    // of the trade that makes the offline board work at all.
+    const goBoard = fs.readFileSync(path.join(rootDir, 'src/components/GoBoard.tsx'), 'utf8');
+    const alwaysDrawn = [...goBoard.matchAll(/publicUrl\('(katrain\/[\w.-]+)'\)/g)].map((match) => match[1]!);
+    expect(alwaysDrawn.length).toBeGreaterThanOrEqual(3);
+    for (const asset of alwaysDrawn) expect(precache).toContain(asset);
+
+    // And the dropped ones stay cache-first, so picking one of those themes
+    // once is enough to have it offline afterwards.
+    expect(sw).toContain("url.pathname.includes('/katrain/')");
   });
 
   it('does not keep starter-template assets', () => {

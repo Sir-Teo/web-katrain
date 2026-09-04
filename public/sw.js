@@ -20,9 +20,19 @@ const PRECACHE_URLS = [
   './tfjs/tfjs-backend-wasm.wasm',
   './tfjs/tfjs-backend-wasm-simd.wasm',
   './tfjs/tfjs-backend-wasm-threaded-simd.wasm',
-  './katrain/B_stone.png',
-  './katrain/W_stone.png',
-  './katrain/board.png',
+  // Only the images the *default* board draws are here. `dot`, `inner` and
+  // `topmove` are drawn by GoBoard under every theme, and `graph_bg` is 694
+  // bytes.
+  //
+  // The other three are 484KB -- 73% of this list -- for surfaces the default
+  // experience never renders: `board.png` is the bamboo texture alone, and the
+  // two stones belong to bamboo, flat and dark. Anyone who picks one of those
+  // themes fetches them once and cache-first keeps them, so a theme that has
+  // ever been used still works offline. What this trades away is narrow and
+  // cosmetic: choosing one of those three themes for the first time while
+  // offline falls back to the flat board colour, and the pass-preview chip
+  // (which borrows a stone image under every theme) loses its stone until the
+  // first time online.
   './katrain/dot.png',
   './katrain/graph_bg.png',
   './katrain/inner.png',
