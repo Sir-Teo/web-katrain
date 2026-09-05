@@ -301,7 +301,12 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     setPhotoOffsetY(0);
     setPhotoRotation(0);
     setAutoTraceStatus(null);
-    setMobileTab('trace');
+    // Land on the photo you just chose, not on the empty grid beside it. This
+    // read 'trace' from when the photo panel was only a preview; it now holds
+    // the corner handles, which is the step that comes before tracing and the
+    // one a phone photo actually needs. Auto trace still moves to the grid
+    // afterwards, so the order is choose, align, trace, review.
+    setMobileTab('photo');
   }, []);
 
   const handlePhotoInputChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
