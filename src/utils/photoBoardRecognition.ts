@@ -7,12 +7,29 @@ export type PhotoBoardRecognitionImage = {
   data: ArrayLike<number>;
 };
 
+/** A point in image pixels. */
+export type PhotoBoardPoint = { x: number; y: number };
+
+/**
+ * The four board corners in the photo, as the outermost line intersections --
+ * top-left, top-right, bottom-right, bottom-left, in that order.
+ */
+export type PhotoBoardCorners = readonly [PhotoBoardPoint, PhotoBoardPoint, PhotoBoardPoint, PhotoBoardPoint];
+
 export type PhotoBoardRecognitionOptions = {
   marginFraction?: number;
   blackDelta?: number;
   whiteDelta?: number;
   absoluteBlackThreshold?: number;
   absoluteWhiteThreshold?: number;
+  /**
+   * Where the board actually sits in the photo. Without it the sampler assumes
+   * the board is square to the frame and fills it bar a fixed margin, which a
+   * photo taken from a chair over a real board never is: tilt the camera and
+   * every interior intersection drifts off its line, so the grid reads stones
+   * from the wrong points and the further from the centre the worse it gets.
+   */
+  corners?: PhotoBoardCorners;
 };
 
 export type PhotoBoardRecognitionResult = {
@@ -75,6 +92,70 @@ function samplePatchLuminance(image: PhotoBoardRecognitionImage, cx: number, cy:
   return count > 0 ? sum / count : 0;
 }
 
+const normalizeCorners = (corners: PhotoBoardCorners | undefined): PhotoBoardCorners | null => {
+  if (!corners || corners.length !== 4) return null;
+  for (const corner of corners) {
+    if (!corner || !Number.isFinite(corner.x) || !Number.isFinite(corner.y)) return null;
+  }
+  return corners;
+};
+
+const shortestEdge = (corners: PhotoBoardCorners): number => {
+  let shortest = Infinity;
+  for (let i = 0; i < 4; i++) {
+    const a = corners[i]!;
+    const b = corners[(i + 1) % 4]!;
+    shortest = Math.min(shortest, Math.hypot(b.x - a.x, b.y - a.y));
+  }
+  return Math.max(1, shortest);
+};
+
+/**
+ * Maps the unit square onto the corner quad, projectively.
+ *
+ * A board photographed off-axis is a plane seen by a pinhole camera, so the
+ * mapping is a homography and not a stretch: interpolating the quad linearly
+ * would place the centre lines evenly when perspective crowds the far ones
+ * together, which is exactly the error this is here to remove. Closed form for
+ * unit-square-to-quad, degenerating to the affine case when the quad is a
+ * parallelogram.
+ */
+const projectiveMap = (corners: PhotoBoardCorners) => {
+  const [p0, p1, p2, p3] = corners;
+  const dx1 = p1.x - p2.x;
+  const dx2 = p3.x - p2.x;
+  const dx3 = p0.x - p1.x + p2.x - p3.x;
+  const dy1 = p1.y - p2.y;
+  const dy2 = p3.y - p2.y;
+  const dy3 = p0.y - p1.y + p2.y - p3.y;
+
+  let a: number, b: number, d: number, e: number, g: number, h: number;
+  const denominator = dx1 * dy2 - dx2 * dy1;
+  if ((dx3 === 0 && dy3 === 0) || denominator === 0) {
+    g = 0;
+    h = 0;
+    a = p1.x - p0.x;
+    b = p3.x - p0.x;
+    d = p1.y - p0.y;
+    e = p3.y - p0.y;
+  } else {
+    g = (dx3 * dy2 - dx2 * dy3) / denominator;
+    h = (dx1 * dy3 - dx3 * dy1) / denominator;
+    a = p1.x - p0.x + g * p1.x;
+    b = p3.x - p0.x + h * p3.x;
+    d = p1.y - p0.y + g * p1.y;
+    e = p3.y - p0.y + h * p3.y;
+  }
+  const c = p0.x;
+  const f = p0.y;
+
+  return (u: number, v: number) => {
+    const w = g * u + h * v + 1;
+    const safe = w === 0 ? 1e-6 : w;
+    return { x: (a * u + b * v + c) / safe, y: (d * u + e * v + f) / safe };
+  };
+};
+
 export function recognizePhotoBoardFromPixels(
   image: PhotoBoardRecognitionImage,
   boardSize: BoardSize,
@@ -89,15 +170,21 @@ export function recognizePhotoBoardFromPixels(
   const margin = minDimension * marginFraction;
   const spanX = Math.max(1, image.width - 1 - margin * 2);
   const spanY = Math.max(1, image.height - 1 - margin * 2);
-  const cellSize = Math.min(spanX, spanY) / Math.max(1, boardSize - 1);
+  const lastLine = Math.max(1, boardSize - 1);
+  const corners = normalizeCorners(options.corners);
+  const project = corners
+    ? projectiveMap(corners)
+    : (u: number, v: number) => ({ x: margin + u * spanX, y: margin + v * spanY });
+  const cellSize = corners
+    ? shortestEdge(corners) / lastLine
+    : Math.min(spanX, spanY) / lastLine;
   const radius = Math.max(2, cellSize * 0.24);
   const samples: number[] = [];
 
   for (let y = 0; y < boardSize; y++) {
     for (let x = 0; x < boardSize; x++) {
-      const px = margin + (x / Math.max(1, boardSize - 1)) * spanX;
-      const py = margin + (y / Math.max(1, boardSize - 1)) * spanY;
-      samples.push(samplePatchLuminance(image, px, py, radius));
+      const point = project(x / lastLine, y / lastLine);
+      samples.push(samplePatchLuminance(image, point.x, point.y, radius));
     }
   }
 

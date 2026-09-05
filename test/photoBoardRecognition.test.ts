@@ -176,3 +176,140 @@ describe('the sensitivity slider', () => {
     expect(loose.total).toBeGreaterThanOrEqual(strict.total);
   });
 });
+
+describe('reading a board that is not square to the frame', () => {
+  /**
+   * The sampler's default grid assumes the board fills the photo and is square
+   * to it. A photo taken over a real board never is: tilt the camera and the
+   * far edge foreshortens, so a straight grid drifts off the intersections and
+   * reads stones from the wrong points.
+   *
+   * These build the photo the other way round -- pick a quad, project the board
+   * onto it, and draw the stones where they would actually land.
+   */
+  type Point = { x: number; y: number };
+
+  const project = (corners: readonly [Point, Point, Point, Point], u: number, v: number): Point => {
+    const [p0, p1, p2, p3] = corners;
+    const dx1 = p1.x - p2.x;
+    const dx2 = p3.x - p2.x;
+    const dx3 = p0.x - p1.x + p2.x - p3.x;
+    const dy1 = p1.y - p2.y;
+    const dy2 = p3.y - p2.y;
+    const dy3 = p0.y - p1.y + p2.y - p3.y;
+    const denominator = dx1 * dy2 - dx2 * dy1;
+    const g = denominator === 0 ? 0 : (dx3 * dy2 - dx2 * dy3) / denominator;
+    const h = denominator === 0 ? 0 : (dx1 * dy3 - dx3 * dy1) / denominator;
+    const a = p1.x - p0.x + g * p1.x;
+    const b = p3.x - p0.x + h * p3.x;
+    const d = p1.y - p0.y + g * p1.y;
+    const e = p3.y - p0.y + h * p3.y;
+    const w = g * u + h * v + 1 || 1e-6;
+    return { x: (a * u + b * v + p0.x) / w, y: (d * u + e * v + p0.y) / w };
+  };
+
+  const photoOfQuad = (
+    boardSize: BoardSize,
+    corners: readonly [Point, Point, Point, Point],
+    stones: Array<[number, number, 'black' | 'white']>,
+    { size = 400, background = 150 } = {}
+  ) => {
+    const data = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < size * size; i += 1) {
+      data[i * 4] = background;
+      data[i * 4 + 1] = background;
+      data[i * 4 + 2] = background;
+      data[i * 4 + 3] = 255;
+    }
+    const last = boardSize - 1;
+    // Radius from the shortest edge, matching what the recognizer will use.
+    let shortest = Infinity;
+    for (let i = 0; i < 4; i += 1) {
+      const a = corners[i]!;
+      const b = corners[(i + 1) % 4]!;
+      shortest = Math.min(shortest, Math.hypot(b.x - a.x, b.y - a.y));
+    }
+    const radius = Math.max(2, (shortest / last) * 0.24);
+    for (const [gx, gy, colour] of stones) {
+      const { x: px, y: py } = project(corners, gx / last, gy / last);
+      const value = colour === 'black' ? 10 : 245;
+      for (let y = Math.floor(py - radius); y <= Math.ceil(py + radius); y += 1) {
+        for (let x = Math.floor(px - radius); x <= Math.ceil(px + radius); x += 1) {
+          if (x < 0 || y < 0 || x >= size || y >= size) continue;
+          const offset = (y * size + x) * 4;
+          data[offset] = value;
+          data[offset + 1] = value;
+          data[offset + 2] = value;
+          data[offset + 3] = 255;
+        }
+      }
+    }
+    return { width: size, height: size, data };
+  };
+
+  // A board seen from behind and above: the far edge is narrower and higher.
+  const TILTED: readonly [Point, Point, Point, Point] = [
+    { x: 120, y: 60 },
+    { x: 280, y: 60 },
+    { x: 370, y: 330 },
+    { x: 30, y: 330 },
+  ];
+  const STONES: Array<[number, number, 'black' | 'white']> = [
+    [0, 0, 'black'],
+    [8, 0, 'white'],
+    [4, 4, 'black'],
+    [0, 8, 'white'],
+    [8, 8, 'black'],
+    [6, 2, 'black'],
+  ];
+  const at = (result: { stones: Array<'black' | 'white' | null> }, x: number, y: number) => result.stones[y * 9 + x];
+
+  it('reads every stone once it is told where the corners are', () => {
+    const image = photoOfQuad(9, TILTED, STONES);
+    const result = recognizePhotoBoardFromPixels(image, 9, { corners: TILTED });
+
+    for (const [x, y, colour] of STONES) {
+      expect(at(result, x, y), `${x},${y}`).toBe(colour);
+    }
+    expect(result.total).toBe(STONES.length);
+  });
+
+  it('reads the same photo wrongly without them, which is the point', () => {
+    const image = photoOfQuad(9, TILTED, STONES);
+    const straight = recognizePhotoBoardFromPixels(image, 9, {});
+    const aligned = recognizePhotoBoardFromPixels(image, 9, { corners: TILTED });
+
+    // Not a claim about how it fails, only that the straight grid does not
+    // recover the position the corners do.
+    expect(straight.stones).not.toEqual(aligned.stones);
+  });
+
+  it('changes nothing when the corners describe the default grid', () => {
+    const image = boardImage(9, [[2, 2, 'black'], [6, 6, 'white'], [4, 0, 'black']]);
+    const margin = 400 * MARGIN_FRACTION;
+    const span = Math.max(1, 400 - 1 - margin * 2);
+    const square: readonly [Point, Point, Point, Point] = [
+      { x: margin, y: margin },
+      { x: margin + span, y: margin },
+      { x: margin + span, y: margin + span },
+      { x: margin, y: margin + span },
+    ];
+
+    expect(recognizePhotoBoardFromPixels(image, 9, { corners: square }).stones).toEqual(
+      recognizePhotoBoardFromPixels(image, 9, {}).stones
+    );
+  });
+
+  it('ignores corners it cannot use, rather than sampling nonsense', () => {
+    const image = boardImage(9, [[2, 2, 'black']]);
+    const plain = recognizePhotoBoardFromPixels(image, 9, {}).stones;
+    const broken = [
+      { x: Number.NaN, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 0, y: 100 },
+    ] as unknown as readonly [Point, Point, Point, Point];
+
+    expect(recognizePhotoBoardFromPixels(image, 9, { corners: broken }).stones).toEqual(plain);
+  });
+});
