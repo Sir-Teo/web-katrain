@@ -4282,9 +4282,12 @@
      came back from `elementFromPoint` as the toast, and dismissing the card by
      hand took that straight to 0. The toast is transient and says something
      just happened; the card is a promo that can wait for it to pass. Scoped to
-     the mobile shell: on a wider screen the card sits in the board column's
-     bottom corner and the toast in the top one, so they never meet. */
-  @media (max-width: 639px) {
+     the mobile shell with the app's own breakpoint -- `MOBILE_LAYOUT_MEDIA` in
+     responsiveLayout.ts, mirrored throughout this file -- rather than a phone
+     width. The shell runs to 1023px, so a narrower guess left the same collision
+     in place on every tablet. On the desktop shell the card sits in the board
+     column's bottom corner and the toast in the top one, so they never meet. */
+  @media (max-width: 1023px), (max-height: 499px) {
     :root:has([data-notification="true"]) .pwa-install-banner {
       display: none;
     }

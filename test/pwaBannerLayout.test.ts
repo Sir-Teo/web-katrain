@@ -74,7 +74,9 @@ describe('desktop PWA banner layout', () => {
     // column's bottom corner and the toast in the top one, so hiding it there
     // would cost a promo for no gain.
     const before = css.slice(0, start);
+    // The app's own mobile-shell query, not a phone-width guess: the shell runs
+    // to 1023px, so a narrower scope leaves the collision on every tablet.
     const media = before.lastIndexOf('@media');
-    expect(before.slice(media, media + 40)).toContain('max-width: 639px');
+    expect(before.slice(media, media + 60)).toContain('max-width: 1023px');
   });
 });
