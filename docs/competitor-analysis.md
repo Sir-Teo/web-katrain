@@ -124,11 +124,14 @@ was used for behavioral reference only).
 6. **Board-scan corner alignment** (Kaya #5) — click-to-correct already exists on the trace
    board; what is missing is draggable corner alignment, and an ONNX detection model later
    (Kaya's Moku is RT-DETR at 640×640 with corner classes).
-7. **Persona bots + mid-game score quizzes** (Kifubara #7/#10) — packaging, not new tech.
+7. ✅ **Persona bots + mid-game score quizzes** (Kifubara #7/#10) — shipped: twelve named
+   bots with style tags, blurbs and trait bars, sorted weakest-first in the New Game dialog
+   (`src/data/botPersonas.ts`, `BotPersonaPicker.tsx`), and a score quiz modal wired into
+   Layout (`ScoreQuizModal.tsx`).
 8. **Remote-engine (KataGo WebSocket) option** (Kifubara #4) — strong analysis on weak devices.
-9. Longer-term/strategic: Tauri desktop builds with auto-update; larger pro-game corpus;
-   tree minimap (Kaya: reactflow + worker layout, main line straight, variations offset
-   per depth).
+9. Longer-term/strategic: Tauri desktop builds with auto-update; larger pro-game corpus.
+   (The tree minimap that used to sit here is shipped — `MoveTree.tsx` has one behind a
+   `toggle-minimap` command, with its open state persisted.)
 
 ## Beyond the competitors (2026-08-31)
 
