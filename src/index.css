@@ -4275,6 +4275,21 @@
     display: none;
   }
 
+  /* And to a notification, for the reason the sheet and the start rail already
+     have. On a phone the card, the toast, the controls and the tab bar all
+     stack off the bottom edge, and the card's height pushes the toast up onto
+     the board: measured at 390x844 with a game loaded, 19 of 361 intersections
+     came back from `elementFromPoint` as the toast, and dismissing the card by
+     hand took that straight to 0. The toast is transient and says something
+     just happened; the card is a promo that can wait for it to pass. Scoped to
+     the mobile shell: on a wider screen the card sits in the board column's
+     bottom corner and the toast in the top one, so they never meet. */
+  @media (max-width: 639px) {
+    :root:has([data-notification="true"]) .pwa-install-banner {
+      display: none;
+    }
+  }
+
   /* The two install promos also step aside for the first-run start rail. The
      card is fixed inside the board column, so on a first visit its only choices
      are the rail or the board -- lifting it clear of the rail put it over 14

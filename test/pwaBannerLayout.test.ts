@@ -56,4 +56,25 @@ describe('desktop PWA banner layout', () => {
       'padding-bottom: calc(var(--stage-pad) + var(--commandbar-reserve) + var(--pwa-stage-reserve));'
     );
   });
+
+  it('yields to a notification on a phone, where the two share the bottom edge', () => {
+    /**
+     * On a phone the card, the toast, the board controls and the tab bar all
+     * stack off the bottom edge, and the card's height pushes the toast up onto
+     * the board. Measured at 390x844 with a game loaded: 19 of 361 intersections
+     * came back from `elementFromPoint` as the toast, and dismissing the card by
+     * hand took that to 0. Pre-existing -- the same 19 at the commit before
+     * mobile notifications were last touched.
+     */
+    const start = css.indexOf(':root:has([data-notification="true"]) .pwa-install-banner');
+    expect(start, 'the notification rule is gone').toBeGreaterThan(-1);
+    expect(css.slice(start, css.indexOf('}', start))).toContain('display: none');
+
+    // Scoped to the mobile shell: on a wider screen the card sits in the board
+    // column's bottom corner and the toast in the top one, so hiding it there
+    // would cost a promo for no gain.
+    const before = css.slice(0, start);
+    const media = before.lastIndexOf('@media');
+    expect(before.slice(media, media + 40)).toContain('max-width: 639px');
+  });
 });
