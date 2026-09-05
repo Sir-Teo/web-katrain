@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatKaTrainClockSeconds, stepKaTrainTimer } from '../src/utils/katrainTimer';
+import {
+  describeKaTrainClock,
+  formatKaTrainClockSeconds,
+  stepKaTrainTimer,
+  type KaTrainTimerDisplay,
+} from '../src/utils/katrainTimer';
 
 describe('katrainTimer', () => {
   it('formats time with KaTrain-style ceil', () => {
@@ -101,3 +106,44 @@ describe('katrainTimer', () => {
   });
 });
 
+describe('what the clock says out loud', () => {
+  /**
+   * Running out of time turned the digits red and changed nothing else -- no
+   * title, no icon, no label. "0:00 x0" is the information, but only for
+   * someone who can see the colour and knows to read it that way; spoken, it is
+   * bare numerals.
+   *
+   * Describing, not refereeing: this clock is a practice aid like KaTrain's, so
+   * a timeout still does not forfeit the game.
+   */
+  const display = (over: Partial<KaTrainTimerDisplay>): KaTrainTimerDisplay => ({
+    timeSeconds: 30,
+    periodsRemaining: null,
+    timeout: false,
+    isAiTurn: false,
+    ...over,
+  });
+
+  it('names main time', () => {
+    expect(describeKaTrainClock(display({ timeSeconds: 90 }))).toBe('Main time, 1:30 remaining');
+  });
+
+  it('names byo-yomi, and counts one period in the singular', () => {
+    expect(describeKaTrainClock(display({ timeSeconds: 30, periodsRemaining: 5 }))).toBe(
+      'Byo-yomi, 0:30 remaining, 5 periods left'
+    );
+    expect(describeKaTrainClock(display({ timeSeconds: 30, periodsRemaining: 1 }))).toBe(
+      'Byo-yomi, 0:30 remaining, 1 period left'
+    );
+  });
+
+  it('says running out in words, which was the whole gap', () => {
+    expect(describeKaTrainClock(display({ timeSeconds: 0, periodsRemaining: 0, timeout: true }))).toBe(
+      'Out of time'
+    );
+  });
+
+  it('says the clock is off rather than reading a meaningless zero', () => {
+    expect(describeKaTrainClock(display({}), true)).toBe('Clock off, no time control set');
+  });
+});

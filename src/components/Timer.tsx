@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaPause, FaPlay } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { formatKaTrainClockSeconds, stepKaTrainTimer, type KaTrainTimerDisplay } from '../utils/katrainTimer';
+import { describeKaTrainClock, formatKaTrainClockSeconds, stepKaTrainTimer, type KaTrainTimerDisplay } from '../utils/katrainTimer';
 import { getAnimationNow } from '../utils/animationFrame';
 
 export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 'default' }) => {
@@ -90,6 +90,8 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
     () => (isTimerDisabled ? 'Off' : formatKaTrainClockSeconds(effectiveDisplay.timeSeconds)),
     [effectiveDisplay.timeSeconds, isTimerDisabled]
   );
+  const timeLabel = describeKaTrainClock(effectiveDisplay, isTimerDisabled);
+
   const timeoutClass = isTimerDisabled
     ? 'text-[var(--ui-text-muted)]'
     : effectiveDisplay.timeout
@@ -109,7 +111,9 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
       <div className="status-bar-timer">
         <div
           className={['status-bar-item font-mono', compactTimeoutClass].join(' ')}
-          title={effectiveDisplay.isAiTurn ? 'AI to play' : undefined}
+          title={effectiveDisplay.isAiTurn ? 'AI to play' : timeLabel}
+          aria-label={timeLabel}
+          data-timer-timeout={effectiveDisplay.timeout ? 'true' : undefined}
         >
           {timeText}
           {effectiveDisplay.periodsRemaining !== null ? ` ×${effectiveDisplay.periodsRemaining}` : ''}
@@ -130,7 +134,12 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
   return (
     <div className="ui-surface border border-[var(--ui-border)] rounded px-4 py-3 flex items-center gap-3">
       <div className="flex items-baseline gap-2 font-mono">
-        <div className={['text-2xl leading-none', timeoutClass].join(' ')} title={effectiveDisplay.isAiTurn ? 'AI to play' : undefined}>
+        <div
+          className={['text-2xl leading-none', timeoutClass].join(' ')}
+          title={effectiveDisplay.isAiTurn ? 'AI to play' : timeLabel}
+          aria-label={timeLabel}
+          data-timer-timeout={effectiveDisplay.timeout ? 'true' : undefined}
+        >
           {timeText}
         </div>
         {!isTimerDisabled && effectiveDisplay.periodsRemaining !== null && (

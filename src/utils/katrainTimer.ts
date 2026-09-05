@@ -43,6 +43,26 @@ export function formatKaTrainClockSeconds(seconds: number): string {
   return `${m}:${String(ss).padStart(2, '0')}`;
 }
 
+/**
+ * What the clock would say out loud.
+ *
+ * Running out of time turned the digits red and changed nothing else -- no
+ * title, no icon, no label -- so "0:00 x0" carried the meaning only for someone
+ * who could see the colour and knew to read it. This is the text equivalent.
+ *
+ * It describes, it does not referee: the clock here is a practice aid like
+ * KaTrain's, and forfeiting on time would be a rules change rather than a
+ * label.
+ */
+export function describeKaTrainClock(display: KaTrainTimerDisplay, disabled = false): string {
+  if (disabled) return 'Clock off, no time control set';
+  if (display.timeout) return 'Out of time';
+  const remaining = `${formatKaTrainClockSeconds(display.timeSeconds)} remaining`;
+  if (display.periodsRemaining === null) return `Main time, ${remaining}`;
+  const periods = display.periodsRemaining;
+  return `Byo-yomi, ${remaining}, ${periods} period${periods === 1 ? '' : 's'} left`;
+}
+
 export function stepKaTrainTimer(args: KaTrainTimerStepArgs): KaTrainTimerStepResult {
   const nowMs = args.nowMs;
   const lastUpdateMs = Number.isFinite(args.lastUpdateMs) ? args.lastUpdateMs : nowMs;
