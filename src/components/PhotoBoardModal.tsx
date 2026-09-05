@@ -46,6 +46,16 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { isTextEntryTarget } from '../utils/keyboardTarget';
 import { detectCameraAvailability, type CameraAvailability } from '../utils/cameraAvailability';
+import { getResizeObserverConstructor } from '../utils/resizeObserver';
+import {
+  areCornersUsable,
+  CORNER_LABELS,
+  cornerFractionFromPointer,
+  cornerFractionToElementPoint,
+  cornersToImagePixels,
+  defaultCornerFractions,
+  type CornerFractions,
+} from '../utils/photoBoardCorners';
 import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface PhotoBoardModalProps {
@@ -128,6 +138,10 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [isAutoTracing, setIsAutoTracing] = React.useState(false);
   const [autoTraceStatus, setAutoTraceStatus] = React.useState<string | null>(null);
   const [autoTraceSensitivity, setAutoTraceSensitivity] = React.useState(DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY);
+  const photoImgRef = React.useRef<HTMLImageElement | null>(null);
+  const [photoNatural, setPhotoNatural] = React.useState<{ width: number; height: number } | null>(null);
+  const [cornerFractions, setCornerFractions] = React.useState<CornerFractions | null>(null);
+  const [draggingCorner, setDraggingCorner] = React.useState<number | null>(null);
   useEscapeToClose(onClose, !cameraCaptureOpen);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
 
@@ -431,16 +445,75 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     setStones((prev) => swapPhotoBoardStoneColors(prev));
   };
 
+  // A new photo invalidates the old quad; the handles reappear on the sampler's
+  // own default rect once the image reports its natural size.
+  React.useEffect(() => {
+    setPhotoNatural(null);
+    setCornerFractions(null);
+  }, [photoUrl]);
+
+  const handlePhotoLoad = React.useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
+    if (!img.naturalWidth || !img.naturalHeight) return;
+    setPhotoNatural({ width: img.naturalWidth, height: img.naturalHeight });
+    setCornerFractions((current) => current ?? defaultCornerFractions(img.naturalWidth, img.naturalHeight));
+  }, []);
+
+  const moveCorner = React.useCallback((index: number, clientX: number, clientY: number) => {
+    const img = photoImgRef.current;
+    if (!img || !photoNatural) return;
+    const rect = img.getBoundingClientRect();
+    const next = cornerFractionFromPointer(
+      clientX - rect.left,
+      clientY - rect.top,
+      rect.width,
+      rect.height,
+      photoNatural.width,
+      photoNatural.height
+    );
+    setCornerFractions((current) => {
+      const base = current ?? defaultCornerFractions(photoNatural.width, photoNatural.height);
+      const updated = base.map((corner, i) => (i === index ? next : corner)) as unknown as CornerFractions;
+      // A drag that would turn the quad inside out is simply not applied, so the
+      // handle stops at the last shape that still describes a board.
+      return areCornersUsable(updated) ? updated : current;
+    });
+  }, [photoNatural]);
+
+  const [photoBox, setPhotoBox] = React.useState<{ width: number; height: number } | null>(null);
+  React.useEffect(() => {
+    const img = photoImgRef.current;
+    if (!img) return;
+    const update = () => setPhotoBox({ width: img.clientWidth, height: img.clientHeight });
+    update();
+    const ResizeObserverConstructor = getResizeObserverConstructor();
+    const observer = ResizeObserverConstructor ? new ResizeObserverConstructor(update) : null;
+    observer?.observe(img);
+    window.addEventListener('resize', update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [photoUrl, photoNatural]);
+
+  const resetCorners = React.useCallback(() => {
+    if (!photoNatural) return;
+    setCornerFractions(defaultCornerFractions(photoNatural.width, photoNatural.height));
+  }, [photoNatural]);
+
   const autoTracePhoto = React.useCallback(async () => {
     if (!photoUrl) return;
     setIsAutoTracing(true);
     setAutoTraceStatus('Reading photo...');
     try {
-      const result = await recognizePhotoBoardFromImageUrl(
-        photoUrl,
-        boardSize,
-        getPhotoBoardRecognitionOptionsForSensitivity(autoTraceSensitivity)
-      );
+      const corners =
+        cornerFractions && photoNatural && areCornersUsable(cornerFractions)
+          ? cornersToImagePixels(cornerFractions, photoNatural.width, photoNatural.height)
+          : undefined;
+      const result = await recognizePhotoBoardFromImageUrl(photoUrl, boardSize, {
+        ...getPhotoBoardRecognitionOptionsForSensitivity(autoTraceSensitivity),
+        ...(corners ? { corners } : {}),
+      });
       setStones(result.stones);
       setMobileTab('trace');
       setAutoTraceStatus(
@@ -453,7 +526,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     } finally {
       setIsAutoTracing(false);
     }
-  }, [autoTraceSensitivity, boardSize, photoUrl]);
+  }, [autoTraceSensitivity, boardSize, cornerFractions, photoNatural, photoUrl]);
 
   const updateAutoTraceSensitivity = (value: number) => {
     const next = Math.max(0, Math.min(100, Number.isFinite(value) ? value : DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY));
@@ -654,11 +727,116 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
             <div className="overflow-hidden rounded-lg border border-[var(--ui-border)] bg-black/20">
               {photoUrl ? (
-                <img
-                  src={photoUrl}
-                  alt={photoName || 'Board photo'}
-                  className="h-auto max-h-[42dvh] w-full object-contain"
-                />
+                <div className="relative" data-photo-board-aligner="true">
+                  <img
+                    ref={photoImgRef}
+                    src={photoUrl}
+                    alt={photoName || 'Board photo'}
+                    onLoad={handlePhotoLoad}
+                    className="h-auto max-h-[42dvh] w-full object-contain"
+                  />
+                  {cornerFractions && photoNatural && photoBox ? (
+                    <>
+                      {/* The quad, so the alignment is readable at a glance
+                          rather than only through the four dots. */}
+                      <svg
+                        className="pointer-events-none absolute inset-0 h-full w-full"
+                        aria-hidden="true"
+                      >
+                        <polygon
+                          points={cornerFractions
+                            .map((corner) => {
+                              const point = cornerFractionToElementPoint(
+                                corner,
+                                photoBox.width,
+                                photoBox.height,
+                                photoNatural.width,
+                                photoNatural.height
+                              );
+                              return `${point.x},${point.y}`;
+                            })
+                            .join(' ')}
+                          fill="rgba(56,189,248,0.12)"
+                          stroke="rgb(56,189,248)"
+                          strokeWidth={2}
+                        />
+                      </svg>
+                      {cornerFractions.map((corner, index) => {
+                        const point = cornerFractionToElementPoint(
+                          corner,
+                          photoBox.width,
+                          photoBox.height,
+                          photoNatural.width,
+                          photoNatural.height
+                        );
+                        return (
+                          <button
+                            key={CORNER_LABELS[index]}
+                            type="button"
+                            /* 44px of grab area with an 18px dot inside it: the
+                               dot has to stay small enough to see the
+                               intersection under it, and the target big enough
+                               to hit with a thumb. */
+                            className="absolute grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+                            style={{ left: point.x, top: point.y, touchAction: 'none' }}
+                            data-photo-board-corner={index}
+                            aria-label={`${CORNER_LABELS[index]} board corner`}
+                            onPointerDown={(event) => {
+                              event.preventDefault();
+                              // Capture keeps the drag alive when the pointer
+                              // leaves the 44px target, which it does almost at
+                              // once. It throws if the pointer is already gone.
+                              try {
+                                event.currentTarget.setPointerCapture(event.pointerId);
+                              } catch {
+                                // Drag still works, it just ends at the edge.
+                              }
+                              setDraggingCorner(index);
+                            }}
+                            onPointerMove={(event) => {
+                              if (draggingCorner !== index) return;
+                              moveCorner(index, event.clientX, event.clientY);
+                            }}
+                            onPointerUp={(event) => {
+                              try {
+                                event.currentTarget.releasePointerCapture(event.pointerId);
+                              } catch {
+                                // Already released.
+                              }
+                              setDraggingCorner(null);
+                            }}
+                            onPointerCancel={() => setDraggingCorner(null)}
+                            onKeyDown={(event) => {
+                              const step = event.shiftKey ? 0.05 : 0.005;
+                              const deltas: Record<string, [number, number]> = {
+                                ArrowLeft: [-step, 0],
+                                ArrowRight: [step, 0],
+                                ArrowUp: [0, -step],
+                                ArrowDown: [0, step],
+                              };
+                              const delta = deltas[event.key];
+                              if (!delta) return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const rect = photoImgRef.current?.getBoundingClientRect();
+                              if (!rect) return;
+                              const next = cornerFractionToElementPoint(
+                                { x: corner.x + delta[0], y: corner.y + delta[1] },
+                                photoBox.width,
+                                photoBox.height,
+                                photoNatural.width,
+                                photoNatural.height
+                              );
+                              moveCorner(index, rect.left + next.x, rect.top + next.y);
+                            }}
+                          >
+                            <span className="pointer-events-none block h-[18px] w-[18px] rounded-full border-2 border-white bg-sky-400 shadow" />
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : null}
+                </div>
               ) : (
                 <div
                   className="grid aspect-video place-items-center bg-[var(--ui-surface)] text-sm ui-text-muted md:aspect-[4/3]"
@@ -790,6 +968,16 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 <span className="inline-flex items-center gap-2">
                   <FaMagic aria-hidden="true" /> {isAutoTracing ? 'Tracing...' : 'Auto trace'}
                 </span>
+              </button>
+              <button
+                type="button"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!photoUrl || !photoNatural}
+                onClick={resetCorners}
+                title="Put the four board corners back where they started"
+                data-photo-board-reset-corners="true"
+              >
+                Reset corners
               </button>
               <button
                 type="button"
