@@ -862,6 +862,12 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 {photoError}
               </div>
             )}
+            {photoUrl && cornerFractions ? (
+              <p className="text-xs ui-text-muted" data-photo-board-corner-hint="true">
+                Drag the four corners onto the board&apos;s outside lines, then Auto trace. A photo
+                taken at an angle needs this; one taken square to the board usually does not.
+              </p>
+            ) : null}
             {photoUrl && photoName ? (
               <div
                 className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-xs"
