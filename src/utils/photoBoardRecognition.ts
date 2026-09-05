@@ -40,6 +40,28 @@ export type PhotoBoardRecognitionResult = {
   backgroundLuminance: number;
 };
 
+/**
+ * Measured limits of this classical detector, on a synthetic 9x9 with six
+ * stones and a top-to-bottom lighting falloff (2026-09-05):
+ *
+ *   even lighting        6/6 stones, 0 spurious
+ *   40 units darker      5/6
+ *   80-120 units         5/6 then 4/6
+ *   160 units            4/6, and 7 stones invented from shaded empty points
+ *   200 units            3/6, 16 invented
+ *
+ * The single background median is what gives way: a gradient pulls it away from
+ * both ends at once, so the shaded half of the board falls past the black
+ * cutoff while the lit half's white stones do not reach the white one.
+ *
+ * Flattening the illumination with a fitted plane was tried and **reverted**.
+ * It removed every spurious stone but found fewer real ones (3/6 where the
+ * current code finds 5/6 at an 80-unit falloff), so it traded one failure for
+ * another rather than fixing anything -- and tuning further would have meant
+ * fitting a classical detector to a synthetic written to test it. Corner
+ * alignment does not help here either; this is about light, not geometry. A
+ * trained detector is the answer, and that is a dependency decision.
+ */
 const DEFAULT_MARGIN_FRACTION = 0.06;
 export const DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY = 50;
 
