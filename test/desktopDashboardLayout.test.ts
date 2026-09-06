@@ -368,3 +368,22 @@ describe('desktop dashboard layout', () => {
     expect(source).toContain('aria-pressed={isInsertMode}');
   });
 });
+
+describe('colour swatches do not speak', () => {
+  /**
+   * Every colour in this dashboard has its meaning in adjacent text -- the
+   * quality dot sits before the points-lost figure, the legend swatches before
+   * their labels -- so the swatches themselves are decoration and should be
+   * skipped rather than announced as empty elements mid-label. The candidate
+   * list already marks its `cl-dot` that way, and the `lg-check` icon
+   * immediately beside these swatches does too; they were the exception.
+   */
+  it('marks the decorative colour spans aria-hidden', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const swatches = [...source.matchAll(/<span className="(cb-quality-dot|sw|qd)"[^>]*>/g)];
+    expect(swatches.length, 'the dashboard swatches moved').toBeGreaterThanOrEqual(5);
+    for (const [tag, name] of swatches) {
+      expect(tag, `${name} swatch is announced`).toContain('aria-hidden="true"');
+    }
+  });
+});

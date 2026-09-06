@@ -798,7 +798,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     <div className="k">Played</div>
                     <div className="v">
                       {pointsLost != null ? (
-                        <><span className="cb-quality-dot" style={{ background: evalColorForPointsLost(pointsLost, settings.trainerEvalThresholds, settings.trainerTheme) }} />{pointsLostLabel}</>
+                        <><span className="cb-quality-dot" aria-hidden="true" style={{ background: evalColorForPointsLost(pointsLost, settings.trainerEvalThresholds, settings.trainerTheme) }} />{pointsLostLabel}</>
                       ) : '—'}
                     </div>
                     <div className={`sub ${pointsLost != null && pointsLost > 1.5 ? 'delta-bad' : 'delta-good'}`}>
@@ -1050,7 +1050,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     onClick={() => setLegend((l) => ({ ...l, winrate: !l.winrate }))}
                   >
                     <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
-                    <span className="sw" style={{ background: 'var(--green)' }} />Win rate
+                    <span className="sw" aria-hidden="true" style={{ background: 'var(--green)' }} />Win rate
                   </button>
                   <button
                     type="button"
@@ -1061,7 +1061,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     onClick={() => setLegend((l) => ({ ...l, score: !l.score }))}
                   >
                     <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
-                    <span className="sw" style={{ background: 'var(--amber)' }} />Score
+                    <span className="sw" aria-hidden="true" style={{ background: 'var(--amber)' }} />Score
                   </button>
                   {/* Only offered when the SGF carries a clock. Most local games
                       have none, and a toggle that can only ever draw nothing is
@@ -1076,7 +1076,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                       onClick={() => setLegend((l) => ({ ...l, time: !l.time }))}
                     >
                       <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
-                      <span className="sw" style={{ background: 'var(--amber)', opacity: 0.55 }} />Time
+                      <span className="sw" aria-hidden="true" style={{ background: 'var(--amber)', opacity: 0.55 }} />Time
                     </button>
                   )}
                 </div>
@@ -1099,7 +1099,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     <div className="qgrid">
                       {evalLegendRows(settings.trainerEvalThresholds, settings.trainerTheme).map(([label, color, range]) => (
                         <div className="qi" key={label}>
-                          <span className="qd" style={{ background: color }} />
+                          <span className="qd" aria-hidden="true" style={{ background: color }} />
                           <span className="ql">{label}</span>
                           <span className="qr">{range}</span>
                         </div>
