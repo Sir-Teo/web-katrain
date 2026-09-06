@@ -17,7 +17,9 @@ import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engine
 // tables, the pass-alive regions and the ladder search are all sized from it.
 // ---------------------------------------------------------------------------
 
-const SIZES = Array.from({ length: 18 }, (_, i) => i + 2);
+// Paired so the `%ix%i` title has two arguments to consume: over a flat list
+// of numbers every case named itself "15xNaN".
+const SIZES = Array.from({ length: 18 }, (_, i) => [i + 2, i + 2] as const);
 
 describe.skipIf(!runsEngineSuites())('searching at every board size', () => {
   it.each(SIZES)('runs and reports sanely on %ix%i', async (size) => {
