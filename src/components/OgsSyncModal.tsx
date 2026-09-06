@@ -11,6 +11,7 @@ import {
   type OgsSyncedGame,
 } from '../utils/ogsSync';
 import { getOgsBackoffRemainingMs } from '../utils/ogsQueue';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import type { LibraryItem } from '../utils/library';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
@@ -59,9 +60,9 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   const cancelledRef = React.useRef(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   useEscapeToClose(onClose);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { initialFocusRef: inputRef });
 
   React.useEffect(() => {
-    window.setTimeout(() => inputRef.current?.focus(), 0);
     return () => {
       cancelledRef.current = true;
     };
@@ -119,6 +120,8 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="ui-panel flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg border shadow-xl"
         role="dialog"
         aria-modal="true"

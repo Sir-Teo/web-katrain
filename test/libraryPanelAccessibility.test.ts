@@ -254,7 +254,15 @@ describe('LibraryPanel accessibility', () => {
     expect(source).toContain('const affectedCount = items.filter');
     expect(source).toContain('This cannot be undone.');
     expect(source).not.toContain('Delete ${visibleSelectedIds.size} item(s) from Library?');
-    expect(source).toMatch(/LibraryConfirmDialog[\s\S]*onClick=\{onClose\} autoFocus/);
+    // Cancel takes the focus, not the destructive action. Asserted by intent
+    // rather than by its spelling: this used to read `autoFocus`, which is
+    // applied during commit -- before any effect -- so the dialog's focus hook
+    // recorded Cancel as the element to restore to and the restore silently did
+    // nothing. Routing the same placement through `initialFocusRef` fixed that,
+    // and pinning the old spelling failed on the change that made it better.
+    const confirmDialog = source.slice(source.indexOf('const LibraryConfirmDialog'));
+    expect(confirmDialog).toContain('initialFocusRef: cancelRef');
+    expect(confirmDialog).toMatch(/onClick=\{onClose\} ref=\{cancelRef\}[\s\S]{0,40}Cancel/);
   });
 
 

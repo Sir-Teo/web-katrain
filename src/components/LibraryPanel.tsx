@@ -87,6 +87,7 @@ import {
   isLibraryMenuCloseKey,
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 
@@ -149,6 +150,10 @@ const LibraryTextDialog: React.FC<{
   const inputRef = useRef<HTMLInputElement>(null);
   const trimmed = value.trim();
   useEscapeToClose(onClose);
+  // Declared before the effect below: the hook reads document.activeElement when
+  // it runs, so anything that moves focus first would be recorded as the element
+  // to restore to, and the trigger behind the dialog would be lost.
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -164,6 +169,8 @@ const LibraryTextDialog: React.FC<{
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-text-dialog-title"
@@ -243,6 +250,11 @@ const LibraryConfirmDialog: React.FC<{
   onClose: () => void;
 }> = ({ dialog, onClose }) => {
   useEscapeToClose(onClose);
+  // `autoFocus` is applied during commit, before any effect, so the hook would
+  // record Cancel as the element to restore to and the restore would quietly do
+  // nothing. Placing the focus through the hook keeps both halves working.
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { initialFocusRef: cancelRef });
 
   const confirm = () => {
     dialog.onConfirm();
@@ -252,6 +264,8 @@ const LibraryConfirmDialog: React.FC<{
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-confirm-dialog-title"
@@ -273,7 +287,7 @@ const LibraryConfirmDialog: React.FC<{
         <div className="p-4 space-y-4">
           <p className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" className="panel-action-button" onClick={onClose} autoFocus>
+            <button type="button" className="panel-action-button" onClick={onClose} ref={cancelRef}>
               Cancel
             </button>
             <button
