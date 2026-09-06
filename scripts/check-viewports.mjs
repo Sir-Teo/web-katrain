@@ -754,6 +754,91 @@ async function assertShellVariantApplies(cdp) {
   }
 }
 
+/**
+ * Every dialog's controls must stay reachable on a short screen.
+ *
+ * These overlays are `fixed inset-0` flex containers that centre their panel, and
+ * a centred flex item taller than its container overflows *both* edges of a fixed
+ * overlay that nothing can scroll -- so a confirm dialog that grows past the
+ * viewport strands its own Cancel and Confirm buttons with no way to reach them.
+ * Several of these dialogs neither cap their height nor scroll, which is fine
+ * only for as long as their content stays short.
+ *
+ * A control is stranded when it sits outside the viewport AND no ancestor can
+ * scroll it back into view; the second half matters, because the dialogs that do
+ * cap themselves legitimately keep most of their content below the fold.
+ *
+ * Measured clean across 568x320, 320x480 and 740x360 when this was written.
+ */
+async function assertDialogsFitShortViewports(cdp) {
+  const DIALOGS = [
+    { name: 'Settings', trigger: '/^Settings/i', wait: 1500 },
+    { name: 'Keyboard shortcuts', trigger: '/Keyboard shortcuts/i', wait: 1100 },
+    { name: 'Paste SGF', trigger: '/Paste SGF/i', wait: 1100 },
+    { name: 'Save copy to Library', trigger: '/Save copy to Library/i', wait: 1100 },
+    { name: 'New game', trigger: '/^New game/i', wait: 1300 },
+  ];
+  const SHORT = [[568, 320], [320, 480], [740, 360]];
+  const failures = [];
+
+  const strandedProbe = `(() => {
+    const d = document.querySelector('[role="dialog"][aria-modal="true"]');
+    if (!d) return 'NO_MODAL';
+    const vh = window.innerHeight;
+    const scrollableAncestor = (el) => {
+      for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+        const cs = getComputedStyle(n);
+        if (/auto|scroll/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) return true;
+      }
+      return false;
+    };
+    const stranded = [...d.querySelectorAll('button')]
+      .filter((b) => b.getClientRects().length)
+      .filter((b) => {
+        const r = b.getBoundingClientRect();
+        return (r.bottom > vh + 0.5 || r.top < -0.5) && !scrollableAncestor(b);
+      })
+      .map((b) => (b.textContent || b.getAttribute('aria-label') || '').trim().slice(0, 24));
+    return JSON.stringify(stranded);
+  })()`;
+
+  for (const [width, height] of SHORT) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width, height, deviceScaleFactor: 1, mobile: width < 768,
+    });
+    await sleep(600);
+    for (const dialog of DIALOGS) {
+      const opened = await evaluate(cdp, `(() => {
+        const b = [...document.querySelectorAll('button')].find((x) =>
+          ${dialog.trigger}.test((x.getAttribute('aria-label') || '') + '|' + (x.textContent || '')));
+        if (!b) return 'no-trigger';
+        b.click();
+        return 'ok';
+      })()`);
+      // A dialog whose trigger this layout does not offer is not a failure.
+      if (opened !== 'ok') continue;
+      await sleep(dialog.wait);
+      const stranded = await evaluate(cdp, strandedProbe);
+      if (stranded !== 'NO_MODAL' && stranded !== '[]') {
+        failures.push(`${dialog.name} at ${width}x${height} strands ${stranded}`);
+      }
+      await evaluate(cdp, `(() => {
+        const d = document.querySelector('[role="dialog"][aria-modal="true"]');
+        if (!d) return;
+        const c = [...d.querySelectorAll('button')].find((b) =>
+          /cancel|close|keep|not now|dismiss/i.test((b.textContent || '') + (b.getAttribute('aria-label') || '')));
+        if (c) c.click();
+        else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      })()`);
+      await sleep(500);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`dialogs on short viewports: ${failures.join('; ')}`);
+  }
+}
+
 async function main() {
   fs.rmSync(screenshotDir, { recursive: true, force: true });
   fs.mkdirSync(screenshotDir, { recursive: true });
@@ -3474,6 +3559,7 @@ async function main() {
       results.push(result);
     }
     await assertShellVariantApplies(cdp);
+    await assertDialogsFitShortViewports(cdp);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {
