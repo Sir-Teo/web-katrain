@@ -1,6 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { BoardState } from '../types';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
+import {
+  boardKeyboardCursorHandlesKey,
+  getInitialBoardKeyboardCursor,
+  moveBoardKeyboardCursor,
+  type BoardKeyboardPoint,
+} from '../utils/boardKeyboardNavigation';
 
 export type StaticBoardMarker = {
   x: number;
@@ -28,6 +34,13 @@ interface StaticBoardProps {
 
 const COLUMN_LETTERS = 'ABCDEFGHJKLMNOPQRST';
 
+const ARROW_DELTAS: Record<string, readonly [number, number]> = {
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+};
+
 /**
  * A lightweight, read-only SVG goban renderer that is decoupled from the main
  * store-driven GoBoard. Used by self-contained study tools (score quiz, lessons,
@@ -46,6 +59,55 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
   const size = normalizeBoardSize(board.length, 19);
   const hoshi = useMemo(() => getHoshiPoints(size), [size]);
 
+  /**
+   * The three study tools that hand this board an `onPointClick` -- tsumego,
+   * guess-the-move and the lessons -- are the ones a beginner reaches for first,
+   * and their only way to answer was a transparent `<circle>` with a click
+   * handler on it. No focus, no role, no keys: the main board grew a keyboard
+   * cursor and these never did.
+   *
+   * Same semantics as that board, deliberately, down to the pointer-focus rule
+   * -- claiming the arrows whenever this merely held focus is what once stopped
+   * arrow navigation after any click on the main board.
+   */
+  const interactive = Boolean(onPointClick);
+  const [cursor, setCursor] = useState<BoardKeyboardPoint | null>(null);
+  const pointerFocusRef = useRef(false);
+  const pointName = (x: number, y: number) => `${COLUMN_LETTERS[x] ?? '?'}${size - y}`;
+
+  const handleKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
+    if (!onPointClick) return;
+    const ownsKey = boardKeyboardCursorHandlesKey(event.key, {
+      active: cursor !== null,
+      pointerFocused: pointerFocusRef.current,
+    });
+    const delta = ARROW_DELTAS[event.key];
+    if (delta) {
+      if (!ownsKey) return;
+      pointerFocusRef.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+      setCursor((prev) => moveBoardKeyboardCursor(prev, size, delta[0], delta[1]));
+      return;
+    }
+    if (event.key === 'Escape') {
+      // Only when the cursor is up; otherwise Escape still closes the dialog.
+      if (cursor === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setCursor(null);
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (!ownsKey) return;
+    pointerFocusRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+    const point = getInitialBoardKeyboardCursor(cursor, size);
+    setCursor(point);
+    onPointClick(point.x, point.y);
+  };
+
   // Geometry: 1 unit per intersection spacing, with half-unit margins.
   const margin = showCoordinates ? 1.4 : 0.7;
   const dim = size - 1 + margin * 2;
@@ -57,8 +119,20 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
     <svg
       className={className}
       viewBox={`0 0 ${dim} ${dim}`}
-      role="img"
-      aria-label={ariaLabel}
+      role={interactive ? 'application' : 'img'}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={
+        interactive
+          ? `${ariaLabel}. Arrow keys move the cursor, Enter plays it.${
+              cursor ? ` Cursor at ${pointName(cursor.x, cursor.y)}.` : ''
+            }`
+          : ariaLabel
+      }
+      data-static-board-interactive={interactive ? 'true' : undefined}
+      data-static-board-cursor={cursor ? pointName(cursor.x, cursor.y) : undefined}
+      onKeyDown={interactive ? handleKeyDown : undefined}
+      onPointerDown={interactive ? () => { pointerFocusRef.current = true; } : undefined}
+      onBlur={interactive ? () => { pointerFocusRef.current = false; setCursor(null); } : undefined}
       style={{ width: '100%', maxWidth: maxPx, height: 'auto', display: 'block', touchAction: 'none' }}
     >
       <defs>
@@ -180,6 +254,14 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
           </g>
         );
       })}
+
+      {/* Keyboard cursor */}
+      {interactive && cursor && (
+        <g pointerEvents="none" data-static-board-cursor-ring="true">
+          <circle cx={toPx(cursor.x)} cy={toPx(cursor.y)} r={stoneR} fill="none" stroke="#ffffff" strokeWidth={0.14} />
+          <circle cx={toPx(cursor.x)} cy={toPx(cursor.y)} r={stoneR} fill="none" stroke="#2563eb" strokeWidth={0.08} />
+        </g>
+      )}
 
       {/* Click layer */}
       {onPointClick &&
