@@ -16,6 +16,7 @@ import { getAnimationNow } from '../../utils/animationFrame';
 import { parseKataGoModelV8 } from './loadModelV8';
 import { KataGoModelV8Tf } from './modelV8';
 import { ENGINE_MAX_TIME_MS, ENGINE_MAX_VISITS } from './limits';
+import { createAnalyzeAbortCheck } from './analyzeAbort';
 import { MctsSearch, rootSymmetrySamplesForBackend, type OwnershipMode } from './analyzeMcts';
 import { fillInputsV7FastForPosition } from './positionInputsV7';
 import {
@@ -593,10 +594,13 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     const meta = analyzeMeta.get(msg);
     const analysisGroup = meta?.analysisGroup ?? msg.analysisGroup ?? 'background';
     const interactiveTokenAtEnqueue = meta?.interactiveToken ?? interactiveToken;
-    const isStale = () => latestAnalyzeByGroup.get(analysisGroup) !== msg.id;
-    const isPreemptedByInteractive =
-      analysisGroup !== 'interactive' && interactiveToken !== interactiveTokenAtEnqueue;
-    const shouldAbort = () => isStale() || isPreemptedByInteractive;
+    const shouldAbort = createAnalyzeAbortCheck({
+      analysisGroup,
+      requestId: msg.id,
+      interactiveTokenAtEnqueue,
+      latestIdForGroup: () => latestAnalyzeByGroup.get(analysisGroup),
+      currentInteractiveToken: () => interactiveToken,
+    });
     const postCanceled = () =>
       post({
         type: 'katago:analyze_result',
