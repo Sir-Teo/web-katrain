@@ -78,3 +78,77 @@ describe('scoreGuess / guessVerdict', () => {
     expect(guessVerdict(scoreGuess(expected, 2, 2)).tone).toBe('danger');
   });
 });
+
+
+/**
+ * The quiz shows the position and asks for the move played from it, so the
+ * board it hands the person must be the one *before* that move. The parent node
+ * holds it; the child holds the answer. Reaching for `child.gameState.board`
+ * instead -- a plausible tidy-up, since the child is the node being iterated --
+ * puts the answer stone on the board the person is staring at.
+ *
+ * `makeChain` above gives every node the same empty board, so it cannot see this
+ * either way; these nodes carry the stones actually played.
+ */
+const makeRealisedChain = (moves: Move[], size = 9): GameNode => {
+  const board = emptyBoard(size);
+  const snapshot = (): BoardState => board.map((row) => [...row]);
+
+  const makeNode = (id: string, move: Move | null, count: number, boardAt: BoardState): GameNode =>
+    ({
+      id,
+      parent: null,
+      children: [],
+      move,
+      gameState: {
+        board: boardAt,
+        currentPlayer: 'black',
+        moveHistory: Array.from({ length: count }) as Move[],
+        capturedBlack: 0,
+        capturedWhite: 0,
+        komi: 6.5,
+      },
+    }) as unknown as GameNode;
+
+  const root = makeNode('root', null, 0, snapshot());
+  let cursor = root;
+  moves.forEach((move, idx) => {
+    board[move.y]![move.x] = move.player;
+    const child = makeNode(`n${idx + 1}`, move, idx + 1, snapshot());
+    cursor.children.push(child);
+    cursor = child;
+  });
+  return root;
+};
+
+describe('the quiz board does not already contain the answer', () => {
+  const moves: Move[] = [
+    { x: 2, y: 2, player: 'black' },
+    { x: 6, y: 6, player: 'white' },
+    { x: 4, y: 4, player: 'black' },
+    { x: 1, y: 7, player: 'white' },
+  ];
+
+  it('hands over the position before the move it is asking for', () => {
+    const positions = buildGuessPositions(makeRealisedChain(moves));
+    expect(positions).toHaveLength(moves.length);
+
+    for (const position of positions) {
+      const { x, y } = position.expected;
+      expect(
+        position.board[y]![x],
+        `move ${position.moveNumber} is already on the board the quiz shows`
+      ).toBeNull();
+    }
+  });
+
+  it('still shows every stone played before it', () => {
+    const positions = buildGuessPositions(makeRealisedChain(moves));
+    // The third question follows two moves, so both are on its board.
+    const third = positions[2]!;
+    expect(third.board[2]![2]).toBe('black');
+    expect(third.board[6]![6]).toBe('white');
+    // And the answer to that question is not.
+    expect(third.board[4]![4]).toBeNull();
+  });
+});
