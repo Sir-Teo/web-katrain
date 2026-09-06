@@ -221,4 +221,35 @@ describe('AnalysisQueue', () => {
     expect(reusedRefresh).toEqual({ visits: 200 });
     expect(runs).toBe(2);
   });
+
+  /**
+   * The engine client's `analyze()` is not async and opens with a synchronous
+   * throw once its worker has crashed -- so the request right after a crash
+   * threw before any promise existed. That skipped the whole chain that frees
+   * the queue: the job stayed in `active`, its caller never settled, and since
+   * `pump` will not start anything while a job is active, every later request
+   * sat in `pending` for the rest of the session, silently.
+   *
+   * The client already fails its in-flight promises on a crash for exactly this
+   * reason. This is the other half.
+   */
+  it('survives a run that throws before returning a promise', async () => {
+    const queue = new AnalysisQueue();
+
+    const failed = queue.enqueue<string>({
+      id: 'crashed',
+      run: () => {
+        throw new Error('KataGo worker crashed');
+      },
+    });
+    await expect(failed).rejects.toThrow('KataGo worker crashed');
+
+    // The queue has to be usable afterwards, which is the part that broke.
+    const after = await queue.enqueue<string>({ id: 'after', run: async () => 'ran' });
+    expect(after).toBe('ran');
+    // A job leaves `active` in the `finally`, one microtask after the `then`
+    // that resolved its caller, so let that run before reading the snapshot.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(queue.getSnapshot()).toEqual({ active: [], pending: [] });
+  });
 });

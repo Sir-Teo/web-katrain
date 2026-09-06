@@ -211,8 +211,27 @@ export class AnalysisQueue {
     this.active.add(job);
     const isStale = () => this.isStale(job);
 
-    void job
-      .run({ jobId: job.id, signal: job.signal, isStale })
+    /**
+     * `run` can throw before it ever returns a promise. The engine client does
+     * exactly that: `analyze()` is not async, and it opens with a synchronous
+     * throw once its worker has crashed.
+     *
+     * Everything that frees the queue lives on the chain below -- the `finally`
+     * removes the job from `active` and pumps the next one -- and a synchronous
+     * throw means the chain is never built. The job stayed active forever, its
+     * caller never settled, and because `pump` returns early while anything is
+     * active, every later request sat in `pending` for the rest of the session
+     * with nothing on screen to say so. Turning the throw into a rejection hands
+     * it to the same abort/stale handling as any other failure.
+     */
+    let running: Promise<unknown>;
+    try {
+      running = job.run({ jobId: job.id, signal: job.signal, isStale });
+    } catch (err) {
+      running = Promise.reject(err);
+    }
+
+    void running
       .then((result) => {
         if (job.signal.aborted) throw new AnalysisQueueCanceledError(job.signal.reason || undefined);
         if (isStale()) throw new AnalysisQueueStaleError(`${job.label} result was superseded`);
