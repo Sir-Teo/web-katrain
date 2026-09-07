@@ -492,6 +492,14 @@ export const Layout: React.FC = () => {
   const unsavedChangesResolveRef = useRef<((choice: UnsavedChangesChoice) => void) | null>(null);
   const autoSaveRecoveryCheckedRef = useRef(false);
   const autoSaveTooLargeToastShownRef = useRef(false);
+  /**
+   * The recovery copy failing outright -- storage full, or blocked -- is
+   * reported by the save-status badge, which only the mobile bottom dock
+   * renders. On a desktop window nothing said anything at all, so the safety net
+   * could be gone for a whole session without a word. Toast it the way the
+   * too-large case already does, once per run of failures.
+   */
+  const autoSaveFailedToastShownRef = useRef(false);
   const uploadedModelRestorePromiseRef = useRef<ReturnType<typeof restorePersistedUploadedModelUrl> | null>(null);
   const uploadedModelRestoreHandledRef = useRef(false);
   const [autoSaveRecovery, setAutoSaveRecovery] = useState<AutoSavedGame | null>(null);
@@ -1040,6 +1048,7 @@ export const Layout: React.FC = () => {
       clearAutoSavedGame();
       setAutoSaveStatus(null);
       autoSaveTooLargeToastShownRef.current = false;
+      autoSaveFailedToastShownRef.current = false;
       return;
     }
     setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
@@ -1048,6 +1057,7 @@ export const Layout: React.FC = () => {
       const result = writeAutoSavedGame(generateCurrentSgf(), undefined, savedAt);
       if (result === 'saved') {
         autoSaveTooLargeToastShownRef.current = false;
+        autoSaveFailedToastShownRef.current = false;
         setAutoSaveStatus({ state: 'saved', savedAt });
       } else if (result === 'too-large') {
         setAutoSaveStatus({ state: 'too-large' });
@@ -1057,6 +1067,10 @@ export const Layout: React.FC = () => {
         }
       } else {
         setAutoSaveStatus({ state: 'failed' });
+        if (!autoSaveFailedToastShownRef.current) {
+          autoSaveFailedToastShownRef.current = true;
+          toast('Recovery auto-save failed, so this game will not come back after a reload. Save to Library or download SGF to keep changes.', 'error');
+        }
       }
     }, 500);
     return () => window.clearTimeout(timeout);
