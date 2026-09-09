@@ -3106,6 +3106,30 @@ async function main() {
             await waitForFrames(2);
           },
         });
+        // The two most-opened dialogs in the app after the report, and neither
+        // was in this list: the suite has never checked that they open, that
+        // they carry a close control, or that their targets clear 44px. Both
+        // are read-only, so a smoke pass leaves the game exactly as it found
+        // it -- which is why New game is still not here, Ctrl+N being a
+        // question about the game on the board.
+        await smokeModal({
+          name: 'command palette',
+          selector: '[aria-labelledby="command-palette-title"]',
+          closeLabel: 'Close command palette',
+          open: async () => {
+            dispatchShortcut('k', { ctrlKey: true });
+            await waitForFrames(2);
+          },
+        });
+        await smokeModal({
+          name: 'game re-analysis',
+          selector: '[aria-labelledby="game-analysis-title"]',
+          closeLabel: 'Close game analysis',
+          open: async () => {
+            dispatchShortcut('F2');
+            await waitForFrames(2);
+          },
+        });
         await smokeModal({
           name: 'paste SGF',
           selector: '[aria-labelledby="paste-sgf-title"]',

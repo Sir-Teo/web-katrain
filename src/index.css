@@ -2152,11 +2152,18 @@
     margin-top: 0.75rem;
   }
 
+  /* The box is the target; the track and thumb are drawn at their own sizes
+     below, so growing it changes what can be grabbed and not what is seen.
+     It was 1.25rem, which is 20px against the 24px WCAG 2.2 asks for -- found
+     by putting this dialog into the viewport sweep's smoke list, where it had
+     never been. The thumb keeps its own centring: -0.3125rem is half the
+     difference between a 14px thumb and a 4px track, and WebKit centres the
+     track in whatever height the box has. */
   .analysis-command-bar__depth-slider {
     flex: 1;
     width: 100%;
     min-width: 0;
-    height: 1.25rem;
+    height: 1.5rem;
     margin: 0;
     appearance: none;
     -webkit-appearance: none;
@@ -2205,6 +2212,14 @@
     background: var(--ui-accent);
     border: 2px solid var(--ui-panel);
     border-radius: 999px;
+  }
+
+  /* A finger drags this, and 24px is the floor for a pointer, not for a hand.
+     44px is the size every other target on a touch screen here is held to. */
+  @media (hover: none) {
+    .analysis-command-bar__depth-slider {
+      height: 2.75rem;
+    }
   }
 
   .analysis-command-bar__depth-input {
@@ -4297,6 +4312,17 @@
     display: flex;
     justify-content: flex-end;
     min-width: 7rem;
+  }
+
+  /* py-2 around a single line of label makes a 38px row, which is fine for a
+     mouse and under the 44px every other tap target here is held to. The row
+     centres its content, so the floor only adds space around the label. The
+     list scrolls, so the cost is a shorter page of commands, not a clipped
+     one. */
+  @media (hover: none) {
+    [data-command-palette-item] {
+      min-height: 44px;
+    }
   }
 
   /* The setup tools are stones, so they are drawn as stones: a rimmed disc
