@@ -238,6 +238,8 @@ describe('AnalysisQueue', () => {
 
     const failed = queue.enqueue<string>({
       id: 'crashed',
+      group: 'background',
+      priority: 1,
       run: () => {
         throw new Error('KataGo worker crashed');
       },
@@ -245,7 +247,12 @@ describe('AnalysisQueue', () => {
     await expect(failed).rejects.toThrow('KataGo worker crashed');
 
     // The queue has to be usable afterwards, which is the part that broke.
-    const after = await queue.enqueue<string>({ id: 'after', run: async () => 'ran' });
+    const after = await queue.enqueue<string>({
+      id: 'after',
+      group: 'background',
+      priority: 1,
+      run: async () => 'ran',
+    });
     expect(after).toBe('ran');
     // A job leaves `active` in the `finally`, one microtask after the `then`
     // that resolved its caller, so let that run before reading the snapshot.
