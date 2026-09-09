@@ -552,6 +552,28 @@
     -webkit-touch-callout: none;
   }
 
+  /* A control that only dims still says "click me" under a mouse: the pointer
+     cursor stays, and the dimming alone is easy to read as a colour rather
+     than a state. Four component classes already answered this one at a time
+     -- .panel-icon-button, .panel-action-button, .analysis-command-bar__button,
+     .manual-score-launch -- but 29 of the 59 Tailwind `disabled:opacity-*`
+     controls had no cursor rule at all, so the same disabled state felt
+     different depending on which button it was.
+
+     Stated once, in base, so it also covers controls not yet written. A
+     utility class still wins, which is what the one deliberate exception
+     wants: MobileHome's disabled:pointer-events-none takes the element out of
+     hit-testing entirely, and a cursor is inherited from the parent there. */
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [role='button'][aria-disabled='true'],
+  [role='menuitem'][aria-disabled='true'],
+  [role='tab'][aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
   /* Focus ring for accessibility */
   button:focus-visible,
   [role='button']:focus-visible,
