@@ -1035,7 +1035,19 @@
 }
 .wk-dashboard .mode-tab.active { color: var(--ink); border-bottom-color: var(--ui-accent); }
 
-.wk-dashboard .sidebar-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+/* The gutter is reserved whether or not it is needed. This column's content
+   changes size constantly -- analysis fills the candidate list, sections open
+   and close, the tree grows -- and each crossing of the overflow threshold
+   moved everything in the panel sideways by the scrollbar's width. Measured in
+   headless Chrome at 1280x800: 9px with the scrollbar, 0 without. Where the
+   platform draws overlay scrollbars this property does nothing, which is the
+   right answer there too. */
+.wk-dashboard .sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+}
 
 /* collapsible section */
 .wk-dashboard .section { border-bottom: 1px solid var(--line); }

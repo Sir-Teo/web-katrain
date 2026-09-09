@@ -1372,6 +1372,22 @@
     min-height: 0;
   }
 
+  /* Styling a scrollbar opts out of the platform's overlay one, so a panel
+     takes the scrollbar's width out of its layout the moment its content
+     outgrows the box -- and gives it back when it shrinks, moving every row
+     sideways as a list grows, a section opens or a search filters. Measured in
+     headless Chrome: 8px on a phone, 9px on the desktop shell, and 0 either
+     side of the threshold. Reserve the gutter instead, so the width is the
+     same either way.
+
+     `.panel-scroll-region` is the element that actually scrolls;
+     `.panel-section-content` never gets an overflow, which is why the
+     scrollbar rules below name it to no effect. */
+  .panel-scroll-region,
+  .library-tree {
+    scrollbar-gutter: stable;
+  }
+
   .panel-section-content::-webkit-scrollbar,
   .library-tree::-webkit-scrollbar {
     width: 8px;
