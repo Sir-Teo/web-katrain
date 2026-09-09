@@ -467,6 +467,17 @@
      just below. */
   --pwa-stage-reserve: 0px;
   padding-bottom: calc(var(--stage-pad) + var(--pwa-stage-reserve));
+  /* The game-info handle is pinned to this stage's top edge and is 24px tall,
+     while the board starts one --stage-pad (12px) below it. On a tall stage the
+     board never reaches the top and the two never meet. At 1024x500 -- the
+     smallest desktop shell there is, since below either number the app switches
+     to the mobile one -- the board is height-bound, so its top row ran under the
+     handle: four intersections returned the button from elementFromPoint and a
+     click on any of them placed no stone. Reserving the handle's own height
+     costs nothing while the board is width-bound, which is most of the time,
+     and costs 12px of board exactly when it would otherwise be covered. */
+  --edge-toggle-reserve: 24px;
+  padding-top: max(var(--stage-pad), var(--edge-toggle-reserve));
   position: relative;
   overflow: hidden;
 }

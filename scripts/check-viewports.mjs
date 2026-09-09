@@ -35,6 +35,7 @@ const isDesktopViewport = (viewport) =>
 const VIEWPORTS = [
   { width: 1280, height: 800, mobile: false },
   { width: 1024, height: 768, mobile: false },
+  { width: 1024, height: 500, mobile: false },
   { width: 768, height: 1024, mobile: true },
   { width: 390, height: 844, mobile: true },
   { width: 360, height: 800, mobile: true },
