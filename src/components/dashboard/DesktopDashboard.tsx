@@ -914,7 +914,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               </button>
               {boardControls ? <div className="board-extra-tools">{boardControls}</div> : null}
             </div>
-            <span className="navbar-spacer" />
             <div className="playactions">
               {mode === 'play' ? (
                 <>

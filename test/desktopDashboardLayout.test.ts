@@ -23,6 +23,41 @@ describe('desktop dashboard layout', () => {
     expect(responsiveBlock).not.toContain('setSidebarOpen(true');
   });
 
+  it('fits the command rail on one row with the library docked', () => {
+    // The rail wraps, so every flex item on it costs a gap whether or not it
+    // draws anything -- and it was 3.2px over its 596.8px column at 1280x800
+    // with the library docked, which dropped the play actions onto a second
+    // row and took ~33px of height off the board. `npm run test:viewport` is
+    // the probe that measures this; these two guard what it found.
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    // The play actions push themselves right; no empty element does it. The
+    // class name survives in the comments that explain its removal, so match
+    // the rule and the markup rather than the word.
+    expect(dashboardSource).not.toContain('navbar-spacer');
+    expect(css).not.toContain('.navbar-spacer {');
+    expect(css).toContain(
+      '.wk-dashboard .playactions { display: flex; align-items: center; gap: 6px; margin-left: auto; }'
+    );
+
+    // The tightest tier states each declaration once: it carried two
+    // .move-counter paddings and two .navbar paddings, only the last of which
+    // did anything.
+    const tier = css.slice(
+      css.indexOf('@container boardcol (max-width: 700px) {'),
+      css.indexOf('/* ---------------- Sidebar (analysis) ---------------- */')
+    );
+    expect(tier).toContain('.wk-dashboard .navbar { gap: 1px; padding: 8px 4px 12px; }');
+    expect(tier).toContain('.wk-dashboard .move-counter { padding: 0 4px; }');
+    for (const selector of ['.wk-dashboard .navbar {', '.wk-dashboard .move-counter {']) {
+      expect(tier.split(selector), selector).toHaveLength(2);
+    }
+    // Nothing was paid for out of a control: the WCAG-floor sizes stand.
+    expect(tier).toContain('.wk-dashboard .navbtn { width: 28px; }');
+    expect(tier).toContain('.wk-dashboard .move-counter input { width: 30px; }');
+  });
+
   it('keeps the board-first Library affordance visibly discoverable', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
