@@ -55,6 +55,7 @@ const KIFU_PRINT_STYLE = `
     }
     .kifu-diagram-page:last-child { break-after: auto !important; page-break-after: auto !important; }
     .kifu-diagram-caption { color: #334155 !important; }
+    .kifu-print .kifu-diagram-repeats { color: #334155 !important; }
   }
 `;
 
@@ -194,6 +195,15 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
                   maxPx={720}
                   ariaLabel={`Kifu diagram moves ${diagram.startMove} to ${diagram.endMove}`}
                 />
+                {diagram.repeats.length > 0 && (
+                  /* The kifu convention for a point played twice in one
+                     diagram: one number on the board, the rest written under
+                     it. Without this the numbers were drawn on top of each
+                     other. */
+                  <div className="kifu-diagram-repeats mt-1 text-xs text-[var(--ui-text-muted)]">
+                    {diagram.repeats.map((repeat) => `${repeat.move} at ${repeat.at}`).join(', ')}
+                  </div>
+                )}
               </div>
             ))}
           </div>
