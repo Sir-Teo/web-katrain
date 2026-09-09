@@ -452,6 +452,17 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* The other half of the same question, answered through this file: a rule
+     written for a hovering pointer is wrapped in `@media (hover: hover)`, so a
+     finger cannot leave one switched on. It does: a touch tap in Chrome puts
+     :hover on the element it hit and every ancestor, and leaves it there until
+     the next tap somewhere else -- measured on .panel-section-header, which sat
+     in its hover fill (#eef2f7 against a white panel) after being tapped, so a
+     collapsed section read as a selected one.
+
+     Only rules whose every selector is a :hover are wrapped. The ones that also
+     list :focus-visible or a state class mean something to a keyboard as well,
+     and guarding those wholesale would take that away. */
   @media (hover: none) {
     button:not(:disabled):active,
     [role='button']:not([aria-disabled='true']):active,
@@ -723,8 +734,10 @@
     border-color: transparent;
   }
 
-  .settings-modal .settings-tab:hover {
-    color: var(--ui-text);
+  @media (hover: hover) {
+    .settings-modal .settings-tab:hover {
+      color: var(--ui-text);
+    }
   }
 
   .settings-modal .settings-tab-active {
@@ -1282,8 +1295,10 @@
     user-select: none;
   }
 
-  .panel-section-header:hover {
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .panel-section-header:hover {
+      background: var(--ui-surface-2);
+    }
   }
 
   .panel-section-title {
@@ -1307,8 +1322,10 @@
     transition: color 0.15s ease;
   }
 
-  .panel-section-title:hover {
-    color: var(--ui-text);
+  @media (hover: hover) {
+    .panel-section-title:hover {
+      color: var(--ui-text);
+    }
   }
 
   .panel-collapse-icon {
@@ -1397,9 +1414,11 @@
     transition: all 0.15s ease;
   }
 
-  .panel-icon-button:hover:not(:disabled) {
-    background: var(--ui-surface-2);
-    color: var(--ui-text);
+  @media (hover: hover) {
+    .panel-icon-button:hover:not(:disabled) {
+      background: var(--ui-surface-2);
+      color: var(--ui-text);
+    }
   }
 
   .panel-icon-button.active {
@@ -1445,9 +1464,11 @@
       background 0.15s ease;
   }
 
-  .panel-tab:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface);
+  @media (hover: hover) {
+    .panel-tab:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface);
+    }
   }
 
   .panel-tab.active {
@@ -1492,9 +1513,11 @@
       border-color 0.15s ease;
   }
 
-  .panel-action-button:hover:not(:disabled) {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .panel-action-button:hover:not(:disabled) {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
   }
 
   .panel-action-button:disabled {
@@ -1733,9 +1756,11 @@
       transform 0.15s ease;
   }
 
-  .analysis-command-bar__status-copy:hover {
-    color: #fff;
-    background: var(--ui-danger);
+  @media (hover: hover) {
+    .analysis-command-bar__status-copy:hover {
+      color: #fff;
+      background: var(--ui-danger);
+    }
   }
 
   .analysis-command-bar__status-copy:active {
@@ -1888,10 +1913,12 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--ui-accent) 30%, transparent);
   }
 
-  .analysis-command-bar__button:hover:not(:disabled) {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
-    border-color: var(--ui-border-strong);
+  @media (hover: hover) {
+    .analysis-command-bar__button:hover:not(:disabled) {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+      border-color: var(--ui-border-strong);
+    }
   }
 
   .analysis-command-bar__button:disabled {
@@ -1973,9 +2000,11 @@
     line-height: 1;
   }
 
-  .analysis-command-bar__depth-close:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .analysis-command-bar__depth-close:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
   }
 
   .analysis-command-bar__depth-options {
@@ -2004,10 +2033,12 @@
       color 0.15s ease;
   }
 
-  .analysis-command-bar__depth-option:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
-    border-color: var(--ui-border-strong);
+  @media (hover: hover) {
+    .analysis-command-bar__depth-option:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+      border-color: var(--ui-border-strong);
+    }
   }
 
   .analysis-command-bar__depth-option.active {
@@ -2609,9 +2640,11 @@
     pointer-events: auto;
   }
 
-  .move-tree-empty-state-action:hover {
-    color: var(--ui-text);
-    border-color: var(--ui-accent);
+  @media (hover: hover) {
+    .move-tree-empty-state-action:hover {
+      color: var(--ui-text);
+      border-color: var(--ui-accent);
+    }
   }
 
   @media (max-width: 1023px), (max-height: 499px) {
@@ -2901,8 +2934,10 @@
     transition: background 0.1s ease;
   }
 
-  .library-tree-node:hover {
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .library-tree-node:hover {
+      background: var(--ui-surface-2);
+    }
   }
 
   .library-tree-node.selected {
@@ -2915,8 +2950,10 @@
     background: var(--ui-success-soft);
   }
 
-  .library-tree-node.loaded:hover {
-    background: var(--ui-success-soft);
+  @media (hover: hover) {
+    .library-tree-node.loaded:hover {
+      background: var(--ui-success-soft);
+    }
   }
 
   .library-tree-node.loaded.dirty,
@@ -3115,13 +3152,17 @@
     background: transparent;
   }
 
-  .library-tree-node-action:hover {
-    background: var(--ui-surface-2);
-    color: var(--ui-text);
+  @media (hover: hover) {
+    .library-tree-node-action:hover {
+      background: var(--ui-surface-2);
+      color: var(--ui-text);
+    }
   }
 
-  .library-tree-node-action.danger:hover {
-    color: var(--ui-danger);
+  @media (hover: hover) {
+    .library-tree-node-action.danger:hover {
+      color: var(--ui-danger);
+    }
   }
 
   .library-tree-node-more {
@@ -3237,9 +3278,11 @@
     cursor: pointer;
   }
 
-  .library-show-more:hover {
-    border-color: var(--ui-border-strong);
-    color: var(--ui-text);
+  @media (hover: hover) {
+    .library-show-more:hover {
+      border-color: var(--ui-border-strong);
+      color: var(--ui-text);
+    }
   }
 
   .library-stats {
@@ -3281,8 +3324,10 @@
     top: var(--board-tool-offset-y, 9rem);
   }
 
-  .manual-score-launch:hover:not(:disabled) {
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .manual-score-launch:hover:not(:disabled) {
+      background: var(--ui-surface-2);
+    }
   }
 
   .manual-score-shortcut {
@@ -3394,9 +3439,11 @@
     color: var(--ui-text-muted);
   }
 
-  .manual-score-icon:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .manual-score-icon:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
   }
 
   .manual-score-method {
@@ -3426,9 +3473,11 @@
     font-weight: 800;
   }
 
-  .manual-score-method button:hover:not(:disabled) {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .manual-score-method button:hover:not(:disabled) {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
   }
 
   .manual-score-method button.active {
@@ -3587,9 +3636,11 @@
     text-transform: uppercase;
   }
 
-  .manual-score-details-toggle:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .manual-score-details-toggle:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
   }
 
   .manual-score-breakdown {
@@ -3648,9 +3699,11 @@
     font-weight: 700;
   }
 
-  .manual-score-actions button:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .manual-score-actions button:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
   }
 
   .manual-score-actions button:disabled {
@@ -3658,9 +3711,11 @@
     opacity: 0.45;
   }
 
-  .manual-score-actions button:disabled:hover {
-    color: var(--ui-text-muted);
-    background: var(--ui-surface);
+  @media (hover: hover) {
+    .manual-score-actions button:disabled:hover {
+      color: var(--ui-text-muted);
+      background: var(--ui-surface);
+    }
   }
 
   .manual-score-actions button.primary {
@@ -4040,10 +4095,12 @@
     min-width: 28px;
   }
 
-  .status-bar-button:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
-    border-color: var(--ui-border-strong);
+  @media (hover: hover) {
+    .status-bar-button:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+      border-color: var(--ui-border-strong);
+    }
   }
 
   .status-bar-button:active {
@@ -4204,9 +4261,11 @@
     justify-content: center;
   }
 
-  .panel-toggle:hover {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
+  @media (hover: hover) {
+    .panel-toggle:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
   }
 
   .panel-toggle.active {
@@ -4349,9 +4408,11 @@
     background: var(--ui-surface-2);
   }
 
-  .pwa-install-primary:hover,
-  .pwa-install-secondary:hover {
-    filter: brightness(1.04);
+  @media (hover: hover) {
+    .pwa-install-primary:hover,
+    .pwa-install-secondary:hover {
+      filter: brightness(1.04);
+    }
   }
 
   .pwa-install-primary:disabled,

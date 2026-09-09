@@ -1,0 +1,109 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const css = readFileSync('src/index.css', 'utf8');
+
+interface Rule {
+  selector: string;
+  /** The at-rule preludes enclosing it, outermost first. */
+  context: string[];
+  line: number;
+}
+
+const stripComments = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, ' ');
+const squash = (text: string) => stripComments(text).replace(/\s+/g, ' ').trim();
+
+/**
+ * Every style rule in the file with the at-rules that enclose it. Written here
+ * rather than imported so the test does not share a bug with the thing it
+ * checks; a stylesheet is brace-nested and comment-bearing, and nothing else.
+ */
+function parseRules(source: string): Rule[] {
+  const out: Rule[] = [];
+  const open: Array<{ prelude: string; kind: 'at' | 'rule' }> = [];
+  let preludeStart = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    if (source[i] === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i + 2);
+      i = (end === -1 ? source.length : end + 1);
+      continue;
+    }
+    const c = source[i];
+    if (c === '{') {
+      const prelude = source.slice(preludeStart, i);
+      const kind = stripComments(prelude).trimStart().startsWith('@') ? 'at' : 'rule';
+      if (kind === 'rule') {
+        out.push({
+          selector: squash(prelude),
+          context: open.filter((b) => b.kind === 'at').map((b) => squash(b.prelude)),
+          line: source.slice(0, i).split('\n').length,
+        });
+      }
+      open.push({ prelude, kind });
+      preludeStart = i + 1;
+    } else if (c === '}') {
+      open.pop();
+      preludeStart = i + 1;
+    } else if (c === ';' && (open.length === 0 || open[open.length - 1]!.kind === 'at')) {
+      preludeStart = i + 1;
+    }
+  }
+  return out;
+}
+
+const rules = parseRules(css);
+const selectorParts = (rule: Rule) => rule.selector.split(',').map((p) => p.trim()).filter(Boolean);
+const isHoverOnly = (rule: Rule) => {
+  const parts = selectorParts(rule);
+  return parts.length > 0
+    && parts.every((p) => p.includes(':hover'))
+    && !parts.some((p) => p.includes('scrollbar'));
+};
+
+describe('hover styling is for pointers that hover', () => {
+  it('parses the stylesheet it is checking', () => {
+    expect(rules.length).toBeGreaterThan(500);
+    expect(rules.some((r) => r.selector === 'body')).toBe(true);
+  });
+
+  it('guards every rule that exists only for a hover', () => {
+    // A touch tap in Chrome puts :hover on what it hit and every ancestor, and
+    // leaves it there until the next tap somewhere else -- measured on
+    // .panel-section-header, which stayed in its hover fill after a tap so a
+    // collapsed section read as a selected one.
+    const unguarded = rules
+      .filter(isHoverOnly)
+      .filter((r) => !r.context.some((c) => c.replace(/\s/g, '') === '@media(hover:hover)'))
+      .map((r) => `${r.selector} (line ${r.line})`);
+    expect(unguarded, `unguarded hover-only rules:\n${unguarded.join('\n')}`).toEqual([]);
+  });
+
+  it('leaves a scrollbar thumb unguarded, since no finger reaches one', () => {
+    const thumbs = rules.filter((r) => r.selector.includes('scrollbar') && r.selector.includes(':hover'));
+    expect(thumbs.length).toBeGreaterThan(0);
+    for (const rule of thumbs) {
+      expect(
+        rule.context.some((c) => c.replace(/\s/g, '') === '@media(hover:hover)'),
+        `${rule.selector} (line ${rule.line})`
+      ).toBe(false);
+    }
+  });
+
+  it('leaves rules that also mean something to a keyboard alone', () => {
+    // These pair :hover with :focus-visible or a state class. Wrapping them
+    // whole would take the focus ring away from a tablet with a keyboard, so
+    // they are deliberately not guarded; splitting them is its own change.
+    const mixed = rules.filter((r) => {
+      const parts = selectorParts(r);
+      return parts.some((p) => p.includes(':hover'))
+        && parts.some((p) => !p.includes(':hover'));
+    });
+    expect(mixed.length).toBeGreaterThan(0);
+    for (const rule of mixed) {
+      expect(
+        selectorParts(rule).some((p) => !p.includes(':hover')),
+        `${rule.selector} (line ${rule.line})`
+      ).toBe(true);
+    }
+  });
+});
