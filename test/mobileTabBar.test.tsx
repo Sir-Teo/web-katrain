@@ -23,4 +23,43 @@ describe('MobileTabBar', () => {
     expect(css).toMatch(/\.mobile-tab-pointer-focus:focus-visible\s*\{[^}]*outline: none;/);
     expect(css).toMatch(/button:focus-visible,[\s\S]*outline: 2px solid var\(--ui-accent\)/);
   });
+
+  // The badge is the only place the app says a game carries notes. An
+  // aria-label replaces the button's whole subtree, so while the label read
+  // "Review" the count reached nobody who could not see the red circle.
+  it('says how many notes the badge is counting', () => {
+    const html = renderToStaticMarkup(
+      <MobileTabBar activeTab="board" onTabChange={() => undefined} commentBadge={3} />,
+    );
+
+    expect(html).toContain('aria-label="Review, 3 notes"');
+  });
+
+  it('counts one note in the singular', () => {
+    const html = renderToStaticMarkup(
+      <MobileTabBar activeTab="board" onTabChange={() => undefined} commentBadge={1} />,
+    );
+
+    expect(html).toContain('aria-label="Review, 1 note"');
+  });
+
+  it('reads the real count past the "9+" the circle has room for', () => {
+    const html = renderToStaticMarkup(
+      <MobileTabBar activeTab="board" onTabChange={() => undefined} commentBadge={24} />,
+    );
+
+    expect(html).toContain('aria-label="Review, 24 notes"');
+    expect(html).toContain('>9+<');
+  });
+
+  it('leaves the plain label alone with nothing to count', () => {
+    for (const badge of [undefined, 0]) {
+      const html = renderToStaticMarkup(
+        <MobileTabBar activeTab="board" onTabChange={() => undefined} commentBadge={badge} />,
+      );
+
+      expect(html).toContain('aria-label="Review"');
+      expect(html).not.toContain('bg-rose-500');
+    }
+  });
 });

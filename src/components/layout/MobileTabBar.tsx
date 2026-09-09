@@ -102,6 +102,13 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
+          const badge = tab.id === 'info' && commentBadge != null && commentBadge > 0 ? commentBadge : null;
+          // aria-label replaces everything inside the button, so the badge was
+          // reaching nobody who could not see it. It also carries the real
+          // count rather than the "9+" the 16px circle has room to print.
+          const label = badge == null
+            ? tab.label
+            : `${tab.label}, ${badge} ${badge === 1 ? 'note' : 'notes'}`;
           return (
             <button
               key={tab.id}
@@ -125,15 +132,18 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               id={mobileTabId(tab.id)}
               aria-controls={tabPanelId(tab.id, isActive)}
               aria-selected={isActive}
-              aria-label={tab.label}
+              aria-label={label}
               tabIndex={isActive ? 0 : -1}
               data-mobile-tab-focus-origin={pointerFocusedTab === tab.id ? 'pointer' : 'keyboard'}
             >
               <span className="relative">
                 {tab.icon}
-                {tab.id === 'info' && commentBadge != null && commentBadge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] px-1 h-4 rounded-full text-[0.625rem] flex items-center justify-center bg-rose-500 text-white font-semibold shadow-sm">
-                    {commentBadge > 9 ? '9+' : commentBadge}
+                {badge != null && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -right-2 min-w-[16px] px-1 h-4 rounded-full text-[0.625rem] flex items-center justify-center bg-rose-500 text-white font-semibold shadow-sm"
+                  >
+                    {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </span>
