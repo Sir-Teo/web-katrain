@@ -12,6 +12,7 @@ import {
   getPhaseMoveRange,
   getReportStudyFocus,
   formatPolicyRank,
+  formatReportTimestamp,
   getPointLossBucket,
   getReportRecoveries,
   getReportTurningPoints,
@@ -1964,9 +1965,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   </div>
                 </div>
                 <div className="text-xs text-slate-600">
-                  {generatedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                  {' • '}
-                  {generatedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  {formatReportTimestamp(generatedAt)}
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-4 text-sm">
