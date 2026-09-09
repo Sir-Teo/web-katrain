@@ -296,15 +296,15 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             aria-label="Start or continue"
           >
             <HomeAction
-              label={hasGameToContinue ? 'Continue Board' : 'Open Board'}
+              label={hasGameToContinue ? 'Continue board' : 'Open board'}
               compactLabel={hasGameToContinue ? 'Continue' : 'Board'}
               icon={<FaThLarge />}
               onClick={onClose}
               primary={hasGameToContinue}
             />
             <HomeAction
-              label="Quick New Game"
-              compactLabel="Quick Game"
+              label="Quick new game"
+              compactLabel="Quick game"
               icon={<FaBolt />}
               onClick={onQuickNewGame}
               hint={`${quickNewGameBoardSize}×${quickNewGameBoardSize} defaults`}
@@ -312,8 +312,8 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               ariaLabel={quickNewGameWarning}
               primary={!hasGameToContinue}
             />
-            <HomeAction label="New Game" compactLabel="New Game" icon={<FaPlay />} onClick={onNewGame} />
-            <HomeAction label="Open SGF / Model" compactLabel="Open SGF" icon={<FaFolderOpen />} onClick={onOpenSgf} />
+            <HomeAction label="New game" compactLabel="New game" icon={<FaPlay />} onClick={onNewGame} />
+            <HomeAction label="Open SGF / model" compactLabel="Open SGF" icon={<FaFolderOpen />} onClick={onOpenSgf} />
             <HomeAction label="Photo Board" compactLabel="Photo Board" icon={<FaCamera />} onClick={onScanBoard} hint="Camera or image" />
             <HomeAction label="Paste SGF / OGS" compactLabel="Paste SGF" icon={<FaClipboard />} onClick={onPasteSgf} />
           </section>
@@ -350,10 +350,10 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               className="mobile-home-actions mobile-home-actions--secondary border-y border-[var(--ui-border)]"
               aria-label="Manage game and app"
             >
-              <HomeAction label="Save Copy to Library" compactLabel="Save Copy" icon={<FaSave />} onClick={onSaveToLibrary} />
+              <HomeAction label="Save copy to library" compactLabel="Save copy" icon={<FaSave />} onClick={onSaveToLibrary} />
               <HomeAction label="Copy SGF" compactLabel="Copy SGF" icon={<FaCopy />} onClick={onCopySgf} />
-              <HomeAction label="Game Library" compactLabel="Library" icon={<FaBook />} onClick={onOpenLibrary} />
-              <HomeAction label="Game Report" compactLabel="Report" icon={<FaChartLine />} onClick={onOpenReport} />
+              <HomeAction label="Game library" compactLabel="Library" icon={<FaBook />} onClick={onOpenLibrary} />
+              <HomeAction label="Game report" compactLabel="Report" icon={<FaChartLine />} onClick={onOpenReport} />
               <HomeAction label="Settings" compactLabel="Settings" icon={<FaCog />} onClick={onOpenSettings} />
             </div>
           </section>

@@ -72,7 +72,7 @@ describe('MobileHome', () => {
   it('keeps saving and SGF copying reachable from the mobile home launcher', () => {
     const html = renderToStaticMarkup(<MobileHome {...baseProps} />);
 
-    expect(html).toContain('Save Copy to Library');
+    expect(html).toContain('Save copy to library');
     expect(html).toContain('Copy SGF');
     expect(html).toContain('aria-label="Manage game and app"');
   });
@@ -83,7 +83,7 @@ describe('MobileHome', () => {
     expect(html).toContain('min-h-12 w-full');
     expect(html).toContain('mobile-home-actions--primary');
     expect(html).toContain('mobile-home-actions--secondary');
-    expect(html.indexOf('Teaching Game')).toBeLessThan(html.indexOf('Save Copy to Library'));
+    expect(html.indexOf('Teaching Game')).toBeLessThan(html.indexOf('Save copy to library'));
   });
 
   it('makes the scan action discoverable as camera or image import', () => {
@@ -117,7 +117,7 @@ describe('MobileHome', () => {
 
     expect(html).toContain('Teaching Game 3');
     expect(html).not.toContain('Teaching Game 4');
-    expect(html).toContain('Save Copy to Library');
+    expect(html).toContain('Save copy to library');
   });
 });
 
@@ -129,10 +129,15 @@ describe('MobileHome first visit', () => {
 
     // The board action is a way back to an untouched board, not a resume, and
     // the accent belongs on the action a first visitor actually wants.
-    expect(html).toContain('Open Board');
-    expect(html).not.toContain('Continue Board');
-    const boardIndex = html.indexOf('Open Board');
-    const quickIndex = html.indexOf('Quick New Game');
+    expect(html).toContain('Open board');
+    expect(html).not.toContain('Continue board');
+    // Anchored to the rendered text node, not the bare phrase: the quick
+    // action's aria-label opens with the same words and sits before its class
+    // attribute, so a plain indexOf lands ahead of the accent it is looking for.
+    const boardIndex = html.indexOf('>Open board<');
+    const quickIndex = html.indexOf('>Quick new game<');
+    expect(boardIndex).toBeGreaterThan(-1);
+    expect(quickIndex).toBeGreaterThan(-1);
     const accentBefore = html.lastIndexOf('ui-accent-soft', quickIndex);
     expect(accentBefore).toBeGreaterThan(boardIndex);
   });
@@ -142,8 +147,8 @@ describe('MobileHome first visit', () => {
       <MobileHome {...baseProps} moveCount={12} totalMoveCount={42} />
     );
 
-    expect(html).toContain('Continue Board');
-    expect(html).not.toContain('Open Board');
+    expect(html).toContain('Continue board');
+    expect(html).not.toContain('Open board');
     expect(html).toContain('#12');
     expect(html).toContain('/ 42');
   });
