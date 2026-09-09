@@ -58,6 +58,28 @@ describe('desktop dashboard layout', () => {
     expect(tier).toContain('.wk-dashboard .move-counter input { width: 30px; }');
   });
 
+  it('draws Resign from the theme, like every other button on the rail', () => {
+    // It carried `borderColor: '#f0c4c4'` inline -- a pale pink picked against
+    // a light mock, brighter on the three dark themes than the --line-strong
+    // every neighbour uses, and a wash on the light one. The file already had
+    // the shape for this one rule above, on .pbtn.danger.
+    const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');
+
+    expect(dashboardSource).toContain('<button type="button" className="tbtn danger" title="Resign"');
+    expect(dashboardSource).not.toContain('#f0c4c4');
+    expect(css).toContain(
+      '.wk-dashboard .tbtn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--panel)); }'
+    );
+
+    // Colours may still be set from a style prop -- several are, all reading
+    // var(--muted), var(--faint), var(--ink). What may not is a literal. The
+    // hexes left in the stylesheet are stones and goban wood, which are not
+    // theme colours in the first place.
+    expect(dashboardSource).not.toMatch(/style=\{\{[^}]*:\s*'#[0-9a-fA-F]{3,8}'/);
+    expect(dashboardSource).not.toMatch(/style=\{\{[^}]*:\s*'rgba?\(/);
+  });
+
   it('keeps the board-first Library affordance visibly discoverable', () => {
     const dashboardSource = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');

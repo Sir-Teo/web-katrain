@@ -251,6 +251,16 @@
    screen reader and invisible to everyone else. */
 .wk-dashboard .tbtn.on { color: var(--ink); border-color: var(--ink); background: var(--panel-soft); font-weight: 600; }
 .wk-dashboard .tbtn.primary { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
+/* The destructive action on this rail, in the same shape .pbtn.danger uses.
+   Resign carried its own `borderColor: '#f0c4c4'` inline instead: a pale pink
+   picked against a light mock, which on the three dark themes is far brighter
+   than the --line-strong every button beside it uses, and on the light one is
+   a wash. Mixing the border out of --red keeps it a red button on every theme
+   and a red the theme chose. */
+.wk-dashboard .tbtn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--panel)); }
+@media (hover: hover) {
+  .wk-dashboard .tbtn.danger:hover { background: var(--red-bg); }
+}
 @media (hover: hover) {
   .wk-dashboard .tbtn.primary:hover { background: var(--ink-strong); }
 }
