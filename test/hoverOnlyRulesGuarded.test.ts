@@ -53,29 +53,48 @@ function parseRules(source: string): Rule[] {
 
 const rules = parseRules(css);
 const selectorParts = (rule: Rule) => rule.selector.split(',').map((p) => p.trim()).filter(Boolean);
-const isHoverOnly = (rule: Rule) => {
-  const parts = selectorParts(rule);
-  return parts.length > 0
-    && parts.every((p) => p.includes(':hover'))
-    && !parts.some((p) => p.includes('scrollbar'));
-};
-
 describe('hover styling is for pointers that hover', () => {
   it('parses the stylesheet it is checking', () => {
     expect(rules.length).toBeGreaterThan(500);
     expect(rules.some((r) => r.selector === 'body')).toBe(true);
   });
 
-  it('guards every rule that exists only for a hover', () => {
+  it('guards every hover selector in the file', () => {
     // A touch tap in Chrome puts :hover on what it hit and every ancestor, and
     // leaves it there until the next tap somewhere else -- measured on
     // .panel-section-header, which stayed in its hover fill after a tap so a
     // collapsed section read as a selected one.
     const unguarded = rules
-      .filter(isHoverOnly)
+      .filter((r) => selectorParts(r).some((p) => p.includes(':hover')))
+      .filter((r) => !r.selector.includes('scrollbar'))
       .filter((r) => !r.context.some((c) => c.replace(/\s/g, '') === '@media(hover:hover)'))
       .map((r) => `${r.selector} (line ${r.line})`);
-    expect(unguarded, `unguarded hover-only rules:\n${unguarded.join('\n')}`).toEqual([]);
+    expect(unguarded, `unguarded hover rules:\n${unguarded.join('\n')}`).toEqual([]);
+  });
+
+  it('kept the keyboard half of the rules it split out of the guard', () => {
+    // Splitting is what makes the blanket guard above safe: a rule that listed
+    // :hover next to :focus-visible or a state class would otherwise have taken
+    // the focus ring away from a tablet with a keyboard.
+    const guarded = rules.filter((r) =>
+      r.context.some((c) => c.replace(/\s/g, '') === '@media(hover:hover)'));
+    // Nothing inside the guard may mention anything but hover...
+    for (const rule of guarded) {
+      for (const part of selectorParts(rule)) {
+        expect(part, `${rule.selector} (line ${rule.line})`).toContain(':hover');
+        expect(part, `${rule.selector} (line ${rule.line})`).not.toContain(':focus');
+      }
+    }
+    // ...and the halves that were split off are still in the file.
+    for (const selector of [
+      ".settings-modal .settings-search-result[aria-selected='true']",
+      '.move-tree-control-button.active',
+      '.candidate-list-head .cl-detail-toggle.is-on',
+      '.candidate-row:focus-visible',
+      '.library-tree-node:focus-within .library-tree-node-actions',
+    ]) {
+      expect(css, selector).toContain(selector);
+    }
   });
 
   it('leaves a scrollbar thumb unguarded, since no finger reaches one', () => {
@@ -89,21 +108,4 @@ describe('hover styling is for pointers that hover', () => {
     }
   });
 
-  it('leaves rules that also mean something to a keyboard alone', () => {
-    // These pair :hover with :focus-visible or a state class. Wrapping them
-    // whole would take the focus ring away from a tablet with a keyboard, so
-    // they are deliberately not guarded; splitting them is its own change.
-    const mixed = rules.filter((r) => {
-      const parts = selectorParts(r);
-      return parts.some((p) => p.includes(':hover'))
-        && parts.some((p) => !p.includes(':hover'));
-    });
-    expect(mixed.length).toBeGreaterThan(0);
-    for (const rule of mixed) {
-      expect(
-        selectorParts(rule).some((p) => !p.includes(':hover')),
-        `${rule.selector} (line ${rule.line})`
-      ).toBe(true);
-    }
-  });
 });

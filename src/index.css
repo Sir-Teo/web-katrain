@@ -699,10 +699,15 @@
     color: var(--ui-text);
   }
 
-  .settings-modal .settings-search-result:hover,
   .settings-modal .settings-search-result:focus-visible,
   .settings-modal .settings-search-result[aria-selected='true'] {
     background: var(--ui-surface);
+  }
+
+  @media (hover: hover) {
+    .settings-modal .settings-search-result:hover {
+      background: var(--ui-surface);
+    }
   }
 
   .settings-modal .settings-search-result-tab {
@@ -1068,20 +1073,34 @@
       border-color 0.15s ease;
   }
 
-  .notification-toast-undo:hover,
   .notification-toast-undo:focus-visible {
     color: var(--ui-text);
     background: var(--ui-surface-2);
   }
 
-  .notification-toast-action:hover,
+  @media (hover: hover) {
+    .notification-toast-undo:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+    }
+  }
+
   .notification-toast-action:focus-visible,
-  .notification-toast-close:hover,
   .notification-toast-close:focus-visible {
     color: var(--ui-text);
     background: var(--ui-surface-2);
     border-color: var(--ui-border);
     outline: none;
+  }
+
+  @media (hover: hover) {
+    .notification-toast-action:hover,
+    .notification-toast-close:hover {
+      color: var(--ui-text);
+      background: var(--ui-surface-2);
+      border-color: var(--ui-border);
+      outline: none;
+    }
   }
 
   .notification-toast-info {
@@ -2553,11 +2572,18 @@
       color 0.15s ease;
   }
 
-  .move-tree-control-button:hover,
   .move-tree-control-button.active {
     color: var(--ui-accent);
     background: var(--ui-accent-soft);
     border-color: var(--ui-accent);
+  }
+
+  @media (hover: hover) {
+    .move-tree-control-button:hover {
+      color: var(--ui-accent);
+      background: var(--ui-accent-soft);
+      border-color: var(--ui-accent);
+    }
   }
 
   /* The mobile move list is one 44px row per move using about a third of the
@@ -2803,20 +2829,36 @@
     user-select: none;
   }
 
-  .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-dot,
   .move-tree-collapsed-stub:focus-visible .move-tree-collapsed-stub-dot {
     fill: var(--ui-accent);
     stroke-dasharray: none;
   }
 
-  .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-count,
+  @media (hover: hover) {
+    .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-dot {
+      fill: var(--ui-accent);
+      stroke-dasharray: none;
+    }
+  }
+
   .move-tree-collapsed-stub:focus-visible .move-tree-collapsed-stub-count {
     fill: var(--ui-accent-contrast);
   }
 
-  .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-line,
+  @media (hover: hover) {
+    .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-count {
+      fill: var(--ui-accent-contrast);
+    }
+  }
+
   .move-tree-collapsed-stub:focus-visible .move-tree-collapsed-stub-line {
     opacity: 1;
+  }
+
+  @media (hover: hover) {
+    .move-tree-collapsed-stub:hover .move-tree-collapsed-stub-line {
+      opacity: 1;
+    }
   }
 
   .move-tree-keyboard-focus {
@@ -2956,9 +2998,14 @@
     }
   }
 
-  .library-tree-node.loaded.dirty,
-  .library-tree-node.loaded.dirty:hover {
+  .library-tree-node.loaded.dirty {
     background: var(--ui-warning-soft);
+  }
+
+  @media (hover: hover) {
+    .library-tree-node.loaded.dirty:hover {
+      background: var(--ui-warning-soft);
+    }
   }
 
   .library-tree-node.loaded::before {
@@ -3125,7 +3172,8 @@
   }
 
   /* Collapsed to zero width (not display:none) so the row name gets the space
-     while the buttons stay tabbable; focus-within re-expands them. */
+     while the buttons stay tabbable; focus-within re-expands them, and so does
+     hover on a device that has one. */
   .library-tree-node-actions {
     display: inline-flex;
     gap: 2px;
@@ -3135,10 +3183,16 @@
     transition: opacity 0.1s ease;
   }
 
-  .library-tree-node:hover .library-tree-node-actions,
   .library-tree-node:focus-within .library-tree-node-actions {
     width: auto;
     opacity: 1;
+  }
+
+  @media (hover: hover) {
+    .library-tree-node:hover .library-tree-node-actions {
+      width: auto;
+      opacity: 1;
+    }
   }
 
   .library-tree-node-action {
@@ -3182,9 +3236,14 @@
   }
 
   .library-tree-node-select.is-visible,
-  .library-tree-node:hover .library-tree-node-select,
   .library-tree-node:focus-within .library-tree-node-select {
     opacity: 1;
+  }
+
+  @media (hover: hover) {
+    .library-tree-node:hover .library-tree-node-select {
+      opacity: 1;
+    }
   }
 
   /* The glyph stays 14px; the button grows to the 24x24 floor, which the 28px
@@ -3240,10 +3299,16 @@
     text-align: left;
   }
 
-  .library-context-menu-item:hover,
   .library-context-menu-item:focus-visible {
     background: var(--ui-surface-2);
     outline: none;
+  }
+
+  @media (hover: hover) {
+    .library-context-menu-item:hover {
+      background: var(--ui-surface-2);
+      outline: none;
+    }
   }
 
   .library-context-menu-item svg {
@@ -4937,10 +5002,16 @@
       border-radius: 6px;
     }
 
-    .library-tree-node-more:hover,
     .library-tree-node-more:focus-visible {
       color: var(--ui-text);
       background: var(--ui-surface-2);
+    }
+
+    @media (hover: hover) {
+      .library-tree-node-more:hover {
+        color: var(--ui-text);
+        background: var(--ui-surface-2);
+      }
     }
 
     .library-context-menu-item {
@@ -6673,9 +6744,14 @@
   justify-content: flex-end;
   min-height: 1.5rem;
 }
-.candidate-list-head .cl-sort:hover,
 .candidate-list-head .cl-sort:focus-visible {
   color: var(--ui-text);
+}
+
+@media (hover: hover) {
+  .candidate-list-head .cl-sort:hover {
+    color: var(--ui-text);
+  }
 }
 .candidate-list-head .cl-sort.is-sorted {
   color: var(--ui-accent);
@@ -6695,10 +6771,16 @@
   font-weight: 700;
   transition: transform 120ms ease;
 }
-.candidate-row .cl-pv-toggle:hover,
 .candidate-row .cl-pv-toggle:focus-visible {
   color: var(--ui-text);
   background: var(--ui-surface-2);
+}
+
+@media (hover: hover) {
+  .candidate-row .cl-pv-toggle:hover {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+  }
 }
 .candidate-row .cl-pv-toggle.is-open {
   transform: rotate(90deg);
@@ -6743,10 +6825,16 @@
   align-items: center;
   min-height: 1.5rem;
 }
-.candidate-list .cl-pv-action:hover,
 .candidate-list .cl-pv-action:focus-visible {
   color: var(--ui-text);
   border-color: var(--ui-accent);
+}
+
+@media (hover: hover) {
+  .candidate-list .cl-pv-action:hover {
+    color: var(--ui-text);
+    border-color: var(--ui-accent);
+  }
 }
 
 .candidate-list-head .cl-detail-toggle {
@@ -6764,10 +6852,16 @@
   font: inherit;
   cursor: pointer;
 }
-.candidate-list-head .cl-detail-toggle:hover,
 .candidate-list-head .cl-detail-toggle.is-on {
   color: var(--ui-text);
   border-color: var(--ui-accent);
+}
+
+@media (hover: hover) {
+  .candidate-list-head .cl-detail-toggle:hover {
+    color: var(--ui-text);
+    border-color: var(--ui-accent);
+  }
 }
 
 /* The engine has barely looked at these, so their figures are rough; the board
@@ -6811,10 +6905,16 @@
   border-right: 0;
 }
 
-.analysis-experience-toggle > button:hover,
 .analysis-experience-toggle > button:focus-visible {
   color: var(--ui-text);
   background: var(--ui-surface-2);
+}
+
+@media (hover: hover) {
+  .analysis-experience-toggle > button:hover {
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+  }
 }
 
 .analysis-experience-toggle > button.active {
@@ -6857,10 +6957,16 @@
   cursor: pointer;
 }
 
-.candidate-row:hover,
 .candidate-row:focus-visible {
   background: var(--ui-surface-2);
   color: var(--ui-text);
+}
+
+@media (hover: hover) {
+  .candidate-row:hover {
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+  }
 }
 
 .candidate-row.is-active {

@@ -38,8 +38,10 @@ describe('a saved game keeps its actions on a touch screen', () => {
     // Room for it, and a 44px target once it is there.
     expect(css).toContain('grid-template-columns: 44px 16px minmax(0, 1fr) auto 44px;');
     expect(css).toContain('      grid-column: 5;\n      grid-row: 1 / 3;\n      width: 44px;\n      height: 44px;');
-    // The press state is shared, not folder-scoped as it used to be.
-    expect(css).toContain('    .library-tree-node-more:hover,\n    .library-tree-node-more:focus-visible {');
+    // The press state is shared, not folder-scoped as it used to be -- and its
+    // hover half sits behind the (hover: hover) guard the rest of the sheet uses.
+    expect(css).toContain('    .library-tree-node-more:focus-visible {');
+    expect(css).toContain('    @media (hover: hover) {\n      .library-tree-node-more:hover {');
   });
 
   it('offers star and tags for files only, since folders have neither', () => {
