@@ -151,8 +151,15 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
                 <h3 className="text-sm font-semibold text-[var(--ui-text)]">Touch / Trackpad / Mouse</h3>
               </div>
               <div className="grid grid-cols-1 gap-1">
+                {/* These chips hold whatever the list calls a control, and some of
+                    those are phrases rather than key names: "Middle-click a
+                    candidate" renders 189px wide. shrink-0 keeps a key name from
+                    being squeezed into nonsense, but with nowhere to wrap, a 189px
+                    chip in a 234px row simply painted 48px outside it and 5px past
+                    a 320px viewport. Wrapping puts the chip on its own line exactly
+                    when it does not fit, and never fires at a width where it does. */}
                 {visiblePointerHelp.map((item) => (
-                  <div key={item.control} className="flex items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
+                  <div key={item.control} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
                     <span className="ui-text-faint">{item.action}</span>
                     <kbd className="shrink-0 rounded bg-[var(--ui-panel)] px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
                       {item.control}
@@ -170,7 +177,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               </div>
               <div className="grid grid-cols-1 gap-1">
                 {visibleGamepadHelp.map((item) => (
-                  <div key={item.control} className="flex items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
+                  <div key={item.control} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-[var(--ui-surface-2)] px-2 py-1.5 text-sm">
                     <span className="ui-text-faint">{item.action}</span>
                     <kbd className="shrink-0 rounded bg-[var(--ui-panel)] px-2 py-0.5 text-xs font-mono text-[var(--ui-text)]">
                       {item.control}

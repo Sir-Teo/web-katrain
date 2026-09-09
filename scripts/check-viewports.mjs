@@ -702,6 +702,12 @@ function assertViewport(result) {
       + result.modalContrastFailures.slice(0, 6).join('; ')
     );
   }
+  if (result.modalSpillFailures?.length > 0) {
+    failures.push(
+      `${result.modalSpillFailures.length} dialog element(s) painting off-screen: `
+      + result.modalSpillFailures.slice(0, 6).join('; ')
+    );
+  }
   if (result.modalSmokeFailures.length > 0) {
     failures.push(`modal smoke failures: ${result.modalSmokeFailures.join(', ')}`);
   }
@@ -1181,6 +1187,47 @@ async function main() {
             width: r.width,
             height: r.height,
           }));
+        /**
+         * Content inside a dialog that paints outside the viewport.
+         *
+         * documentOverflow catches a page you can scroll sideways, but an
+         * element can spill out of its own container without widening the
+         * document at all -- the keyboard help's "Middle-click a candidate"
+         * chip is shrink-0 and 189px, so in a 234px row at 320px wide it simply
+         * painted 48px outside its row and 5px past the screen. Nothing
+         * measured that: the page did not overflow, the text was not clipped by
+         * its own box, and the target was well over 44px.
+         */
+        const auditDialogSpill = (scope) => {
+          const out = [];
+          for (const el of scope.querySelectorAll('*')) {
+            // sr-only clips rather than hides, and is parked off-screen on purpose.
+            if (el.classList.contains('sr-only')) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width <= 0 || r.height <= 0) continue;
+            const over = Math.round(Math.max(r.right - window.innerWidth, -r.left));
+            if (over <= 1) continue;
+            if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true })) continue;
+            // Report the innermost offender: every ancestor of a spilling element
+            // spills too, and only the innermost one names the thing to fix.
+            if (Array.from(el.children).some((child) => {
+              const b = child.getBoundingClientRect();
+              return b.width > 0 && (b.right > window.innerWidth + 1 || b.left < -1);
+            })) continue;
+            // There is deliberately no "but an ancestor scrolls sideways"
+            // exemption here. Both ways of writing one are wrong: overflow-x
+            // computes to auto whenever the other axis is not visible, so every
+            // dialog with a scrolling body looks horizontally scrollable, and
+            // scrollWidth > clientWidth is true of the overflow itself, not just
+            // of a scroller. Written either way this audit passed a dialog whose
+            // chip was hanging 5px off the screen. A dialog that does need a wide
+            // scrolling region can be exempted by name when one exists.
+            const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            out.push((text.slice(0, 26) || el.tagName.toLowerCase()) + ' ' + over + 'px past the viewport');
+            if (out.length >= 4) break;
+          }
+          return out;
+        };
         // Desktop counterpart to auditSmallTouchTargets: modals were only ever
         // audited under the mobile gate, so no dialog's target sizes had been
         // checked on desktop. 24px is the WCAG 2.2 SC 2.5.8 floor, the same one
@@ -2060,6 +2107,7 @@ async function main() {
         const modalSmallTouchTargets = [];
         const modalSubMinimumTargets = [];
         const modalContrastFailures = [];
+        const modalSpillFailures = [];
         /**
          * auditContrastAllThemes() runs on whatever is in the DOM when it is
          * called, and it is called after the smoke list has opened and closed
@@ -2361,6 +2409,7 @@ async function main() {
             } else {
               modalSubMinimumTargets.push(...auditSubMinimumTargets(dialog).map((target) => ({ ...target, modal: name })));
             }
+            modalSpillFailures.push(...auditDialogSpill(dialog).map((entry) => name + ': ' + entry));
             if (auditsModalContrast) {
               modalContrastFailures.push(...auditContrastAllThemes(dialog).map((entry) => name + ' -- ' + entry));
             }
@@ -3594,6 +3643,7 @@ async function main() {
           })(),
           contrastFailures: auditContrastAllThemes(),
           modalContrastFailures,
+          modalSpillFailures,
           treeSmallTouchTargets,
           reviewSmallTouchTargets,
           boardTouchAction,
