@@ -93,6 +93,33 @@ const screenshotDir = process.env.VIEWPORT_SCREENSHOT_DIR || '/tmp/web-katrain-v
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Viewport metrics and input capability are one setting, not two.
+ *
+ * `mobile: true` on the metrics override resizes the viewport and does nothing
+ * else: Chrome still answers `(pointer: coarse)` with false, so every rule and
+ * branch this app keys on a finger ran under the sweep as though a mouse were
+ * attached. There are four -- the candidate rows' 44px height and the analysis
+ * toggle's (index.css), the tooltip behaviour of the three controls in
+ * layout/ui.tsx, and the keyboard instructions NotesPanel hides from a device
+ * that has no keys -- and the 44px touch-target assertions below were measuring
+ * desktop-height rows because of it.
+ *
+ * `(hover: none)` was already true here, which is why the rules keyed on that
+ * did get exercised; the pointer half is what was missing. Setting both from
+ * one place is what keeps them from drifting apart again.
+ */
+async function setViewport(cdp, { width, height, mobile }) {
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width, height, deviceScaleFactor: 1, mobile,
+  });
+  await cdp.send('Emulation.setTouchEmulationEnabled', {
+    enabled: !!mobile,
+    maxTouchPoints: mobile ? 5 : 1,
+  });
+}
+
+
 async function freePort() {
   const server = net.createServer();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -733,17 +760,13 @@ async function assertShellVariantApplies(cdp) {
   })()`;
   const failures = [];
 
-  await cdp.send('Emulation.setDeviceMetricsOverride', {
-    width: 1280, height: 800, deviceScaleFactor: 1, mobile: false,
-  });
+  await setViewport(cdp, { width: 1280, height: 800, mobile: false });
   const desktop = await evaluate(cdp, probe);
   if (desktop !== 'none') {
     failures.push(`desktop-shell: emits no rule at 1280x800 (display was "${desktop}", expected "none")`);
   }
 
-  await cdp.send('Emulation.setDeviceMetricsOverride', {
-    width: 390, height: 844, deviceScaleFactor: 1, mobile: true,
-  });
+  await setViewport(cdp, { width: 390, height: 844, mobile: true });
   const mobile = await evaluate(cdp, probe);
   if (mobile === 'none') {
     failures.push('desktop-shell: applies at 390x844, so it is not gated on the desktop shell');
@@ -803,9 +826,7 @@ async function assertDialogsFitShortViewports(cdp) {
   })()`;
 
   for (const [width, height] of SHORT) {
-    await cdp.send('Emulation.setDeviceMetricsOverride', {
-      width, height, deviceScaleFactor: 1, mobile: width < 768,
-    });
+    await setViewport(cdp, { width, height, mobile: width < 768 });
     await sleep(600);
     for (const dialog of DIALOGS) {
       const opened = await evaluate(cdp, `(() => {
@@ -938,12 +959,7 @@ async function main() {
     for (const viewport of VIEWPORTS) {
       const appUrl = `http://127.0.0.1:${appPort}/`;
       pageErrors = [];
-      await cdp.send('Emulation.setDeviceMetricsOverride', {
-        width: viewport.width,
-        height: viewport.height,
-        deviceScaleFactor: 1,
-        mobile: viewport.mobile,
-      });
+      await setViewport(cdp, viewport);
       await cdp.send('Page.navigate', { url: appUrl });
       await waitForBoard(cdp);
       // Each viewport has to start from a clean slate. The previous pass edits
