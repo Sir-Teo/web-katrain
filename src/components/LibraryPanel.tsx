@@ -2273,7 +2273,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     // input keeps a pasted record out of React state as well.
                     maxLength={MAX_SEARCH_QUERY_LENGTH}
                     data-library-search="true"
-                    className="w-full ui-input border rounded pl-8 pr-9 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]"
+                    // The right padding clears the button below, which only
+                    // exists while there is something to clear -- so an empty
+                    // field was holding 36px for nothing, and holding it from
+                    // the placeholder, which is the only text an empty field
+                    // has. It cost the last word of "Search library…" once the
+                    // touch font floor took the text to 16px.
+                    className={[
+                      'w-full ui-input border rounded pl-8 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]',
+                      query ? 'pr-9' : 'pr-2',
+                    ].join(' ')}
                   />
                   {query && (
                     <button

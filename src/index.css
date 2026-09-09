@@ -542,6 +542,37 @@
   .settings-modal label.text-slate-400 {
     color: var(--ui-text-muted);
   }
+
+  /* iOS Safari zooms the page in when a form control smaller than 16px takes
+     focus, and does not zoom back out when it loses focus -- so tapping the
+     library search, a player name or the komi field on an iPhone left the whole
+     app enlarged until the reader pinched it back by hand. Every text field
+     here is Tailwind's text-sm (14px) or text-xs (12px).
+
+     The fix is the font size and not `maximum-scale=1` on the viewport tag:
+     that would stop the zoom by taking pinch-zoom away from everyone, which is
+     a worse trade and an accessibility one.
+
+     `!important` because these sit on Tailwind's text-* utilities, and
+     utilities outrank every layer this file writes into -- the same reason the
+     landscape rule further down carries one. Keyed on `hover: none` rather than
+     on the width, so a phone in landscape is covered too and so it reads the
+     same as the library's touch rules; on a phone it is true wherever
+     `pointer: coarse` is. */
+  @media (hover: none) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+
+    /* The one exemption: a 38px slot in a 34px pill, on a rail measured at
+       5.8px of headroom (see the 700px tier in dashboard.css). A coarse
+       pointer only reaches it on a tablet wide enough for the desktop shell. */
+    .wk-dashboard .move-counter input {
+      font-size: 12.5px !important;
+    }
+  }
 }
 
 @layer components {
