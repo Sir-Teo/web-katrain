@@ -1899,6 +1899,33 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <FaPlus size={12} /> New folder inside
               </button>
             )}
+            {/* Starring and tagging a game were on the row's hover strip and
+                nowhere else. That strip is display:none under `hover: none`,
+                and this menu -- the only other way to a file's actions on a
+                touch screen -- did not carry them, so on a phone the two were
+                unreachable rather than merely hidden. */}
+            {isFile(contextMenuItem) && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => handleToggleFavorite(contextMenuItem))}
+              >
+                {contextMenuItem.favorite
+                  ? <><FaStar size={12} className="text-amber-400" /> Unstar</>
+                  : <><FaRegStar size={12} /> Star</>}
+              </button>
+            )}
+            {isFile(contextMenuItem) && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => handleEditTags(contextMenuItem))}
+              >
+                <FaTag size={12} /> Edit tags
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
