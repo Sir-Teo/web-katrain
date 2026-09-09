@@ -28,6 +28,7 @@ const themedShellFiles = [
  */
 const onScreenShellFiles = [
   'src/components/LibraryPanel.tsx',
+  'src/components/PhotoBoardModal.tsx',
   'src/components/SettingsModal.tsx',
   'src/components/layout/BottomControlBar.tsx',
   'src/components/layout/MenuDrawer.tsx',
