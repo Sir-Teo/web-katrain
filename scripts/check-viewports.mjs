@@ -692,6 +692,12 @@ function assertViewport(result) {
   if (result.contrastFailures?.length > 0) {
     failures.push(`${result.contrastFailures.length} text contrast failure(s): ${result.contrastFailures.slice(0, 6).join('; ')}`);
   }
+  if (result.modalContrastFailures?.length > 0) {
+    failures.push(
+      `${result.modalContrastFailures.length} dialog text contrast failure(s): `
+      + result.modalContrastFailures.slice(0, 6).join('; ')
+    );
+  }
   if (result.modalSmokeFailures.length > 0) {
     failures.push(`modal smoke failures: ${result.modalSmokeFailures.join(', ')}`);
   }
@@ -1302,7 +1308,7 @@ async function main() {
         // failing here is a hard-coded colour or a token used off its intended
         // surface. Colours are read computed, never sampled from a screenshot:
         // capture in this setup is not colour-accurate.
-        const auditContrast = (skipSelector) => {
+        const auditContrast = (skipSelector, scope) => {
           const parseColor = (value) => {
             if (!value) return null;
             // Every backslash here is doubled on purpose: this whole probe is
@@ -1355,7 +1361,7 @@ async function main() {
           };
           const failures = [];
           const seen = new Set();
-          for (const el of document.querySelectorAll('*')) {
+          for (const el of (scope || document).querySelectorAll('*')) {
             if (el.children.length > 0) continue;
             const text = (el.textContent || '').trim();
             if (text.length < 2) continue;
@@ -1388,37 +1394,45 @@ async function main() {
         // theme is applied to the root, audited, and the original restored;
         // setting data-ui-theme is the whole mechanism, since the themes are
         // plain :root[data-ui-theme=...] custom-property blocks.
-        const auditContrastAllThemes = () => {
+        const auditContrastAllThemes = (scope) => {
           const root = document.documentElement;
           const original = root.dataset.uiTheme;
           // The mounted theme first, with nothing skipped: that is the only pass
           // where every element's colours are the ones the app actually shipped.
-          const out = auditContrast().map((entry) => (original || 'default') + ': ' + entry);
+          const out = auditContrast(undefined, scope).map((entry) => (original || 'default') + ': ' + entry);
           // The graph's empty overlay picks its palette in JavaScript
           // (scoreWinrateGraphTheme.ts hardcodes bg-[rgb(248,250,252)] on the
           // light branch), so swapping data-ui-theme flips the CSS variables
           // underneath classes React never re-renders. That mismatched pair
           // never occurs in the app, and reported ~2:1 against three themes.
           const jsThemed = '[data-analysis-graph-empty-state="true"]';
-          for (const theme of ['noir', 'kaya', 'studio', 'light']) {
-            if (theme === original) continue;
-            root.dataset.uiTheme = theme;
-            // A custom-property swap on the root does not invalidate every
-            // descendant's cached computed style on its own, and reading a
-            // stale colour against a fresh background invents failures at
-            // ~1.2:1. Detach and reattach to force a full recalc.
+          // The restore has to be in a finally: this now runs once for the page
+          // and once per open dialog, and a throw anywhere in the loop would
+          // otherwise leave a theme mounted that the app never chose -- every
+          // measurement after it at that viewport, contrast or not, would be
+          // reading the wrong palette.
+          try {
+            for (const theme of ['noir', 'kaya', 'studio', 'light']) {
+              if (theme === original) continue;
+              root.dataset.uiTheme = theme;
+              // A custom-property swap on the root does not invalidate every
+              // descendant's cached computed style on its own, and reading a
+              // stale colour against a fresh background invents failures at
+              // ~1.2:1. Detach and reattach to force a full recalc.
+              root.style.display = 'none';
+              void root.offsetHeight;
+              root.style.display = '';
+              void getComputedStyle(root).getPropertyValue('--ui-text');
+              out.push(...auditContrast(jsThemed, scope).map((entry) => theme + ': ' + entry));
+            }
+          } finally {
+            if (original === undefined) delete root.dataset.uiTheme;
+            else root.dataset.uiTheme = original;
             root.style.display = 'none';
             void root.offsetHeight;
             root.style.display = '';
             void getComputedStyle(root).getPropertyValue('--ui-text');
-            out.push(...auditContrast(jsThemed).map((entry) => theme + ': ' + entry));
           }
-          if (original === undefined) delete root.dataset.uiTheme;
-          else root.dataset.uiTheme = original;
-          root.style.display = 'none';
-          void root.offsetHeight;
-          root.style.display = '';
-          void getComputedStyle(root).getPropertyValue('--ui-text');
           return out;
         };
         const waitForFrames = async (frames = 2) => {
@@ -2041,6 +2055,26 @@ async function main() {
         const modalSmokeFailures = [];
         const modalSmallTouchTargets = [];
         const modalSubMinimumTargets = [];
+        const modalContrastFailures = [];
+        /**
+         * auditContrastAllThemes() runs on whatever is in the DOM when it is
+         * called, and it is called after the smoke list has opened and closed
+         * every dialog -- so the twenty-nine dialogs' own text had never been
+         * measured against any theme. That is where this bug lives: a fixed
+         * colour reads fine on the theme it was picked on and goes to 2.28:1 on
+         * the light one, which is exactly how two dialogs kept a hard-coded
+         * amber through all four.
+         *
+         * Contrast is a property of the theme and the type scale, so the shell
+         * does not change the answer and one viewport of each kind is enough.
+         * Both are needed, not either: the desktop shell is where the shortcut
+         * chips and category labels render, and the mobile one is where the
+         * sheet-style dialogs and the home screen exist at all. Four themes
+         * apiece, each with a forced full-page recalc, is too much to spend at
+         * all eight.
+         */
+        const auditsModalContrast = ${(viewport.width === 1280 && viewport.height === 800)
+          || (viewport.width === 768 && viewport.height === 1024)};
         const dispatchShortcut = (key, options = {}) => {
           const event = new KeyboardEvent('keydown', {
             key,
@@ -2322,6 +2356,9 @@ async function main() {
               modalSmallTouchTargets.push(...auditSmallTouchTargets(dialog).map((target) => ({ ...target, modal: name })));
             } else {
               modalSubMinimumTargets.push(...auditSubMinimumTargets(dialog).map((target) => ({ ...target, modal: name })));
+            }
+            if (auditsModalContrast) {
+              modalContrastFailures.push(...auditContrastAllThemes(dialog).map((entry) => name + ' -- ' + entry));
             }
             if (afterOpen) await afterOpen(dialog);
             if (!(await closeDialog(dialog, closeLabel))) {
@@ -3552,6 +3589,7 @@ async function main() {
             return (text.textContent || '').trim().slice(0, 24) + ' needs ' + Math.round(text.scrollWidth) + 'px in ' + Math.round(text.clientWidth) + 'px';
           })(),
           contrastFailures: auditContrastAllThemes(),
+          modalContrastFailures,
           treeSmallTouchTargets,
           reviewSmallTouchTargets,
           boardTouchAction,
