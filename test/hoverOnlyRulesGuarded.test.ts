@@ -1,13 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const css = readFileSync('src/index.css', 'utf8');
+const sheets = {
+  'src/index.css': readFileSync('src/index.css', 'utf8'),
+  'src/components/dashboard/dashboard.css': readFileSync('src/components/dashboard/dashboard.css', 'utf8'),
+};
+const css = sheets['src/index.css'];
 
 interface Rule {
   selector: string;
   /** The at-rule preludes enclosing it, outermost first. */
   context: string[];
   line: number;
+  /** file:line, for a failure message that says which stylesheet. */
+  where: string;
 }
 
 const stripComments = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, ' ');
@@ -37,6 +43,7 @@ function parseRules(source: string): Rule[] {
           selector: squash(prelude),
           context: open.filter((b) => b.kind === 'at').map((b) => squash(b.prelude)),
           line: source.slice(0, i).split('\n').length,
+          where: '',
         });
       }
       open.push({ prelude, kind });
@@ -51,12 +58,16 @@ function parseRules(source: string): Rule[] {
   return out;
 }
 
-const rules = parseRules(css);
+const rules = Object.entries(sheets).flatMap(([file, source]) =>
+  parseRules(source).map((rule) => ({ ...rule, where: `${file}:${rule.line}` })));
 const selectorParts = (rule: Rule) => rule.selector.split(',').map((p) => p.trim()).filter(Boolean);
 describe('hover styling is for pointers that hover', () => {
   it('parses the stylesheet it is checking', () => {
     expect(rules.length).toBeGreaterThan(500);
     expect(rules.some((r) => r.selector === 'body')).toBe(true);
+    // Both stylesheets, not just the big one: the dashboard is the desktop
+    // shell, which a tablet reaches with a finger at 1024x500 and up.
+    expect(rules.some((r) => r.where.startsWith('src/components/dashboard/'))).toBe(true);
   });
 
   it('guards every hover selector in the file', () => {
@@ -68,7 +79,7 @@ describe('hover styling is for pointers that hover', () => {
       .filter((r) => selectorParts(r).some((p) => p.includes(':hover')))
       .filter((r) => !r.selector.includes('scrollbar'))
       .filter((r) => !r.context.some((c) => c.replace(/\s/g, '') === '@media(hover:hover)'))
-      .map((r) => `${r.selector} (line ${r.line})`);
+      .map((r) => `${r.selector} (${r.where})`);
     expect(unguarded, `unguarded hover rules:\n${unguarded.join('\n')}`).toEqual([]);
   });
 
@@ -81,8 +92,8 @@ describe('hover styling is for pointers that hover', () => {
     // Nothing inside the guard may mention anything but hover...
     for (const rule of guarded) {
       for (const part of selectorParts(rule)) {
-        expect(part, `${rule.selector} (line ${rule.line})`).toContain(':hover');
-        expect(part, `${rule.selector} (line ${rule.line})`).not.toContain(':focus');
+        expect(part, `${rule.selector} (${rule.where})`).toContain(':hover');
+        expect(part, `${rule.selector} (${rule.where})`).not.toContain(':focus');
       }
     }
     // ...and the halves that were split off are still in the file.
@@ -103,7 +114,7 @@ describe('hover styling is for pointers that hover', () => {
     for (const rule of thumbs) {
       expect(
         rule.context.some((c) => c.replace(/\s/g, '') === '@media(hover:hover)'),
-        `${rule.selector} (line ${rule.line})`
+        `${rule.selector} (${rule.where})`
       ).toBe(false);
     }
   });

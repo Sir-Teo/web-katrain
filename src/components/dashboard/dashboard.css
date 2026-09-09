@@ -178,9 +178,11 @@
   border-color: var(--line-strong);
   color: var(--ink-soft);
 }
-.wk-dashboard .dashboard-language-switcher > button:hover {
-  background: var(--panel-soft);
-  color: var(--ink);
+@media (hover: hover) {
+  .wk-dashboard .dashboard-language-switcher > button:hover {
+    background: var(--panel-soft);
+    color: var(--ink);
+  }
 }
 .wk-dashboard .dashboard-language-switcher [data-language-switcher-menu="true"] {
   background: var(--canvas);
@@ -190,9 +192,11 @@
 .wk-dashboard .dashboard-language-switcher [data-language-option] {
   color: var(--muted);
 }
-.wk-dashboard .dashboard-language-switcher [data-language-option]:hover {
-  background: var(--panel-soft);
-  color: var(--ink);
+@media (hover: hover) {
+  .wk-dashboard .dashboard-language-switcher [data-language-option]:hover {
+    background: var(--panel-soft);
+    color: var(--ink);
+  }
 }
 .wk-dashboard .dashboard-language-switcher [data-language-option][aria-selected="true"] {
   background: var(--panel-soft);
@@ -210,7 +214,9 @@
   transition: background .12s ease, color .12s ease, border-color .12s ease;
   position: relative;
 }
-.wk-dashboard .iconbtn:hover { background: var(--panel-soft); color: var(--ink); }
+@media (hover: hover) {
+  .wk-dashboard .iconbtn:hover { background: var(--panel-soft); color: var(--ink); }
+}
 .wk-dashboard .iconbtn.active { background: var(--panel-soft); color: var(--ink); border-color: var(--line); }
 .wk-dashboard .iconbtn svg { width: 16px; height: 16px; }
 .wk-dashboard .iconbtn:focus-visible { outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, var(--ui-panel)); outline-offset: 2px; }
@@ -236,14 +242,18 @@
   white-space: nowrap;
   transition: background .12s ease, border-color .12s ease, color .12s ease;
 }
-.wk-dashboard .tbtn:hover { background: var(--panel-soft); border-color: var(--line-strong); }
+@media (hover: hover) {
+  .wk-dashboard .tbtn:hover { background: var(--panel-soft); border-color: var(--line-strong); }
+}
 .wk-dashboard .tbtn svg { width: 14px; height: 14px; }
 /* A tbtn that is a toggle rather than an action, matching .pbtn.on. Without
    this, aria-pressed was the only trace of the engine being on -- true for a
    screen reader and invisible to everyone else. */
 .wk-dashboard .tbtn.on { color: var(--ink); border-color: var(--ink); background: var(--panel-soft); font-weight: 600; }
 .wk-dashboard .tbtn.primary { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
-.wk-dashboard .tbtn.primary:hover { background: var(--ink-strong); }
+@media (hover: hover) {
+  .wk-dashboard .tbtn.primary:hover { background: var(--ink-strong); }
+}
 .wk-dashboard .tbtn:focus-visible { outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, var(--ui-panel)); outline-offset: 2px; }
 .wk-dashboard .tbtn:disabled { opacity: .45; cursor: not-allowed; }
 
@@ -276,7 +286,9 @@
   white-space: nowrap;
   transition: background .12s ease, border-color .12s ease;
 }
-.wk-dashboard .engine-pill:hover { background: var(--panel-soft); }
+@media (hover: hover) {
+  .wk-dashboard .engine-pill:hover { background: var(--panel-soft); }
+}
 .wk-dashboard .engine-pill .dot {
   width: 8px; height: 8px; border-radius: 50%; flex: none;
   background: var(--green);
@@ -759,7 +771,9 @@
   font-size: 11.5px; font-weight: 600; color: var(--muted);
   transition: all .12s ease;
 }
-.wk-dashboard .board-chip:hover:not(:disabled) { color: var(--ink); }
+@media (hover: hover) {
+  .wk-dashboard .board-chip:hover:not(:disabled) { color: var(--ink); }
+}
 .wk-dashboard .board-chip.on { color: var(--ink); border-color: var(--ink); background: var(--panel); }
 .wk-dashboard .board-chip:disabled { opacity: .45; cursor: not-allowed; }
 .wk-dashboard .board-chip svg { width: 13px; height: 13px; }
@@ -811,7 +825,9 @@
   background: transparent; color: var(--muted);
   transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
-.wk-dashboard .navbtn:hover { background: var(--panel-soft); color: var(--ink); }
+@media (hover: hover) {
+  .wk-dashboard .navbtn:hover { background: var(--panel-soft); color: var(--ink); }
+}
 .wk-dashboard .navbtn svg { width: 15px; height: 15px; }
 /* Direction + dot pairs (previous/next mistake) need a wider hit area, and
    the chevron keeps its own width/height attributes so it reads as a modifier
@@ -823,7 +839,9 @@
    actions like Resign. */
 .wk-dashboard .mistake-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--eval-mistake); flex: none; }
 .wk-dashboard .navbtn.danger { color: var(--red); }
-.wk-dashboard .navbtn.danger:hover { background: var(--red-bg); }
+@media (hover: hover) {
+  .wk-dashboard .navbtn.danger:hover { background: var(--red-bg); }
+}
 .wk-dashboard .navbtn:disabled { opacity: .35; cursor: not-allowed; }
 .wk-dashboard .navbtn:focus-visible { outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, var(--ui-panel)); outline-offset: 1px; }
 
@@ -833,7 +851,9 @@
   background: var(--panel); color: var(--ink-soft); font-weight: 600; font-size: 13px;
   transition: background .12s ease;
 }
-.wk-dashboard .pass-btn:hover { background: var(--panel-soft); }
+@media (hover: hover) {
+  .wk-dashboard .pass-btn:hover { background: var(--panel-soft); }
+}
 
 .wk-dashboard .move-counter {
   display: inline-flex; align-items: center; gap: 6px;
@@ -852,7 +872,9 @@
   font-family: var(--mono); font-size: 12.5px; color: var(--ink); text-align: right; font-weight: 600;
 }
 .wk-dashboard .move-counter:focus-within { border-color: var(--ui-accent); }
-.wk-dashboard .move-counter input:hover { border-bottom-color: var(--ink-soft); }
+@media (hover: hover) {
+  .wk-dashboard .move-counter input:hover { border-bottom-color: var(--ink-soft); }
+}
 .wk-dashboard .move-counter input:focus { border-bottom-style: solid; border-bottom-color: var(--ui-accent); }
 .wk-dashboard .move-counter input::-webkit-outer-spin-button,
 .wk-dashboard .move-counter input::-webkit-inner-spin-button {
@@ -1008,7 +1030,9 @@
   font-size: 13px; font-weight: 600; color: var(--faint);
   transition: color .12s ease;
 }
-.wk-dashboard .mode-tab:hover { color: var(--ink-soft); }
+@media (hover: hover) {
+  .wk-dashboard .mode-tab:hover { color: var(--ink-soft); }
+}
 .wk-dashboard .mode-tab.active { color: var(--ink); border-bottom-color: var(--ui-accent); }
 
 .wk-dashboard .sidebar-scroll { flex: 1; overflow-y: auto; min-height: 0; }
@@ -1027,7 +1051,9 @@
   background: transparent; border: none;
   transition: background .12s ease;
 }
-.wk-dashboard .section-head-toggle:hover { background: var(--panel-soft); }
+@media (hover: hover) {
+  .wk-dashboard .section-head-toggle:hover { background: var(--panel-soft); }
+}
 .wk-dashboard .section-head .chev { color: var(--faint); transition: transform .15s ease; display: inline-flex; }
 .wk-dashboard .section.open .section-head .chev { transform: rotate(90deg); }
 .wk-dashboard .section-head .stitle { flex: 1; text-align: left; }
@@ -1050,11 +1076,15 @@
   font-size: 11.5px; font-weight: 500; white-space: nowrap;
   transition: all .12s ease;
 }
-.wk-dashboard .pbtn:hover { color: var(--ink); background: var(--panel-soft); }
+@media (hover: hover) {
+  .wk-dashboard .pbtn:hover { color: var(--ink); background: var(--panel-soft); }
+}
 .wk-dashboard .pbtn.on { color: var(--ink); border-color: var(--ink); background: var(--panel); }
 .wk-dashboard .pbtn svg { width: 12px; height: 12px; }
 .wk-dashboard .pbtn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--panel)); }
-.wk-dashboard .pbtn.danger:hover { background: var(--red-bg); }
+@media (hover: hover) {
+  .wk-dashboard .pbtn.danger:hover { background: var(--red-bg); }
+}
 .wk-dashboard .pbtn:disabled { opacity: .4; cursor: not-allowed; }
 .wk-dashboard .pico {
   width: 28px; height: 28px; padding: 0; justify-content: center;
@@ -1082,7 +1112,9 @@
   border-bottom: 1px solid var(--line-faint);
   transition: background .12s ease;
 }
-.wk-dashboard .tl-item:hover { background: var(--panel-soft); }
+@media (hover: hover) {
+  .wk-dashboard .tl-item:hover { background: var(--panel-soft); }
+}
 .wk-dashboard .tl-item.current { background: var(--panel-soft); box-shadow: inset 2px 0 0 var(--ink); }
 .wk-dashboard .tl-num { width: 26px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
 .wk-dashboard .tl-chip { font-family: var(--mono); font-size: 10px; padding: 1px 5px; border-radius: var(--r-xs); }
@@ -1101,7 +1133,9 @@
    already used; section heads (40px) and the mode tabs (43px) stay their own
    tier. Same reasoning as the More Controls sheet's one-rhythm fix. */
 .wk-dashboard .graph-legend .lg { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; white-space: nowrap; background: transparent; border: 1px solid transparent; border-radius: var(--r-xs); cursor: pointer; padding: 0 5px; color: inherit; font-size: inherit; }
-.wk-dashboard .graph-legend .lg:hover { background: var(--panel-soft); color: var(--ink-soft); }
+@media (hover: hover) {
+  .wk-dashboard .graph-legend .lg:hover { background: var(--panel-soft); color: var(--ink-soft); }
+}
 .wk-dashboard .graph-legend .lg.on { background: var(--panel-soft); border-color: var(--line); color: var(--ink); }
 .wk-dashboard .graph-legend .lg-check { display: inline-flex; opacity: 0; color: var(--ink); }
 .wk-dashboard .graph-legend .lg.on .lg-check { opacity: 1; }
@@ -1208,7 +1242,9 @@
   text-decoration: none;
   transition: background .12s ease;
 }
-.wk-dashboard .menu-item:hover { background: var(--panel-soft); }
+@media (hover: hover) {
+  .wk-dashboard .menu-item:hover { background: var(--panel-soft); }
+}
 .wk-dashboard .menu-item svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
 .wk-dashboard .menu-item .mi-label { flex: 1; }
 .wk-dashboard .menu-item .mi-kbd { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
@@ -1228,7 +1264,9 @@
   font-size: 10.5px;
   text-decoration: none;
 }
-.wk-dashboard .menu-build:hover { background: var(--panel-soft); color: var(--ink); }
+@media (hover: hover) {
+  .wk-dashboard .menu-build:hover { background: var(--panel-soft); color: var(--ink); }
+}
 .wk-dashboard .menu-build svg { flex: none; width: 12px; height: 12px; color: currentColor; }
 .wk-dashboard .menu-build-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -1245,7 +1283,9 @@
   text-align: left; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-sm);
   background: var(--panel); transition: all .12s ease;
 }
-.wk-dashboard .depth-preset:hover { background: var(--panel-soft); }
+@media (hover: hover) {
+  .wk-dashboard .depth-preset:hover { background: var(--panel-soft); }
+}
 .wk-dashboard .depth-preset.on { border-color: var(--ink); }
 .wk-dashboard .depth-preset:disabled { cursor: not-allowed; opacity: .45; }
 .wk-dashboard .depth-preset .dp-v { display: block; font-family: var(--mono); font-weight: 600; font-size: 13px; }
@@ -1265,7 +1305,9 @@
   display: flex; align-items: center; justify-content: center;
   color: var(--muted); box-shadow: var(--shadow-card);
 }
-.wk-dashboard .edge-toggle:hover { color: var(--ink); }
+@media (hover: hover) {
+  .wk-dashboard .edge-toggle:hover { color: var(--ink); }
+}
 .wk-dashboard .edge-toggle svg { width: 13px; height: 13px; }
 .wk-dashboard .edge-toggle.left { left: 0; border-left: none; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .wk-dashboard .edge-toggle.right { right: 0; border-right: none; border-radius: var(--r-sm) 0 0 var(--r-sm); }
@@ -1307,7 +1349,9 @@
   transform: none;
   white-space: nowrap;
 }
-.wk-dashboard .edge-toggle:hover .edge-toggle-label { color: var(--ink-soft); }
+@media (hover: hover) {
+  .wk-dashboard .edge-toggle:hover .edge-toggle-label { color: var(--ink-soft); }
+}
 .wk-dashboard .edge-toggle.top,
 .wk-dashboard .edge-toggle.bottom {
   left: 50%; transform: translateX(-50%);
