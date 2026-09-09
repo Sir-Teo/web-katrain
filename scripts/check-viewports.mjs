@@ -1201,8 +1201,17 @@ async function main() {
          * its own box, and the target was well over 44px.
          */
         const auditDialogSpill = (scope) => {
+          // Regions that run off the side on purpose, named one at a time.
+          // There is no general scrollable-ancestor rule below because both
+          // ways of writing one let a real bug through, so a deliberate
+          // sideways scroller is exempted here by name and has to earn it: this
+          // row is flex-nowrap with overflow-x-auto under lg and flex-wrap
+          // above it, which is a chip rail the reader swipes, not content that
+          // escaped its box.
+          const sidewaysScrollers = '.pro-games-featured';
           const out = [];
           for (const el of scope.querySelectorAll('*')) {
+            if (el.closest(sidewaysScrollers)) continue;
             // sr-only clips rather than hides, and is parked off-screen on purpose.
             if (el.classList.contains('sr-only')) continue;
             const r = el.getBoundingClientRect();
@@ -3221,6 +3230,37 @@ async function main() {
             dispatchShortcut('F2');
             await waitForFrames(2);
           },
+        });
+        // Most of the app's dialogs have no shortcut of their own, which is why
+        // this list stayed at ten of twenty-nine. The palette is how a user
+        // reaches them, and it is smoke-tested just above, so it opens them
+        // here too. A missing command simply opens nothing, which smokeModal
+        // already reports as "did not open".
+        const openViaPalette = (commandId) => async () => {
+          dispatchShortcut('k', { ctrlKey: true });
+          await waitForFrames(2);
+          document.querySelector('[data-command-palette-item="' + commandId + '"]')?.click();
+          await waitForFrames(2);
+        };
+        // Three read-only dialogs: they render, they do not touch the game, and
+        // a smoke pass leaves the board exactly as it found it.
+        await smokeModal({
+          name: 'about',
+          selector: '[aria-labelledby="about-title"]',
+          closeLabel: 'Close about dialog',
+          open: openViaPalette('about'),
+        });
+        await smokeModal({
+          name: 'lessons',
+          selector: '[aria-labelledby="lessons-title"]',
+          closeLabel: 'Close lessons',
+          open: openViaPalette('lessons'),
+        });
+        await smokeModal({
+          name: 'pro games',
+          selector: '[aria-labelledby="pro-games-title"]',
+          closeLabel: 'Close pro game library',
+          open: openViaPalette('pro-games'),
         });
         await smokeModal({
           name: 'paste SGF',

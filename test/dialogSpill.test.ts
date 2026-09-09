@@ -62,4 +62,17 @@ describe('the sweep looks for dialog content painting off-screen', () => {
   it('skips what is off-screen on purpose', () => {
     expect(sweep).toContain("if (el.classList.contains('sr-only')) continue;");
   });
+
+  it('exempts a deliberate sideways scroller by name, not by rule', () => {
+    // The pro-games featured rail is flex-nowrap with overflow-x-auto under lg,
+    // so its chips run past the edge on purpose. That is a named exemption of
+    // one region -- not a general "an ancestor scrolls" rule, which is the
+    // thing that let the real bug through.
+    const start = sweep.indexOf('const auditDialogSpill = (scope) => {');
+    const body = sweep.slice(start, sweep.indexOf('\n        };', start));
+    expect(body).toContain("const sidewaysScrollers = '.pro-games-featured';");
+    expect(body).toContain('if (el.closest(sidewaysScrollers)) continue;');
+    // Named regions only: no computed-overflow test may creep back in.
+    expect(body).not.toContain('overflowX');
+  });
 });

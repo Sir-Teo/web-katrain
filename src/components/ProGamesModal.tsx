@@ -122,7 +122,14 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                       onClick={() => setSelectedId(g.id)}
                       aria-pressed={selected?.id === g.id}
                       className={[
-                        'min-h-11 shrink-0 rounded-full border px-2 py-0.5 text-[0.6875rem] transition-colors desktop-shell:min-h-0',
+                        // min-h-11 is the touch floor; desktop-shell drops it
+                        // because a mouse does not need 44px. It dropped it to
+                        // nothing, though, and this chip is the one place where
+                        // that bites: py-0.5 around 11px text is 23px, a pixel
+                        // under the 24px of WCAG 2.2 SC 2.5.8. min-h-6 is that
+                        // floor exactly, and every other chip in the app already
+                        // clears it on its own padding.
+                        'min-h-11 shrink-0 rounded-full border px-2 py-0.5 text-[0.6875rem] transition-colors desktop-shell:min-h-6',
                         selected?.id === g.id
                           ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] text-[var(--ui-text)]'
                           : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
