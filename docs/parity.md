@@ -27,15 +27,27 @@ location; `typecheck` alone would miss it.
 | --- | --- | --- | --- |
 | typecheck / lint / unit tests | yes | via `verify` | yes |
 | `audit` | no | yes | yes |
-| browser suite (`test:viewport`) | no | **yes** | no |
+| browser suite (`test:viewport`) | no | **no -- see below** | no |
 
-The last row used to read "no" for the deploy *and* for `ci.yml`, because
-`ci.yml` was pull-request-only -- so nothing browser-level ever ran against
-`main`. `ci.yml` now also runs on pushes to `main`, which closes that.
+That last row read **yes** for `ci.yml` while the step in `ci.yml` was
+commented out, which is the drift this page exists to catch. The step is
+written and ready; it does not run because on a runner, at 768x1024, input
+stops reaching the app and the sweep fails there. `ci.yml` carries the full
+account -- four attempts, three causes found and fixed, one still undiagnosed
+-- and it says plainly that this is a real gap and not a decision to be
+comfortable with. Run it locally before landing anything that moves layout:
 
-The browser suite still does not run **in the deploy**, and that is deliberate:
-`ci.yml` publishes nothing, so if a browser test goes flaky it turns CI red
-without stopping the site from shipping.
+```bash
+npm run test:viewport                          # about a minute
+VIEWPORT_CPU_THROTTLE=6 npm run test:viewport  # closer to a runner
+```
+
+`ci.yml` does now run on pushes to `main` as well as on pull requests, which is
+what the row above it records; that part of the earlier fix stands.
+
+Wiring it into the **deploy** would be wrong even once it is green: `ci.yml`
+publishes nothing, so a flaky browser test there turns CI red without stopping
+the site from shipping.
 
 ## How the three compare
 
@@ -48,7 +60,7 @@ and says which side of that line each item falls on.
 | --- | --- | --- | --- |
 | `verify` steps | typecheck, lint, test, build | typecheck, test:typecheck, lint, test, build | typecheck, lint, test, openings, library, smoke, parity, build:react |
 | Browser suite | `test:ui:browser` (Playwright) | `test:viewport` (raw CDP, no dependency) | `test:ui:layout` (Playwright) |
-| Where the browser suite runs | `ci.yml` (PRs + main) | `ci.yml` (PRs + main) | `ci.yml` (PRs + main) |
+| Where the browser suite runs | `ci.yml` (PRs + main) | **local only** -- the `ci.yml` step is commented out | `ci.yml` (PRs + main) |
 | Node in CI / deploy | 20 / 20 | 24 / 24 | 20 / 20 |
 | Deploy gates | audit, lint, test, build | audit, lint, test:typecheck, test, build | audit, build (WASM), verify |
 | Hostile-input sweep | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` |
