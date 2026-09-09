@@ -294,7 +294,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           height: auto !important;
           overflow: visible !important;
           background: #ffffff !important;
-          font-family: 'Source Serif 4', 'Times New Roman', serif !important;
+          /* No 'Source Serif 4' ahead of these: this app ships no web font and
+             loads none -- there is a test holding it to that -- so naming one
+             only described a fallback as a choice. Times is what prints. */
+          font-family: 'Times New Roman', Times, serif !important;
         }
         .report-print .report-scroll {
           overflow: visible !important;
@@ -312,6 +315,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         .report-print .print-muted {
           color: #475569 !important;
         }
+        /* The repeating rows on the cover page -- each critical swing, each
+           recovery -- are single bordered lines, and a page boundary through
+           one of them splits a move number from its numbers. This rule was
+           written for them and reached nothing: the class had one occurrence
+           in the file, its own definition. */
         .report-print .print-break-avoid {
           break-inside: avoid !important;
           page-break-inside: avoid !important;
@@ -2062,7 +2070,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     {turningPoints.map((entry) => (
                       <div
                         key={`${entry.node.id}-pdf-swing-${entry.moveNumber}`}
-                        className="flex items-center justify-between gap-4 rounded border border-slate-300 px-3 py-2"
+                        className="print-break-avoid flex items-center justify-between gap-4 rounded border border-slate-300 px-3 py-2"
                       >
                         <div>
                           <span className="font-semibold text-slate-900">Move {entry.moveNumber}</span>
@@ -2090,7 +2098,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                     {recoveries.map((entry) => (
                       <div
                         key={`${entry.node.id}-pdf-recovery-${entry.moveNumber}`}
-                        className="flex items-center justify-between gap-4 rounded border border-slate-300 px-3 py-2"
+                        className="print-break-avoid flex items-center justify-between gap-4 rounded border border-slate-300 px-3 py-2"
                       >
                         <div>
                           <span className="font-semibold text-slate-900">Move {entry.moveNumber}</span>
