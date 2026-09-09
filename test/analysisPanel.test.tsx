@@ -53,7 +53,9 @@ describe('AnalysisPanel', () => {
     expect(html).toContain('title="Hide territory ownership"');
     expect(html).not.toContain('aria-label="Hide child move markers"');
     expect(html).toContain('aria-label="Show analysis legend"');
-    expect(html).toContain('aria-label="Open analysis options"');
+    // The name leads with the tooltip the icon shows, so saying what is on
+    // screen reaches the button.
+    expect(html).toContain('aria-label="Re-analyze, open analysis options"');
     expect(html).toContain('aria-label="Open game report"');
     expect(html).toContain('data-analysis-panel-fast-review-state="ready"');
     expect(html).toContain('data-engine-reason="true"');

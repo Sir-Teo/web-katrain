@@ -531,7 +531,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         <div className="header-divider" />
         <div className="iconcluster" id="wk-file-actions">
           <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" /></button>
-          <button type="button" className="iconbtn" title="Open SGF / photo / weights" aria-label="Load SGF, board photo, or model weights" onClick={onLoadSgf}><Icon name="folder" /></button>
+          <button type="button" className="iconbtn" title="Open SGF / photo / weights" aria-label="Open SGF, board photo, or model weights" onClick={onLoadSgf}><Icon name="folder" /></button>
           <button type="button" className="iconbtn" title="Save SGF" aria-label="Save SGF" onClick={onSaveSgf}><Icon name="save" /></button>
           <button
             type="button"

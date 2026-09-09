@@ -65,7 +65,8 @@ describe('MobileHome', () => {
     expect(html).toContain('aria-modal="true"');
     expect(html).toContain('aria-labelledby="mobile-home-title"');
     expect(html).toContain('data-mobile-home="true"');
-    expect(html).toContain('aria-label="Open board"');
+    // Matches the tooltip on the same icon-only button.
+    expect(html).toContain('aria-label="Return to board"');
   });
 
   it('keeps saving and SGF copying reachable from the mobile home launcher', () => {

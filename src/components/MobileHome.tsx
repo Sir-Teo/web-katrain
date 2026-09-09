@@ -255,7 +255,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                 ref={closeButtonRef}
                 className="ui-control grid place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                 onClick={onClose}
-                aria-label="Open board"
+                aria-label="Return to board"
                 title="Return to board"
               >
                 <FaTimes aria-hidden="true" />

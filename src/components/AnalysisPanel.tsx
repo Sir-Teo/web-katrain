@@ -721,7 +721,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               className="panel-icon-button"
               onClick={onOpenGameAnalysis}
               title="Re-analyze…"
-              aria-label="Open analysis options"
+              aria-label="Re-analyze, open analysis options"
             >
               <FaRedoAlt size={12} />
             </button>
