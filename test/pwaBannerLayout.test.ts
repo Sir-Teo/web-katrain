@@ -24,6 +24,32 @@ describe('the reserve follows the card, not the rule that hid it', () => {
   });
 });
 
+describe('the install promos yield on a screen with no height to spare', () => {
+  it('steps aside below the height that makes this the desktop shell', () => {
+    // The card is fixed, but the board reserves its height so it is never
+    // covered -- which on a landscape phone is a 66px band out of 390px of
+    // screen. Measured: the board is 203px with the card and 263px without.
+    const start = css.indexOf('  @media (max-height: 499px) {\n    :root[data-pwa-banner=');
+    expect(start).toBeGreaterThan(-1);
+    const block = css.slice(start, css.indexOf('\n  }\n', css.indexOf('display: none;', start)));
+    expect(block).toContain("  :root[data-pwa-banner='install'] .pwa-install-banner,");
+    expect(block).toContain("  :root[data-pwa-banner='ios-install'] .pwa-install-banner {");
+    expect(block).toContain('display: none;');
+  });
+
+  it('leaves the two that report something rather than ask for something', () => {
+    // offline-ready and update-ready say what happened; only the promos yield.
+    const start = css.indexOf('  @media (max-height: 499px) {\n    :root[data-pwa-banner=');
+    const block = css.slice(start, css.indexOf('\n  }\n', css.indexOf('display: none;', start)));
+    expect(block).not.toContain('offline-ready');
+    expect(block).not.toContain('update-ready');
+  });
+
+  it('uses the same height bound as the rest of the shell rules', () => {
+    expect(css).toContain('@media (max-width: 1023px), (max-height: 499px)');
+  });
+});
+
 describe('desktop PWA banner layout', () => {
   it('moves clear of the open analysis panel using the panel width token', () => {
     expect(css).toContain(":root:has(.wk-dashboard[data-sidebar='open']) .pwa-install-banner");

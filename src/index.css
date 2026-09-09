@@ -4548,6 +4548,23 @@
     display: none;
   }
 
+  /* And they step aside on a screen too short to spare the room. The card is
+     fixed, but the board reserves its height so it is never covered -- which on
+     a landscape phone means a 66px band out of 390px of screen, and a board
+     measured at 203px where it is 250px without. A quarter of the board is too
+     much to ask for an invitation that will be waiting in portrait, where the
+     same phone has the height for it.
+
+     499px is the height below which this app is not the desktop shell, the same
+     bound the rules above key on. `offline-ready` and `update-ready` still show
+     for the reason given above: they report something that happened. */
+  @media (max-height: 499px) {
+    :root[data-pwa-banner='install'] .pwa-install-banner,
+    :root[data-pwa-banner='ios-install'] .pwa-install-banner {
+      display: none;
+    }
+  }
+
   @media (max-width: 640px) {
     .pwa-install-banner {
       grid-template-columns: auto minmax(0, 1fr);
