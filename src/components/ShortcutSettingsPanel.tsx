@@ -349,7 +349,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] not-disabled:hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={() => handleDisable(shortcut.id)}
                       disabled={isDisabled}
                       title={isDisabled ? 'Shortcut is already disabled' : `Disable ${shortcut.label}`}
@@ -358,7 +358,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] not-disabled:hover:text-[var(--ui-text)] disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={() => handleReset(shortcut.id)}
                       disabled={!isCustom}
                       title={isCustom ? `Reset ${shortcut.label}` : 'Shortcut is already using the default'}

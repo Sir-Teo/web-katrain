@@ -409,8 +409,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
         type="button"
         className={[
           compact
-            ? 'inline-flex min-w-0 items-center gap-0.5 rounded px-1 font-mono hover:bg-[var(--ui-surface-2)] disabled:opacity-50'
-            : 'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-left hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50',
+            ? 'inline-flex min-w-0 items-center gap-0.5 rounded px-1 font-mono not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50'
+            : 'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-left not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50',
         ].join(' ')}
         title={branchTitle}
         aria-label={branchTitle}
@@ -541,7 +541,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             ) : (
               <button
                 type="button"
-                className="mobile-bottom-move-button inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 font-mono text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:opacity-50"
+                className="mobile-bottom-move-button inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 font-mono text-[var(--ui-text-muted)] not-disabled:hover:bg-[var(--ui-surface-2)] not-disabled:hover:text-[var(--ui-text)] disabled:opacity-50"
                 title="Set move number"
                 aria-label={`Move ${currentMoveNumber} of ${totalMovesInCurrentLine}. Tap to jump to a move.`}
                 onClick={openMoveNumberEditor}
@@ -1072,7 +1072,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           ) : (
             <button
               type="button"
-              className="inline-flex min-h-11 items-center gap-1 rounded px-2 text-left hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1 rounded px-2 text-left not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
               title="Set move number"
               onClick={openMoveNumberEditor}
               disabled={isInsertMode}
@@ -1091,7 +1091,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           >
             <button
               type="button"
-              className="ui-control flex items-center justify-center rounded hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="ui-control flex items-center justify-center rounded not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
               title={withShortcut('Previous branch', 'branch-prev')}
               aria-label={withShortcut('Previous branch', 'branch-prev')}
               onClick={() => switchBranch(-1)}
@@ -1102,7 +1102,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
             {renderBranchIndexButton(false)}
             <button
               type="button"
-              className="ui-control flex items-center justify-center rounded hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="ui-control flex items-center justify-center rounded not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
               title={withShortcut('Next branch', 'branch-next')}
               aria-label={withShortcut('Next branch', 'branch-next')}
               onClick={() => switchBranch(1)}

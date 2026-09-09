@@ -275,7 +275,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
                 onClick={handleNext}
                 disabled={isLast}
                 aria-label={isLast ? 'End of game' : 'Next move'}
-                className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
+                className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
                 data-guess-move-next="true"
               >
                 <span className="inline-flex items-center gap-2">

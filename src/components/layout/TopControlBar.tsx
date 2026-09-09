@@ -567,7 +567,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     </div>
   );
 
-  const mobileToolsGridBtn = "mobile-tools-action flex min-h-12 min-w-0 items-center gap-2 bg-[var(--ui-panel)] px-3 py-2 hover:bg-[var(--ui-surface-2)] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[var(--ui-panel)]";
+  const mobileToolsGridBtn = "mobile-tools-action flex min-h-12 min-w-0 items-center gap-2 bg-[var(--ui-panel)] px-3 py-2 not-disabled:hover:bg-[var(--ui-surface-2)] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40";
   const mobileToolsActionGrid = "grid grid-cols-2";
   const mobileToolsSectionLabel = "px-4 py-2 text-xs font-semibold text-[var(--ui-text-muted)] uppercase tracking-wider";
   const mobileToolsMenu = (

@@ -2436,7 +2436,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                             <>
                                                                                 <button
                                                                                     type="button"
-                                                                                    className="px-2 py-1 text-xs rounded ui-accent-soft border hover:brightness-110 disabled:opacity-60"
+                                                                                    className="px-2 py-1 text-xs rounded ui-accent-soft border not-disabled:hover:brightness-110 disabled:opacity-60"
                                                                                     onClick={() => handleDownloadAndLoad(model.url)}
                                                                                     disabled={isDownloadingModel}
                                                                                     aria-label={

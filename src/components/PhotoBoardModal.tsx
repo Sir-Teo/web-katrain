@@ -603,7 +603,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
   ].join(' ');
   const traceTransformButtonClass = [
-    'min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] transition-colors hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--ui-surface)] disabled:hover:text-[var(--ui-text-muted)]',
+    'min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-xs font-semibold text-[var(--ui-text-muted)] transition-colors not-disabled:hover:bg-[var(--ui-surface-2)] not-disabled:hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50',
   ].join(' ');
   const deltaMarkerClass = (type: PhotoBoardDeltaStone['type']) => [
     'pointer-events-none absolute z-20 grid h-4 w-4 place-items-center rounded-full border text-[0.5625rem] font-black leading-none shadow',
@@ -684,7 +684,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--ui-surface)]"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={openCameraSource}
                 disabled={cameraUnavailable}
                 aria-label={cameraUnavailable ? 'No camera detected for board photo' : 'Take board photo with camera'}
@@ -970,7 +970,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!photoUrl || isAutoTracing}
                 onClick={() => void autoTracePhoto()}
                 title={photoUrl ? 'Auto trace stones from an aligned board photo' : 'Choose a board photo before auto tracing'}
@@ -982,7 +982,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               </button>
               <button
                 type="button"
-                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!photoUrl || !photoNatural}
                 onClick={resetCorners}
                 title="Put the four board corners back where they started"
@@ -992,7 +992,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               </button>
               <button
                 type="button"
-                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!canUseCurrentBoard}
                 onClick={useCurrentBoard}
                 title={
@@ -1457,7 +1457,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
         >
           <button
             type="button"
-            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text-muted)] not-disabled:hover:bg-[var(--ui-surface-2)] not-disabled:hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!canClearBoard}
             onClick={clearBoard}
             title={clearBoardTitle}
@@ -1476,7 +1476,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             {onPlayMove && (
               <button
                 type="button"
-                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!playMoveDelta}
                 onClick={playMove}
                 title={
@@ -1493,7 +1493,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             {onAddSetupStones && (
               <button
                 type="button"
-                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!canAddToCurrent}
                 onClick={addToCurrent}
                 title={addToCurrentTitle}

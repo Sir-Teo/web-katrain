@@ -229,7 +229,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
             disabled={quizPositions.length === 0}
             aria-label="Random position"
             title={quizPositions.length === 0 ? 'This game has no positions to jump to yet' : 'Jump to another position in this game'}
-            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-2">
               <FaDice aria-hidden="true" />
@@ -251,7 +251,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
               onClick={() => void handleReveal()}
               disabled={phase === 'evaluating'}
               aria-label={phase === 'evaluating' ? 'Evaluating score' : 'Reveal score'}
-              className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
+              className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
             >
               <span className="inline-flex items-center gap-2">
                 <FaCheck aria-hidden="true" />

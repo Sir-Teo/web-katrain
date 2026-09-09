@@ -71,7 +71,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] disabled:cursor-wait disabled:opacity-50"
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] not-disabled:hover:bg-[var(--ui-surface-2)] not-disabled:hover:text-[var(--ui-text)] disabled:cursor-wait disabled:opacity-50"
             aria-label="Close save to Library"
           >
             <FaTimes aria-hidden="true" />
@@ -127,7 +127,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
         <div className="ui-bar flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
             type="button"
-            className="min-h-11 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-4 text-sm font-semibold text-[var(--ui-text)] hover:brightness-110 disabled:cursor-wait disabled:opacity-50"
+            className="min-h-11 rounded border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-4 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:brightness-110 disabled:cursor-wait disabled:opacity-50"
             onClick={onClose}
             disabled={saving}
           >
@@ -135,7 +135,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
           </button>
           <button
             type="button"
-            className="min-h-11 rounded px-4 text-sm font-semibold ui-accent-bg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded px-4 text-sm font-semibold ui-accent-bg not-disabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => void submit()}
             disabled={!trimmedName || saving}
           >

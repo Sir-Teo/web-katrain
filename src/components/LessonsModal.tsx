@@ -167,7 +167,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
               type="button"
               disabled={!canAdvance}
               onClick={() => (isLastStep ? setActiveId(null) : setStepIndex((i) => i + 1))}
-              className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+              className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
             >
               <span className="inline-flex items-center gap-2">
                 {isLastStep ? 'Finish' : 'Next'} <FaChevronRight aria-hidden="true" />

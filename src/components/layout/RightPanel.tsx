@@ -612,7 +612,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       ) : (
                         <button
                           type="button"
-                          className="min-w-[4.75rem] rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-left text-[0.625rem] leading-none text-[var(--ui-text-muted)] hover:border-[var(--ui-border-strong)] hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="min-w-[4.75rem] rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-left text-[0.625rem] leading-none text-[var(--ui-text-muted)] not-disabled:hover:border-[var(--ui-border-strong)] not-disabled:hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
                           title={
                             branchInfo.isAtFork
                               ? 'Set branch number'

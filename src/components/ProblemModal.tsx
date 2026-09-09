@@ -246,7 +246,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
                       type="button"
                       onClick={() => goToProblem(safeIndex - 1)}
                       disabled={safeIndex === 0}
-                      className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+                      className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
                       aria-label="Previous problem"
                     >
                       <FaArrowLeft aria-hidden="true" />
@@ -255,7 +255,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
                       type="button"
                       onClick={() => goToProblem(safeIndex + 1)}
                       disabled={safeIndex >= problems.length - 1}
-                      className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+                      className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
                       aria-label="Next problem"
                     >
                       <FaArrowRight aria-hidden="true" />

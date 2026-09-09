@@ -2172,7 +2172,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <button
                 type="button"
                 onClick={handlePrintReport}
-                className="min-h-11 px-4 py-2 bg-[var(--ui-surface-2)] hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
+                className="min-h-11 px-4 py-2 bg-[var(--ui-surface-2)] not-disabled:hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
                 disabled={isPreparingPdf}
               >
                 {isPreparingPdf
