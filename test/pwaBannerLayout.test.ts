@@ -127,3 +127,36 @@ describe('desktop PWA banner layout', () => {
     expect(before.slice(media, media + 60)).toContain('max-width: 1023px');
   });
 });
+
+describe('the card lets its own explanation be read', () => {
+  it('wraps the detail line instead of cutting it', () => {
+    // Measured at 1440x900 and 1024x800 against the built stylesheet: the line
+    // had 224px to itself and the sentence needed 432px, so 208px of it was
+    // cut -- "...and the bundled small model are ca". Four of the five strings
+    // lost about half, including the two that only work if they are read: the
+    // iOS "Tap Share, then Add to Home Screen" instructions, and the advice
+    // after a blocked install prompt.
+    const start = css.indexOf('  .pwa-install-detail {');
+    expect(start).toBeGreaterThan(-1);
+    const rule = css.slice(start, css.indexOf('}', start));
+
+    expect(rule).not.toContain('white-space: nowrap');
+    expect(rule).not.toContain('text-overflow: ellipsis');
+  });
+
+  it('says so once rather than per breakpoint', () => {
+    // Viewports under 640px already wrapped, through an override that only
+    // existed to undo the rule above. Two rules describing one behaviour is
+    // how they drift.
+    expect(css).not.toMatch(/\.pwa-install-detail \{\s*white-space: normal;\s*\}/);
+  });
+
+  it('keeps the measured reserve the wrapped card depends on', () => {
+    // The second line costs no height at all -- the card is 66px either way,
+    // sized by its buttons -- but nothing in the CSS guarantees that, so the
+    // card must keep reporting its real height rather than a rule assuming one.
+    expect(banner).toContain('observer.observe(bannerRef.current)');
+    expect(banner).toContain('getBoundingClientRect().height');
+    expect(css).not.toMatch(/\.pwa-install-banner \{[^}]*max-height:/);
+  });
+});

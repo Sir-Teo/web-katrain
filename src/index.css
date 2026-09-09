@@ -4563,14 +4563,21 @@
     line-height: 1.1;
   }
 
+  /* This line is the whole point of the card, and one line of a 420px card
+     leaves it 224px. Measured at 1440x900: 208px of the 432px sentence was cut,
+     so "App shell, board assets, TFJS WASM, and the bundled small model are
+     cached." stopped at "are ca". Four of the five strings lost roughly half,
+     among them the iOS instructions ("Tap Share, then Add to Home Screen…") and
+     the blocked-install advice, which are the two that have to be read to be
+     acted on. Viewports under 640px already wrapped; the card has no
+     max-height, and its height is measured into --pwa-banner-height by a
+     ResizeObserver, so the board's reserve follows a two-line card on its own. */
   .pwa-install-detail {
     margin-top: 2px;
     overflow: hidden;
     color: var(--ui-text-muted);
     font-size: 11px;
     line-height: 1.25;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .pwa-install-actions {
@@ -4692,10 +4699,6 @@
     .pwa-install-primary,
     .pwa-install-secondary {
       min-height: 44px;
-    }
-
-    .pwa-install-detail {
-      white-space: normal;
     }
   }
 
