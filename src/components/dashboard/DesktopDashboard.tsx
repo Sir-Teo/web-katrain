@@ -1233,7 +1233,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onPasteSgf(trigger); }}>
             <Icon name="clipboard" size={14} /><span className="mi-label">Paste SGF / OGS</span>
           </button>
-          <button type="button" className="menu-item" aria-label="Photo Board" onClick={() => { const trigger = popTriggerRef.current; closePop(); onScanBoard(trigger); }}>
+          {/* No aria-label: the visible "Board from photo" is the name, the way
+              the Paste item above it works. The label it used to carry said
+              "Photo Board", so the item answered to a name that is nowhere on
+              screen. */}
+          <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onScanBoard(trigger); }}>
             <Icon name="camera" size={14} /><span className="mi-label">Board from photo</span>
           </button>
         </div>

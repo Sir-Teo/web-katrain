@@ -186,7 +186,7 @@ export const AnalysisStatsActions: React.FC<AnalysisStatsActionsProps> = ({
         className="panel-action-button"
         onClick={onOpenGameAnalysis}
         title="Open analysis options"
-        aria-label="Open analysis options"
+        aria-label="Analyze, open analysis options"
       >
         <FaRedoAlt size={11} aria-hidden="true" />
         <span>Analyze</span>
