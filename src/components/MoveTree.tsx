@@ -593,9 +593,9 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
         {visible.edges.map((l) => (
           <polyline
             key={l.id}
+            className="move-tree-edge"
             points={l.points}
             fill="none"
-            stroke="#9CA3AF"
             strokeWidth="1"
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -614,7 +614,11 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           // filled 'none' does not hit-test its interior, which left the root's
           // whole disc dead and only its 1px ring able to jump back to move 0.
           const fill = isRoot ? 'transparent' : isSetupNode ? '#64748B' : isBlack ? '#0B0B0B' : '#F9FAFB';
-          const stroke = isRoot ? '#9CA3AF' : isSetupNode ? '#F9FAFB' : isBlack ? '#F9FAFB' : '#0B0B0B';
+          // The two stone colours are stone colours: a black stone is black on
+          // every theme, and its outline is the white one. The root is not a
+          // stone -- it is a ring marking the start of the game, and drawn in
+          // the same grey as the connectors it sits on, so it follows them.
+          const stroke = isRoot ? 'var(--tree-edge)' : isSetupNode ? '#F9FAFB' : isBlack ? '#F9FAFB' : '#0B0B0B';
           const markers = getMoveTreeNodeMarkers(node, mistakeThreshold);
           const markerRadius = Math.max(2, Math.min(3.25, layout.radius * 0.22));
           const markerGap = markerRadius * 2.35;
@@ -694,14 +698,17 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
                 />
               )}
               {isCurrent && (
-                <circle cx={layoutNode.x} cy={layoutNode.y} r={layout.radius + 7} fill="none" stroke="#FACC15" strokeWidth="2" />
+                <circle className="move-tree-node-ring-current" cx={layoutNode.x} cy={layoutNode.y} r={layout.radius + 7} />
               )}
               <circle
                 cx={layoutNode.x}
                 cy={layoutNode.y}
                 r={layout.radius}
                 fill={fill}
-                stroke={stroke}
+                // Through style, not the attribute: a presentation attribute
+                // takes a colour, not a var(). Nothing styles this circle from
+                // CSS, so the precedence is the same either way.
+                style={{ stroke }}
                 strokeWidth="1"
               >
                 <title>{markerTitle ? `${layoutNode.label} - ${markerTitle}` : layoutNode.label}</title>

@@ -45,6 +45,21 @@
     --ui-warning-soft: #3a2a12;
     --ui-success: #22c55e;
     --ui-success-soft: #17351f;
+    /* Move-tree marks. Three of them were fixed hex values chosen against a
+       dark panel, and measured against this app's four: the connector lines at
+       6.7:1 here and 2.54:1 on the light theme, the current-node ring at 11.1
+       and 1.53, the best-move dot and its halo at 9.4 and 1.81. The ring is the
+       mark that says where you are, and on the light theme it was not there.
+       The three dark themes keep the values they had; the light theme overrides
+       them below with the same hues, darkened until they read.
+
+       The three that were measured and left alone: the auto-undone ring
+       (#EF4444, 3.76 on light), the blunder dot (#dc2626, 4.83) and the setup
+       dot (#a855f7, 3.96) all clear the 3:1 a graphic needs on every theme. */
+    --tree-edge: #9ca3af;
+    --tree-current: #facc15;
+    --tree-best: #22d3ee;
+
     /* KaTrain move-quality eval scale (theme independent, shared with the
        dashboard scale in dashboard.css). */
     --eval-blunder: rgb(114, 33, 107);
@@ -133,6 +148,10 @@
     --ui-warning-soft: #fef3c7;
     --ui-success: #166534;
     --ui-success-soft: #dcfce7;
+    /* Same hues as above, at 4.8, 5.0 and 5.4:1 on this theme's panel. */
+    --tree-edge: #64748b;
+    --tree-current: #b45309;
+    --tree-best: #0e7490;
     color-scheme: light;
   }
 
@@ -2781,7 +2800,7 @@
   }
 
   .move-tree-node-marker.best {
-    fill: #22d3ee;
+    fill: var(--tree-best);
   }
 
   .move-tree-node-marker.setup {
@@ -2804,9 +2823,19 @@
   .move-list-quality-dot.best { background: #22d3ee; }
   .move-list-quality-dot.setup { background: #a855f7; }
 
+  .move-tree-edge {
+    stroke: var(--tree-edge);
+  }
+
+  .move-tree-node-ring-current {
+    fill: none;
+    stroke: var(--tree-current);
+    stroke-width: 2;
+  }
+
   .move-tree-node-halo-best {
     fill: none;
-    stroke: #22d3ee;
+    stroke: var(--tree-best);
     stroke-width: 1.75;
     opacity: 0.9;
   }
