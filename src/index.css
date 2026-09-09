@@ -429,6 +429,31 @@
     font-family: var(--ui-font);
   }
 
+  /* A tap on a touch screen paints the browser's own highlight over whatever
+     was hit: a hard-edged rectangle that ignores every rounded corner in this
+     UI, and that lands on the board's intersections as readily as on a button.
+     Turning it off would leave a phone with no press feedback at all, because
+     Tailwind v4 puts `hover:` behind `(hover: hover)` and the hand-written
+     :hover rules below never fire for a finger either -- so the two halves go
+     together, and the acknowledgement now follows the control's own shape. */
+  :root {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (hover: none) {
+    button:not(:disabled):active,
+    [role='button']:not([aria-disabled='true']):active,
+    [role='tab']:not(:disabled):active,
+    [role='menuitem']:not([aria-disabled='true']):active {
+      /* Opacity rather than the scale() that .panel-icon-button and
+         .status-bar-button use for a mouse: a transform changes the element's
+         box while the finger is still down, and LibraryPanel's
+         openButtonContextMenu positions its menu from a getBoundingClientRect()
+         taken during exactly that press. Fading leaves the geometry alone. */
+      opacity: 0.62;
+    }
+  }
+
   /* Focus ring for accessibility */
   button:focus-visible,
   [role='button']:focus-visible,
