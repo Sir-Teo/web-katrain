@@ -102,6 +102,7 @@ import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery';
 import { PREFERS_DARK_MEDIA_QUERY, getResolvedUiTheme } from '../utils/uiThemes';
 import { syncThemeColorMeta } from '../utils/themeColor';
+import { buildDocumentTitle } from '../utils/documentTitle';
 import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
 import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
 import { saveSettingsActiveTab } from '../utils/settingsTabs';
@@ -3313,6 +3314,28 @@ export const Layout: React.FC = () => {
     },
   });
   const currentGameDirty = hasUnsavedChanges();
+
+  /**
+   * Name the tab after the game in it. Several of these are usually open at
+   * once -- a review, a bot game, a drill -- and every one of them said just
+   * "Web KaTrain". PB/PW are read raw rather than through the Black/White
+   * fallbacks above, so an unnamed game falls back to the app name instead of
+   * labelling every empty board "Black vs White".
+   */
+  const titleFileName = loadedLibraryFileName ?? loadedExternalFile?.name ?? null;
+  const titleBlackName = getRootProp('PB');
+  const titleWhiteName = getRootProp('PW');
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.title = buildDocumentTitle({
+      fileName: titleFileName,
+      blackName: titleBlackName,
+      whiteName: titleWhiteName,
+      dirty: currentGameDirty,
+    });
+    // Read off as strings rather than through getRootProp, which is rebuilt
+    // every render and would re-run this on all of them.
+  }, [currentGameDirty, titleBlackName, titleFileName, titleWhiteName]);
   /**
    * Whether the loaded SGF carries a usable clock. Games played locally have
    * none, so the graph's Time toggle is only offered when it can actually draw
