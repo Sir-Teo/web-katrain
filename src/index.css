@@ -423,6 +423,18 @@
     height: 100%;
   }
 
+  /* The shell is a fixed 100%-height layout that scrolls only on the inside,
+     so an overscroll at its edge has nothing to do but chain out to the
+     browser -- which on Android Chrome is pull-to-refresh, and horizontally is
+     the back gesture. Either one throws away a loaded game and a warmed-up
+     model to reload a PWA that has its own update prompt, and the board reads
+     horizontal drags itself (region select, scrub), so a drag that overshoots
+     the edge was a navigation away. Nothing here wants either. */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   body {
     background: var(--ui-bg);
     color: var(--ui-text);
