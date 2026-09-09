@@ -4,10 +4,12 @@ import './index.css'
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx'
 import App from './App.tsx'
 import { installGlobalErrorHandlers } from './utils/errorReporting.ts'
+import { installNumberInputWheelGuard } from './utils/numberInputWheel.ts'
 import { registerServiceWorker, scheduleVersionMetadataUpdateChecks } from './utils/pwa.ts'
 import { APP_INFO } from './utils/appInfo.ts'
 
 installGlobalErrorHandlers()
+installNumberInputWheelGuard()
 registerServiceWorker()
 if (!import.meta.env.DEV) {
   scheduleVersionMetadataUpdateChecks({
