@@ -2266,6 +2266,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   <input
                     type="search"
                     value={query}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoComplete="off"
+                    spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search library"
                     placeholder="Search library…"

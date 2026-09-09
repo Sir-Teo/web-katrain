@@ -585,6 +585,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                             aria-expanded={settingsQuery.trim() !== ''}
                             aria-activedescendant={activeSettingsResult >= 0 ? `settings-search-result-${activeSettingsResult}` : undefined}
                             autoComplete="off"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={settingsQuery}
                             onChange={(e) => {
                                 setSettingsQuery(e.target.value);

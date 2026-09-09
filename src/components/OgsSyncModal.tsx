@@ -166,6 +166,8 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
             className="min-h-11 w-full rounded-lg border ui-input px-3 py-2 text-sm text-[var(--ui-text)] desktop-shell:min-h-0"
             placeholder="e.g. your OGS account name"
             autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
             spellCheck={false}
           />
           <label className="block text-sm font-medium text-[var(--ui-text)]" htmlFor="ogs-sync-limit">

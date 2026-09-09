@@ -96,6 +96,10 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                   <input
                     type="search"
                     value={query}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoComplete="off"
+                    spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search pro games"
                     placeholder="Search by player, event, date…"

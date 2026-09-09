@@ -175,6 +175,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               type="search"
               role="combobox"
               value={query}
+              // A query is not a sentence. Left to itself a phone capitalises
+              // the first letter and autocorrects the rest, so "sgf" arrives
+              // as "SGF" or worse, and the list goes empty for a word the user
+              // typed correctly.
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
               onChange={(event) => setQuery(event.currentTarget.value)}
               className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-12 text-sm text-[var(--ui-text)]"
               placeholder="Search commands"

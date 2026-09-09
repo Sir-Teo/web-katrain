@@ -243,6 +243,10 @@ export const ShortcutSettingsPanel: React.FC = () => {
             <input
               type="search"
               value={query}
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
               onChange={(event) => setQuery(event.currentTarget.value)}
               className="ui-input h-10 w-full rounded-lg border py-2 pl-8 pr-9 text-sm text-[var(--ui-text)]"
               placeholder="Search shortcuts"
