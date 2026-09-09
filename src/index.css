@@ -1526,7 +1526,7 @@
   }
 
   @media (hover: hover) {
-    .panel-icon-button:hover:not(:disabled) {
+    .panel-icon-button:hover:where(:not(:disabled)) {
       background: var(--ui-surface-2);
       color: var(--ui-text);
     }
@@ -1625,7 +1625,7 @@
   }
 
   @media (hover: hover) {
-    .panel-action-button:hover:not(:disabled) {
+    .panel-action-button:hover:where(:not(:disabled)) {
       color: var(--ui-text);
       background: var(--ui-surface-2);
     }
@@ -2025,7 +2025,7 @@
   }
 
   @media (hover: hover) {
-    .analysis-command-bar__button:hover:not(:disabled) {
+    .analysis-command-bar__button:hover:where(:not(:disabled)) {
       color: var(--ui-text);
       background: var(--ui-surface-2);
       border-color: var(--ui-border-strong);
@@ -3507,7 +3507,7 @@
   }
 
   @media (hover: hover) {
-    .manual-score-launch:hover:not(:disabled) {
+    .manual-score-launch:hover:where(:not(:disabled)) {
       background: var(--ui-surface-2);
     }
   }
@@ -3656,7 +3656,7 @@
   }
 
   @media (hover: hover) {
-    .manual-score-method button:hover:not(:disabled) {
+    .manual-score-method button:hover:where(:not(:disabled)) {
       color: var(--ui-text);
       background: var(--ui-surface-2);
     }
@@ -4278,7 +4278,7 @@
   }
 
   @media (hover: hover) {
-    .status-bar-button:hover {
+    .status-bar-button:hover:where(:not(:disabled)) {
       color: var(--ui-text);
       background: var(--ui-surface-2);
       border-color: var(--ui-border-strong);

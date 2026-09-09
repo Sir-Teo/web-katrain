@@ -243,7 +243,7 @@
   transition: background .12s ease, border-color .12s ease, color .12s ease;
 }
 @media (hover: hover) {
-  .wk-dashboard .tbtn:hover { background: var(--panel-soft); border-color: var(--line-strong); }
+  .wk-dashboard .tbtn:hover:where(:not(:disabled)) { background: var(--panel-soft); border-color: var(--line-strong); }
 }
 .wk-dashboard .tbtn svg { width: 14px; height: 14px; }
 /* A tbtn that is a toggle rather than an action, matching .pbtn.on. Without
@@ -259,10 +259,10 @@
    and a red the theme chose. */
 .wk-dashboard .tbtn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--panel)); }
 @media (hover: hover) {
-  .wk-dashboard .tbtn.danger:hover { background: var(--red-bg); }
+  .wk-dashboard .tbtn.danger:hover:where(:not(:disabled)) { background: var(--red-bg); }
 }
 @media (hover: hover) {
-  .wk-dashboard .tbtn.primary:hover { background: var(--ink-strong); }
+  .wk-dashboard .tbtn.primary:hover:where(:not(:disabled)) { background: var(--ink-strong); }
 }
 .wk-dashboard .tbtn:focus-visible { outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, var(--ui-panel)); outline-offset: 2px; }
 .wk-dashboard .tbtn:disabled { opacity: .45; cursor: not-allowed; }
@@ -793,7 +793,7 @@
   transition: all .12s ease;
 }
 @media (hover: hover) {
-  .wk-dashboard .board-chip:hover:not(:disabled) { color: var(--ink); }
+  .wk-dashboard .board-chip:hover:where(:not(:disabled)) { color: var(--ink); }
 }
 .wk-dashboard .board-chip.on { color: var(--ink); border-color: var(--ink); background: var(--panel); }
 .wk-dashboard .board-chip:disabled { opacity: .45; cursor: not-allowed; }
@@ -847,7 +847,7 @@
   transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
 @media (hover: hover) {
-  .wk-dashboard .navbtn:hover { background: var(--panel-soft); color: var(--ink); }
+  .wk-dashboard .navbtn:hover:where(:not(:disabled)) { background: var(--panel-soft); color: var(--ink); }
 }
 .wk-dashboard .navbtn svg { width: 15px; height: 15px; }
 /* Direction + dot pairs (previous/next mistake) need a wider hit area, and
@@ -861,7 +861,7 @@
 .wk-dashboard .mistake-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--eval-mistake); flex: none; }
 .wk-dashboard .navbtn.danger { color: var(--red); }
 @media (hover: hover) {
-  .wk-dashboard .navbtn.danger:hover { background: var(--red-bg); }
+  .wk-dashboard .navbtn.danger:hover:where(:not(:disabled)) { background: var(--red-bg); }
 }
 .wk-dashboard .navbtn:disabled { opacity: .35; cursor: not-allowed; }
 .wk-dashboard .navbtn:focus-visible { outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, var(--ui-panel)); outline-offset: 1px; }
@@ -1110,13 +1110,13 @@
   transition: all .12s ease;
 }
 @media (hover: hover) {
-  .wk-dashboard .pbtn:hover { color: var(--ink); background: var(--panel-soft); }
+  .wk-dashboard .pbtn:hover:where(:not(:disabled)) { color: var(--ink); background: var(--panel-soft); }
 }
 .wk-dashboard .pbtn.on { color: var(--ink); border-color: var(--ink); background: var(--panel); }
 .wk-dashboard .pbtn svg { width: 12px; height: 12px; }
 .wk-dashboard .pbtn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--panel)); }
 @media (hover: hover) {
-  .wk-dashboard .pbtn.danger:hover { background: var(--red-bg); }
+  .wk-dashboard .pbtn.danger:hover:where(:not(:disabled)) { background: var(--red-bg); }
 }
 .wk-dashboard .pbtn:disabled { opacity: .4; cursor: not-allowed; }
 .wk-dashboard .pico {
@@ -1317,7 +1317,7 @@
   background: var(--panel); transition: all .12s ease;
 }
 @media (hover: hover) {
-  .wk-dashboard .depth-preset:hover { background: var(--panel-soft); }
+  .wk-dashboard .depth-preset:hover:where(:not(:disabled)) { background: var(--panel-soft); }
 }
 .wk-dashboard .depth-preset.on { border-color: var(--ink); }
 .wk-dashboard .depth-preset:disabled { cursor: not-allowed; opacity: .45; }
