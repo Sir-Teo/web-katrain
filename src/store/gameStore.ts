@@ -4238,7 +4238,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 return {
                   x: best.x,
                   y: best.y,
-                  thoughts: `AntiMirror: mirror detected, but no centre move was affordable — played ${bestLabel}.`,
+                  thoughts: `AntiMirror: mirror detected, but no center move was affordable — played ${bestLabel}.`,
                 };
               }
               const label =

@@ -32,7 +32,7 @@ const abortError = (signal: AbortSignal): Error =>
 
 export class OgsCancelledError extends Error {
   constructor() {
-    super('OGS request cancelled.');
+    super('OGS request canceled.');
     this.name = 'OgsCancelledError';
   }
 }

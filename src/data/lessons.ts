@@ -125,7 +125,7 @@ export const LESSONS: Lesson[] = [
     summary: 'A group with two separate eyes can never be captured.',
     steps: [
       {
-        text: 'An “eye” is an empty point fully surrounded by one colour. This black group has two real eyes (marked), so it is alive forever — White can never fill both at once.',
+        text: 'An “eye” is an empty point fully surrounded by one color. This black group has two real eyes (marked), so it is alive forever — White can never fill both at once.',
         rows: [
           '.........',
           '.........',
@@ -157,7 +157,7 @@ export const LESSONS: Lesson[] = [
         ],
         answers: [{ x: 4, y: 4 }],
         successText: 'Alive! Playing the middle leaves two one-point eyes — the group can never be captured.',
-        hint: 'Play the centre of the three empty points.',
+        hint: 'Play the center of the three empty points.',
       },
     ],
   },
@@ -165,10 +165,10 @@ export const LESSONS: Lesson[] = [
     id: 'opening',
     title: 'Opening: corners first',
     level: 'Beginner',
-    summary: 'Territory is easiest to make in the corners, then the sides, then the centre.',
+    summary: 'Territory is easiest to make in the corners, then the sides, then the center.',
     steps: [
       {
-        text: 'Corners need the fewest stones to enclose territory, sides come next, and the centre is hardest. So strong openings start in the corners.',
+        text: 'Corners need the fewest stones to enclose territory, sides come next, and the center is hardest. So strong openings start in the corners.',
         rows: EMPTY_9,
         markers: [
           { x: 2, y: 2, color: 'rgba(56,161,105,0.8)' },
@@ -188,7 +188,7 @@ export const LESSONS: Lesson[] = [
           { x: 6, y: 6 },
         ],
         successText: 'Good — a corner point. You enclose territory efficiently and keep good options on both sides.',
-        hint: 'Head for a corner star point, not the centre or an edge.',
+        hint: 'Head for a corner star point, not the center or an edge.',
       },
     ],
   },

@@ -131,15 +131,15 @@ export const chooseAntiMirrorMove = (args: {
 
   const score = (move: CandidateMove): { rank: number; reason: string } | null => {
     if (center && move.x === center.x && move.y === center.y) {
-      return { rank: 4, reason: 'took the centre point' };
+      return { rank: 4, reason: 'took the center point' };
     }
     if (center && opponentHoldsCenter) {
-      if (isAdjacent(move, center)) return { rank: 3, reason: 'leaned on the centre stone' };
+      if (isAdjacent(move, center)) return { rank: 3, reason: 'leaned on the center stone' };
       const d2 = distanceSquared(move, center);
-      if (d2 <= 4) return { rank: 2, reason: 'played tight to the centre stone' };
+      if (d2 <= 4) return { rank: 2, reason: 'played tight to the center stone' };
     }
     if (isCentral(move, boardSize)) return { rank: 2, reason: 'played the central point' };
-    if (isNearCentral(move, boardSize)) return { rank: 1, reason: 'played near the centre' };
+    if (isNearCentral(move, boardSize)) return { rank: 1, reason: 'played near the center' };
     return null;
   };
 

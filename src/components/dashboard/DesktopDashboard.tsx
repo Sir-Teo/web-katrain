@@ -450,7 +450,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     // wants something different from the reader -- wait, play a move, or "that
     // is the answer".
     if (baseline.kind === 'unavailable') return baseline.reason;
-    if (!after) return 'needs this move analysed';
+    if (!after) return 'needs this move analyzed';
     const against = baseline.kind === 'best' ? `vs ${baseline.label}` : 'vs the move before';
     const summary = describeTerritorySwing(computeTerritorySwing(baseline.territory, after));
     return summary ? `${against}: ${summary}` : `${against}: nothing moved`;

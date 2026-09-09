@@ -110,7 +110,7 @@ describe('chooseAntiMirrorMove', () => {
       opponent: 'white',
     });
     expect(choice?.move).toMatchObject({ x: 9, y: 9 });
-    expect(choice?.reason).toContain('centre point');
+    expect(choice?.reason).toContain('center point');
   });
 
   it('leans on an opponent stone already on the centre', () => {

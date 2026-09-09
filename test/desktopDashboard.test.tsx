@@ -40,7 +40,7 @@ describe('DesktopDashboard', () => {
     // And the chip names the baseline, so "13 toward Black" is never ambiguous
     // about what it is 13 more than.
     expect(source).toContain("baseline.kind === 'best' ? `vs ${baseline.label}` : 'vs the move before'");
-    expect(swing).toContain("'needs this move and the one before it analysed'");
+    expect(swing).toContain("'needs this move and the one before it analyzed'");
     expect(swing).toContain('play ${label} from the previous move to compare against it');
   });
 

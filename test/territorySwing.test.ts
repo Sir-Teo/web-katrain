@@ -185,7 +185,7 @@ describe('resolveSwingBaseline', () => {
     const parent = parentWith({ x: 3, y: 3 }, [sibling]);
     const node = { parent, move: { x: 1, y: 1 }, analysis: { territory: grid9() } };
     const baseline = resolveSwingBaseline(node, 'best', label);
-    expect(baseline.kind === 'unavailable' && baseline.reason).toBe('pt33 is not analysed yet');
+    expect(baseline.kind === 'unavailable' && baseline.reason).toBe('pt33 is not analyzed yet');
   });
 
   it('says so when the move played was the engine\u2019s own', () => {

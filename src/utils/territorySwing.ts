@@ -148,12 +148,12 @@ export function resolveSwingBaseline(
     const territory = parent.analysis?.territory;
     return territory
       ? { kind: 'previous', territory }
-      : { kind: 'unavailable', reason: 'needs this move and the one before it analysed' };
+      : { kind: 'unavailable', reason: 'needs this move and the one before it analyzed' };
   }
 
   const best = parent.analysis?.moves?.find((move) => move.order === 0);
   if (!best || best.x < 0 || best.y < 0) {
-    return { kind: 'unavailable', reason: 'needs the previous position analysed, so the engine has a move to compare' };
+    return { kind: 'unavailable', reason: 'needs the previous position analyzed, so the engine has a move to compare' };
   }
   if (node.move && node.move.x === best.x && node.move.y === best.y) {
     return { kind: 'unavailable', reason: 'this is the engine\u2019s move' };
@@ -166,7 +166,7 @@ export function resolveSwingBaseline(
     return { kind: 'unavailable', reason: `play ${label} from the previous move to compare against it` };
   }
   const territory = sibling.analysis?.territory;
-  if (!territory) return { kind: 'unavailable', reason: `${label} is not analysed yet` };
+  if (!territory) return { kind: 'unavailable', reason: `${label} is not analyzed yet` };
   return { kind: 'best', territory, label };
 }
 

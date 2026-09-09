@@ -1266,7 +1266,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         className={selectClass}
                                                     >
                                                         <option value="theme:normal">Normal</option>
-                                                        <option value="theme:red-green-colourblind">Red/Green colourblind</option>
+                                                        <option value="theme:red-green-colourblind">Red/Green colorblind</option>
                                                     </select>
                                                 </div>
 
