@@ -107,7 +107,12 @@ describe('AnalysisCommandBar', () => {
     expect(styles).toContain('.analysis-command-bar__metrics.has-overflow-left.has-overflow-right');
     expect(styles).toContain('overscroll-behavior-x: contain;');
     expect(styles).toContain('scroll-snap-type: x proximity;');
-    expect(styles).toContain('grid-template-columns: 4.75rem minmax(6rem, 1fr) minmax(6.5rem, 36vw);');
+    // The status track is a floor rather than a fixed width: what has to fit
+    // in it is the word "Loading", whose pixel width follows the tier's font
+    // size, and 4.75rem left 52px for 53.8px on every common phone.
+    expect(styles).toContain(
+      'grid-template-columns: minmax(4.75rem, auto) minmax(6rem, 1fr) minmax(6.5rem, 36vw);'
+    );
     expect(styles).toContain('.analysis-command-bar__status-detail');
     expect(styles).toContain('.analysis-command-bar:has(.analysis-command-bar__status-copy)');
   });

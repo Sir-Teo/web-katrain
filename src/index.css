@@ -2282,9 +2282,18 @@
     }
 
     /* Keep the state readable while giving the scrollable controls enough of a
-       preview to make their horizontal affordance obvious on a phone. */
+       preview to make their horizontal affordance obvious on a phone.
+
+       The status track is a floor and not a fixed width, because what has to
+       fit in it is a word -- "Loading", the longest of Idle/Ready/Error --
+       whose pixel width follows the font size of whichever tier is in effect.
+       Fixed at 4.75rem it left 52px for a word needing 53.8px at 390px and up,
+       so every common phone width rendered it as "Load...". Sizing the track
+       to its content fits the word at any tier and hands the leftover back to
+       the metrics when the word is short, which is the same minmax(_, auto)
+       shape the desktop rule above already uses. */
     .analysis-command-bar-slot .analysis-command-bar {
-      grid-template-columns: 4.75rem minmax(6rem, 1fr) minmax(6.5rem, 36vw);
+      grid-template-columns: minmax(4.75rem, auto) minmax(6rem, 1fr) minmax(6.5rem, 36vw);
       column-gap: 0.25rem;
     }
 
@@ -2383,9 +2392,11 @@
     }
   }
 
+  /* Same floor-not-fixed reasoning as the 640px tier: at 360px this track was
+     4rem, leaving 44px for a word needing 49.3px even at the 11px size below. */
   @media (max-width: 360px) {
     .analysis-command-bar-slot .analysis-command-bar {
-      grid-template-columns: 4rem minmax(6rem, 1fr) minmax(6.5rem, 36vw);
+      grid-template-columns: minmax(4rem, auto) minmax(6rem, 1fr) minmax(6.5rem, 36vw);
     }
   }
 
@@ -6477,10 +6488,11 @@
   }
 
 
-  /* The backend detail is already dropped below 640px, but on the narrowest
-     phones the pill's own padding left the state word 40px to say "Loading"
-     in 47px, so it rendered as "Load...". A truncated status word is worse
-     than a tight one: buy the room back from the padding and the gap. */
+  /* The pill's own rhythm on the narrowest phones. This once existed to stop
+     "Loading" rendering as "Load..." by buying width back from the padding and
+     the gap; the status track sizes itself to the word now, so what is left
+     here is density -- a tighter pill leaves more of a 360px row for the
+     metrics beside it. */
   @media (max-width: 380px) {
     .analysis-command-bar__status {
       gap: 0.25rem;
