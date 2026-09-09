@@ -3,6 +3,27 @@ import { readFileSync } from 'node:fs';
 
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 
+const banner = readFileSync(new URL('../src/components/PwaInstallBanner.tsx', import.meta.url), 'utf8');
+
+describe('the reserve follows the card, not the rule that hid it', () => {
+  it('reserves nothing for a card with no box', () => {
+    // Three rules in this file take the card out with display: none -- a toast
+    // is up, the More Controls sheet is open, the first-run rail is showing --
+    // and each left --pwa-banner-height at 12px, because the gap below the card
+    // was being added to a measured height of zero.
+    expect(banner).toContain('if (height <= 0) {');
+    expect(banner).toContain("root.style.removeProperty('--pwa-banner-height');");
+  });
+
+  it('still reserves the card plus its gap when it is showing', () => {
+    expect(banner).toContain("root.style.setProperty('--pwa-banner-height', `${Math.ceil(height + 12)}px`);");
+  });
+
+  it('has consumers that fall back to nothing when it is unset', () => {
+    expect(css).toContain('var(--pwa-banner-height, 0px)');
+  });
+});
+
 describe('desktop PWA banner layout', () => {
   it('moves clear of the open analysis panel using the panel width token', () => {
     expect(css).toContain(":root:has(.wk-dashboard[data-sidebar='open']) .pwa-install-banner");

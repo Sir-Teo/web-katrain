@@ -84,6 +84,15 @@ export const PwaInstallBanner: React.FC = () => {
     root.dataset.pwaBanner = banner.type;
     const updateHeight = () => {
       const height = bannerRef.current?.getBoundingClientRect().height ?? 0;
+      // Several rules take the card out with `display: none` -- a toast is up,
+      // the More Controls sheet is open, the first-run rail is showing -- and a
+      // card with no box needs no room below it. The +12 is the gap between the
+      // card and what it floats above, not a floor, so reserving it for a card
+      // that is not there just moved the board up 12px for nothing.
+      if (height <= 0) {
+        root.style.removeProperty('--pwa-banner-height');
+        return;
+      }
       root.style.setProperty('--pwa-banner-height', `${Math.ceil(height + 12)}px`);
     };
     updateHeight();
