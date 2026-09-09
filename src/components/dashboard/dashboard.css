@@ -111,7 +111,9 @@
 .wk-dashboard .tnum { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
 .wk-dashboard .mono { font-family: var(--mono); }
 
-.wk-dashboard ::selection { background: var(--ui-accent-soft); }
+/* ::selection moved to the base layer in index.css: it was scoped here, so
+   the mobile shell and every dialog outside this dashboard still highlighted
+   in the browser's own blue. */
 
 /* Eyebrow / section label */
 .wk-dashboard .eyebrow {

@@ -466,6 +466,27 @@
     }
   }
 
+  /* The highlight was themed, but only inside .wk-dashboard -- so the mobile
+     shell, every dialog and the whole review side of the app selected in the
+     browser's own blue, over four palettes that have nothing blue in them.
+     The colour is stated as well as the fill: a selection that keeps muted or
+     accent-coloured text would not be guaranteed readable on it. */
+  ::selection {
+    background: var(--ui-accent-soft);
+    color: var(--ui-text);
+  }
+
+  /* A row that answers a long press should not also start selecting its own
+     name under the finger: on a touch screen the press that opens the menu
+     leaves a highlight behind it, and on iOS raises the callout on top of the
+     menu. Nothing is lost -- the rows are draggable and carry their own
+     context menu, so neither pointer could select this text anyway, and the
+     board (which long-presses to mark a point) is already select-none. */
+  .library-tree-node {
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
   /* Focus ring for accessibility */
   button:focus-visible,
   [role='button']:focus-visible,
