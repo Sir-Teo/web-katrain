@@ -813,10 +813,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                         closeMoreControlsFromAction(event);
                       }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-teal-400">
+                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-accent)]">
                         <FaRobot size={14} />
                       </div>
-                      <div className="flex-1 font-medium text-teal-400">Request AI move</div>
+                      <div className="flex-1 font-medium text-[var(--ui-accent)]">Request AI move</div>
                     </button>
                   )}
 
@@ -838,10 +838,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                         closeMoreControlsFromAction(event);
                       }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-teal-400">
+                      <div className="w-8 h-8 rounded-full bg-[var(--ui-surface-2)] flex items-center justify-center text-[var(--ui-accent)]">
                         <FaLevelUpAlt size={14} />
                       </div>
-                      <div className="flex-1 font-medium text-teal-400">
+                      <div className="flex-1 font-medium text-[var(--ui-accent)]">
                         {engineOpponent ? 'Stop the engine' : 'Play from here'}
                       </div>
                     </button>
@@ -849,13 +849,13 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
                   {onResign && (
                     <button type="button"
-                      className={`${mobileMoreActionClass} hover:bg-rose-950/30 active:bg-rose-950/30 text-rose-500`}
+                      className={`${mobileMoreActionClass} hover:bg-[var(--ui-danger-soft)] active:bg-[var(--ui-danger-soft)] text-[var(--ui-danger)]`}
                       onClick={(event) => {
                         onResign();
                         closeMoreControlsFromAction(event);
                       }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+                      <div className="w-8 h-8 rounded-full bg-[var(--ui-danger-soft)] flex items-center justify-center text-[var(--ui-danger)]">
                         <FaFlag size={14} />
                       </div>
                       <div className="flex-1 font-medium">Resign</div>

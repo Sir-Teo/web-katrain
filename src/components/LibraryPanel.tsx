@@ -1542,7 +1542,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
         </button>
         <span className="library-tree-node-icon">
-          {item.favorite ? <FaStar size={12} className="text-amber-400" /> : <FaFileAlt size={12} />}
+          {item.favorite ? <FaStar size={12} className="text-[var(--ui-warning)]" /> : <FaFileAlt size={12} />}
         </span>
         <div className="library-tree-node-name">{item.name}</div>
         <div className="library-tree-node-meta">
@@ -1593,7 +1593,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             aria-label={item.favorite ? `Unstar ${item.name}` : `Star ${item.name}`}
             aria-pressed={!!item.favorite}
           >
-            {item.favorite ? <FaStar size={12} className="text-amber-400" /> : <FaRegStar size={12} />}
+            {item.favorite ? <FaStar size={12} className="text-[var(--ui-warning)]" /> : <FaRegStar size={12} />}
           </button>
           <button
             type="button"
@@ -1927,7 +1927,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 onClick={() => runContextAction(() => handleToggleFavorite(contextMenuItem))}
               >
                 {contextMenuItem.favorite
-                  ? <><FaStar size={12} className="text-amber-400" /> Unstar</>
+                  ? <><FaStar size={12} className="text-[var(--ui-warning)]" /> Unstar</>
                   : <><FaRegStar size={12} /> Star</>}
               </button>
             )}
@@ -2316,7 +2316,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   aria-label={favoritesOnly ? 'Show all games' : 'Show favorites only'}
                   style={favoritesOnly ? { color: 'var(--ui-accent)' } : undefined}
                 >
-                  {favoritesOnly ? <FaStar size={12} className="text-amber-400" /> : <FaRegStar size={12} />}
+                  {favoritesOnly ? <FaStar size={12} className="text-[var(--ui-warning)]" /> : <FaRegStar size={12} />}
                 </button>
                 {availableTags.length > 0 && (
                   <select

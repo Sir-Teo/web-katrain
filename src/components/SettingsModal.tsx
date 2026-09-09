@@ -2362,7 +2362,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 </div>
                                             ) : null}
                                             {modelUploadError ? (
-                                                <p className="text-xs text-rose-400 leading-relaxed">
+                                                <p className="text-xs text-[var(--ui-danger)] leading-relaxed">
                                                     {modelUploadError}
                                                 </p>
                                             ) : null}
@@ -2480,7 +2480,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                                     })()}
                                                                 </div>
                                                             ) : model.browserLoadable === false ? (
-                                                                <span className="text-[0.625rem] text-rose-400">
+                                                                <span className="text-[0.625rem] text-[var(--ui-danger)]">
                                                                     Too large for browser upload
                                                                 </span>
                                                             ) : null}
@@ -2503,7 +2503,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 ))}
                                             </div>
                                             {downloadError ? (
-                                                <p className="text-xs text-rose-400">{downloadError}</p>
+                                                <p className="text-xs text-[var(--ui-danger)]">{downloadError}</p>
                                             ) : null}
                                             <p className={subtextClass}>
                                                 Download only browser-sized weights, then use "Upload Weights" above. Saved browser uploads use IndexedDB; large b28/b40 weights are for native KataGo, not this browser engine.

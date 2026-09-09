@@ -20,6 +20,55 @@ const themedShellFiles = [
   'src/components/layout/ui.tsx',
 ] as const;
 
+/**
+ * Files whose text is on screen in the app itself, so its contrast is whatever
+ * the active theme makes it. GameReportModal is deliberately absent: its PDF
+ * section draws on paper, where a fixed palette colour is the right answer and
+ * a theme token would be the wrong one.
+ */
+const onScreenShellFiles = [
+  'src/components/LibraryPanel.tsx',
+  'src/components/SettingsModal.tsx',
+  'src/components/layout/BottomControlBar.tsx',
+  'src/components/layout/MenuDrawer.tsx',
+  'src/components/layout/MobileTabBar.tsx',
+  'src/components/layout/RightPanel.tsx',
+  'src/components/layout/TopControlBar.tsx',
+  'src/components/layout/ui.tsx',
+] as const;
+
+const TAILWIND_TEXT_COLOUR = /\btext-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g;
+
+describe('on-screen text takes its colour from the theme', () => {
+  it('uses no fixed palette colour for text in the shell', () => {
+    /**
+     * Every one of these was picked while looking at the dark theme, and each
+     * was unreadable on the light one. Measured against the light theme's own
+     * surfaces: teal-400 on the More Controls sheet at 1.78:1, rose-400 on the
+     * Settings errors at 2.57:1, rose-500 on Resign at 3.51:1 -- against 4.5:1
+     * for body text. The tokens they moved to measure 5.7 and 6.0, because the
+     * light palette was tuned for exactly this.
+     *
+     * The audit in the viewport sweep never saw them: it reads visible text,
+     * and a sheet or a modal that is shut has none.
+     */
+    const offenders: string[] = [];
+    for (const file of onScreenShellFiles) {
+      for (const match of readFileSync(file, 'utf8').matchAll(TAILWIND_TEXT_COLOUR)) {
+        offenders.push(`${file}: ${match[0]}`);
+      }
+    }
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+
+  it('still has the tokens those colours moved to', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    for (const token of ['--ui-accent', '--ui-danger', '--ui-danger-soft', '--ui-warning']) {
+      expect(css, token).toContain(`${token}:`);
+    }
+  });
+});
+
 describe('light theme shell tokens', () => {
   it('keeps app fonts local and offline-safe', () => {
     const css = [
