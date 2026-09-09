@@ -48,10 +48,27 @@ describe('the sweep opens dialogs that have no shortcut', () => {
     }
   });
 
+  it('also smoke-tests the two that only act on submit', () => {
+    // The print preview renders the kifu it would print and the save dialog
+    // writes to the library only when its form is submitted, so opening and
+    // closing either leaves the board as it was.
+    for (const [name, title, id] of [
+      ['kifu print', 'kifu-print-title', 'print-kifu'],
+      ['save to library', 'save-to-library-title', 'save-library'],
+    ]) {
+      expect(sweep, name).toContain(`name: '${name}',`);
+      expect(sweep, name).toContain(`selector: '[aria-labelledby="${title}"]',`);
+      expect(sweep, name).toContain(`open: openViaPalette('${id}'),`);
+    }
+  });
+
   it('opens each one through a command the palette actually offers', () => {
-    // A renamed command id would open nothing, which reads as "did not open".
+    // A renamed command id would open nothing, which reads as "did not open" --
+    // a real failure, but one that points at the sweep rather than at the app.
+    // print-kifu is the reason this test exists: the dialog is kifu-print and
+    // the command is print-kifu, and the first attempt used the wrong one.
     const layout = readFileSync('src/components/Layout.tsx', 'utf8');
-    for (const id of ['about', 'lessons', 'pro-games']) {
+    for (const id of ['about', 'lessons', 'pro-games', 'print-kifu', 'save-library']) {
       expect(layout, id).toContain(`id: '${id}',`);
     }
   });

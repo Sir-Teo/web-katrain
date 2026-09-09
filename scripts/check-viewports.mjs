@@ -3262,6 +3262,21 @@ async function main() {
           closeLabel: 'Close pro game library',
           open: openViaPalette('pro-games'),
         });
+        // Two more that only act on submit, so opening and closing one changes
+        // nothing: the print preview renders the kifu it would print, and the
+        // save dialog writes to the library only when its form is submitted.
+        await smokeModal({
+          name: 'kifu print',
+          selector: '[aria-labelledby="kifu-print-title"]',
+          closeLabel: 'Close kifu print',
+          open: openViaPalette('print-kifu'),
+        });
+        await smokeModal({
+          name: 'save to library',
+          selector: '[aria-labelledby="save-to-library-title"]',
+          closeLabel: 'Close save to Library',
+          open: openViaPalette('save-library'),
+        });
         await smokeModal({
           name: 'paste SGF',
           selector: '[aria-labelledby="paste-sgf-title"]',
