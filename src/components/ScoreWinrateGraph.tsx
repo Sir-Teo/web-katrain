@@ -7,6 +7,7 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { isGraphKeyboardNavigationKey, nextGraphKeyboardIndex } from '../utils/graphKeyboard';
 import { hasVisibleGraphData } from '../utils/graphDataAvailability';
+import { indexAtGraphX } from '../utils/graphScrub';
 import { computeMoveTimes, formatMoveTime } from '../utils/moveTimes';
 import { getScoreWinrateGraphTheme } from '../utils/scoreWinrateGraphTheme';
 import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
@@ -236,15 +237,59 @@ export const ScoreWinrateGraph: React.FC<{
       .filter((marker): marker is NonNullable<typeof marker> => marker !== null);
   }, [displayNodes, evalColors, evalThresholds, gameAnalysisDone, trainerShowDots, treeVersion, xScale]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!hasGraphData || !svgRef.current) return;
+  const indexAtClientX = (clientX: number): number | null => {
+    if (!hasGraphData || !svgRef.current) return null;
     const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const index = Math.round((x / rect.width) * (count - 1));
-    if (index >= 0 && index < count) setHoverIndex(index);
+    return indexAtGraphX({ clientX, left: rect.left, width: rect.width, count });
   };
 
-  const handleMouseLeave = () => setHoverIndex(null);
+  /**
+   * Dragging along the graph previews as it goes, on a finger as well as a
+   * pointer.
+   *
+   * It listened for mouse events only. A tap still worked, because a mobile
+   * browser synthesises a mousemove before the click -- but the gesture this
+   * graph is shaped for, running along it to scan the game, did nothing on a
+   * touch screen, and the preview a hover gives was unreachable there.
+   *
+   * A mouse previews on movement alone, as it did. A finger has to be down:
+   * there is no hovering, and previewing whatever the page happened to scroll
+   * under would be noise. `touch-action: pan-y` on the box is what makes the
+   * drag arrive at all -- without it the browser claims the horizontal gesture
+   * -- while leaving the vertical scroll of the panel around it alone.
+   */
+  const [isScrubbing, setIsScrubbing] = useState(false);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') return;
+    const index = indexAtClientX(e.clientX);
+    if (index === null) return;
+    setIsScrubbing(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setHoverIndex(index);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse' && !isScrubbing) return;
+    const index = indexAtClientX(e.clientX);
+    if (index !== null) setHoverIndex(index);
+  };
+
+  const endScrub = (e: React.PointerEvent) => {
+    if (!isScrubbing) return;
+    setIsScrubbing(false);
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    // Land on wherever the finger left off, then hand the marker back to the
+    // current move -- there is no pointer resting on a touch screen for the
+    // preview to belong to.
+    if (hoverIndex !== null && displayNodes[hoverIndex]) jumpToNode(displayNodes[hoverIndex]);
+    setHoverIndex(null);
+  };
+
+  const handlePointerLeave = () => {
+    if (isScrubbing) return;
+    setHoverIndex(null);
+  };
 
   const handleClick = () => {
     if (hasGraphData && hoverIndex !== null && displayNodes[hoverIndex]) jumpToNode(displayNodes[hoverIndex]);
@@ -348,9 +393,12 @@ export const ScoreWinrateGraph: React.FC<{
       aria-describedby={hasGraphData ? undefined : emptyStateId}
       data-analysis-score-winrate-graph="true"
       data-analysis-graph-has-data={hasGraphData ? 'true' : 'false'}
-      style={graphTheme.boxStyle}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      style={{ ...graphTheme.boxStyle, touchAction: hasGraphData ? 'pan-y' : undefined }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endScrub}
+      onPointerCancel={endScrub}
+      onPointerLeave={handlePointerLeave}
       onClick={handleClick}
       onFocus={handleFocus}
       onBlur={handleBlur}
