@@ -1499,6 +1499,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const downloadFileLabel = `Download ${item.name} as SGF`;
     const renameFileLabel = `Rename ${item.name}`;
     const deleteFileLabel = `Delete ${item.name}`;
+    const moreFileActionsLabel = `More actions for ${item.name}`;
     const moveSummary = getLibraryFileMoveSummary(item);
     return (
       <div
@@ -1655,6 +1656,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <FaTrash size={12} />
           </button>
         </div>
+        {/* The same button a folder row has, for the same reason: the action
+            strip above is display:none where there is no hover, which left a
+            saved game's actions behind a long press that nothing advertises. */}
+        <button
+          type="button"
+          className="library-tree-node-more"
+          onClick={(event) => openButtonContextMenu(event, item)}
+          title={moreFileActionsLabel}
+          aria-label={moreFileActionsLabel}
+          aria-haspopup="menu"
+          aria-expanded={contextMenu?.itemId === item.id}
+        >
+          <FaEllipsisH size={14} />
+        </button>
       </div>
     );
   };

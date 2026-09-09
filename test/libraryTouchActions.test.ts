@@ -24,6 +24,24 @@ describe('a saved game keeps its actions on a touch screen', () => {
     expect(panel).toContain('<FaTag size={12} /> Edit tags');
   });
 
+  it('advertises the menu with the same button a folder row has', () => {
+    // A long press is the only other way in, and nothing announces it.
+    expect(panel).toContain('const moreFileActionsLabel = `More actions for ${item.name}`;');
+    expect(panel).toContain('onClick={(event) => openButtonContextMenu(event, item)}');
+    expect(panel).toContain('aria-label={moreFileActionsLabel}');
+
+    // Hidden by the base rule, so it appears only in the touch/narrow block.
+    expect(css).toContain('  .library-tree-node-more {\n    display: none;\n  }');
+    expect(css).toContain(
+      "    .library-tree-node[data-library-row='file'] .library-tree-node-more {\n      display: inline-flex;"
+    );
+    // Room for it, and a 44px target once it is there.
+    expect(css).toContain('grid-template-columns: 44px 16px minmax(0, 1fr) auto 44px;');
+    expect(css).toContain('      grid-column: 5;\n      grid-row: 1 / 3;\n      width: 44px;\n      height: 44px;');
+    // The press state is shared, not folder-scoped as it used to be.
+    expect(css).toContain('    .library-tree-node-more:hover,\n    .library-tree-node-more:focus-visible {');
+  });
+
   it('offers star and tags for files only, since folders have neither', () => {
     const start = panel.indexOf('handleToggleFavorite(contextMenuItem)');
     const before = panel.slice(0, start);
