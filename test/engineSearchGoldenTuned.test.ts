@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MctsSearch, resetSearchTuning, setSearchTuningForTest } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
-import { loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
+import { ENGINE_MAX_TIME_MS } from '../src/engine/katago/limits';
+import { loadHarnessModel, runsEngineSuites, skipIfSearchWasCutShort } from './helpers/engineHarness';
 import type { BoardState, Move } from '../src/types';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,17 @@ const FOR_TESTS_V1 = {
   subtreeValueBiasFactor: 0,
 };
 
+/**
+ * The search's own wall clock has to sit clear of the test's timeout. Both were
+ * 300000, so whether a slow box reported "168 of 200 visits" or a bare vitest
+ * timeout came down to which deadline fired first -- neither of which says
+ * anything about the search. The budget is the engine's own cap; the timeout
+ * moves out to leave room for loading the net and making the assertions.
+ */
+const TARGET_VISITS = 200;
+const SEARCH_BUDGET_MS = ENGINE_MAX_TIME_MS;
+const TEST_TIMEOUT_MS = 420_000;
+
 const gtpToXy = (label: string): [number, number] => [
   'ABCDEFGHJKLMNOPQRST'.indexOf(label[0]!),
   19 - Number.parseInt(label.slice(1), 10),
@@ -76,7 +88,7 @@ const parseSgfMoves = (sgf: string): Move[] => {
 describe.skipIf(!runsEngineSuites())("KataGo's recorded 200 visit search", () => {
   afterEach(() => resetSearchTuning());
 
-  it('reaches the same shape of tree', async () => {
+  it('reaches the same shape of tree', async (ctx) => {
     setBoardSize(19);
     const model = await loadHarnessModel();
     const moves = parseSgfMoves(SGF);
@@ -107,10 +119,14 @@ describe.skipIf(!runsEngineSuites())("KataGo's recorded 200 visit search", () =>
     });
     // One playout at a time, as KataGo's single search thread does: batching brings
     // virtual losses in, and those would move visits around on their own.
-    await search.run({ visits: 200, maxTimeMs: 300000, batchSize: 1 });
+    await search.run({ visits: TARGET_VISITS, maxTimeMs: SEARCH_BUDGET_MS, batchSize: 1 });
     const analysis = search.getAnalysis({ topK: 60, analysisPvLen: 8 });
 
-    expect(analysis.rootVisits).toBe(200);
+    // Short of the budget means this box ran out of wall clock partway through,
+    // so the tree below is a fragment of the one being compared and every count
+    // in it would be measuring throughput rather than the search.
+    skipIfSearchWasCutShort(ctx, analysis.rootVisits, TARGET_VISITS, SEARCH_BUDGET_MS);
+    expect(analysis.rootVisits).toBe(TARGET_VISITS);
     const best = analysis.moves[0]!;
     expect(`${best.x},${best.y}`).toBe(`${gtpToXy('Q4')[0]},${gtpToXy('Q4')[1]}`);
     // KataGo's variation ran Q4 R4 P3 R3 P4 Q6 C11.
@@ -169,5 +185,5 @@ describe.skipIf(!runsEngineSuites())("KataGo's recorded 200 visit search", () =>
       );
     }
     expect(compared).toBeGreaterThanOrEqual(4);
-  }, 300000);
+  }, TEST_TIMEOUT_MS);
 });

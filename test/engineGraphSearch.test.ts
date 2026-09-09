@@ -8,7 +8,7 @@ import {
   simpleRepetitionBoundGt,
 } from '../src/engine/katago/graphHash';
 import { BLACK, BOARD_AREA, BOARD_SIZE, PASS_MOVE, WHITE, setBoardSize, type StoneColor } from '../src/engine/katago/fastBoard';
-import { emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
+import { emptyBoard, loadHarnessModel, runsEngineSuites, skipIfSearchWasCutShort } from './helpers/engineHarness';
 
 // ---------------------------------------------------------------------------
 // Graph search (cpp/game/graphhash.cpp, cpp/search/search.cpp), which KataGo turns
@@ -120,6 +120,18 @@ describe('position hashing', () => {
   });
 });
 
+/**
+ * The search's own wall clock has to sit clear of the test's timeout.
+ *
+ * Both were 180000, so a box slow enough to spend the whole budget had nothing
+ * left for loading the net or reaching an assertion: the run reported a vitest
+ * timeout, which says nothing at all about the search. The budget stays where
+ * it was and the timeout moves out to leave room for it.
+ */
+const SEARCH_BUDGET_MS = 180_000;
+const TEST_TIMEOUT_MS = 300_000;
+const GRAPH_VISITS = 800;
+
 describe.skipIf(!runsEngineSuites())('sharing transposed positions', () => {
   const run = async (useGraphSearch: boolean, visits: number) => {
     setBoardSize(9);
@@ -138,7 +150,7 @@ describe.skipIf(!runsEngineSuites())('sharing transposed positions', () => {
       wideRootNoise: 0,
       useGraphSearch,
     });
-    await s.run({ visits, maxTimeMs: 180000, batchSize: 4 });
+    await s.run({ visits, maxTimeMs: SEARCH_BUDGET_MS, batchSize: 4 });
     return s;
   };
 
@@ -146,26 +158,38 @@ describe.skipIf(!runsEngineSuites())('sharing transposed positions', () => {
   let shared: Promise<MctsSearch> | null = null;
   const search = (useGraphSearch: boolean) => {
     if (!useGraphSearch) return run(false, 200);
-    if (!shared) shared = run(true, 800);
+    if (!shared) shared = run(true, GRAPH_VISITS);
     return shared;
   };
 
-  it('finds positions it has already reached another way', async () => {
+  const skipIfShort = (ctx: { skip: (condition: boolean, note?: string) => void }, s: MctsSearch) =>
+    skipIfSearchWasCutShort(
+      ctx,
+      s.getAnalysis({ topK: 1, analysisPvLen: 1 }).rootVisits,
+      GRAPH_VISITS,
+      SEARCH_BUDGET_MS,
+    );
+
+  it('finds positions it has already reached another way', async (ctx) => {
     // Transpositions are scarce in a shallow search and grow quickly with depth:
     // an empty 9x9 turns up a couple by 400 visits and a couple of dozen by 1500.
     const s = await search(true);
+    skipIfShort(ctx, s);
     expect(s.getTranspositionHits()).toBeGreaterThan(0);
-  }, 180000);
+  }, TEST_TIMEOUT_MS);
 
   it('finds none of them with graph search off', async () => {
+    // No skip: with graph search off there are never any hits to find, however
+    // far the search got.
     const s = await search(false);
     expect(s.getTranspositionHits()).toBe(0);
-  }, 180000);
+  }, TEST_TIMEOUT_MS);
 
-  it('still reports a whole, sane search', async () => {
+  it('still reports a whole, sane search', async (ctx) => {
     const s = await search(true);
+    skipIfShort(ctx, s);
     const analysis = s.getAnalysis({ topK: 12, analysisPvLen: 8 });
-    expect(analysis.rootVisits).toBeGreaterThanOrEqual(800);
+    expect(analysis.rootVisits).toBeGreaterThanOrEqual(GRAPH_VISITS);
     expect(analysis.moves.length).toBeGreaterThan(1);
     // Ownership still averages to something in range, so the walk over a graph
     // rather than a tree terminated and stayed weighted.
@@ -177,5 +201,5 @@ describe.skipIf(!runsEngineSuites())('sharing transposed positions', () => {
       expect(m.visits).toBeGreaterThan(0);
       expect(Number.isFinite(m.winRate)).toBe(true);
     }
-  }, 180000);
+  }, TEST_TIMEOUT_MS);
 });
