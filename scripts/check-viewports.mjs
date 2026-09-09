@@ -38,6 +38,10 @@ const VIEWPORTS = [
   { width: 768, height: 1024, mobile: true },
   { width: 390, height: 844, mobile: true },
   { width: 360, height: 800, mobile: true },
+  // 320px is the width WCAG 2.2 SC 1.4.10 asks content to reflow into, and
+  // index.css reasons about it in eight places -- but the sweep stopped at
+  // 360, so none of that reasoning had ever been measured.
+  { width: 320, height: 568, mobile: true },
   { width: 844, height: 390, mobile: true },
   // Wide but short: still the mobile shell, and previously uncovered.
   { width: 1280, height: 460, mobile: true },
