@@ -43,6 +43,7 @@ const VIEWPORTS = [
   // 360, so none of that reasoning had ever been measured.
   { width: 320, height: 568, mobile: true },
   { width: 844, height: 390, mobile: true },
+  { width: 568, height: 320, mobile: true },
   // Wide but short: still the mobile shell, and previously uncovered.
   { width: 1280, height: 460, mobile: true },
   // Wide desktop with both panels open: the board column lands near 722px,

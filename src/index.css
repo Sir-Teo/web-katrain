@@ -436,6 +436,41 @@
     }
   }
 
+  /* The same shed, for the shell where the tab bar shares this row.
+     There the strip gets about 304px less than the viewport, so a 568px
+     landscape phone leaves the navigation group 42px to hold Back, the move
+     counter and Forward -- three 44px targets. The group is flex-1 min-w-0, so
+     it shrinks and they do not: they overflowed it and overlapped each other by
+     up to 24px, which means a tap aimed at Back landing on the move counter.
+     Room runs out at about 700px here rather than at 340px, because of what
+     else is in the row; shedding the mode actions returns the ~100px that puts
+     every target back in its own space. */
+  @media (max-height: 499px) and (max-width: 699px) {
+    .mobile-bottom-mode-actions {
+      display: none !important;
+    }
+
+    .mobile-bottom-overflow-mode-actions {
+      display: grid;
+    }
+
+    /* The shed alone left 140px where the group wants about 154, so the move
+       counter still crossed Back by 2px once the counter read two digits. These
+       are the same gaps the 430px and 380px rules tighten, for the same reason
+       and to the same values. */
+    .mobile-bottom-controls {
+      gap: 2px !important;
+    }
+
+    .mobile-bottom-navigation {
+      gap: 2px !important;
+    }
+
+    .mobile-bottom-meta {
+      gap: 1px !important;
+    }
+  }
+
   html,
   body,
   #root {
