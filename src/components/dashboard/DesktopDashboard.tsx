@@ -997,7 +997,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     </span>
                     <button type="button" className="pbtn pico" title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
                     {branchInfo.currentIndex > 1 ? (
-                      <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch', 'success'); }}><Icon name="star" size={12} /></button>
+                      <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch.', 'success'); }}><Icon name="star" size={12} /></button>
                     ) : null}
                   </div>
                 )}

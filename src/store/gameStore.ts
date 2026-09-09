@@ -1925,7 +1925,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const base = clampAnalysisVisits(s.settings.katagoVisits);
       const prev = Math.max(0, Math.min(s.currentNode.analysisVisitsRequested ?? base, ENGINE_MAX_VISITS));
       const visits = clampAnalysisVisits(prev + base);
-      toast(`Extra analysis: ${visits} visits`);
+      toast(`Extra analysis: ${visits} visits.`);
       void s.runAnalysis({ force: true, visits, maxTimeMs: longTimeMs });
       return;
     }
@@ -1939,7 +1939,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const maxMoveVisits = analysis.moves.reduce((acc, cur) => Math.max(acc, cur.visits), 1);
       const target = Math.max(maxMoveVisits * analysis.moves.length, s.currentNode.analysisVisitsRequested ?? s.settings.katagoVisits);
       const visits = clampAnalysisVisits(target);
-      toast(`Equalize: ${visits} visits`);
+      toast(`Equalize: ${visits} visits.`);
       void s.runAnalysis({ force: true, visits, maxTimeMs: longTimeMs });
       return;
     }
@@ -1948,7 +1948,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const visits = clampAnalysisVisits(s.settings.katagoFastVisits);
       const boardSize = getBoardSizeFromBoard(s.board);
       const maxChildren = boardSize * boardSize;
-      toast(`Sweep: ${visits} visits, maxChildren ${maxChildren}`);
+      toast(`Sweep: ${visits} visits, maxChildren ${maxChildren}.`);
       void s.runAnalysis({
         force: true,
         visits,
@@ -1969,7 +1969,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       const label = `${String.fromCharCode(65 + (top.x >= 8 ? top.x + 1 : top.x))}${s.board.length - top.y}`;
       const visits = clampAnalysisVisits(s.settings.katagoVisits);
-      toast(`Analyzing without ${label}: ${visits} visits`);
+      toast(`Analyzing without ${label}: ${visits} visits.`);
       void s.runAnalysis({
         force: true,
         visits,
@@ -1983,7 +1983,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (mode === 'alternative') {
       const visits = clampAnalysisVisits(s.settings.katagoFastVisits);
       const wideRootNoise = Math.max(s.settings.katagoWideRootNoise, 0.12);
-      toast(`Alternative: ${visits} visits, noise ${wideRootNoise.toFixed(2)}`);
+      toast(`Alternative: ${visits} visits, noise ${wideRootNoise.toFixed(2)}.`);
       void s.runAnalysis({
         force: true,
         visits,
@@ -3521,7 +3521,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 : `${String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x))}${boardSize - move.y}`;
 
             const notification = {
-              message: `Teaching undo: ${moveLabel} (${pointsLost.toFixed(1)} points lost)`,
+              message: `Teaching undo: ${moveLabel} (${pointsLost.toFixed(1)} points lost).`,
               type: 'info' as const,
             };
             set({ notification });
