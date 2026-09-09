@@ -666,6 +666,26 @@ function assertViewport(result) {
       failures.push(`${result.modalSmallTouchTargets.length} modal touch target(s) below 44px: ${summary}`);
     }
   }
+  /**
+   * A budget, not a zero.
+   *
+   * Every box can be the right size and in the right place by the time the
+   * measurements above run, and the page can still have thrown its content
+   * around getting there -- which is what someone reaching for a control
+   * actually experiences. Measured in this window, with the shell up and
+   * nothing clicked, the app sits at 0.0000 on every viewport here; 0.05 is
+   * well inside the 0.1 that counts as good and leaves room for a browser that
+   * rounds differently, while still catching anything that moves a panel.
+   *
+   * `hadRecentInput` entries are dropped by the observer, so a shift the app
+   * makes in answer to a click is not counted -- only what moves on its own.
+   */
+  if (result.layoutShift && result.layoutShift.total > 0.05) {
+    failures.push(
+      `layout shifts after the shell settled: ${result.layoutShift.total.toFixed(4)}`
+      + ` (${result.layoutShift.worst.join('; ')})`
+    );
+  }
   // Text contrast is a property of the theme and the type scale, not of the
   // shell, and auditContrast() already runs at every viewport — but the report
   // sat in the mobile branch, so desktop text had never been checked.
@@ -930,6 +950,38 @@ async function main() {
     // this suite out of CI; whether it is *the* cause there is unverified, and
     // the step below stays commented out until someone can watch a run.
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
+    // Layout shift is the one kind of breakage the measurements below cannot
+    // see: every box can be the right size and in the right place by the time
+    // they run, and the page can still have thrown its content around getting
+    // there. The observer goes in before the app boots so nothing is missed,
+    // and `__shifts` is reset once the shell has settled -- what is asserted is
+    // the quiet window after that, not the churn of a first paint.
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `
+        window.__shifts = [];
+        try {
+          new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+              // A shift within 500ms of a click is the page responding to it.
+              if (entry.hadRecentInput) continue;
+              window.__shifts.push({
+                value: entry.value,
+                sources: (entry.sources || []).slice(0, 3).map((source) => {
+                  const node = source.node;
+                  if (!node || !node.tagName) return '(removed)';
+                  const cls = typeof node.className === 'string'
+                    ? node.className.trim().split(/\\s+/).slice(0, 3).join('.') : '';
+                  return node.tagName.toLowerCase() + (cls ? '.' + cls : '')
+                    + ' y' + Math.round(source.previousRect.top) + '->' + Math.round(source.currentRect.top);
+                }),
+              });
+            }
+          }).observe({ type: 'layout-shift', buffered: true });
+        } catch {
+          // No layout-shift entries in this build; the check reports nothing.
+        }
+      `,
+    });
     if (process.env.VIEWPORT_CPU_THROTTLE) {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.VIEWPORT_CPU_THROTTLE) });
       process.stdout.write(`CPU throttled ${process.env.VIEWPORT_CPU_THROTTLE}x\n`);
@@ -1003,6 +1055,9 @@ async function main() {
         return true;
       })()`);
       await waitForShellReady(cdp);
+      // Start the layout-shift window here: the shell is up and nothing has
+      // been clicked, so anything that moves from now on moves on its own.
+      await evaluate(cdp, `(() => { window.__shifts = []; return true; })()`);
       const defaultLayout = await evaluate(cdp, `(() => {
         const board = document.querySelector('[data-board-snapshot="true"]');
         if (!board) return { board: null };
@@ -1027,6 +1082,22 @@ async function main() {
         path.join(screenshotDir, `${viewport.width}x${viewport.height}.png`),
         Buffer.from(defaultScreenshot.result.data, 'base64')
       );
+      // Close the quiet window here: everything below clicks through the app,
+      // and a shift that follows a click is the page answering it. The settle
+      // is for what arrives on its own -- a library read resolving, an install
+      // card mounting, the engine reporting ready.
+      await sleep(700);
+      const layoutShift = await evaluate(cdp, `(() => {
+        const shifts = window.__shifts || [];
+        return {
+          total: shifts.reduce((sum, entry) => sum + entry.value, 0),
+          worst: shifts
+            .slice()
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 3)
+            .map((entry) => entry.value.toFixed(4) + ' ' + entry.sources.join(' | ')),
+        };
+      })()`);
       const result = await evaluate(cdp, `(async () => {
         const rect = (el) => {
           if (!el) return null;
@@ -3565,6 +3636,7 @@ async function main() {
           return out;
         })()`);
       }
+      result.layoutShift = layoutShift;
       result.pageErrors = [...new Set(pageErrors)];
       assertViewport(result);
       const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
