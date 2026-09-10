@@ -81,3 +81,20 @@ describe('the result in a library row', () => {
     for (const id of wide) expect(['resign', 'time', 'draw']).not.toContain(id);
   });
 });
+
+describe('a truncated row name stays readable', () => {
+  const panel = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
+
+  it('labels both kinds of row for a mouse, not only for a screen reader', () => {
+    // Measured in the browser at the panel's default width: the name box is
+    // 191px and a tournament title lays out at 411-462px, so more than half of
+    // it is off the end with no way to read the rest. The row's aria-label
+    // always carried the full name; hovering it gave nothing.
+    const named = [...panel.matchAll(/<div className="library-tree-node-name"([^>]*)>/g)];
+
+    expect(named.length, 'expected a file row and a folder row').toBe(2);
+    for (const [, attributes] of named) {
+      expect(attributes, 'a row name with no title truncates unreadably').toContain('title={item.name}');
+    }
+  });
+});

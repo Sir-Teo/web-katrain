@@ -1550,7 +1550,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         <span className="library-tree-node-icon">
           {item.favorite ? <FaStar size={12} className="text-[var(--ui-warning)]" /> : <FaFileAlt size={12} />}
         </span>
-        <div className="library-tree-node-name">{item.name}</div>
+        {/* The panel is 191px of name at its default width and these run past
+            460, so more than half of a tournament game's title is off the end.
+            The row's aria-label already carries the whole thing; this is the
+            same for a mouse, the way the game strip and the match strip label
+            their own truncating names. */}
+        <div className="library-tree-node-name" title={item.name}>{item.name}</div>
         <div className="library-tree-node-meta">
           {(item.metadata.black || item.metadata.white) &&
           !libraryNameRepeatsPlayers(item.name, item.metadata.black, item.metadata.white)
@@ -1762,7 +1767,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           <span className="library-tree-node-icon">
             <FaFolderOpen size={12} />
           </span>
-          <div className="library-tree-node-name">{item.name}</div>
+          <div className="library-tree-node-name" title={item.name}>{item.name}</div>
           <div className="library-tree-node-meta">{children.length}</div>
           <div className="library-tree-node-actions">
             <button
