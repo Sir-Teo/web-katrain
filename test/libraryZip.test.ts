@@ -82,3 +82,52 @@ describe('library ZIP helpers', () => {
     );
   });
 });
+
+describe('an archive someone else made', () => {
+  const zipOf = async (files: Record<string, string>): Promise<Uint8Array> => {
+    const zip = new JSZip();
+    for (const [name, body] of Object.entries(files)) zip.file(name, body);
+    return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+  };
+
+  it('still imports an ordinary backup whole', async () => {
+    const bytes = await zipOf({
+      'Games/One.sgf': '(;GM[1]FF[4]SZ[19];B[pd])',
+      'Games/Two.sgf': '(;GM[1]FF[4]SZ[9];B[cc])',
+      'Three.sgf': '(;GM[1]FF[4]SZ[13];B[dd])',
+    });
+
+    const items = await importLibraryItemsFromZip(bytes);
+
+    expect(items.filter((item) => item.type === 'file')).toHaveLength(3);
+  });
+
+  it('skips an entry the archive itself says is too big to be a game', async () => {
+    // Measured before this: a 199KB zip holding one 200MB entry cost 402MB of
+    // heap and 248ms, then imported nothing. The declared size is free to read.
+    const bytes = await zipOf({ 'bomb.sgf': 'a'.repeat(200 * 1024 * 1024) });
+
+    const before = process.memoryUsage().heapUsed;
+    const started = Date.now();
+    const items = await importLibraryItemsFromZip(bytes);
+
+    expect(items).toHaveLength(0);
+    expect(Date.now() - started, 'should not have expanded it').toBeLessThan(1000);
+    expect((process.memoryUsage().heapUsed - before) / 1048576, 'heap cost in MB').toBeLessThan(64);
+  }, 60000);
+
+  it('stops once the archive as a whole has expanded far enough', async () => {
+    // Each entry is small enough to pass on its own; together they are not.
+    const files: Record<string, string> = {};
+    for (let i = 0; i < 30; i += 1) files[`fill-${i}.sgf`] = 'a'.repeat(4 * 1024 * 1024);
+    const bytes = await zipOf(files);
+
+    const started = Date.now();
+    const items = await importLibraryItemsFromZip(bytes);
+
+    // None of them is a game, so nothing is imported either way; what matters
+    // is that it stopped rather than expanding 120MB of them.
+    expect(items.filter((item) => item.type === 'file')).toHaveLength(0);
+    expect(Date.now() - started).toBeLessThan(20000);
+  }, 60000);
+});

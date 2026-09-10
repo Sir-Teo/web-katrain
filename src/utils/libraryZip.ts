@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { stripUnsafeFilenameControls } from './filename';
+import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
 import {
   createLibraryFolder,
   createLibraryItem,
@@ -117,6 +118,29 @@ export async function createLibraryZipBlob(
   return { blob, fileCount };
 }
 
+/**
+ * What a library archive may expand to.
+ *
+ * A zip is a file someone else may have made — this app exports them for
+ * exactly that — and `entry.async` decompresses a whole entry before anything
+ * looks at it. Measured: a 199KB zip holding one 200MB entry cost 402MB of heap
+ * and 248ms, and then imported nothing, because 200MB of one letter is not an
+ * SGF.
+ *
+ * The size the archive declares for an entry is free to read and turns an
+ * ordinary bomb into a skipped entry with nothing decompressed. A hostile
+ * archive can lie about it, so a running total stops the import after one such
+ * entry rather than after every one of them. A real backup of a thousand games
+ * is a few megabytes, so neither limit is near anything anyone has.
+ */
+const MAX_ZIP_EXPANDED_BYTES = 64 * 1024 * 1024;
+
+const declaredEntrySize = (entry: unknown): number | null => {
+  const data = (entry as { _data?: { uncompressedSize?: unknown } })._data;
+  const size = data?.uncompressedSize;
+  return typeof size === 'number' && Number.isFinite(size) ? size : null;
+};
+
 export async function importLibraryItemsFromZip(
   source: Blob | ArrayBuffer | Uint8Array,
   parentId: string | null = null
@@ -174,9 +198,13 @@ export async function importLibraryItemsFromZip(
     ensureFolder(parts);
   }
 
+  let expandedBytes = 0;
   for (const entry of entries) {
     if (entry.dir) continue;
     if (!ZIP_SGF_EXT_RE.test(entry.name)) continue;
+    if (expandedBytes > MAX_ZIP_EXPANDED_BYTES) break;
+    const declared = declaredEntrySize(entry);
+    if (declared !== null && declared > MAX_SGF_IMPORT_BYTES) continue;
     const originalName = (entry as typeof entry & { unsafeOriginalName?: string }).unsafeOriginalName ?? entry.name;
     const parts = splitZipPath(originalName);
     if (parts.length === 0) continue;
@@ -184,6 +212,9 @@ export async function importLibraryItemsFromZip(
     let sgf = '';
     try {
       sgf = await entry.async('string');
+      // Counted whether or not it turns out to be a game: the memory was spent
+      // either way, and a lying archive is only caught after the fact.
+      expandedBytes += sgf.length;
       assertValidLibrarySgfImport(sgf);
     } catch {
       continue;
