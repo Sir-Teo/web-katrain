@@ -98,6 +98,39 @@ const TRUNCATION_AUDIT = `(() => {
   return out.slice(0, 6);
 })()`;
 
+/**
+ * A form control nobody can name.
+ *
+ * `visibleLabelInName` checks that a button's accessible name contains the
+ * words printed on it; nothing checked that an input has a name at all. A
+ * `<select>` with no label is announced as "combobox" and nothing else, and the
+ * only way to know what it sets is to see the text beside it.
+ *
+ * A wrapping `<label>` counts, which is how most of this app's controls are
+ * labelled and why a source grep for aria-label reports twelve false hits.
+ */
+const UNNAMED_CONTROL_AUDIT = `(() => {
+  const named = (el) => {
+    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return true;
+    if (el.closest('label')) return true;
+    if (el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]')) return true;
+    if (el.getAttribute('title')) return true;
+    return false;
+  };
+  const out = [];
+  for (const el of document.querySelectorAll('input, select, textarea')) {
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    if (type === 'hidden') continue;
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+    if (named(el)) continue;
+    out.push(el.tagName.toLowerCase() + (type ? '[' + type + ']' : '') + ' in ' +
+      (el.closest('[data-layout-panel],[role="dialog"],[data-dashboard-popover]')?.getAttribute('data-layout-panel')
+        || el.closest('[role="dialog"]')?.getAttribute('aria-label') || 'the shell'));
+  }
+  return out.slice(0, 6);
+})()`;
+
 const screenshotDir = process.env.VIEWPORT_SCREENSHOT_DIR || '/tmp/web-katrain-viewport-check';
 
 /**
@@ -233,6 +266,9 @@ function assertViewport(result) {
   // A library that rendered no names makes its audit pass on nothing.
   if (result.navbarWithLibrary && !(result.navbarWithLibrary.libraryNames > 0)) {
     failures.push('library docked but rendered no names to check');
+  }
+  if (result.unnamedControls?.length > 0) {
+    failures.push(`form controls with no accessible name: ${result.unnamedControls.join(' | ')}`);
   }
   const clipped = [...(result.truncationFailures ?? []), ...(result.navbarWithLibrary?.truncation ?? [])];
   if (clipped.length > 0) {
@@ -3556,6 +3592,7 @@ async function main() {
             return (text.textContent || '').trim().slice(0, 24) + ' needs ' + Math.round(text.scrollWidth) + 'px in ' + Math.round(text.clientWidth) + 'px';
           })(),
           truncationFailures: ${TRUNCATION_AUDIT},
+          unnamedControls: ${UNNAMED_CONTROL_AUDIT},
           contrastFailures: auditContrastAllThemes(),
           modalContrastFailures,
           modalSpillFailures,
