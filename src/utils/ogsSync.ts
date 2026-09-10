@@ -34,6 +34,46 @@ export const OGS_SYNC_GAME_ID_MARKER = /\(ogs-(\d+)\)/;
 
 export const ogsSyncFolderName = (username: string): string => `OGS - ${username}`;
 
+export type OgsSyncOutcome = {
+  added: number;
+  skipped: number;
+  failed: number;
+  username: string;
+};
+
+/**
+ * What to tell someone after a sync.
+ *
+ * It lives here rather than in the dialog because it has to agree with
+ * `ogsSyncFolderName`, and it did not: the dialog spelled the folder out a
+ * second time, so a change to the naming above would have left the summary
+ * pointing at a folder that does not exist.
+ *
+ * It also named that folder unconditionally. Running a sync twice is the normal
+ * way to use this — that is what "safe to run again" in the dialog invites —
+ * and the second run skips everything, so the usual sentence was "Added 0 games
+ * to "OGS - alice". 25 already in your library.", which claims a destination
+ * nothing was written to. Nothing is added, so no folder is created.
+ */
+export const formatOgsSyncSummary = (result: OgsSyncOutcome): string => {
+  const parts: string[] = [];
+  if (result.added > 0) {
+    const games = `${result.added} game${result.added === 1 ? '' : 's'}`;
+    parts.push(`Added ${games} to "${ogsSyncFolderName(result.username)}".`);
+    if (result.skipped > 0) parts.push(`${result.skipped} already in your library.`);
+  } else if (result.skipped > 0) {
+    parts.push(
+      result.skipped === 1
+        ? 'No new games. The one OGS listed is already in your library.'
+        : `No new games. All ${result.skipped} are already in your library.`,
+    );
+  }
+  if (result.failed > 0) {
+    parts.push(`${result.failed} failed to download.`);
+  }
+  return parts.join(' ');
+};
+
 export const ogsSyncFileName = (game: OgsGameSummary): string => {
   const date = game.ended.slice(0, 10);
   const base = `${game.black} vs ${game.white}`;

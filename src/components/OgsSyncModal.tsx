@@ -5,8 +5,10 @@ import {
   OGS_SYNC_USERNAME_STORAGE_KEY,
   collectExistingOgsGameIds,
   downloadNewOgsGames,
+  formatOgsSyncSummary,
   listOgsFinishedGames,
   resolveOgsPlayer,
+  type OgsSyncOutcome,
   type OgsSyncProgress,
   type OgsSyncedGame,
 } from '../utils/ogsSync';
@@ -21,12 +23,7 @@ interface OgsSyncModalProps {
   onImport: (username: string, games: OgsSyncedGame[]) => void;
 }
 
-type SyncSummary = {
-  added: number;
-  skipped: number;
-  failed: number;
-  username: string;
-};
+type SyncSummary = OgsSyncOutcome;
 
 const LIMIT_OPTIONS = [10, 25, 50] as const;
 
@@ -106,15 +103,6 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
       setIsRunning(false);
       setProgress(null);
     }
-  };
-
-  const summaryText = (result: SyncSummary): string => {
-    const parts = [
-      `Added ${result.added} game${result.added === 1 ? '' : 's'} to "OGS - ${result.username}".`,
-    ];
-    if (result.skipped > 0) parts.push(`${result.skipped} already in your library.`);
-    if (result.failed > 0) parts.push(`${result.failed} failed to download.`);
-    return parts.join(' ');
   };
 
   return (
@@ -212,7 +200,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               className="rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 py-2 text-sm text-[var(--ui-accent)]"
               role="status"
             >
-              {summaryText(summary)}
+              {formatOgsSyncSummary(summary)}
             </div>
           )}
         </div>

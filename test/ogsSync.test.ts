@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   collectExistingOgsGameIds,
+  formatOgsSyncSummary,
   ogsSyncFileName,
   ogsSyncFolderName,
   parseOgsGameList,
@@ -96,5 +97,40 @@ describe('sync naming and dedup', () => {
       createLibraryItem('casual game', '(;GM[1]FF[4]SZ[19])', null),
     ];
     expect(collectExistingOgsGameIds(items)).toEqual(new Set([987]));
+  });
+});
+
+describe('formatOgsSyncSummary', () => {
+  const outcome = (overrides: Partial<Parameters<typeof formatOgsSyncSummary>[0]> = {}) =>
+    formatOgsSyncSummary({ added: 0, skipped: 0, failed: 0, username: 'alice', ...overrides });
+
+  it('names the folder the games actually went into', () => {
+    expect(outcome({ added: 3 })).toBe('Added 3 games to "OGS - alice".');
+    expect(outcome({ added: 1 })).toBe('Added 1 game to "OGS - alice".');
+  });
+
+  it('spells the folder the same way the library creates it', () => {
+    expect(outcome({ added: 1 })).toContain(`"${ogsSyncFolderName('alice')}"`);
+  });
+
+  it('does not claim a folder when nothing was added', () => {
+    // Running the sync again is the normal way to use it, and the second run
+    // skips everything. Naming a folder here pointed at one that was never
+    // created.
+    const message = outcome({ skipped: 25 });
+
+    expect(message).toBe('No new games. All 25 are already in your library.');
+    expect(message).not.toContain('Added 0');
+    expect(message).not.toContain('OGS - alice');
+  });
+
+  it('reads as a sentence when a single game was skipped', () => {
+    expect(outcome({ skipped: 1 })).toBe('No new games. The one OGS listed is already in your library.');
+  });
+
+  it('reports failures alongside whatever else happened', () => {
+    expect(outcome({ added: 2, skipped: 4, failed: 1 }))
+      .toBe('Added 2 games to "OGS - alice". 4 already in your library. 1 failed to download.');
+    expect(outcome({ failed: 3 })).toBe('3 failed to download.');
   });
 });
