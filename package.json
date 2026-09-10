@@ -48,6 +48,9 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
-    "vitest": "^4.0.16"
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "js-yaml": "^4.3.2"
   }
 }
