@@ -119,54 +119,6 @@ export const IconButton: React.FC<{
   );
 };
 
-export const TogglePill: React.FC<{
-  label: string;
-  shortcut?: string;
-  active: boolean;
-  disabled?: boolean;
-  onToggle: () => void;
-}> = ({ label, shortcut, active, disabled, onToggle }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
-  const isCoarsePointer = mediaQueryMatches('(pointer: coarse)');
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onToggle}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        onFocus={() => setShowTooltip(true)}
-        onBlur={() => setShowTooltip(false)}
-        aria-label={`${active ? 'Hide' : 'Show'} ${label}`}
-        aria-pressed={active}
-        className={[
-          'px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all border touch-manipulation',
-          disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[var(--ui-surface-2)]',
-          active
-            ? 'bg-[var(--ui-surface-2)] text-[var(--ui-text)] border-[var(--ui-border-strong)] shadow-sm'
-            : 'bg-[var(--ui-surface)] text-[var(--ui-text-muted)] border-[var(--ui-border)]',
-        ].join(' ')}
-      >
-        <span
-          className={[
-            'inline-block h-2 w-2 rounded-full',
-            active ? 'bg-[var(--ui-accent)] shadow-sm shadow-black/20' : 'bg-[var(--ui-border-strong)]',
-          ].join(' ')}
-          aria-hidden="true"
-        />
-        <span className="whitespace-nowrap">{shortcut ? `${shortcut} ${label}` : label}</span>
-      </button>
-      <Tooltip
-        label={`${active ? 'Hide' : 'Show'} ${label}`}
-        shortcut={shortcut}
-        visible={showTooltip && !disabled && !isCoarsePointer}
-      />
-    </div>
-  );
-};
-
 export const EngineStatusBadge: React.FC<{
   label: string | null;
   title?: string;

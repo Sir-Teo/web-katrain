@@ -1,4 +1,4 @@
-import type { AnalysisResult, CandidateMove, GameNode, GameState, BoardState, Player, FloatArray, BoardSize } from "../types";
+import type { AnalysisResult, CandidateMove, GameNode, BoardState, Player, FloatArray, BoardSize } from "../types";
 import { DEFAULT_BOARD_SIZE } from "../types";
 import { encodeKaTrainKtFromAnalysis, KATRAIN_ANALYSIS_FORMAT_VERSION } from './katrainSgfAnalysis';
 import { encodeKayaKaFromAnalysis } from './kayaSgfAnalysis';
@@ -292,41 +292,6 @@ const expandPointListPropertiesInTree = (root: ParsedSgfNode, boardSize: BoardSi
     }
     for (const child of node.children) stack.push(child);
   }
-};
-
-export const generateSgf = (gameState: GameState): string => {
-  const { moveHistory } = gameState;
-  const date = formatSgfDate();
-  const boardSize = normalizeBoardSize(gameState.board.length, DEFAULT_BOARD_SIZE);
-
-  let sgf = `(;GM[1]FF[4]CA[UTF-8]AP[WebKatrain:0.1]ST[2]\n`;
-  sgf += `SZ[${boardSize}]KM[${formatSgfNumber(gameState.komi)}]\n`;
-  sgf += `DT[${date}]\n`;
-  // Add other metadata?
-
-  // Moves
-  moveHistory.forEach(move => {
-      const color = move.player === 'black' ? 'B' : 'W';
-      let coords = '';
-      if (move.x === -1) {
-          coords = ''; // Pass is B[] or W[]
-      } else {
-          coords = coordinateToSgf(move.x, move.y);
-      }
-      sgf += `;${color}[${coords}]`;
-  });
-
-  sgf += `\n)`;
-
-  return sgf;
-};
-
-export const downloadSgf = (gameState: GameState) => {
-    const sgfContent = generateSgf(gameState);
-    const blob = new Blob([sgfContent], { type: 'application/x-go-sgf' });
-    if (!downloadBlob(blob, `game_${new Date().getTime()}.sgf`)) {
-        throw new Error('Could not start SGF download in this browser.');
-    }
 };
 
 function escapeSgfValue(value: string): string {

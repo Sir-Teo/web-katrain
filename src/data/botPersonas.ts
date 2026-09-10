@@ -158,7 +158,3 @@ export function botPersonaAiPatch(persona: BotPersona): Partial<GameSettings> {
   };
 }
 
-export function findBotPersona(id: string | null | undefined): BotPersona | undefined {
-  if (!id) return undefined;
-  return BOT_PERSONAS.find((persona) => persona.id === id);
-}

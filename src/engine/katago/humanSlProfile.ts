@@ -51,8 +51,6 @@ export function inverseRankOf(rank: string): number {
   return idx < 0 ? -1 : idx + 1;
 }
 
-export const HUMAN_SL_RANKS = RANKS;
-
 const emptyMetadata = (): SgfMetadata => ({
   inverseBRank: 0,
   inverseWRank: 0,

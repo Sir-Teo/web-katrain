@@ -129,11 +129,6 @@ export function parseBatchNormV8(p: KataGoBinModelParser): ParsedBatchNorm {
   return { channels, mergedScale, mergedBias };
 }
 
-export function parseActivationNameV8(p: KataGoBinModelParser): string {
-  // Model version < 11 only stores the activation layer name.
-  return p.readToken();
-}
-
 export function parseActivationKind(p: KataGoBinModelParser, modelVersion: number): ActivationKind {
   // ActivationLayerDesc: always stores a name token. For modelVersion >= 11, stores an additional "kind" token.
   p.readToken(); // name

@@ -978,8 +978,6 @@ export const parseLibraryBackup = (raw: string): LibraryItem[] => {
   throw new Error('Invalid library backup');
 };
 
-export const backupLibrary = async (): Promise<string> => createLibraryBackup(await loadLibrary());
-
 export const restoreLibrary = async (raw: string): Promise<LibraryItem[]> => {
   const items = parseLibraryBackup(raw);
   await saveLibrary(items);

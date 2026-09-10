@@ -39,16 +39,6 @@ function opponent(player: Player): Player {
   return player === 'black' ? 'white' : 'black';
 }
 
-function ownerForPlayer(player: Player): ScoringOwner {
-  return player === 'black' ? 1 : -1;
-}
-
-function playerForOwner(owner: ScoringOwner): Player | null {
-  if (owner === 1) return 'black';
-  if (owner === -1) return 'white';
-  return null;
-}
-
 function isOnBoard(board: BoardState, x: number, y: number): boolean {
   return y >= 0 && y < board.length && x >= 0 && x < (board[y]?.length ?? 0);
 }
@@ -470,14 +460,6 @@ export function computeManualScoreEstimate(args: {
     scoreLead,
     result: formatResultScoreLead(scoreLead),
   };
-}
-
-export function getTerritoryOwnerForDeadStone(stone: Player): ScoringOwner {
-  return ownerForPlayer(opponent(stone));
-}
-
-export function getTerritoryOwnerPlayer(owner: ScoringOwner): Player | null {
-  return playerForOwner(owner);
 }
 
 /**
