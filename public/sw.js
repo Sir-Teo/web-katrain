@@ -39,6 +39,22 @@ const PRECACHE_URLS = [
   './katrain/topmove.png',
 ];
 
+/**
+ * The two entries the app cannot start without.
+ *
+ * `cache.addAll` is atomic: one failed request rejects the whole promise, so
+ * `install` never resolves, `skipWaiting()` never runs, and the app is left
+ * with no offline support at all -- silently, and again on the next visit if
+ * the cause is not transient. The list above is 5MB of model and wasm over
+ * whatever connection the first visit happens to have, which is the part most
+ * likely to fail and the part least worth failing for: every one of those is
+ * cache-first at runtime, so a visit that uses them caches them anyway.
+ *
+ * So the shell is fetched atomically -- half a shell serves a broken page
+ * offline -- and everything else is allowed to fail on its own.
+ */
+const PRECACHE_REQUIRED = ['./', './index.html'];
+
 const isSameOrigin = (url) => url.origin === self.location.origin;
 
 const isCacheFirstAsset = (url) =>
@@ -85,7 +101,15 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(APP_SHELL_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then((cache) =>
+        cache
+          .addAll(PRECACHE_REQUIRED)
+          .then(() =>
+            Promise.allSettled(
+              PRECACHE_URLS.filter((url) => !PRECACHE_REQUIRED.includes(url)).map((url) => cache.add(url))
+            )
+          )
+      )
       .then(() => self.skipWaiting())
   );
 });
