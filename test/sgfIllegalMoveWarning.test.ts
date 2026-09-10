@@ -58,7 +58,12 @@ describe('loading an SGF that holds an illegal move', () => {
     // column letters skip I, and row 1 is at the bottom, so (1,1) on 19x19 is
     // B18.
     expect(warning).toContain('Move 8 (White B18)');
-    expect(warning).toContain('Japanese');
+    // A lone stone with no liberty is suicide under every ruleset here, so the
+    // sentence must not blame the one in force. It used to read "is not legal
+    // under Japanese rules", which sent the reader to a setting that would not
+    // have loaded the file.
+    expect(warning).toContain('single-stone suicide');
+    expect(warning).not.toContain('Japanese');
     // Ten moves in the file, seven loaded: the illegal one plus two after it.
     expect(warning).toContain('It and the 2 moves after it were not loaded.');
   });
@@ -132,5 +137,69 @@ describe('honouring the ruleset the file declares', () => {
       expect(mainLineLength(), ru).toBe(2);
       expect(useGameStore.getState().sgfLoadWarning, ru).toContain('Move 3 (White C18)');
     }
+  });
+});
+
+
+/**
+ * Why the move was refused, said out loud.
+ *
+ * All four of these used to render as "is not legal under <ruleset> rules",
+ * which is true of exactly one of them. The other three are illegal under every
+ * ruleset this app offers, so naming the ruleset pointed the reader at a
+ * setting that could not have helped.
+ */
+describe('naming the reason a move was refused', () => {
+  beforeEach(() => {
+    analysisQueue.cancelWhere(() => true, 'test reset');
+    analysisQueue.clearCache();
+    useGameStore.getState().resetGame();
+    useGameStore.setState({ notification: null, sgfLoadWarning: null });
+  });
+
+  const warningFor = (sgf: string): string => {
+    load(sgf);
+    return useGameStore.getState().sgfLoadWarning ?? '';
+  };
+
+  it('says a point is taken when the move lands on a stone', () => {
+    const warning = warningFor('(;GM[1]FF[4]SZ[19]KM[6.5];B[cf];W[ch];B[cc];W[cf];B[dd])');
+    expect(warning).toContain('Move 4 (White C14)');
+    expect(warning).toContain('plays on a point that already holds a stone');
+    expect(warning).not.toContain('Japanese');
+  });
+
+  it('names the ko rule when the move takes the position back', () => {
+    // White captures at C8; Black retaking D8 at once would restore the board
+    // exactly as it stood before the capture.
+    const warning = warningFor(
+      '(;GM[1]FF[4]SZ[9]KM[6.5]AB[bb][ca][cc][db]AW[da][eb][dc];W[cb];B[db];W[ee])'
+    );
+    expect(warning).toContain('Move 2 (Black D8)');
+    expect(warning).toContain('which the ko rule forbids');
+    expect(warning).not.toContain('Japanese');
+  });
+
+  it('says no ruleset allows a one-stone suicide', () => {
+    const warning = warningFor('(;GM[1]FF[4]SZ[9]KM[6.5]RU[Japanese]AW[aa][ca][bb];W[ii];B[ba];W[hh])');
+    expect(warning).toContain('is a single-stone suicide, which no ruleset allows');
+    expect(warning).not.toContain('Japanese');
+  });
+
+  it('names the ruleset only when the ruleset is the reason, and offers the way out', () => {
+    const sgf = (ru: string) =>
+      `(;GM[1]FF[4]SZ[9]KM[6.5]RU[${ru}]AB[aa]AW[ab][ca][bb];W[ii];B[ba];W[hh])`;
+
+    const warning = warningFor(sgf('Japanese'));
+    expect(warning).toContain('is a multi-stone suicide, which Japanese rules forbid');
+    expect(warning).toContain('New Zealand and Tromp-Taylor rules allow it');
+
+    // And the advice is true: the same file under one of those rulesets loads
+    // whole. A message that names a setting has to be worth acting on.
+    useGameStore.getState().resetGame();
+    useGameStore.setState({ sgfLoadWarning: null });
+    load(sgf('NZ'));
+    expect(mainLineLength()).toBe(3);
+    expect(useGameStore.getState().sgfLoadWarning).toBeNull();
   });
 });

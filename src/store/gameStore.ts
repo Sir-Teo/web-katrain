@@ -56,7 +56,7 @@ import {
 import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
-import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, type KoRule } from '../utils/goRules';
+import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
 import { superkoRejectionMessage, violatesSuperko, type SuperkoPosition } from '../utils/superko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
 import { countRootHandicapStones, handicapPlayoutDoublingAdvantage } from '../utils/handicapAi';
@@ -5768,8 +5768,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
      * happen in complete silence: no throw, no toast, just a short game. The
      * counts here are what turns that into a sentence.
      */
-    const COLUMN_LETTERS = 'ABCDEFGHJKLMNOPQRST';
-    const rejected = { moves: 0, lines: 0, firstLabel: '' };
+    /**
+     * Why a move could not be replayed. Three of these four are illegal under
+     * every ruleset this app offers; only `suicide-multi` depends on which one
+     * is in force, and it is the only case where naming the ruleset tells the
+     * reader something they can act on.
+     */
+    type RejectReason = 'occupied' | 'ko' | 'suicide-single' | 'suicide-multi';
+    let lastRejectReason: RejectReason = 'occupied';
+    const rejected = { moves: 0, lines: 0, firstLabel: '', firstReason: 'occupied' as RejectReason };
     const countMovesIn = (node: NonNullable<ParsedSgf['tree']>): number => {
       let total = 0;
       const stack = [node];
@@ -5789,11 +5796,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let moveNumber = 0;
       for (let node: GameNode | null = parent; node; node = node.parent) moveNumber += 1;
       const player = move.player === 'black' ? 'Black' : 'White';
-      const point =
-        move.x < 0 || move.y < 0
-          ? 'pass'
-          : `${COLUMN_LETTERS[move.x] ?? '?'}${boardSize - move.y}`;
-      rejected.firstLabel = `Move ${moveNumber} (${player} ${point})`;
+      rejected.firstLabel = `Move ${moveNumber} (${player} ${formatBoardMoveLabel(move, boardSize)})`;
+      rejected.firstReason = lastRejectReason;
     };
 
     const applyMoveToNode = (parent: GameNode, move: Move): GameNode | null => {
@@ -5813,7 +5817,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return createNode(parent, passMove, newGameState);
       }
 
-      if (parentState.board[move.y]?.[move.x] !== null) return null;
+      if (parentState.board[move.y]?.[move.x] !== null) {
+        lastRejectReason = 'occupied';
+        return null;
+      }
 
 	      const tentativeBoard = parentState.board.map((row) => [...row]);
 	      tentativeBoard[move.y]![move.x] = move.player;
@@ -5824,12 +5831,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (captured.length === 0) {
         const { liberties, group } = getLiberties(newBoard, move.x, move.y);
         if (liberties === 0) {
-          if (!isSuicideLegal(rules) || group.length <= 1) return null;
+          if (!isSuicideLegal(rules) || group.length <= 1) {
+            lastRejectReason = group.length <= 1 ? 'suicide-single' : 'suicide-multi';
+            return null;
+          }
           selfCaptured = applySelfCaptureInPlace(newBoard, move.x, move.y).length;
         }
       }
 
       if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) {
+        lastRejectReason = 'ko';
         return null;
       }
 
@@ -6003,7 +6014,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : rejected.moves > 1
             ? `It and the ${rejected.moves === 2 ? 'move' : `${rejected.moves - 1} moves`} after it were not loaded.`
             : 'It was not loaded.';
-      return `${rejected.firstLabel} is not legal under ${rulesLabel(rules)} rules. ${detail}`;
+      // Only multi-stone suicide depends on the ruleset. Blaming the ruleset
+      // for the other three sent the reader off to change a setting that would
+      // not have helped: an occupied point, a ko and a one-stone suicide are
+      // illegal under every ruleset here.
+      const cause =
+        rejected.firstReason === 'occupied'
+          ? 'plays on a point that already holds a stone'
+          : rejected.firstReason === 'ko'
+            ? 'repeats the position before it, which the ko rule forbids'
+            : rejected.firstReason === 'suicide-single'
+              ? 'is a single-stone suicide, which no ruleset allows'
+              : `is a multi-stone suicide, which ${rulesLabel(rules)} rules forbid. ${suicideAllowingRulesLabel()} rules allow it`;
+      return `${rejected.firstLabel} ${cause}. ${detail}`;
     };
 
     set((state) => ({

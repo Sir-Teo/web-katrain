@@ -151,6 +151,22 @@ export const isAreaScoring = (rules: GameRules): boolean => rulesOf(rules).scori
 export const isSuicideLegal = (rules: GameRules): boolean => rulesOf(rules).multiStoneSuicideLegal;
 
 /**
+ * The rulesets that do allow multi-stone suicide, as a readable list.
+ *
+ * A message that has just told the reader their ruleset forbids something owes
+ * them the way out, and reading it off the table keeps the sentence true if the
+ * table changes.
+ */
+export const suicideAllowingRulesLabel = (): string => {
+  const labels = Object.values(RULES)
+    .filter((definition) => definition.multiStoneSuicideLegal)
+    .map((definition) => definition.label);
+  if (labels.length === 0) return '';
+  if (labels.length === 1) return labels[0]!;
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+};
+
+/**
  * Which "current area" input planes the network gets.
  *
  * KataGo computes them from pass-alive area for area scoring without a group
