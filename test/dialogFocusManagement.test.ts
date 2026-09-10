@@ -49,4 +49,21 @@ describe('modal dialogs manage focus', () => {
       'these render aria-modal="true" but never trap Tab; add useInitialDialogFocus'
     ).toEqual([]);
   });
+
+  it('routes initial focus through the hook rather than a timer', () => {
+    // The hook's `initialFocusRef` defers by an animation frame on purpose: a
+    // menu closing behind the dialog restores focus to its own trigger, and a
+    // `setTimeout(..., 0)` runs before that lands. PasteSgfModal had one, with
+    // no cleanup either. The hook is in src/hooks, so its own rAF is not swept.
+    const offenders = modalFiles.filter((file) =>
+      /(setTimeout|requestAnimationFrame)\(\s*\(\)\s*=>\s*[\w.]*Ref\.current\??\.focus\(\)/.test(
+        readFileSync(file, 'utf8'),
+      ),
+    );
+
+    expect(
+      offenders.map((file) => path.relative('.', file)),
+      'these schedule their own initial focus; pass initialFocusRef to useInitialDialogFocus instead'
+    ).toEqual([]);
+  });
 });

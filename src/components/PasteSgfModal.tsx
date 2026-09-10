@@ -27,11 +27,15 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const inputInfo = React.useMemo(() => getPasteSgfInputInfo(text), [text]);
   useEscapeToClose(onClose);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false, returnFocus });
-
-  React.useEffect(() => {
-    window.setTimeout(() => textareaRef.current?.focus(), 0);
-  }, []);
+  // The only dialog here that used to place its own initial focus, with a bare
+  // `setTimeout(..., 0)` and no cleanup. The hook has `initialFocusRef` for
+  // exactly this, and it defers by an animation frame rather than a task turn
+  // -- which is the point: a menu closing behind the dialog restores focus to
+  // its own trigger, and a 0ms timer runs before that lands.
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
+    initialFocusRef: textareaRef,
+    returnFocus,
+  });
 
   React.useEffect(() => {
     if (!status) return;
