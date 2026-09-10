@@ -4017,6 +4017,7 @@ export const Layout: React.FC = () => {
             onCopyShareLink={() => { void handleCopyShareLink(); }}
             onCopyBoardImage={() => { void handleCopyBoardImage(); }}
             onExportBoardImage={() => { void handleExportBoardImage(); }}
+            onPrintKifu={() => setIsKifuPrintOpen(true)}
             onSaveToLibrary={handleOpenSaveToLibraryDialog}
             onLoadSgf={handleLoadClick}
             onPasteSgf={handlePasteSgf}

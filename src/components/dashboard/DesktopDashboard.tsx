@@ -146,6 +146,7 @@ export interface DesktopDashboardProps {
   onCopyShareLink: () => void;
   onCopyBoardImage: () => void;
   onExportBoardImage: () => void;
+  onPrintKifu: () => void;
   onSaveToLibrary: (returnFocus?: HTMLElement | null) => void;
   onLoadSgf: () => void;
   onPasteSgf: (returnFocus?: HTMLElement | null) => void;
@@ -238,7 +239,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     passTurn, onUndo, onAiMove, onResign, onPlayBest, engineOpponent, onPlayFromHere,
     isTeachMode, onToggleTeachMode,
     onNewGame, onSaveSgf, onCopySgf, onCopyBoardText, onCopyShareLink, onCopyBoardImage,
-    onExportBoardImage, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
+    onExportBoardImage, onPrintKifu, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
     toast, headerNotification,
   } = props;
@@ -1244,6 +1245,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           </button>
           <button type="button" className="menu-item" onClick={() => { closePop(); onExportBoardImage(); }}>
             <Icon name="download" size={14} /><span className="mi-label">Export board image (PNG)</span>
+          </button>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onPrintKifu(); }}>
+            <Icon name="file" size={14} /><span className="mi-label">Print kifu (PDF)</span>
           </button>
           <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onSaveToLibrary(trigger); }}>
             <Icon name="book" size={14} /><span className="mi-label">Save to library</span>

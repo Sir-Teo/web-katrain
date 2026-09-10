@@ -68,7 +68,12 @@ PWA. There is no analysis server to run.
 **Load and save**
 
 - Import SGF files by picker, paste, drag and drop, or Online-Go game URL.
-- Import board positions from a photo or live camera capture.
+- Import board positions from a photo or live camera capture, or by pasting a
+  plain-text board diagram of the kind forum posts carry.
+- Hand a game or a position to someone else: SGF to a file or the clipboard, a
+  share link that carries the whole game in the URL, the board as a PNG, a
+  numbered kifu as PDF, or the position as a text diagram. Every one is in the
+  command palette, and all but the file save sit together under File.
 - Store games in an IndexedDB library with folders, bundled famous games, and
   zip backup/restore.
 - Auto-save the current session and recover after a crash or reload.
