@@ -27,6 +27,9 @@ type AppErrorBoundaryState = {
 const startupErrorReport = readStoredErrorReport();
 if (startupErrorReport) clearStoredErrorReport();
 
+/** There is only ever one boundary, so the heading can hold a fixed id. */
+const FALLBACK_TITLE_ID = 'app-error-boundary-title';
+
 export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
   state: AppErrorBoundaryState = {
     report: null,
@@ -34,6 +37,17 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
     fallbackCopyState: 'idle',
     noticeCopyState: 'idle',
   };
+
+  private fallbackRef = React.createRef<HTMLElement>();
+
+  componentDidUpdate(_prevProps: AppErrorBoundaryProps, prevState: AppErrorBoundaryState): void {
+    // Showing the fallback unmounts the entire app, so whatever had focus goes
+    // with it and focus falls to <body>. A screen reader is told nothing --
+    // the page it was reading is simply gone -- and the next Tab starts from
+    // the top of a page that has changed completely. Move focus onto the
+    // fallback, which names itself through its heading.
+    if (this.state.report && !prevState.report) this.fallbackRef.current?.focus();
+  }
 
   static getDerivedStateFromError(error: unknown): Partial<AppErrorBoundaryState> {
     return {
@@ -111,6 +125,9 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
     const staleBuild = isStaleBuildError(report.message);
     return (
       <main
+        ref={this.fallbackRef}
+        tabIndex={-1}
+        aria-labelledby={FALLBACK_TITLE_ID}
         data-app-error-boundary="true"
         className="flex min-h-screen items-center justify-center bg-[var(--ui-bg)] px-4 py-8 text-[var(--ui-text)]"
       >
@@ -124,7 +141,7 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
                   exist. It arrives here as a render error, but calling that an
                   unexpected error misreads it: nothing is broken and reloading
                   fixes it. */}
-              <h1 className="text-lg font-semibold">
+              <h1 id={FALLBACK_TITLE_ID} className="text-lg font-semibold">
                 {staleBuild ? 'Web KaTrain has been updated' : 'Web KaTrain hit an unexpected error'}
               </h1>
               <p className="mt-2 text-sm text-[var(--ui-text-muted)]">
