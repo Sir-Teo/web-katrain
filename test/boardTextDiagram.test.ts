@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatBoardTextDiagram } from '../src/utils/boardTextDiagram';
+import {
+  formatBoardTextDiagram,
+  parseBoardTextDiagram,
+  sgfFromBoardTextDiagram,
+} from '../src/utils/boardTextDiagram';
 import { boardFromRows } from '../src/data/lessons';
 import { createEmptyBoard, getHoshiPoints } from '../src/utils/boardSize';
 import type { BoardSize, BoardState } from '../src/types';
@@ -105,5 +109,102 @@ describe('formatBoardTextDiagram', () => {
     });
 
     expect(diagram).toContain('Last move: White pass.');
+  });
+});
+
+describe('parseBoardTextDiagram', () => {
+  it('reads back everything this app prints', () => {
+    for (const size of SIZES) {
+      const board: BoardState = createEmptyBoard(size);
+      board[0]![0] = 'black';
+      board[size - 1]![size - 1] = 'white';
+      board[2]![3] = 'white';
+
+      const diagram = formatBoardTextDiagram({ board, toPlay: 'white', komi: 6.5 });
+
+      expect(parseBoardTextDiagram(diagram), `size ${size}`).toEqual(board);
+    }
+  });
+
+  it('reads a bare grid with no labels, the way a forum post carries one', () => {
+    const rows = [
+      '.........',
+      '..X......',
+      '.........',
+      '....O....',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+    ];
+
+    const board = parseBoardTextDiagram(rows.join('\n'));
+
+    expect(board?.length).toBe(9);
+    expect(board?.[1]?.[2]).toBe('black');
+    expect(board?.[3]?.[4]).toBe('white');
+  });
+
+  it('takes the glyphs other tools use', () => {
+    // Star points are drawn with several characters and none of them means a
+    // stone; '#' and '@' for black and '0' for white all appear in the wild.
+    const rows = [
+      '---------',
+      '--#------',
+      '---------',
+      '--,--+--,',
+      '----0----',
+      '---------',
+      '--*------',
+      '---------',
+      '--@------',
+    ];
+
+    const board = parseBoardTextDiagram(rows.join('\n'));
+
+    expect(board?.[1]?.[2]).toBe('black');
+    expect(board?.[8]?.[2]).toBe('black');
+    expect(board?.[4]?.[4]).toBe('white');
+    expect(board?.[3]?.[2]).toBe(null);
+    expect(board?.[6]?.[2]).toBe(null);
+  });
+
+  it('refuses everything that is not a board', () => {
+    expect(parseBoardTextDiagram('')).toBe(null);
+    expect(parseBoardTextDiagram('(;GM[1]FF[4]SZ[19];B[pd];W[dp])')).toBe(null);
+    expect(parseBoardTextDiagram('https://online-go.com/game/12345')).toBe(null);
+    expect(parseBoardTextDiagram('the quick brown fox')).toBe(null);
+    // A board with no stones is a drawing, not a position; loading it would
+    // replace the game on screen with nothing.
+    expect(parseBoardTextDiagram(Array(9).fill('.........').join('\n'))).toBe(null);
+    // Ragged rows, and a row count no board has.
+    expect(parseBoardTextDiagram(['..X......', '....'].join('\n'))).toBe(null);
+    expect(parseBoardTextDiagram(Array(10).fill('.........X').join('\n'))).toBe(null);
+  });
+
+  it('stops at the end of the first grid rather than merging two', () => {
+    const first = ['..X......', ...Array(8).fill('.........')].join('\n');
+    const board = parseBoardTextDiagram(`${first}\n\nand then some prose\n..O......`);
+
+    expect(board?.length).toBe(9);
+    expect(board?.[0]?.[2]).toBe('black');
+  });
+});
+
+describe('sgfFromBoardTextDiagram', () => {
+  it('writes the stones as setup, not as moves', () => {
+    const rows = ['..X......', '.........', '....O....', ...Array(6).fill('.........')];
+
+    const sgf = sgfFromBoardTextDiagram(rows.join('\n'));
+
+    // A diagram records where the stones are and nothing about their order.
+    expect(sgf).toBe('(;GM[1]FF[4]CA[UTF-8]SZ[9]AB[ca]AW[ec])');
+    expect(sgf).not.toContain(';B[');
+    expect(sgf).not.toContain(';W[');
+  });
+
+  it('hands back nothing when the text is not a board', () => {
+    expect(sgfFromBoardTextDiagram('(;GM[1])')).toBe(null);
   });
 });

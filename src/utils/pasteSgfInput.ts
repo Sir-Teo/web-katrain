@@ -1,8 +1,9 @@
 import { extractOgsGameId } from './ogs';
+import { parseBoardTextDiagram } from './boardTextDiagram';
 
 export type PasteSgfSubmitResult = 'loaded' | 'cancelled' | 'failed';
 
-export type PasteSgfInputKind = 'empty' | 'ogs' | 'sgf' | 'text' | 'url';
+export type PasteSgfInputKind = 'diagram' | 'empty' | 'ogs' | 'sgf' | 'text' | 'url';
 
 export type PasteSgfInputInfo = {
   kind: PasteSgfInputKind;
@@ -52,6 +53,16 @@ export const getPasteSgfInputInfo = (text: string): PasteSgfInputInfo => {
       helper: `Detected OGS game ${gameId}. It will download the public SGF from Online-Go.`,
       submitStatus: `Downloading OGS game ${gameId}...`,
       errorStatus: `Could not download or parse OGS game ${gameId}. Check that the game is public and the URL looks like online-go.com/game/12345.`,
+    };
+  }
+
+  const diagram = parseBoardTextDiagram(trimmed);
+  if (diagram) {
+    return {
+      kind: 'diagram',
+      helper: `Detected a ${diagram.length}\u00d7${diagram.length} board diagram. The stones will load as a position to study.`,
+      submitStatus: 'Opening pasted position...',
+      errorStatus: 'Could not read this board diagram. Rows must all be the same length, one row per line.',
     };
   }
 

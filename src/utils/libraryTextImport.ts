@@ -8,7 +8,7 @@ import { loadSgfOrOgs } from './ogs';
 
 export type LibraryTextImportResult = {
   item: LibraryFile;
-  source: 'direct' | 'ogs';
+  source: 'diagram' | 'direct' | 'ogs';
   gameId?: string;
 };
 

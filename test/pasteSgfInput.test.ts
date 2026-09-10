@@ -3,7 +3,37 @@ import { getDirectGameImportText, getPasteSgfInputInfo } from '../src/utils/past
 
 const SGF = '(;GM[1]FF[4]SZ[19];B[pd];W[dd])';
 
+const DIAGRAM = [
+  '   A B C D E F G H J',
+  ' 9 . . . . . . . . . 9',
+  ' 8 . . . . . . . . . 8',
+  ' 7 . . X . . . + . . 7',
+  ' 6 . . . . . . . . . 6',
+  ' 5 . . . . + . . . . 5',
+  ' 4 . . + . . . O . . 4',
+  ' 3 . . . . . . . . . 3',
+  ' 2 . . . . . . . . . 2',
+  ' 1 . . . . . . . . . 1',
+  '   A B C D E F G H J',
+].join('\n');
+
 describe('recognising what was pasted', () => {
+  it('recognises a board diagram and names its size', () => {
+    const info = getPasteSgfInputInfo(DIAGRAM);
+
+    expect(info.kind).toBe('diagram');
+    expect(info.helper).toContain('9\u00d79');
+  });
+
+  it('claims SGF and OGS links before ever guessing at a diagram', () => {
+    // The diagram branch is the only one that guesses, so it runs last: nothing
+    // that is really SGF or a link should reach it.
+    expect(getPasteSgfInputInfo(SGF).kind).toBe('sgf');
+    expect(getPasteSgfInputInfo('https://online-go.com/game/12345').kind).toBe('ogs');
+    expect(getPasteSgfInputInfo('https://example.com/board.txt').kind).toBe('url');
+    expect(getPasteSgfInputInfo('just some notes about a game').kind).toBe('text');
+  });
+
   it('says nothing is there yet for empty input', () => {
     expect(getPasteSgfInputInfo('').kind).toBe('empty');
     expect(getPasteSgfInputInfo('   \n  ').kind).toBe('empty');

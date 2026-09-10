@@ -1,4 +1,5 @@
 import { fetchOgsResource } from './ogsQueue';
+import { sgfFromBoardTextDiagram } from './boardTextDiagram';
 
 const OGS_HOSTS = new Set(['online-go.com', 'www.online-go.com']);
 const OGS_TEXT_URL_RE =
@@ -82,7 +83,7 @@ export const downloadOgsSgf = async (
 
 export const loadSgfOrOgs = async (
   content: string
-): Promise<{ sgf: string; source: 'direct' | 'ogs'; gameId?: string }> => {
+): Promise<{ sgf: string; source: 'direct' | 'ogs' | 'diagram'; gameId?: string }> => {
   const trimmed = content.trim();
   if (!trimmed) return { sgf: '', source: 'direct' };
   if (trimmed.startsWith('(')) {
@@ -93,5 +94,10 @@ export const loadSgfOrOgs = async (
     const sgf = await downloadOgsSgf(gameId);
     return { sgf, source: 'ogs', gameId };
   }
+  // Last, because it is the only branch that guesses. Anything that is really
+  // SGF or an OGS link has already been claimed above, so this only ever sees
+  // text that would otherwise have failed to parse.
+  const diagram = sgfFromBoardTextDiagram(trimmed);
+  if (diagram) return { sgf: diagram, source: 'diagram' };
   return { sgf: trimmed, source: 'direct' };
 };

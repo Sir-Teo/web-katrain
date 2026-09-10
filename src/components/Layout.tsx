@@ -2103,13 +2103,23 @@ export const Layout: React.FC = () => {
       setLoadedExternalFile(
         result.source === 'ogs'
           ? { kind: 'ogs', name: `ogs-${result.gameId ?? 'game'}.sgf` }
-          : { kind: 'pasted', name: getImportedSgfNameFromProperties(parsed.tree?.props, 'Pasted SGF') }
+          : {
+              kind: 'pasted',
+              name: getImportedSgfNameFromProperties(
+                parsed.tree?.props,
+                result.source === 'diagram' ? 'Pasted position' : 'Pasted SGF'
+              ),
+            }
       );
       markCurrentGameCleanAndClearAutoSave();
       const sizeNotice = boardSizeCoercionNotice(result.sgf);
       toast(
         appendRestoredAnalysisSummary(
-          result.source === 'ogs' ? `Downloaded OGS game ${result.gameId ?? ''}.` : 'Loaded SGF.',
+          result.source === 'ogs'
+            ? `Downloaded OGS game ${result.gameId ?? ''}.`
+            : result.source === 'diagram'
+              ? 'Loaded the position from the pasted diagram.'
+              : 'Loaded SGF.',
           restoredAnalysisCount
         ) + (sizeNotice ? ` ${sizeNotice}` : ''),
         sizeNotice ? 'info' : 'success'
