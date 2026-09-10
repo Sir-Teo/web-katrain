@@ -59,7 +59,12 @@ describe('the result in a library row', () => {
     // `extractLibraryMetadata` has always read RE into `metadata.result`, and
     // the row only ever fed it to `tagsFromResult`. Measured on a saved game:
     // "Game 8 - 2026-09-03 - 10 moves - 0.2 KB", with no sign of who won.
-    expect(panel).toContain("{item.metadata.result ? `${item.metadata.result} · ` : ''}");
+    // The line is built once now and used for both the text and its title, so
+    // the result has to be one of the parts that string is joined from.
+    const start = panel.indexOf('const metaText = [');
+    const meta = start < 0 ? '' : panel.slice(start, panel.indexOf(".join(' · ')", start));
+    expect(meta, 'metaText not found in LibraryPanel').not.toBe('');
+    expect(meta).toContain("item.metadata.result ?? ''");
   });
 
   it('drops only the tags that restate the result', () => {

@@ -1507,6 +1507,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const deleteFileLabel = `Delete ${item.name}`;
     const moreFileActionsLabel = `More actions for ${item.name}`;
     const moveSummary = getLibraryFileMoveSummary(item);
+    const metaText = [
+      (item.metadata.black || item.metadata.white) &&
+      !libraryNameRepeatsPlayers(item.name, item.metadata.black, item.metadata.white)
+        ? `${item.metadata.black ?? 'Black'} vs ${item.metadata.white ?? 'White'}`
+        : '',
+      item.metadata.date ?? '',
+      item.metadata.result ?? '',
+      `${moveSummary} · ${(item.size / 1024).toFixed(1)} KB`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
     return (
       <div
         key={item.id}
@@ -1556,14 +1567,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             same for a mouse, the way the game strip and the match strip label
             their own truncating names. */}
         <div className="library-tree-node-name" title={item.name}>{item.name}</div>
-        <div className="library-tree-node-meta">
-          {(item.metadata.black || item.metadata.white) &&
-          !libraryNameRepeatsPlayers(item.name, item.metadata.black, item.metadata.white)
-            ? `${item.metadata.black ?? 'Black'} vs ${item.metadata.white ?? 'White'} · `
-            : ''}
-          {item.metadata.date ? `${item.metadata.date} · ` : ''}
-          {item.metadata.result ? `${item.metadata.result} · ` : ''}
-          {moveSummary} · {(item.size / 1024).toFixed(1)} KB
+        {/* Built once and used twice. It clips by 10-23px on every row at the
+            panel's docked width -- enough to take the file size with it -- and
+            the row's aria-label names the game, not this line, so there was
+            nothing behind it for a mouse either. */}
+        <div className="library-tree-node-meta" title={metaText}>
+          {metaText}
           {/* Tags that only restate the result are dropped now the result is
               shown: "W+R · Resignation" and "0 · Draw" spend the row's width
               saying one thing twice, and this line already truncates the name

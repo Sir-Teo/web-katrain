@@ -63,6 +63,41 @@ const VIEWPORTS = [
   { width: 1440, height: 900, mobile: false },
 ];
 
+/**
+ * Text the reader cannot finish and cannot recover.
+ *
+ * Clipped by its own box, with no title to show it on hover. The library's game
+ * names read like this -- 139px of box for a name that lays out at 487, so
+ * two-thirds of a tournament title was off the end. Every row carried the full
+ * name in its aria-label, which is why this looked covered: assistive tech was
+ * fine and the mouse the panel is built for had nothing.
+ */
+const TRUNCATION_AUDIT = `(() => {
+  const out = [];
+  for (const el of document.querySelectorAll('*')) {
+    if (el.children.length > 0) continue;
+    const text = (el.textContent || '').trim();
+    if (!text) continue;
+    if (String(el.className || '').includes('sr-only')) continue;
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+    // A scroller is not clipping anything: the reader can reach it.
+    const overflow = style.overflow + style.overflowX + style.overflowY;
+    if (overflow.includes('auto') || overflow.includes('scroll')) continue;
+    const lost = el.scrollWidth - el.clientWidth;
+    if (lost <= 2) continue;
+    // A title anywhere up the tree shows on hover over this text, and an
+    // aria-label on the element itself names this text. An aria-label on an
+    // ANCESTOR does neither for a mouse -- it is the row's name, not this
+    // element's, and it is exactly what made the library's clipped game names
+    // look covered while a sighted reader had no way to finish them.
+    if (el.getAttribute('title') || el.getAttribute('aria-label')) continue;
+    if (el.closest('[title]')) continue;
+    out.push(text.slice(0, 36) + ' (needs ' + lost + 'px more than ' + el.clientWidth + 'px)');
+  }
+  return out.slice(0, 6);
+})()`;
+
 const screenshotDir = process.env.VIEWPORT_SCREENSHOT_DIR || '/tmp/web-katrain-viewport-check';
 
 /**
@@ -194,6 +229,14 @@ function assertViewport(result) {
     // silent: nothing renders differently and only assistive tech loses the
     // relationship. Conditionally rendered panels are the usual cause.
     failures.push(`dead ARIA references: ${result.deadAriaRefs.map((r) => `${r.attr}="${r.id}" on ${r.on}`).join(', ')}`);
+  }
+  // A library that rendered no names makes its audit pass on nothing.
+  if (result.navbarWithLibrary && !(result.navbarWithLibrary.libraryNames > 0)) {
+    failures.push('library docked but rendered no names to check');
+  }
+  const clipped = [...(result.truncationFailures ?? []), ...(result.navbarWithLibrary?.truncation ?? [])];
+  if (clipped.length > 0) {
+    failures.push(`text clipped with no title: ${clipped.join(' | ')}`);
   }
   if (result.documentOverflow > 1) failures.push(`document overflows by ${result.documentOverflow}px`);
   // The check above runs after the QA interactions have opened and closed
@@ -3512,6 +3555,7 @@ async function main() {
             if (text.scrollWidth <= text.clientWidth + 1) return null;
             return (text.textContent || '').trim().slice(0, 24) + ' needs ' + Math.round(text.scrollWidth) + 'px in ' + Math.round(text.clientWidth) + 'px';
           })(),
+          truncationFailures: ${TRUNCATION_AUDIT},
           contrastFailures: auditContrastAllThemes(),
           modalContrastFailures,
           modalSpillFailures,
@@ -3611,6 +3655,16 @@ async function main() {
               ? Math.abs(pass.getBoundingClientRect().top - play.getBoundingClientRect().top) > 2
               : false,
           };
+          // The panel is a lazy chunk, and the 400ms above is enough for the
+          // column to have a width and not enough for a row to exist. Waiting
+          // on the name elements themselves rather than on any row: a row
+          // appears one render before the name inside it, and auditing between
+          // the two passes on nothing.
+          for (let i = 0; i < 40 && !document.querySelector('.library-tree-node-name'); i++) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          out.libraryNames = document.querySelectorAll('.library-tree-node-name').length;
+          out.truncation = ${TRUNCATION_AUDIT};
           if (!alreadyOpen) {
             const hide = findButton('Hide library');
             if (hide) hide.click();
