@@ -19,6 +19,19 @@ import { PRELOADED_GAMES } from '../src/data/preloadedGames';
  * the baseline, and anything the reader cannot take back shows up as a
  * difference between output one and output two.
  */
+/**
+ * Every move in the text, passes included.
+ *
+ * Counted off the raw text rather than a parse of it, because a parse would put
+ * the reader on both sides of the comparison and hide anything it drops. The
+ * property before B or W may be `;` or the `]` that closed another one: order
+ * inside a node is not significant in SGF, and this writer emits C before B.
+ */
+const moveCount = (sgf: string): number => (sgf.match(/[;\]]\s*[BW]\[/g) ?? []).length;
+
+/** Every subtree the file opens — one for the game, one per variation. */
+const subtreeCount = (sgf: string): number => (sgf.match(/\(;/g) ?? []).length;
+
 const roundTrip = (
   sgf: string,
   opts?: KaTrainSgfExportOptions,
@@ -28,7 +41,7 @@ const roundTrip = (
   store.resetGame();
   store.loadGame(parseSgf(sgf));
   const first = generateSgfFromTree(useGameStore.getState().rootNode, opts);
-  const moves = (first.match(/;[BW]\[/g) ?? []).length;
+  const moves = moveCount(first);
 
   store.resetGame();
   store.loadGame(parseSgf(first));
@@ -64,6 +77,27 @@ describe('an SGF survives being written and read again', () => {
     const { first, second } = roundTrip(sgf);
 
     expect(second).toBe(first);
+  });
+
+  /**
+   * The check above cannot see a reader and a writer that agree to lose the
+   * same thing: whatever the first read discards, the first write never emits,
+   * and the second pass matches perfectly. Counting the input against the first
+   * output is what catches that, and it is the shape of the bug this suite
+   * exists for — a move, or a whole variation, that goes in and does not come
+   * out.
+   */
+  it.each([
+    ...PRELOADED_GAMES.map((game) => [game.name, game.sgf] as const),
+    ...shapes.map(([shape, sgf]) => [shape, sgf] as const),
+  ])('loses no move and no variation of %s', (_name, sgf) => {
+    const store = useGameStore.getState();
+    store.resetGame();
+    store.loadGame(parseSgf(sgf));
+    const written = generateSgfFromTree(useGameStore.getState().rootNode);
+
+    expect(moveCount(written), 'moves').toBe(moveCount(sgf));
+    expect(subtreeCount(written), 'variations').toBe(subtreeCount(sgf));
   });
 
   it('keeps the marks a file put on a node', () => {
