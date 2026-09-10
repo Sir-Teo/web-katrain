@@ -15,7 +15,12 @@ export function formatShapeCoachNoteBlock(insight: MoveInsight, coach: MoveInsig
   return lines.join('\n');
 }
 
-export function appendShapeCoachNoteBlock(note: string, block: string): string {
+/**
+ * Add a generated block to a note, once. Not specific to the shape coach —
+ * the board diagram uses it too, which is why it is no longer named for one
+ * of its callers.
+ */
+export function appendNoteBlock(note: string, block: string): string {
   const trimmedBlock = block.trim();
   if (!trimmedBlock) return note;
   if (note.includes(trimmedBlock)) return note;

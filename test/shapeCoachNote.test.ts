@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../src/utils/shapeCoachNote';
+import { appendNoteBlock, formatShapeCoachNoteBlock } from '../src/utils/shapeCoachNote';
 
 describe('shape coach notes', () => {
   const block = formatShapeCoachNoteBlock(
@@ -29,8 +29,8 @@ describe('shape coach notes', () => {
   });
 
   it('appends coach guidance without duplicating it', () => {
-    expect(appendShapeCoachNoteBlock('', block)).toBe(block);
-    expect(appendShapeCoachNoteBlock('Opening idea\n', block)).toBe(`Opening idea\n\n${block}`);
-    expect(appendShapeCoachNoteBlock(`Opening idea\n\n${block}`, block)).toBe(`Opening idea\n\n${block}`);
+    expect(appendNoteBlock('', block)).toBe(block);
+    expect(appendNoteBlock('Opening idea\n', block)).toBe(`Opening idea\n\n${block}`);
+    expect(appendNoteBlock(`Opening idea\n\n${block}`, block)).toBe(`Opening idea\n\n${block}`);
   });
 });

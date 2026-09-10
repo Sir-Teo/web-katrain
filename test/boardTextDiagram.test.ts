@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatBoardNoteBlock,
   formatBoardTextDiagram,
   parseBoardTextDiagram,
   sgfFromBoardTextDiagram,
 } from '../src/utils/boardTextDiagram';
+import { parseNoteBlocks } from '../src/utils/notePreview';
 import { boardFromRows } from '../src/data/lessons';
 import { createEmptyBoard, getHoshiPoints } from '../src/utils/boardSize';
 import type { BoardSize, BoardState } from '../src/types';
@@ -206,5 +208,37 @@ describe('sgfFromBoardTextDiagram', () => {
 
   it('hands back nothing when the text is not a board', () => {
     expect(sgfFromBoardTextDiagram('(;GM[1])')).toBe(null);
+  });
+});
+
+describe('formatBoardNoteBlock', () => {
+  const board = (): BoardState => {
+    const next = createEmptyBoard(9);
+    next[2]![2] = 'black';
+    next[6]![6] = 'white';
+    return next;
+  };
+
+  it('is a heading and a fenced diagram, which is what the note renderer draws monospace', () => {
+    const blocks = parseNoteBlocks(formatBoardNoteBlock({ board: board(), moveNumber: 12 }));
+
+    expect(blocks[0]).toEqual({ type: 'heading', level: 3, text: 'Position at move 12' });
+    const code = blocks.find((block) => block.type === 'code');
+    expect(code, 'the diagram must be a code block or the columns will not line up').toBeTruthy();
+    // A proportional font would ruin it, so the fence is the whole point.
+    expect(code && code.type === 'code' ? code.text : '').toContain('A B C D E F G H J');
+  });
+
+  it('carries a board that reads back as the one it was given', () => {
+    const original = board();
+    const code = parseNoteBlocks(formatBoardNoteBlock({ board: original })).find((b) => b.type === 'code');
+    const text = code && code.type === 'code' ? code.text : '';
+
+    expect(parseBoardTextDiagram(text)).toEqual(original);
+  });
+
+  it('says only Position when there is no move to number', () => {
+    expect(formatBoardNoteBlock({ board: board() }).startsWith('### Position\n')).toBe(true);
+    expect(formatBoardNoteBlock({ board: board(), moveNumber: 0 }).startsWith('### Position\n')).toBe(true);
   });
 });

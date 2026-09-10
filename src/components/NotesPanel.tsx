@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FaEdit, FaSave, FaStickyNote, FaTimes, FaMinus, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaSave, FaStickyNote, FaTh, FaTimes, FaMinus, FaPlus } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import type { CandidateMove, FloatArray, GameNode, Move, Player } from '../types';
@@ -11,7 +11,8 @@ import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
 import { getNoteEditorSyncDecision } from '../utils/noteEditorState';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
-import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
+import { appendNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
+import { formatBoardNoteBlock } from '../utils/boardTextDiagram';
 import { getCurrentLineMoveNumber, isGameNodeStep } from '../utils/branchNavigation';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
 import { ENGINE_LOADING_LABEL } from '../utils/engineStatusSummary';
@@ -454,13 +455,36 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const addShapeCoachToNote = () => {
     if (!shapeCoachNoteBlock || hasShapeCoachNoteBlock) return;
     if (isEditingNote) {
-      setNoteDraft((draft) => appendShapeCoachNoteBlock(draft, shapeCoachNoteBlock));
+      setNoteDraft((draft) => appendNoteBlock(draft, shapeCoachNoteBlock));
       requestNoteEditorFocus();
       return;
     }
 
-    setCurrentNodeNote(appendShapeCoachNoteBlock(currentNote, shapeCoachNoteBlock));
+    setCurrentNodeNote(appendNoteBlock(currentNote, shapeCoachNoteBlock));
     setIsEditingNote(false);
+  };
+
+  /**
+   * The board as it stands, dropped into the note as a fenced diagram.
+   *
+   * A note is saved into the SGF comment, so this travels with the file: a
+   * variation can carry the position it is about rather than describing it.
+   */
+  const boardNoteBlock = React.useMemo(
+    () => formatBoardNoteBlock({
+      board: currentNode.gameState.board,
+      lastMove: currentNode.move,
+      toPlay: currentNode.gameState.currentPlayer,
+      moveNumber: depth,
+    }),
+    [currentNode, depth],
+  );
+  const hasBoardNoteBlock = noteDraft.includes(boardNoteBlock);
+
+  const addBoardToNote = () => {
+    if (hasBoardNoteBlock) return;
+    setNoteDraft((draft) => appendNoteBlock(draft, boardNoteBlock));
+    requestNoteEditorFocus();
   };
 
   const cancelNoteEdit = () => {
@@ -672,6 +696,20 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             </div>
             {isEditingNote ? (
               <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="panel-action-button"
+                  onClick={addBoardToNote}
+                  disabled={hasBoardNoteBlock}
+                  title={hasBoardNoteBlock ? 'This position is already in the note' : 'Add the position to the note as a text diagram'}
+                  aria-label={hasBoardNoteBlock
+                    ? 'This position is already in the note'
+                    : 'Add the position to the note as a text diagram'}
+                  data-note-add-board="true"
+                >
+                  <FaTh size={11} aria-hidden="true" />
+                  <span>{hasBoardNoteBlock ? 'Board in note' : 'Add board'}</span>
+                </button>
                 <button
                   type="button"
                   className="panel-action-button"

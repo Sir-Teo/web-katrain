@@ -168,3 +168,20 @@ export function sgfFromBoardTextDiagram(text: string): string | null {
   ].join('');
   return `(;GM[1]FF[4]CA[UTF-8]SZ[${size}]${placements})`;
 }
+
+/**
+ * The position as a note block: a heading, then the diagram in a fenced code
+ * block so the note renderer draws it monospace and the columns line up.
+ *
+ * Notes are saved into the SGF comment, so a diagram added here travels with
+ * the file — a variation can carry the board it is talking about instead of
+ * describing it in prose.
+ */
+export function formatBoardNoteBlock(
+  options: BoardTextDiagramOptions & { moveNumber?: number | null },
+): string {
+  const heading = typeof options.moveNumber === 'number' && options.moveNumber > 0
+    ? `### Position at move ${options.moveNumber}`
+    : '### Position';
+  return `${heading}\n\n\`\`\`\n${formatBoardTextDiagram(options)}\n\`\`\``;
+}
