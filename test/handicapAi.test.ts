@@ -9,8 +9,14 @@ import {
 } from '../src/utils/handicapAi';
 import type { GameNode } from '../src/types';
 
-const rootWith = (ab?: string[]): GameNode =>
-  ({ id: 'root', parent: null, children: [], move: null, properties: ab ? { AB: ab } : undefined } as unknown as GameNode);
+const rootWith = (ab?: string[], extra?: Record<string, string[]>): GameNode =>
+  ({
+    id: 'root',
+    parent: null,
+    children: [],
+    move: null,
+    properties: ab || extra ? { ...(ab ? { AB: ab } : {}), ...extra } : undefined,
+  }) as unknown as GameNode;
 
 describe('automaticHandicapPda', () => {
   // Reference values produced by KaTrain's own HandicapStrategy formula.
@@ -47,6 +53,36 @@ describe('countRootHandicapStones', () => {
   it('counts the root setup stones', () => {
     expect(countRootHandicapStones(rootWith(['dd', 'pp', 'dp']))).toBe(3);
     expect(countRootHandicapStones(rootWith())).toBe(0);
+  });
+
+  it('takes the file at its word when it declares a handicap', () => {
+    // The stones may not be in AB at all -- loadGame places them itself from
+    // HA -- so a declared handicap has to win over whatever setup is present.
+    expect(countRootHandicapStones(rootWith(undefined, { HA: ['4'] }))).toBe(4);
+    expect(countRootHandicapStones(rootWith(['dd'], { HA: ['0'] }))).toBe(0);
+    expect(countRootHandicapStones(rootWith(['dd', 'pp'], { HA: ['not a number'] }))).toBe(2);
+  });
+
+  it('does not read an arranged position as a handicap', () => {
+    // A tsumego, a pasted diagram and a framed problem all arrive as AB plus
+    // AW. Counting the black stones put an "H8" on life-and-death problems and
+    // gave the handicap AI a search bias for a game nobody was giving stones
+    // in. White setup stones are the tell: a handicap places black and nothing
+    // else.
+    expect(countRootHandicapStones(rootWith(['aa', 'bb', 'cc'], { AW: ['ab'] }))).toBe(0);
+
+    // The screenshot that found this: one black and three white setup stones,
+    // shown in the game header as "H1".
+    expect(countRootHandicapStones(rootWith(['aa'], { AW: ['ab', 'ca', 'bb'] }))).toBe(0);
+
+    // But an undeclared handicap game -- black stones alone -- still counts.
+    expect(countRootHandicapStones(rootWith(['dd', 'pd', 'dp', 'pp']))).toBe(4);
+  });
+
+  it('does not call a single black stone a handicap', () => {
+    // There is no such thing as a one-stone handicap; a lone AB stone is a
+    // position someone set up.
+    expect(countRootHandicapStones(rootWith(['dd']))).toBe(0);
   });
 });
 

@@ -54,6 +54,7 @@ import {
   isPhotoBoardImageFile,
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
+import { countRootHandicapStones } from '../utils/handicapAi';
 import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
@@ -445,13 +446,10 @@ export const Layout: React.FC = () => {
   // Surfaces that would name the engine's move have to withhold it while a
   // drill is asking about the position they are describing.
   const drillHidesAnswer = isDrillHidingAnswer(mistakeDrill, currentNode.id);
-  const handicap = useMemo(() => {
-    const raw = rootNode.properties?.HA?.[0];
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    if (Number.isFinite(parsed)) return Math.max(0, parsed);
-    const abCount = rootNode.properties?.AB?.length ?? 0;
-    return abCount > 0 ? abCount : 0;
-  }, [rootNode.properties]);
+  // Shared with the handicap AI strategy, which reads the same number to decide
+  // how much search advantage to hand Black. Two copies of this had already
+  // drifted: this one consulted HA first, the engine's did not.
+  const handicap = useMemo(() => countRootHandicapStones(rootNode), [rootNode]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const boardShellRef = useRef<HTMLDivElement>(null);

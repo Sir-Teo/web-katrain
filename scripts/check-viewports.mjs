@@ -1843,6 +1843,33 @@ async function main() {
         //
         // A deadline says what is actually meant -- give it ten seconds -- and
         // does not change meaning with load.
+        /**
+         * Polls until something is true, or a deadline passes.
+         *
+         * The same reasoning as waitForSelector below, for state that is not an
+         * element. waitForFrames(4) is a guess about how long an update takes,
+         * and frames stretch exactly when the thing being waited for is slow.
+         * The board-theme and locale smokes both asserted straight after four
+         * frames, and both failed at 568x320 in a run that passed on the very
+         * next attempt -- an intermittently red check is worse than no check,
+         * because it teaches everyone to re-run it.
+         *
+         * Returns whether the condition held, but the callers still assert on
+         * the real state afterwards: the point is to stop guessing at the
+         * wait, not to soften what is being checked.
+         */
+        const waitForCondition = async (holds, timeoutMs = 5000) => {
+          const deadline = performance.now() + timeoutMs;
+          for (;;) {
+            try {
+              if (holds()) return true;
+            } catch {
+              // A picker that has not rendered yet reads as not-yet-true.
+            }
+            if (performance.now() >= deadline) return false;
+            await new Promise((resolve) => setTimeout(resolve, 16));
+          }
+        };
         const waitForSelector = async (selector, timeoutMs = 10000) => {
           const deadline = performance.now() + timeoutMs;
           for (;;) {
@@ -2644,7 +2671,10 @@ async function main() {
             return;
           }
           nextChoice.click();
-          await waitForFrames(4);
+          await waitForCondition(() => (
+            document.querySelector('[data-board-snapshot="true"]')?.getAttribute('data-board-theme') === nextTheme
+            && nextChoice.getAttribute('aria-checked') === 'true'
+          ));
           const afterTheme = document.querySelector('[data-board-snapshot="true"]')?.getAttribute('data-board-theme') || '';
           if (afterTheme !== nextTheme) {
             boardThemeSmokeFailures.push('board theme did not update from ' + beforeTheme + ' to ' + nextTheme + ' (saw ' + afterTheme + ')');
@@ -2670,7 +2700,11 @@ async function main() {
           if (valueSetter) valueSetter.call(selector, 'ja');
           else selector.value = 'ja';
           selector.dispatchEvent(new Event('change', { bubbles: true }));
-          await waitForFrames(4);
+          await waitForCondition(() => (
+            selector.value === 'ja'
+            && document.documentElement.lang === 'ja'
+            && document.documentElement.getAttribute('data-locale') === 'ja'
+          ));
           if (selector.value !== 'ja') localeSmokeFailures.push('locale selector did not keep Japanese value');
           if (document.documentElement.lang !== 'ja') {
             localeSmokeFailures.push('html lang did not update to ja');
