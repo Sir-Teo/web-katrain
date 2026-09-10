@@ -55,6 +55,7 @@ import {
 } from '../utils/moveTreeCollapse';
 import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
+import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
 import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, type KoRule } from '../utils/goRules';
 import { superkoRejectionMessage, violatesSuperko, type SuperkoPosition } from '../utils/superko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
@@ -2440,7 +2441,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       komi: state.komi,
       blackToPlay: state.currentPlayer === 'black',
       koAllowed,
-      margin,
+      // Clamped here as well as in the dialog. The bounds module says it is
+      // shared by the UI and the store and it was not: the dialog was the only
+      // caller and the only place that held to them, so a margin arriving any
+      // other way went straight into `iMin - margin` arithmetic that has no
+      // range of its own.
+      margin: clampTsumegoFrameMargin(margin),
     });
     if (frame.black.length === 0 && frame.white.length === 0) {
       set({ notification: { message: 'This position leaves no room for a frame.', type: 'info' } });
