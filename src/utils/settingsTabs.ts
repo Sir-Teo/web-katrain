@@ -1,6 +1,13 @@
 import { readLocalStorage, writeLocalStorage } from './storage';
 
-export const SETTINGS_ACTIVE_TAB_STORAGE_KEY = 'settingsModalActiveTab';
+/**
+ * Namespaced and versioned like the app's other keys. It was
+ * `settingsModalActiveTab`, which on a github.io user domain shares
+ * localStorage with every other project there — a generic enough name to be
+ * somebody else's too.
+ */
+export const SETTINGS_ACTIVE_TAB_STORAGE_KEY = 'web-katrain:settings_active_tab:v1';
+const LEGACY_SETTINGS_ACTIVE_TAB_STORAGE_KEY = 'settingsModalActiveTab';
 export const SETTINGS_TAB_IDS = ['general', 'analysis', 'ai', 'shortcuts'] as const;
 
 export type SettingsTabId = (typeof SETTINGS_TAB_IDS)[number];
@@ -28,7 +35,8 @@ export function getNextSettingsTabId(current: SettingsTabId, key: string): Setti
 }
 
 export function readSettingsActiveTab(fallback: SettingsTabId = 'general'): SettingsTabId {
-  const stored = readLocalStorage(SETTINGS_ACTIVE_TAB_STORAGE_KEY);
+  const stored = readLocalStorage(SETTINGS_ACTIVE_TAB_STORAGE_KEY)
+    ?? readLocalStorage(LEGACY_SETTINGS_ACTIVE_TAB_STORAGE_KEY);
   return isSettingsTabId(stored) ? stored : fallback;
 }
 

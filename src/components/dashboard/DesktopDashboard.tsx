@@ -16,7 +16,6 @@ import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
 import { computeTerritorySwing, describeTerritorySwing, resolveSwingBaseline } from '../../utils/territorySwing';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
-import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
 import { formatEngineBackendLabel, getEngineModelSource } from '../../utils/engineStatusSummary';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../../utils/nodeAnalysis';
@@ -24,6 +23,7 @@ import { evalColorToCss, getKaTrainEvalColors } from '../../utils/katrainTheme';
 import { ANALYSIS_VISIT_PRESETS, clampAnalysisVisits, visitPresetLabel } from '../../utils/visitPresets';
 import { formatRulesLabel } from '../../utils/gameInfoDisplay';
 import { formatReadableScoreLead, formatWinRateFavorLabel, POINTS_LOST_EXPLANATION } from '../../utils/analysisSummary';
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '../../utils/storage';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
 
@@ -197,7 +197,17 @@ function formatVisitCount(n: number): string {
 type PopoverId = 'engine' | 'view' | 'file' | 'help' | null;
 type PopoverInputMode = 'pointer' | 'keyboard';
 
-const HERO_DISMISSED_KEY = 'wk-getting-started-dismissed';
+/**
+ * Namespaced and versioned like every other key this app stores.
+ *
+ * It was `wk-getting-started-dismissed`: outside the `web-katrain:` prefix, so
+ * nothing that clears this app's storage would clear it, and unversioned, so a
+ * change of meaning would have had nowhere to go. The site is served from a
+ * github.io user domain, where localStorage is shared with every other project
+ * on it, which is what the prefix is for.
+ */
+const HERO_DISMISSED_KEY = 'web-katrain:hero_dismissed:v1';
+const LEGACY_HERO_DISMISSED_KEY = 'wk-getting-started-dismissed';
 type DashboardOverlayKey = keyof Pick<
   GameSettings,
   | 'analysisShowChildren'
@@ -297,20 +307,18 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
 
   // ---- first-run hero ----
   const [heroDismissed, setHeroDismissed] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    try {
-      return window.localStorage.getItem(HERO_DISMISSED_KEY) === 'true';
-    } catch {
+    if (readLocalStorage(HERO_DISMISSED_KEY) === 'true') return true;
+    // Anyone who dismissed this before the rename should not meet it again.
+    if (readLocalStorage(LEGACY_HERO_DISMISSED_KEY) === 'true') {
+      writeLocalStorage(HERO_DISMISSED_KEY, 'true');
+      removeLocalStorage(LEGACY_HERO_DISMISSED_KEY);
       return true;
     }
+    return false;
   });
   const dismissHero = useCallback(() => {
     setHeroDismissed(true);
-    try {
-      window.localStorage.setItem(HERO_DISMISSED_KEY, 'true');
-    } catch {
-      // ignore storage failures
-    }
+    writeLocalStorage(HERO_DISMISSED_KEY, 'true');
   }, []);
   // Only on a fresh, untouched game: the board stays playable underneath, and
   // the card hides itself as soon as a move exists or the game has edits.
