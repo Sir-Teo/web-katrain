@@ -60,7 +60,7 @@ export function formatPolicyRank(rank: number | null | undefined): string {
  *
  * Minute precision, matching formatLibraryTimestamp and the save status. The
  * locale defaults to the reader's, as those two do: this was pinned to en-US,
- * so a report printed in Berlin dated itself "Sep 9, 2026 • 05:23 PM" while the
+ * so a report printed in Berlin dated itself "Sep 9, 2026 · 05:23 PM" while the
  * library list two panels away read "9. Sept. 2026, 17:23".
  */
 export function formatReportTimestamp(
@@ -73,7 +73,7 @@ export function formatReportTimestamp(
     day: 'numeric',
   });
   const time = generatedAt.toLocaleTimeString(locales, { hour: '2-digit', minute: '2-digit' });
-  return `${date} • ${time}`;
+  return `${date} · ${time}`;
 }
 
 export function getPhaseThresholds(boardSize: number): { openingEnd: number; middleEnd: number } {

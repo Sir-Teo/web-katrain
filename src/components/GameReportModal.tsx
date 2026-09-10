@@ -1985,7 +1985,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 </div>
               </div>
               <div className="mt-6 text-sm text-slate-700">
-                Filters: {activeFilterLabels.join(' - ')} • Sort: {mistakeSortLabel} • Showing top {pdfMistakes.length} mistakes
+                Filters: {activeFilterLabels.join(', ')} · Sort: {mistakeSortLabel} · Showing top {pdfMistakes.length} mistakes
               </div>
               <div className="mt-6">
                 <div className="pdf-section-title">Key Stats</div>
@@ -2136,10 +2136,10 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         Mistake {idx + 1} of {pdfMistakes.length}
                       </div>
                       <div className="text-lg font-semibold text-slate-900">
-                        Move {entry.moveNumber} - {playerNames[entry.player]}
+                        Move {entry.moveNumber} · {playerNames[entry.player]}
                       </div>
                       <div className="text-sm text-slate-700">
-                        Played {entry.move} • Best {entry.topMove ?? NO_VALUE} • Loss {fmtNum(entry.pointsLost, 2)} • Win {fmtWinSwing(entry.winRateSwing)}
+                        Played {entry.move} · Best {entry.topMove ?? NO_VALUE} · Loss {fmtNum(entry.pointsLost, 2)} · Win {fmtWinSwing(entry.winRateSwing)}
                       </div>
                     </div>
                     <div className="text-xs text-slate-600">
