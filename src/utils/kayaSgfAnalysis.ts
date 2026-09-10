@@ -1,7 +1,5 @@
 import { DEFAULT_BOARD_SIZE, type AnalysisResult, type BoardSize, type CandidateMove, type Player } from '../types';
 
-export const KAYA_ANALYSIS_PROPERTY = 'KA';
-
 export interface KayaSgfAnalysisMove {
   m: string;
   p: number;
