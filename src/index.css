@@ -19,8 +19,6 @@
     --ui-bar-pad-x: 12px;
     --ui-bar-pad-y: 8px;
     --ui-control-size: 38px;
-    --ui-panel-pad: 12px;
-    --ui-gap: 8px;
     --mobile-tabbar-height: 68px;
     --ui-bg: #0f1210;
     --ui-bar: #141815;
@@ -162,8 +160,6 @@
     --ui-bar-pad-x: 10px;
     --ui-bar-pad-y: 6px;
     --ui-control-size: 34px;
-    --ui-panel-pad: 10px;
-    --ui-gap: 6px;
   }
 
   :root[data-ui-density='comfortable'] {
@@ -172,8 +168,6 @@
     --ui-bar-pad-x: 12px;
     --ui-bar-pad-y: 8px;
     --ui-control-size: 38px;
-    --ui-panel-pad: 12px;
-    --ui-gap: 8px;
   }
 
   :root[data-ui-density='large'] {
@@ -182,8 +176,6 @@
     --ui-bar-pad-x: 14px;
     --ui-bar-pad-y: 10px;
     --ui-control-size: 44px;
-    --ui-panel-pad: 14px;
-    --ui-gap: 10px;
   }
 
   @media (max-width: 1023px), (max-height: 499px) {
@@ -205,8 +197,6 @@
       --ui-bar-pad-x: 10px;
       --ui-bar-pad-y: 6px;
       --ui-control-size: 44px;
-      --ui-panel-pad: 10px;
-      --ui-gap: 6px;
       --mobile-tabbar-height: 68px;
     }
 
@@ -333,6 +323,10 @@
       display: none;
     }
 
+    /* The strip clips with overflow-hidden, and at 414px the fixed board size
+       pushed the save-status badge past the edge. Drop the values that never
+       change rather than a live "unsaved" warning or the current-turn chip,
+       which flexbox already squeezes toward zero under pressure. */
     .mobile-bottom-current-captures,
     .mobile-bottom-board-size,
     .mobile-bottom-handicap,
@@ -369,14 +363,6 @@
     }
 
     .mobile-bottom-save-status-label {
-      display: none;
-    }
-
-    /* The strip clips with overflow-hidden, and at 414px the fixed board size
-       pushed the save-status badge past the edge. Drop the value that never
-       changes rather than a live "unsaved" warning or the current-turn chip,
-       which flexbox already squeezes toward zero under pressure. */
-    .mobile-bottom-meta-size {
       display: none;
     }
   }
@@ -418,13 +404,7 @@
     }
   }
 
-  /* Below this the move counter's 44px touch target plus the full save badge no
-     longer fit the strip, so the badge goes icon-only rather than being clipped. */
   @media (max-width: 340px) {
-    .mobile-bottom-save-label {
-      display: none;
-    }
-
     /* Six full-size controls leave no room for a useful move count on 320px
        screens. Keep the review path legible and move the two board modes into
        the existing overflow sheet, where their 44px targets remain intact. */
@@ -624,11 +604,6 @@
 
   .font-mono {
     font-family: var(--ui-font-mono);
-  }
-
-  .settings-modal label.text-slate-300,
-  .settings-modal label.text-slate-400 {
-    color: var(--ui-text-muted);
   }
 
   /* iOS Safari zooms the page in when a form control smaller than 16px takes
@@ -1023,10 +998,6 @@
     }
 
     /* The base .toggle styles above already size the switch to 44px. */
-  }
-
-  .ui-panel-pad {
-    padding: var(--ui-panel-pad);
   }
 
   .ui-surface {
@@ -4004,26 +3975,6 @@
     display: none;
   }
 
-  .status-bar {
-    background: var(--ui-panel);
-    border-top: 1px solid var(--ui-border);
-    padding: 6px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    min-height: 28px;
-    z-index: 5;
-    width: 100%;
-    flex-shrink: 0;
-  }
-
-  @media (max-width: 1024px) {
-    .status-bar {
-      display: none;
-    }
-  }
-
   .mobile-safe-bottom {
     padding-bottom: calc(
       var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) +
@@ -4206,65 +4157,9 @@
     }
   }
 
-  .status-bar-section {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .status-bar-left {
-    flex: 0 0 auto;
-    min-width: 100px;
-  }
-
-  .status-bar-right {
-    flex: 0 0 auto;
-    margin-left: auto;
-  }
-
-  .status-bar-text {
-    font-size: 12px;
-    color: var(--ui-text);
-    font-weight: 500;
-  }
-
-  .status-bar-matchup {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   .status-bar-item {
     font-size: 11px;
     color: var(--ui-text-muted);
-  }
-
-  .status-player {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-    border: 1px solid var(--ui-border-strong);
-    flex-shrink: 0;
-  }
-
-  .status-player-black {
-    background: #111;
-  }
-
-  .status-player-white {
-    background: #fff;
-  }
-
-  .status-bar-captures {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
-
-  .status-bar-divider {
-    font-size: 11px;
-    color: var(--ui-text-muted);
-    opacity: 0.7;
   }
 
   .status-bar-button {
@@ -4449,37 +4344,6 @@
   .analysis-overlay-grid-tail > .panel-icon-button {
     flex: none;
     padding-inline: 4px;
-  }
-
-  .panel-toggle {
-    padding: 4px 6px;
-    border: none;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--ui-text-muted);
-    background: transparent;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  @media (hover: hover) {
-    .panel-toggle:hover {
-      color: var(--ui-text);
-      background: var(--ui-surface-2);
-    }
-  }
-
-  .panel-toggle.active {
-    color: var(--ui-text);
-    background: var(--ui-surface-2);
-  }
-
-  .ui-gap {
-    gap: var(--ui-gap);
   }
 
   .panel-scroll-region {
@@ -4760,10 +4624,6 @@
     display: none;
   }
 
-  .ui-border {
-    border-color: var(--ui-border);
-  }
-
   .ui-border-strong {
     border-color: var(--ui-border-strong);
   }
@@ -4774,10 +4634,6 @@
 
   .ui-text-faint {
     color: var(--ui-text-faint);
-  }
-
-  .ui-accent {
-    color: var(--ui-accent);
   }
 
   .ui-accent-bg {
