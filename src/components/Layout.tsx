@@ -884,9 +884,15 @@ export const Layout: React.FC = () => {
    * closing a mid-game estimate stays a no-op.
    */
   const finishScoring = useCallback(() => {
-    recordCountedResult(manualScoreEstimate.result);
+    // Resigning announces its result; counting -- the ordinary way a game ends
+    // -- said nothing at all, so the panel closed and the only sign the result
+    // had been kept was a chip appearing in the game strip. Only when it really
+    // was recorded: the same panel estimates mid-game, and an estimate is not a
+    // result to announce.
+    const recorded = recordCountedResult(manualScoreEstimate.result);
+    if (recorded) toast(`Result: ${manualScoreEstimate.result}`, 'info');
     setScoringMode(false);
-  }, [manualScoreEstimate.result, recordCountedResult]);
+  }, [manualScoreEstimate.result, recordCountedResult, toast]);
 
   const clearManualDeadStones = useCallback(() => {
     setManualDeadStones(new Set());

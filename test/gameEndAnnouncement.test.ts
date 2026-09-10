@@ -81,6 +81,20 @@ describe('recording a counted result', () => {
     expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBe('W+7.0');
   });
 
+  it('says whether it recorded, so only a real result is announced', () => {
+    // Resigning announces its result and counting did not, which made the
+    // ordinary way to end a game the silent one. The panel also estimates
+    // mid-game, so the caller has to be able to tell the two apart before it
+    // puts a result on screen.
+    useGameStore.getState().playMove(2, 2);
+    expect(useGameStore.getState().recordCountedResult('B+3.0'), 'mid-game estimate').toBe(false);
+
+    useGameStore.getState().passTurn();
+    useGameStore.getState().passTurn();
+    expect(useGameStore.getState().recordCountedResult('W+7.0'), 'both passed').toBe(true);
+    expect(useGameStore.getState().recordCountedResult('B+99.0'), 'already carries a result').toBe(false);
+  });
+
   it('ignores a mid-game estimate, which is not a result', () => {
     useGameStore.getState().playMove(2, 2);
     useGameStore.getState().recordCountedResult('B+3.0');

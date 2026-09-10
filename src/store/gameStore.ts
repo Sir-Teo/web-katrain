@@ -223,7 +223,8 @@ interface GameStore extends GameState {
   passTurn: () => void;
   resign: (player?: Player) => void;
   /** Write the result of a counted game onto the record; see the action. */
-  recordCountedResult: (result: string) => void;
+  /** True when the result was recorded; false when this was only an estimate. */
+  recordCountedResult: (result: string) => boolean;
   runAnalysis: (opts?: {
     force?: boolean;
     visits?: number;
@@ -6104,16 +6105,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const node = state.currentNode;
     const bothPassed = isPassMove(node.move) && isPassMove(node.parent?.move);
-    if (!bothPassed) return;
+    if (!bothPassed) return false;
     // Never overwrite a result the game already carries: a loaded SGF's RE is
     // what the players agreed, and a count here is only this app's arithmetic.
-    if (node.endState) return;
+    if (node.endState) return false;
 
     node.endState = result;
     if (!state.rootNode.properties) state.rootNode.properties = {};
     if (!state.rootNode.properties.RE?.[0]) state.rootNode.properties.RE = [result];
 
     set((s) => ({ treeVersion: s.treeVersion + 1 }));
+    return true;
   },
 
   rotateBoard: () =>
