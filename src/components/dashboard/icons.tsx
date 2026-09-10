@@ -68,6 +68,16 @@ const PATHS: Record<string, string> = {
 
 export type IconName = keyof typeof PATHS;
 
+const EMPTY_MARKUP = { __html: '' };
+
+// One object per icon, built once. The markup is constant, but a fresh
+// `{ __html }` literal per render is a new object every time, and React
+// compares this prop by identity -- so every re-render rewrote the <svg>'s
+// innerHTML and threw away its <path> children.
+const MARKUP: Record<string, { __html: string }> = Object.fromEntries(
+  Object.entries(PATHS).map(([name, markup]) => [name, { __html: markup }]),
+);
+
 export const Icon: React.FC<{ name: IconName; size?: number }> = ({ name, size = 16 }) => (
   <svg
     viewBox="0 0 24 24"
@@ -78,6 +88,6 @@ export const Icon: React.FC<{ name: IconName; size?: number }> = ({ name, size =
     strokeWidth={2}
     strokeLinecap="round"
     strokeLinejoin="round"
-    dangerouslySetInnerHTML={{ __html: PATHS[name] ?? '' }}
+    dangerouslySetInnerHTML={MARKUP[name] ?? EMPTY_MARKUP}
   />
 );
