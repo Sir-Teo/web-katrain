@@ -1,6 +1,6 @@
 import type { LibraryItem } from './library';
 import { downloadOgsSgf } from './ogs';
-import { fetchOgsResource, isOgsCancelledError } from './ogsQueue';
+import { fetchOgsResource, isOgsCancelledError, readBoundedResponseText } from './ogsQueue';
 
 export type OgsPlayer = {
   id: number;
@@ -152,7 +152,9 @@ const fetchJson = async (url: string): Promise<unknown> => {
   if (!response.ok) {
     throw new Error(`OGS request failed (${response.status} ${response.statusText})`);
   }
-  return response.json();
+  // A game list for fifty games is a few hundred kilobytes; this is a ceiling
+  // on what the other end may send, not a limit on anything real.
+  return JSON.parse(await readBoundedResponseText(response, 4 * 1024 * 1024));
 };
 
 export const resolveOgsPlayer = async (username: string): Promise<OgsPlayer> => {

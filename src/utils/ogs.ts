@@ -1,4 +1,5 @@
-import { fetchOgsResource } from './ogsQueue';
+import { fetchOgsResource, readBoundedResponseText } from './ogsQueue';
+import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
 import { sgfFromBoardTextDiagram } from './boardTextDiagram';
 
 const OGS_HOSTS = new Set(['online-go.com', 'www.online-go.com']);
@@ -74,7 +75,7 @@ export const downloadOgsSgf = async (
   if (!response.ok) {
     throw new Error(`Failed to download OGS game ${gameId}: ${response.statusText}`);
   }
-  const sgf = await response.text();
+  const sgf = await readBoundedResponseText(response, MAX_SGF_IMPORT_BYTES);
   if (!sgf || sgf.trim().length === 0) {
     throw new Error(`Empty SGF content received from OGS game ${gameId}`);
   }

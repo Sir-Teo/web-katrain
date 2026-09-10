@@ -117,6 +117,46 @@ type OgsFetchOptions = {
   isCancelled?: () => boolean;
 };
 
+/**
+ * Read a response body, stopping if it runs past a limit.
+ *
+ * `response.text()` and `response.json()` are unbounded, and `fetch`
+ * transparently decompresses — so a small gzip body from online-go.com, or from
+ * anything answering in its place, becomes as much memory as it cares to ask
+ * for. Every check this app makes on an OGS response happens after it has been
+ * read, which is too late to be a limit.
+ *
+ * `value.byteLength` counts bytes after decompression, so the cap is on what it
+ * actually costs, and cancelling the reader stops the transfer rather than
+ * letting the rest arrive unread.
+ */
+export const readBoundedResponseText = async (response: Response, limit: number): Promise<string> => {
+  const tooLarge = () => new Error('OGS sent more data than this app will read.');
+  const body = response.body;
+  if (!body) {
+    const text = await response.text();
+    if (text.length > limit) throw tooLarge();
+    return text;
+  }
+
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let out = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel().catch(() => undefined);
+      throw tooLarge();
+    }
+    out += decoder.decode(value, { stream: true });
+  }
+  return out + decoder.decode();
+};
+
 export const fetchOgsResource = (
   input: RequestInfo | URL,
   init: RequestInit = {},
