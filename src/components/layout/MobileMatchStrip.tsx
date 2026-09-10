@@ -86,9 +86,14 @@ export const MobileMatchStrip: React.FC<MobileMatchStripProps> = ({
       toMove={currentPlayer === 'white'}
       fallback="White"
     />
-    <div className="mobile-match-facts" aria-hidden="true">
-      <span className="mobile-match-fact">{boardSize}×{boardSize}</span>
-      {handicap > 0 ? <span className="mobile-match-fact">H{handicap}</span> : null}
+    {/* Board size and handicap are also in the bottom control bar, which reads
+        them out, so this copy stays decorative rather than saying them twice.
+        Komi is not: the bottom bar has no room for it, so this row is the only
+        place the mobile shell says it at all, and hiding it left a fact the
+        desktop game strip announces with no spoken equivalent on a phone. */}
+    <div className="mobile-match-facts">
+      <span className="mobile-match-fact" aria-hidden="true">{boardSize}×{boardSize}</span>
+      {handicap > 0 ? <span className="mobile-match-fact" aria-hidden="true">H{handicap}</span> : null}
       <span className="mobile-match-fact">komi {komi}</span>
     </div>
   </div>
