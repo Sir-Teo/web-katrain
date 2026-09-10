@@ -52,7 +52,11 @@ describe('ManualScorePanel', () => {
 
     expect(html).toContain('Manual score');
     expect(html).toContain('Neutral');
-    expect(html).toContain('aria-label="5 neutral points"');
+    // The B/W column heads are aria-hidden, so each number names its own
+    // column; the empty half of a row is decorative, not a spoken "hyphen".
+    expect(html).toContain('<span class="sr-only">Black </span>');
+    expect(html).toContain('<span class="sr-only">White </span>');
+    expect(html).toContain('aria-hidden="true">-</b>');
     expect(html).toContain('W+5.5');
     expect(html).toContain('data-manual-score-result-detail="true"');
     expect(html).toContain('White by 5.5');
@@ -62,9 +66,30 @@ describe('ManualScorePanel', () => {
     expect(html).toContain('data-manual-score-status-item="dead"');
     expect(html).toContain('data-manual-score-status-item="neutral"');
     expect(html).toContain('data-manual-score-help="true"');
-    expect(html).toContain('Click board stones to toggle dead chains - 1 marked dead stone');
+    expect(html).toContain('Click board stones to toggle dead chains · 1 marked dead stone');
     expect(html).toContain('aria-pressed="false"');
     expect(html).toContain('aria-pressed="true"');
+  });
+
+  it('names the gesture the pointer can actually make', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        matchMedia: (query: string) => ({
+          matches: query === '(pointer: coarse) and (hover: none)',
+        }),
+      },
+    });
+
+    try {
+      const html = renderToStaticMarkup(<ManualScorePanel {...baseProps} />);
+      expect(html).toContain('Tap board stones to toggle dead chains');
+      expect(html).not.toContain('Click board stones');
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'window', descriptor);
+      else delete (globalThis as { window?: unknown }).window;
+    }
   });
 
   it('disables the clear action when no dead stones are marked', () => {

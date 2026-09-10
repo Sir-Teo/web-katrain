@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaCalculator, FaChevronDown, FaChevronUp, FaMagic, FaTimes, FaUndo } from 'react-icons/fa';
 import type { ManualScoreEstimate } from '../utils/scoring';
+import { mediaQueryMatches } from '../utils/mediaQuery';
 
 interface ManualScorePanelProps {
   active: boolean;
@@ -28,6 +29,18 @@ interface ManualScorePanelProps {
 }
 
 const formatScoreValue = (value: number): string => Number.isInteger(value) ? String(value) : value.toFixed(1);
+
+/**
+ * A coarse pointer with no hover has no mouse to click, so the help line names
+ * the gesture the device actually has. Read once per mount rather than
+ * subscribed, the way the notes panel does it: input capability does not
+ * change under an open score panel.
+ */
+const TOUCH_ONLY_MEDIA = '(pointer: coarse) and (hover: none)';
+
+/** A number in one column of the breakdown; `null` leaves that column empty. */
+type ScoreBreakdownCell = { value: string; reader?: string; muted?: boolean } | null;
+type ScoreBreakdownRow = { label: string; cells: [ScoreBreakdownCell, ScoreBreakdownCell] };
 
 function formatScoreSourceLabel(
   scoreMode: 'manual' | 'estimate',
@@ -75,6 +88,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   // breakdown behind the Details toggle so the bar stays slim and the board keeps
   // its space; only the floating desktop panel opens expanded.
   const [showDetails, setShowDetails] = React.useState(!isCompact && !docked);
+  const [isTouchOnly] = React.useState(() => mediaQueryMatches(TOUCH_ONLY_MEDIA));
   const showShortcutLabel = !!shortcutLabel && shortcutLabel !== 'Disabled';
   const scoreTitle = disabled
     ? 'Finish editing before scoring.'
@@ -145,6 +159,37 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   const scoreSourceLabel = formatScoreSourceLabel(scoreMode, estimateSource);
   const markedDeadLabel = `${deadStoneCount} marked dead stone${deadStoneCount === 1 ? '' : 's'}`;
   const resultDetailLabel = formatScoreResultDetail(score.scoreLead, blackName, whiteName);
+  // The B/W column heads are aria-hidden one-letter abbreviations, so a screen
+  // reader heard "Territory 2 2" with no way to tell whose number was whose.
+  // Each cell names its own column instead, and the empty half of a row is a
+  // decorative dash rather than a "hyphen" read out as data.
+  const breakdownRows: ScoreBreakdownRow[] = [
+    {
+      label: 'Territory',
+      cells: [
+        { value: String(score.blackTerritory), reader: 'Black' },
+        { value: String(score.whiteTerritory), reader: 'White' },
+      ],
+    },
+    // Neutral points belong to neither player, so the row label already reads
+    // correctly on its own ("Neutral 5") and naming a colour here would lie.
+    { label: 'Neutral', cells: [{ value: String(score.neutralPoints), muted: true }, null] },
+    {
+      label: 'Prisoners',
+      cells: [
+        { value: String(capturedWhite), reader: 'Black' },
+        { value: String(capturedBlack), reader: 'White' },
+      ],
+    },
+    {
+      label: 'Dead stones',
+      cells: [
+        { value: String(score.whiteDeadStones), reader: 'Black' },
+        { value: String(score.blackDeadStones), reader: 'White' },
+      ],
+    },
+    { label: 'Komi', cells: [null, { value: formatScoreValue(komi), reader: 'White' }] },
+  ];
   return (
     <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : '', docked ? 'manual-score-docked' : '', isCompact && !docked ? 'manual-score-compact' : ''].join(' ')} aria-label="Manual score">
       <div className="manual-score-header">
@@ -243,33 +288,21 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
             <b>B</b>
             <b>W</b>
           </div>
-          <div>
-            <span>Territory</span>
-            <b>{score.blackTerritory}</b>
-            <b>{score.whiteTerritory}</b>
-          </div>
-          <div>
-            <span>Neutral</span>
-            <b className="manual-score-muted" aria-label={`${score.neutralPoints} neutral points`}>
-              {score.neutralPoints}
-            </b>
-            <b className="manual-score-muted">-</b>
-          </div>
-          <div>
-            <span>Prisoners</span>
-            <b>{capturedWhite}</b>
-            <b>{capturedBlack}</b>
-          </div>
-          <div>
-            <span>Dead stones</span>
-            <b>{score.whiteDeadStones}</b>
-            <b>{score.blackDeadStones}</b>
-          </div>
-          <div>
-            <span>Komi</span>
-            <b className="manual-score-muted">-</b>
-            <b>{formatScoreValue(komi)}</b>
-          </div>
+          {breakdownRows.map((row) => (
+            <div key={row.label}>
+              <span>{row.label}</span>
+              {row.cells.map((cell, index) =>
+                cell === null ? (
+                  <b key={index} className="manual-score-muted" aria-hidden="true">-</b>
+                ) : (
+                  <b key={index} className={cell.muted ? 'manual-score-muted' : undefined}>
+                    {cell.reader ? <span className="sr-only">{cell.reader} </span> : null}
+                    {cell.value}
+                  </b>
+                ),
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -301,7 +334,7 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
       </div>
 
       <div className="manual-score-help" data-manual-score-help="true">
-        Click board stones to toggle dead chains - {markedDeadLabel}
+        {isTouchOnly ? 'Tap' : 'Click'} board stones to toggle dead chains · {markedDeadLabel}
       </div>
     </section>
   );
