@@ -1,5 +1,6 @@
 import pako from 'pako';
 import { parseSgf } from './sgf';
+import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
 
 const FRAGMENT_KEY = 'sgf';
 
@@ -32,6 +33,53 @@ const base64UrlToBytes = (value: string): Uint8Array | null => {
 export const encodeSgfToFragment = (sgf: string): string =>
   `${FRAGMENT_KEY}=${bytesToBase64Url(pako.deflate(sgf))}`;
 
+/**
+ * How much compressed fragment to even look at. A share URL this app produces
+ * is capped at MAX_SHARE_URL_LENGTH and warned about past that; this is a
+ * ceiling on what someone else's link may hand us, not a limit on ours.
+ */
+const MAX_FRAGMENT_BYTES = 256 * 1024;
+
+/** Inflate in input-sized bites, stopping the moment the output goes too far.
+ *
+ * `pako.inflate` in one call is unbounded on the output side, and the input is
+ * a URL fragment from whoever sent the link. Measured before this existed: a
+ * 271,803-character fragment — nothing a browser would refuse to carry —
+ * inflated to 200MB and 391MB of heap in 228ms, and the app did that while
+ * starting up, before deciding the result was not an SGF. A phone would not
+ * have survived a larger one.
+ *
+ * The limit is the one `parseSgf` applies anyway, so nothing that would have
+ * loaded stops loading. Feeding the input in small pieces bounds the overshoot:
+ * pako cannot be stopped part-way through a push, so the last bite is the most
+ * that can be produced after the ceiling is crossed.
+ */
+const INFLATE_INPUT_BITE = 4096;
+
+const inflateBounded = (bytes: Uint8Array, limit: number): string | null => {
+  const inflate = new pako.Inflate({ to: 'string' });
+  const parts: string[] = [];
+  let total = 0;
+  let overflowed = false;
+  inflate.onData = (chunk: unknown) => {
+    if (overflowed) return;
+    const text = String(chunk);
+    total += text.length;
+    if (total > limit) {
+      overflowed = true;
+      return;
+    }
+    parts.push(text);
+  };
+  for (let offset = 0; offset < bytes.length && !overflowed; offset += INFLATE_INPUT_BITE) {
+    const end = offset + INFLATE_INPUT_BITE;
+    inflate.push(bytes.subarray(offset, end), end >= bytes.length);
+    if (inflate.err) return null;
+  }
+  if (overflowed || inflate.err) return null;
+  return parts.join('');
+};
+
 /** Decodes an SGF string from a URL fragment, or null when absent/invalid. */
 export const decodeSgfFromFragment = (fragment: string | null | undefined): string | null => {
   if (!fragment) return null;
@@ -43,10 +91,11 @@ export const decodeSgfFromFragment = (fragment: string | null | undefined): stri
     value = null;
   }
   if (!value) return null;
+  if (value.length > MAX_FRAGMENT_BYTES) return null;
   const bytes = base64UrlToBytes(value);
   if (!bytes) return null;
   try {
-    const sgf = pako.inflate(bytes, { to: 'string' });
+    const sgf = inflateBounded(bytes, MAX_SGF_IMPORT_BYTES);
     if (!sgf) return null;
     parseSgf(sgf);
     return sgf;

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import pako from 'pako';
+import { PRELOADED_GAMES } from '../src/data/preloadedGames';
 import {
   buildShareUrl,
   decodeSgfFromFragment,
@@ -43,5 +45,49 @@ describe('shareLink', () => {
     expect(url.startsWith('https://sir-teo.github.io/web-katrain/#sgf=')).toBe(true);
     const fragment = url.slice(url.indexOf('#'));
     expect(decodeSgfFromFragment(fragment)).toBe(SGF);
+  });
+});
+
+/** The same base64url the encoder uses, so a test can forge a fragment. */
+const forgeFragment = (payload: string): string => {
+  const deflated = pako.deflate(payload);
+  let binary = '';
+  for (const byte of deflated) binary += String.fromCharCode(byte);
+  return `sgf=${Buffer.from(binary, 'binary').toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+};
+
+describe('a share link from someone else', () => {
+  it('still carries a real game of nearly three hundred moves', () => {
+    // The bound must not be tight enough to break the thing it protects.
+    const longest = PRELOADED_GAMES.reduce((a, b) => (a.sgf.length > b.sgf.length ? a : b));
+
+    expect(longest.sgf.length).toBeGreaterThan(1000);
+    expect(decodeSgfFromFragment(encodeSgfToFragment(longest.sgf))).toBe(longest.sgf);
+  });
+
+  it('refuses a fragment that expands past what an SGF may be', () => {
+    // Measured before the bound: a 271,803-character fragment inflated to 200MB
+    // and 391MB of heap, during startup, before the result was judged not to be
+    // an SGF at all.
+    const bomb = forgeFragment('a'.repeat(20 * 1024 * 1024));
+
+    const started = Date.now();
+    expect(decodeSgfFromFragment(bomb)).toBeNull();
+    expect(Date.now() - started, 'should stop early, not inflate it all').toBeLessThan(2000);
+  });
+
+  it('refuses an oversized fragment before inflating anything', () => {
+    const huge = forgeFragment('a'.repeat(200 * 1024 * 1024));
+
+    expect(huge.length).toBeGreaterThan(256 * 1024);
+    const started = Date.now();
+    expect(decodeSgfFromFragment(huge)).toBeNull();
+    expect(Date.now() - started, 'the length check should be the whole cost').toBeLessThan(500);
+  });
+
+  it('is unmoved by a fragment that is not deflate at all', () => {
+    expect(decodeSgfFromFragment('sgf=' + 'A'.repeat(500))).toBeNull();
+    expect(decodeSgfFromFragment('sgf=%%%%')).toBeNull();
   });
 });
