@@ -120,7 +120,7 @@ import { dispatchMoveTreeCommand, type MoveTreeCommand } from '../utils/moveTree
 import { ANALYSIS_VISIT_PRESETS, formatVisitCount, visitPresetDescription, visitPresetLabel } from '../utils/visitPresets';
 import { getDroppedSgfOrOgsText, getFirstDraggedFile, hasDraggedFiles, hasPotentialGameImportDrag } from '../utils/dragImport';
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
-import { appendRestoredAnalysisSummary, describeImportFailure } from '../utils/importSummary';
+import { appendRestoredAnalysisSummary, withFailureReason } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
@@ -1020,8 +1020,8 @@ export const Layout: React.FC = () => {
       markCurrentGameCleanAndClearAutoSave(sgf);
       toast(`Updated "${loadedItem.name}" in Library.`, 'success');
       return true;
-    } catch {
-      toast('Failed to update loaded library file. Downloading SGF instead.', 'error');
+    } catch (error) {
+      toast(withFailureReason('Failed to update loaded library file. Downloading SGF instead.', error), 'error');
       return false;
     }
   }, [loadedLibraryFileId, markCurrentGameCleanAndClearAutoSave, setLoadedLibraryFile, toast]);
@@ -1082,8 +1082,8 @@ export const Layout: React.FC = () => {
         navigateEnd();
         suppressRecoveryPrompt();
         toast('Loaded shared game from link.', 'success');
-      } catch {
-        toast('Could not load the shared game from this link.', 'error');
+      } catch (error) {
+        toast(withFailureReason('Could not load the shared game from this link.', error), 'error');
       } finally {
         try {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -1120,8 +1120,8 @@ export const Layout: React.FC = () => {
             try {
               const file = await handle.getFile();
               await pwaOpenHandlersRef.current?.openFile(file);
-            } catch {
-              toast('Could not open the file.', 'error');
+            } catch (error) {
+              toast(withFailureReason('Could not open the file.', error), 'error');
             }
           }
         })();
@@ -1225,8 +1225,8 @@ export const Layout: React.FC = () => {
         initialFolderId,
         folderOptions: getLibraryFolderOptions(items),
       });
-    } catch {
-      toast('Failed to open Library save dialog.', 'error');
+    } catch (error) {
+      toast(withFailureReason('Failed to open Library save dialog.', error), 'error');
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     }
   }, [generateCurrentSgf, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
@@ -1253,8 +1253,8 @@ export const Layout: React.FC = () => {
       toast(`Saved "${newItem.name}" to Library.`, 'success');
       setSaveToLibraryDialog(null);
       return true;
-    } catch {
-      toast('Failed to save game to Library.', 'error');
+    } catch (error) {
+      toast(withFailureReason('Failed to save game to Library.', error), 'error');
       return false;
     }
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveToLibraryDialog?.sgf, setLoadedLibraryFile, toast]);
@@ -1981,7 +1981,7 @@ export const Layout: React.FC = () => {
       const text = await file.text();
       await loadLocalSgfText(text, file.name);
     } catch (error) {
-      toast(describeImportFailure(`Could not open "${file.name}".`, error), 'error');
+      toast(withFailureReason(`Could not open "${file.name}".`, error), 'error');
     } finally {
       e.target.value = '';
     }
@@ -1997,7 +1997,7 @@ export const Layout: React.FC = () => {
       if (sizeNotice) toast(sizeNotice, 'info');
       return true;
     } catch (error) {
-      toast(describeImportFailure('Could not load that game from the library.', error), 'error');
+      toast(withFailureReason('Could not load that game from the library.', error), 'error');
       return false;
     }
   };
@@ -2089,8 +2089,8 @@ export const Layout: React.FC = () => {
       setIsProGamesOpen(false);
       navigateEnd();
       toast(appendRestoredAnalysisSummary(`Loaded ${name}.`, restoredAnalysisCount), 'success');
-    } catch {
-      toast('Failed to load pro game.', 'error');
+    } catch (error) {
+      toast(withFailureReason('Failed to load pro game.', error), 'error');
     }
   }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, navigateEnd, toast]);
 
@@ -2133,7 +2133,7 @@ export const Layout: React.FC = () => {
       return 'loaded';
     } catch (error) {
       if (options.notifyFailure !== false) {
-        toast(describeImportFailure('Could not load that SGF or OGS link.', error), 'error');
+        toast(withFailureReason('Could not load that SGF or OGS link.', error), 'error');
       }
       return 'failed';
     }
@@ -2156,8 +2156,8 @@ export const Layout: React.FC = () => {
         }
         const text = await file.text();
         await loadLocalSgfText(text, file.name);
-      } catch {
-        toast('Failed to open the SGF file.', 'error');
+      } catch (error) {
+        toast(withFailureReason('Failed to open the SGF file.', error), 'error');
       }
       return;
     }
@@ -2221,8 +2221,8 @@ export const Layout: React.FC = () => {
       markCurrentGameCleanAndClearAutoSave();
       closePhotoBoard();
       toast('Imported board position.', 'success');
-    } catch {
-      toast('Failed to import board position.', 'error');
+    } catch (error) {
+      toast(withFailureReason('Failed to import board position.', error), 'error');
     }
   };
 
@@ -2371,8 +2371,8 @@ export const Layout: React.FC = () => {
       }
       const text = await file.text();
       await loadLocalSgfText(text, file.name);
-    } catch {
-      toast('Failed to load the dropped SGF file.', 'error');
+    } catch (error) {
+      toast(withFailureReason('Failed to load the dropped SGF file.', error), 'error');
     }
   };
 
