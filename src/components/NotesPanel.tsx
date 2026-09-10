@@ -15,6 +15,7 @@ import { appendShapeCoachNoteBlock, formatShapeCoachNoteBlock } from '../utils/s
 import { getCurrentLineMoveNumber, isGameNodeStep } from '../utils/branchNavigation';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
 import { ENGINE_LOADING_LABEL } from '../utils/engineStatusSummary';
+import { formatBoardMoveLabel } from '../lib/gtp';
 
 /**
  * A device with no hover and only a coarse pointer has no keys to press, so
@@ -36,10 +37,7 @@ const clampNoteFontScale = (value: number): number => {
 
 function moveToLabel(move: Move | null, boardSize: number): string {
   if (!move) return 'Root';
-  if (move.x < 0 || move.y < 0) return 'Pass';
-  const col = String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x));
-  const row = boardSize - move.y;
-  return `${col}${row}`;
+  return formatBoardMoveLabel(move, boardSize);
 }
 
 function noMoveNodeLabel(currentNode: GameNode): string {
@@ -345,12 +343,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [boardSize, move, parentHumanPolicy, showProDetails]);
 
   const topMove = useMemo(() => bestMoveFromCandidates(parent?.analysis?.moves), [parent?.analysis?.moves]);
-  const topMoveLabel =
-    topMove?.x == null
-      ? null
-      : topMove.x < 0 || topMove.y < 0
-        ? 'Pass'
-        : `${String.fromCharCode(65 + (topMove.x >= 8 ? topMove.x + 1 : topMove.x))}${boardSize - topMove.y}`;
+  const topMoveLabel = topMove?.x == null ? null : formatBoardMoveLabel(topMove, boardSize);
 
   const showInfoBlock = showInfo || detailed;
   const showNotesBlock = showNotes;

@@ -1,4 +1,5 @@
 import { DEFAULT_BOARD_SIZE, type AnalysisResult, type BoardSize, type CandidateMove, type Player } from '../types';
+import { formatGtpMove } from '../lib/gtp';
 
 export interface KayaSgfAnalysisMove {
   m: string;
@@ -25,13 +26,6 @@ function clamp01(value: number): number {
 function round(value: number, places: number): number {
   const scale = 10 ** places;
   return Math.round(value * scale) / scale;
-}
-
-function xyToGtp(x: number, y: number, boardSize: BoardSize): string {
-  if (x < 0 || y < 0) return 'pass';
-  const col = x >= 8 ? x + 1 : x;
-  const letter = String.fromCharCode(65 + col);
-  return `${letter}${boardSize - y}`;
 }
 
 function gtpToXy(move: unknown, boardSize: BoardSize): { x: number; y: number; valid: boolean } {
@@ -106,7 +100,7 @@ export function encodeKayaKaFromAnalysis(args: { analysis: AnalysisResult; board
     w: round(clamp01(analysis.rootWinRate), 4),
     s: round(analysis.rootScoreLead, 2),
     m: analysis.moves.map((move) => ({
-      m: xyToGtp(move.x, move.y, boardSize),
+      m: formatGtpMove(move.x, move.y, boardSize),
       p: round(candidatePrior(move, analysis.policy, boardSize), 4),
       w: round(clamp01(move.winRate), 4),
       s: round(move.scoreLead, 2),

@@ -7,6 +7,7 @@ import {
   type HumanChosenMoveParams,
 } from '../engine/katago/chosenMove';
 import type { CandidateMove, FloatArray } from '../types';
+import { formatGtpMove } from '../lib/gtp';
 
 /**
  * Picking a move the way a human of a given rank would, following KataGo's own
@@ -131,7 +132,6 @@ export function pickHumanBotMove(options: HumanBotOptions): HumanBotPick | null 
 /** How the move reads in the AI's thoughts line. */
 export function describeHumanBotPick(pick: HumanBotPick, profile: string, boardSize: number): string {
   if (pick.isPass) return `Human (${profile}) passed, following the engine's judgement.`;
-  const column = String.fromCharCode(65 + (pick.x >= 8 ? pick.x + 1 : pick.x));
-  const label = `${column}${boardSize - pick.y}`;
+  const label = formatGtpMove(pick.x, pick.y, boardSize);
   return `Human (${profile}) played ${label}, which players of that rank pick ${(pick.prob * 100).toFixed(1)}% of the time.`;
 }

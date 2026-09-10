@@ -1,5 +1,6 @@
 import type { BoardSize, BoardState, Player } from '../types';
 import { coordinateToSgf } from './sgf';
+import { formatGtpMove } from '../lib/gtp';
 
 export type PhotoBoardStone = Player | null;
 export type PhotoBoardTraceTool = Player | 'erase';
@@ -176,8 +177,7 @@ const escapeSgfValue = (value: string): string =>
 const playerToSgf = (player: Player): 'B' | 'W' => (player === 'black' ? 'B' : 'W');
 
 export function photoBoardPointLabel(x: number, y: number, boardSize: BoardSize): string {
-  const col = String.fromCharCode(65 + (x >= 8 ? x + 1 : x));
-  return `${col}${boardSize - y}`;
+  return formatGtpMove(x, y, boardSize);
 }
 
 export function summarizePhotoBoardDelta(

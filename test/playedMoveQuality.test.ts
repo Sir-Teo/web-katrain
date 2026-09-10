@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisResult, CandidateMove, GameNode, Move } from '../src/types';
-import { formatBoardMoveLabel, getNextMoveQuality, getPlayedMoveQuality } from '../src/utils/playedMoveQuality';
+import { getNextMoveQuality, getPlayedMoveQuality } from '../src/utils/playedMoveQuality';
 
 const board = (size = 19) => Array.from({ length: size }, () => Array.from({ length: size }, () => null));
 const territory = (size = 19) => Array.from({ length: size }, () => Array.from({ length: size }, () => 0));
@@ -46,12 +46,6 @@ function node(args: { move: Move | null; parent: GameNode | null; analysis?: Ana
 }
 
 describe('played move quality', () => {
-  it('formats board coordinates using GTP-style labels', () => {
-    expect(formatBoardMoveLabel({ x: 0, y: 0 }, 19)).toBe('A19');
-    expect(formatBoardMoveLabel({ x: 8, y: 18 }, 19)).toBe('J1');
-    expect(formatBoardMoveLabel({ x: -1, y: -1 }, 19)).toBe('Pass');
-  });
-
   it('labels the played move when it matches the engine top move', () => {
     const move = { x: 3, y: 15, player: 'black' as const };
     const root = node({

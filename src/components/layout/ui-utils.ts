@@ -1,14 +1,13 @@
 import { formatReadableScoreLead } from '../../utils/analysisSummary';
+import { formatBoardMoveLabel } from '../../lib/gtp';
 export function rgba(color: readonly [number, number, number, number], alphaOverride?: number): string {
   const a = typeof alphaOverride === 'number' ? alphaOverride : color[3];
   return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${a})`;
 }
 
+/** Loose-coordinate adapter for the panels that never build a Move object. */
 export function formatMoveLabel(x: number, y: number, boardSize = 19): string {
-  if (x < 0 || y < 0) return 'Pass';
-  const col = String.fromCharCode(65 + (x >= 8 ? x + 1 : x));
-  const row = boardSize - y;
-  return `${col}${row}`;
+  return formatBoardMoveLabel({ x, y }, boardSize);
 }
 
 /**

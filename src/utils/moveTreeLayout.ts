@@ -1,5 +1,6 @@
 import type { GameNode, Player } from '../types';
 import { countMoveTreeDescendants } from './moveTreeCollapse';
+import { formatBoardMoveLabel } from '../lib/gtp';
 
 export type MoveTreeLayoutItem = {
   id: string;
@@ -112,11 +113,7 @@ export function moveTreeNodeLabel(node: GameNode): string {
       (node.properties?.AE?.length ?? 0);
     return setupCount > 0 ? `Setup ${setupCount}` : 'Node';
   }
-  if (move.x < 0 || move.y < 0) return 'Pass';
-  const boardSize = node.gameState.board.length;
-  const col = String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x));
-  const row = boardSize - move.y;
-  return `${col}${row}`;
+  return formatBoardMoveLabel(move, node.gameState.board.length);
 }
 
 /**

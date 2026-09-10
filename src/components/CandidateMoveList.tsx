@@ -6,7 +6,7 @@ import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
-import { formatBoardMoveLabel } from '../utils/playedMoveQuality';
+import { formatBoardMoveLabel } from '../lib/gtp';
 import {
   formatCandidatePointsLost,
   formatCandidateScore,

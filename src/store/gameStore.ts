@@ -53,7 +53,7 @@ import {
   getMoveTreeCollapseTarget,
   isNodeDescendantOf,
 } from '../utils/moveTreeCollapse';
-import { parseGtpMove } from '../lib/gtp';
+import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, type KoRule } from '../utils/goRules';
 import { superkoRejectionMessage, violatesSuperko, type SuperkoPosition } from '../utils/superko';
@@ -1967,7 +1967,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ notification: { message: 'Analyze the position first, then ask what else there is.', type: 'error' } });
         return;
       }
-      const label = `${String.fromCharCode(65 + (top.x >= 8 ? top.x + 1 : top.x))}${s.board.length - top.y}`;
+      const label = formatGtpMove(top.x, top.y, s.board.length);
       const visits = clampAnalysisVisits(s.settings.katagoVisits);
       toast(`Analyzing without ${label}: ${visits} visits.`);
       void s.runAnalysis({
@@ -3515,10 +3515,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
             if (!undo) return;
 
-            const moveLabel =
-              move.x < 0 || move.y < 0
-                ? 'Pass'
-                : `${String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x))}${boardSize - move.y}`;
+            const moveLabel = formatBoardMoveLabel(move, boardSize);
 
             const notification = {
               message: `Teaching undo: ${moveLabel} (${pointsLost.toFixed(1)} points lost).`,
@@ -4167,12 +4164,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
             const best =
               candidates.find((m) => m.order === 0) ?? candidates[0] ?? null;
-            const bestLabel =
-              !best
-                ? 'pass'
-                : best.x < 0 || best.y < 0
-                  ? 'pass'
-                  : `${String.fromCharCode(65 + (best.x >= 8 ? best.x + 1 : best.x))}${boardSize - best.y}`;
+            const bestLabel = best ? formatGtpMove(best.x, best.y, boardSize) : 'pass';
 
             if (strategy === 'default') {
               if (!best) return null;
@@ -4241,10 +4233,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   thoughts: `AntiMirror: mirror detected, but no center move was affordable — played ${bestLabel}.`,
                 };
               }
-              const label =
-                choice.move.x < 0 || choice.move.y < 0
-                  ? 'pass'
-                  : `${String.fromCharCode(65 + (choice.move.x >= 8 ? choice.move.x + 1 : choice.move.x))}${boardSize - choice.move.y}`;
+              const label = formatGtpMove(choice.move.x, choice.move.y, boardSize);
               return {
                 x: choice.move.x,
                 y: choice.move.y,
@@ -4261,10 +4250,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               }));
               const picked = pickOneWeighted(weighted);
               if (!picked) return null;
-              const label =
-                picked.x < 0 || picked.y < 0
-                  ? 'pass'
-                  : `${String.fromCharCode(65 + (picked.x >= 8 ? picked.x + 1 : picked.x))}${boardSize - picked.y}`;
+              const label = formatGtpMove(picked.x, picked.y, boardSize);
               return {
                 x: picked.x,
                 y: picked.y,
@@ -4286,10 +4272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   bestCand = m;
                 }
               }
-              const label =
-                bestCand.x < 0 || bestCand.y < 0
-                  ? 'pass'
-                  : `${String.fromCharCode(65 + (bestCand.x >= 8 ? bestCand.x + 1 : bestCand.x))}${boardSize - bestCand.y}`;
+              const label = formatGtpMove(bestCand.x, bestCand.y, boardSize);
               return {
                 x: bestCand.x,
                 y: bestCand.y,
@@ -4308,13 +4291,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
               const nextPlayer = playerAtStart;
               const lastMovePlayer = latest.currentNode.move?.player ?? null;
-
-              const xyToGtp = (x: number, y: number): string => {
-                if (x < 0 || y < 0) return 'pass';
-                const col = x >= 8 ? x + 1 : x;
-                const letter = String.fromCharCode(65 + col);
-                return `${letter}${boardSize - y}`;
-              };
 
               const inBounds = (x: number, y: number) => x >= 0 && x < boardSize && y >= 0 && y < boardSize;
 
@@ -4438,7 +4414,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
               const top5 = scored.slice(0, 5).map((s) => {
                 const mv = s.move;
-                const label = xyToGtp(mv.x, mv.y);
+                const label = formatGtpMove(mv.x, mv.y, boardSize);
                 return `${label} (${mv.pointsLost.toFixed(1)} pt lost, ${mv.visits} visits, ${s.ownSettled.toFixed(1)} settledness, ${s.oppSettled.toFixed(1)} opponent settledness${s.attach ? ', attachment' : ''}${s.tenuki ? ', tenuki' : ''})`;
               });
 
@@ -5335,9 +5311,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     const path = getNodePath(node);
     const moveNumber = getCurrentLineMoveNumber(node);
-    const coord = node.move && node.move.x >= 0 && node.move.y >= 0
-      ? `${String.fromCharCode(65 + (node.move.x >= 8 ? node.move.x + 1 : node.move.x))}${node.gameState.board.length - node.move.y}`
-      : node.move ? 'pass' : 'setup';
+    const coord = node.move
+      ? formatGtpMove(node.move.x, node.move.y, node.gameState.board.length)
+      : 'setup';
     const side = node.move ? (node.move.player === 'black' ? 'B' : 'W') : '';
     const label = `Move ${moveNumber}${side ? ` ${side} ${coord}` : ''}`;
     const pin: PinnedVariation = {

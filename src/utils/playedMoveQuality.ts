@@ -1,4 +1,5 @@
-import type { CandidateMove, GameNode, Move, Player } from '../types';
+import type { CandidateMove, GameNode, Player } from '../types';
+import { formatBoardMoveLabel } from '../lib/gtp';
 import { summarizePointsLost, type PointsLostSummary } from './analysisSummary';
 import { getActiveChild, type ActiveBranchMap } from './branchNavigation';
 import { computeNodePointsLost } from './nodeAnalysis';
@@ -16,12 +17,6 @@ export interface PlayedMoveQuality {
 
 function playerLabel(player: Player): 'B' | 'W' {
   return player === 'black' ? 'B' : 'W';
-}
-
-export function formatBoardMoveLabel(move: Pick<Move, 'x' | 'y'>, boardSize = 19): string {
-  if (move.x < 0 || move.y < 0) return 'Pass';
-  const column = String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x));
-  return `${column}${boardSize - move.y}`;
 }
 
 function candidateRank(candidate: CandidateMove, candidates: CandidateMove[]): number {

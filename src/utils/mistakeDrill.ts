@@ -1,7 +1,7 @@
 import type { CandidateMove, GameNode, Player } from '../types';
 import { getActiveChild, type ActiveBranchMap } from './branchNavigation';
 import { computeNodePointsLost } from './nodeAnalysis';
-import { formatBoardMoveLabel } from './playedMoveQuality';
+import { formatBoardMoveLabel } from '../lib/gtp';
 
 /**
  * Walking your own mistakes and being asked to find the better move.

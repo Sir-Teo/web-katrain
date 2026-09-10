@@ -12,7 +12,6 @@ import {
   sumRegionOwnership,
   type RegionRect,
 } from '../utils/boardDrawing';
-import { parseGtpMove } from '../lib/gtp';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import {
   hasAdjacentHintLabel,
@@ -43,7 +42,7 @@ import {
 } from '../utils/wheelNavigation';
 import { getActiveChild, findCurrentLineNodeByPlayedMoves } from '../utils/branchNavigation';
 import { fuzzyStoneOffset } from '../utils/fuzzyPlacement';
-import { formatBoardMoveLabel } from '../utils/playedMoveQuality';
+import { formatBoardMoveLabel, parseGtpMove } from '../lib/gtp';
 import { setTimedNotification, type TimedNotificationType } from '../utils/timedNotification';
 import { getTapConfirmAction, TAP_CONFIRM_TIMEOUT_MS, type TapConfirmPoint } from '../utils/tapConfirm';
 import { playNavigationHaptic, playStoneHaptic } from '../utils/haptics';

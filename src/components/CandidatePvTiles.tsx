@@ -5,6 +5,7 @@ import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
 import { getEvaluationClass } from '../utils/nodeAnalysis';
 import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
+import { formatBoardMoveLabel } from '../lib/gtp';
 
 interface CandidatePvTilesProps {
   /** `${x},${y}` of the currently pinned candidate, or null. */
@@ -14,12 +15,6 @@ interface CandidatePvTilesProps {
 }
 
 const moveKey = (move: CandidateMove) => `${move.x},${move.y}`;
-
-function moveLabel(move: CandidateMove, boardSize: number): string {
-  if (move.x < 0 || move.y < 0) return 'Pass';
-  const col = String.fromCharCode(65 + (move.x >= 8 ? move.x + 1 : move.x));
-  return `${col}${boardSize - move.y}`;
-}
 
 /**
  * Touch-friendly alternative to hovering candidate moves: a row of tiles that,
@@ -124,10 +119,10 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
                 ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
                 : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]',
             ].join(' ')}
-            title={`Preview ${moveLabel(move, boardSize)} continuation (${move.pv?.length ?? 0} moves)`}
+            title={`Preview ${formatBoardMoveLabel(move, boardSize)} continuation (${move.pv?.length ?? 0} moves)`}
           >
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} aria-hidden="true" />
-            <span>{moveLabel(move, boardSize)}</span>
+            <span>{formatBoardMoveLabel(move, boardSize)}</span>
           </button>
         );
       })}
@@ -136,7 +131,7 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
           type="button"
           onClick={() => addPvVariation(pinnedMove.pv ?? [])}
           className="candidate-pv-tile shrink-0 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-2 py-1 text-xs font-semibold text-[var(--ui-accent)] hover:brightness-110 touch-manipulation"
-          title={`Add the ${moveLabel(pinnedMove, boardSize)} continuation to the move tree`}
+          title={`Add the ${formatBoardMoveLabel(pinnedMove, boardSize)} continuation to the move tree`}
         >
           Keep in tree
         </button>

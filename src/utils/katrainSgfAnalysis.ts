@@ -1,5 +1,6 @@
 import pako from 'pako';
 import { DEFAULT_BOARD_SIZE, type AnalysisResult, type CandidateMove, type Player } from '../types';
+import { formatGtpMove } from '../lib/gtp';
 
 export const KATRAIN_ANALYSIS_FORMAT_VERSION = '1.0';
 
@@ -13,13 +14,6 @@ export type KaTrainSgfAnalysis = KaTrainSgfAnalysisMain & {
   ownership: number[] | null;
   policy: number[] | null;
 };
-
-function xyToGtp(x: number, y: number, boardSize: number): string {
-  if (x < 0 || y < 0) return 'pass';
-  const col = x >= 8 ? x + 1 : x; // Skip 'I'
-  const letter = String.fromCharCode(65 + col);
-  return `${letter}${boardSize - y}`;
-}
 
 function gtpToXy(move: unknown, boardSize: number): { x: number; y: number; valid: boolean } {
   if (typeof move !== 'string') return { x: -1, y: -1, valid: false };
@@ -175,7 +169,7 @@ export function encodeKaTrainKtFromAnalysis(args: { analysis: AnalysisResult; bo
 
   const moves: Record<string, Record<string, unknown>> = {};
   for (const m of args.analysis.moves) {
-    const move = xyToGtp(m.x, m.y, boardSize);
+    const move = formatGtpMove(m.x, m.y, boardSize);
     moves[move] = {
       move,
       order: m.order,

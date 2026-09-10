@@ -1,6 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 import type { BoardState, FloatArray, GameRules, Move, Player, RegionOfInterest } from '../../types';
 import { getAnimationNow } from '../../utils/animationFrame';
+import { formatGtpMove } from '../../lib/gtp';
 import { postprocessKataGoV8 } from './evalV8';
 import type { KataGoModelV8Tf } from './modelV8';
 import {
@@ -2688,11 +2689,7 @@ function compareCandidateRows(
 
 function moveToGtp(move: number): string {
   if (move === PASS_MOVE) return 'pass';
-  const x = move % BOARD_SIZE;
-  const y = (move / BOARD_SIZE) | 0;
-  const col = x >= 8 ? x + 1 : x; // Skip 'I'
-  const letter = String.fromCharCode(65 + col);
-  return `${letter}${BOARD_SIZE - y}`;
+  return formatGtpMove(move % BOARD_SIZE, (move / BOARD_SIZE) | 0, BOARD_SIZE);
 }
 
 /**

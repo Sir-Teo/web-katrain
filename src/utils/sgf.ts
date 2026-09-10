@@ -7,6 +7,7 @@ import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from './nodeAnalysis';
 import { downloadBlob } from './objectUrl';
 import { stripUnsafeFilenameControls } from './filename';
 import { assertSgfImportSize } from './sgfImportLimits';
+import { formatGtpMove } from '../lib/gtp';
 
 // KaTrain convention: auto-generated SGF comments are marked so user notes remain editable.
 export const KATRAIN_SGF_INTERNAL_COMMENTS_MARKER = "\u3164\u200b";
@@ -82,13 +83,6 @@ function playerToSgfShort(player: Player): 'B' | 'W' {
     return player === 'black' ? 'B' : 'W';
 }
 
-function xyToGtp(x: number, y: number, boardSize: BoardSize): string {
-    if (x < 0 || y < 0) return 'pass';
-    const col = x >= 8 ? x + 1 : x; // Skip 'I'
-    const letter = String.fromCharCode(65 + col);
-    return `${letter}${boardSize - y}`;
-}
-
 function formatScoreLead(scoreLead: number): string {
     const lead = scoreLead >= 0 ? 'B' : 'W';
     return `${lead}+${Math.abs(scoreLead).toFixed(1)}`;
@@ -143,7 +137,7 @@ function policyStats(args: { policy: FloatArray; move: { x: number; y: number };
         if (p > prob) betterCount++;
     }
     if (!(bestProb > 0) || bestIndex < 0) return null;
-    const bestMove = bestIndex === boardSize * boardSize ? 'pass' : xyToGtp(bestIndex % boardSize, Math.floor(bestIndex / boardSize), boardSize);
+    const bestMove = bestIndex === boardSize * boardSize ? 'pass' : formatGtpMove(bestIndex % boardSize, Math.floor(bestIndex / boardSize), boardSize);
     return { rank: betterCount + 1, prob, bestMove, bestProb };
 }
 
@@ -156,7 +150,7 @@ function buildKaTrainAutoCommentSegment(args: { node: GameNode; trainer: KaTrain
     const boardSize = normalizeBoardSize(node.gameState.board.length, DEFAULT_BOARD_SIZE);
     const depth = node.gameState.moveHistory.length;
     const player = playerToSgfShort(move.player);
-    const moveGtp = xyToGtp(move.x, move.y, boardSize);
+    const moveGtp = formatGtpMove(move.x, move.y, boardSize);
 
     // KaTrain writes "No analysis available" into saved files; "Analyzing move..."
     // is what it shows live, and would read oddly in an exported record.
@@ -168,7 +162,7 @@ function buildKaTrainAutoCommentSegment(args: { node: GameNode; trainer: KaTrain
 
     const topMove = bestMoveFromCandidates(parent.analysis?.moves);
     if (topMove) {
-        const topMoveGtp = xyToGtp(topMove.x, topMove.y, boardSize);
+        const topMoveGtp = formatGtpMove(topMove.x, topMove.y, boardSize);
         if (topMoveGtp !== moveGtp) {
             const pointsLost = computePointsLost(node);
             if (typeof pointsLost === 'number' && pointsLost > 0.5) text += `Estimated point loss: ${pointsLost.toFixed(1)}\n`;

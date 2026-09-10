@@ -1,6 +1,6 @@
 import type { AnalysisResult, CandidateMove, GameNode } from '../types';
 import { formatAnalysisScoreLead, formatAnalysisWinRate } from './analysisSummary';
-import { formatBoardMoveLabel } from './playedMoveQuality';
+import { formatBoardMoveLabel } from '../lib/gtp';
 import { formatVisitCount } from './visitPresets';
 
 export interface BestMoveSummary {

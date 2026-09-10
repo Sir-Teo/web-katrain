@@ -2,6 +2,7 @@ import type { CandidateMove, FloatArray, GameNode, Player } from '../types';
 import { isReportReadyAnalysis } from './analysisCoverage';
 import { getCurrentLineNodes, type ActiveBranchMap } from './branchNavigation';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from './nodeAnalysis';
+import { formatGtpMove } from '../lib/gtp';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
 const KAYA_PHASE_THRESHOLDS: Record<number, { openingEnd: number; middleEnd: number }> = {
@@ -238,13 +239,6 @@ function policyClassification(args: {
     relativePrior,
     category: classifyMoveByRankAndPolicy(rank, relativePrior),
   };
-}
-
-function xyToGtp(x: number, y: number, boardSize: number): string {
-  if (x < 0 || y < 0) return 'pass';
-  const col = x >= 8 ? x + 1 : x;
-  const letter = String.fromCharCode(65 + col);
-  return `${letter}${boardSize - y}`;
 }
 
 function nodesForCurrentBranch(currentNode: GameNode, activeBranchChildIds: ActiveBranchMap = {}): GameNode[] {
@@ -712,7 +706,7 @@ export function computeGameReport(args: {
       node: n,
       moveNumber,
       player,
-      move: xyToGtp(move.x, move.y, boardSize),
+      move: formatGtpMove(move.x, move.y, boardSize),
       pointsLost,
       pointsGained,
       scoreBefore: parentScore,
@@ -724,7 +718,7 @@ export function computeGameReport(args: {
       winRateDelta,
       winRateSwing,
       phase,
-      topMove: top ? xyToGtp(top.x, top.y, boardSize) : undefined,
+      topMove: top ? formatGtpMove(top.x, top.y, boardSize) : undefined,
       topCandidate: top ?? undefined,
       isTopMove: top ? top.x === move.x && top.y === move.y : undefined,
       pv: top?.pv,
