@@ -1,7 +1,15 @@
 import React from 'react';
 
-// lucide-style 24x24 stroke icon paths, ported from the design bundle.
-const PATHS: Record<string, string> = {
+/**
+ * lucide-style 24x24 stroke icon paths, ported from the design bundle.
+ *
+ * Deliberately not annotated `Record<string, string>`. That made `IconName`
+ * resolve to `string`, so every `<Icon name="..." />` in the app type-checked
+ * whatever was typed -- and a name with no path renders an empty <svg> through
+ * the fallback below. A misspelled icon was invisible in the editor, in `tsc`,
+ * and on screen. `satisfies` keeps the value check without erasing the keys.
+ */
+const PATHS = {
   plus: '<path d="M5 12h14M12 5v14"/>',
   folder:
     '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>',
@@ -64,9 +72,18 @@ const PATHS: Record<string, string> = {
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   dots: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
-};
+  link:
+    '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  image:
+    '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  download:
+    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+} satisfies Record<string, string>;
 
 export type IconName = keyof typeof PATHS;
+
+/** Every name `Icon` knows, so a test can walk them instead of scraping them. */
+export const ICON_NAMES = Object.keys(PATHS) as IconName[];
 
 const EMPTY_MARKUP = { __html: '' };
 

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { Icon } from '../src/components/dashboard/icons';
+import { ICON_NAMES, Icon, type IconName } from '../src/components/dashboard/icons';
 
 /** The element `Icon` would hand React for a given name. */
 const elementFor = (name: Parameters<typeof Icon>[0]['name']) =>
@@ -28,17 +28,27 @@ describe('dashboard icon markup', () => {
   });
 
   it('renders shapes for every name it knows', () => {
-    const source = readFileSync('src/components/dashboard/icons.tsx', 'utf8');
-    const names = [...source.matchAll(/^ {2}([a-zA-Z]+):\s*$|^ {2}([a-zA-Z]+): '/gm)]
-      .map((match) => (match[1] ?? match[2])!)
-      .filter(Boolean);
+    // Walks the real keys rather than a regex over the source, which could
+    // miss a name and still pass.
+    expect(ICON_NAMES.length).toBeGreaterThanOrEqual(25);
 
-    expect(names.length).toBeGreaterThanOrEqual(25);
-
-    for (const name of names) {
-      const html = renderToStaticMarkup(<Icon name={name as Parameters<typeof Icon>[0]['name']} />);
+    for (const name of ICON_NAMES) {
+      const html = renderToStaticMarkup(<Icon name={name} />);
       expect(html, `${name} rendered no shape`).toMatch(/<(path|circle|rect|line|polygon)\b/);
     }
+  });
+
+  it('checks icon names at compile time', () => {
+    const known: IconName = 'copy';
+    expect(ICON_NAMES).toContain(known);
+
+    // PATHS was annotated `Record<string, string>`, which made IconName resolve
+    // to `string`: every name type-checked, and one with no path rendered an
+    // empty <svg> that nothing complained about. If the annotation comes back,
+    // this directive stops being needed and tsc fails on the unused suppression.
+    // @ts-expect-error IconName must be the union of real names, never string.
+    const unknown: IconName = 'definitely-not-an-icon';
+    expect(ICON_NAMES).not.toContain(unknown);
   });
 
   it('builds the markup once, not per render', () => {

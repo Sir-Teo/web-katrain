@@ -142,6 +142,10 @@ export interface DesktopDashboardProps {
   onNewGame: () => void;
   onSaveSgf: () => void;
   onCopySgf: () => void;
+  onCopyBoardText: () => void;
+  onCopyShareLink: () => void;
+  onCopyBoardImage: () => void;
+  onExportBoardImage: () => void;
   onSaveToLibrary: (returnFocus?: HTMLElement | null) => void;
   onLoadSgf: () => void;
   onPasteSgf: (returnFocus?: HTMLElement | null) => void;
@@ -233,7 +237,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     jumpBack, jumpForward, findMistake, canFindPreviousMistake, canFindNextMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
     passTurn, onUndo, onAiMove, onResign, onPlayBest, engineOpponent, onPlayFromHere,
     isTeachMode, onToggleTeachMode,
-    onNewGame, onSaveSgf, onCopySgf, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
+    onNewGame, onSaveSgf, onCopySgf, onCopyBoardText, onCopyShareLink, onCopyBoardImage,
+    onExportBoardImage, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
     toast, headerNotification,
   } = props;
@@ -1221,9 +1226,24 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           tabIndex={-1}
           data-dashboard-popover="true"
         >
+          {/* The section said Export and offered two of the six ways this app
+              can hand out a position; the other four were reachable only from
+              the command palette, which is not where someone looks for them. */}
           <div className="menu-section-label">Export</div>
           <button type="button" className="menu-item" onClick={() => { closePop(); onCopySgf(); }}>
             <Icon name="copy" size={14} /><span className="mi-label">Copy SGF</span>
+          </button>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onCopyBoardText(); }}>
+            <Icon name="copy" size={14} /><span className="mi-label">Copy position as text</span>
+          </button>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onCopyShareLink(); }}>
+            <Icon name="link" size={14} /><span className="mi-label">Copy share link</span>
+          </button>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onCopyBoardImage(); }}>
+            <Icon name="image" size={14} /><span className="mi-label">Copy board image</span>
+          </button>
+          <button type="button" className="menu-item" onClick={() => { closePop(); onExportBoardImage(); }}>
+            <Icon name="download" size={14} /><span className="mi-label">Export board image (PNG)</span>
           </button>
           <button type="button" className="menu-item" onClick={() => { const trigger = popTriggerRef.current; closePop(); onSaveToLibrary(trigger); }}>
             <Icon name="book" size={14} /><span className="mi-label">Save to library</span>

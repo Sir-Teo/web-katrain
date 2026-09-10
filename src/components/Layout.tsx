@@ -4002,6 +4002,10 @@ export const Layout: React.FC = () => {
             onNewGame={() => void openNewGameWithGuard()}
             onSaveSgf={handleSaveCurrentSgf}
             onCopySgf={handleCopySgf}
+            onCopyBoardText={() => { void handleCopyBoardText(); }}
+            onCopyShareLink={() => { void handleCopyShareLink(); }}
+            onCopyBoardImage={() => { void handleCopyBoardImage(); }}
+            onExportBoardImage={() => { void handleExportBoardImage(); }}
             onSaveToLibrary={handleOpenSaveToLibraryDialog}
             onLoadSgf={handleLoadClick}
             onPasteSgf={handlePasteSgf}
