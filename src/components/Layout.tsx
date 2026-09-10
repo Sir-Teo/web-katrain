@@ -120,7 +120,7 @@ import { dispatchMoveTreeCommand, type MoveTreeCommand } from '../utils/moveTree
 import { ANALYSIS_VISIT_PRESETS, formatVisitCount, visitPresetDescription, visitPresetLabel } from '../utils/visitPresets';
 import { getDroppedSgfOrOgsText, getFirstDraggedFile, hasDraggedFiles, hasPotentialGameImportDrag } from '../utils/dragImport';
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
-import { appendRestoredAnalysisSummary } from '../utils/importSummary';
+import { appendRestoredAnalysisSummary, describeImportFailure } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
@@ -1980,8 +1980,8 @@ export const Layout: React.FC = () => {
       }
       const text = await file.text();
       await loadLocalSgfText(text, file.name);
-    } catch {
-      toast('Failed to parse SGF file.', 'error');
+    } catch (error) {
+      toast(describeImportFailure(`Could not open "${file.name}".`, error), 'error');
     } finally {
       e.target.value = '';
     }
@@ -1996,8 +1996,8 @@ export const Layout: React.FC = () => {
       const sizeNotice = boardSizeCoercionNotice(sgfText);
       if (sizeNotice) toast(sizeNotice, 'info');
       return true;
-    } catch {
-      toast('Failed to load SGF from library.', 'error');
+    } catch (error) {
+      toast(describeImportFailure('Could not load that game from the library.', error), 'error');
       return false;
     }
   };
@@ -2131,8 +2131,10 @@ export const Layout: React.FC = () => {
         sizeNotice ? 'info' : 'success'
       );
       return 'loaded';
-    } catch {
-      if (options.notifyFailure !== false) toast('Failed to load SGF or OGS URL.', 'error');
+    } catch (error) {
+      if (options.notifyFailure !== false) {
+        toast(describeImportFailure('Could not load that SGF or OGS link.', error), 'error');
+      }
       return 'failed';
     }
   }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, toast]);

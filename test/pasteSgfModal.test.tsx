@@ -9,7 +9,12 @@ describe('PasteSgfModal', () => {
     const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
 
     expect(layoutSource).toContain('onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}');
-    expect(layoutSource).toContain("if (options.notifyFailure !== false) toast('Failed to load SGF or OGS URL.', 'error');");
+    // The guard is what matters, not the line it is written on: the dialog
+    // shows its own status inline, so a toast on top of it says the same thing
+    // twice. Anchored on the guard and the call it wraps.
+    const guard = layoutSource.indexOf('if (options.notifyFailure !== false)');
+    expect(guard, 'the notifyFailure guard is gone').toBeGreaterThan(-1);
+    expect(layoutSource.slice(guard, guard + 220)).toContain('toast(');
   });
 
   it('explains supported SGF and OGS inputs in the empty state', () => {
