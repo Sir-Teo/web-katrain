@@ -1249,7 +1249,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     if (result.skippedIds.length > 0) {
-      onToast(`Moved ${result.movedIds.length} item(s); skipped ${result.skippedIds.length} invalid move(s).`, 'info');
+      onToast(
+        `Moved ${result.movedIds.length} item${result.movedIds.length === 1 ? '' : 's'}. `
+        + `${result.skippedIds.length} could not be moved.`,
+        'info',
+      );
       return;
     }
     onToast(`Moved ${result.movedIds.length} selected item${result.movedIds.length === 1 ? '' : 's'}.`, 'success');

@@ -52,6 +52,21 @@ describe('user-facing copy keeps one dialect', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('counts the things it is talking about', () => {
+    // One string in the app wrote "Moved 3 item(s); skipped 1 invalid move(s)."
+    // while the line directly below it wrote "Moved 3 selected items." — the
+    // same action, reported two ways, and the only "(s)" anywhere. It also used
+    // "move" as a noun for a drag in an app where a move is a stone.
+    const offenders = sources.flatMap(({ path, source }) =>
+      prose(source)
+        .filter(({ text }) => /\b[a-z]+\(s\)/i.test(text))
+        .map(({ text, index }) =>
+          `${path}:${stripComments(source).slice(0, index).split('\n').length} "${text.slice(0, 60)}"`),
+    );
+
+    expect(offenders, 'write the plural out: `${n} item${n === 1 ? \'\' : \'s\'}`').toEqual([]);
+  });
+
   it('reads enough prose to be checking anything', () => {
     // Without this the assertion above passes on a literal matcher that broke.
     const total = sources.reduce((count, { source }) => count + prose(source).length, 0);
