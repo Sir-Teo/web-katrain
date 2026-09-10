@@ -22,6 +22,7 @@ import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../../utils/nodeAna
 import { evalColorToCss, getKaTrainEvalColors } from '../../utils/katrainTheme';
 import { ANALYSIS_VISIT_PRESETS, clampAnalysisVisits, visitPresetLabel } from '../../utils/visitPresets';
 import { formatRulesLabel } from '../../utils/gameInfoDisplay';
+import { GameInfoPanel } from '../GameInfoPanel';
 import { formatReadableScoreLead, formatWinRateFavorLabel, POINTS_LOST_EXPLANATION } from '../../utils/analysisSummary';
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '../../utils/storage';
 
@@ -255,7 +256,16 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   } = props;
   const rulesLabel = formatRulesLabel(rules);
 
-  const [sections, setSections] = useState({ tree: true, analysis: true, candidates: true, notes: true });
+  // Game info starts closed: the gamestrip already carries the summary, so this
+  // section is here for the fields it does not show and for editing them, and
+  // opening it by default would push the game tree down for everyone.
+  const [sections, setSections] = useState({
+    gameinfo: false,
+    tree: true,
+    analysis: true,
+    candidates: true,
+    notes: true,
+  });
   // Top game-info strip and bottom metrics bar collapse like the side panels so
   // the board can take the full column; reopen handles mirror the edge toggles.
   const [gamestripOpen, setGamestripOpen] = useState(() => {
@@ -987,10 +997,19 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
             <button type="button" className="iconbtn drawer-close" title="Close" style={{ margin: '6px 6px 6px 0' }} onClick={() => setSidebarOpen(false)}><Icon name="x" size={14} /></button>
           </div>
           <div className="sidebar-scroll">
-            {/* No "Game info" section: the gamestrip above the board is a strict
-                superset of it (same title, size, rules, players, komi and result,
-                plus captures, handicap and save state) and its own edge toggle
-                brings it back when hidden. */}
+            {/* The gamestrip above the board is not the whole of this, which is
+                what the sidebar used to say it was: it shows the title, size,
+                rules, players, komi, captures, handicap, result and save state,
+                and it shows all of them read-only. Event, round, date, place and
+                the time settings appear nowhere on desktop, and nothing here
+                could edit any of it -- a game's own provenance was legible only
+                on a phone. */}
+            <div className={`section${sections.gameinfo ? ' open' : ''}`}>
+              {sectionHead('gameinfo', 'Game info', 'info')}
+              <div className="section-body">
+                <GameInfoPanel />
+              </div>
+            </div>
 
             {/* Game tree */}
             <div className={`section${sections.tree ? ' open' : ''}`}>

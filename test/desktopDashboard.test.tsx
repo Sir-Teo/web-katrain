@@ -16,6 +16,25 @@ describe('DesktopDashboard', () => {
     expect(APP_ISSUE_REPORT_URL).toBe('https://github.com/Sir-Teo/web-katrain/issues/new/choose');
   });
 
+  it('gives desktop a game info section, not just the read-only strip', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+
+    // The sidebar used to skip this on the grounds that the gamestrip above the
+    // board was "a strict superset" of it. It is not: the strip shows title,
+    // size, rules, players, komi, captures, handicap, result and save state,
+    // all read-only. Event, round, date, place and the time settings appeared
+    // nowhere on desktop, and nothing on desktop could edit any of it -- the
+    // panel that does is behind `{!isDesktop && ...}` in Layout, so a game's
+    // provenance was legible only on a phone.
+    expect(source).toContain("import { GameInfoPanel } from '../GameInfoPanel'");
+    expect(source).toContain("sectionHead('gameinfo', 'Game info', 'info')");
+    expect(source).toContain('<GameInfoPanel />');
+    // Closed by default: the strip already carries the summary, and opening it
+    // would push the game tree down for everyone.
+    expect(source).toMatch(/useState\(\{\s*gameinfo: false,/);
+    expect(source).not.toContain('strict\n                superset');
+  });
+
   it('puts the play-on toggle beside the review actions, with a visible pressed state', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');

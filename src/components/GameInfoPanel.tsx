@@ -32,10 +32,12 @@ const playerFields: GameInfoField[] = [
 const detailFields: GameInfoField[] = [
   { key: 'GN', label: 'Game', placeholder: 'Game name', className: 'sm:col-span-2' },
   { key: 'EV', label: 'Event', placeholder: 'Event', className: 'sm:col-span-2' },
+  { key: 'RO', label: 'Round', placeholder: 'Final, Round 3' },
   { key: 'DT', label: 'Date', placeholder: 'YYYY-MM-DD' },
   { key: 'PC', label: 'Place', placeholder: 'Location' },
   { key: 'RE', label: 'Result', placeholder: 'B+R, W+2.5' },
   { key: 'TM', label: 'Time', placeholder: 'Main time' },
+  { key: 'OT', label: 'Overtime', placeholder: '5x30 byo-yomi' },
 ];
 
 const inputClass =

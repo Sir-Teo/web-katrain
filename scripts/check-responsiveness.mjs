@@ -79,6 +79,14 @@ async function main() {
     await cdp.ready;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    // Same knob as VIEWPORT_CPU_THROTTLE in check-viewports.mjs: a CI runner is
+    // a slower machine than a developer's, and a budget is only worth having if
+    // it holds on one.
+    if (process.env.RESPONSIVENESS_CPU_THROTTLE) {
+      const rate = Number(process.env.RESPONSIVENESS_CPU_THROTTLE);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate });
+      console.log(`CPU throttled ${rate}x`);
+    }
     await setViewport(cdp, { width: 1280, height: 800, mobile: false });
     await cdp.send('Page.navigate', { url: `http://127.0.0.1:${appPort}/` });
     await sleep(2000);

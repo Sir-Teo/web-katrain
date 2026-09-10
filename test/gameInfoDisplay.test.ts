@@ -27,6 +27,28 @@ describe('game info display helpers', () => {
     ]);
   });
 
+  it('shows the round and the overtime the file carried', () => {
+    // Both survive an export -- the panel simply never rendered them, so a
+    // game could be edited and re-saved with a round and a byo-yomi setting
+    // its owner never saw. OT sat directly beside a TM that was on screen.
+    const details = getVisibleGameInfoDetails({
+      EV: ['Difference Engine Cup'],
+      RO: ['Final'],
+      TM: ['3600'],
+      OT: ['5x30 byo-yomi'],
+    });
+
+    expect(details.map((detail) => detail.key)).toEqual(['EV', 'RO', 'TM', 'OT']);
+    expect(details).toContainEqual({ key: 'RO', label: 'Round', value: 'Final' });
+    expect(details).toContainEqual({ key: 'OT', label: 'Overtime', value: '5x30 byo-yomi' });
+  });
+
+  it('counts a file that carries only a round as having metadata', () => {
+    expect(hasGameInfoMetadata({ RO: ['Semi-final'] })).toBe(true);
+    expect(hasGameInfoMetadata({ OT: ['3x30 byo-yomi'] })).toBe(true);
+    expect(hasGameInfoMetadata({})).toBe(false);
+  });
+
   it('formats players with rank fallback', () => {
     expect(formatGameInfoPlayer(' Lee Sedol ', ' 9p ', 'Black')).toBe('Lee Sedol (9p)');
     expect(formatGameInfoPlayer('', '1d', 'White')).toBe('White (1d)');
