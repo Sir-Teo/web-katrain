@@ -30,6 +30,7 @@ describe('MenuDrawer', () => {
         onLoad={() => undefined}
         onScanBoard={() => undefined}
         onCopy={() => undefined}
+        onCopyText={() => undefined}
         onPaste={() => undefined}
         onSettings={() => undefined}
         onCommandPalette={() => undefined}
@@ -62,6 +63,7 @@ describe('MenuDrawer', () => {
         onLoad={() => undefined}
         onScanBoard={() => undefined}
         onCopy={() => undefined}
+        onCopyText={() => undefined}
         onPaste={() => undefined}
         onSettings={() => undefined}
         onCommandPalette={() => undefined}
@@ -89,6 +91,7 @@ describe('MenuDrawer', () => {
         onLoad={() => undefined}
         onScanBoard={() => undefined}
         onCopy={() => undefined}
+        onCopyText={() => undefined}
         onPaste={() => undefined}
         onSettings={() => undefined}
         onCommandPalette={() => undefined}
@@ -113,6 +116,7 @@ describe('MenuDrawer', () => {
         onLoad={() => undefined}
         onScanBoard={() => undefined}
         onCopy={() => undefined}
+        onCopyText={() => undefined}
         onPaste={() => undefined}
         onSettings={() => undefined}
         onCommandPalette={() => undefined}
@@ -138,6 +142,7 @@ describe('MenuDrawer', () => {
         onLoad={() => undefined}
         onScanBoard={() => undefined}
         onCopy={() => undefined}
+        onCopyText={() => undefined}
         onPaste={() => undefined}
         onSettings={() => undefined}
         onCommandPalette={() => undefined}
@@ -168,6 +173,7 @@ describe('MenuDrawer', () => {
         onLoad={() => undefined}
         onScanBoard={() => undefined}
         onCopy={() => undefined}
+        onCopyText={() => undefined}
         onPaste={() => undefined}
         onSettings={() => undefined}
         onCommandPalette={() => undefined}
@@ -179,6 +185,35 @@ describe('MenuDrawer', () => {
     expect(html).toContain('data-menu-header="true"');
     expect(html).toContain('sticky top-0');
     expect(html).toMatch(/class="[^"]*ui-control[^"]*" aria-label="Close menu"/);
+  });
+
+  it('offers the text diagram beside the other copies', () => {
+    const html = renderToStaticMarkup(
+      <MenuDrawer
+        open
+        onClose={() => undefined}
+        onQuickNewGame={() => undefined}
+        onNewGame={() => undefined}
+        onSave={() => undefined}
+        onSaveToLibrary={() => undefined}
+        onLoad={() => undefined}
+        onScanBoard={() => undefined}
+        onCopy={() => undefined}
+        onCopyText={() => undefined}
+        onPaste={() => undefined}
+        onSettings={() => undefined}
+        onCommandPalette={() => undefined}
+        onKeyboardHelp={() => undefined}
+        onAbout={() => undefined}
+      />,
+    );
+
+    // Same wording as the command palette and the desktop File menu; a third
+    // item in a two-column grid spans the row rather than sitting beside a gap.
+    const editGrid = html.slice(html.indexOf('data-menu-action-grid="edit"'));
+    const spanning = editGrid.slice(editGrid.indexOf('col-span-2'));
+
+    expect(spanning.slice(0, spanning.indexOf('</button>'))).toContain('Copy position as text');
   });
 
   it('groups common mobile actions into compact responsive grids', () => {
@@ -194,6 +229,7 @@ describe('MenuDrawer', () => {
         onScanBoard={() => undefined}
         onLessons={() => undefined}
         onCopy={() => undefined}
+        onCopyText={() => undefined}
         onPaste={() => undefined}
         onSettings={() => undefined}
         onCommandPalette={() => undefined}

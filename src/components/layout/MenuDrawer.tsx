@@ -5,6 +5,7 @@ import {
   FaSave,
   FaFolderOpen,
   FaCog,
+  FaAlignLeft,
   FaCopy,
   FaPaste,
   FaKeyboard,
@@ -54,6 +55,7 @@ interface MenuDrawerProps {
   onDrillMistakes?: () => void;
   onProblem?: () => void;
   onCopy: () => void;
+  onCopyText: () => void;
   onPaste: () => void;
   onSettings: () => void;
   onCommandPalette: () => void;
@@ -86,6 +88,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onDrillMistakes,
   onProblem,
   onCopy,
+  onCopyText,
   onPaste,
   onSettings,
   onCommandPalette,
@@ -368,6 +371,21 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                   <FaPaste aria-hidden="true" /> Paste SGF / OGS
                 </span>
                 <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</kbd>
+              </button>
+              {/* Spans the row: the label is longer than either above it, and a
+                  third item in a two-column grid would otherwise sit beside a
+                  gap. */}
+              <button
+                type="button"
+                className={`${menuAction} col-span-2`}
+                onClick={() => {
+                  onCopyText();
+                  onClose();
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <FaAlignLeft aria-hidden="true" /> Copy position as text
+                </span>
               </button>
             </div>
           </div>

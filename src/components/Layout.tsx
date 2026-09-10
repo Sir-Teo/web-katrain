@@ -3774,6 +3774,7 @@ export const Layout: React.FC = () => {
         onDrillMistakes={() => startMistakeDrill('both')}
         onProblem={() => setIsProblemOpen(true)}
         onCopy={handleCopySgf}
+        onCopyText={() => { void handleCopyBoardText(); }}
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
         onCommandPalette={() => setIsCommandPaletteOpen(true)}
