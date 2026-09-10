@@ -1,5 +1,5 @@
 import { parseGtpMove } from '../lib/gtp';
-import { normalizeBoardSize } from './boardSize';
+import { getHoshiPoints, normalizeBoardSize } from './boardSize';
 import { DEFAULT_BOARD_SIZE, type BoardState, type Move } from '../types';
 
 const BOARD_IMAGE_SIZE = 640;
@@ -10,19 +10,6 @@ function boardPoint(x: number, y: number, cell: number): { px: number; py: numbe
     px: BOARD_PADDING + x * cell,
     py: BOARD_PADDING + y * cell,
   };
-}
-
-function starPoints(boardSize: number): Array<[number, number]> {
-  if (boardSize === 19) {
-    return [
-      [3, 3], [9, 3], [15, 3],
-      [3, 9], [9, 9], [15, 9],
-      [3, 15], [9, 15], [15, 15],
-    ];
-  }
-  if (boardSize === 13) return [[3, 3], [9, 3], [6, 6], [3, 9], [9, 9]];
-  if (boardSize === 9) return [[2, 2], [6, 2], [4, 4], [2, 6], [6, 6]];
-  return [];
 }
 
 function drawStone(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: 'black' | 'white') {
@@ -104,7 +91,7 @@ export function captureReportBoardSnapshot(args: {
     }
 
     ctx.fillStyle = 'rgba(44, 24, 16, 0.78)';
-    for (const [x, y] of starPoints(boardSize)) {
+    for (const [x, y] of getHoshiPoints(boardSize)) {
       const { px, py } = boardPoint(x, y, cell);
       ctx.beginPath();
       ctx.arc(px, py, 4.2, 0, Math.PI * 2);

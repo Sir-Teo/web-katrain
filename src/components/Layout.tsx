@@ -111,6 +111,7 @@ import { PREFERS_DARK_MEDIA_QUERY, getResolvedUiTheme } from '../utils/uiThemes'
 import { syncThemeColorMeta } from '../utils/themeColor';
 import { buildDocumentTitle } from '../utils/documentTitle';
 import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
+import { formatBoardTextDiagram } from '../utils/boardTextDiagram';
 import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
 import { saveSettingsActiveTab } from '../utils/settingsTabs';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
@@ -2005,6 +2006,22 @@ export const Layout: React.FC = () => {
     toast('Copy failed (clipboard unavailable).', 'error');
   };
 
+  const handleCopyBoardText = async () => {
+    const node = useGameStore.getState().currentNode;
+    const text = formatBoardTextDiagram({
+      board: node.gameState.board,
+      lastMove: node.move,
+      toPlay: currentPlayer,
+      komi,
+      captured: { black: capturedBlack, white: capturedWhite },
+    });
+    if (await copyTextToClipboard(text)) {
+      toast('Copied the position as text.', 'success');
+      return;
+    }
+    toast('Copy failed (clipboard unavailable).', 'error');
+  };
+
   const handleExportBoardImage = async () => {
     const moveNumber = useGameStore.getState().currentNode.gameState.moveHistory.length;
     if (await downloadBoardImage(rootNode, moveNumber)) {
@@ -2529,6 +2546,13 @@ export const Layout: React.FC = () => {
         category: 'File',
         run: () => { void handleCopyBoardImage(); },
         keywords: ['png', 'screenshot', 'diagram', 'clipboard', 'picture', 'share'],
+      },
+      {
+        id: 'copy-board-text',
+        label: 'Copy position as text',
+        category: 'File',
+        run: () => { void handleCopyBoardText(); },
+        keywords: ['ascii', 'diagram', 'plain text', 'clipboard', 'forum', 'paste', 'share', 'chat'],
       },
       {
         id: 'copy-share-link',
