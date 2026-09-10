@@ -367,7 +367,7 @@ describe('desktop dashboard layout', () => {
   it('gates the side panel on the real desktop shell, not viewport width alone', () => {
     const panel = readFileSync('src/components/layout/RightPanel.tsx', 'utf8');
     const css = readFileSync('src/index.css', 'utf8');
-    const responsive = readFileSync('src/utils/responsiveLayout.ts', 'utf8');
+    const breakpoints = readFileSync('src/utils/layoutBreakpoints.ts', 'utf8');
 
     // Tailwind's `lg:` is width-only. The app enters its desktop shell only
     // when the viewport is wide AND tall enough, so at 1280x460 the mobile
@@ -383,9 +383,19 @@ describe('desktop dashboard layout', () => {
     // without it the variant still parses, emits no CSS at all, and every
     // `desktop-shell:` class across the app silently does nothing — which is
     // how ~50 usages in 16 files sat inert while this assertion passed.
-    expect(css).toContain('@custom-variant desktop-shell (@media (min-width: 1024px) and (min-height: 500px));');
-    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_WIDTH = 1024');
-    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_HEIGHT = 500');
+    //
+    // The numbers are read out of layoutBreakpoints.ts rather than written
+    // here as well: the point is that the stylesheet and the shell logic
+    // agree, not that they are forever 1024x500. Pinning the literals in the
+    // test only meant a deliberate breakpoint change had to be made in three
+    // places instead of two, with the test failing for the wrong reason.
+    const minWidth = /DESKTOP_LAYOUT_MIN_WIDTH = (\d+)/.exec(breakpoints)?.[1];
+    const minHeight = /DESKTOP_LAYOUT_MIN_HEIGHT = (\d+)/.exec(breakpoints)?.[1];
+    expect(minWidth, 'DESKTOP_LAYOUT_MIN_WIDTH not found in layoutBreakpoints.ts').toBeDefined();
+    expect(minHeight, 'DESKTOP_LAYOUT_MIN_HEIGHT not found in layoutBreakpoints.ts').toBeDefined();
+    expect(css).toContain(
+      `@custom-variant desktop-shell (@media (min-width: ${minWidth}px) and (min-height: ${minHeight}px));`
+    );
   });
 
 

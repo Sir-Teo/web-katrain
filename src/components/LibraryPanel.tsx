@@ -521,13 +521,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       if (event.key === 'Escape') close();
     };
 
+    // Capture, so a scroll inside any of the panel's own scrollers closes the
+    // menu too -- scroll does not bubble. Passive because it never prevents
+    // anything: a blocking listener on window in the capture phase applies to
+    // every scroller in the app, and takes scrolling off the compositor's fast
+    // path for as long as the menu is open.
+    const scrollOptions = { capture: true, passive: true } as const;
     window.addEventListener('pointerdown', close);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', close, scrollOptions);
     window.addEventListener('resize', close);
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       window.removeEventListener('pointerdown', close);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', close, { capture: true });
       window.removeEventListener('resize', close);
       window.removeEventListener('keydown', closeOnEscape);
     };

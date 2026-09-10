@@ -38,7 +38,14 @@ import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineActivityPresentation, getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
-import { LazyModalBoundary } from './LazyModalBoundary';
+import { LazyModalBoundary, LazyModalFallback } from './LazyModalBoundary';
+import {
+  createIdleScheduler,
+  shouldWarmChunks,
+  warmChunksWhenIdle,
+  type ChunkWarmer,
+} from '../utils/idleChunkWarming';
+import { createWarmableLazy } from '../utils/warmableLazy';
 import { isStaleBuildError } from '../utils/errorReporting';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
@@ -114,29 +121,93 @@ import { getDroppedSgfOrOgsText, getFirstDraggedFile, hasDraggedFiles, hasPotent
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { appendRestoredAnalysisSummary } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
-import { resetSoundFailureReport, setSoundInitErrorHandler } from '../utils/sound';
+import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
 
-const SettingsModal = lazy(() => import('./SettingsModal').then((module) => ({ default: module.SettingsModal })));
-const GameAnalysisModal = lazy(() => import('./GameAnalysisModal').then((module) => ({ default: module.GameAnalysisModal })));
-const TsumegoFrameModal = lazy(() => import('./TsumegoFrameModal').then((module) => ({ default: module.TsumegoFrameModal })));
-const GameReportModal = lazy(() => import('./GameReportModal').then((module) => ({ default: module.GameReportModal })));
-const CommandPaletteModal = lazy(() => import('./CommandPaletteModal').then((module) => ({ default: module.CommandPaletteModal })));
-const KeyboardHelpModal = lazy(() => import('./KeyboardHelpModal').then((module) => ({ default: module.KeyboardHelpModal })));
-const NewGameModal = lazy(() => import('./NewGameModal').then((module) => ({ default: module.NewGameModal })));
-const PhotoBoardModal = lazy(() => import('./PhotoBoardModal').then((module) => ({ default: module.PhotoBoardModal })));
-const PasteSgfModal = lazy(() => import('./PasteSgfModal').then((module) => ({ default: module.PasteSgfModal })));
-const SaveToLibraryDialog = lazy(() => import('./SaveToLibraryDialog').then((module) => ({ default: module.SaveToLibraryDialog })));
-const ScoreQuizModal = lazy(() => import('./ScoreQuizModal').then((module) => ({ default: module.ScoreQuizModal })));
-const TournamentModal = lazy(() => import('./TournamentModal').then((module) => ({ default: module.TournamentModal })));
-const ProGamesModal = lazy(() => import('./ProGamesModal').then((module) => ({ default: module.ProGamesModal })));
-const LessonsModal = lazy(() => import('./LessonsModal').then((module) => ({ default: module.LessonsModal })));
-const GuessMoveModal = lazy(() => import('./GuessMoveModal').then((module) => ({ default: module.GuessMoveModal })));
-const ProblemModal = lazy(() => import('./ProblemModal').then((module) => ({ default: module.ProblemModal })));
-const KifuPrintModal = lazy(() => import('./KifuPrintModal').then((module) => ({ default: module.KifuPrintModal })));
+const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
+const SettingsModal = settingsModalChunk.Component;
+const gameAnalysisModalChunk = createWarmableLazy(() => import('./GameAnalysisModal'), (module) => module.GameAnalysisModal);
+const GameAnalysisModal = gameAnalysisModalChunk.Component;
+const tsumegoFrameModalChunk = createWarmableLazy(() => import('./TsumegoFrameModal'), (module) => module.TsumegoFrameModal);
+const TsumegoFrameModal = tsumegoFrameModalChunk.Component;
+const gameReportModalChunk = createWarmableLazy(() => import('./GameReportModal'), (module) => module.GameReportModal);
+const GameReportModal = gameReportModalChunk.Component;
+const commandPaletteModalChunk = createWarmableLazy(() => import('./CommandPaletteModal'), (module) => module.CommandPaletteModal);
+const CommandPaletteModal = commandPaletteModalChunk.Component;
+const keyboardHelpModalChunk = createWarmableLazy(() => import('./KeyboardHelpModal'), (module) => module.KeyboardHelpModal);
+const KeyboardHelpModal = keyboardHelpModalChunk.Component;
+const newGameModalChunk = createWarmableLazy(() => import('./NewGameModal'), (module) => module.NewGameModal);
+const NewGameModal = newGameModalChunk.Component;
+const photoBoardModalChunk = createWarmableLazy(() => import('./PhotoBoardModal'), (module) => module.PhotoBoardModal);
+const PhotoBoardModal = photoBoardModalChunk.Component;
+const pasteSgfModalChunk = createWarmableLazy(() => import('./PasteSgfModal'), (module) => module.PasteSgfModal);
+const PasteSgfModal = pasteSgfModalChunk.Component;
+const saveToLibraryDialogChunk = createWarmableLazy(() => import('./SaveToLibraryDialog'), (module) => module.SaveToLibraryDialog);
+const SaveToLibraryDialog = saveToLibraryDialogChunk.Component;
+const scoreQuizModalChunk = createWarmableLazy(() => import('./ScoreQuizModal'), (module) => module.ScoreQuizModal);
+const ScoreQuizModal = scoreQuizModalChunk.Component;
+const tournamentModalChunk = createWarmableLazy(() => import('./TournamentModal'), (module) => module.TournamentModal);
+const TournamentModal = tournamentModalChunk.Component;
+const proGamesModalChunk = createWarmableLazy(() => import('./ProGamesModal'), (module) => module.ProGamesModal);
+const ProGamesModal = proGamesModalChunk.Component;
+const lessonsModalChunk = createWarmableLazy(() => import('./LessonsModal'), (module) => module.LessonsModal);
+const LessonsModal = lessonsModalChunk.Component;
+const guessMoveModalChunk = createWarmableLazy(() => import('./GuessMoveModal'), (module) => module.GuessMoveModal);
+const GuessMoveModal = guessMoveModalChunk.Component;
+const problemModalChunk = createWarmableLazy(() => import('./ProblemModal'), (module) => module.ProblemModal);
+const ProblemModal = problemModalChunk.Component;
+const kifuPrintModalChunk = createWarmableLazy(() => import('./KifuPrintModal'), (module) => module.KifuPrintModal);
+const KifuPrintModal = kifuPrintModalChunk.Component;
 const LibraryPanel = lazy(() => import('./LibraryPanel').then((module) => ({ default: module.LibraryPanel })));
 const DesktopDashboard = lazy(() => import('./dashboard/DesktopDashboard').then((module) => ({ default: module.DesktopDashboard })));
+
+/**
+ * Every dialog, pulled in while nothing else is happening.
+ *
+ * A dialog that has to load when it is clicked does not cost what its size
+ * suggests. Measured on the production preview, cold: Paste SGF is 4.8KB, its
+ * chunk finished downloading 7ms after the click, no long task ran anywhere --
+ * and the dialog appeared 319ms after the click. The main thread sat idle for
+ * the other 312ms because React was holding a Suspense fallback. A dialog that
+ * never suspends skips all of it: the four warmed before this list grew opened
+ * in 14-23ms.
+ *
+ * So the size of a chunk is close to irrelevant to what it costs to open cold,
+ * which is why this list is now all of them rather than a chosen few. The
+ * whole set is about 106KB gzipped. The service worker already precaches 4.9MB
+ * before anyone asks for anything -- the 3.7MB model and 1.1MB of WASM -- so
+ * this is roughly 2% on top of what the app already commits to.
+ *
+ * Ordered cheapest first. Idle time is not guaranteed to last, and stopping
+ * partway should leave the most dialogs ready, not the most bytes fetched. The
+ * command palette leading is deliberate beyond that: it exists to be quicker
+ * than hunting through menus, and a third of a second spent opening it is the
+ * whole of what it was meant to save.
+ *
+ * Not here: LibraryPanel, which already opens in 14.6ms and carries its own
+ * loading state, and DesktopDashboard, which the build preloads and which
+ * mounts immediately on desktop anyway.
+ */
+const WARMED_DIALOG_CHUNKS: readonly ChunkWarmer[] = [
+  { name: 'TsumegoFrameModal', load: tsumegoFrameModalChunk.warm },
+  { name: 'PasteSgfModal', load: pasteSgfModalChunk.warm },
+  { name: 'KeyboardHelpModal', load: keyboardHelpModalChunk.warm },
+  { name: 'GameAnalysisModal', load: gameAnalysisModalChunk.warm },
+  { name: 'GuessMoveModal', load: guessMoveModalChunk.warm },
+  { name: 'ProblemModal', load: problemModalChunk.warm },
+  { name: 'KifuPrintModal', load: kifuPrintModalChunk.warm },
+  { name: 'CommandPaletteModal', load: commandPaletteModalChunk.warm },
+  { name: 'TournamentModal', load: tournamentModalChunk.warm },
+  { name: 'ScoreQuizModal', load: scoreQuizModalChunk.warm },
+  { name: 'LessonsModal', load: lessonsModalChunk.warm },
+  { name: 'ProGamesModal', load: proGamesModalChunk.warm },
+  { name: 'SaveToLibraryDialog', load: saveToLibraryDialogChunk.warm },
+  { name: 'NewGameModal', load: newGameModalChunk.warm },
+  { name: 'PhotoBoardModal', load: photoBoardModalChunk.warm },
+  { name: 'GameReportModal', load: gameReportModalChunk.warm },
+  { name: 'SettingsModal', load: settingsModalChunk.warm },
+];
 
 const LibraryPanelLoading: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => (
   <div
@@ -442,6 +513,21 @@ export const Layout: React.FC = () => {
     if (typeof window === 'undefined') return false;
     return isMobileLayoutViewport() && readLocalStorage(MOBILE_HOME_DISMISSED_KEY) !== 'true';
   });
+
+  // Same idea for the audio device: building it cost 89ms inside the click
+  // that placed the first stone. Only when sound is actually on.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !settings.soundEnabled) return;
+    return createIdleScheduler(window)(() => warmAudioContext());
+  }, [settings.soundEnabled]);
+
+  // Pull the dialogs listed above into memory while nothing else is going on,
+  // so the first click on one is not the click that pays for the chunk.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || typeof window === 'undefined') return;
+    if (!shouldWarmChunks(navigator as unknown as Parameters<typeof shouldWarmChunks>[0])) return;
+    return warmChunksWhenIdle(WARMED_DIALOG_CHUNKS, createIdleScheduler(window));
+  }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -3386,7 +3472,7 @@ export const Layout: React.FC = () => {
           );
         }}
       >
-      <Suspense fallback={null}>
+      <Suspense fallback={<LazyModalFallback />}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
         {isAboutOpen && (
           <AboutDialog

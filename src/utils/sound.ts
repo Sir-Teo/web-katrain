@@ -96,6 +96,29 @@ const getAudioContext = () => {
     }
 };
 
+/**
+ * Builds the AudioContext ahead of the first sound, so a move does not pay for it.
+ *
+ * `new AudioContext()` spins up the audio device, and it is not cheap: profiled
+ * on the production preview, the first stone placed on a fresh board cost
+ * **85-100ms of synchronous work**, reported as a 91ms long task, and
+ * `getAudioContext` was 89.1ms of it. Every move after it took 0.3ms. Sound is
+ * on by default and gameStore plays the stone sound inside playMove, so this
+ * was the ordinary experience of placing a first stone.
+ *
+ * Called from an idle callback, where there is no interaction to block. It
+ * stays a no-op when the context already exists, and it is not called at all
+ * when sound is switched off -- nobody should have an audio device started for
+ * a feature they turned off.
+ *
+ * Creating the context this early is allowed: without a user gesture it simply
+ * begins life suspended, and resumeContext() below already resumes it on the
+ * first sound, which by definition follows one.
+ */
+export const warmAudioContext = (): void => {
+    getAudioContext();
+};
+
 const playWithSoundErrorHandling = (play: (ctx: AudioContext) => void, ctx: AudioContext): void => {
     try {
         play(ctx);

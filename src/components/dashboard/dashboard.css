@@ -276,7 +276,10 @@
   background: var(--panel);
   color: var(--ink-soft);
   font-size: 13px; font-weight: 600;
-  transition: all .12s ease;
+  /* Named properties rather than `all`: these controls only ever change colour,
+     and `all` also caught the outline the global :focus-visible rule adds, so
+     the keyboard focus ring faded in over .12s instead of landing. */
+  transition: color .12s ease, background-color .12s ease, border-color .12s ease, opacity .12s ease;
 }
 .wk-dashboard .analyze-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
 .wk-dashboard .analyze-toggle[aria-pressed="true"] {
@@ -790,7 +793,7 @@
   border: 1px solid var(--line); border-radius: var(--r-pill);
   background: var(--panel);
   font-size: 11.5px; font-weight: 600; color: var(--muted);
-  transition: all .12s ease;
+  transition: color .12s ease, background-color .12s ease, border-color .12s ease, opacity .12s ease;
 }
 @media (hover: hover) {
   .wk-dashboard .board-chip:hover:where(:not(:disabled)) { color: var(--ink); }
@@ -1107,7 +1110,7 @@
   border: 1px solid var(--line); border-radius: var(--r-sm);
   background: var(--panel); color: var(--muted);
   font-size: 11.5px; font-weight: 500; white-space: nowrap;
-  transition: all .12s ease;
+  transition: color .12s ease, background-color .12s ease, border-color .12s ease, opacity .12s ease;
 }
 @media (hover: hover) {
   .wk-dashboard .pbtn:hover:where(:not(:disabled)) { color: var(--ink); background: var(--panel-soft); }
@@ -1314,7 +1317,7 @@
 .wk-dashboard .depth-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
 .wk-dashboard .depth-preset {
   text-align: left; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: var(--panel); transition: all .12s ease;
+  background: var(--panel); transition: color .12s ease, background-color .12s ease, border-color .12s ease, opacity .12s ease;
 }
 @media (hover: hover) {
   .wk-dashboard .depth-preset:hover:where(:not(:disabled)) { background: var(--panel-soft); }

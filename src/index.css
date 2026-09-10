@@ -2,7 +2,8 @@
 
 /* Tailwind's `lg:` is width-only, but this app switches to its desktop shell
    only when the viewport is BOTH wide and tall enough (see
-   DESKTOP_LAYOUT_MEDIA in src/utils/responsiveLayout.ts — keep these in sync).
+   DESKTOP_LAYOUT_MEDIA in src/utils/layoutBreakpoints.ts — keep these in sync;
+   two tests read that file and assert this line is built from its numbers).
    Using `lg:` for shell decisions broke short, wide viewports: the mobile
    right panel went `lg:static` while the app was still in the mobile shell,
    so its `w-full` consumed the whole row and the board collapsed to 0px. */
@@ -1522,7 +1523,13 @@
     background: transparent;
     color: var(--ui-text-muted);
     cursor: pointer;
-    transition: all 0.15s ease;
+    /* Named properties rather than `all`. Two things the button does are not
+       eases: the keyboard focus ring (a global rule gives every button an
+       outline on :focus-visible) faded in over 150ms, so tabbing along a
+       toolbar smeared instead of stepping; and the :active squish below ramped
+       over the same 150ms, which is longer than a quick tap lasts -- the press
+       acknowledgement arrived after the press. */
+    transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
   }
 
   @media (hover: hover) {
@@ -1539,6 +1546,8 @@
 
   .panel-icon-button:active:not(:disabled) {
     transform: scale(0.96);
+    /* Down immediately, back up on the base rule's ease. */
+    transition: transform 0s;
   }
 
   .panel-icon-button:disabled {
@@ -3922,7 +3931,7 @@
     text-align: center;
   }
 
-  /* Matches MOBILE_LAYOUT_MEDIA in src/utils/responsiveLayout.ts: the mobile
+  /* Matches MOBILE_LAYOUT_MEDIA in src/utils/layoutBreakpoints.ts: the mobile
      shell also runs on short, wide windows, and a width-only query left these
      controls at their 26-31px desktop heights while the app was in touch mode. */
   @media (max-width: 1023px), (max-height: 499px) {
@@ -4268,7 +4277,9 @@
     background: transparent;
     border: 1px solid var(--ui-border);
     border-radius: 4px;
-    transition: all 0.2s ease;
+    /* See .panel-icon-button: `all` also animated the focus ring and the
+       :active squish, and 0.2s is longer still. */
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
     line-height: 1;
     /* The game strip is 42px with 7px of padding, so a 28px control fills its
        content box exactly and costs the strip no height. At 20px this was the
@@ -4287,6 +4298,7 @@
 
   .status-bar-button:active {
     transform: scale(0.98);
+    transition: transform 0s;
   }
 
   .status-bar-button:disabled {

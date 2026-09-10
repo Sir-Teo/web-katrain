@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { LazyModalBoundary } from '../src/components/LazyModalBoundary';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { LazyModalBoundary, LazyModalFallback } from '../src/components/LazyModalBoundary';
 
 describe('LazyModalBoundary', () => {
   it('goes quiet on failure instead of rethrowing to the app', () => {
@@ -31,7 +32,7 @@ describe('LazyModalBoundary', () => {
     // One Suspense holds all 16 dialogs, and Suspense does not catch errors,
     // so the boundary has to sit outside it.
     const open = layout.indexOf('<LazyModalBoundary');
-    const suspense = layout.indexOf('<Suspense fallback={null}>');
+    const suspense = layout.indexOf('<Suspense fallback={<LazyModalFallback />}>');
     const close = layout.indexOf('</LazyModalBoundary>');
     expect(open).toBeGreaterThan(-1);
     expect(open).toBeLessThan(suspense);
@@ -40,5 +41,26 @@ describe('LazyModalBoundary', () => {
     // A deploy is news, not a fault.
     expect(layout).toContain("'Web KaTrain has been updated. Reload to open this.'");
     expect(layout).toContain("stale ? 'info' : 'error'");
+  });
+
+  it('marks the click while the chunk is still coming', () => {
+    // This Suspense used to pass fallback={null}, so the first click on a
+    // dialog left the screen untouched for as long as the chunk took --
+    // measured at 327ms for Settings on the production preview, of which only
+    // 7ms was the network. A click with no visible answer reads as a missed
+    // click.
+    const markup = renderToStaticMarkup(<LazyModalFallback />);
+
+    expect(markup).toContain('data-lazy-modal-loading="true"');
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain('Opening');
+    // The scrim is the point: it says a dialog is on its way, and it keeps the
+    // next click off the board underneath.
+    expect(markup).toContain('fixed inset-0');
+
+    // Focus belongs to the dialog that is about to mount. Taking it here would
+    // move it twice and leave a screen reader on a panel that no longer exists.
+    expect(markup).not.toContain('autofocus');
+    expect(markup).not.toContain('tabindex');
   });
 });

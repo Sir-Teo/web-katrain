@@ -153,7 +153,7 @@ describe('ManualScorePanel', () => {
 
   it('sizes its controls for touch whenever the mobile shell is running', () => {
     const css = readFileSync('src/index.css', 'utf8');
-    const responsive = readFileSync('src/utils/responsiveLayout.ts', 'utf8');
+    const breakpoints = readFileSync('src/utils/layoutBreakpoints.ts', 'utf8');
 
     // The mobile shell also runs on short, wide windows (width >= 1024 but
     // height < 500). A width-only query left these at their 26-31px desktop
@@ -164,15 +164,18 @@ describe('ManualScorePanel', () => {
     expect(rule).toBeGreaterThan(-1);
     const query = css.lastIndexOf('@media', rule);
     expect(query).toBeGreaterThan(-1);
+    // Derived from the shell thresholds rather than spelled out again: the
+    // mobile query is the complement of the desktop one, so a deliberate
+    // breakpoint change should move this with it instead of failing here.
+    const minWidth = Number(/DESKTOP_LAYOUT_MIN_WIDTH = (\d+)/.exec(breakpoints)?.[1]);
+    const minHeight = Number(/DESKTOP_LAYOUT_MIN_HEIGHT = (\d+)/.exec(breakpoints)?.[1]);
+    expect(Number.isFinite(minWidth), 'DESKTOP_LAYOUT_MIN_WIDTH not found').toBe(true);
+    expect(Number.isFinite(minHeight), 'DESKTOP_LAYOUT_MIN_HEIGHT not found').toBe(true);
     expect(css.slice(query, css.indexOf('{', query)).trim())
-      .toBe('@media (max-width: 1023px), (max-height: 499px)');
+      .toBe(`@media (max-width: ${minWidth - 1}px), (max-height: ${minHeight - 1}px)`);
     const block = css.slice(rule, css.indexOf('}', rule));
     expect(block.length).toBeGreaterThan(40);
     expect(block).toContain('.manual-score-actions button');
     expect(block).toContain('min-height: 44px');
-
-    // Keep the query in step with the shell thresholds it mirrors.
-    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_WIDTH = 1024');
-    expect(responsive).toContain('DESKTOP_LAYOUT_MIN_HEIGHT = 500');
   });
 });

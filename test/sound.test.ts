@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   playCaptureSound,
@@ -7,6 +8,7 @@ import {
   resetAudioContextForTests,
   resetSoundFailureReport,
   setSoundInitErrorHandler,
+  warmAudioContext,
 } from '../src/utils/sound';
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -263,5 +265,69 @@ describe('sound helpers', () => {
       backend: 'web-audio',
       message: 'Could not play browser audio: oscillator blocked',
     }));
+  });
+});
+
+describe('warmAudioContext', () => {
+  // Building the AudioContext is what made placing a first stone cost 85-100ms
+  // of synchronous work and a 91ms long task; every later move cost 0.3ms.
+  // Doing it from an idle callback moved the first move to 1.56ms and left no
+  // long task at all.
+  class CountingAudioContext {
+    static constructed = 0;
+    currentTime = 0;
+    destination = {};
+    state: AudioContextState = 'suspended';
+    resume = () => Promise.resolve();
+    constructor() {
+      CountingAudioContext.constructed += 1;
+    }
+    createOscillator = () => ({
+      connect: () => {},
+      type: 'sine',
+      frequency: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+      start: () => {},
+      stop: () => {},
+    });
+    createGain = () => ({
+      connect: () => {},
+      gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+    });
+  }
+
+  const installAudio = () => {
+    CountingAudioContext.constructed = 0;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { AudioContext: CountingAudioContext },
+    });
+  };
+
+  it('builds the context once, and the first sound then reuses it', () => {
+    installAudio();
+
+    warmAudioContext();
+    expect(CountingAudioContext.constructed).toBe(1);
+
+    // The point of warming: the move that plays the first sound must not be
+    // the one that constructs the device.
+    warmAudioContext();
+    playStoneSound();
+    expect(CountingAudioContext.constructed).toBe(1);
+  });
+
+  it('stays harmless where there is no audio API at all', () => {
+    Reflect.deleteProperty(globalThis, 'window');
+    expect(() => warmAudioContext()).not.toThrow();
+  });
+
+  it('is only reached when sound is switched on', () => {
+    // Nobody should have an audio device started for a feature they turned
+    // off, so the caller carries the gate rather than this module.
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+    const call = layout.indexOf('warmAudioContext()');
+    expect(call).toBeGreaterThan(-1);
+    const effectStart = layout.lastIndexOf('useEffect(() => {', call);
+    expect(layout.slice(effectStart, call)).toContain('settings.soundEnabled');
   });
 });
