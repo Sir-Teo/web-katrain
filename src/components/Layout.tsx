@@ -3793,6 +3793,8 @@ export const Layout: React.FC = () => {
         onProblem={() => setIsProblemOpen(true)}
         onCopy={handleCopySgf}
         onCopyText={() => { void handleCopyBoardText(); }}
+        onCopyShareLink={() => { void handleCopyShareLink(); }}
+        onCopyBoardImage={() => { void handleCopyBoardImage(); }}
         onPaste={handlePasteSgf}
         onSettings={() => setIsSettingsOpen(true)}
         onCommandPalette={() => setIsCommandPaletteOpen(true)}

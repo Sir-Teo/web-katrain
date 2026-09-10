@@ -7,6 +7,8 @@ import {
   FaCog,
   FaAlignLeft,
   FaCopy,
+  FaImage,
+  FaLink,
   FaPaste,
   FaKeyboard,
   FaHome,
@@ -56,6 +58,8 @@ interface MenuDrawerProps {
   onProblem?: () => void;
   onCopy: () => void;
   onCopyText: () => void;
+  onCopyShareLink: () => void;
+  onCopyBoardImage: () => void;
   onPaste: () => void;
   onSettings: () => void;
   onCommandPalette: () => void;
@@ -89,6 +93,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onProblem,
   onCopy,
   onCopyText,
+  onCopyShareLink,
+  onCopyBoardImage,
   onPaste,
   onSettings,
   onCommandPalette,
@@ -372,8 +378,36 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 </span>
                 <kbd className="mobile-shortcut-hint text-xs ui-text-faint">{shortcutLabels['paste-sgf']}</kbd>
               </button>
-              {/* Spans the row: the label is longer than either above it, and a
-                  third item in a two-column grid would otherwise sit beside a
+              {/* A phone had no way to send anyone a position at all: the
+                  share link and the board image were in the command palette
+                  and nowhere else, and pasting a board into a message is more
+                  of a phone job than a desktop one. */}
+              <button
+                type="button"
+                className={menuAction}
+                onClick={() => {
+                  onCopyShareLink();
+                  onClose();
+                }}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaLink className="shrink-0" aria-hidden="true" /> Copy share link
+                </span>
+              </button>
+              <button
+                type="button"
+                className={menuAction}
+                onClick={() => {
+                  onCopyBoardImage();
+                  onClose();
+                }}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FaImage className="shrink-0" aria-hidden="true" /> Copy board image
+                </span>
+              </button>
+              {/* Spans the row: the label is longer than any above it, and a
+                  fifth item in a two-column grid would otherwise sit beside a
                   gap. */}
               <button
                 type="button"

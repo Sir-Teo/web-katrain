@@ -17,25 +17,35 @@ const recentFile: LibraryFile = {
   metadata: {},
 };
 
+/**
+ * Every required handler in one place. Adding a prop to MenuDrawer used to
+ * break each of the eight literals below in turn; now it breaks this.
+ */
+const baseProps = {
+  open: true as const,
+  onClose: () => undefined,
+  onQuickNewGame: () => undefined,
+  onNewGame: () => undefined,
+  onSave: () => undefined,
+  onSaveToLibrary: () => undefined,
+  onLoad: () => undefined,
+  onScanBoard: () => undefined,
+  onCopy: () => undefined,
+  onCopyText: () => undefined,
+  onCopyShareLink: () => undefined,
+  onCopyBoardImage: () => undefined,
+  onPaste: () => undefined,
+  onSettings: () => undefined,
+  onCommandPalette: () => undefined,
+  onKeyboardHelp: () => undefined,
+  onAbout: () => undefined,
+};
+
 describe('MenuDrawer', () => {
   it('shows move count and size for recent games', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
-        onCopy={() => undefined}
-        onCopyText={() => undefined}
-        onPaste={() => undefined}
-        onSettings={() => undefined}
-        onCommandPalette={() => undefined}
-        onKeyboardHelp={() => undefined}
-        onAbout={() => undefined}
+        {...baseProps}
         recentItems={[recentFile]}
         onOpenRecent={() => undefined}
       />,
@@ -54,21 +64,7 @@ describe('MenuDrawer', () => {
     }));
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
-        onCopy={() => undefined}
-        onCopyText={() => undefined}
-        onPaste={() => undefined}
-        onSettings={() => undefined}
-        onCommandPalette={() => undefined}
-        onKeyboardHelp={() => undefined}
-        onAbout={() => undefined}
+        {...baseProps}
         recentItems={recentItems}
         onOpenRecent={() => undefined}
       />,
@@ -82,21 +78,7 @@ describe('MenuDrawer', () => {
   it('shows the save-copy shortcut beside the library save action', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
-        onCopy={() => undefined}
-        onCopyText={() => undefined}
-        onPaste={() => undefined}
-        onSettings={() => undefined}
-        onCommandPalette={() => undefined}
-        onKeyboardHelp={() => undefined}
-        onAbout={() => undefined}
+        {...baseProps}
       />,
     );
 
@@ -107,21 +89,7 @@ describe('MenuDrawer', () => {
   it('explains that quick new game uses defaults and checks unsaved changes', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
-        onCopy={() => undefined}
-        onCopyText={() => undefined}
-        onPaste={() => undefined}
-        onSettings={() => undefined}
-        onCommandPalette={() => undefined}
-        onKeyboardHelp={() => undefined}
-        onAbout={() => undefined}
+        {...baseProps}
         quickNewGameBoardSize={13}
       />,
     );
@@ -133,21 +101,7 @@ describe('MenuDrawer', () => {
   it('offers the app locale in the mobile menu settings section', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
-        onCopy={() => undefined}
-        onCopyText={() => undefined}
-        onPaste={() => undefined}
-        onSettings={() => undefined}
-        onCommandPalette={() => undefined}
-        onKeyboardHelp={() => undefined}
-        onAbout={() => undefined}
+        {...baseProps}
         appLocale="ja"
         onLocaleChange={() => undefined}
       />,
@@ -164,21 +118,7 @@ describe('MenuDrawer', () => {
   it('keeps the drawer title and close action available while scrolling', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
-        onCopy={() => undefined}
-        onCopyText={() => undefined}
-        onPaste={() => undefined}
-        onSettings={() => undefined}
-        onCommandPalette={() => undefined}
-        onKeyboardHelp={() => undefined}
-        onAbout={() => undefined}
+        {...baseProps}
       />,
     );
 
@@ -187,24 +127,22 @@ describe('MenuDrawer', () => {
     expect(html).toMatch(/class="[^"]*ui-control[^"]*" aria-label="Close menu"/);
   });
 
+  it('offers every way to send a position, not only the SGF', () => {
+    // A phone had the share link and the board image in the command palette and
+    // nowhere else, while the desktop File menu carried both.
+    const html = renderToStaticMarkup(<MenuDrawer {...baseProps} />);
+    const editGrid = html.slice(html.indexOf('data-menu-action-grid="edit"'));
+    const section = editGrid.slice(0, editGrid.indexOf('</div></div>'));
+
+    for (const label of ['Copy SGF', 'Copy share link', 'Copy board image', 'Copy position as text']) {
+      expect(section, `${label} is missing from the drawer`).toContain(label);
+    }
+  });
+
   it('offers the text diagram beside the other copies', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
-        onCopy={() => undefined}
-        onCopyText={() => undefined}
-        onPaste={() => undefined}
-        onSettings={() => undefined}
-        onCommandPalette={() => undefined}
-        onKeyboardHelp={() => undefined}
-        onAbout={() => undefined}
+        {...baseProps}
       />,
     );
 
@@ -219,14 +157,7 @@ describe('MenuDrawer', () => {
   it('groups common mobile actions into compact responsive grids', () => {
     const html = renderToStaticMarkup(
       <MenuDrawer
-        open
-        onClose={() => undefined}
-        onQuickNewGame={() => undefined}
-        onNewGame={() => undefined}
-        onSave={() => undefined}
-        onSaveToLibrary={() => undefined}
-        onLoad={() => undefined}
-        onScanBoard={() => undefined}
+        {...baseProps}
         onLessons={() => undefined}
         onCopy={() => undefined}
         onCopyText={() => undefined}
