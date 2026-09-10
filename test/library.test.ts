@@ -447,3 +447,37 @@ describe('library storage helpers', () => {
     await expect(loadLibrary()).resolves.toEqual([item]);
   });
 });
+
+describe('a saved game reports the moves it has', () => {
+  const movesIn = (sgf: string): number => createLibraryItem('probe', sgf, null).moveCount;
+
+  it('counts a move whose node names another property first', () => {
+    // SGF does not fix the order inside a node, and this app's own writer emits
+    // C before B. `/;[BW]\[/` saw one move in this and the row said "1 move".
+    expect(movesIn('(;GM[1]SZ[9];C[a note]B[cc];W[dd];C[another]B[ee])')).toBe(3);
+  });
+
+  it('counts a plain game the same as it always did', () => {
+    expect(movesIn('(;GM[1]SZ[19];B[pd];W[dp];B[pp];W[dd])')).toBe(4);
+    expect(movesIn('(;GM[1]SZ[19])')).toBe(0);
+  });
+
+  it('counts a pass, and the moves down every variation', () => {
+    expect(movesIn('(;GM[1]SZ[9];B[cc];W[];B[])')).toBe(3);
+    expect(movesIn('(;GM[1]SZ[19];B[pd](;W[dp];B[pp])(;W[dd]))')).toBe(4);
+  });
+
+  it('is not fooled by a comment that looks like a move', () => {
+    // The escaped `\]` does not end the value, so `B[` inside it is text.
+    expect(movesIn('(;GM[1]SZ[9];C[see \\]B[cc\\] in the corner]B[dd])')).toBe(1);
+    expect(movesIn('(;GM[1]SZ[9];C[;B[aa];W[bb]]B[dd])')).toBe(1);
+  });
+
+  it('does not count the clock properties that start with the same letter', () => {
+    expect(movesIn('(;GM[1]SZ[9];B[cc]BL[120.5];W[dd]WL[118.2])')).toBe(2);
+  });
+
+  it('does not count setup stones as moves', () => {
+    expect(movesIn('(;GM[1]SZ[9]AB[aa][bb]AW[cc];B[dd])')).toBe(1);
+  });
+});
