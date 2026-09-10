@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { getMoveInsight, getMoveInsightCoach } from '../src/utils/moveInsight';
+import { LIBRARY_PATTERN_DETAILS, getMoveInsight, getMoveInsightCoach } from '../src/utils/moveInsight';
+import { CONTACT_MOVE_PATTERNS, FUSEKI_PATTERNS, NAMED_SHAPE_PATTERNS } from '../src/data/boardPatternLibrary';
 import type { BoardState, Move } from '../src/types';
 
 const blackMove = (x: number, y: number): Move => ({ x, y, player: 'black' });
@@ -410,6 +411,34 @@ describe('move insights', () => {
       pro: expect.stringContaining('seki'),
       checks: expect.arrayContaining(['Eye shape']),
     });
+  });
+});
+
+describe('named pattern details', () => {
+  // The library is a port of @sabaki/boardmatcher's data and the sentences are
+  // ours, so the two drift independently. A pattern with no entry still matches
+  // and still links to Sensei's — it just says "Named Go pattern." instead of
+  // explaining the shape, which is a silent downgrade, not a failure.
+  const libraryNames = [...FUSEKI_PATTERNS, ...NAMED_SHAPE_PATTERNS, ...CONTACT_MOVE_PATTERNS]
+    .map((pattern) => pattern.name);
+
+  it('explains every pattern the library can match', () => {
+    const unexplained = libraryNames.filter((name) => !(name in LIBRARY_PATTERN_DETAILS));
+
+    expect(unexplained, `no detail for: ${unexplained.join(', ')}`).toEqual([]);
+  });
+
+  it('keeps no explanation for a pattern that no longer exists', () => {
+    const orphaned = Object.keys(LIBRARY_PATTERN_DETAILS).filter((name) => !libraryNames.includes(name));
+
+    expect(orphaned, `detail for missing pattern: ${orphaned.join(', ')}`).toEqual([]);
+  });
+
+  it('says something of its own about each one', () => {
+    for (const [name, info] of Object.entries(LIBRARY_PATTERN_DETAILS)) {
+      expect(info.detail.length, `${name} has a stub detail`).toBeGreaterThan(20);
+      expect(info.detail, `${name} kept the fallback text`).not.toBe('Named Go pattern.');
+    }
   });
 });
 

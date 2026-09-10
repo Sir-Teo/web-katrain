@@ -36,7 +36,17 @@ type CornerRelationPattern = {
   localMax: Point;
 };
 
-const LIBRARY_PATTERN_DETAILS: Record<string, { detail: string; tone: MoveInsightTone }> = {
+/**
+ * What each named pattern means, keyed by the pattern's own name.
+ *
+ * Kept out of boardPatternLibrary.ts on purpose: that file is a port of
+ * @sabaki/boardmatcher's data, and app-written sentences in its rows would have
+ * to be re-applied every time it is re-ported. The cost is a coupling nothing
+ * checks — a pattern added or renamed upstream silently falls back to "Named Go
+ * pattern.", which recognises the shape and then says nothing about it. The
+ * correspondence is pinned in test/moveInsight.test.ts instead.
+ */
+export const LIBRARY_PATTERN_DETAILS: Record<string, { detail: string; tone: MoveInsightTone }> = {
   'Low Chinese Opening': {
     detail: 'Whole-board formation: the low Chinese builds a wide framework that invites invasions on your terms.',
     tone: 'corner',
