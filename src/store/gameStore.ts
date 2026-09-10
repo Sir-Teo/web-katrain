@@ -342,18 +342,29 @@ const resolveModelUrlForFetch = (value: string): string => {
   return new URL(trimmed, window.location.href).toString();
 };
 
-const loadStoredSettings = (): Partial<GameSettings> | null => {
-  try {
-    const rawCurrent = readLocalStorage(SETTINGS_STORAGE_KEY);
-    const legacyEntry = rawCurrent
-      ? null
-      : LEGACY_SETTINGS_STORAGE_KEYS.map((key) => ({ key, raw: readLocalStorage(key) })).find((entry) => entry.raw);
-    const raw = rawCurrent ?? legacyEntry?.raw;
-    if (!raw) return null;
-    const isLegacySettings = legacyEntry != null;
-    const isV1Settings = legacyEntry?.key === 'web-katrain:settings:v1';
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return null;
+/**
+ * Make sense of whatever is in localStorage under the settings key.
+ *
+ * This reads input the app did not write: the key is editable by hand, it
+ * survives across versions, and a value that was valid two releases ago may name
+ * a board theme or a backend that no longer exists. Every field that could reach
+ * arithmetic or a lookup is checked here, and anything that fails is dropped so
+ * the default takes over — losing one preference is always better than failing
+ * to start.
+ *
+ * Separated from the read so it can be tested and fuzzed, which is the only
+ * reason it is exported.
+ */
+export function normalizeStoredSettings(
+  parsed: unknown,
+  legacyKey?: string | null,
+): Partial<GameSettings> | null {
+  {
+    const isLegacySettings = legacyKey != null;
+    const isV1Settings = legacyKey === 'web-katrain:settings:v1';
+    // An array is an object as far as typeof is concerned, and spreading one
+    // over the defaults would put numeric keys into the settings.
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
     // An uploaded human net lives in a blob: URL that dies with the page, so a
     // stored one would only produce a failing fetch on the next load.
     if ('humanSlModelUrl' in parsed) {
@@ -415,6 +426,18 @@ const loadStoredSettings = (): Partial<GameSettings> | null => {
         : 0;
     }
     return parsed as Partial<GameSettings>;
+  }
+}
+
+const loadStoredSettings = (): Partial<GameSettings> | null => {
+  try {
+    const rawCurrent = readLocalStorage(SETTINGS_STORAGE_KEY);
+    const legacyEntry = rawCurrent
+      ? null
+      : LEGACY_SETTINGS_STORAGE_KEYS.map((key) => ({ key, raw: readLocalStorage(key) })).find((entry) => entry.raw);
+    const raw = rawCurrent ?? legacyEntry?.raw;
+    if (!raw) return null;
+    return normalizeStoredSettings(JSON.parse(raw), legacyEntry?.key ?? null);
   } catch {
     return null;
   }
