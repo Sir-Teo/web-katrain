@@ -3,6 +3,7 @@ import { parseSgf } from './sgf';
 import { applyCapturesInPlace } from './gameLogic';
 import type { BoardState } from '../types';
 import { toSearchTerms } from './searchTerms';
+import { sgfHeaderText } from './sgfScan';
 
 export interface ProGameMeta {
   id: string;
@@ -46,8 +47,10 @@ const readHeaderProp = (header: string, key: string): string | undefined => {
 };
 
 const parseProGameMeta = (game: { name: string; source: string; sgf: string }, index: number): ProGameMeta => {
-  const firstMove = game.sgf.search(/;[BW]\[/);
-  const header = firstMove >= 0 ? game.sgf.slice(0, firstMove) : game.sgf;
+  // Not `/;[BW]\[/`: that requires the move to be its node's first property,
+  // which SGF does not promise. The bundled games all happen to satisfy it; a
+  // corpus from anywhere else would not.
+  const header = sgfHeaderText(game.sgf);
   const size = Number(readHeaderProp(header, 'SZ') ?? '19');
   return {
     id: `pro-${index}`,

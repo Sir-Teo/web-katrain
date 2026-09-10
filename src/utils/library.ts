@@ -1,5 +1,6 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { stripUnsafeFilenameControls } from './filename';
+import { countSgfMoves } from './sgfScan';
 import { getIndexedDB, getLocalStorage, readLocalStorage, writeLocalStorage } from './storage';
 import { toSearchTerms } from './searchTerms';
 
@@ -345,55 +346,7 @@ export const libraryItemMatchesQuery = (item: LibraryItem, query: string): boole
   return tokens.every((token) => haystack.includes(token));
 };
 
-/**
- * Count the moves in an SGF text.
- *
- * `/;[BW]\[/` misses every move whose node names another property first, and
- * SGF does not fix the order inside a node — this app's own writer emits
- * `;C[...]B[cc]` for any move carrying a comment. So a game annotated and then
- * saved reported fewer moves than it has: three moves with two comments counted
- * as one, and a fully commented game counted as none, which then showed as a
- * setup-stone count instead.
- *
- * A regex that also accepts `]B[` would count a comment containing the escaped
- * text `\]B[` as a move, so this walks the text instead: one pass, tracking
- * whether it is inside a property value and honouring the backslash escape.
- */
-const countMoves = (sgf: string): number => {
-  if (!sgf) return 0;
-  let count = 0;
-  let inValue = false;
-  // True where a property identifier may begin: after `;` and after a value.
-  let atPropertyStart = false;
-  for (let i = 0; i < sgf.length; i += 1) {
-    const ch = sgf[i]!;
-    if (inValue) {
-      if (ch === '\\') i += 1;
-      else if (ch === ']') {
-        inValue = false;
-        atPropertyStart = true;
-      }
-      continue;
-    }
-    if (ch === ';') {
-      atPropertyStart = true;
-      continue;
-    }
-    if (ch === '[') {
-      inValue = true;
-      continue;
-    }
-    if (ch === '(' || ch === ')') {
-      atPropertyStart = false;
-      continue;
-    }
-    if (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') continue;
-    // A move is a one-letter B or W identifier; BL and WL are clock properties.
-    if (atPropertyStart && (ch === 'B' || ch === 'W') && sgf[i + 1] === '[') count += 1;
-    atPropertyStart = false;
-  }
-  return count;
-};
+const countMoves = countSgfMoves;
 
 const normalizeParentId = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
 
