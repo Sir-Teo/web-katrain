@@ -283,6 +283,7 @@ export const Layout: React.FC = () => {
     pinnedVariations,
     pinCurrentVariation,
     recallVariation,
+    unpinVariation,
     clearPinnedVariations,
     navigateStart,
     navigateEnd,
@@ -369,6 +370,7 @@ export const Layout: React.FC = () => {
       pinnedVariations: state.pinnedVariations,
       pinCurrentVariation: state.pinCurrentVariation,
       recallVariation: state.recallVariation,
+      unpinVariation: state.unpinVariation,
       clearPinnedVariations: state.clearPinnedVariations,
       navigateStart: state.navigateStart,
       navigateEnd: state.navigateEnd,
@@ -2776,16 +2778,33 @@ export const Layout: React.FC = () => {
         },
         keywords: ['bookmark', 'save variation', 'recall', 'pinned'],
       },
-      ...pinnedVariations.map((pin) => ({
-        id: `recall-variation-${pin.id}`,
-        label: `Recall pinned: ${pin.label}`,
-        category: 'Navigation',
-        run: () => {
-          closeFloatingMenus();
-          recallVariation(pin.id);
+      ...pinnedVariations.flatMap((pin) => [
+        {
+          id: `recall-variation-${pin.id}`,
+          label: `Recall pinned: ${pin.label}`,
+          category: 'Navigation',
+          run: () => {
+            closeFloatingMenus();
+            recallVariation(pin.id);
+          },
+          keywords: ['pinned', 'variation', 'jump', 'bookmark'],
         },
-        keywords: ['pinned', 'variation', 'jump', 'bookmark'],
-      })),
+        // Dropping one pin used to mean dropping all of them: the only removal
+        // on offer was "Clear pinned lines", so a fifth pin you regretted cost
+        // you the four you wanted. The store has had unpinVariation(id) and a
+        // test for it the whole time; nothing called it.
+        {
+          id: `unpin-variation-${pin.id}`,
+          label: `Unpin: ${pin.label}`,
+          category: 'Navigation',
+          run: () => {
+            closeFloatingMenus();
+            unpinVariation(pin.id);
+            toast(`Unpinned "${pin.label}".`, 'success');
+          },
+          keywords: ['pinned', 'variation', 'remove', 'forget', 'bookmark'],
+        },
+      ]),
       ...(pinnedVariations.length > 0
         ? [
             {
