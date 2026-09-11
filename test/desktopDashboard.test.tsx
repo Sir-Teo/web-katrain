@@ -16,6 +16,30 @@ describe('DesktopDashboard', () => {
     expect(APP_ISSUE_REPORT_URL).toBe('https://github.com/Sir-Teo/web-katrain/issues/new/choose');
   });
 
+  it('reads every prop it declares', () => {
+    // 106 props, and one of them -- engineMeta -- was threaded in from Layout
+    // and never read: the pill shows enginePillLabel and puts the long form on
+    // its own title, so the compact label the phone renders had nothing to do
+    // here. An interface this wide accumulates that kind of thing quietly, and
+    // a dead prop is a thing Layout still has to compute and keep correct.
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+    const match = /export interface DesktopDashboardProps \{([\s\S]*?)\n\}/.exec(source);
+    expect(match, 'DesktopDashboardProps not found').not.toBeNull();
+
+    const body = match![1]!;
+    const fields = [...body.matchAll(/^ {2}([a-zA-Z][A-Za-z0-9_]*)\??:/gm)].map((m) => m[1]!);
+    expect(fields.length).toBeGreaterThan(80);
+
+    const after = source.slice(match!.index! + match![0]!.length);
+    // One mention is the destructuring in the component signature; a prop that
+    // is actually used shows up at least twice.
+    const unread = [...new Set(fields)].filter(
+      (field) => (after.match(new RegExp(`\\b${field}\\b`, 'g')) ?? []).length <= 1
+    );
+
+    expect(unread, `declared but never read: ${unread.join(', ')}`).toEqual([]);
+  });
+
   it('gives desktop a game info section, not just the read-only strip', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
 

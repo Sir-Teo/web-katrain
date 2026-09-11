@@ -3940,7 +3940,6 @@ export const Layout: React.FC = () => {
             pointsLostLabel={pointsLostLabel}
             engineState={engineActivity.state}
             enginePillLabel={engineActivity.label}
-            engineMeta={engineMeta}
             engineMetaTitle={engineMetaTitle}
             engineBackend={engineBackend ?? ''}
             engineModelLabel={engineModelLabel ?? ''}

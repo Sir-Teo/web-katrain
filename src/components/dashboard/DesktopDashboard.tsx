@@ -68,7 +68,11 @@ export interface DesktopDashboardProps {
   // ---- engine ----
   engineState: EngineState;
   enginePillLabel: string;
-  engineMeta: string;
+  /* No `engineMeta`: the pill shows `enginePillLabel` and puts the long form on
+     its own title, so the compact label the phone renders has nothing to do
+     here. It was declared and threaded in for nothing -- the one prop of 106
+     this component never read. `dashboardPropsAreUsed` in
+     test/desktopDashboard.test.tsx keeps it that way. */
   engineMetaTitle: string;
   engineBackend: string;
   engineModelLabel: string;
