@@ -597,6 +597,51 @@ function assertViewport(result) {
  * text of the declaration cannot catch this — that is exactly what the test
  * guarding it used to do, while the variant sat inert.
  */
+/**
+ * The truncation audit only ever saw short text.
+ *
+ * It runs on whatever game is loaded, and that is a fresh board whose players
+ * are "Black" and "White" -- so a clipped-name bug could not fail it. Loading a
+ * record whose players and event are as long as real ones get, and auditing
+ * that, is what the audit was written to do. It found the two player names in
+ * the game info panel clipping with no title, beside a panel title that had one.
+ *
+ * Desktop only: every surface this exercises is in the dashboard sidebar, and
+ * the phone reaches the same component through RightPanel.
+ */
+async function assertLongMetadataStaysRecoverable(cdp) {
+  const LONG_NAME = 'Bartholomew Wolfeschlegelsteinhausenbergerdorff-Featherstonehaugh';
+  const LONG_EVENT =
+    'The Twenty-Ninth Annual International Championship of Baduk and Weiqi Invitational, Sponsored Division';
+  const sgf =
+    `(;GM[1]FF[4]SZ[19]KM[7.5]RU[Chinese]PB[${LONG_NAME}]BR[5d]PW[${LONG_NAME} II]WR[7d]` +
+    `DT[2019-07-04]EV[${LONG_EVENT}]RO[Quarter-final, upper bracket, second leg]` +
+    `PC[Seoul, Republic of Korea]GN[${LONG_EVENT}]RE[B+2.5]TM[3600]` +
+    `OT[5x30 byo-yomi with a 30 second delay];B[dd];W[pp])`;
+
+  await setViewport(cdp, { width: 1440, height: 900, mobile: false });
+  const loaded = await evaluate(cdp, `(async () => {
+    const [store, sgfUtil] = await Promise.all([
+      import('/src/store/gameStore.ts'),
+      import('/src/utils/sgf.ts'),
+    ]);
+    store.useGameStore.getState().loadGame(sgfUtil.parseSgf(${JSON.stringify(sgf)}));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    // Every collapsed section, so nothing escapes the audit by being closed.
+    for (const head of document.querySelectorAll('.section-head-toggle')) {
+      if (head.getAttribute('aria-expanded') !== 'true') head.click();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return document.body.innerText.includes('Wolfeschlegel');
+  })()`);
+  if (!loaded) throw new Error('long metadata: the record did not load, so nothing was audited');
+
+  const clipped = await evaluate(cdp, TRUNCATION_AUDIT);
+  if (clipped.length > 0) {
+    throw new Error(`long metadata: unrecoverable truncation:\n      - ${clipped.join('\n      - ')}`);
+  }
+}
+
 async function assertShellVariantApplies(cdp) {
   const probe = `(() => {
     const el = document.createElement('div');
@@ -3780,6 +3825,7 @@ async function main() {
     }
     await assertShellVariantApplies(cdp);
     await assertDialogsFitShortViewports(cdp);
+    await assertLongMetadataStaysRecoverable(cdp);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

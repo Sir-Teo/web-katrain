@@ -209,14 +209,14 @@ export const GameInfoPanel: React.FC = () => {
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-neutral-900 ring-1 ring-white/20" aria-hidden="true" />
           <div className="min-w-0">
             <div className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">Black</div>
-            <div className="truncate text-xs text-[var(--ui-text)]">{blackDisplay}</div>
+            <div className="truncate text-xs text-[var(--ui-text)]" title={blackDisplay}>{blackDisplay}</div>
           </div>
         </div>
         <div className="flex min-w-0 items-center gap-2 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-2 py-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-white ring-1 ring-black/30" aria-hidden="true" />
           <div className="min-w-0">
             <div className="text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">White</div>
-            <div className="truncate text-xs text-[var(--ui-text)]">{whiteDisplay}</div>
+            <div className="truncate text-xs text-[var(--ui-text)]" title={whiteDisplay}>{whiteDisplay}</div>
           </div>
         </div>
       </div>
