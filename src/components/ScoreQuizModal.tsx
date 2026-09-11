@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaTimes, FaDice, FaCheck } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
@@ -44,6 +44,8 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   const [stats, setStats] = useState<QuizStats>({ rounds: 0, sumError: 0, leaderHits: 0 });
 
   const nodeId = currentNode.id;
+  const pendingReveal = useRef<object | null>(null);
+  useEffect(() => () => { pendingReveal.current = null; }, [nodeId]);
   const board = currentNode.gameState.board;
   const moveNumber = currentNode.gameState.moveHistory.length;
   const lastMove = currentNode.move && currentNode.move.x >= 0
@@ -61,10 +63,16 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   }
 
   const handleReveal = useCallback(async () => {
+    if (phase !== 'guess' || pendingReveal.current) return;
+    const request = {};
+    pendingReveal.current = request;
+    const isCurrentRequest = () => pendingReveal.current === request
+      && useGameStore.getState().currentNode.id === nodeId;
     setErrorMsg(null);
     setPhase('evaluating');
     try {
       const result = await evaluateNode(currentNode, settings);
+      if (!isCurrentRequest()) return;
       const lead = result.blackScoreLead;
       setActual(lead);
       const signedGuess = (winner === 'black' ? 1 : -1) * Math.abs(Number(margin) || 0);
@@ -77,15 +85,19 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
       }));
       setPhase('reveal');
     } catch (err) {
+      if (!isCurrentRequest()) return;
       setErrorMsg(err instanceof Error ? err.message : 'Evaluation failed. Is the engine loaded?');
       setPhase('guess');
+    } finally {
+      if (pendingReveal.current === request) pendingReveal.current = null;
     }
-  }, [currentNode, settings, winner, margin]);
+  }, [currentNode, nodeId, settings, winner, margin, phase]);
 
   const quizPositions = useMemo(() => collectQuizPositions(rootNode), [rootNode]);
 
   const handleRandom = useCallback(() => {
     if (quizPositions.length === 0) return;
+    pendingReveal.current = null;
     const pickFrom = selectQuizJumpCandidates(quizPositions, nodeId);
     const pick = pickFrom[Math.floor(Math.random() * pickFrom.length)];
     if (pick && pick.id !== nodeId) {
@@ -95,6 +107,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
     // Only one position to quiz: reset the round anyway.
     setPhase('guess');
     setActual(null);
+    setErrorMsg(null);
   }, [quizPositions, jumpToNode, nodeId]);
 
   const signedGuess = (winner === 'black' ? 1 : -1) * Math.abs(Number(margin) || 0);
@@ -161,6 +174,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
                     key={w}
                     type="button"
                     onClick={() => setWinner(w)}
+                    disabled={phase === 'evaluating'}
                     aria-pressed={winner === w}
                     className={`min-h-11 rounded-lg border px-4 py-2 text-sm font-semibold capitalize ${
                       winner === w
@@ -180,6 +194,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
                   min={0}
                   step={0.5}
                   value={margin}
+                  disabled={phase === 'evaluating'}
                   onChange={(e) => setMargin(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') void handleReveal(); }}
                   className="min-h-11 w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-right text-[var(--ui-text)]"
