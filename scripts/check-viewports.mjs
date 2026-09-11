@@ -624,6 +624,73 @@ function assertViewport(result) {
  * each and re-running the coverage audit found the update card covering 171
  * intersections at 568x320 and shoving the board up under the top bar.
  */
+/**
+ * The recovery prompt, the other state no viewport run ever enters.
+ *
+ * Every viewport pass deletes the auto-save key before it measures anything,
+ * and deliberately: a debounced save from the previous pass landing mid-run
+ * opens this modal over the whole app and reads as a flood of unrelated
+ * failures. The cost is that the modal a returning user meets first is the one
+ * dialog the sweep never sees -- and it is not in the trigger list above
+ * either, because no button opens it.
+ *
+ * Seeding the key and navigating puts it on screen. It is checked for the same
+ * thing every other dialog is: no button off-screen with nothing able to scroll
+ * it back.
+ */
+async function assertAutoSaveRecoveryFits(cdp, appUrl) {
+  const seeded = JSON.stringify({
+    version: 1,
+    savedAt: Date.now() - 90_000,
+    sgf: '(;GM[1]FF[4]SZ[19]KM[6.5];B[pd];W[dp];B[pp];W[dd];B[fq])',
+  });
+  const failures = [];
+
+  for (const [width, height] of [[568, 320], [320, 480], [740, 360], [390, 844], [1440, 900]]) {
+    await setViewport(cdp, { width, height, mobile: width < 768 });
+    await evaluate(cdp, `(() => {
+      localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});
+      return 1;
+    })()`);
+    await cdp.send('Page.navigate', { url: appUrl });
+    await waitForBoard(cdp);
+    await sleep(900);
+
+    const stranded = await evaluate(cdp, STRANDED_BUTTONS_PROBE);
+    if (stranded === 'NO_MODAL') {
+      // Without this the check is vacuous: it would pass on every viewport by
+      // never finding the dialog it is supposed to be measuring.
+      failures.push(`${width}x${height}: the recovery prompt did not open, so nothing was measured`);
+    } else if (stranded !== '[]') {
+      failures.push(`${width}x${height} strands ${stranded}`);
+    } else {
+      // The other way to pass on nothing: an empty list also describes a dialog
+      // with no buttons in it. This one offers Restore and Discard.
+      const choices = await evaluate(cdp, `(() => {
+        const d = document.querySelector('[role="dialog"][aria-modal="true"]');
+        return d ? [...d.querySelectorAll('button')].filter((b) => b.getClientRects().length).length : 0;
+      })()`);
+      if (choices < 2) {
+        failures.push(`${width}x${height}: the recovery prompt showed ${choices} button(s), so "nothing stranded" means nothing`);
+      }
+    }
+
+    await evaluate(cdp, `(() => {
+      const d = document.querySelector('[role="dialog"][aria-modal="true"]');
+      const button = d && [...d.querySelectorAll('button')].find((b) =>
+        /discard/i.test((b.textContent || '') + (b.getAttribute('aria-label') || '')));
+      if (button) button.click();
+      localStorage.removeItem('web-katrain:auto_saved_game:v1');
+      return 1;
+    })()`);
+    await sleep(300);
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`auto-save recovery prompt:\n      - ${failures.join('\n      - ')}`);
+  }
+}
+
 async function assertPwaCardsClearTheBoard(cdp, appUrl) {
   const COVERAGE = `(() => {
     const boardEl = document.querySelector('[data-board-snapshot="true"]');
@@ -775,6 +842,32 @@ async function assertShellVariantApplies(cdp) {
 }
 
 /**
+ * Buttons in the open modal that sit off-screen with nothing able to scroll
+ * them back. Returns 'NO_MODAL' when nothing is open, so a caller can tell
+ * "nothing to check" from "checked and clean".
+ */
+const STRANDED_BUTTONS_PROBE = `(() => {
+  const d = document.querySelector('[role="dialog"][aria-modal="true"]');
+  if (!d) return 'NO_MODAL';
+  const vh = window.innerHeight;
+  const scrollableAncestor = (el) => {
+    for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if (/auto|scroll/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) return true;
+    }
+    return false;
+  };
+  const stranded = [...d.querySelectorAll('button')]
+    .filter((b) => b.getClientRects().length)
+    .filter((b) => {
+      const r = b.getBoundingClientRect();
+      return (r.bottom > vh + 0.5 || r.top < -0.5) && !scrollableAncestor(b);
+    })
+    .map((b) => (b.textContent || b.getAttribute('aria-label') || '').trim().slice(0, 24));
+  return JSON.stringify(stranded);
+})()`;
+
+/**
  * Every dialog's controls must stay reachable on a short screen.
  *
  * These overlays are `fixed inset-0` flex containers that centre their panel, and
@@ -800,27 +893,7 @@ async function assertDialogsFitShortViewports(cdp) {
   ];
   const SHORT = [[568, 320], [320, 480], [740, 360]];
   const failures = [];
-
-  const strandedProbe = `(() => {
-    const d = document.querySelector('[role="dialog"][aria-modal="true"]');
-    if (!d) return 'NO_MODAL';
-    const vh = window.innerHeight;
-    const scrollableAncestor = (el) => {
-      for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
-        const cs = getComputedStyle(n);
-        if (/auto|scroll/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) return true;
-      }
-      return false;
-    };
-    const stranded = [...d.querySelectorAll('button')]
-      .filter((b) => b.getClientRects().length)
-      .filter((b) => {
-        const r = b.getBoundingClientRect();
-        return (r.bottom > vh + 0.5 || r.top < -0.5) && !scrollableAncestor(b);
-      })
-      .map((b) => (b.textContent || b.getAttribute('aria-label') || '').trim().slice(0, 24));
-    return JSON.stringify(stranded);
-  })()`;
+  const strandedProbe = STRANDED_BUTTONS_PROBE;
 
   for (const [width, height] of SHORT) {
     await setViewport(cdp, { width, height, mobile: width < 768 });
@@ -3962,6 +4035,7 @@ async function main() {
     await assertDialogsFitShortViewports(cdp);
     await assertLongMetadataStaysRecoverable(cdp);
     await assertPwaCardsClearTheBoard(cdp, `http://127.0.0.1:${appPort}/`);
+    await assertAutoSaveRecoveryFits(cdp, `http://127.0.0.1:${appPort}/`);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {
