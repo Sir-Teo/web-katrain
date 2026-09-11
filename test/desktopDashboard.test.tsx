@@ -35,6 +35,25 @@ describe('DesktopDashboard', () => {
     expect(source).not.toContain('strict\n                superset');
   });
 
+  it('says how far past the fork the branch chip is', () => {
+    const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
+
+    // The chip read "Branch 1/3" identically at the fork and four moves down
+    // the variation, so it could not say whether "Back to branch point" had
+    // anywhere to go. depthFromBranchRoot was already on branchInfo here; the
+    // phone's tree toolbar had been rendering it all along.
+    expect(source).toContain('{!branchInfo.isAtFork && (');
+    expect(source).toContain('+{branchInfo.depthFromBranchRoot}');
+    // Spelled out on hover, because "+2" alone says nothing.
+    expect(source).toContain('move${branchInfo.depthFromBranchRoot === 1 ? \'\' : \'s\'} into this variation');
+    expect(source).toContain('at the branch point');
+    // The title has to sit on a wrapper: .pbtn:hover repaints, and the chip is
+    // not a button, so the inner span keeps pointer events off.
+    expect(source).toContain("style={{ display: 'inline-flex', cursor: 'default' }}");
+    // --accent is not a token this stylesheet defines; --ui-accent is.
+    expect(source).not.toContain("color: 'var(--accent)'");
+  });
+
   it('puts the play-on toggle beside the review actions, with a visible pressed state', () => {
     const source = readFileSync('src/components/dashboard/DesktopDashboard.tsx', 'utf8');
     const css = readFileSync('src/components/dashboard/dashboard.css', 'utf8');

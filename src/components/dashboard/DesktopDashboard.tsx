@@ -1024,9 +1024,35 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   <div className="panel-toolbar">
                     <button type="button" className="pbtn pico" title="Previous branch" aria-label="Previous branch" onClick={() => switchBranch(-1)}><Icon name="chevD" size={12} /></button>
                     <button type="button" className="pbtn pico" title="Next branch" aria-label="Next branch" onClick={() => switchBranch(1)}><Icon name="chevR" size={12} /></button>
-                    <span className="pbtn" style={{ pointerEvents: 'none' }}>
-                      <span style={{ color: 'var(--faint)' }}>Branch</span>{' '}
-                      <span className="mono" style={{ color: 'var(--ink)' }}>{branchInfo.currentIndex}/{branchInfo.totalBranches}</span>
+                    {/* How far past the fork you are, which the chip used to
+                        leave out: it read "Branch 1/3" identically at the fork
+                        and six moves down the variation, so it could not say
+                        whether "Back to branch point" had anywhere to go. The
+                        phone's tree toolbar has shown this all along and the
+                        number was already on `branchInfo` here.
+
+                        The title lives on a wrapper because `.pbtn:hover`
+                        repaints, and this chip is not a button -- the inner
+                        span keeps `pointerEvents: 'none'` so hovering explains
+                        it without making it look clickable. */}
+                    <span
+                      title={
+                        branchInfo.isAtFork
+                          ? `Branch ${branchInfo.currentIndex} of ${branchInfo.totalBranches}, at the branch point`
+                          : `Branch ${branchInfo.currentIndex} of ${branchInfo.totalBranches}, ${branchInfo.depthFromBranchRoot} move${branchInfo.depthFromBranchRoot === 1 ? '' : 's'} into this variation`
+                      }
+                      style={{ display: 'inline-flex', cursor: 'default' }}
+                    >
+                      <span className="pbtn" style={{ pointerEvents: 'none' }}>
+                        <span style={{ color: 'var(--faint)' }}>Branch</span>{' '}
+                        <span className="mono" style={{ color: 'var(--ink)' }}>{branchInfo.currentIndex}/{branchInfo.totalBranches}</span>
+                        {!branchInfo.isAtFork && (
+                          <>
+                            {' '}
+                            <span className="mono" style={{ color: 'var(--ui-accent)' }}>+{branchInfo.depthFromBranchRoot}</span>
+                          </>
+                        )}
+                      </span>
                     </span>
                     <button type="button" className="pbtn pico" title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
                     {branchInfo.currentIndex > 1 ? (
