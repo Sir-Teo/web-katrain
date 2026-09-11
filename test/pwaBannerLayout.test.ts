@@ -24,25 +24,35 @@ describe('the reserve follows the card, not the rule that hid it', () => {
   });
 });
 
-describe('the install promos yield on a screen with no height to spare', () => {
+describe('every card yields on a screen with no height to spare', () => {
   it('steps aside below the height that makes this the desktop shell', () => {
     // The card is fixed, but the board reserves its height so it is never
     // covered -- which on a landscape phone is a 66px band out of 390px of
     // screen. Measured: the board is 203px with the card and 263px without.
-    const start = css.indexOf('  @media (max-height: 499px) {\n    :root[data-pwa-banner=');
+    const start = css.indexOf('  @media (max-height: 499px) {\n    .pwa-install-banner');
     expect(start).toBeGreaterThan(-1);
     const block = css.slice(start, css.indexOf('\n  }\n', css.indexOf('display: none;', start)));
-    expect(block).toContain("  :root[data-pwa-banner='install'] .pwa-install-banner,");
-    expect(block).toContain("  :root[data-pwa-banner='ios-install'] .pwa-install-banner {");
     expect(block).toContain('display: none;');
   });
 
-  it('leaves the two that report something rather than ask for something', () => {
-    // offline-ready and update-ready say what happened; only the promos yield.
-    const start = css.indexOf('  @media (max-height: 499px) {\n    :root[data-pwa-banner=');
+  it('no longer exempts the two that report something', () => {
+    // This rule used to hide only `install` and `ios-install`, on the grounds
+    // that offline-ready and update-ready report something that happened and
+    // "the stage reserve keeps them off the board". The reserve stops holding
+    // once the board has shrunk as far as it goes. Measured with the update
+    // card up, counting intersections elementFromPoint returns as something
+    // other than the board: 171 at 568x320 (with the board shoved to top:4,
+    // under the top bar), 95 at 568x360, 19 at 740x360 and 19 at 568x400, then
+    // 0 from 568x440 up. A report withheld until the next portrait view is a
+    // smaller loss than one sitting on a quarter of the board.
+    const start = css.indexOf('  @media (max-height: 499px) {\n    .pwa-install-banner');
     const block = css.slice(start, css.indexOf('\n  }\n', css.indexOf('display: none;', start)));
-    expect(block).not.toContain('offline-ready');
-    expect(block).not.toContain('update-ready');
+    expect(block).not.toContain("data-pwa-banner='install'");
+    expect(block).not.toContain("data-pwa-banner='ios-install'");
+
+    // The promos still yield to the first-run hero, which is a separate rule
+    // and about crowding rather than height.
+    expect(css).toContain("  :root[data-pwa-banner='install']:has([data-dashboard-hero='true']) .pwa-install-banner,");
   });
 
   it('uses the same height bound as the rest of the shell rules', () => {

@@ -609,6 +609,110 @@ function assertViewport(result) {
  * Desktop only: every surface this exercises is in the dashboard sidebar, and
  * the phone reaches the same component through RightPanel.
  */
+/**
+ * The PWA cards, in the states no viewport run ever enters.
+ *
+ * The per-viewport sweep measures a board with no card up, because
+ * `beforeinstallprompt` never fires in headless Chrome and the two service
+ * worker notices are dispatched by code that does not run here. So the one
+ * overlay that floats over the board column was the one thing never audited
+ * over it -- and it had already put the install card on 14 intersections once
+ * (1fcf5f5).
+ *
+ * All three are reachable by hand: the install prompt is a plain event with a
+ * `prompt` method, and the other two are the app's own custom events. Firing
+ * each and re-running the coverage audit found the update card covering 171
+ * intersections at 568x320 and shoving the board up under the top bar.
+ */
+async function assertPwaCardsClearTheBoard(cdp, appUrl) {
+  const COVERAGE = `(() => {
+    const boardEl = document.querySelector('[data-board-snapshot="true"]');
+    if (!boardEl) return ['board missing'];
+    const size = Number(boardEl.getAttribute('data-board-size'));
+    const cellSize = Number(boardEl.getAttribute('data-board-cell-size'));
+    const originX = Number(boardEl.getAttribute('data-board-origin-x'));
+    const originY = Number(boardEl.getAttribute('data-board-origin-y'));
+    const r = boardEl.getBoundingClientRect();
+    const blockers = new Map();
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const px = r.left + originX + x * cellSize;
+        const py = r.top + originY + y * cellSize;
+        if (px < 0 || py < 0 || px > innerWidth || py > innerHeight) continue;
+        const hit = document.elementFromPoint(px, py);
+        if (!hit || hit === boardEl || boardEl.contains(hit) || hit.contains(boardEl)) continue;
+        const label = (hit.getAttribute('aria-label') || hit.getAttribute('title') ||
+          (hit.className || '').toString() || hit.tagName).toString().trim().slice(0, 36);
+        blockers.set(label, (blockers.get(label) || 0) + 1);
+      }
+    }
+    return [...blockers].map(([label, n]) => n + ' x ' + label);
+  })()`;
+
+  const BANNERS = ['install', 'offline-ready', 'update-ready'];
+  const failures = [];
+
+  // Short screens are where the board runs out of room to give; the tall ones
+  // are here so a rule that hides too much fails too.
+  for (const viewport of [
+    { width: 568, height: 320, mobile: true },
+    { width: 740, height: 360, mobile: true },
+    { width: 844, height: 390, mobile: true },
+    { width: 1280, height: 460, mobile: true },
+    { width: 390, height: 844, mobile: true },
+    { width: 1440, height: 900, mobile: false },
+  ]) {
+    await setViewport(cdp, viewport);
+    const label = `${viewport.width}x${viewport.height}`;
+    for (const banner of BANNERS) {
+      // A fresh load per card: `shouldReplacePwaBanner` refuses to let anything
+      // displace an `update-ready`, so testing three types in one page would
+      // measure the first one three times. Navigating rather than calling
+      // `location.reload()` from inside the page, which drops the execution
+      // context `evaluate` is speaking to.
+      await evaluate(cdp, `(() => { localStorage.removeItem('web-katrain:auto_saved_game:v1'); return 1; })()`)
+        .catch(() => {});
+      await cdp.send('Page.navigate', { url: appUrl });
+      await waitForBoard(cdp);
+      await evaluate(cdp, `(() => {
+        // Phone shells open over the home overlay; the board is behind it.
+        const button = [...document.querySelectorAll('button')].find((b) =>
+          /open board|continue|resume/i.test((b.textContent || '') + ' ' + (b.getAttribute('aria-label') || '')));
+        if (button) button.click();
+        return !!button;
+      })()`);
+      await sleep(400);
+      const shown = await evaluate(cdp, `(async () => {
+        if (${JSON.stringify(banner)} === 'install') {
+          const event = new Event('beforeinstallprompt');
+          event.prompt = () => Promise.resolve();
+          event.userChoice = Promise.resolve({ outcome: 'dismissed' });
+          window.dispatchEvent(event);
+        } else {
+          window.dispatchEvent(new Event('web-katrain:pwa-' + ${JSON.stringify(banner)}));
+        }
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        const card = document.querySelector('.pwa-install-banner');
+        return !!card && getComputedStyle(card).display !== 'none';
+      })()`);
+
+      const covered = await evaluate(cdp, COVERAGE);
+      if (covered.length > 0) {
+        failures.push(`${label} with the ${banner} card: ${covered.join(', ')}`);
+      }
+      // A card that shows on a tall screen is the other half of the contract:
+      // the short-screen rule must not have swallowed every one of them.
+      if (viewport.height >= 500 && !shown && banner === 'update-ready') {
+        failures.push(`${label}: the ${banner} card never appeared, so nothing was audited`);
+      }
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`pwa card over the board:\n      - ${failures.join('\n      - ')}`);
+  }
+}
+
 async function assertLongMetadataStaysRecoverable(cdp) {
   const LONG_NAME = 'Bartholomew Wolfeschlegelsteinhausenbergerdorff-Featherstonehaugh';
   const LONG_EVENT =
@@ -2262,6 +2366,37 @@ async function main() {
           window.dispatchEvent(new Event('web-katrain:pwa-offline-ready'));
           await waitForFrames(4);
           let banner = await waitForBanner();
+
+          /**
+           * Below 500px tall there is meant to be no card at all.
+           *
+           * The card is fixed and the board reserves its height, and once the
+           * board has shrunk as far as it goes the reserve stops holding: with
+           * the update card up at 568x320 the board was pushed to top:4 under
+           * the top bar and 171 of its intersections came back from
+           * elementFromPoint as something else. So every card now hides under
+           * a max-height: 499px media rule in index.css, and the smoke flow
+           * below -- text, root state, reserved height, fits-in-viewport -- has
+           * nothing to inspect. Assert the absence instead; the presence side
+           * still runs at every viewport tall enough to have one.
+           *
+           * (No backticks in here: this comment lives inside the template
+           * literal that carries the whole probe, and one would end it.)
+           */
+          if (innerHeight <= 499) {
+            if (banner) failures.push('a card is showing below 500px tall, where the board has no room to give');
+            // Not data-pwa-banner: the component still tracks which card it
+            // would show, and the dashboard rule keyed on that attribute reads
+            // --pwa-banner-height, which falls back to 0px when there is no
+            // card to measure. Teaching the component the breakpoint would put
+            // the same bound in two places. What must not happen is the board
+            // giving up height for a card nobody can see:
+            if (getComputedStyle(document.documentElement).getPropertyValue('--pwa-banner-height').trim()) {
+              failures.push('board height reserved for a card that is not shown');
+            }
+            return { failures, smallTouchTargets, subMinimumTargets };
+          }
+
           if (!banner) {
             failures.push('offline-ready banner missing');
             return { failures, smallTouchTargets, subMinimumTargets };
@@ -3826,6 +3961,7 @@ async function main() {
     await assertShellVariantApplies(cdp);
     await assertDialogsFitShortViewports(cdp);
     await assertLongMetadataStaysRecoverable(cdp);
+    await assertPwaCardsClearTheBoard(cdp, `http://127.0.0.1:${appPort}/`);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

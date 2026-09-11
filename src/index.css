@@ -4543,19 +4543,36 @@
     display: none;
   }
 
-  /* And they step aside on a screen too short to spare the room. The card is
-     fixed, but the board reserves its height so it is never covered -- which on
-     a landscape phone means a 66px band out of 390px of screen, and a board
-     measured at 203px where it is 250px without. A quarter of the board is too
-     much to ask for an invitation that will be waiting in portrait, where the
-     same phone has the height for it.
+  /* And every card steps aside on a screen too short to spare the room. The
+     card is fixed and the board reserves its height, which on a landscape phone
+     means a 66px band out of 390px of screen and a board measured at 203px
+     where it is 250px without. A quarter of the board is too much to ask for an
+     invitation that will be waiting in portrait, where the same phone has the
+     height for it.
 
-     499px is the height below which this app is not the desktop shell, the same
-     bound the rules above key on. `offline-ready` and `update-ready` still show
-     for the reason given above: they report something that happened. */
+     This used to exempt `offline-ready` and `update-ready` on the grounds that
+     they report something that happened and "the stage reserve keeps them off
+     the board". The reserve does not hold once the board has shrunk as far as
+     it will go and the column has nothing left to give. Measured with the
+     update card up, counting intersections that `elementFromPoint` returns as
+     something other than the board:
+
+       568x320  171 covered, board shoved to top:4 under the top bar
+       568x360   95
+       740x360   19
+       568x400   19
+       568x440    0   <- the reserve holds from here up
+       844x390    0   (a wider screen lays the card out at 66px, not 106px)
+
+     So the failure is not a height: it is the card's own height, which varies
+     with width, against a column that has run out of room. Rather than fit a
+     constant to that, all four types now key on 499px -- the height below which
+     this app is not the desktop shell, and the same bound every rule above
+     uses. The cost is the 440-499px band, where a report would have fitted; a
+     report withheld until the next portrait view or the next visit is a smaller
+     loss than one sitting on a quarter of the board. */
   @media (max-height: 499px) {
-    :root[data-pwa-banner='install'] .pwa-install-banner,
-    :root[data-pwa-banner='ios-install'] .pwa-install-banner {
+    .pwa-install-banner {
       display: none;
     }
   }
