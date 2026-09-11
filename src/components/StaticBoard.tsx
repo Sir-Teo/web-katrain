@@ -133,7 +133,7 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
       onKeyDown={interactive ? handleKeyDown : undefined}
       onPointerDown={interactive ? () => { pointerFocusRef.current = true; } : undefined}
       onBlur={interactive ? () => { pointerFocusRef.current = false; setCursor(null); } : undefined}
-      style={{ width: '100%', maxWidth: maxPx, height: 'auto', display: 'block', touchAction: 'none' }}
+      style={{ width: '100%', maxWidth: maxPx, height: 'auto', display: 'block', touchAction: interactive ? 'none' : 'auto' }}
     >
       <defs>
         <radialGradient id="sb-black" cx="35%" cy="32%" r="75%">
