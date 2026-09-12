@@ -1416,7 +1416,8 @@ const analyzeForPlayout = (
       s.settings.katagoConservativePass,
       wideRootNoise
     ),
-    run: () => getKataGoEngineClient().analyze({
+    run: (ctx) => getKataGoEngineClient().analyze({
+      signal: ctx.signal,
       positionId: node.id,
       parentPositionId: node.parent?.id,
       positionKey: nodeAnalysisPositionKey(node, rules),
@@ -1753,11 +1754,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       continuousToken++;
       analysisQueue.cancelGroup('interactive');
       analysisQueue.cancelGroup('tenuki');
-      // Cancelling an *active* queue job only aborts its signal; the rejection
-      // arrives when the engine call finally settles. Waiting for that would
-      // leave the play-elsewhere readout saying "Checking..." after the user
-      // pressed stop, so the readout is dropped here and the late rejection is
-      // ignored by its token.
+      // Clear the readout immediately, without waiting for the cancellation
+      // promise chain. Its token also prevents a late rejection from replacing
+      // a new play-elsewhere request made after Stop.
       tenukiToken++;
       set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null, tenukiAnalysis: null });
   },
@@ -1831,8 +1830,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         priority: ANALYSIS_QUEUE_PRIORITY.tenuki,
         staleKey: 'tenuki-analysis',
         cacheKey: analysisCacheKey('tenuki', positionKey, modelUrl, state.settings.katagoBackend, visits),
-        run: () =>
+        run: (ctx) =>
           getKataGoEngineClient().analyze({
+            signal: ctx.signal,
             // A distinct position id, and `reuseTree` off: the worker keeps a
             // search tree per position, and letting it re-root the live tree
             // onto a position the player never entered would slow or skew the
@@ -2998,7 +2998,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 s.settings.katagoNnRandomize,
                 s.settings.katagoConservativePass
               ),
-              run: () => getKataGoEngineClient().analyze({
+              run: (ctx) => getKataGoEngineClient().analyze({
+              signal: ctx.signal,
               positionId: node.id,
               parentPositionId: node.parent?.id,
               positionKey: nodeAnalysisPositionKey(node, rules),
@@ -3196,7 +3197,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 s.settings.humanSlEnabled ? s.settings.humanSlProfile : '',
                 s.settings.humanSlEnabled ? s.settings.humanSlModelUrl : ''
               ),
-              run: () => getKataGoEngineClient().analyze({
+              run: (ctx) => getKataGoEngineClient().analyze({
+              signal: ctx.signal,
               positionId: node.id,
               parentPositionId: node.parent?.id,
               positionKey: nodeAnalysisPositionKey(node, rules),
@@ -3525,6 +3527,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           bypassCache: opts?.force === true,
           preempt: true,
           run: (ctx) => getKataGoEngineClient().analyze({
+	          signal: ctx.signal,
 	          positionId: node.id,
 	          parentPositionId: node.parent?.id,
             positionKey: nodeAnalysisPositionKey(node, rules),
@@ -4137,7 +4140,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             handicapPda
           ),
           preempt: true,
-          run: () => getKataGoEngineClient().analyze({
+          run: (ctx) => getKataGoEngineClient().analyze({
+	          signal: ctx.signal,
 	          positionId: nodeId,
 	          parentPositionId: node.parent?.id,
             positionKey,

@@ -1,6 +1,7 @@
 import type { KataGoWorkerRequest, KataGoWorkerResponse } from './types';
 import type { BoardState, GameRules, KataGoBackendPreference, Move, Player, RegionOfInterest } from '../../types';
 import { getWorkerConstructor } from '../../utils/browserWorker';
+import type { AnalysisQueueSignal } from '../../utils/analysisQueue';
 
 type Analysis = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:analyze_result' }>['analysis']>;
 type EvalResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:eval_result' }>['eval']>;
@@ -234,6 +235,7 @@ class KataGoEngineClient {
   }
 
   async analyze(args: {
+    signal?: Pick<AnalysisQueueSignal, 'aborted' | 'addAbortListener'>;
     analysisGroup?: 'interactive' | 'background';
     positionId?: string;
     parentPositionId?: string;
@@ -275,6 +277,7 @@ class KataGoEngineClient {
     onProgress?: (analysis: Analysis) => void;
   }): Promise<Analysis> {
     this.rejectIfCrashed();
+    if (args.signal?.aborted) throw new KataGoCanceledError();
     const id = this.nextId++;
     const req: KataGoWorkerRequest = {
       type: 'katago:analyze',
@@ -321,13 +324,27 @@ class KataGoEngineClient {
     const promise = new Promise<Analysis>((resolve, reject) => {
       this.pending.set(id, { resolve, reject, onProgress: args.onProgress });
     });
+    let unsubscribe: (() => void) | undefined;
     try {
       this.postToWorker(req);
-    } catch (err) {
+      unsubscribe = args.signal?.addAbortListener(() => {
+        const pending = this.pending.get(id);
+        if (!pending) return;
+        // Settle locally so Stop releases the queue even while the worker is
+        // finishing its current batch. Ignore any later progress or result.
+        this.pending.delete(id);
+        try {
+          this.postToWorker({ type: 'katago:cancel', id, analysisGroup: args.analysisGroup ?? 'background' });
+          pending.reject(new KataGoCanceledError());
+        } catch (err) {
+          pending.reject(err instanceof Error ? err : new Error(String(err)));
+        }
+      });
+      return await promise;
+    } finally {
+      unsubscribe?.();
       this.pending.delete(id);
-      throw err;
     }
-    return promise;
   }
 
   async evaluate(args: {

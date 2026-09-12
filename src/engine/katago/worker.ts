@@ -982,6 +982,15 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
 
 self.onmessage = (ev: MessageEvent<KataGoWorkerRequest>) => {
   const msg = ev.data;
+  if (msg.type === 'katago:cancel') {
+    // Handle control messages immediately; queuing behind the search would
+    // wait for the very work being canceled. A late cancel must not revoke a
+    // newer request that has already taken over this group.
+    if (latestAnalyzeByGroup.get(msg.analysisGroup) === msg.id) {
+      latestAnalyzeByGroup.delete(msg.analysisGroup);
+    }
+    return;
+  }
   if (msg.type === 'katago:analyze') {
     const analysisGroup = msg.analysisGroup ?? 'background';
     latestAnalyzeByGroup.set(analysisGroup, msg.id);

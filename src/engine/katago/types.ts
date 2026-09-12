@@ -209,7 +209,13 @@ export interface KataGoEvalBatchResponse {
   error?: string;
 }
 
-export type KataGoWorkerRequest = KataGoInitRequest | KataGoAnalyzeRequest | KataGoEvalRequest | KataGoEvalBatchRequest;
+export interface KataGoCancelRequest {
+  type: 'katago:cancel';
+  id: number;
+  analysisGroup: 'interactive' | 'background';
+}
+
+export type KataGoWorkerRequest = KataGoInitRequest | KataGoAnalyzeRequest | KataGoCancelRequest | KataGoEvalRequest | KataGoEvalBatchRequest;
 /** A one-off diagnostic from the worker, such as why a backend fell back. */
 export interface KataGoNotice {
   type: 'katago:notice';

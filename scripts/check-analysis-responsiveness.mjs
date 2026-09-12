@@ -127,8 +127,25 @@ async function main() {
       return r.width && b.contains(document.elementFromPoint(x, y)) ? { x, y } : false;
     })()`);
     await clickAt(analyze);
-    const first = await wait('auditResponses.find(r => r.type === "katago:analyze_update" && r.ok && r.visits > 0)');
+    let first = await wait('auditResponses.find(r => r.type === "katago:analyze_update" && r.ok && r.visits > 0)');
     assert.equal(first.backend, 'wasm');
+    const stopAt = await evaluate(cdp, 'performance.now()');
+    for (const type of ['keyDown', 'keyUp']) {
+      await cdp.send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    }
+    await wait('document.querySelector(".analyze-toggle").getAttribute("aria-pressed") === "false"');
+    const stopped = await wait(`auditResponses.find(r => r.id === ${first.id} && r.type === 'katago:analyze_result')`);
+    assert.equal(stopped.canceled, true, 'Stop must reach the worker, not just hide its results');
+    const stoppedMs = stopped.at - stopAt;
+    assert.ok(stoppedMs >= 0, 'The search must still be active when Stop is pressed');
+    assert.ok(stoppedMs < 1000, `Worker kept searching for ${stoppedMs.toFixed(1)} ms after Stop`);
+    await screenshot('stopped');
+    // Confirm the live-analysis loop does not restart after its promise settles.
+    await sleep(350);
+    assert.equal(await evaluate(cdp, `auditRequests.filter(r => r.at > ${stopAt}).length`), 0);
+    await clickAt(analyze);
+    first = await wait(`auditResponses.find(r => r.id > ${first.id}
+      && r.type === 'katago:analyze_update' && r.ok && r.visits > 0)`);
     const point = await evaluate(cdp, `(() => {
       window.auditUiAt = 0;
       window.auditOldId = ${first.id};
@@ -164,13 +181,15 @@ async function main() {
         visits: response.visits, backend: response.backend, requests: auditRequests, responses: auditResponses,
       };
     })()`);
-    fs.writeFileSync(path.join(outputDir, 'results.json'), JSON.stringify({ rendererThrottle: throttle, ...result, errors }, null, 2));
+    fs.writeFileSync(path.join(outputDir, 'results.json'), JSON.stringify({ rendererThrottle: throttle, stoppedMs, ...result, errors }, null, 2));
     await screenshot('fresh-position');
     assert.deepEqual(spawnErrors, []);
     assert.deepEqual(errors, []);
     assert.equal(result.oldCanceled, true, 'The obsolete search must be canceled');
+    assert.ok(result.oldCancelMs >= 0, 'The previous position must still be searching when the move is played');
     assert.ok(result.freshUiMs < freshPositionBudgetMs,
       `Current-position evaluation took ${result.freshUiMs.toFixed(1)} ms (budget ${freshPositionBudgetMs} ms)`);
+    console.log(`Explicit Stop: worker canceled after ${stoppedMs.toFixed(1)} ms; analysis restarted successfully.`);
     console.log(`Analysis preemption: current-position response ${result.freshResponseMs.toFixed(1)} ms,`
       + ` rendered evaluation ${result.freshUiMs.toFixed(1)} ms, old request canceled ${result.oldCancelMs.toFixed(1)} ms.`);
     console.log(`Analysis responsiveness checks passed. Evidence: ${outputDir}`);
