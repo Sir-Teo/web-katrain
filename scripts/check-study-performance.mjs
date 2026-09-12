@@ -36,7 +36,7 @@ async function main() {
       const { useGameStore, lineViolatesSuperko } = await import('/src/store/gameStore.ts');
       const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
       const { findSolutionPath } = await import('/src/utils/problemMode.ts');
-      const { createLibraryItem, prependLibraryImports } = await import('/src/utils/library.ts');
+      const { createLibraryItem, prependLibraryImports, getLibraryFolderOptions, formatLibraryFolderOptionLabel } = await import('/src/utils/library.ts');
       const state = () => useGameStore.getState();
       state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
       const sgf = '(;GM[1]SZ[9]' + Array.from({ length: 2000 }, (_, i) => ';' + (i % 2 ? 'W' : 'B') + '[]').join('') + ')';
@@ -123,6 +123,20 @@ async function main() {
       if (merged.length !== 20000 || new Set(merged.map(item => item.name.toLowerCase())).size !== 20000) {
         throw Error('Library import lost games or produced duplicate names');
       }
+      const folders = Array.from({length:12000}, (_, i) => ({
+        id:'folder-'+i, name:'Folder '+i, type:'folder', parentId:i ? 'folder-'+(i-1) : null, createdAt:i, updatedAt:i,
+      })).reverse();
+      operationStart = performance.now();
+      const destinations = getLibraryFolderOptions(folders);
+      const libraryFolderOptionsMs = performance.now() - operationStart;
+      if (destinations.length !== 12000 || destinations.some((folder, i) => folder.id !== 'folder-'+i || folder.depth !== i)) {
+        throw Error('Folder picker lost or reordered a deep destination');
+      }
+      const folderLabels = destinations.map(formatLibraryFolderOptionLabel);
+      const libraryFolderLabelCharacters = folderLabels.reduce((total, label) => total + label.length, 0);
+      if (folderLabels.some(label => label.length > 100) || libraryFolderLabelCharacters > 1000000) {
+        throw Error('Folder picker allocated excessive indentation');
+      }
       // Isolate repetition checks from captures, rendering and neural inference.
       // These synthetic histories cover shared annotation boards and distinct
       // stored positions. Candidate-by-candidate checks are also used by the
@@ -152,7 +166,7 @@ async function main() {
         }
         superkoChecks.push({distinct, positions:400, candidates:361, coldMs, candidatesMs:performance.now() - operationStart});
       }
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, superkoChecks };
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, superkoChecks };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -160,7 +174,7 @@ async function main() {
     assert.ok(result.markerMedianMs < 25, `Marker edit took ${result.markerMedianMs}ms; budget is 25ms`);
     assert.equal(result.comments, 12000);
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
-    for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs']) {
+    for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs', 'libraryFolderOptionsMs']) {
       assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
     }
     for (const check of result.superkoChecks) {

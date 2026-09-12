@@ -203,7 +203,7 @@ export const getLibraryStats = (items: LibraryItem[]): LibraryStats =>
     { files: 0, folders: 0, size: 0 }
   );
 
-export const getLibraryFolderOptions = (items: LibraryItem[]): LibraryFolderOption[] => {
+export const getLibraryFolderOptions = (items: readonly LibraryItem[]): LibraryFolderOption[] => {
   const folders = items.filter((item): item is LibraryFolder => item.type === 'folder');
   const folderIds = new Set(folders.map((folder) => folder.id));
   const childrenByParent = new Map<string | null, LibraryFolder[]>();
@@ -222,12 +222,16 @@ export const getLibraryFolderOptions = (items: LibraryItem[]): LibraryFolderOpti
   const options: LibraryFolderOption[] = [];
   const visited = new Set<string>();
   const walk = (parentId: string | null, depth: number) => {
-    const children = childrenByParent.get(parentId) ?? [];
-    for (const child of children) {
+    const pending = (childrenByParent.get(parentId) ?? []).map(child => ({ child, depth })).reverse();
+    while (pending.length > 0) {
+      const { child, depth } = pending.pop()!;
       if (visited.has(child.id)) continue;
       visited.add(child.id);
       options.push({ id: child.id, name: child.name, depth });
-      walk(child.id, depth + 1);
+      const children = childrenByParent.get(child.id) ?? [];
+      for (let i = children.length - 1; i >= 0; i--) {
+        pending.push({ child: children[i]!, depth: depth + 1 });
+      }
     }
   };
 
@@ -239,6 +243,14 @@ export const getLibraryFolderOptions = (items: LibraryItem[]): LibraryFolderOpti
     walk(folder.id, 1);
   }
   return options;
+};
+
+// Backups can contain arbitrarily deep folders. Keep indentation bounded while
+// retaining the destination name and its exact nesting level.
+export const formatLibraryFolderOptionLabel = (option: LibraryFolderOption): string => {
+  return option.depth > 4
+    ? `… ${option.name} (level ${option.depth + 1})`
+    : `${'-- '.repeat(option.depth)}${option.name}`;
 };
 
 export const getLibrarySaveTargetFolderId = ({

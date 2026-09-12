@@ -34,6 +34,7 @@ import {
   duplicateLibraryItem,
   duplicateLibraryItems,
   formatLibrarySize,
+  formatLibraryFolderOptionLabel,
   libraryNameRepeatsPlayers,
   getLibraryFileMoveSortCount,
   getLibraryFileMoveSummary,
@@ -226,7 +227,7 @@ const LibraryTextDialog: React.FC<{
                 <option value="">{dialog.folderSelect.rootLabel}</option>
                 {dialog.folderSelect.options.map((option) => (
                   <option key={option.id} value={option.id}>
-                    {`${'-- '.repeat(option.depth)}${option.name}`}
+                    {formatLibraryFolderOptionLabel(option)}
                   </option>
                 ))}
               </select>

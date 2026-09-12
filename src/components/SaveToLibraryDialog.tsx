@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
-import type { LibraryFolderOption } from '../utils/library';
+import { formatLibraryFolderOptionLabel, type LibraryFolderOption } from '../utils/library';
 
 interface SaveToLibraryDialogProps {
   open: boolean;
@@ -115,7 +115,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               <option value="">Root</option>
               {folderOptions.map((option) => (
                 <option key={option.id} value={option.id}>
-                  {`${'-- '.repeat(option.depth)}${option.name}`}
+                  {formatLibraryFolderOptionLabel(option)}
                 </option>
               ))}
             </select>

@@ -28,6 +28,25 @@ describe('SaveToLibraryDialog', () => {
   });
 
 
+  it('keeps deeply nested destination names readable without allocating indentation for every ancestor', () => {
+    const html = renderToStaticMarkup(
+      <SaveToLibraryDialog
+        open initialName="Study" initialFolderId="deep"
+        folderOptions={[
+          { id: 'shallow', name: 'Opening', depth: 2 },
+          { id: 'deep', name: 'Final study folder', depth: 11999 },
+        ]}
+        onClose={() => undefined} onSave={() => true}
+      />
+    );
+    const shallow = html.match(/<option value="shallow"[^>]*>([^<]*)<\/option>/)?.[1];
+    const deep = html.match(/<option value="deep"[^>]*>([^<]*)<\/option>/)?.[1];
+    expect(shallow).toBe('-- -- Opening');
+    expect(deep).toContain('Final study folder');
+    expect(deep?.length).toBeLessThan(100);
+    expect(deep).toContain('12000');
+  });
+
   it('wraps its footer instead of pushing buttons off-screen', () => {
     const source = readFileSync('src/components/SaveToLibraryDialog.tsx', 'utf8');
 
