@@ -288,7 +288,7 @@ const expandPointListPropertiesInTree = (root: ParsedSgfNode, boardSize: BoardSi
   }
 };
 
-function escapeSgfValue(value: string): string {
+export function escapeSgfValue(value: string): string {
     return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\\/g, '\\\\').replace(/]/g, '\\]');
 }
 
