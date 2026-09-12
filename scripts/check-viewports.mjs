@@ -7,6 +7,7 @@ import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
 import { assertLibraryImportFailures } from './lib/library-import-check.mjs';
 import { assertLibraryTags } from './lib/library-tags-check.mjs';
 import { assertEmptyLibraryPersists } from './lib/library-empty-check.mjs';
+import { assertLibrarySaveRecovery } from './lib/library-save-check.mjs';
 import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
@@ -4087,6 +4088,7 @@ async function main() {
     await assertLibraryImportFailures(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryTags(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertEmptyLibraryPersists(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibrarySaveRecovery(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertManualScoring(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();

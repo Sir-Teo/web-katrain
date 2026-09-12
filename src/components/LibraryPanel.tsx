@@ -326,7 +326,7 @@ interface LibraryPanelProps {
   onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
   onOpenPhotoBoard?: (file: File) => void;
   onLibraryUpdated?: () => void;
-  onCurrentSaved?: () => void;
+  onCurrentSaved?: (sgf: string) => void;
   loadedFileId?: string | null;
   loadedFileDirty?: boolean;
   onLoadedFileChange?: (id: string | null, name?: string | null) => void;
@@ -357,6 +357,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
   const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [saveRetry, setSaveRetry] = useState(0);
+  const pendingGameSaveRef = useRef<{
+    id: string;
+    sgf: string;
+    isNew: boolean;
+  } | null>(null);
   const indexedDbAvailable = useMemo(() => getIndexedDB() !== null, []);
   const [query, setQuery] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -454,22 +460,42 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   useEffect(() => {
     if (!didLoadLibraryRef.current) return;
     let cancelled = false;
+    const pendingGameSave = pendingGameSaveRef.current;
     setLibraryStatus('saving');
     setLibraryError(null);
     void saveLibrary(items)
       .then(() => {
         if (cancelled) return;
         setLibraryStatus('ready');
+        onLibraryUpdated?.();
+        if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
+          pendingGameSaveRef.current = null;
+          const savedItem = items.find(item => item.id === pendingGameSave.id);
+          if (!savedItem || !isFile(savedItem) || savedItem.sgf !== pendingGameSave.sgf) return;
+          // The board can change while storage is writing. A saved older
+          // snapshot must not clear recovery data for the current position.
+          if (getCurrentSgf() === pendingGameSave.sgf) {
+            if (pendingGameSave.isNew) onLoadedFileChange?.(savedItem.id, savedItem.name);
+            onCurrentSaved?.(pendingGameSave.sgf);
+          }
+          onToast(
+            pendingGameSave.isNew ? `Saved "${savedItem.name}" to Library.` : `Updated "${savedItem.name}" in Library.`,
+            'success'
+          );
+        }
       })
       .catch((error) => {
         if (cancelled) return;
         setLibraryStatus('error');
         setLibraryError(error instanceof Error ? error.message : 'Failed to save library.');
+        if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
+          onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error');
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [items]);
+  }, [items, saveRetry, getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalFileUpdate) return;
@@ -529,10 +555,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   useEffect(() => {
     writeLocalStorage('web-katrain:library_sort:v1', String(sortKey));
   }, [sortKey]);
-
-  useEffect(() => {
-    onLibraryUpdated?.();
-  }, [items, onLibraryUpdated]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -937,9 +959,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     if (loadedLibraryFile) {
+      pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, isNew: false };
       setItems((prev) => updateLibraryFileSgf(prev, loadedLibraryFile.id, sgf));
-      onCurrentSaved?.();
-      onToast(`Updated "${loadedLibraryFile.name}" in Library.`, 'success');
       return;
     }
     setTextDialog({
@@ -958,10 +979,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         const parentId = targetFolderId ?? null;
         const uniqueName = getUniqueLibraryItemName(name, items, parentId);
         const newItem = createLibraryItem(uniqueName, sgf, parentId);
+        pendingGameSaveRef.current = { id: newItem.id, sgf, isNew: true };
         setItems((prev) => [newItem, ...prev]);
-        onLoadedFileChange?.(newItem.id, newItem.name);
-        onCurrentSaved?.();
-        onToast(`Saved "${newItem.name}" to Library.`, 'success');
       },
     });
   };
@@ -2537,6 +2556,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   <div className="p-6 text-sm ui-text-faint">
                     <div className="font-semibold text-[var(--ui-danger)] mb-2">Library storage error</div>
                     <div>{libraryError ?? 'The library could not be read or saved.'}</div>
+                    <button
+                      type="button"
+                      className="panel-action-button mt-3"
+                      onClick={() => setSaveRetry(retry => retry + 1)}
+                    >
+                      Retry saving library
+                    </button>
                   </div>
                 ) : items.length === 0 ? (
                   <div className="p-6 text-sm ui-text-faint">

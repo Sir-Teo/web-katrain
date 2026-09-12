@@ -4008,7 +4008,7 @@ export const Layout: React.FC = () => {
                   open
                   onClose={handleCloseLibrary}
                   docked
-                  getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+                  getCurrentSgf={generateCurrentSgf}
                   legacyGameEncoding={settings.legacyGameEncoding}
                   onLoadSgf={handleLoadFromLibrary}
                   onToast={toast}
@@ -4116,7 +4116,7 @@ export const Layout: React.FC = () => {
               onClose={handleCloseLibrary}
               docked={isDesktop}
               width={leftPanelWidth}
-              getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+              getCurrentSgf={generateCurrentSgf}
               legacyGameEncoding={settings.legacyGameEncoding}
               onLoadSgf={handleLoadFromLibrary}
               onToast={toast}
