@@ -438,25 +438,6 @@ const setPreloadedVersion = (version: number): void => {
   writeLocalStorage(PRELOADED_VERSION_KEY, String(version));
 };
 
-const createPreloadedLibrary = (): LibraryItem[] => {
-  if (!PRELOADED_GAMES.length) return [];
-  const now = Date.now();
-  const folderId = createId();
-  const folder: LibraryFolder = {
-    id: folderId,
-    name: PRELOADED_FOLDER_NAME,
-    createdAt: now,
-    updatedAt: now,
-    parentId: null,
-    type: 'folder',
-  };
-  const items: LibraryItem[] = [folder];
-  for (const game of PRELOADED_GAMES) {
-    items.push(createLibraryItem(game.name, game.sgf, folderId, now));
-  }
-  return items;
-};
-
 const ensurePreloadedLibrary = (items: LibraryItem[]): { items: LibraryItem[]; changed: boolean } => {
   if (getPreloadedVersion() >= PRELOADED_VERSION || PRELOADED_GAMES.length === 0) {
     return { items, changed: false };
@@ -494,7 +475,6 @@ const ensurePreloadedLibrary = (items: LibraryItem[]): { items: LibraryItem[]; c
     changed = true;
   }
 
-  setPreloadedVersion(PRELOADED_VERSION);
   return { items: nextItems, changed };
 };
 
@@ -556,6 +536,7 @@ const saveToIndexedDb = async (items: LibraryItem[]): Promise<void> => {
     tx.objectStore(META_STORE).put({ key: 'updatedAt', value: Date.now() });
     tx.objectStore(META_STORE).put({ key: 'schemaVersion', value: DB_VERSION });
     await transactionDone(tx);
+    setPreloadedVersion(PRELOADED_VERSION);
   } finally {
     db.close();
   }
@@ -563,14 +544,10 @@ const saveToIndexedDb = async (items: LibraryItem[]): Promise<void> => {
 
 const loadFallbackLibrary = (): LibraryItem[] => {
   if (memoryItems) return memoryItems;
-  const raw = readLocalStorage(LEGACY_STORAGE_KEY);
-  if (raw === null) {
-    memoryItems = createPreloadedLibrary();
-  } else {
-    memoryItems = safeParse(raw);
-    const ensured = ensurePreloadedLibrary(memoryItems);
-    memoryItems = ensured.items;
-  }
+  // Use the same version check as IndexedDB, including on the first load.
+  // Saving records initialization only after the library is persisted.
+  const ensured = ensurePreloadedLibrary(safeParse(readLocalStorage(LEGACY_STORAGE_KEY)));
+  memoryItems = ensured.items;
   return memoryItems;
 };
 
@@ -588,7 +565,9 @@ const loadFallbackLibrary = (): LibraryItem[] => {
 const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-storage' => {
   memoryItems = normalizeLibraryItems(items);
   if (!getLocalStorage()) return 'no-storage';
-  return writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems)) ? 'saved' : 'rejected';
+  if (!writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems))) return 'rejected';
+  setPreloadedVersion(PRELOADED_VERSION);
+  return 'saved';
 };
 
 // Set when reading IndexedDB failed while IndexedDB itself is available.
@@ -616,13 +595,8 @@ export const loadLibrary = async (): Promise<LibraryItem[]> => {
       return items;
     }
 
-    if (items.length === 0 && legacyRaw === null) {
-      items = createPreloadedLibrary();
-      await saveToIndexedDb(items);
-      setPreloadedVersion(PRELOADED_VERSION);
-      return items;
-    }
-
+    // Empty is also a valid saved library. Let the version check distinguish
+    // first-run samples from an existing collection the user has cleared.
     const ensured = ensurePreloadedLibrary(items);
     if (ensured.changed) {
       items = ensured.items;
