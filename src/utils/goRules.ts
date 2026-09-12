@@ -29,6 +29,8 @@ export type RulesDefinition = {
   tax: TaxRule;
   multiStoneSuicideLegal: boolean;
   hasButton: boolean;
+  /** KataGo's friendly-pass suppression; Tromp–Taylor deliberately disables it. */
+  friendlyPassOk: boolean;
   handicapBonus: HandicapBonusRule;
   /** KataGo's default komi for this ruleset. */
   defaultKomi: number;
@@ -46,6 +48,7 @@ export const RULES: Record<GameRules, RulesDefinition> = {
     tax: 'seki',
     multiStoneSuicideLegal: false,
     hasButton: false,
+    friendlyPassOk: false,
     handicapBonus: 'zero',
     defaultKomi: 6.5,
     sgf: 'Japanese',
@@ -59,6 +62,7 @@ export const RULES: Record<GameRules, RulesDefinition> = {
     tax: 'seki',
     multiStoneSuicideLegal: false,
     hasButton: false,
+    friendlyPassOk: false,
     handicapBonus: 'zero',
     defaultKomi: 6.5,
     sgf: 'Korean',
@@ -72,6 +76,7 @@ export const RULES: Record<GameRules, RulesDefinition> = {
     tax: 'none',
     multiStoneSuicideLegal: false,
     hasButton: false,
+    friendlyPassOk: true,
     handicapBonus: 'n',
     defaultKomi: 7.5,
     sgf: 'Chinese',
@@ -85,6 +90,7 @@ export const RULES: Record<GameRules, RulesDefinition> = {
     tax: 'none',
     multiStoneSuicideLegal: false,
     hasButton: false,
+    friendlyPassOk: true,
     handicapBonus: 'n-minus-one',
     defaultKomi: 7.5,
     sgf: 'AGA',
@@ -98,6 +104,7 @@ export const RULES: Record<GameRules, RulesDefinition> = {
     tax: 'none',
     multiStoneSuicideLegal: true,
     hasButton: false,
+    friendlyPassOk: true,
     handicapBonus: 'zero',
     defaultKomi: 7.0,
     sgf: 'New Zealand',
@@ -111,6 +118,7 @@ export const RULES: Record<GameRules, RulesDefinition> = {
     tax: 'all',
     multiStoneSuicideLegal: false,
     hasButton: false,
+    friendlyPassOk: true,
     handicapBonus: 'zero',
     defaultKomi: 7.5,
     sgf: 'Stone Scoring',
@@ -124,6 +132,7 @@ export const RULES: Record<GameRules, RulesDefinition> = {
     tax: 'none',
     multiStoneSuicideLegal: true,
     hasButton: false,
+    friendlyPassOk: false,
     handicapBonus: 'zero',
     defaultKomi: 7.5,
     sgf: 'Tromp-Taylor',

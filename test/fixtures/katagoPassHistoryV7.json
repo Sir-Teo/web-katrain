@@ -1,0 +1,234 @@
+{
+  "source": "https://github.com/lightvector/KataGo/blob/d3263466bd61c9e6aaee51b48c08826e18026506/cpp/tests/results/runOutputTests.txt",
+  "sgf": "(;GM[1]FF[4]SZ[9]KM[7];B[ff];W[ee];B[dd];W[];B[];W[];B[cc];W[bb];B[];W[])",
+  "cases": [
+    {
+      "rules": "tromp-taylor",
+      "komi": 7,
+      "enablePassingHacks": false,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "tromp-taylor",
+      "komi": 7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "null null null null null",
+        "pass null null null null",
+        "null null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "null null null null null"
+      ]
+    },
+    {
+      "rules": "tromp-taylor",
+      "komi": 7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": true,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "null null null null null",
+        "null null null null null",
+        "null null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "null null null null null",
+        "null null null null null"
+      ]
+    },
+    {
+      "rules": "tromp-taylor",
+      "komi": -7,
+      "enablePassingHacks": false,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "tromp-taylor",
+      "komi": -7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "null null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "null null null null null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "tromp-taylor",
+      "komi": -7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": true,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "null null null null null",
+        "null null null null null",
+        "null null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "null null null null null",
+        "null null null null null"
+      ]
+    },
+    {
+      "rules": "japanese",
+      "komi": 7,
+      "enablePassingHacks": false,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "japanese",
+      "komi": 7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "japanese",
+      "komi": 7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": true,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "japanese",
+      "komi": -7,
+      "enablePassingHacks": false,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "japanese",
+      "komi": -7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": false,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    },
+    {
+      "rules": "japanese",
+      "komi": -7,
+      "enablePassingHacks": true,
+      "conservativePassAndIsRoot": true,
+      "history": [
+        "null null null null null",
+        "F4 null null null null",
+        "E5 F4 null null null",
+        "D6 E5 F4 null null",
+        "pass D6 E5 F4 null",
+        "pass null null null null",
+        "pass null null null null",
+        "C7 pass null null null",
+        "B8 C7 pass null null",
+        "pass B8 C7 pass null",
+        "pass null null null null"
+      ]
+    }
+  ]
+}

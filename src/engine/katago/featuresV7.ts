@@ -1,5 +1,6 @@
+import { historyFeaturesV7 } from './historyV7';
 import type { BoardState, GameRules, Move, Player } from '../../types';
-import { BOARD_SIZE } from './fastBoard';
+import { BOARD_SIZE, PASS_MOVE } from './fastBoard';
 import { getOpponent } from '../../utils/gameLogic';
 import { rulesOf } from '../../utils/goRules';
 
@@ -178,25 +179,24 @@ export function fillInputsV7(args: {
     }
   }
 
-  const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
-  const passWouldEndGame = !!lastMove && (lastMove.x === -1 || lastMove.y === -1);
-  const suppressHistory = args.conservativePassAndIsRoot === true && passWouldEndGame;
+  const history = historyFeaturesV7({
+    recentMoves: moveHistory.map(m => ({ move: m.x < 0 || m.y < 0 ? PASS_MOVE : m.y * BOARD_SIZE + m.x, player: m.player })),
+    currentPlayer, rules, conservativePassAndIsRoot: args.conservativePassAndIsRoot,
+  });
 
   // History planes 9-13 and pass globals 0-4.
   // Match KataGo v7 behavior: only include if players alternate correctly from perspective of current player.
   const historyPlanes = [9, 10, 11, 12, 13] as const;
   const passGlobals = [0, 1, 2, 3, 4] as const;
   const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
-  if (!suppressHistory) {
-    for (let i = 0; i < 5; i++) {
-      const m = moveHistory[moveHistory.length - 1 - i];
-      if (!m) break;
-      if (m.player !== expectedPlayers[i]) break;
-      if (m.x === -1 || m.y === -1) {
-        global[passGlobals[i]] = 1.0;
-      } else {
-        spatial[idxNHWC(m.x, m.y, historyPlanes[i])] = 1.0;
-      }
+  for (let i = 0; i < history.turnsIncluded; i++) {
+    const m = moveHistory[moveHistory.length - 1 - i];
+    if (!m) break;
+    if (m.player !== expectedPlayers[i]) break;
+    if (m.x === -1 || m.y === -1) {
+      global[passGlobals[i]] = 1.0;
+    } else {
+      spatial[idxNHWC(m.x, m.y, historyPlanes[i])] = 1.0;
     }
   }
 
@@ -223,9 +223,7 @@ export function fillInputsV7(args: {
   }
   if (ruleset.hasButton) global[17] = 1.0;
 
-  // passWouldEndPhase: in simple rules, if previous move was pass, another pass ends the game.
-  // KataGo conservativePassAndIsRoot suppresses this signal at the root.
-  global[14] = !suppressHistory && passWouldEndGame ? 1.0 : 0.0;
+  global[14] = history.passWouldEndPhase ? 1.0 : 0.0;
 
   // KataGo fillRowV7: playoutDoublingAdvantage, already signed for the side to move.
   const playoutDoublingAdvantage = args.playoutDoublingAdvantage ?? 0;

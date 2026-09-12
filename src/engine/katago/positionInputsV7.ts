@@ -1,3 +1,4 @@
+import { historyFeaturesV7 } from './historyV7';
 import { positionSuperkoBans } from './superkoHistory';
 import type { BoardState, GameRules, Move, Player } from '../../types';
 import { areaFeatureModeForRules, isSuicideLegal } from '../../utils/goRules';
@@ -85,29 +86,6 @@ export function movesToRecentMoves(moves: Move[]): RecentMove[] {
   return out;
 }
 
-export function countHistoryTurnsIncluded(args: {
-  recentMoves: RecentMove[];
-  currentPlayer: Player;
-  conservativePassAndIsRoot: boolean;
-}): number {
-  const lastMove = args.recentMoves.length > 0 ? args.recentMoves[args.recentMoves.length - 1] : null;
-  const passWouldEndGame = lastMove?.move === PASS_MOVE;
-  if (args.conservativePassAndIsRoot && passWouldEndGame) return 0;
-
-  const pla = args.currentPlayer;
-  const opp = pla === 'black' ? 'white' : 'black';
-  const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
-
-  let included = 0;
-  for (let i = 0; i < 5; i++) {
-    const m = args.recentMoves[args.recentMoves.length - 1 - i];
-    if (!m) break;
-    if (m.player !== expectedPlayers[i]) break;
-    included++;
-  }
-  return included;
-}
-
 export function computeKoPointAfterMove(previousStones: Uint8Array, move: Move | null): number {
   if (!move || move.x < 0 || move.y < 0) return -1;
 
@@ -160,11 +138,9 @@ export function fillInputsV7FastForPosition(args: {
   const prevPrevKoPoint = -1;
 
   const recentMoves = movesToRecentMoves(args.moveHistory);
-  const numTurnsOfHistoryIncluded = countHistoryTurnsIncluded({
-    recentMoves,
-    currentPlayer: args.currentPlayer,
-    conservativePassAndIsRoot: args.conservativePassAndIsRoot,
-  });
+  const history = historyFeaturesV7({ recentMoves, currentPlayer: args.currentPlayer,
+    rules: args.rules, conservativePassAndIsRoot: args.conservativePassAndIsRoot });
+  const numTurnsOfHistoryIncluded = history.turnsIncluded;
 
   const prevLadderStones = numTurnsOfHistoryIncluded < 1 ? s.stones : s.prevStones;
   const prevLadderKoPoint = numTurnsOfHistoryIncluded < 1 ? koPoint : prevKoPoint;
@@ -207,6 +183,7 @@ export function fillInputsV7FastForPosition(args: {
     koPoint,
     currentPlayer: args.currentPlayer,
     recentMoves,
+    historyFeatures: history,
     komi: args.komi,
     rules: args.rules,
     conservativePassAndIsRoot: args.conservativePassAndIsRoot,

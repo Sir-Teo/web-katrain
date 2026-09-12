@@ -1,3 +1,4 @@
+import { historyFeaturesV7 } from './historyV7';
 import * as tf from '@tensorflow/tfjs';
 import type { BoardState, FloatArray, GameRules, Move, Player, RegionOfInterest } from '../../types';
 import { getAnimationNow } from '../../utils/animationFrame';
@@ -3169,24 +3170,14 @@ async function evaluateBatch(args: {
     }
 
     const recentMoves = state.recentMoves;
-    const lastRecentMove = recentMoves.length > 0 ? recentMoves[recentMoves.length - 1] : null;
-    const passWouldEndGame = lastRecentMove?.move === PASS_MOVE;
-    const suppressHistory = state.conservativePassAndIsRoot === true && passWouldEndGame;
-
-    const pla = state.currentPlayer;
-    const opp = pla === 'black' ? 'white' : 'black';
-    const expectedPlayers: Player[] = [opp, pla, opp, pla, opp];
-
-    const maxTurnsOfHistoryToInclude = Math.max(0, Math.min(5, state.maxHistory ?? 5));
-    let numTurnsOfHistoryIncluded = 0;
-    if (!suppressHistory) {
-      for (let h = 0; h < maxTurnsOfHistoryToInclude; h++) {
-        const m = recentMoves[recentMoves.length - 1 - h];
-        if (!m) break;
-        if (m.player !== expectedPlayers[h]) break;
-        numTurnsOfHistoryIncluded++;
-      }
-    }
+    const history = historyFeaturesV7({
+      recentMoves, currentPlayer: state.currentPlayer, rules,
+      conservativePassAndIsRoot: state.conservativePassAndIsRoot,
+      enablePassingHacks: state.enablePassingHacks, maxHistory: state.maxHistory,
+      areaMap: includeAreaFeature ? areaMap : undefined,
+      selfKomi: (state.currentPlayer === 'white' ? 1 : -1) * (state.komi ?? args.komi),
+    });
+    const numTurnsOfHistoryIncluded = history.turnsIncluded;
 
     const prevLadderStones = numTurnsOfHistoryIncluded < 1 ? state.stones : state.prevStones;
     const prevLadderKoPoint = numTurnsOfHistoryIncluded < 1 ? state.koPoint : state.prevKoPoint;
@@ -3224,7 +3215,7 @@ async function evaluateBatch(args: {
       komi: state.komi ?? args.komi,
       rules,
       conservativePassAndIsRoot: state.conservativePassAndIsRoot,
-      maxHistory: maxTurnsOfHistoryToInclude,
+      historyFeatures: history,
       enablePassingHacks: state.enablePassingHacks,
       // KataGo signs the advantage per node: it belongs to one colour, so it
       // flips whenever the side to move flips.
