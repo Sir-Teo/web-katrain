@@ -1284,6 +1284,23 @@ const initialSettings: GameSettings = {
 };
 
 let continuousToken = 0;
+const scheduledAnalysisTimers = new Set<ReturnType<typeof setTimeout>>();
+
+// Moves and setup edits defer analysis until after their state update. Stop
+// must cancel these callbacks too: they have not entered analysisQueue yet.
+const scheduleAnalysis = (run: () => void, delayMs: number): void => {
+  const timer = setTimeout(() => {
+    scheduledAnalysisTimers.delete(timer);
+    run();
+  }, delayMs);
+  scheduledAnalysisTimers.add(timer);
+};
+
+const cancelScheduledAnalysis = (): void => {
+  for (const timer of scheduledAnalysisTimers) clearTimeout(timer);
+  scheduledAnalysisTimers.clear();
+};
+
 /**
  * Append `move` to `parent` as a new child, applying captures, suicide and
  * simple-ko rules. Returns null when the move is not legal there.
@@ -1486,7 +1503,7 @@ const afterBoardEdit = (get: () => GameStore): void => {
   tenukiToken++;
   const state = get();
   if (state.isAnalysisMode && !state.isSelfplayToEnd) {
-    setTimeout(() => void get().runAnalysis({ force: true }), 0);
+    scheduleAnalysis(() => void get().runAnalysis({ force: true }), 0);
   }
 };
 let setupPositionToken = 0;
@@ -1659,7 +1676,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleAnalysisMode: () => set((state) => {
       const newMode = !state.isAnalysisMode;
       if (newMode) {
-          setTimeout(() => void get().runAnalysis(), 0);
+          scheduleAnalysis(() => void get().runAnalysis(), 0);
       } else {
           analysisQueue.cancelGroup('interactive');
       }
@@ -1752,6 +1769,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   stopAnalysis: () => {
       continuousToken++;
+      cancelScheduledAnalysis();
       analysisQueue.cancelGroup('interactive');
       analysisQueue.cancelGroup('tenuki');
       // Clear the readout immediately, without waiting for the cancellation
@@ -1925,6 +1943,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   clearAnalysisCache: () => {
       analysisRevision++;
+      cancelScheduledAnalysis();
       const removed = getAnalysisCacheSize(get().rootNode);
       const notification = {
         message: removed > 0 ? `Cleared ${removed} cached ${removed === 1 ? 'analysis' : 'analyses'}.` : 'No cached analysis to clear.',
@@ -1957,7 +1976,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newMode = !state.isTeachMode;
       if (newMode) {
            // Teach mode implies analysis
-           setTimeout(() => void get().runAnalysis(), 0);
+           scheduleAnalysis(() => void get().runAnalysis(), 0);
       }
       return {
           isTeachMode: newMode,
@@ -1987,7 +2006,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isSelectingRegionOfInterest: false,
       treeVersion: state.treeVersion + 1,
     }));
-    if (get().isAnalysisMode) setTimeout(() => void get().runAnalysis({ force: true }), 0);
+    if (get().isAnalysisMode) scheduleAnalysis(() => void get().runAnalysis({ force: true }), 0);
   },
 
   resetCurrentAnalysis: () => {
@@ -1995,7 +2014,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     s.currentNode.analysis = null;
     s.currentNode.analysisVisitsRequested = 0;
     set((state) => ({ analysisData: null, treeVersion: state.treeVersion + 1 }));
-    if (get().isAnalysisMode) setTimeout(() => void get().runAnalysis({ force: true }), 0);
+    if (get().isAnalysisMode) scheduleAnalysis(() => void get().runAnalysis({ force: true }), 0);
   },
 
   analyzeExtra: (mode) => {
@@ -3946,7 +3965,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
          setTimeout(() => get().makeAiMove(), 500);
        }
        if (after.isAnalysisMode && !after.isSelfplayToEnd) {
-         setTimeout(() => void get().runAnalysis(), 500);
+         scheduleAnalysis(() => void get().runAnalysis(), 500);
        }
        return;
     }
@@ -4046,7 +4065,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         setTimeout(() => get().makeAiMove(), 500);
       }
 	      if (newState.isAnalysisMode && !newState.isSelfplayToEnd) {
-	          setTimeout(() => void get().runAnalysis(), 500);
+	          scheduleAnalysis(() => void get().runAnalysis(), 500);
 	      }
 	    }
 	  },
@@ -6154,7 +6173,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
              setTimeout(() => after.makeAiMove(), 500);
            }
            if (after.isAnalysisMode && !after.isSelfplayToEnd) {
-             setTimeout(() => void after.runAnalysis(), 0);
+             scheduleAnalysis(() => void after.runAnalysis(), 0);
            }
            return;
       }
@@ -6189,7 +6208,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!ended && after.isAiPlaying && after.aiColor && after.currentPlayer === after.aiColor) {
         setTimeout(() => after.makeAiMove(), 500);
       }
-      if (after.isAnalysisMode && !after.isSelfplayToEnd) setTimeout(() => void after.runAnalysis(), 0);
+      if (after.isAnalysisMode && !after.isSelfplayToEnd) scheduleAnalysis(() => void after.runAnalysis(), 0);
   },
 
   resign: (player) => {

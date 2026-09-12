@@ -183,6 +183,28 @@ async function main() {
     })()`);
     fs.writeFileSync(path.join(outputDir, 'results.json'), JSON.stringify({ rendererThrottle: throttle, stoppedMs, ...result, errors }, null, 2));
     await screenshot('fresh-position');
+
+    // Play another move and stop before its 500 ms deferred request can fire.
+    // Waiting for its evaluation first would miss this race on a slow machine.
+    const nextPoint = await evaluate(cdp, `(() => {
+      const b = document.querySelector('[data-board-snapshot=true]'), r = b.getBoundingClientRect();
+      return { x: r.x + Number(b.dataset.boardOriginX) + 15 * Number(b.dataset.boardCellSize),
+        y: r.y + Number(b.dataset.boardOriginY) + 15 * Number(b.dataset.boardCellSize) };
+    })()`);
+    const nextMoveAt = await evaluate(cdp, 'performance.now()');
+    await clickAt(nextPoint);
+    await wait("document.querySelector('[data-board-snapshot=true]').dataset.boardStones.replaceAll('.', '').length === 2");
+    for (const type of ['keyDown', 'keyUp']) {
+      await cdp.send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    }
+    const stopAfterMoveAt = await evaluate(cdp, 'performance.now()');
+    assert.ok(stopAfterMoveAt - nextMoveAt < 500, 'Stop must precede the delayed move-analysis callback');
+    await wait('document.querySelector(".analyze-toggle").getAttribute("aria-pressed") === "false"');
+    await sleep(750);
+    const restarted = await evaluate(cdp, `auditRequests.filter(r => r.at > ${stopAfterMoveAt})`);
+    assert.deepEqual(restarted, [], 'A delayed move callback must not restart analysis after Stop');
+    await screenshot('stopped-after-move');
+
     assert.deepEqual(spawnErrors, []);
     assert.deepEqual(errors, []);
     assert.equal(result.oldCanceled, true, 'The obsolete search must be canceled');
@@ -190,6 +212,7 @@ async function main() {
     assert.ok(result.freshUiMs < freshPositionBudgetMs,
       `Current-position evaluation took ${result.freshUiMs.toFixed(1)} ms (budget ${freshPositionBudgetMs} ms)`);
     console.log(`Explicit Stop: worker canceled after ${stoppedMs.toFixed(1)} ms; analysis restarted successfully.`);
+    console.log('Stop immediately after a move: no delayed request restarted the worker.');
     console.log(`Analysis preemption: current-position response ${result.freshResponseMs.toFixed(1)} ms,`
       + ` rendered evaluation ${result.freshUiMs.toFixed(1)} ms, old request canceled ${result.oldCancelMs.toFixed(1)} ms.`);
     console.log(`Analysis responsiveness checks passed. Evidence: ${outputDir}`);

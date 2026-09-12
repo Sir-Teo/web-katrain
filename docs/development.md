@@ -106,7 +106,8 @@ whatever their size, and a first stone that cost 85-100ms because
 `new AudioContext()` was built inside the click.
 
 Run `test:analysis` after search scheduling, worker messaging, or analysis queue
-changes. It uses 50,000-visit / 8-second searches so finishing obsolete work
+changes. It also stops immediately after a move and waits past the deferred
+analysis callback to catch unwanted restarts. It uses 50,000-visit / 8-second searches so finishing obsolete work
 cannot masquerade as prompt cancellation. `ANALYSIS_CPU_THROTTLE=6` slows the
 renderer; it does not simulate a slower inference worker. Evidence goes to
 `web-katrain-analysis-check` in the system temporary directory, or
