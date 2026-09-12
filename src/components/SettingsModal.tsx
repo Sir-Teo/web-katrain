@@ -16,6 +16,7 @@ import {
 } from '../engine/katago/modelDefaults';
 import { KATAGO_HUMAN_PROFILES } from '../engine/katago/searchParams';
 import { describeHumanProfile } from '../utils/humanProfileLabel';
+import { isLegacyGameEncoding, LEGACY_GAME_ENCODINGS } from '../utils/gameRecordImport';
 import { publicUrl } from '../utils/publicUrl';
 import { preferredScrollBehavior } from '../utils/mediaQuery';
 import { BOARD_THEME_OPTIONS, getBoardTheme } from '../utils/boardThemes';
@@ -1105,6 +1106,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                         <p className={subtextClass}>
                                             KaTrain-style: runs a fast engine review on load (uses “Fast Visits”) so graphs/points lost fill in quickly.
                                         </p>
+
+                                        <div className="space-y-2 min-w-0">
+                                            <label htmlFor="settings-legacy-game-encoding" className={labelClass}>GIB / NGF encoding</label>
+                                            <select
+                                                id="settings-legacy-game-encoding"
+                                                value={settings.legacyGameEncoding}
+                                                onChange={(e) => {
+                                                    if (isLegacyGameEncoding(e.target.value)) updateSettings({ legacyGameEncoding: e.target.value });
+                                                }}
+                                                aria-describedby="settings-legacy-game-encoding-help"
+                                                className={`${selectClass} w-full min-w-0 max-w-full`}
+                                            >
+                                                {LEGACY_GAME_ENCODINGS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                                            </select>
+                                            <p id="settings-legacy-game-encoding-help" className={subtextClass}>
+                                                Auto tries UTF-8, then Korean. If names look wrong, choose the file’s language and import again.
+                                                GIB and NGF records are saved as SGF. SGF files use their own encoding.
+                                            </p>
+                                        </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-1">

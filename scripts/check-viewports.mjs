@@ -1186,7 +1186,7 @@ async function main() {
         // to reach them.
         //
         // Each entry is one action listed under every name a shell gives it.
-        // The dashboard calls the file picker "Open SGF, board photo, or model
+        // The dashboard calls the file picker "Open game, board photo, or model
         // weights" and the classic top bar still calls it "Load ..."; this
         // sweep measures whether the action is reachable, so it accepts either.
         // Holding the app to one spelling is a copy test's job, not this one's
@@ -1195,7 +1195,7 @@ async function main() {
         const requiredFileActions = [
           ['New game'],
           ['Save SGF'],
-          ['Open SGF, board photo, or model weights', 'Load SGF, board photo, or model weights'],
+          ['Open game, board photo, or model weights', 'Load game, board photo, or model weights'],
           ['More file actions'],
         ];
         const allButtons = Array.from(document.querySelectorAll('button'));

@@ -11,7 +11,7 @@ describe('photo board import surfaces', () => {
     expect(source).toContain('PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE');
     expect(source).toContain('isUnsupportedPhotoBoardImageFile(file)');
     expect(source).toContain('toast(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE, \'error\');');
-    expect(source).toContain("toast('Choose an SGF file, board photo, or KataGo model weights.', 'error');");
+    expect(source).toContain("toast('Choose an SGF, GIB, or NGF game, board photo, or KataGo model weights.', 'error');");
   });
 
   it('skips unsupported board photo formats during library imports', () => {

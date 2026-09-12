@@ -115,6 +115,7 @@ describe('SettingsModal', () => {
       ['settings-ui-density', 'UI Density'],
       ['settings-gamepad-navigation', 'Gamepad Navigation'],
       ['settings-touch-haptics', 'Touch Haptics'],
+      ['settings-legacy-game-encoding', 'GIB / NGF encoding'],
       ['settings-load-sgf-rewind', 'Load SGF Rewind'],
       ['settings-load-sgf-fast-analysis', 'Load SGF Fast Analysis'],
       ['settings-pv-animation-time', 'PV Animation Time (sec)'],

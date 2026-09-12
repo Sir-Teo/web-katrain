@@ -92,7 +92,8 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
-import { normalizeSgfUtf8, readSgfFile } from '../utils/sgfEncoding';
+import { normalizeSgfUtf8 } from '../utils/sgfEncoding';
+import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile, type LegacyGameEncoding } from '../utils/gameRecordImport';
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
@@ -108,7 +109,7 @@ const safeDownloadName = (name: string, fallback: string): string =>
     .trim()
     .replace(/^\.+$/, '') || fallback;
 const libraryImportAccept = [
-  '.sgf',
+  GAME_RECORD_ACCEPT,
   '.zip',
   'application/zip',
   'application/x-zip-compressed',
@@ -308,6 +309,7 @@ const LibraryConfirmDialog: React.FC<{
 };
 
 interface LibraryPanelProps {
+  legacyGameEncoding?: LegacyGameEncoding;
   open: boolean;
   docked?: boolean;
   width?: number;
@@ -329,6 +331,7 @@ interface LibraryPanelProps {
 
 export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   open,
+  legacyGameEncoding = 'auto',
   docked = false,
   width,
   onClose,
@@ -1302,22 +1305,22 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           continue;
         }
         if (name.endsWith('.zip')) {
-          for (const item of await importLibraryItemsFromZip(file, folderId)) imported.push(item);
+          for (const item of await importLibraryItemsFromZip(file, folderId, legacyGameEncoding)) imported.push(item);
           continue;
         }
-        if (!name.endsWith('.sgf')) continue;
+        if (!isGameRecordFile(file)) continue;
         if (getSgfImportSizeError(file.size)) {
           skippedOversizedSgfFiles += 1;
           continue;
         }
-        const text = await readSgfFile(file);
+        const text = await readGameRecordFile(file, legacyGameEncoding);
         try {
           assertValidLibrarySgfImport(text);
         } catch {
           skippedInvalidSgfFiles += 1;
           continue;
         }
-        imported.push(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
+        imported.push(createLibraryItem(file.name.replace(GAME_RECORD_EXTENSION, ''), text, folderId));
       } catch {
         // A file that throws here -- unreadable, or a ZIP that will not open --
         // used to vanish without a counter, so the summary reported only what
@@ -2398,7 +2401,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   )}
                   {isDragging && (
                     <span className="ui-accent-soft border rounded px-2 py-0.5">
-                      Drop SGF, OGS URL, ZIP, or board images to import
+                      Drop SGF, GIB, NGF, OGS URL, ZIP, or board images to import
                     </span>
                   )}
                 </div>

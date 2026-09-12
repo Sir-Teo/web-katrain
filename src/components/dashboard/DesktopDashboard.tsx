@@ -538,7 +538,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         <Icon name="plus" size={14} /> New game
       </button>
       <button type="button" className="tbtn" onClick={() => { dismissHero(); onLoadSgf(); }}>
-        <Icon name="folder" size={14} /> Open SGF
+        <Icon name="folder" size={14} /> Open game
       </button>
       <button type="button" className="tbtn" onClick={() => { dismissHero(); onPasteSgf(); }}>
         <Icon name="clipboard" size={14} /> Paste SGF / OGS
@@ -573,7 +573,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
         <div className="header-divider" />
         <div className="iconcluster" id="wk-file-actions">
           <button type="button" className="iconbtn" title="New game" aria-label="New game" onClick={onNewGame}><Icon name="plus" /></button>
-          <button type="button" className="iconbtn" title="Open SGF / photo / weights" aria-label="Open SGF, board photo, or model weights" onClick={onLoadSgf}><Icon name="folder" /></button>
+          <button type="button" className="iconbtn" title="Open game, board photo, or model weights" aria-label="Open game, board photo, or model weights" onClick={onLoadSgf}><Icon name="folder" /></button>
           <button type="button" className="iconbtn" title="Save SGF" aria-label="Save SGF" onClick={onSaveSgf}><Icon name="save" /></button>
           <button
             type="button"

@@ -38,6 +38,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-minimal-use', tab: 'general', label: "Minimal Use (sec)" },
   { id: 'settings-gamepad-navigation', tab: 'general', label: "Gamepad Navigation" },
   { id: 'settings-touch-haptics', tab: 'general', label: "Touch Haptics" },
+  { id: 'settings-legacy-game-encoding', tab: 'general', label: 'GIB / NGF encoding' },
   { id: 'settings-load-sgf-rewind', tab: 'general', label: "Load SGF Rewind" },
   { id: 'settings-load-sgf-fast-analysis', tab: 'general', label: "Load SGF Fast Analysis" },
   { id: 'settings-pv-animation-time', tab: 'general', label: "PV Animation Time (sec)" },

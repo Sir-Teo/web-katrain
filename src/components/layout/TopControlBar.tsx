@@ -782,7 +782,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
         <IconButton title={withShortcut('Save copy to Library', 'save-library')} onClick={onSaveToLibrary} className={topIconClass}>
           <FaBook />
         </IconButton>
-        <IconButton title={withShortcut('Load SGF, board photo, or model weights', 'open-sgf')} onClick={onLoadSgf} className={topIconClass}>
+        <IconButton title={withShortcut('Load game, board photo, or model weights', 'open-sgf')} onClick={onLoadSgf} className={topIconClass}>
           <FaFolderOpen />
         </IconButton>
         <IconButton title={withShortcut('Paste SGF / OGS', 'paste-sgf')} onClick={onPasteSgf} className={topIconClass}>

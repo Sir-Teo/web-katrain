@@ -14,6 +14,7 @@ import { KATAGO_HUMAN_PROFILE_DEFAULT } from '../engine/katago/searchParams';
 import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katrainSgfAnalysis';
 import { decodeKayaKa } from '../utils/kayaSgfAnalysis';
 import { publicUrl } from '../utils/publicUrl';
+import { isLegacyGameEncoding } from '../utils/gameRecordImport';
 import { isBoardThemeId } from '../utils/boardThemes';
 import { getPreferredAppLocaleId, isAppLocaleId } from '../utils/locales';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
@@ -405,6 +406,9 @@ export function normalizeStoredSettings(
       if (!isAppLocaleId((parsed as { appLocale?: unknown }).appLocale)) {
         delete (parsed as { appLocale?: unknown }).appLocale;
       }
+    }
+    if ('legacyGameEncoding' in parsed && !isLegacyGameEncoding((parsed as { legacyGameEncoding?: unknown }).legacyGameEncoding)) {
+      delete (parsed as { legacyGameEncoding?: unknown }).legacyGameEncoding;
     }
     if ('analysisExperience' in parsed) {
       const experience = (parsed as { analysisExperience?: unknown }).analysisExperience;
@@ -1179,6 +1183,7 @@ const defaultSettings: GameSettings = {
   timerMinimalUseSeconds: 0,
   showLastNMistakes: 3,
   mistakeThreshold: 3.0,
+  legacyGameEncoding: 'auto',
   loadSgfRewind: true,
   loadSgfFastAnalysis: false,
   animPvTimeSeconds: 0.5,

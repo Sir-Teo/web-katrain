@@ -14,6 +14,16 @@ describe('normalizeStoredSettings', () => {
     expect(settings?.katagoVisits).toBe(777);
   });
 
+  it.each(['auto', 'utf-8', 'euc-kr', 'gb18030', 'big5', 'shift_jis', 'windows-1252'])(
+    'preserves a supported legacy game encoding: %s', (legacyGameEncoding) => {
+      expect(normalizeStoredSettings({ legacyGameEncoding })?.legacyGameEncoding).toBe(legacyGameEncoding);
+    },
+  );
+
+  it.each(['latin42', 7, null, [], {}])('drops an invalid legacy game encoding: %j', (legacyGameEncoding) => {
+    expect(normalizeStoredSettings({ legacyGameEncoding })).not.toHaveProperty('legacyGameEncoding');
+  });
+
   it('moves a visit count off the old default rather than pinning someone to it', () => {
     // Anyone who never touched the setting is carrying the previous default,
     // and leaving it would keep them on it forever. A number they chose that

@@ -241,9 +241,9 @@ describe('LibraryPanel accessibility', () => {
         unreadableFiles: 0,
         ...over,
       });
-    expect(report({ skippedInvalidSgfFiles: 1 }).message).toBe('No valid SGF games were imported.');
+    expect(report({ skippedInvalidSgfFiles: 1 }).message).toBe('No valid games were imported.');
     expect(report({ importedEntries: 2, importedFiles: 2, skippedInvalidSgfFiles: 1 }).message).toContain(
-      'invalid SGF file'
+      'invalid game file'
     );
   });
 

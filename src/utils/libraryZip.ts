@@ -1,7 +1,8 @@
 import JSZip from 'jszip';
 import { stripUnsafeFilenameControls } from './filename';
 import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
-import { decodeSgfBytes, normalizeSgfUtf8 } from './sgfEncoding';
+import { normalizeSgfUtf8 } from './sgfEncoding';
+import { decodeGameRecordBytes, gameRecordFormat, GAME_RECORD_EXTENSION, type LegacyGameEncoding } from './gameRecordImport';
 import {
   createLibraryFolder,
   createLibraryItem,
@@ -165,7 +166,8 @@ const declaredEntrySize = (entry: unknown): number | null => {
 
 export async function importLibraryItemsFromZip(
   source: Blob | ArrayBuffer | Uint8Array,
-  parentId: string | null = null
+  parentId: string | null = null,
+  legacyGameEncoding: LegacyGameEncoding = 'auto'
 ): Promise<LibraryItem[]> {
   const zipSource = typeof Blob !== 'undefined' && source instanceof Blob ? await source.arrayBuffer() : source;
   const zip = await JSZip.loadAsync(zipSource);
@@ -223,7 +225,8 @@ export async function importLibraryItemsFromZip(
   let expandedBytes = 0;
   for (const entry of entries) {
     if (entry.dir) continue;
-    if (!ZIP_SGF_EXT_RE.test(entry.name)) continue;
+    const format = gameRecordFormat(entry.name);
+    if (!format) continue;
     if (expandedBytes > MAX_ZIP_EXPANDED_BYTES) break;
     const declared = declaredEntrySize(entry);
     if (declared !== null && declared > MAX_SGF_IMPORT_BYTES) continue;
@@ -238,13 +241,13 @@ export async function importLibraryItemsFromZip(
       // either way, and a lying archive is only caught after the fact.
       expandedBytes += bytes.byteLength;
       if (expandedBytes > MAX_ZIP_EXPANDED_BYTES) break;
-      sgf = decodeSgfBytes(bytes);
+      sgf = decodeGameRecordBytes(bytes, format, legacyGameEncoding);
       assertValidLibrarySgfImport(sgf);
     } catch {
       continue;
     }
     const folderId = ensureFolder(parts);
-    const name = fileName.replace(ZIP_SGF_EXT_RE, '') || 'Game';
+    const name = fileName.replace(GAME_RECORD_EXTENSION, '') || 'Game';
     imported.push(createLibraryItem(name, sgf, folderId));
   }
 

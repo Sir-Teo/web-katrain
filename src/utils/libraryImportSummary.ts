@@ -53,15 +53,15 @@ export function describeLibraryImport(counts: LibraryImportCounts): LibraryImpor
     }
     if (skippedOversizedSgfFiles > 0) {
       return {
-        message: `SGF files are limited to ${MAX_SGF_IMPORT_LABEL}. ${plural(skippedOversizedSgfFiles, 'file')} skipped.`,
+        message: `Game files are limited to ${MAX_SGF_IMPORT_LABEL}. ${plural(skippedOversizedSgfFiles, 'file')} skipped.`,
         tone: 'error',
       };
     }
-    if (skippedInvalidSgfFiles > 0) return { message: 'No valid SGF games were imported.', tone: 'error' };
+    if (skippedInvalidSgfFiles > 0) return { message: 'No valid games were imported.', tone: 'error' };
     if (unreadableFiles > 0) {
       return { message: `Could not read ${plural(unreadableFiles, 'file')}.`, tone: 'error' };
     }
-    return { message: 'No SGF, ZIP, or board image files were imported.', tone: 'info' };
+    return { message: 'No SGF, GIB, NGF, ZIP, or board image files were imported.', tone: 'info' };
   }
 
   const skipped = [
@@ -71,7 +71,7 @@ export function describeLibraryImport(counts: LibraryImportCounts): LibraryImpor
     skippedOversizedSgfFiles > 0
       ? ` Skipped ${plural(skippedOversizedSgfFiles, 'file')} over ${MAX_SGF_IMPORT_LABEL}.`
       : '',
-    skippedInvalidSgfFiles > 0 ? ` Skipped ${plural(skippedInvalidSgfFiles, 'invalid SGF file')}.` : '',
+    skippedInvalidSgfFiles > 0 ? ` Skipped ${plural(skippedInvalidSgfFiles, 'invalid game file')}.` : '',
     unreadableFiles > 0 ? ` Could not read ${plural(unreadableFiles, 'file')}.` : '',
   ].join('');
 

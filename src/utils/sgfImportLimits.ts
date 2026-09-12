@@ -1,7 +1,7 @@
 export const MAX_SGF_IMPORT_BYTES = 5 * 1024 * 1024;
 export const MAX_SGF_IMPORT_LABEL = '5 MB';
 
-const TOO_LARGE_MESSAGE = `SGF files are limited to ${MAX_SGF_IMPORT_LABEL}.`;
+const TOO_LARGE_MESSAGE = `Game files are limited to ${MAX_SGF_IMPORT_LABEL}.`;
 
 /**
  * Counts UTF-8 bytes without allocating a second, encoded copy of the input.

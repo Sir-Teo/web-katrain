@@ -67,7 +67,7 @@
       "action": ".",
       "accept": {
         "application/x-go-sgf": [".sgf"],
-        "text/plain": [".sgf"]
+        "text/plain": [".sgf", ".gib", ".ngf"]
       }
     }
   ],

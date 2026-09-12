@@ -125,7 +125,7 @@ import { appendRestoredAnalysisSummary, withFailureReason } from '../utils/impor
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
-import { readSgfFile } from '../utils/sgfEncoding';
+import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
@@ -232,7 +232,7 @@ const LibraryPanelLoading: React.FC<{ isMobile?: boolean }> = ({ isMobile = fals
 );
 
 const MOBILE_HOME_DISMISSED_KEY = 'web-katrain:mobile_home_dismissed:v1';
-const mainFileInputAccept = ['.sgf', PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
+const mainFileInputAccept = [GAME_RECORD_ACCEPT, PHOTO_BOARD_IMAGE_ACCEPT, MODEL_UPLOAD_ACCEPT].join(',');
 const LAYOUT_SHORTCUT_IDS = [
   'toggle-library',
   'toggle-sidebar',
@@ -1240,7 +1240,7 @@ export const Layout: React.FC = () => {
 
   const handleSaveCopyToLibrary = useCallback(async (name: string, folderId: string | null): Promise<boolean> => {
     const sgf = saveToLibraryDialog?.sgf ?? generateCurrentSgf();
-    const itemName = name.trim().replace(/\.sgf$/i, '').trim() || 'Untitled';
+    const itemName = name.trim().replace(GAME_RECORD_EXTENSION, '').trim() || 'Untitled';
     try {
       const items = await loadLibrary();
       const targetFolderId =
@@ -1979,8 +1979,8 @@ export const Layout: React.FC = () => {
         toast(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE, 'error');
         return;
       }
-      if (!file.name.toLowerCase().endsWith('.sgf')) {
-        toast('Choose an SGF file, board photo, or KataGo model weights.', 'error');
+      if (!isGameRecordFile(file)) {
+        toast('Choose an SGF, GIB, or NGF game, board photo, or KataGo model weights.', 'error');
         return;
       }
       const sizeError = getSgfImportSizeError(file.size);
@@ -1988,7 +1988,7 @@ export const Layout: React.FC = () => {
         toast(sizeError, 'error');
         return;
       }
-      const text = await readSgfFile(file);
+      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
       await loadLocalSgfText(text, file.name);
     } catch (error) {
       toast(withFailureReason(`Could not open "${file.name}".`, error), 'error');
@@ -2157,21 +2157,21 @@ export const Layout: React.FC = () => {
       toast('Opened photo board from shared image.', 'info');
       return;
     }
-    if (file.name.toLowerCase().endsWith('.sgf') || file.type === 'application/x-go-sgf') {
+    if (isGameRecordFile(file)) {
       try {
         const sizeError = getSgfImportSizeError(file.size);
         if (sizeError) {
           toast(sizeError, 'error');
           return;
         }
-        const text = await readSgfFile(file);
+        const text = await readGameRecordFile(file, settings.legacyGameEncoding);
         await loadLocalSgfText(text, file.name);
       } catch (error) {
-        toast(withFailureReason('Failed to open the SGF file.', error), 'error');
+        toast(withFailureReason('Failed to open the game file.', error), 'error');
       }
       return;
     }
-    toast('Unsupported file type. Open an SGF file or board image.', 'error');
+    toast('Unsupported file type. Open an SGF, GIB, or NGF game or board image.', 'error');
   };
 
   // Keep the startup-effect handler ref pointed at the current callbacks.
@@ -2369,8 +2369,8 @@ export const Layout: React.FC = () => {
       toast(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE, 'error');
       return;
     }
-    if (!file.name.toLowerCase().endsWith('.sgf')) {
-      toast('Drop an SGF file, OGS URL, board photo, or KataGo model weights here.', 'error');
+    if (!isGameRecordFile(file)) {
+      toast('Drop an SGF, GIB, or NGF game, OGS URL, board photo, or KataGo model weights here.', 'error');
       return;
     }
     try {
@@ -2379,10 +2379,10 @@ export const Layout: React.FC = () => {
         toast(sizeError, 'error');
         return;
       }
-      const text = await readSgfFile(file);
+      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
       await loadLocalSgfText(text, file.name);
     } catch (error) {
-      toast(withFailureReason('Failed to load the dropped SGF file.', error), 'error');
+      toast(withFailureReason('Failed to load the dropped game file.', error), 'error');
     }
   };
 
@@ -2525,11 +2525,11 @@ export const Layout: React.FC = () => {
       },
       {
         id: 'load-sgf',
-        label: 'Load SGF / photo / model',
+        label: 'Load game / photo / model',
         category: 'File',
         shortcutId: 'open-sgf',
         run: handleLoadClick,
-        keywords: ['open', 'import', 'weights'],
+        keywords: ['open', 'import', 'sgf', 'gib', 'ngf', 'weights'],
       },
       {
         id: 'photo-board',
@@ -3800,7 +3800,7 @@ export const Layout: React.FC = () => {
       {isFileDragActive && (
         <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
           <div className="rounded-xl border-2 border-dashed border-[var(--ui-accent)] px-6 py-4 text-center ui-panel">
-            <div className="text-sm font-semibold text-[var(--ui-accent)]">Drop SGF, OGS URL, board photo, or model weights</div>
+            <div className="text-sm font-semibold text-[var(--ui-accent)]">Drop SGF, GIB, NGF, OGS URL, board photo, or model weights</div>
             <div className="text-xs ui-text-faint">Release to load a game, fetch Online-Go, trace a photo, or switch browser KataGo weights.</div>
           </div>
         </div>
@@ -4008,6 +4008,7 @@ export const Layout: React.FC = () => {
                   onClose={handleCloseLibrary}
                   docked
                   getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+                  legacyGameEncoding={settings.legacyGameEncoding}
                   onLoadSgf={handleLoadFromLibrary}
                   onToast={toast}
                   onOpenPhotoBoard={openPhotoBoard}
@@ -4115,6 +4116,7 @@ export const Layout: React.FC = () => {
               docked={isDesktop}
               width={leftPanelWidth}
               getCurrentSgf={() => generateSgfFromTree(rootNode, sgfExportOptions)}
+              legacyGameEncoding={settings.legacyGameEncoding}
               onLoadSgf={handleLoadFromLibrary}
               onToast={toast}
               onOpenPhotoBoard={openPhotoBoard}

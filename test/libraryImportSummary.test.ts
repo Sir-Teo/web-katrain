@@ -59,7 +59,7 @@ describe('what an import tells you', () => {
     );
     expect(report.message).toBe(
       'Imported 9 files. Skipped 1 unsupported board image. Skipped 3 files over 5 MB.' +
-        ' Skipped 2 invalid SGF files. Could not read 4 files.'
+        ' Skipped 2 invalid game files. Could not read 4 files.'
     );
   });
 
@@ -92,14 +92,14 @@ describe('what an import tells you', () => {
   describe('when nothing came in', () => {
     it('says so plainly when there was nothing to import', () => {
       expect(describeLibraryImport(counts())).toEqual({
-        message: 'No SGF, ZIP, or board image files were imported.',
+        message: 'No SGF, GIB, NGF, ZIP, or board image files were imported.',
         tone: 'info',
       });
     });
 
     it('gives the size limit', () => {
       expect(describeLibraryImport(counts({ skippedOversizedSgfFiles: 1 }))).toEqual({
-        message: 'SGF files are limited to 5 MB. 1 file skipped.',
+        message: 'Game files are limited to 5 MB. 1 file skipped.',
         tone: 'error',
       });
     });
@@ -113,7 +113,7 @@ describe('what an import tells you', () => {
 
     it('reports invalid SGFs', () => {
       expect(describeLibraryImport(counts({ skippedInvalidSgfFiles: 3 })).message).toBe(
-        'No valid SGF games were imported.'
+        'No valid games were imported.'
       );
     });
   });

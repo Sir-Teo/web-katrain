@@ -319,7 +319,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             {onLessons && (
               <HomeAction label="Learn Go" compactLabel="Learn Go" icon={<FaGraduationCap />} onClick={onLessons} hint="Captures, life and openings" />
             )}
-            <HomeAction label="Open SGF / model" compactLabel="Open SGF" icon={<FaFolderOpen />} onClick={onOpenSgf} />
+            <HomeAction label="Open game / model" compactLabel="Open game" icon={<FaFolderOpen />} onClick={onOpenSgf} />
             <HomeAction label="Photo Board" compactLabel="Photo Board" icon={<FaCamera />} onClick={onScanBoard} hint="Camera or image" />
             <HomeAction label="Paste SGF / OGS" compactLabel="Paste SGF" icon={<FaClipboard />} onClick={onPasteSgf} />
           </section>
