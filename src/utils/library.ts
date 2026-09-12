@@ -793,6 +793,17 @@ export const prependLibraryImports = (
   return [...named, ...items];
 };
 
+const libraryChildrenByParent = (items: readonly LibraryItem[]): Map<string, LibraryItem[]> => {
+  const children = new Map<string, LibraryItem[]>();
+  for (const item of items) {
+    if (!item.parentId) continue;
+    const siblings = children.get(item.parentId);
+    if (siblings) siblings.push(item);
+    else children.set(item.parentId, [item]);
+  }
+  return children;
+};
+
 export const duplicateLibraryItem = (
   items: LibraryItem[],
   id: string,
@@ -839,15 +850,17 @@ export const duplicateLibraryItem = (
   copies.push(rootCopy);
 
   if (source.type === 'folder') {
-    let copiedAny = true;
-    while (copiedAny) {
-      copiedAny = false;
-      for (const item of items) {
-        if (idMap.has(item.id)) continue;
-        const copiedParentId = item.parentId ? idMap.get(item.parentId) : undefined;
-        if (!copiedParentId) continue;
-        copies.push(copyOne(item, copiedParentId, item.name));
-        copiedAny = true;
+    const children = libraryChildrenByParent(items);
+    const pending = [...(children.get(source.id) ?? [])].reverse();
+    while (pending.length > 0) {
+      const item = pending.pop()!;
+      if (idMap.has(item.id)) continue;
+      const copiedParentId = item.parentId ? idMap.get(item.parentId) : undefined;
+      if (!copiedParentId) continue;
+      copies.push(copyOne(item, copiedParentId, item.name));
+      const descendants = children.get(item.id) ?? [];
+      for (let i = descendants.length - 1; i >= 0; i--) {
+        pending.push(descendants[i]!);
       }
     }
   }
@@ -993,25 +1006,32 @@ export const moveLibraryItems = (
   };
 };
 
-const collectDescendants = (items: LibraryItem[], id: string): Set<string> => {
-  const toDelete = new Set<string>([id]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const item of items) {
-      if (item.parentId && toDelete.has(item.parentId) && !toDelete.has(item.id)) {
-        toDelete.add(item.id);
-        changed = true;
-      }
+/** Existing selected items and all descendants, each included once. */
+export const getLibrarySelectionIds = (items: readonly LibraryItem[], ids: Iterable<string>): Set<string> => {
+  const selected = new Set(ids);
+  const included = new Set<string>();
+  if (selected.size === 0) return included;
+  const pending = items.filter(item => selected.has(item.id)).map(item => item.id);
+  if (pending.length === 0) return included;
+  const children = libraryChildrenByParent(items);
+  while (pending.length > 0) {
+    const id = pending.pop()!;
+    if (included.has(id)) continue;
+    included.add(id);
+    for (const child of children.get(id) ?? []) {
+      if (!included.has(child.id)) pending.push(child.id);
     }
   }
-  return toDelete;
+  return included;
 };
 
-export const deleteLibraryItem = (items: LibraryItem[], id: string): LibraryItem[] => {
-  const ids = collectDescendants(items, id);
-  return items.filter((item) => !ids.has(item.id));
+export const deleteLibraryItems = (items: LibraryItem[], ids: Iterable<string>): LibraryItem[] => {
+  const removed = getLibrarySelectionIds(items, ids);
+  return removed.size > 0 ? items.filter(item => !removed.has(item.id)) : items;
 };
+
+export const deleteLibraryItem = (items: LibraryItem[], id: string): LibraryItem[] =>
+  deleteLibraryItems(items, [id]);
 
 export const createLibraryBackup = (items: LibraryItem[]): string => {
   const backup: LibraryBackup = {

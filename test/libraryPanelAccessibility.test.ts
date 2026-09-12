@@ -247,11 +247,11 @@ describe('LibraryPanel accessibility', () => {
     );
   });
 
-  it('states the full scope of irreversible Library deletions', () => {
+  it('warns about irreversible Library deletion and initially focuses Cancel', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
-    expect(source).toContain('const descendantCount = isFolderItem');
-    expect(source).toContain('const affectedCount = items.filter');
+    // Selection scope is covered by hierarchy data tests and native browser
+    // confirmation checks, independently of the traversal implementation.
     expect(source).toContain('This cannot be undone.');
     expect(source).not.toContain('Delete ${visibleSelectedIds.size} item(s) from Library?');
     // Cancel takes the focus, not the destructive action. Asserted by intent

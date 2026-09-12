@@ -36,7 +36,8 @@ async function main() {
       const { useGameStore, lineViolatesSuperko } = await import('/src/store/gameStore.ts');
       const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
       const { findSolutionPath } = await import('/src/utils/problemMode.ts');
-      const { createLibraryItem, prependLibraryImports, getLibraryFolderOptions, formatLibraryFolderOptionLabel } = await import('/src/utils/library.ts');
+      const { createLibraryItem, prependLibraryImports, getLibraryFolderOptions, formatLibraryFolderOptionLabel,
+        duplicateLibraryItem, deleteLibraryItems, getLibrarySelectionIds } = await import('/src/utils/library.ts');
       const state = () => useGameStore.getState();
       state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
       const sgf = '(;GM[1]SZ[9]' + Array.from({ length: 2000 }, (_, i) => ';' + (i % 2 ? 'W' : 'B') + '[]').join('') + ')';
@@ -137,6 +138,40 @@ async function main() {
       if (folderLabels.some(label => label.length > 100) || libraryFolderLabelCharacters > 1000000) {
         throw Error('Folder picker allocated excessive indentation');
       }
+      const hierarchyFolders = Array.from({length:3000}, (_, i) => ({
+        id:'hierarchy-'+i, name:'Hierarchy '+i, type:'folder', parentId:i ? 'hierarchy-'+(i-1) : null, createdAt:i, updatedAt:i,
+      }));
+      const keeper = {...template, id:'hierarchy-keeper'};
+      const hierarchy = [
+        ...hierarchyFolders.map((folder, i) => ({...template, id:'hierarchy-game-'+i, parentId:folder.id})),
+        ...hierarchyFolders.reverse(), keeper,
+      ];
+      operationStart = performance.now();
+      const copiedHierarchy = duplicateLibraryItem(hierarchy, 'hierarchy-0');
+      const libraryFolderCopyMs = performance.now() - operationStart;
+      if (copiedHierarchy.duplicatedIds.length !== 6000 || copiedHierarchy.items.length !== 12001) {
+        throw Error('Folder duplication lost a descendant');
+      }
+      operationStart = performance.now();
+      const selectedHierarchy = getLibrarySelectionIds(hierarchy, ['hierarchy-0', 'hierarchy-1500', 'hierarchy-game-2999']);
+      const librarySelectionCountMs = performance.now() - operationStart;
+      if (selectedHierarchy.size !== 6000 || selectedHierarchy.has(keeper.id)) {
+        throw Error('Overlapping folder selection miscounted descendants');
+      }
+      operationStart = performance.now();
+      const afterHierarchyDelete = deleteLibraryItems(hierarchy, ['hierarchy-0', 'hierarchy-1500']);
+      const libraryFolderDeleteMs = performance.now() - operationStart;
+      if (afterHierarchyDelete.length !== 1 || afterHierarchyDelete[0] !== keeper) {
+        throw Error('Folder deletion changed an unrelated game');
+      }
+      const bulkItems = [...existing, keeper], bulkIds = existing.map(item => item.id);
+      operationStart = performance.now();
+      const afterBulkDelete = deleteLibraryItems(bulkItems, bulkIds);
+      const libraryBulkDeleteMs = performance.now() - operationStart;
+      if (afterBulkDelete.length !== 1 || afterBulkDelete[0] !== keeper) {
+        throw Error('Bulk deletion changed an unselected game');
+      }
+      const libraryHierarchy = {libraryFolderCopyMs, librarySelectionCountMs, libraryFolderDeleteMs, libraryBulkDeleteMs};
       // Isolate repetition checks from captures, rendering and neural inference.
       // These synthetic histories cover shared annotation boards and distinct
       // stored positions. Candidate-by-candidate checks are also used by the
@@ -166,7 +201,7 @@ async function main() {
         }
         superkoChecks.push({distinct, positions:400, candidates:361, coldMs, candidatesMs:performance.now() - operationStart});
       }
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, superkoChecks };
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, libraryHierarchy, superkoChecks };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -176,6 +211,9 @@ async function main() {
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
     for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs', 'libraryFolderOptionsMs']) {
       assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
+    }
+    for (const [operation, ms] of Object.entries(result.libraryHierarchy)) {
+      assert.ok(ms < 50, `${operation} took ${ms}ms; budget is 50ms`);
     }
     for (const check of result.superkoChecks) {
       assert.ok(check.candidatesMs < 50, `Superko checks took ${check.candidatesMs}ms (distinct=${check.distinct}); budget is 50ms`);

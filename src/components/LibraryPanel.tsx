@@ -31,6 +31,7 @@ import {
   createLibraryFolder,
   createLibraryItem,
   deleteLibraryItem,
+  deleteLibraryItems,
   duplicateLibraryItem,
   duplicateLibraryItems,
   formatLibrarySize,
@@ -40,6 +41,7 @@ import {
   getLibraryFileMoveSummary,
   getLibraryFolderOptions,
   getLibraryStats,
+  getLibrarySelectionIds,
   getUniqueLibraryItemName,
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
@@ -1050,9 +1052,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleDelete = (item: LibraryItem) => {
     const isFolderItem = isFolder(item);
-    const descendantCount = isFolderItem
-      ? items.filter((candidate) => isDescendantOf(candidate.id, item.id)).length
-      : 0;
+    const affectedIds = isFolderItem ? getLibrarySelectionIds(items, [item.id]) : new Set([item.id]);
+    const descendantCount = Math.max(0, affectedIds.size - 1);
     const contentsLabel = descendantCount > 0
       ? ` and its ${descendantCount} item${descendantCount === 1 ? '' : 's'}`
       : '';
@@ -1066,7 +1067,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       danger: true,
       onConfirm: () => {
         setItems((prev) => deleteLibraryItem(prev, item.id));
-        if (loadedFileId === item.id || (isFolderItem && loadedFileId && isDescendantOf(loadedFileId, item.id))) {
+        if (loadedFileId && affectedIds.has(loadedFileId)) {
           onLoadedFileChange?.(null);
         }
       },
@@ -1183,27 +1184,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleBulkDelete = () => {
     if (visibleSelectedIds.size === 0) return;
-    const affectedCount = items.filter((item) => (
-      visibleSelectedIds.has(item.id)
-      || Array.from(visibleSelectedIds).some((selectedId) => isDescendantOf(item.id, selectedId))
-    )).length;
+    const affectedIds = getLibrarySelectionIds(items, visibleSelectedIds);
+    const affectedCount = affectedIds.size;
     setConfirmDialog({
       title: 'Delete Selected',
       message: `Delete ${affectedCount} library item${affectedCount === 1 ? '' : 's'}? This cannot be undone.`,
       confirmLabel: 'Delete',
       danger: true,
       onConfirm: () => {
-        setItems((prev) => {
-          let next = prev;
-          for (const id of visibleSelectedIds) {
-            next = deleteLibraryItem(next, id);
-          }
-          return next;
-        });
-        if (
-          loadedFileId &&
-          Array.from(visibleSelectedIds).some((id) => loadedFileId === id || isDescendantOf(loadedFileId, id))
-        ) {
+        setItems((prev) => deleteLibraryItems(prev, visibleSelectedIds));
+        if (loadedFileId && affectedIds.has(loadedFileId)) {
           onLoadedFileChange?.(null);
         }
         setSelectedIds(new Set());
