@@ -7,13 +7,14 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
-| Commit | Problem and resulting behavior | Evidence |
+| Commit / area | Problem and resulting behavior | Evidence |
 | --- | --- | --- |
 | `e98c9d5` | Undoing a marker could erase existing freehand strokes. Clearing drawings advertised Undo without recording history. Drawing creation, clearing, unrelated edits, and branch copies now preserve independent drawings. | Browser reproduction lost the only stroke before the fix. Real pointer drawing → Undo → Redo → Clear → Undo passed at 1440×900 and 390×844. Five regression tests. |
 | `20d8832` | Every edit copied every node's complete move history. Snapshots now share immutable positions and copy mutable annotations and tree links iteratively. Collapsed branches also survive undo. | Marker-edit median on a synthetic 2,001-node line: 38.41 ms → 0.40 ms in Chrome. Deep-tree, setup/replay immutability, and collapsed-branch regressions pass. |
 | `51bb3f5` | The default test network was presented as ordinary ready KataGo, without strength guidance in the review workflow. Review and engine details now identify it and link directly to the model setting. | Desktop, short desktop, and phone pointer checks verified the notice, visible focused model field, and removal after selecting stronger weights. The engine popover now scrolls within a 500 px-high viewport. |
 | `ed18b51` | SGF export recursed once per node even though long sequences can be imported. Saving a 12,000-comment study threw `RangeError`. Export now uses explicit stacks and joins output once. | Chrome reproduction changed from stack overflow to successful export. A real pointer click on Save SGF downloaded all 12,000 comments (169,034 bytes). Round-trip tests preserve all comments, sibling order, and omission of empty branches. |
 | `dbcdb55` | Undo could restore the previous model's cached evaluations. Undoing a rules change restored SGF `RU` but left the engine and legality rules unchanged. History now records analysis validity and rules. | Browser reproduction formerly restored a score of +12 from the old model; it now restores no stale analysis. Rule undo now restores Japanese in both settings and SGF. Four failing regressions turned green, including deep-tree analysis invalidation. |
+| Library ZIP exports | Different folders with the same name merged on re-import. Slashes in names changed hierarchy, and reserved names could make games disappear. Exports now allocate distinct paths by folder ID, reserve directories before files, and traverse selected descendants using a parent index. | Five failing archive regressions turned green. Chrome preserved two same-named folders through export/import. Selecting 10,000 short games blocked synchronously for 201.13 ms before the fix and 28.81 ms after it; total ZIP generation measured 729.39 ms → 450.93 ms. |
 
 Position sharing relies on the store's existing invariant: board edits, replay,
 and komi changes replace `gameState` and its arrays. Do not mutate a stored
@@ -26,7 +27,7 @@ do not change that storage contract.
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
-the five code commits, `npm run verify` passed 2,399 tests, with the same skip,
+the library ZIP follow-up, `npm run verify` passed 2,405 tests, with the same skip,
 plus app/test typechecks, lint, and the production build. `npm audit` reported
 zero vulnerabilities in the lockfile dependency graph on 2026-09-12.
 
@@ -81,7 +82,7 @@ build; dev-store timings are deliberately reported separately.
 | High | More tree operations still depend on recursion. | A TypeScript syntax scan identified branch clipboard copy/count/paste and descendant replay in `gameStore.ts`, solution-path search in `problemMode.ts`, and nested-variation parsing in `sgf.ts`. Reproduce each with realistic collections and deep fixtures; preserve pruning and sibling ordering when replacing traversal. These are candidates, not all independently reproduced failures. |
 | High | Professional engine validation needs broader evidence. | The bundled model comes from KataGo's test fixtures. Existing golden/invariant tests are useful but do not prove b18 search equivalence across all supported rules and endgames. Add reference positions for stronger weights, ko/superko, seki, pass handling, and handicap compensation. |
 | High | Analysis provenance is not carried comprehensively through imported records and reports. | `AnalysisResult` exposes evaluation data without model/search identity. The undo revision fix prevents one stale-data path, but imported external analysis can still have unknown provenance. Design explicit origin, model, and settings metadata before presenting mixed-source comparisons as equivalent. |
-| Medium | Large-library operations have avoidable repeated scans. | `libraryZip.ts` scans all items for each selected descendant; folder-path construction repeatedly walks ancestry. `library.ts` folder-option traversal is recursive. Profile 1k/10k-game fixtures and replace repeated scans with parent/child indexes where the measurement supports it. |
+| Medium | Continue profiling large-library operations. | ZIP selection and folder-path construction now use indexes and cached paths, with a measured improvement on a 10k-game fixture. Compression still takes most of total export time. `library.ts` folder-option traversal remains recursive; inspect copying, moving, filtering, and rendering next. |
 | Medium | Initial bundle size and slower-device behavior need targeted profiling. | The current production entry is about 715 kB uncompressed / 209 kB gzip. Idle dialog warming and worker inference already help. Measure cold network loading and CPU-throttled interaction before choosing further split points; do not infer gains from line counts alone. |
 | Medium | Browser coverage is Chrome-only in this audit. | Touch capability and viewport sizes were emulated, but WebKit/Firefox, physical phone behavior, and browser-specific WebGPU/WASM fallbacks were not validated. Prioritize load/import/review/scoring and dialog keyboard behavior across engines. |
 
