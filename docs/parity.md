@@ -11,7 +11,9 @@ wired into no workflow at all.
 ```bash
 npm run verify          # typecheck, test:typecheck, lint, test, build
 npm run audit           # dependency audit; not part of verify, runs in CI
-npm run test:viewport         # headless Chrome over raw CDP, 8 viewports
+npm run test:viewport    # headless Chrome over CDP, 11 viewports and interaction checks
+npm run test:responsiveness  # production response budgets; uses the build above
+npm run test:study       # deep study correctness and operation timings
 ```
 
 **Check the exit code, not the output.** `npm run verify | grep -q ...` keys off
@@ -27,27 +29,26 @@ location; `typecheck` alone would miss it.
 | --- | --- | --- | --- |
 | typecheck / lint / unit tests | yes | via `verify` | yes |
 | `audit` | no | yes | yes |
-| browser suite (`test:viewport`) | no | **no -- see below** | no |
+| browser suite (`test:viewport`) | no | yes | no |
 
-That last row read **yes** for `ci.yml` while the step in `ci.yml` was
-commented out, which is the drift this page exists to catch. The step is
-written and ready; it does not run because on a runner, at 768x1024, input
-stops reaching the app and the sweep fails there. `ci.yml` carries the full
-account -- four attempts, three causes found and fixed, one still undiagnosed
--- and it says plainly that this is a real gap and not a decision to be
-comfortable with. Run it locally before landing anything that moves layout:
+The browser step is enabled. The former first-mobile failure was reproduced
+with a cold Vite cache: starting analysis discovered worker dependencies,
+reloaded the page, and caused the QA helper to replay its interrupted checks
+before the UI mounted. Startup optimization and explicit navigation readiness
+fix those causes. Each run now uses a fresh dependency cache and Chrome profile;
+CI retains screenshots on failure. The first GitHub-hosted run of this local
+fix remains unverified. See [the audit](continuous-audit.md) for evidence.
 
 ```bash
-npm run test:viewport                          # about a minute
-VIEWPORT_CPU_THROTTLE=6 npm run test:viewport  # closer to a runner
+npm run test:viewport                        # about 3 minutes locally
+VIEWPORT_CPU_THROTTLE=6 npm run test:viewport  # optional slower-CPU diagnostic
 ```
 
 `ci.yml` does now run on pushes to `main` as well as on pull requests, which is
 what the row above it records; that part of the earlier fix stands.
 
-Wiring it into the **deploy** would be wrong even once it is green: `ci.yml`
-publishes nothing, so a flaky browser test there turns CI red without stopping
-the site from shipping.
+The browser suite runs in CI separately from deployment. A failed browser
+check does not currently stop the deployment workflow from publishing.
 
 ## How the three compare
 
@@ -60,11 +61,11 @@ and says which side of that line each item falls on.
 | --- | --- | --- | --- |
 | `verify` steps | typecheck, lint, test, build | typecheck, test:typecheck, lint, test, build | typecheck, lint, test, openings, library, smoke, parity, build:react |
 | Browser suite | `test:ui:browser` (Playwright) | `test:viewport` (raw CDP, no dependency) | `test:ui:layout` (Playwright) |
-| Where the browser suite runs | `ci.yml` (PRs + main) | **local only** -- the `ci.yml` step is commented out | `ci.yml` (PRs + main) |
+| Where the browser suite runs | `ci.yml` (PRs + main) | `ci.yml` (PRs + main) | `ci.yml` (PRs + main) |
 | Node in CI / deploy | 20 / 20 | 24 / 24 | 20 / 20 |
 | Deploy gates | audit, lint, test, build | audit, lint, test:typecheck, test, build | audit, build (WASM), verify |
 | Hostile-input sweep | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` | `src/__fuzz.test.ts` |
-| Where the ceilings sit | search query; library PGN 512KB; backup 8MB; auto-save 2MB | search query; auto-save 5MB; model upload 128MB; verdict scan 4000 nodes | search query; **import text 200KB, UCI moves 1024, tree nodes 1024** |
+| Where the ceilings sit | search query; library PGN 512KB; backup 8MB; auto-save 2MB | search query; SGF import 5MB; auto-save 5MB; model upload 128MB; verdict scan 4000 nodes | search query; **import text 200KB, UCI moves 1024, tree nodes 1024** |
 
 **Deliberate, leave alone.** The `verify` lists differ because the apps differ:
 only web-xiangqi has a WASM engine to smoke-test and an opening book to check.
@@ -82,15 +83,9 @@ agree *within* a repo, and all three now do.
    *unrestricted* `push` trigger double-fired alongside `pull_request` on the
    same branch; scoping the trigger to `main` gives the coverage without the
    duplication.
-2. **Only one repo caps input *before* it parses it.** All three have ceilings,
-   but they sit in different places: web-chess and web-katrain bound what they
-   *write* (auto-save, backups, uploads), while web-xiangqi also bounds what it
-   *reads* -- import text at 200KB, UCI moves and tree nodes at 1024 -- so
-   hostile input is rejected by a length check instead of being walked. The
-   hostile-input sweeps put numbers on it: the same class of input clears
-   web-xiangqi in 7ms and web-katrain in 30ms. Neither is a bug today; 30ms is
-   nowhere near a stutter. The read-side ceiling is the cheaper design and is
-   the thing to port.
+2. **Keep import limits ahead of expensive parsing.** Web-katrain now checks
+   SGF imports against a 5 MB limit before parsing. Limits bound resource use;
+   they do not replace deep-tree correctness checks within the accepted size.
 
 **The rule this file exists to enforce:** any check that a sibling has and this
 repo does not should be either adopted or explained here. The gaps found this
