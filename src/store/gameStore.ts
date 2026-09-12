@@ -77,6 +77,7 @@ type BranchClipboardNode = {
   timeUsedSeconds: number;
   note: string;
   aiThoughts: string;
+  drawings?: BoardDrawing[];
   children: BranchClipboardNode[];
 };
 
@@ -633,6 +634,9 @@ const cloneNodeProperties = (props: Record<string, string[]> | undefined): Recor
   return out;
 };
 
+const cloneDrawings = (drawings: BoardDrawing[] | undefined): BoardDrawing[] | undefined =>
+  drawings?.map((drawing) => ({ ...drawing, points: drawing.points.map((point) => ({ ...point })) }));
+
 const copyBranchSnapshot = (node: GameNode): BranchClipboardNode => ({
   move: node.move ? { ...node.move } : null,
   properties: cloneNodeProperties(node.properties),
@@ -640,6 +644,7 @@ const copyBranchSnapshot = (node: GameNode): BranchClipboardNode => ({
   timeUsedSeconds: node.timeUsedSeconds ?? 0,
   note: node.note ?? '',
   aiThoughts: node.aiThoughts ?? '',
+  drawings: cloneDrawings(node.drawings),
   children: node.children.map(copyBranchSnapshot),
 });
 
@@ -830,6 +835,7 @@ const cloneGameNodeTree = (node: GameNode, parent: GameNode | null = null): Game
   copy.aiThoughts = node.aiThoughts;
   copy.note = node.note;
   copy.properties = cloneNodeProperties(node.properties);
+  copy.drawings = cloneDrawings(node.drawings);
   copy.children = node.children.map((child) => cloneGameNodeTree(child, copy));
   return copy;
 };
@@ -1035,6 +1041,7 @@ const pasteBranchSnapshot = (parent: GameNode, source: BranchClipboardNode, suic
   node.timeUsedSeconds = source.timeUsedSeconds;
   node.note = source.note;
   node.aiThoughts = source.aiThoughts;
+  node.drawings = cloneDrawings(source.drawings);
 
   const rebuiltState = replayChildMove(parent, node, suicideLegal);
   if (!rebuiltState) return null;
@@ -2136,7 +2143,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return {
         ...history,
         treeVersion: state.treeVersion + 1,
-        notification: { message: 'Cleared markers, labels and drawings on this node.', type: 'info', undoable: true },
+        notification: { message: 'Cleared markers, labels, arrows and lines on this node.', type: 'info', undoable: true },
       };
     }),
 
@@ -2160,16 +2167,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set((state) => {
       if (drawing.points.length < 2) return {};
       const node = state.currentNode;
-      node.drawings = [...(node.drawings ?? []), drawing];
-      return { treeVersion: state.treeVersion + 1 };
+      const history = pushEditHistory(state);
+      node.drawings = [...(node.drawings ?? []), ...cloneDrawings([drawing])!];
+      return { ...history, treeVersion: state.treeVersion + 1 };
     }),
 
   clearNodeDrawings: () =>
     set((state) => {
       const node = state.currentNode;
       if (!node.drawings?.length) return {};
+      const history = pushEditHistory(state);
       node.drawings = [];
       return {
+        ...history,
         treeVersion: state.treeVersion + 1,
         notification: { message: 'Cleared drawings on this node.', type: 'info', undoable: true },
       };
