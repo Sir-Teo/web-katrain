@@ -545,7 +545,7 @@ export function useKeyboardShortcuts({
       // Enter (AI move)
       if (matches('ai-move')) {
         e.preventDefault();
-        makeAiMove();
+        makeAiMove({ force: true });
         return;
       }
 
