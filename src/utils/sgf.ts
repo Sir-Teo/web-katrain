@@ -520,16 +520,47 @@ function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
 }
 
 function serializeSequence(node: GameNode, trainer: KaTrainSgfExportTrainerConfig): string {
-    let out = serializeMoveNode(node, trainer);
+    // First identify the nonempty subtrees. Empty annotation nodes are omitted,
+    // and only surviving siblings need variation parentheses. Using an explicit
+    // stack here lets every record the importer accepts be saved again without
+    // spending one JavaScript call frame per move or study comment.
+    const sequences = new Map<GameNode, { text: string; children: GameNode[] }>();
+    const pending = [{ node, expanded: false }];
+    while (pending.length > 0) {
+        const task = pending.pop()!;
+        if (!task.expanded) {
+            pending.push({ node: task.node, expanded: true });
+            for (let i = task.node.children.length - 1; i >= 0; i--) {
+                pending.push({ node: task.node.children[i]!, expanded: false });
+            }
+            continue;
+        }
+        const children = task.node.children.filter((child) => sequences.has(child));
+        const text = serializeMoveNode(task.node, trainer);
+        if (text || children.length > 0) sequences.set(task.node, { text, children });
+    }
 
-    const childSequences = node.children
-        .map((child) => serializeSequence(child, trainer))
-        .filter((childSgf) => childSgf.length > 0);
-    if (childSequences.length === 0) return out;
-    if (childSequences.length === 1) return out + childSequences[0]!;
-
-    for (const childSgf of childSequences) out += `(${childSgf})`;
-    return out;
+    // Emit each node once, joining only at the end instead of rebuilding every
+    // ancestor's complete SGF string as a deep sequence unwinds.
+    const parts: string[] = [];
+    const output: Array<GameNode | string> = [node];
+    while (output.length > 0) {
+        const item = output.pop()!;
+        if (typeof item === 'string') {
+            parts.push(item);
+            continue;
+        }
+        const sequence = sequences.get(item);
+        if (!sequence) continue;
+        parts.push(sequence.text);
+        const branches = sequence.children.length > 1;
+        for (let i = sequence.children.length - 1; i >= 0; i--) {
+            if (branches) output.push(')');
+            output.push(sequence.children[i]!);
+            if (branches) output.push('(');
+        }
+    }
+    return parts.join('');
 }
 
 export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportOptions): string => {
