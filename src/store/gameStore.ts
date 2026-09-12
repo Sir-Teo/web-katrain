@@ -824,19 +824,29 @@ const cloneGameState = (gameState: GameState): GameState => ({
   komi: gameState.komi,
 });
 
-const cloneGameNodeTree = (node: GameNode, parent: GameNode | null = null): GameNode => {
-  const copy = createNode(parent, cloneMove(node.move), cloneGameState(node.gameState), node.id);
-  copy.endState = node.endState;
-  copy.timeUsedSeconds = node.timeUsedSeconds;
-  copy.analysis = node.analysis;
-  copy.analysisVisitsRequested = node.analysisVisitsRequested;
-  copy.autoUndo = node.autoUndo;
-  copy.undoThreshold = node.undoThreshold;
-  copy.aiThoughts = node.aiThoughts;
-  copy.note = node.note;
-  copy.properties = cloneNodeProperties(node.properties);
-  copy.drawings = cloneDrawings(node.drawings);
-  copy.children = node.children.map((child) => cloneGameNodeTree(child, copy));
+const cloneGameNodeTree = (node: GameNode): GameNode => {
+  // Positions are immutable: setup edits, replay and komi changes replace
+  // gameState instead of mutating its board or move history. Reuse them here;
+  // copying the full history at every node made each annotation cost O(n²)
+  // on a long line, multiplied by up to 50 retained undo snapshots.
+  const copyNode = (source: GameNode, parent: GameNode | null): GameNode => ({
+    ...source,
+    parent,
+    children: [],
+    move: cloneMove(source.move),
+    properties: cloneNodeProperties(source.properties),
+    drawings: cloneDrawings(source.drawings),
+  });
+  const copy = copyNode(node, null);
+  const stack = [{ source: node, copy }];
+  while (stack.length > 0) {
+    const task = stack.pop()!;
+    for (const child of task.source.children) {
+      const childCopy = copyNode(child, task.copy);
+      task.copy.children.push(childCopy);
+      stack.push({ source: child, copy: childCopy });
+    }
+  }
   return copy;
 };
 
