@@ -18,8 +18,8 @@ const ONE_BLACK = board(['b..', '...', '...']);
 
 describe('position keys', () => {
   it('ignores the side to move for positional, keeps it for situational', () => {
-    expect(positionalKey(ONE_BLACK)).toBe('b../.../...');
-    expect(situationalKey(ONE_BLACK, 'white')).toBe('w|b../.../...');
+    expect(positionalKey(ONE_BLACK)).toBe('3:JAA');
+    expect(situationalKey(ONE_BLACK, 'white')).toBe('w|3:JAA');
     expect(situationalKey(ONE_BLACK, 'black')).not.toBe(situationalKey(ONE_BLACK, 'white'));
   });
 
@@ -27,6 +27,34 @@ describe('position keys', () => {
     const position: SuperkoPosition = { board: ONE_BLACK, playerToMove: 'white' };
     expect(superkoKey('positional', position)).toBe(positionalKey(ONE_BLACK));
     expect(superkoKey('situational', position)).toBe(situationalKey(ONE_BLACK, 'white'));
+  });
+
+  it('distinguishes every possible 3×3 board without hash collisions', () => {
+    const keys = new Set<string>();
+    const cells = [null, 'black', 'white'] as const;
+    for (let layout = 0; layout < 3 ** 9; layout++) {
+      let value = layout;
+      const position = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => {
+        const stone = cells[value % 3]!;
+        value = Math.floor(value / 3);
+        return stone;
+      }));
+      keys.add(positionalKey(position));
+    }
+    expect(keys.size).toBe(3 ** 9);
+  });
+
+  it.each([9, 13, 19])('preserves the final intersection on a size-%s board', size => {
+    const position: BoardState = Array.from({ length: size }, () => Array(size).fill(null));
+    const empty = positionalKey(position);
+    position[size - 1]![size - 1] = 'black';
+    const black = positionalKey(position);
+    position[size - 1]![size - 1] = 'white';
+    const white = positionalKey(position);
+    expect(new Set([empty, black, white]).size).toBe(3);
+    expect(empty.startsWith(`${size}:`)).toBe(true);
+    expect(empty.length).toBe(String(size).length + 1 + Math.ceil(size * size / 3));
+    expect(positionalKey(position.map(row => [...row]))).toBe(white);
   });
 });
 

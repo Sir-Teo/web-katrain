@@ -33,7 +33,7 @@ async function main() {
       await sleep(100);
     }
     const result = await evaluate(cdp, `(async () => {
-      const { useGameStore } = await import('/src/store/gameStore.ts');
+      const { useGameStore, lineViolatesSuperko } = await import('/src/store/gameStore.ts');
       const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
       const { findSolutionPath } = await import('/src/utils/problemMode.ts');
       const { createLibraryItem, prependLibraryImports } = await import('/src/utils/library.ts');
@@ -123,7 +123,36 @@ async function main() {
       if (merged.length !== 20000 || new Set(merged.map(item => item.name.toLowerCase())).size !== 20000) {
         throw Error('Library import lost games or produced duplicate names');
       }
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs };
+      // Isolate repetition checks from captures, rendering and neural inference.
+      // These synthetic histories cover shared annotation boards and distinct
+      // stored positions. Candidate-by-candidate checks are also used by the
+      // fallback opponent, where repeatedly encoding all ancestors stalled UI.
+      const superkoChecks = [];
+      for (const distinct of [false, true]) {
+        const template = state().rootNode;
+        const shared = Array.from({length:19}, () => Array(19).fill(null));
+        let last = null;
+        for (let i = 0; i < 400; i++) {
+          const board = distinct ? shared.map(row => [...row]) : shared;
+          if (distinct) {
+            for (let j = 0; j <= i % 361; j++) board[Math.floor(j / 19)][j % 19] = j % 2 ? 'white' : 'black';
+          }
+          last = {...template, id:'repetition-'+i, parent:last, children:[], gameState:{...template.gameState, board, currentPlayer:i % 2 ? 'white' : 'black'}};
+        }
+        const fresh = shared.map(row => [...row]);
+        fresh[18][18] = 'white';
+        operationStart = performance.now();
+        if (lineViolatesSuperko(last, fresh, 'black', 'situational')) throw Error('Unexpected repetition');
+        const coldMs = performance.now() - operationStart;
+        operationStart = performance.now();
+        for (let i = 0; i < 361; i++) {
+          const candidate = shared.map(row => [...row]);
+          candidate[Math.floor(i / 19)][i % 19] = 'white';
+          if (lineViolatesSuperko(last, candidate, 'black', 'situational')) throw Error('Unexpected repetition');
+        }
+        superkoChecks.push({distinct, positions:400, candidates:361, coldMs, candidatesMs:performance.now() - operationStart});
+      }
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, superkoChecks };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -133,6 +162,9 @@ async function main() {
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
     for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs']) {
       assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
+    }
+    for (const check of result.superkoChecks) {
+      assert.ok(check.candidatesMs < 50, `Superko checks took ${check.candidatesMs}ms (distinct=${check.distinct}); budget is 50ms`);
     }
     console.log('Study performance checks passed.');
   } finally {

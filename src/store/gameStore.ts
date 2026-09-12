@@ -58,7 +58,8 @@ import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
 import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
-import { superkoRejectionMessage, violatesSuperko, type SuperkoPosition } from '../utils/superko';
+import { superkoRejectionMessage } from '../utils/superko';
+import { lineViolatesSuperko } from '../utils/treeSuperko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
 import { countRootHandicapStones, handicapPlayoutDoublingAdvantage } from '../utils/handicapAi';
 import { getResignResult } from '../utils/resign';
@@ -1337,27 +1338,7 @@ const scheduleAiMoveTask = (run: () => void, delayMs: number, onPositionChanged?
   scheduledAiMoveTimers.add(timer);
 };
 
-/**
- * Append `move` to `parent` as a new child, applying captures, suicide and
- * simple-ko rules. Returns null when the move is not legal there.
- *
- * Shared by insert mode and "add this variation to the tree": both replay moves
- * onto an existing node rather than going through the interactive play path.
- */
-/**
- * Whether playing to `newBoard` repeats a position already seen on this line,
- * under the ruleset's ko rule. Simple ko is checked separately by the callers
- * (it needs only the grandparent); this walks the whole line for the
- * positional and situational superko that AGA, New Zealand and Tromp-Taylor ask for.
- */
-export const lineViolatesSuperko = (from: GameNode, newBoard: BoardState, nextPlayerToMove: Player, koRule: KoRule): boolean => {
-  if (koRule === 'simple') return false;
-  const history: SuperkoPosition[] = [];
-  for (let node: GameNode | null = from; node; node = node.parent) {
-    history.push({ board: node.gameState.board, playerToMove: node.gameState.currentPlayer });
-  }
-  return violatesSuperko({ ko: koRule, next: { board: newBoard, playerToMove: nextPlayerToMove }, history });
-};
+export { lineViolatesSuperko } from '../utils/treeSuperko';
 
 /**
  * Both players have passed, so the game is over.
@@ -1375,6 +1356,7 @@ const announceGameEnd = (set: (partial: { notification: StoreNotification }) => 
   });
 };
 
+/** Replay a move for insert mode or adding a variation, under the same ko rules as playMove. */
 const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false, koRule: KoRule = 'simple'): GameNode | null => {
   const st = parent.gameState;
   if (st.currentPlayer !== move.player) return null;
