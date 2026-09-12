@@ -7,7 +7,7 @@ type Analysis = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:analyz
 type EvalResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:eval_result' }>['eval']>;
 type EvalBatchResult = NonNullable<Extract<KataGoWorkerResponse, { type: 'katago:eval_batch_result' }>['evals']>;
 
-const takeLastMoves = (moves: Move[]): Move[] => (moves.length <= 5 ? moves : moves.slice(moves.length - 5));
+const takeFeatureHistory = (moves: Move[]): Move[] => (moves.length <= 5 ? moves : moves.slice(moves.length - 5));
 
 type WorkerErrorEventLike = { error?: unknown; message?: string };
 
@@ -293,7 +293,9 @@ class KataGoEngineClient {
       previousBoard: args.previousBoard,
       previousPreviousBoard: args.previousPreviousBoard,
       currentPlayer: args.currentPlayer,
-      moveHistory: takeLastMoves(args.moveHistory),
+      // Search uses the true turn number and repeated opponent passes, beyond
+      // the five recent moves that the neural input planes consume.
+      moveHistory: args.moveHistory,
       komi: args.komi,
       rules: args.rules,
       regionOfInterest: args.regionOfInterest,
@@ -370,7 +372,7 @@ class KataGoEngineClient {
       previousBoard: args.previousBoard,
       previousPreviousBoard: args.previousPreviousBoard,
       currentPlayer: args.currentPlayer,
-      moveHistory: takeLastMoves(args.moveHistory),
+      moveHistory: takeFeatureHistory(args.moveHistory),
       komi: args.komi,
       rules: args.rules,
       conservativePass: args.conservativePass,
@@ -413,7 +415,7 @@ class KataGoEngineClient {
         previousBoard: p.previousBoard,
         previousPreviousBoard: p.previousPreviousBoard,
         currentPlayer: p.currentPlayer,
-        moveHistory: takeLastMoves(p.moveHistory),
+        moveHistory: takeFeatureHistory(p.moveHistory),
         komi: p.komi,
       })),
       rules: args.rules,

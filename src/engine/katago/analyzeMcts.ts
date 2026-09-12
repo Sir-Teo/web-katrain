@@ -407,6 +407,7 @@ function buildRootMoveMask(args: {
   koPoint: number;
   moveHistory: RecentMove[];
   currentPlayer: Player;
+  multiStoneSuicideLegal: boolean;
   symmetryPruning?: boolean;
   /** KataGo ignorePreRootHistory: with it on, symmetry is a matter of stones alone. */
   ignorePreRootHistory?: boolean;
@@ -432,7 +433,7 @@ function buildRootMoveMask(args: {
   // stop considering moves inside either side's pass-alive area. Those only prolong
   // a finished game (cpp/search/searchhelpers.cpp isAllowedRootMove).
   if (opponentHasPassedFourTimes(args.moveHistory, args.currentPlayer)) {
-    const safeArea = computePassAliveAreaInto(args.stones, new Uint8Array(BOARD_AREA), false);
+    const safeArea = computePassAliveAreaInto(args.stones, new Uint8Array(BOARD_AREA), args.multiStoneSuicideLegal);
     const pruned = allowedMoves ? new Uint8Array(allowedMoves) : new Uint8Array(BOARD_AREA).fill(1);
     for (let p = 0; p < BOARD_AREA; p++) {
       if ((safeArea[p] as StoneColor) !== EMPTY) pruned[p] = 0;
@@ -759,6 +760,7 @@ async function buildRootEval(args: {
     koPoint: args.rootKoPoint,
     moveHistory: args.rootMoves,
     currentPlayer: args.currentPlayer,
+    multiStoneSuicideLegal: isSuicideLegal(args.rules),
     symmetryPruning: args.rootSymmetryPruning,
     ignorePreRootHistory: args.ignorePreRootHistory,
     avoidMoveUntil: args.avoidRootMoves,

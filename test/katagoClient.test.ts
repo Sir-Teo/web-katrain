@@ -56,6 +56,24 @@ describe('KataGo engine client', () => {
     restoreWorker();
   });
 
+  it('preserves search history beyond the five neural feature moves', async () => {
+    installFakeWorker();
+    const client = getKataGoEngineClient();
+    const worker = createdFakeWorkers[0]!;
+    const moveHistory = Array.from({ length: 80 }, (_, i) => ({
+      x: i % 2 === 0 ? (i / 2) % 9 : -1,
+      y: i % 2 === 0 ? Math.floor(i / 18) : -1,
+      player: i % 2 === 0 ? 'black' as const : 'white' as const,
+    }));
+    const pending = client.analyze({ ...analyzeArgs(), moveHistory });
+    // The worker needs the true turn number and at least seven recent moves
+    // for repeated-pass pruning; a neural input's five-move cap is insufficient.
+    const sent = vi.mocked(worker.postMessage).mock.calls[0]![0];
+    worker.onmessage?.({ data: { type: 'katago:analyze_result', id: 1, ok: true, analysis: { rootVisits: 8, moves: [] } } });
+    await pending;
+    expect(sent).toMatchObject({ type: 'katago:analyze', moveHistory });
+  });
+
   it('reports a clear error when browser workers are unavailable', () => {
     Object.defineProperty(globalThis, 'Worker', {
       configurable: true,

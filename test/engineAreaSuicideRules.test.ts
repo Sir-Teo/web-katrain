@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { extractInputsV7Fast } from '../src/engine/katago/featuresV7Fast';
 import { fillInputsV7FastForPosition } from '../src/engine/katago/positionInputsV7';
-import { computeAreaMapV7KataGo, setBoardSize } from '../src/engine/katago/fastBoard';
+import { computeAreaMapV7KataGo, computePassAliveAreaInto, setBoardSize } from '../src/engine/katago/fastBoard';
+import { isValidMove } from '../src/utils/gameLogic';
+import { isSuicideLegal } from '../src/utils/goRules';
 import { hasModel, loadHarnessModel } from './helpers/engineHarness';
-import type { BoardState, GameRules, Player } from '../src/types';
+import type { BoardState, GameRules, Move, Player } from '../src/types';
 
 // KataGo's "Area 2" board and recorded calculateArea output, with all three
 // area options enabled, as used for v7 area-scoring inputs. The two maps differ
@@ -64,6 +66,78 @@ describe('rule-dependent neural area features', () => {
       expectArea(outSpatial, area, player);
     });
   }
+});
+
+describe.skipIf(!hasModel())('rule-dependent pruning after opponent passes', () => {
+  beforeEach(() => setBoardSize(9));
+  const target = 5 * 9 + 2; // C4: pass-alive only when self-capture is forbidden.
+  const plays = [[1, 4], [2, 4], [3, 4], [1, 5]] as const;
+  const history = (player: Player): Move[] => plays.flatMap(([x, y]) => [
+    { x, y, player },
+    { x: -1, y: -1, player: player === 'black' ? 'white' : 'black' },
+  ]);
+  const position = (player: Player) => board().map(row => row.map(stone =>
+    !stone || player === 'black' ? stone : stone === 'black' ? 'white' : 'black'));
+  const create = async (player: Player, rules: GameRules, passes: 3 | 4) => {
+    const current = position(player);
+    if (passes === 3) current[5]![1] = null;
+    expect(isValidMove(current, 2, 5, player, undefined, { multiStoneSuicideLegal: isSuicideLegal(rules) })).toBe(true);
+    return MctsSearch.create({
+      model: await loadHarnessModel(), board: current, currentPlayer: player,
+      moveHistory: history(player).slice(0, passes * 2), komi: 7, rules,
+      nnRandomize: false, conservativePass: true, ownershipMode: 'none', maxChildren: 82,
+      wideRootNoise: 0, rootSymmetryPruning: false,
+      // Both C4 and D4 are marked safe only under no-suicide rules. Limit search
+      // to these points plus pass, with flatter priors so their visits are observable.
+      regionOfInterest: { xMin: 2, xMax: 3, yMin: 5, yMax: 5 }, rootPolicyTemperature: 100,
+    });
+  };
+
+  it('matches KataGo’s strict safe area at the target for both self-capture settings', () => {
+    expect(computePassAliveAreaInto(stones(), new Uint8Array(81), false)[target]).toBe(1);
+    // KataGo's recorded strict safe area for this fixture is entirely empty
+    // when self-capture is legal (all three calculateArea options disabled).
+    expect(Array.from(computePassAliveAreaInto(stones(), new Uint8Array(81), true))).toEqual(new Array(81).fill(0));
+  });
+
+  for (const player of ['black', 'white'] as const) {
+    it.each(RULE_CASES)(`applies %s safe-area pruning for ${player} after four opponent passes`, async (rules) => {
+      const search = await create(player, rules, 4);
+      await search.run({ visits: 8, maxTimeMs: 30000, batchSize: 1 });
+      const analysis = search.getAnalysis({ topK: 5, analysisPvLen: 0 });
+      // Raw policy deliberately includes every legal move, even pruned ones.
+      // Actual visits establish whether the endgame mask allowed exploration.
+      expect(analysis.policy![target]).toBeGreaterThanOrEqual(0);
+      expect(analysis.moves.some(move => move.y === 5 && move.visits > 0)).toBe(isSuicideLegal(rules));
+    });
+
+    it(`does not prune the target for ${player} after only three opponent passes`, async () => {
+      const search = await create(player, 'chinese', 3);
+      await search.run({ visits: 8, maxTimeMs: 30000, batchSize: 1 });
+      expect(search.getAnalysis({ topK: 5, analysisPvLen: 0 }).moves.some(move => move.y === 5 && move.visits > 0)).toBe(true);
+    });
+  }
+
+  it.each(['new-zealand', 'tromp-taylor'] as const)('retains useful moves when reusing the fourth-pass child under %s', async (rules) => {
+    const current = position('black');
+    const moves = history('black');
+    const search = await MctsSearch.create({
+      model: await loadHarnessModel(), board: current, currentPlayer: 'white',
+      moveHistory: moves.slice(0, -1), komi: 7, rules, nnRandomize: false,
+      conservativePass: true, ownershipMode: 'none', maxChildren: 82,
+      wideRootNoise: 0, rootSymmetryPruning: false, rootPolicyTemperature: 100,
+      // Force the fourth pass from White; both intersections are occupied.
+      regionOfInterest: { xMin: 2, xMax: 3, yMin: 0, yMax: 0 },
+    });
+    await search.run({ visits: 4, maxTimeMs: 30000, batchSize: 1 });
+    expect(await search.reRootToChild({
+      move: 81, board: current, previousBoard: current, currentPlayer: 'black',
+      moveHistory: moves, komi: 7, rules,
+      regionOfInterest: { xMin: 2, xMax: 3, yMin: 5, yMax: 5 },
+    })).toBe(true);
+    await search.run({ visits: 16, maxTimeMs: 30000, batchSize: 1 });
+    expect(search.getAnalysis({ topK: 5, analysisPvLen: 0 }).moves.some(move => move.y === 5 && move.visits > 0)).toBe(true);
+  });
 });
 
 describe.skipIf(!hasModel())('area features reaching the real search network', () => {
