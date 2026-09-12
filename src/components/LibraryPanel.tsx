@@ -66,7 +66,7 @@ import { tagsFromResult } from '../utils/narrativeTags';
 const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
-import { describeLibraryImport } from '../utils/libraryImportSummary';
+import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
@@ -1290,6 +1290,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let skippedInvalidSgfFiles = 0;
     let skippedOversizedSgfFiles = 0;
     let unreadableFiles = 0;
+    let skippedArchiveGames = 0;
+    let firstFailure: string | undefined;
+    const rememberFailure = (name: string, error: unknown) => {
+      firstFailure ??= describeLibraryImportFailure(name, error);
+    };
     for (const file of Array.from(files)) {
       const name = file.name.toLowerCase();
       try {
@@ -1305,23 +1310,31 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           continue;
         }
         if (name.endsWith('.zip')) {
-          for (const item of await importLibraryItemsFromZip(file, folderId, legacyGameEncoding)) imported.push(item);
+          const archiveItems = await importLibraryItemsFromZip(file, folderId, legacyGameEncoding, (name, error) => {
+            skippedArchiveGames++;
+            rememberFailure(`${file.name}/${name}`, error);
+          });
+          for (const item of archiveItems) imported.push(item);
           continue;
         }
         if (!isGameRecordFile(file)) continue;
-        if (getSgfImportSizeError(file.size)) {
+        const sizeError = getSgfImportSizeError(file.size);
+        if (sizeError) {
+          rememberFailure(file.name, new Error(sizeError));
           skippedOversizedSgfFiles += 1;
           continue;
         }
         const text = await readGameRecordFile(file, legacyGameEncoding);
         try {
           assertValidLibrarySgfImport(text);
-        } catch {
+        } catch (error) {
+          rememberFailure(file.name, error);
           skippedInvalidSgfFiles += 1;
           continue;
         }
         imported.push(createLibraryItem(file.name.replace(GAME_RECORD_EXTENSION, ''), text, folderId));
-      } catch {
+      } catch (error) {
+        rememberFailure(file.name, error);
         // A file that throws here -- unreadable, or a ZIP that will not open --
         // used to vanish without a counter, so the summary reported only what
         // survived.
@@ -1337,6 +1350,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         skippedOversizedSgfFiles,
         skippedInvalidSgfFiles,
         unreadableFiles,
+        skippedArchiveGames,
+        firstFailure,
       });
       onToast(report.message, report.tone);
       return;
@@ -1352,6 +1367,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       skippedOversizedSgfFiles,
       skippedInvalidSgfFiles,
       unreadableFiles,
+      skippedArchiveGames,
+      firstFailure,
     });
     onToast(report.message, report.tone);
   };

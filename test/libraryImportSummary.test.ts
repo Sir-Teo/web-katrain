@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeLibraryImport, type LibraryImportCounts } from '../src/utils/libraryImportSummary';
+import { describeLibraryImport, describeLibraryImportFailure, type LibraryImportCounts } from '../src/utils/libraryImportSummary';
 
 const counts = (over: Partial<LibraryImportCounts> = {}): LibraryImportCounts => ({
   importedEntries: 0,
@@ -116,5 +116,45 @@ describe('what an import tells you', () => {
         'No valid games were imported.'
       );
     });
+  });
+});
+
+
+describe('actionable archive and file failures', () => {
+  it('shows the skipped archive count and first reason after a partial import', () => {
+    const firstFailure = describeLibraryImportFailure('Study.zip/Bad.gib', new Error('Invalid GIB move on line 2.'));
+    expect(describeLibraryImport(counts({ importedEntries: 1, importedFiles: 1, skippedArchiveGames: 3, firstFailure })))
+      .toEqual({ message: 'Imported 1 file. Skipped 3 archive games. Could not import "Study.zip/Bad.gib". Invalid GIB move on line 2.', tone: 'error' });
+  });
+
+  it('reports all rejected archive and loose files even when nothing imports', () => {
+    expect(describeLibraryImport(counts({ skippedArchiveGames: 3, unreadableFiles: 1 }))).toEqual({
+      message: 'No games were imported. Skipped 3 archive games. Could not read 1 file.', tone: 'error',
+    });
+  });
+
+  it('counts different loose-file failures when nothing survives', () => {
+    expect(describeLibraryImport(counts({ skippedOversizedSgfFiles: 2, skippedInvalidSgfFiles: 1, unreadableFiles: 1 }))).toEqual({
+      message: 'No games were imported. Skipped 2 files over 5 MB. Skipped 1 invalid game file. Could not read 1 file.', tone: 'error',
+    });
+  });
+
+  it('retains encoding guidance for an unreadable loose file', () => {
+    const firstFailure = describeLibraryImportFailure('Old.ngf', new Error('Choose an encoding in Settings.'));
+    expect(describeLibraryImport(counts({ unreadableFiles: 1, firstFailure })).message)
+      .toBe('Could not read 1 file. Could not import "Old.ngf". Choose an encoding in Settings.');
+  });
+
+  it('keeps the photo-board success alongside rejected archive games', () => {
+    expect(describeLibraryImport(counts({ openedPhotoBoard: true, skippedArchiveGames: 2 }))).toEqual({
+      message: 'Opened photo board from image. Skipped 2 archive games.', tone: 'error',
+    });
+  });
+
+  it('bounds error details and removes misleading filename controls', () => {
+    const description = describeLibraryImportFailure('\u202e' + 'x'.repeat(1000), new Error('reason '.repeat(1000)));
+    expect(description).not.toContain('\u202e');
+    expect(description.length).toBeLessThan(510);
+    expect(description).toContain('…');
   });
 });

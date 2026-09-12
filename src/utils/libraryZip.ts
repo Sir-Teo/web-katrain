@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { stripUnsafeFilenameControls } from './filename';
-import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
+import { MAX_SGF_IMPORT_BYTES, MAX_SGF_IMPORT_LABEL } from './sgfImportLimits';
 import { normalizeSgfUtf8 } from './sgfEncoding';
 import { decodeGameRecordBytes, gameRecordFormat, GAME_RECORD_EXTENSION, type LegacyGameEncoding } from './gameRecordImport';
 import {
@@ -167,7 +167,8 @@ const declaredEntrySize = (entry: unknown): number | null => {
 export async function importLibraryItemsFromZip(
   source: Blob | ArrayBuffer | Uint8Array,
   parentId: string | null = null,
-  legacyGameEncoding: LegacyGameEncoding = 'auto'
+  legacyGameEncoding: LegacyGameEncoding = 'auto',
+  onSkippedGame?: (name: string, error: unknown) => void
 ): Promise<LibraryItem[]> {
   const zipSource = typeof Blob !== 'undefined' && source instanceof Blob ? await source.arrayBuffer() : source;
   const zip = await JSZip.loadAsync(zipSource);
@@ -223,16 +224,35 @@ export async function importLibraryItemsFromZip(
   }
 
   let expandedBytes = 0;
+  let expansionLimitReached = false;
   for (const entry of entries) {
     if (entry.dir) continue;
+    const originalName = (entry as typeof entry & { unsafeOriginalName?: string }).unsafeOriginalName ?? entry.name;
+    if (originalName.replace(/\\/g, '/').split('/').includes('__MACOSX')) continue;
     const format = gameRecordFormat(entry.name);
     if (!format) continue;
-    if (expandedBytes > MAX_ZIP_EXPANDED_BYTES) break;
+    const skip = (reason: string) => onSkippedGame?.(entry.name, new Error(reason));
+    if (expansionLimitReached) {
+      skip('The archive exceeds the 64 MB expanded import limit. Import smaller ZIPs.');
+      continue;
+    }
     const declared = declaredEntrySize(entry);
-    if (declared !== null && declared > MAX_SGF_IMPORT_BYTES) continue;
-    const originalName = (entry as typeof entry & { unsafeOriginalName?: string }).unsafeOriginalName ?? entry.name;
+    if (declared !== null && declared > MAX_SGF_IMPORT_BYTES) {
+      skip(`Game files are limited to ${MAX_SGF_IMPORT_LABEL}.`);
+      continue;
+    }
+    // Stop before decompressing the next entry when its declared size already
+    // exhausts the budget. Still visit remaining names so none vanish silently.
+    if (declared !== null && expandedBytes + declared > MAX_ZIP_EXPANDED_BYTES) {
+      expansionLimitReached = true;
+      skip('The archive exceeds the 64 MB expanded import limit. Import smaller ZIPs.');
+      continue;
+    }
     const parts = splitZipPath(originalName);
-    if (parts.length === 0) continue;
+    if (parts.length === 0) {
+      skip('The archive entry has an unsupported file path.');
+      continue;
+    }
     const fileName = parts.pop()!;
     let sgf = '';
     try {
@@ -240,10 +260,15 @@ export async function importLibraryItemsFromZip(
       // Counted whether or not it turns out to be a game: the memory was spent
       // either way, and a lying archive is only caught after the fact.
       expandedBytes += bytes.byteLength;
-      if (expandedBytes > MAX_ZIP_EXPANDED_BYTES) break;
+      if (expandedBytes > MAX_ZIP_EXPANDED_BYTES) {
+        expansionLimitReached = true;
+        skip('The archive exceeds the 64 MB expanded import limit. Import smaller ZIPs.');
+        continue;
+      }
       sgf = decodeGameRecordBytes(bytes, format, legacyGameEncoding);
       assertValidLibrarySgfImport(sgf);
-    } catch {
+    } catch (error) {
+      onSkippedGame?.(entry.name, error);
       continue;
     }
     const folderId = ensureFolder(parts);

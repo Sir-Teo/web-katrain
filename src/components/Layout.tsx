@@ -4132,6 +4132,18 @@ export const Layout: React.FC = () => {
           </Suspense>
         ) : null}
 
+        {/* Covered board content is inert and can be squeezed to zero width.
+            Keep panel notifications outside it so they remain announced and usable. */}
+        {notification && (rightPanelOpen || (libraryOpen && !focusMode)) && (
+          <NotificationToast
+            notification={notification}
+            onClose={clearNotification}
+            onHoldChange={setNotificationHeld}
+            onUndo={undoEditFromToast}
+            placement="mobile-panel"
+          />
+        )}
+
         {/* Main board column — a <main> landmark so assistive tech can skip
             straight here. This layout previously exposed no main/header at all,
             leaving the tab bar as its only landmark. */}
@@ -4226,7 +4238,7 @@ export const Layout: React.FC = () => {
             ].filter(Boolean).join(' ')}
             style={{ '--board-tool-offset-y': `${boardToolOffsetY}px` } as React.CSSProperties}
           >
-            {notification && (
+            {notification && !rightPanelOpen && !(libraryOpen && !focusMode) && (
               <NotificationToast
                 notification={notification}
                 onClose={clearNotification}

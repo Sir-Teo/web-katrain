@@ -1,3 +1,5 @@
+import { stripUnsafeFilenameControls } from './filename';
+import { withFailureReason } from './importSummary';
 import { PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE } from './photoBoard';
 import { MAX_SGF_IMPORT_LABEL } from './sgfImportLimits';
 
@@ -12,6 +14,10 @@ export interface LibraryImportCounts {
   skippedInvalidSgfFiles: number;
   /** Threw while being read: an unreadable file, a corrupt ZIP. */
   unreadableFiles: number;
+  /** Recognized game entries rejected inside ZIPs, counted independently of loose files. */
+  skippedArchiveGames?: number;
+  /** Keep just the first actionable example, not an unbounded list of errors. */
+  firstFailure?: string;
 }
 
 export interface LibraryImportReport {
@@ -35,7 +41,7 @@ const plural = (count: number, noun: string): string => `${count} ${noun}${count
  * Every count now has to appear in the message, which a test can check and a
  * reader can see at a glance.
  */
-export function describeLibraryImport(counts: LibraryImportCounts): LibraryImportReport {
+function describeImportCounts(counts: LibraryImportCounts): LibraryImportReport {
   const {
     importedEntries,
     importedFiles,
@@ -44,9 +50,30 @@ export function describeLibraryImport(counts: LibraryImportCounts): LibraryImpor
     skippedOversizedSgfFiles,
     skippedInvalidSgfFiles,
     unreadableFiles,
+    skippedArchiveGames = 0,
   } = counts;
 
+  const skipped = [
+    skippedUnsupportedPhotoImages > 0
+      ? ` Skipped ${plural(skippedUnsupportedPhotoImages, 'unsupported board image')}.`
+      : '',
+    skippedOversizedSgfFiles > 0
+      ? ` Skipped ${plural(skippedOversizedSgfFiles, 'file')} over ${MAX_SGF_IMPORT_LABEL}.`
+      : '',
+    skippedInvalidSgfFiles > 0 ? ` Skipped ${plural(skippedInvalidSgfFiles, 'invalid game file')}.` : '',
+    skippedArchiveGames > 0 ? ` Skipped ${plural(skippedArchiveGames, 'archive game')}.` : '',
+    unreadableFiles > 0 ? ` Could not read ${plural(unreadableFiles, 'file')}.` : '',
+  ].join('');
+
   if (importedEntries === 0) {
+    const failureKinds = [skippedUnsupportedPhotoImages, skippedOversizedSgfFiles, skippedInvalidSgfFiles, skippedArchiveGames, unreadableFiles]
+      .filter((count) => count > 0).length;
+    if (skippedArchiveGames > 0 || failureKinds > 1 || (openedPhotoBoard && failureKinds > 0)) {
+      return {
+        message: `${openedPhotoBoard ? 'Opened photo board from image.' : 'No games were imported.'}${skipped}`,
+        tone: 'error',
+      };
+    }
     if (openedPhotoBoard) return { message: 'Opened photo board from image.', tone: 'info' };
     if (skippedUnsupportedPhotoImages > 0) {
       return { message: PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE, tone: 'error' };
@@ -64,20 +91,24 @@ export function describeLibraryImport(counts: LibraryImportCounts): LibraryImpor
     return { message: 'No SGF, GIB, NGF, ZIP, or board image files were imported.', tone: 'info' };
   }
 
-  const skipped = [
-    skippedUnsupportedPhotoImages > 0
-      ? ` Skipped ${plural(skippedUnsupportedPhotoImages, 'unsupported board image')}.`
-      : '',
-    skippedOversizedSgfFiles > 0
-      ? ` Skipped ${plural(skippedOversizedSgfFiles, 'file')} over ${MAX_SGF_IMPORT_LABEL}.`
-      : '',
-    skippedInvalidSgfFiles > 0 ? ` Skipped ${plural(skippedInvalidSgfFiles, 'invalid game file')}.` : '',
-    unreadableFiles > 0 ? ` Could not read ${plural(unreadableFiles, 'file')}.` : '',
-  ].join('');
-
   return {
     message: `Imported ${plural(importedFiles, 'file')}${openedPhotoBoard ? ' and opened photo board image' : ''}.${skipped}`,
     // Losing files is not a success, and the empty case already says so.
     tone: skipped ? 'error' : 'success',
   };
+}
+
+/** A filename and recovery reason that fit a notification, with full counts above it. */
+export function describeLibraryImportFailure(name: string, error: unknown): string {
+  const cleanName = stripUnsafeFilenameControls(name);
+  const label = cleanName.length > 120 ? `${cleanName.slice(0, 117)}…` : cleanName;
+  const reason = error instanceof Error ? error.message.trim() : '';
+  const shortReason = reason.length > 360 ? `${reason.slice(0, 357)}…` : reason;
+  return withFailureReason(`Could not import "${label}".`, new Error(shortReason));
+}
+
+export function describeLibraryImport(counts: LibraryImportCounts): LibraryImportReport {
+  const report = describeImportCounts(counts);
+  if (counts.firstFailure) return { message: `${report.message} ${counts.firstFailure}`, tone: 'error' };
+  return report;
 }

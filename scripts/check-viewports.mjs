@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createServer } from 'vite';
 import { assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
 import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
+import { assertLibraryImportFailures } from './lib/library-import-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
@@ -4079,6 +4080,7 @@ async function main() {
     await assertAutoSaveRecoveryFits(cdp, `http://127.0.0.1:${appPort}/`);
     await assertScoreQuizRequests(cdp);
     await assertStaticBoardScroll(cdp);
+    await assertLibraryImportFailures(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

@@ -1,3 +1,4 @@
+import { withFailureReason } from './importSummary';
 import { parseSgf } from './sgf';
 
 export function assertValidLibrarySgfImport(sgf: string): void {
@@ -5,7 +6,7 @@ export function assertValidLibrarySgfImport(sgf: string): void {
 
   try {
     parseSgf(sgf.trim());
-  } catch {
-    throw new Error('Invalid SGF import');
+  } catch (error) {
+    throw new Error(withFailureReason('Invalid SGF import.', error));
   }
 }

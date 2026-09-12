@@ -1038,6 +1038,20 @@
     top: 8.75rem;
   }
 
+  /* Library, Tree, and Review cover the board. Their notifications belong to
+     the visible workspace, above its tab bar and below modal dialogs. */
+  .notification-toast-region.notification-toast-region--mobile-panel {
+    position: fixed;
+    inset: auto 0.5rem calc(var(--mobile-tabbar-height) + var(--pwa-banner-height, 0px) + env(safe-area-inset-bottom) + 0.5rem);
+    z-index: 45;
+    justify-content: center;
+  }
+
+  .notification-toast-region--mobile-panel .notification-toast {
+    max-height: calc(100dvh - var(--mobile-tabbar-height) - var(--pwa-banner-height, 0px) - env(safe-area-inset-bottom) - 5rem);
+    overflow-y: auto;
+  }
+
   .notification-toast {
     pointer-events: auto;
     display: flex;

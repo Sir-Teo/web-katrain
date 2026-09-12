@@ -30,6 +30,8 @@ reproduced failures separate from candidates that still need investigation.
 
 | GIB/NGF import workflows | File opening, app drops, the PWA launch handler, library file imports, and ZIP imports now share the format-aware decoder. Settings search exposes an encoding preference for records without a declaration. Open controls use “game,” and imported library names shed the original extension before UTF-8 SGF export. | Full verification passed with 2,512 tests. Real Chrome file selection, drag-and-drop, Settings search, and library import → ZIP download → re-import passed at 1440×900, 390×844, and 320×568. Six Korean/Japanese/Chinese/SGF records retained content and names; malformed GIB input left the current game intact. The PWA consumer was exercised with a delivered File, without claiming OS association installation. Fifteen new regressions cover mixed archives, export round-trips, encoding overrides, and stored preferences. |
 
+| Partial archive failures and mobile notifications | ZIP imports now count rejected games and report the first filename and reason, including encoding recovery guidance. The expansion limit stops further decompression while still accounting for remaining games. Mixed loose-file failures also retain their counts. On mobile, Library/Tree/Review notifications now sit outside the hidden, inert board. | A real four-game ZIP previously reported only “Imported 1 file.” It now reports three skipped games and the first decoding error. At 390×844 the notification previously collapsed outside the viewport inside the inert board; the report and Dismiss are now reachable at 390×844 and 320×568. The regular viewport suite now imports a ZIP with rejected games, verifies the saved valid record, and clicks Copy and Dismiss on desktop and both phone sizes. Nine regressions cover rejected formats, metadata exclusion, expansion-budget accounting, misleading size declarations, complete failure counts, and bounded error details. |
+
 Position sharing relies on the store's existing invariant: board edits, replay,
 and komi changes replace `gameState` and its arrays. Do not mutate a stored
 position in place. The new regression freezes positions during setup edits and
@@ -41,7 +43,7 @@ do not change that storage contract.
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
-the GIB/NGF import integration, `npm run verify` passed 2,512 tests, with the same skip,
+archive diagnostics and mobile notifications, `npm run verify` passed 2,521 tests, with the same skip,
 plus app/test typechecks, lint, and the production build. `npm audit` reported
 zero vulnerabilities in the lockfile dependency graph on 2026-09-12.
 
@@ -136,8 +138,9 @@ file selection through the success toast and checks persisted content afterward.
    plain-language path and let players reveal technical detail when useful.
 2. **Professional import compatibility:** GIB/NGF now work through normal
    file, drop, launch, and library/ZIP paths. Auto tries UTF-8 then Korean;
-   other unmarked encodings require the explicit setting. Improve per-file
-   archive error reporting and inspect multi-game collections next.
+   other unmarked encodings require the explicit setting. Rejected archive
+   games now report their count and first reason. Inspect multi-game
+   collections next.
 3. **Reliable study archives:** harden deep branch editing, add meaningful
    large-library measurements, and keep saved/exported content recoverable.
 4. **Analysis provenance and comparison:** show which model/settings produced
