@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ManualScorePanel } from '../src/components/ManualScorePanel';
-import type { ManualScoreEstimate } from '../src/utils/scoring';
+import { computeManualScoreEstimate, type ManualScoreEstimate } from '../src/utils/scoring';
+import type { BoardState } from '../src/types';
 
 const score: ManualScoreEstimate = {
+  rules: 'japanese',
+  points: {
+    black: { territory: 2, prisoners: 2, deadStones: 0, livingStones: 0, komi: 0, handicapBonus: 0, groupTax: 0 },
+    white: { territory: 2, prisoners: 1, deadStones: 1, livingStones: 0, komi: 6.5, handicapBonus: 0, groupTax: 0 },
+  },
   territory: [
     [1, 0, -1],
     [1, 0, -1],
@@ -16,9 +22,9 @@ const score: ManualScoreEstimate = {
   blackDeadStones: 1,
   whiteDeadStones: 0,
   blackScore: 4,
-  whiteScore: 9.5,
-  scoreLead: -5.5,
-  result: 'W+5.5',
+  whiteScore: 10.5,
+  scoreLead: -6.5,
+  result: 'W+6.5',
 };
 
 const baseProps = {
@@ -26,14 +32,73 @@ const baseProps = {
   score,
   blackName: 'Black',
   whiteName: 'White',
-  capturedBlack: 1,
-  capturedWhite: 2,
-  komi: 6.5,
   deadStoneCount: 1,
   onToggle: () => undefined,
   onClear: () => undefined,
   onDone: () => undefined,
 };
+
+const settledBoard: BoardState = [
+  'XXXXOOOOO', 'X.XXO.O.O', 'XXXXOOOOO',
+  'XXXXXXXXX', 'XXXXXXXXX', 'XXXXXXXXX',
+  'XXXXOOOOO', 'X.XXO.O.O', 'XXXXOOOOO',
+].map(row => Array.from(row, cell => cell === 'X' ? 'black' : cell === 'O' ? 'white' : null));
+const countArgs = { board: settledBoard, capturedBlack: 3, capturedWhite: 5, komi: 7, deadStones: new Set<string>() };
+const renderedRow = (html: string, label: string) => {
+  const row = html.split(`<div><span>${label}</span>`)[1]?.split('</div>')[0];
+  return row ? [...row.matchAll(/<b[^>]*>(.*?)<\/b>/g)].map(cell => cell[1]!.replace(/<[^>]*>/g, '')) : undefined;
+};
+
+describe('manual score contributions shown to the player', () => {
+  it.each([
+    ['japanese', 7, 14], ['korean', 7, 14],
+    ['chinese', 51, 37], ['aga', 51, 37], ['new-zealand', 51, 37],
+    ['tromp-taylor', 51, 37], ['stone-scoring', 49, 33],
+  ] as const)('shows the counted contributions under %s', (rules, black, white) => {
+    const result = computeManualScoreEstimate({ ...countArgs, rules });
+    expect(result.blackScore).toBe(black);
+    expect(result.whiteScore).toBe(white);
+    expect(Object.values(result.points.black).reduce((a, b) => a + b, 0)).toBe(black);
+    expect(Object.values(result.points.white).reduce((a, b) => a + b, 0)).toBe(white);
+    const html = renderToStaticMarkup(<ManualScorePanel {...baseProps} score={result} />);
+    expect(renderedRow(html, 'Territory')).toEqual(['Black 2', 'White 4']);
+    expect(renderedRow(html, 'Komi')).toEqual(['-', 'White 7']);
+    if (rules === 'japanese' || rules === 'korean') {
+      expect(renderedRow(html, 'Prisoners')).toEqual(['Black 5', 'White 3']);
+      expect(renderedRow(html, 'Living stones')).toBeUndefined();
+      expect(html).toContain('Territory scoring');
+    } else {
+      expect(renderedRow(html, 'Living stones')).toEqual(['Black 49', 'White 26']);
+      expect(renderedRow(html, 'Prisoners')).toBeUndefined();
+      expect(renderedRow(html, 'Dead stones')).toBeUndefined();
+      expect(html).toContain('Area scoring');
+    }
+    expect(renderedRow(html, 'Group tax')).toEqual(rules === 'stone-scoring' ? ['Black -2', 'White -4'] : undefined);
+  });
+
+  it.each([['chinese', 4], ['aga', 3], ['new-zealand', 0], ['japanese', 0]] as const)(
+    'shows White’s handicap compensation under %s', (rules, bonus) => {
+      const result = computeManualScoreEstimate({ ...countArgs, rules, handicapStones: 4 });
+      const html = renderToStaticMarkup(<ManualScorePanel {...baseProps} score={result} />);
+      expect(result.points.white.handicapBonus).toBe(bonus);
+      expect(renderedRow(html, 'Handicap bonus')).toEqual(bonus > 0 ? ['-', `White ${bonus}`] : undefined);
+    },
+  );
+
+  it('removes dead stones from area and group tax without adding them as prisoners', () => {
+    const deadStones = new Set<string>();
+    settledBoard.forEach((row, y) => row.forEach((stone, x) => { if (stone === 'black') deadStones.add(`${x},${y}`); }));
+    const result = computeManualScoreEstimate({ ...countArgs, rules: 'stone-scoring', deadStones });
+    expect(result.result).toBe('W+84.0'); // White owns 81, plus 7 komi, minus 4 group tax.
+    expect(result.points.black.livingStones).toBe(0);
+    expect(result.points.black.groupTax).toBe(0);
+    expect(result.points.white.deadStones).toBe(0);
+    expect(result.points.white.prisoners).toBe(0);
+    const html = renderToStaticMarkup(<ManualScorePanel {...baseProps} score={result} deadStoneCount={49} />);
+    expect(renderedRow(html, 'Group tax')).toEqual(['Black 0', 'White -4']);
+    expect(renderedRow(html, 'Living stones')).toEqual(['Black 0', 'White 26']);
+  });
+});
 
 describe('ManualScorePanel', () => {
   it('keeps compact expanded details scrollable without losing the actions', () => {
@@ -57,9 +122,9 @@ describe('ManualScorePanel', () => {
     expect(html).toContain('<span class="sr-only">Black </span>');
     expect(html).toContain('<span class="sr-only">White </span>');
     expect(html).toContain('aria-hidden="true">-</b>');
-    expect(html).toContain('W+5.5');
+    expect(html).toContain('W+6.5');
     expect(html).toContain('data-manual-score-result-detail="true"');
-    expect(html).toContain('White by 5.5');
+    expect(html).toContain('White by 6.5');
     expect(html).toContain('data-manual-score-status="true"');
     expect(html).toContain('data-manual-score-status-item="mode"');
     expect(html).toContain('Manual');

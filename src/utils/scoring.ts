@@ -13,6 +13,9 @@ export interface TerritoryScore {
 }
 
 export interface ManualScoreEstimate extends TerritoryScore {
+  rules: GameRules;
+  /** The same signed contributions used for the totals and their UI breakdown. */
+  points: Record<Player, ManualScorePoints>;
   blackDeadStones: number;
   whiteDeadStones: number;
   blackScore: number;
@@ -20,6 +23,22 @@ export interface ManualScoreEstimate extends TerritoryScore {
   scoreLead: number;
   result: string;
 }
+
+export interface ManualScorePoints {
+  territory: number;
+  livingStones: number;
+  prisoners: number;
+  deadStones: number;
+  komi: number;
+  handicapBonus: number;
+  /** A deduction, represented as a negative contribution. */
+  groupTax: number;
+}
+
+const emptyScorePoints = (): ManualScorePoints => ({
+  territory: 0, livingStones: 0, prisoners: 0, deadStones: 0,
+  komi: 0, handicapBonus: 0, groupTax: 0,
+});
 
 type Point = { x: number; y: number };
 
@@ -425,34 +444,37 @@ export function computeManualScoreEstimate(args: {
   const deadCounts = countDeadStones(args.board, args.deadStones);
   const rules = args.rules ?? 'japanese';
 
-  let blackScore: number;
-  let whiteScore: number;
+  const black = { ...emptyScorePoints(), territory: territoryScore.blackTerritory };
+  const white = { ...emptyScorePoints(), territory: territoryScore.whiteTerritory, komi: args.komi };
   if (isAreaScoring(rules)) {
     // Area scoring: your territory plus the stones you have alive on the board.
     // Prisoners do not matter, but handicap stones are compensated for.
     const { blackStones, whiteStones } = countLivingStones(args.board, args.deadStones);
-    blackScore = territoryScore.blackTerritory + blackStones;
-    whiteScore =
-      territoryScore.whiteTerritory +
-      whiteStones +
-      args.komi +
-      handicapBonusForWhite(rules, args.handicapStones ?? 0);
+    black.livingStones = blackStones;
+    white.livingStones = whiteStones;
+    white.handicapBonus = handicapBonusForWhite(rules, args.handicapStones ?? 0);
 
     // Ancient Chinese "stone scoring" taxes every living group a couple of
     // points, which is what makes it play differently from modern Chinese.
     const tax = groupTaxPerRegion(rules);
     if (tax > 0) {
       const groups = countLivingGroups(args.board, args.deadStones);
-      blackScore -= tax * groups.blackGroups;
-      whiteScore -= tax * groups.whiteGroups;
+      black.groupTax -= tax * groups.blackGroups;
+      white.groupTax -= tax * groups.whiteGroups;
     }
   } else {
-    blackScore = territoryScore.blackTerritory + args.capturedWhite + deadCounts.whiteDeadStones;
-    whiteScore = territoryScore.whiteTerritory + args.capturedBlack + deadCounts.blackDeadStones + args.komi;
+    black.prisoners = args.capturedWhite;
+    white.prisoners = args.capturedBlack;
+    black.deadStones = deadCounts.whiteDeadStones;
+    white.deadStones = deadCounts.blackDeadStones;
   }
+  const blackScore = Object.values(black).reduce((sum, points) => sum + points, 0);
+  const whiteScore = Object.values(white).reduce((sum, points) => sum + points, 0);
   const scoreLead = Math.round((blackScore - whiteScore) * 10) / 10;
 
   return {
+    rules,
+    points: { black, white },
     ...territoryScore,
     ...deadCounts,
     blackScore,
@@ -472,6 +494,8 @@ export function computeManualScoreEstimate(args: {
  * `scoreTerritory` -- ignore it unless scoring is active.
  */
 export const NO_MANUAL_SCORE_ESTIMATE: ManualScoreEstimate = {
+  rules: 'japanese',
+  points: { black: emptyScorePoints(), white: emptyScorePoints() },
   territory: [],
   blackTerritory: 0,
   whiteTerritory: 0,

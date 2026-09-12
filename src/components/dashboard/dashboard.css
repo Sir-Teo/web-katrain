@@ -759,10 +759,13 @@
 }
 .wk-dashboard .board-extra-tools .manual-score-panel.manual-score-docked .manual-score-breakdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: auto;
+  bottom: calc(100% + 6px);
   right: 0;
   z-index: 30;
   width: 230px;
+  max-height: calc(100dvh - 8rem);
+  overflow-y: auto;
   border: 1px solid var(--ui-border-strong);
   border-radius: 8px;
   background: var(--ui-panel);

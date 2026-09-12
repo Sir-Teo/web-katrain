@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaCalculator, FaChevronDown, FaChevronUp, FaMagic, FaTimes, FaUndo } from 'react-icons/fa';
-import type { ManualScoreEstimate } from '../utils/scoring';
+import type { ManualScoreEstimate, ManualScorePoints } from '../utils/scoring';
+import { groupTaxPerRegion, isAreaScoring, rulesLabel } from '../utils/goRules';
 import { mediaQueryMatches } from '../utils/mediaQuery';
 
 interface ManualScorePanelProps {
@@ -14,9 +15,6 @@ interface ManualScorePanelProps {
   score: ManualScoreEstimate;
   blackName: string;
   whiteName: string;
-  capturedBlack: number;
-  capturedWhite: number;
-  komi: number;
   deadStoneCount: number;
   shortcutLabel?: string;
   onToggle: () => void;
@@ -69,9 +67,6 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   score,
   blackName,
   whiteName,
-  capturedBlack,
-  capturedWhite,
-  komi,
   deadStoneCount,
   shortcutLabel,
   onToggle,
@@ -159,36 +154,32 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
   const scoreSourceLabel = formatScoreSourceLabel(scoreMode, estimateSource);
   const markedDeadLabel = `${deadStoneCount} marked dead stone${deadStoneCount === 1 ? '' : 's'}`;
   const resultDetailLabel = formatScoreResultDetail(score.scoreLead, blackName, whiteName);
+  const areaScoring = isAreaScoring(score.rules);
   // The B/W column heads are aria-hidden one-letter abbreviations, so a screen
   // reader heard "Territory 2 2" with no way to tell whose number was whose.
   // Each cell names its own column instead, and the empty half of a row is a
   // decorative dash rather than a "hyphen" read out as data.
+  const pointsRow = (label: string, key: keyof ManualScorePoints): ScoreBreakdownRow => ({
+    label,
+    cells: [
+      { value: formatScoreValue(score.points.black[key]), reader: 'Black' },
+      { value: formatScoreValue(score.points.white[key]), reader: 'White' },
+    ],
+  });
+  const whitePointsRow = (label: string, key: keyof ManualScorePoints): ScoreBreakdownRow => ({
+    label, cells: [null, { value: formatScoreValue(score.points.white[key]), reader: 'White' }],
+  });
   const breakdownRows: ScoreBreakdownRow[] = [
-    {
-      label: 'Territory',
-      cells: [
-        { value: String(score.blackTerritory), reader: 'Black' },
-        { value: String(score.whiteTerritory), reader: 'White' },
-      ],
-    },
+    pointsRow('Territory', 'territory'),
+    ...(areaScoring
+      ? [pointsRow('Living stones', 'livingStones')]
+      : [pointsRow('Prisoners', 'prisoners'), pointsRow('Dead stones', 'deadStones')]),
+    ...(groupTaxPerRegion(score.rules) > 0 ? [pointsRow('Group tax', 'groupTax')] : []),
+    whitePointsRow('Komi', 'komi'),
+    ...(score.points.white.handicapBonus > 0 ? [whitePointsRow('Handicap bonus', 'handicapBonus')] : []),
     // Neutral points belong to neither player, so the row label already reads
     // correctly on its own ("Neutral 5") and naming a colour here would lie.
-    { label: 'Neutral', cells: [{ value: String(score.neutralPoints), muted: true }, null] },
-    {
-      label: 'Prisoners',
-      cells: [
-        { value: String(capturedWhite), reader: 'Black' },
-        { value: String(capturedBlack), reader: 'White' },
-      ],
-    },
-    {
-      label: 'Dead stones',
-      cells: [
-        { value: String(score.whiteDeadStones), reader: 'Black' },
-        { value: String(score.blackDeadStones), reader: 'White' },
-      ],
-    },
-    { label: 'Komi', cells: [null, { value: formatScoreValue(komi), reader: 'White' }] },
+    { label: 'Neutral (not scored)', cells: [{ value: String(score.neutralPoints), muted: true }, null] },
   ];
   return (
     <section className={['manual-score-panel', commandBarOffset ? 'manual-score-offset' : '', docked ? 'manual-score-docked' : '', isCompact && !docked ? 'manual-score-compact' : ''].join(' ')} aria-label="Manual score">
@@ -283,6 +274,9 @@ export const ManualScorePanel: React.FC<ManualScorePanelProps> = ({
           {showDetails ? <FaChevronUp size={11} /> : <FaChevronDown size={11} />}
         </button>
         <div id={detailsId} className="manual-score-breakdown" hidden={!showDetails}>
+          <p className="manual-score-rules">
+            {rulesLabel(score.rules)} · {areaScoring ? 'Area scoring' : 'Territory scoring'}
+          </p>
           <div className="manual-score-breakdown-header" aria-hidden="true">
             <span />
             <b>B</b>

@@ -452,7 +452,9 @@ export const Layout: React.FC = () => {
   // Shared with the handicap AI strategy, which reads the same number to decide
   // how much search advantage to hand Black. Two copies of this had already
   // drifted: this one consulted HA first, the engine's did not.
-  const handicap = useMemo(() => countRootHandicapStones(rootNode), [rootNode]);
+  // Root metadata can change without replacing the node. This reads only HA
+  // and setup-array lengths, so caching it would risk a stale handicap count.
+  const handicap = countRootHandicapStones(rootNode);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const boardShellRef = useRef<HTMLDivElement>(null);
@@ -700,9 +702,11 @@ export const Layout: React.FC = () => {
             capturedBlack,
             capturedWhite,
             deadStones: manualDeadStones,
+            rules: settings.gameRules,
+            handicapStones: handicap,
           })
         : NO_MANUAL_SCORE_ESTIMATE,
-    [board, capturedBlack, capturedWhite, komi, manualDeadStones, scoringMode]
+    [board, capturedBlack, capturedWhite, handicap, komi, manualDeadStones, scoringMode, settings.gameRules]
   );
   const manualScoreOwnership = useMemo(() => {
     if (!currentNode.analysis || (currentNode.analysis.ownershipMode ?? 'root') === 'none') return null;
@@ -3937,9 +3941,6 @@ export const Layout: React.FC = () => {
                   score={manualScoreEstimate}
                   blackName={blackName}
                   whiteName={whiteName}
-                  capturedBlack={capturedBlack}
-                  capturedWhite={capturedWhite}
-                  komi={komi}
                   deadStoneCount={manualDeadStones.size}
                   shortcutLabel={layoutShortcutLabels['toggle-scoring']}
                   scoreMode={manualScoreMode}
@@ -4261,9 +4262,6 @@ export const Layout: React.FC = () => {
               score={manualScoreEstimate}
               blackName={blackName}
               whiteName={whiteName}
-              capturedBlack={capturedBlack}
-              capturedWhite={capturedWhite}
-              komi={komi}
               deadStoneCount={manualDeadStones.size}
               shortcutLabel={layoutShortcutLabels['toggle-scoring']}
               scoreMode={manualScoreMode}

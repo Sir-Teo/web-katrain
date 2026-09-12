@@ -3831,6 +3831,13 @@
     display: none;
   }
 
+  .manual-score-rules {
+    margin: 0 0 4px;
+    color: var(--ui-text);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
   .manual-score-breakdown > div {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 42px 42px;
