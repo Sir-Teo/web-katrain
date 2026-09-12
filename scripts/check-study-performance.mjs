@@ -35,6 +35,7 @@ async function main() {
     const result = await evaluate(cdp, `(async () => {
       const { useGameStore } = await import('/src/store/gameStore.ts');
       const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
+      const { findSolutionPath } = await import('/src/utils/problemMode.ts');
       const state = () => useGameStore.getState();
       state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
       const sgf = '(;GM[1]SZ[9]' + Array.from({ length: 2000 }, (_, i) => ';' + (i % 2 ? 'W' : 'B') + '[]').join('') + ')';
@@ -68,6 +69,23 @@ async function main() {
         if (parsed.props.C?.[0] !== 'Study ' + comments) throw Error('Export lost or reordered a comment');
         comments++;
       }
+      const nestedSgf = '(;GM[1]SZ[9]' + Array.from({length:12000}, (_, i) => '(;C[Study ' + i + ']').join('') + ')'.repeat(12001);
+      let traversalStart = performance.now();
+      let nested = parseSgf(nestedSgf).tree;
+      const nestedImportMs = performance.now() - traversalStart;
+      for (let i = 0; i < 12000; i++) {
+        if (nested.children.length !== 1) throw Error('Nested import changed the study sequence');
+        nested = nested.children[0];
+        if (nested.props.C?.[0] !== 'Study ' + i) throw Error('Nested import lost a comment');
+      }
+      if (nested.children.length) throw Error('Nested import added nodes');
+      current.note = 'Correct';
+      traversalStart = performance.now();
+      const solution = findSolutionPath(root);
+      const solutionSearchMs = performance.now() - traversalStart;
+      if (solution.length !== 12001 || solution[0] !== root || solution.at(-1) !== current) {
+        throw Error('Solution lookup lost part of the study');
+      }
       const study = '(;GM[1]SZ[9];B[dd]' + Array.from({length:12000}, (_, i) => ';C[Study ' + i + ']').join('') + ')';
       state().loadGame(parseSgf(study));
       state().navigateStart();
@@ -95,7 +113,7 @@ async function main() {
       }
       if (state().board !== state().rootNode.gameState.board) throw Error('Displayed and stored boards disagree');
       state().resetGame();
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, branchCopyMs, branchPasteMs, setupReplayMs };
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -103,7 +121,7 @@ async function main() {
     assert.ok(result.markerMedianMs < 25, `Marker edit took ${result.markerMedianMs}ms; budget is 25ms`);
     assert.equal(result.comments, 12000);
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
-    for (const operation of ['branchCopyMs', 'branchPasteMs', 'setupReplayMs']) {
+    for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs']) {
       assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
     }
     console.log('Study performance checks passed.');

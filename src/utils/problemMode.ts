@@ -97,21 +97,19 @@ export const getProblemStarts = (root: GameNode): GameNode[] => {
  * `correct`. Falls back to the main line when no leaf is explicitly marked.
  */
 export const findSolutionPath = (start: GameNode): GameNode[] => {
-  const path: GameNode[] = [];
-  const dfs = (node: GameNode): boolean => {
-    path.push(node);
-    if (node.children.length === 0) {
-      if (classifyProblemNode(node) === 'correct') return true;
-      path.pop();
-      return false;
+  const stack = [{ node: start, nextChild: 0 }];
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!;
+    if (frame.node.children.length === 0 && classifyProblemNode(frame.node) === 'correct') {
+      return stack.map(({ node }) => node);
     }
-    for (const child of node.children) {
-      if (dfs(child)) return true;
+    if (frame.nextChild < frame.node.children.length) {
+      const child = frame.node.children[frame.nextChild++]!;
+      stack.push({ node: child, nextChild: 0 });
+    } else {
+      stack.pop();
     }
-    path.pop();
-    return false;
-  };
-  if (dfs(start)) return path;
+  }
 
   const mainLine: GameNode[] = [];
   let node: GameNode | null = start;

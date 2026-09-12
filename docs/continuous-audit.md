@@ -18,6 +18,7 @@ reproduced failures separate from candidates that still need investigation.
 | Beginner lessons | Lessons were hidden from the start screen, and correct answers displayed a success message without changing the diagram. Learn Go now opens lessons from desktop and phone start screens; correct answers place a stone and apply captures. Advancing to an exercise now focuses its board instead of losing focus when Next becomes disabled. | Real pointer capture exercises passed at 1440×900, 1024×500, 390×844, 320×568, and 568×320. The captured white stone disappears, the black stone appears, and the main game remains unchanged. Phone users return to Home after closing lessons. The viewport suite now checks solved lesson diagrams, step focus, and feedback contrast. |
 | Deep branch editing | Copying, pasting, and rebuilding setup stones overflowed the call stack on a long study. A failed setup edit could leave the stored root changed while the displayed board stayed unchanged. All four recursive clipboard/replay walks now use explicit stacks and reuse immutable positions for comment nodes. | All three operations failed on a 12,000-comment Chrome fixture before the fix. They completed in about 1.7 ms, 3.8 ms, and 6.3 ms after it. Regression tests cover every comment, sibling order, legal-move pruning, parent links, and undo/redo. `test:study` now exercises the complete branch workflow. |
 | First-analysis reload and browser QA | A cold development server discovered TensorFlow's worker dependencies only when analysis started, rebuilt shared chunks, and reloaded the app. The QA helper silently replayed the interrupted test in an empty document. Vite now prepares those dependencies at startup; browser navigation waits for the requested document and never replays interrupted actions. | An isolated cold cache reproduced the exact 768×1024 failure recorded in CI. Server logs identified all three TensorFlow dependencies, then a reload and a replayed probe before the new UI mounted. Nine helper regressions cover navigation ordering, failures, deadlines, and preserving exceptions. The viewport suite now uses an isolated profile and a fresh dependency cache on every run, and the CI step is enabled with failure screenshots. |
+| Nested imports and problem solutions | Importing deeply nested SGF variations and showing a solution still used recursive traversal. Both overflowed at 12,000 nodes. Parsing now tracks variation endpoints explicitly, and solution search backtracks with an explicit stack. | Three failing regressions now pass, covering every nested sibling, a deep wrong branch before a correct one, and an unmarked main line. Real file input and Show solution passed at 1440×900 and 390×844 with a 192,942-byte nested study; the solution board changes while the main game stays at the start. The browser benchmark measured 5.38 ms for nested parsing and 0.67 ms for solution lookup. |
 
 Position sharing relies on the store's existing invariant: board edits, replay,
 and komi changes replace `gameState` and its arrays. Do not mutate a stored
@@ -30,7 +31,7 @@ do not change that storage contract.
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
-the navigation and cold-cache QA follow-up, `npm run verify` passed 2,418 tests, with the same skip,
+the nested study follow-up, `npm run verify` passed 2,421 tests, with the same skip,
 plus app/test typechecks, lint, and the production build. `npm audit` reported
 zero vulnerabilities in the lockfile dependency graph on 2026-09-12.
 
@@ -87,6 +88,8 @@ export can be parsed back without lost or reordered comments. Its budgets are
 build; dev-store timings are deliberately reported separately.
 It also copies and pastes a 12,000-comment branch, rebuilds both variations
 after a setup edit, and checks that displayed and stored positions agree.
+Nested SGF import and solution lookup are checked at the same depth, with
+500 ms budgets per operation and assertions on the complete resulting paths.
 
 ## Research and implications
 
@@ -102,7 +105,7 @@ after a setup edit, and checks that displayed and stored positions agree.
 | Priority | Finding or opportunity | Evidence and next step |
 | --- | --- | --- |
 | High | Confirm the restored browser gate on Linux CI. | The formerly recorded first-mobile failure now reproduces locally with a cold cache and has a traced cause and fix. The full viewport gate is enabled with failure screenshots. These local commits have not been pushed, so a GitHub-hosted run of the fix remains unverified. |
-| High | More tree operations still depend on recursion. | Branch clipboard copy/count/paste and descendant replay are now iterative, following reproduced failures. Solution-path search in `problemMode.ts` and nested-variation parsing in `sgf.ts` remain candidates to reproduce with deep fixtures. Preserve pruning and sibling ordering when replacing traversal. |
+| High | Continue auditing large-tree operations. | Snapshotting, export, clipboard/replay, nested SGF parsing, and solution search are now iterative after reproduced failures. Inspect broad trees, library folder recursion, redundant position copies during import, and responsiveness during analysis next. |
 | High | Professional engine validation needs broader evidence. | The bundled model comes from KataGo's test fixtures. Existing golden/invariant tests are useful but do not prove b18 search equivalence across all supported rules and endgames. Add reference positions for stronger weights, ko/superko, seki, pass handling, and handicap compensation. |
 | High | Analysis provenance is not carried comprehensively through imported records and reports. | `AnalysisResult` exposes evaluation data without model/search identity. The undo revision fix prevents one stale-data path, but imported external analysis can still have unknown provenance. Design explicit origin, model, and settings metadata before presenting mixed-source comparisons as equivalent. |
 | Medium | Continue profiling large-library operations. | ZIP selection and folder-path construction now use indexes and cached paths, with a measured improvement on a 10k-game fixture. Compression still takes most of total export time. `library.ts` folder-option traversal remains recursive; inspect copying, moving, filtering, and rendering next. |

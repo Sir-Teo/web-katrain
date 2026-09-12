@@ -763,14 +763,24 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
         if (sgfContent[i] !== '(') throw new Error('Invalid SGF: expected "("');
         i++; // skip (
         const { root, last } = parseSequence();
-        skipWhitespace();
-        while (i < len && sgfContent[i] === '(') {
-            const childTree = parseGameTree();
-            last.children.push(childTree);
+        // Each frame is the endpoint to which that tree's variations attach.
+        // Nesting is independent of game length: valid study archives can have
+        // thousands of parenthesized variations around short node sequences.
+        const endpoints: SgfNode[] = [last];
+        while (endpoints.length > 0) {
             skipWhitespace();
+            if (sgfContent[i] === '(') {
+                i++;
+                const child = parseSequence();
+                endpoints[endpoints.length - 1]!.children.push(child.root);
+                endpoints.push(child.last);
+            } else if (sgfContent[i] === ')') {
+                i++;
+                endpoints.pop();
+            } else {
+                throw new Error('Invalid SGF: expected ")"');
+            }
         }
-        if (sgfContent[i] !== ')') throw new Error('Invalid SGF: expected ")"');
-        i++; // skip )
         return root;
     };
 
