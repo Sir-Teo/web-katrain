@@ -1153,7 +1153,6 @@ const initialGameState: GameState = {
     komi: 6.5
 };
 const initialRoot = createNode(null, null, initialGameState, createRootNodeId());
-initialRoot.properties = { RU: [rulesToSgfRu('japanese')] };
 
 const defaultSettings: GameSettings = {
   appLocale: 'en',
@@ -1289,6 +1288,8 @@ const initialSettings: GameSettings = {
   appLocale: getPreferredAppLocaleId(),
   ...(loadStoredSettings() ?? {}),
 };
+// The startup game must export and recover with the same rules it plays by.
+initialRoot.properties = { RU: [rulesToSgfRu(initialSettings.gameRules)] };
 
 let continuousToken = 0;
 const scheduledAnalysisTimers = new Set<ReturnType<typeof setTimeout>>();

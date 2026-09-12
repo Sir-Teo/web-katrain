@@ -221,7 +221,7 @@ async function main() {
     assert.deepEqual(restarted, [], 'A delayed move callback must not restart analysis after Stop');
     await screenshot('stopped-after-move');
 
-    await assertAiMoveCancellation(cdp, outputDir);
+    await assertAiMoveCancellation(cdp, outputDir, gameRules);
 
     assert.deepEqual(spawnErrors, []);
     assert.deepEqual(errors, []);

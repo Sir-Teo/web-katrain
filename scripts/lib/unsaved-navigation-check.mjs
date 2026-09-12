@@ -6,7 +6,7 @@ import { evaluate, navigate, sleep } from './browser.mjs';
 // Run after a real AI move: the game is dirty and WASM has initialized. A
 // beforeunload confirmation must preserve the page when canceled and allow
 // the saved game to be recovered after an explicitly accepted navigation.
-export async function assertUnsavedNavigation(cdp, appUrl, outputDir, { width, height }) {
+export async function assertUnsavedNavigation(cdp, appUrl, outputDir, { width, height, gameRules }) {
   const mobile = width < 1000;
   const stem = `${width}x${height}-unsaved-navigation`;
   const dialogs = [];
@@ -54,6 +54,12 @@ export async function assertUnsavedNavigation(cdp, appUrl, outputDir, { width, h
       const raw=localStorage.getItem('web-katrain:auto_saved_game:v1');
       return raw?JSON.parse(raw):false;
     })()`);
+    const sgfRule = {
+      japanese: 'Japanese', korean: 'Korean', chinese: 'Chinese', aga: 'AGA',
+      'new-zealand': 'New Zealand', 'tromp-taylor': 'Tromp-Taylor', 'stone-scoring': 'Stone Scoring',
+    }[gameRules];
+    assert.ok(sgfRule, 'Recovery QA requires a known rules preset');
+    assert.ok(saved.sgf.includes(`RU[${sgfRule}]`), 'Autosaved SGF must describe the rules used to play');
     await evaluate(cdp, `window.unsavedNavigationMarker=${JSON.stringify(stem)}`);
     const startedCancel = performance.now();
     await assert.rejects(navigate(cdp, appUrl), /Navigation blocked by beforeunload/);
@@ -89,8 +95,28 @@ export async function assertUnsavedNavigation(cdp, appUrl, outputDir, { width, h
       { event: 'opened', type: 'beforeunload' }, { event: 'closed', accepted: true },
     ]);
     await screenshot('restored');
-    fs.writeFileSync(path.join(outputDir, `${stem}.json`), JSON.stringify({ width, height, before, restored, dialogs, cancelMs, navigationMs }, null, 2));
-    console.log(`Unsaved game at ${width}x${height}: Cancel preserves the document; Leave and Restore recover the complete position.`);
+    // Inspect the real worker request after restoration: correct stones and
+    // an unchanged save do not prove that the loaded game kept its rules.
+    const analyze = mobile
+      ? `document.querySelector('button[title^="Toggle analysis mode"]')`
+      : `document.querySelector('.analyze-toggle')`;
+    await click(analyze);
+    const response = await wait('auditResponses.find(r=>r.ok&&r.visits>0)');
+    const request = await evaluate(cdp, `auditRequests.find(r=>r.id===${response.id})`);
+    assert.equal(request.rules, gameRules, 'Recovered analysis must use the original rules');
+    assert.ok(await evaluate(cdp, `auditRequests.every(r=>r.rules===${JSON.stringify(gameRules)})`),
+      'Every request after recovery must use the original rules');
+    assert.equal(response.backend, 'wasm');
+    // Desktop Analyze controls continuous search; Tab also leaves analysis
+    // mode so the next AI-move fixture cannot schedule a second evaluation.
+    if (mobile) await click(analyze);
+    else for (const type of ['keyDown', 'keyUp']) {
+      await cdp.send('Input.dispatchKeyEvent', { type, key: 'Tab', windowsVirtualKeyCode: 9 });
+    }
+    await wait(`auditResponses.some(r=>r.id===${request.id}&&r.type==='katago:analyze_result')`);
+    fs.writeFileSync(path.join(outputDir, `${stem}.json`), JSON.stringify({ width, height, gameRules, sgfRule,
+      before, restored, request, response, dialogs, cancelMs, navigationMs }, null, 2));
+    console.log(`Unsaved game at ${width}x${height}: Cancel preserves the document; Leave and Restore recover the position and ${gameRules} analysis.`);
   } finally {
     unsubscribe();
   }

@@ -7,7 +7,7 @@ import { assertUnsavedNavigation } from './unsaved-navigation-check.mjs';
 // Uses the real worker instrumentation installed by test:analysis. Complete a
 // warm-up move, stop a second search in flight, then finish a fresh move. The
 // UI must agree with the worker and no rejected request may retry after Stop.
-export async function assertAiMoveCancellation(cdp, outputDir) {
+export async function assertAiMoveCancellation(cdp, outputDir, gameRules) {
   const reports = [];
   const wait = async (expression) => {
     const deadline = Date.now() + 20000;
@@ -108,11 +108,13 @@ export async function assertAiMoveCancellation(cdp, outputDir) {
       await wait(`${boardMoves}===${initialMoves + 2}`);
       await sleep(350);
       assert.equal(await evaluate(cdp, 'auditRequests.length'), initialRequests + 3);
+      assert.ok(await evaluate(cdp, `auditRequests.slice(${initialRequests}).every(r=>r.rules===${JSON.stringify(gameRules)})`),
+        'Every AI request must retain the selected rules, including after recovery');
       await screenshot(`${width}x${height}-ai-restarted`);
       reports.push({ width, height, canceledAfterInputMs, warmVisits: warm.visits, freshVisits: fresh.visits,
         ...await evaluate(cdp, '({requests:auditRequests,responses:auditResponses})') });
       console.log(`AI move at ${width}x${height}: warm move, Stop, no retry, and fresh move passed.`);
-      await assertUnsavedNavigation(cdp, await evaluate(cdp, 'location.href'), outputDir, { width, height });
+      await assertUnsavedNavigation(cdp, await evaluate(cdp, 'location.href'), outputDir, { width, height, gameRules });
     } catch (error) {
       await screenshot(`${width}x${height}-ai-failure`);
       fs.writeFileSync(path.join(outputDir, `${width}x${height}-ai-failure.json`), JSON.stringify(
