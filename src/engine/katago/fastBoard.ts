@@ -206,6 +206,8 @@ export function setBoardSize(size: number): void {
 export type UndoSnapshot = {
   readonly koPointBefore: number;
   readonly captureStart: number;
+  /** The capture stack holds friendly stones only for a legal self-capture. */
+  readonly selfCapture?: boolean;
 };
 
 export type SimPosition = {
@@ -217,7 +219,8 @@ export function playMove(
   pos: SimPosition,
   move: number,
   player: StoneColor,
-  captureStack: number[]
+  captureStack: number[],
+  multiStoneSuicideLegal = false
 ): UndoSnapshot {
   const koPointBefore = pos.koPoint;
   const captureStart = captureStack.length;
@@ -265,6 +268,18 @@ export function playMove(
 
   const selfGroup = collectGroupAndLiberties(pos.stones, move, player, 2);
   if (selfGroup.liberties === 0) {
+    if (multiStoneSuicideLegal && selfGroup.groupLen > 1) {
+      // Capturing an opponent would have opened a liberty, so this branch
+      // removes only friendly stones. Keep their points in the same stack so
+      // search can update liberties and restore the complete earlier board.
+      for (let j = 0; j < selfGroup.groupLen; j++) {
+        const point = GROUP_BUF[j]!;
+        pos.stones[point] = EMPTY;
+        captureStack.push(point);
+      }
+      pos.koPoint = -1;
+      return { koPointBefore, captureStart, selfCapture: true };
+    }
     // The guards above reject before touching the position, but suicide can
     // only be judged once the stone is down. Roll the placement back so every
     // rejected move leaves `pos` exactly as it found it — a caller that probes
@@ -288,16 +303,15 @@ export function playMove(
 
 export function undoMove(pos: SimPosition, move: number, player: StoneColor, snapshot: UndoSnapshot, captureStack: number[]): void {
   const captureEnd = captureStack.length;
-  const opp = opponentOf(player);
-
-  if (move !== PASS_MOVE) {
-    pos.stones[move] = EMPTY;
-  }
+  const capturedColor = snapshot.selfCapture ? player : opponentOf(player);
 
   for (let i = snapshot.captureStart; i < captureEnd; i++) {
     const p = captureStack[i]!;
-    pos.stones[p] = opp;
+    pos.stones[p] = capturedColor;
   }
+  // The self-captured group also includes the newly played stone. Restore the
+  // earlier friendly stones, then leave the move's original point empty.
+  if (move !== PASS_MOVE) pos.stones[move] = EMPTY;
   captureStack.length = snapshot.captureStart;
   pos.koPoint = snapshot.koPointBefore;
 }

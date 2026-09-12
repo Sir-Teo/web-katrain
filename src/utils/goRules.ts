@@ -8,8 +8,9 @@ import type { GameRules } from '../types';
  * network is given (`featuresV7`), whether multi-stone suicide is a legal move,
  * and how the position is scored.
  *
- * Only rulesets we can serve correctly are listed: each one's network inputs,
- * move legality and scoring are implemented rather than approximated.
+ * These definitions select the intended behavior; each engine path still needs
+ * validation against it. Network rule inputs alone do not establish search or
+ * endgame parity (see docs/continuous-audit.md).
  */
 
 export type ScoringRule = 'area' | 'territory';

@@ -48,7 +48,7 @@ import {
   simpleRepetitionBoundGt,
 } from './graphHash';
 import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
-import { areaFeatureModeForRules } from '../../utils/goRules';
+import { areaFeatureModeForRules, isSuicideLegal } from '../../utils/goRules';
 import { POLICY_OPTIMISM, ROOT_POLICY_OPTIMISM } from './searchParams';
 
 export type OwnershipMode = 'none' | 'root' | 'tree';
@@ -186,7 +186,7 @@ function boardStateToStones(board: BoardState): Uint8Array<ArrayBuffer> {
   return stones;
 }
 
-function computeKoPointFromPrevious(args: { board: BoardState; previousBoard?: BoardState; moveHistory: Move[] }): number {
+function computeKoPointFromPrevious(args: { board: BoardState; previousBoard?: BoardState; moveHistory: Move[]; rules: GameRules }): number {
   const { previousBoard, moveHistory } = args;
   if (!previousBoard) return -1;
   const last = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
@@ -195,16 +195,16 @@ function computeKoPointFromPrevious(args: { board: BoardState; previousBoard?: B
   const prevStones = boardStateToStones(previousBoard);
   const pos: SimPosition = { stones: prevStones, koPoint: -1 };
   const captureStack: number[] = [];
-  playMove(pos, last.y * BOARD_SIZE + last.x, playerToColor(last.player), captureStack);
+  playMove(pos, last.y * BOARD_SIZE + last.x, playerToColor(last.player), captureStack, isSuicideLegal(args.rules));
   return pos.koPoint;
 }
 
-function computeKoPointAfterMove(previousBoard: BoardState | undefined, move: Move | null): number {
+function computeKoPointAfterMove(previousBoard: BoardState | undefined, move: Move | null, rules: GameRules): number {
   if (!previousBoard || !move || move.x < 0 || move.y < 0) return -1;
   const prevStones = boardStateToStones(previousBoard);
   const pos: SimPosition = { stones: prevStones, koPoint: -1 };
   const captureStack: number[] = [];
-  playMove(pos, move.y * BOARD_SIZE + move.x, playerToColor(move.player), captureStack);
+  playMove(pos, move.y * BOARD_SIZE + move.x, playerToColor(move.player), captureStack, isSuicideLegal(rules));
   return pos.koPoint;
 }
 
@@ -465,6 +465,7 @@ function expandNode(args: {
   node: Node;
   stones: Uint8Array;
   koPoint: number;
+  multiStoneSuicideLegal: boolean;
   policyLogits: ArrayLike<number>; // len 361 (in symmetry space if policyLogitsSymmetry != 0)
   policyLogitsSymmetry?: number; // 0..7, where 0 is identity
   passLogit: number;
@@ -506,7 +507,7 @@ function expandNode(args: {
 
     let hasEmptyNeighbor = false;
     let captures = false;
-    let connectsToSafeGroup = false;
+    let connectsLegally = false;
 
     const nStart = NEIGHBOR_STARTS[p]!;
     const nCount = NEIGHBOR_COUNTS[p]!;
@@ -525,13 +526,13 @@ function expandNode(args: {
         }
         continue;
       }
-      if (c === pla && libs[n] > 1) {
-        connectsToSafeGroup = true;
+      if (c === pla && (libs[n] > 1 || args.multiStoneSuicideLegal)) {
+        connectsLegally = true;
         break;
       }
     }
 
-    if (!hasEmptyNeighbor && !captures && !connectsToSafeGroup) continue;
+    if (!hasEmptyNeighbor && !captures && !connectsLegally) continue;
     const symPos = sym === 0 ? p : symPosMap![symOff + p]!;
     const logit = policyLogits[symPos]! * policyScale;
     movesScratch[moveCount] = p;
@@ -769,6 +770,7 @@ async function buildRootEval(args: {
     node: policyNode,
     stones: args.rootStones,
     koPoint: args.rootKoPoint,
+    multiStoneSuicideLegal: isSuicideLegal(args.rules),
     policyLogits: rootEval.policy,
     policyLogitsSymmetry: rootEval.symmetry,
     passLogit: rootEval.passLogit,
@@ -3683,12 +3685,13 @@ export class MctsSearch {
     const outputScaleMultiplier = args.model.postProcessParams?.outputScaleMultiplier ?? 1.0;
     const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples);
     const rootStones = boardStateToStones(args.board);
-    const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory });
+    const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory, rules: args.rules });
 
     const rootPrevStones = args.previousBoard ? boardStateToStones(args.previousBoard) : rootStones;
     const rootPrevKoPoint = computeKoPointAfterMove(
       args.previousPreviousBoard,
-      args.moveHistory.length >= 2 ? args.moveHistory[args.moveHistory.length - 2]! : null
+      args.moveHistory.length >= 2 ? args.moveHistory[args.moveHistory.length - 2]! : null,
+      args.rules
     );
     const rootPrevPrevStones = args.previousPreviousBoard ? boardStateToStones(args.previousPreviousBoard) : rootPrevStones;
     const rootPrevPrevKoPoint = -1;
@@ -3872,12 +3875,13 @@ export class MctsSearch {
     if (child.playerToMove !== playerToColor(args.currentPlayer)) return false;
 
     const rootStones = boardStateToStones(args.board);
-    const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory });
+    const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory, rules: args.rules });
 
     const rootPrevStones = args.previousBoard ? boardStateToStones(args.previousBoard) : rootStones;
     const rootPrevKoPoint = computeKoPointAfterMove(
       args.previousPreviousBoard,
-      args.moveHistory.length >= 2 ? args.moveHistory[args.moveHistory.length - 2]! : null
+      args.moveHistory.length >= 2 ? args.moveHistory[args.moveHistory.length - 2]! : null,
+      args.rules
     );
     const rootPrevPrevStones = args.previousPreviousBoard ? boardStateToStones(args.previousPreviousBoard) : rootPrevStones;
     const rootPrevPrevKoPoint = -1;
@@ -4008,6 +4012,7 @@ export class MctsSearch {
     const maxTimeMs = Math.max(25, Math.min(args.maxTimeMs, ENGINE_MAX_TIME_MS));
     const batchSize = Math.max(1, Math.min(args.batchSize, 64));
     const shouldAbort = args.shouldAbort;
+    const multiStoneSuicideLegal = isSuicideLegal(this.rules);
 
     if (shouldAbort?.()) return true;
     if (this.rootNode.visits >= maxVisits) return shouldAbort?.() ?? false;
@@ -4217,7 +4222,7 @@ export class MctsSearch {
               })
             : null;
 
-          const snapshot = playMove(sim, move, player, captureStack);
+          const snapshot = playMove(sim, move, player, captureStack, multiStoneSuicideLegal);
           undoMoves.push(move);
           undoPlayers.push(player);
           undoSnapshots.push(snapshot);
@@ -4514,6 +4519,7 @@ export class MctsSearch {
           node: job.leaf,
           stones: job.stones,
           koPoint: job.koPoint,
+          multiStoneSuicideLegal,
           policyLogits: ev.policy,
           policyLogitsSymmetry: ev.symmetry,
           passLogit: ev.passLogit,
