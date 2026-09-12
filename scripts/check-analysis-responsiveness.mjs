@@ -7,6 +7,7 @@ import {
   chromePath, chromeTarget, connectDevtools, evaluate, freePort,
   navigate, setViewport, sleep, waitForHttp,
 } from './lib/browser.mjs';
+import { assertAiMoveCancellation } from './lib/ai-move-check.mjs';
 
 // A quick click handler does not prove the engine followed the move. CPU/WASM
 // inference once starved incoming worker messages, leaving the new position's
@@ -80,7 +81,7 @@ async function main() {
           const d = args[0];
           if (d.type === 'katago:analyze') window.auditRequests.push({
             at: performance.now(), id: d.id, positionId: d.positionId,
-            ply: d.moveHistory.length, visits: d.visits,
+            ply: d.moveHistory.length, visits: d.visits, group: d.analysisGroup,
           });
           return super.postMessage(...args);
         }
@@ -211,6 +212,8 @@ async function main() {
     const restarted = await evaluate(cdp, `auditRequests.filter(r => r.at > ${stopAfterMoveAt})`);
     assert.deepEqual(restarted, [], 'A delayed move callback must not restart analysis after Stop');
     await screenshot('stopped-after-move');
+
+    await assertAiMoveCancellation(cdp, outputDir);
 
     assert.deepEqual(spawnErrors, []);
     assert.deepEqual(errors, []);

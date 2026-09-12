@@ -43,7 +43,10 @@ describe.skipIf(!runsEngineSuites())('search cancellation from an event-loop tas
     const timer = setTimeout(() => { canceled = true; }, 10);
     try {
       const aborted = await search.run({
-        visits: 4096, maxTimeMs: 500, batchSize: 4, shouldAbort: () => canceled,
+        // Leave room for a complete CPU batch under full-suite contention.
+        // Ending on a 500 ms search deadline tests throughput, not delivery of
+        // the queued cancellation. test:analysis measures actual Stop latency.
+        visits: 4096, maxTimeMs: 10000, batchSize: 4, shouldAbort: () => canceled,
       });
       expect(canceled, 'the incoming task must run before the search finishes').toBe(true);
       expect(aborted).toBe(true);

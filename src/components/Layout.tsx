@@ -3778,7 +3778,7 @@ export const Layout: React.FC = () => {
             }
             const after = useGameStore.getState();
             if (after.isAiPlaying && after.aiColor === after.currentPlayer) {
-              window.setTimeout(() => after.makeAiMove(), 0);
+              after.scheduleAiMove();
             }
             markCurrentGameCleanAndClearAutoSave();
             setIsNewGameOpen(false);

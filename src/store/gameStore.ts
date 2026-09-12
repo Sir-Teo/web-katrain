@@ -179,6 +179,7 @@ interface GameStore extends GameState {
   toggleTimerPaused: () => void;
   playMove: (x: number, y: number, isLoad?: boolean) => void;
   makeAiMove: (opts?: { force?: boolean }) => void;
+  scheduleAiMove: (delayMs?: number) => void;
   undoMove: () => void; // Go back
   navigateBack: () => void;
   navigateForward: () => void; // Go forward (main branch)
@@ -1306,6 +1307,36 @@ const cancelScheduledAnalysis = (): void => {
   scheduledAnalysisTimers.clear();
 };
 
+// AI replies have their own timers and ownership. Cancellation must invalidate
+// the caller too, otherwise its rejected promise can schedule the move again.
+let aiMoveGeneration = 0;
+const scheduledAiMoveTimers = new Set<ReturnType<typeof setTimeout>>();
+
+const clearScheduledAiMoves = (): void => {
+  for (const timer of scheduledAiMoveTimers) clearTimeout(timer);
+  scheduledAiMoveTimers.clear();
+};
+
+const cancelAiMoveWork = (): void => {
+  aiMoveGeneration++;
+  clearScheduledAiMoves();
+  analysisQueue.cancelGroup('ai-move');
+};
+
+const scheduleAiMoveTask = (run: () => void, delayMs: number, onPositionChanged?: () => void): void => {
+  const generation = aiMoveGeneration;
+  const node = useGameStore.getState().currentNode;
+  const position = node.gameState;
+  const timer = setTimeout(() => {
+    scheduledAiMoveTimers.delete(timer);
+    if (generation !== aiMoveGeneration) return;
+    const current = useGameStore.getState().currentNode;
+    if (current.id === node.id && current.gameState === position) run();
+    else onPositionChanged?.();
+  }, delayMs);
+  scheduledAiMoveTimers.add(timer);
+};
+
 /**
  * Append `move` to `parent` as a new child, applying captures, suicide and
  * simple-ko rules. Returns null when the move is not legal there.
@@ -1670,11 +1701,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleAi: (color) => {
     const s = get();
     const nextOn = !(s.isAiPlaying && s.aiColor === color);
-    if (!nextOn) analysisQueue.cancelGroup('ai-move');
-    set({ isAiPlaying: nextOn, aiColor: nextOn ? color : null });
+    cancelAiMoveWork();
+    set({ isAiPlaying: nextOn, isAiThinking: false, aiColor: nextOn ? color : null });
     const after = get();
     if (after.isAiPlaying && after.aiColor === after.currentPlayer) {
-      setTimeout(() => after.makeAiMove(), 0);
+      after.scheduleAiMove();
     }
   },
 
@@ -1773,6 +1804,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   stopAnalysis: () => {
+      cancelAiMoveWork();
       continuousToken++;
       cancelScheduledAnalysis();
       analysisQueue.cancelGroup('interactive');
@@ -1781,7 +1813,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // promise chain. Its token also prevents a late rejection from replacing
       // a new play-elsewhere request made after Stop.
       tenukiToken++;
-      set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null, tenukiAnalysis: null });
+      set({ isAiThinking: false, isContinuousAnalysis: false, engineStatus: 'idle', engineError: null, tenukiAnalysis: null });
   },
 
   clearTenukiAnalysis: () => set({ tenukiAnalysis: null }),
@@ -1947,6 +1979,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   clearAnalysisCache: () => {
+      cancelAiMoveWork();
       analysisRevision++;
       cancelScheduledAnalysis();
       const removed = getAnalysisCacheSize(get().rootNode);
@@ -1964,6 +1997,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return {
           analysisData: null,
           analysisCacheSize: 0,
+          isAiThinking: false,
           isContinuousAnalysis: false,
           isSelfplayToEnd: false,
           setupPositionProgress: null,
@@ -3969,7 +4003,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
        lastPlayedNodeId = existingChild.id;
        const after = get();
        if (after.isAiPlaying && after.currentPlayer === after.aiColor) {
-         setTimeout(() => get().makeAiMove(), 500);
+         get().scheduleAiMove(500);
        }
        if (after.isAnalysisMode && !after.isSelfplayToEnd) {
          scheduleAnalysis(() => void get().runAnalysis(), 500);
@@ -4069,13 +4103,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!isLoad) {
       const newState = get();
       if (newState.isAiPlaying && newState.currentPlayer === newState.aiColor) {
-        setTimeout(() => get().makeAiMove(), 500);
+        get().scheduleAiMove(500);
       }
 	      if (newState.isAnalysisMode && !newState.isSelfplayToEnd) {
 	          scheduleAnalysis(() => void get().runAnalysis(), 500);
 	      }
 	    }
 	  },
+
+  scheduleAiMove: (delayMs = 0) => {
+    const state = get();
+    if (!state.isAiPlaying || state.currentPlayer !== state.aiColor) return;
+    scheduleAiMoveTask(() => get().makeAiMove(), delayMs);
+  },
 
 	  makeAiMove: (opts) => {
 	      const force = opts?.force ?? false;
@@ -4090,6 +4130,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	      const node = state.currentNode;
 	      const nodeId = node.id;
 	      const playerAtStart = state.currentPlayer;
+        cancelAiMoveWork();
+        const generation = aiMoveGeneration;
+        const position = node.gameState;
+        const revision = analysisRevision;
+        const ownsPosition = (): boolean => {
+          const latest = get();
+          return generation === aiMoveGeneration && latest.currentNode.id === nodeId
+            && latest.currentNode.gameState === position && latest.currentPlayer === playerAtStart
+            && (force || (latest.isAiPlaying && latest.aiColor === playerAtStart));
+        };
 
 	      const parentBoard = node.parent?.gameState.board;
 	      const grandparentBoard = node.parent?.parent?.gameState.board;
@@ -4207,13 +4257,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }),
         })
         .then((analysis) => {
+          if (!ownsPosition() || revision !== analysisRevision) return;
           const engineInfo = getKataGoEngineClient().getEngineInfo();
           set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName, engineBackendNote: engineInfo.backendNote });
 
           const latest = get();
-          if (latest.currentNode.id !== nodeId) return;
-          if (latest.currentPlayer !== playerAtStart) return;
-          if (!force && (!latest.isAiPlaying || latest.aiColor !== playerAtStart)) return;
           const settings = latest.settings;
           const boardSize = getBoardSizeFromBoard(latest.board);
 
@@ -4878,19 +4926,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set((s) => ({ treeVersion: s.treeVersion + 1 }));
         })
         .catch((err) => {
+          if (!ownsPosition()) return;
           if (isAnalysisCanceled(err)) {
-            const latest = get();
-            if (latest.currentNode.id !== nodeId) return;
-            if (latest.currentPlayer !== playerAtStart) return;
-            if (!force && (!latest.isAiPlaying || latest.aiColor !== playerAtStart)) return;
+            // Preemption and model changes may need a fresh search, but only
+            // while this caller still owns this position. Stop and replacement
+            // requests invalidate ownership before the rejection arrives.
             retryScheduled = true;
-            setTimeout(() => latest.makeAiMove(force ? { force: true } : undefined), 100);
+            scheduleAiMoveTask(() => {
+              if (ownsPosition()) get().makeAiMove(force ? { force: true } : undefined);
+              else set({ isAiThinking: false });
+            }, 100, () => set({ isAiThinking: false }));
             return;
           }
-          makeHeuristicMove(get());
+          if (revision === analysisRevision) makeHeuristicMove(get());
         })
         .finally(() => {
-          if (!retryScheduled) set({ isAiThinking: false });
+          if (generation === aiMoveGeneration && !retryScheduled) set({ isAiThinking: false });
         });
   },
 
@@ -5618,6 +5669,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startNewGame: ({ komi, rules, boardSize, handicap }) => {
+    cancelAiMoveWork();
     const state = get();
     get().stopSelfplayToEnd();
     get().stopGameAnalysis();
@@ -5698,6 +5750,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   resetGame: () => {
+    cancelAiMoveWork();
     const state = get();
     get().stopSelfplayToEnd();
     get().stopGameAnalysis();
@@ -6177,7 +6230,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
            const ended = isPassMove(after.currentNode.move) && isPassMove(after.currentNode.parent?.move);
            if (ended) announceGameEnd(set);
            if (!ended && after.isAiPlaying && after.aiColor && after.currentPlayer === after.aiColor) {
-             setTimeout(() => after.makeAiMove(), 500);
+             after.scheduleAiMove(500);
            }
            if (after.isAnalysisMode && !after.isSelfplayToEnd) {
              scheduleAnalysis(() => void after.runAnalysis(), 0);
@@ -6213,12 +6266,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const ended = isPassMove(after.currentNode.move) && isPassMove(after.currentNode.parent?.move);
       if (ended) announceGameEnd(set);
       if (!ended && after.isAiPlaying && after.aiColor && after.currentPlayer === after.aiColor) {
-        setTimeout(() => after.makeAiMove(), 500);
+        after.scheduleAiMove(500);
       }
       if (after.isAnalysisMode && !after.isSelfplayToEnd) scheduleAnalysis(() => void after.runAnalysis(), 0);
   },
 
   resign: (player) => {
+    cancelAiMoveWork();
     const state = get();
     const endState = getResignResult(player ?? state.currentPlayer);
     state.currentNode.endState = endState;
