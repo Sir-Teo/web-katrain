@@ -43,9 +43,9 @@ describe('area score of a finished game', () => {
     setBoardSize(9);
     const stones = stonesFrom(SPLIT9);
     // 45 black points, 36 white points, komi 7 -> black by 2.
-    expect(terminalAreaScoreBlack(stones, 7)).toBeCloseTo(2, 9);
-    expect(terminalAreaScoreBlack(stones, 0)).toBeCloseTo(9, 9);
-    expect(terminalAreaScoreBlack(stones, 9)).toBeCloseTo(0, 9); // jigo
+    expect(terminalAreaScoreBlack(stones, 7, 'chinese')).toBeCloseTo(2, 9);
+    expect(terminalAreaScoreBlack(stones, 0, 'chinese')).toBeCloseTo(9, 9);
+    expect(terminalAreaScoreBlack(stones, 9, 'chinese')).toBeCloseTo(0, 9); // jigo
   });
 
   it('gives empty territory to the colour that surrounds it', () => {
@@ -64,7 +64,7 @@ describe('area score of a finished game', () => {
       ....X.O..
     `);
     // Black: 5 columns (4 empty + wall) = 45; white: 3 columns = 27; 9 neutral.
-    expect(terminalAreaScoreBlack(stones, 0)).toBeCloseTo(45 - 27, 9);
+    expect(terminalAreaScoreBlack(stones, 0, 'chinese')).toBeCloseTo(45 - 27, 9);
   });
 });
 

@@ -48,7 +48,7 @@ import {
   simpleRepetitionBoundGt,
 } from './graphHash';
 import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
-import { areaFeatureModeForRules, isSuicideLegal } from '../../utils/goRules';
+import { areaFeatureModeForRules, groupTaxPerRegion, isAreaScoring, isSuicideLegal, rulesOf } from '../../utils/goRules';
 import { POLICY_OPTIMISM, ROOT_POLICY_OPTIMISM } from './searchParams';
 
 export type OwnershipMode = 'none' | 'root' | 'tree';
@@ -1320,18 +1320,30 @@ function recomputeNodeStats(node: Node): void {
 }
 
 /**
- * The final score of a finished game, from black's perspective, under area scoring.
- * This is the ordinary area count: every stone, plus every empty point only one
- * colour can reach. Dead stones still on the board count for their owner, which is
- * exactly how KataGo scores a game that ended by two passes — and why the search
- * learns to capture them before passing.
+ * BoardHistory::countAreaScoreWhiteMinusBlack, from Black's perspective. Untaxed
+ * area rules use pass-alive area including remaining stones and large territories;
+ * taxed rules use independent life and apply their per-region group tax. Komi
+ * already includes any handicap compensation supplied by the caller.
  */
 export function terminalAreaScoreBlack(
   stones: Uint8Array,
   komi: number,
+  rules: GameRules,
   outOwnership?: Float32Array
 ): number {
-  const area = computeAreaMapV7KataGoInto(stones, new Uint8Array(BOARD_AREA));
+  if (!isAreaScoring(rules)) throw new Error('Exact terminal area scoring requires area rules');
+  const area = new Uint8Array(BOARD_AREA);
+  const multiStoneSuicideLegal = isSuicideLegal(rules);
+  let taxAdjustmentForBlack = 0;
+  if (rulesOf(rules).tax === 'none') {
+    computeAreaMapV7KataGoInto(stones, area, multiStoneSuicideLegal);
+  } else {
+    const life = computeIndependentLifeAreaInto(stones, area, {
+      keepStones: true,
+      isMultiStoneSuicideLegal: multiStoneSuicideLegal,
+    });
+    taxAdjustmentForBlack = groupTaxPerRegion(rules) * life.whiteMinusBlackIndependentLifeRegionCount;
+  }
   let black = 0;
   let white = 0;
   for (let p = 0; p < BOARD_AREA; p++) {
@@ -1340,7 +1352,7 @@ export function terminalAreaScoreBlack(
     else if (owner === WHITE) white++;
     if (outOwnership) outOwnership[p] = owner === BLACK ? 1 : owner === WHITE ? -1 : 0;
   }
-  return black - white - komi;
+  return black - white + taxAdjustmentForBlack - komi;
 }
 
 /**
@@ -1348,11 +1360,11 @@ export function terminalAreaScoreBlack(
  * value is 1, 0 or a half for a draw, and the score is the real score rather than
  * the network's guess (KataGo's Search::setTerminalValue).
  */
-function setNodeTerminalEval(node: Node, args: { stones: Uint8Array; komi: number; recentScoreCenter: number }): void {
+function setNodeTerminalEval(node: Node, args: { stones: Uint8Array; komi: number; rules: GameRules; recentScoreCenter: number }): void {
   // The ownership map is exact here too, so the territory overlay can show the
   // finished game rather than the network's guess about it.
   const ownership = new Float32Array(BOARD_AREA);
-  const score = terminalAreaScoreBlack(args.stones, args.komi, ownership);
+  const score = terminalAreaScoreBlack(args.stones, args.komi, args.rules, ownership);
   node.ownership = ownership;
   const blackWinProb = score > 0 ? 1 : score < 0 ? 0 : 0.5;
   node.isTerminal = true;
@@ -3414,13 +3426,6 @@ export class MctsSearch {
   };
   /** How often a transposition was found. Reported for tests and diagnostics. */
   private transpositionHits = 0;
-  /**
-   * Whether a game that ends inside the search gets its real score. Only area
-   * scoring can be counted straight off the board; territory rules need the dead
-   * stones agreed first, which is what KataGo's encore is for, so under those the
-   * network keeps judging the position as it does today.
-   */
-  private readonly scoreTerminalNodes: boolean;
   private readonly subtreeBiasTable = new SubtreeBiasTable();
   private readonly rootSymmetryPruning: boolean;
 
@@ -3518,7 +3523,6 @@ export class MctsSearch {
     this.rootPolicyTemperature = args.rootPolicyTemperature;
     this.rootPolicyTemperatureEarly = args.rootPolicyTemperatureEarly;
     this.resetGraphSearchState();
-    this.scoreTerminalNodes = args.rules === 'chinese';
   }
 
   /**
@@ -4017,6 +4021,9 @@ export class MctsSearch {
     const batchSize = Math.max(1, Math.min(args.batchSize, 64));
     const shouldAbort = args.shouldAbort;
     const multiStoneSuicideLegal = isSuicideLegal(this.rules);
+    // Territory scoring still needs dead-stone agreement or an encore; retain
+    // neural evaluation there until those endgame rules are implemented.
+    const scoreTerminalNodes = isAreaScoring(this.rules);
 
     if (shouldAbort?.()) return true;
     if (this.rootNode.visits >= maxVisits) return shouldAbort?.() ?? false;
@@ -4269,7 +4276,7 @@ export class MctsSearch {
               : this.rootMoves.length > 0
                 ? this.rootMoves[this.rootMoves.length - 1]!.move
                 : null;
-          const endsGame = this.scoreTerminalNodes && move === PASS_MOVE && previousMove === PASS_MOVE;
+          const endsGame = scoreTerminalNodes && move === PASS_MOVE && previousMove === PASS_MOVE;
 
           const childPlayer = opponentOf(player);
           consecutivePasses = move === PASS_MOVE ? consecutivePasses + 1 : 0;
@@ -4324,6 +4331,7 @@ export class MctsSearch {
             setNodeTerminalEval(node, {
               stones: sim.stones,
               komi: this.komi,
+              rules: this.rules,
               recentScoreCenter: this.recentScoreCenter,
             });
           }
