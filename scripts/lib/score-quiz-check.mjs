@@ -1,4 +1,4 @@
-import { evaluate, setViewport } from './browser.mjs';
+import { evaluate, loadedModuleUrl, setViewport } from './browser.mjs';
 
 // Mount the real dialog and defer engine responses to exercise ordering without
 // depending on model speed. These checks run as part of test:viewport.
@@ -8,14 +8,14 @@ export async function assertScoreQuizRequests(cdp) {
     { width: 320, height: 568, mobile: true },
   ]) {
     await setViewport(cdp, viewport);
-    const failures = await evaluate(cdp, `(${checkScoreQuiz.toString()})()`);
+    const failures = await evaluate(cdp, `(${checkScoreQuiz.toString()})(${loadedModuleUrl.toString()})`);
     if (failures.length) throw new Error(`Score quiz ${viewport.width}x${viewport.height}: ${failures.join('; ')}`);
   }
 }
 
-async function checkScoreQuiz() {
-  const { default: React } = await import('/node_modules/.vite/deps/react.js');
-  const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js');
+async function checkScoreQuiz(moduleUrl) {
+  const { default: React } = await import(moduleUrl('/deps/react.js'));
+  const { default: ReactDOM } = await import(moduleUrl('/deps/react-dom_client.js'));
   const { ScoreQuizModal } = await import('/src/components/ScoreQuizModal.tsx');
   const { useGameStore } = await import('/src/store/gameStore.ts');
   const { getKataGoEngineClient } = await import('/src/engine/katago/client.ts');

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createServer } from 'vite';
 import { assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
 import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
@@ -12,9 +13,9 @@ import {
   connectDevtools,
   evaluate,
   freePort,
+  navigate,
   setViewport,
   sleep,
-  waitForHttp,
 } from './lib/browser.mjs';
 
 /**
@@ -654,7 +655,7 @@ async function assertAutoSaveRecoveryFits(cdp, appUrl) {
       localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});
       return 1;
     })()`);
-    await cdp.send('Page.navigate', { url: appUrl });
+    await navigate(cdp, appUrl);
     await waitForBoard(cdp);
     await sleep(900);
 
@@ -741,7 +742,7 @@ async function assertPwaCardsClearTheBoard(cdp, appUrl) {
       // context `evaluate` is speaking to.
       await evaluate(cdp, `(() => { localStorage.removeItem('web-katrain:auto_saved_game:v1'); return 1; })()`)
         .catch(() => {});
-      await cdp.send('Page.navigate', { url: appUrl });
+      await navigate(cdp, appUrl);
       await waitForBoard(cdp);
       await evaluate(cdp, `(() => {
         // Phone shells open over the home overlay; the board is behind it.
@@ -938,17 +939,18 @@ async function main() {
 
   const appPort = await freePort();
   const devtoolsPort = await freePort();
-  const server = spawn(path.join('node_modules', '.bin', 'vite'), [
-    '--host',
-    '127.0.0.1',
-    '--port',
-    String(appPort),
-    '--strictPort',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
-
+  // A warm developer cache hid first-use worker dependency reloads in CI.
+  // Keep every run cold and independent of other dev servers and Chrome tabs.
+  // node_modules also keeps transformed dependency code out of React's plugin.
+  const runDir = fs.mkdtempSync(path.resolve('node_modules/.web-katrain-viewport-'));
+  let server;
   let chrome;
   try {
-    await waitForHttp(`http://127.0.0.1:${appPort}/`);
+    server = await createServer({
+      cacheDir: path.join(runDir, 'vite'),
+      server: { host: '127.0.0.1', port: appPort, strictPort: true },
+    });
+    await server.listen();
 
     // --no-sandbox and --disable-dev-shm-usage are the pair headless Chrome
     // needs on a CI runner: the sandbox cannot start in the container, and
@@ -966,6 +968,7 @@ async function main() {
       '--disable-gpu',
       '--no-first-run',
       '--no-default-browser-check',
+      `--user-data-dir=${path.join(runDir, 'chrome')}`,
       ...ciChromeFlags,
       `--remote-debugging-port=${devtoolsPort}`,
       '--window-size=1280,900',
@@ -997,10 +1000,7 @@ async function main() {
     // and the page is treated as background: measured here, it is false on a
     // local run too. Focus emulation makes it report as focused, which is what
     // a real browser tab does while someone is looking at it -- the state every
-    // assertion below is written about. It is also the standard remedy for
-    // "input stops reaching the app" on a runner, which is the symptom keeping
-    // this suite out of CI; whether it is *the* cause there is unverified, and
-    // the step below stays commented out until someone can watch a run.
+    // assertion below is written about.
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
     // Layout shift is the one kind of breakage the measurements below cannot
     // see: every box can be the right size and in the right place by the time
@@ -1065,7 +1065,7 @@ async function main() {
       const appUrl = `http://127.0.0.1:${appPort}/`;
       pageErrors = [];
       await setViewport(cdp, viewport);
-      await cdp.send('Page.navigate', { url: appUrl });
+      await navigate(cdp, appUrl);
       await waitForBoard(cdp);
       // Each viewport has to start from a clean slate. The previous pass edits
       // the game, so its auto-save debounce can land after we navigate away —
@@ -1080,7 +1080,7 @@ async function main() {
         return had;
       })()`);
       if (hadAutoSave) {
-        await cdp.send('Page.navigate', { url: appUrl });
+        await navigate(cdp, appUrl);
         await waitForBoard(cdp);
       }
       const opensPanels = !viewport.mobile
@@ -1091,7 +1091,7 @@ async function main() {
           localStorage.setItem('web-katrain:library_open:v1', 'true');
           localStorage.setItem('web-katrain:sidebar_open:v1', 'true');
         })()`);
-        await cdp.send('Page.navigate', { url: appUrl });
+        await navigate(cdp, appUrl);
         await waitForBoard(cdp);
       }
       await evaluate(cdp, `(() => {
@@ -2389,10 +2389,10 @@ async function main() {
           // The banner renders at every viewport, so measure it on desktop too:
           // the last of the mobile-only audits without a counterpart.
           const subMinimumTargets = [];
-          const waitForBanner = async () => {
+          const waitForBanner = async (requireVisible = true) => {
             for (let i = 0; i < 30; i++) {
               const banner = document.querySelector('.pwa-install-banner');
-              if (banner && isVisibleBox(banner)) return banner;
+              if (banner && (!requireVisible || isVisibleBox(banner))) return banner;
               await waitForFrames(1);
             }
             return null;
@@ -2425,7 +2425,10 @@ async function main() {
            * Dismissing it is what a person on that iPad would do, and it sets
            * the dismissed flag so it does not come back mid-run.
            */
-          const preexisting = await waitForBanner();
+          // On a fresh desktop profile Chrome can offer installation while
+          // the first-game rail hides that promo. It still owns the banner
+          // state, so clear it before injecting the offline-ready event too.
+          const preexisting = await waitForBanner(false);
           if (preexisting) {
             const dismissPreexisting = findButtonByLabel('Dismiss', preexisting);
             if (dismissPreexisting) {
@@ -2473,7 +2476,13 @@ async function main() {
           }
 
           if (!banner) {
-            failures.push('offline-ready banner missing');
+            const card = document.querySelector('.pwa-install-banner');
+            failures.push('offline-ready banner missing: ' + JSON.stringify({
+              cardPresent: !!card,
+              display: card ? getComputedStyle(card).display : null,
+              state: document.documentElement.dataset.pwaBanner,
+              toasts: Array.from(document.querySelectorAll('.notification-toast')).map((el) => el.textContent),
+            }));
             return { failures, smallTouchTargets, subMinimumTargets };
           }
           if (document.documentElement.getAttribute('data-pwa-banner') !== 'offline-ready') {
@@ -4077,8 +4086,13 @@ async function main() {
       console.log(`${result.viewport}: board ${Math.round(board.width)}x${Math.round(board.height)}`);
     }
   } finally {
-    chrome?.kill('SIGTERM');
-    server.kill('SIGTERM');
+    if (chrome?.pid && chrome.exitCode === null && chrome.signalCode === null) {
+      const closed = new Promise((resolve) => chrome.once('exit', resolve));
+      chrome.kill('SIGTERM');
+      await closed;
+    }
+    await server?.close();
+    fs.rmSync(runDir, { recursive: true, force: true });
   }
 }
 

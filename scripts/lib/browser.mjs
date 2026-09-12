@@ -258,27 +258,51 @@ export async function chromeTarget(port) {
   throw new Error('Timed out waiting for Chrome devtools target');
 }
 
-/**
- * `Inspected target navigated or closed` is CDP telling us the execution
- * context was torn down underneath the call -- a navigation that had not
- * finished settling when the next evaluate went out. It is transient by
- * definition: the page is on its way to a new context, not broken.
- *
- * This never fires on a developer machine, where navigation completes long
- * before the next poll. It failed a CI run at evaluation 56 of a viewport
- * sweep that does eight navigations. Retrying briefly is the fix; failing on
- * it is not, and neither is ignoring a reply with no result, which is what a
- * dead browser looks like and must still be fatal.
- */
-const TRANSIENT_CDP_MESSAGE = 'Inspected target navigated or closed';
+// Page.navigate acknowledges the request before the new document commits.
+// Match DOMContentLoaded to its loader ID so readiness probes cannot inspect
+// the previous board. Subscribe before navigating: events can precede replies.
+export async function navigate(cdp, url, timeoutMs = 15000) {
+  await cdp.send('Page.enable');
+  await cdp.send('Page.setLifecycleEventsEnabled', { enabled: true });
+  const loaded = new Set();
+  let navigation;
+  let complete;
+  let timer;
+  const ready = new Promise((resolve, reject) => {
+    complete = resolve;
+    timer = setTimeout(() => reject(new Error(`Navigation did not reach DOMContentLoaded: ${url}`)), timeoutMs);
+  });
+  // Observe a rejection even if Chrome has not yet acknowledged Page.navigate.
+  // A deadline reports the failure; it never reloads the page or reruns input.
+  ready.catch(() => {});
+  const unsubscribe = cdp.on((message) => {
+    if (message.method !== 'Page.lifecycleEvent' || message.params?.name !== 'DOMContentLoaded') return;
+    const key = `${message.params.frameId}:${message.params.loaderId}`;
+    loaded.add(key);
+    if (navigation && key === `${navigation.frameId}:${navigation.loaderId}`) complete();
+  });
+  try {
+    const response = await Promise.race([cdp.send('Page.navigate', { url }), ready]);
+    if (response?.error || response?.result?.errorText || !response?.result) {
+      throw new Error(`Navigation failed for ${url}: ${JSON.stringify(response)}`);
+    }
+    navigation = response.result;
+    if (navigation.isDownload) throw new Error(`Expected a page, received a download: ${url}`);
+    // A fragment navigation stays in the current document and has no loader ID.
+    if (!navigation.loaderId || loaded.has(`${navigation.frameId}:${navigation.loaderId}`)) complete();
+    await ready;
+  } finally {
+    clearTimeout(timer);
+    unsubscribe();
+  }
+}
 
-export async function evaluate(cdp, expression, attempt = 0) {
+export async function evaluate(cdp, expression) {
   const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
 
-  if (response?.error?.message?.includes(TRANSIENT_CDP_MESSAGE) && attempt < 10) {
-    await sleep(250);
-    return evaluate(cdp, expression, attempt + 1);
-  }
+  // Expressions can click controls or write data. Replaying an interrupted
+  // expression in a fresh, uninitialized document duplicates those actions
+  // and can turn a navigation race into misleading missing-control failures.
 
   // A reply with no `result` means the call itself failed rather than the
   // expression -- almost always because Chrome died. Saying so beats
@@ -286,11 +310,22 @@ export async function evaluate(cdp, expression, attempt = 0) {
   // which is what a CI runner reported before this existed.
   if (!response || !response.result) {
     throw new Error(
-      `Runtime.evaluate returned no result (Chrome likely exited). Reply: ${JSON.stringify(response)?.slice(0, 300)}`,
+      `Runtime.evaluate failed; the expression was not retried. Reply: ${JSON.stringify(response)?.slice(0, 300)}`,
     );
   }
   if (response.result.exceptionDetails) {
-    throw new Error(response.result.exceptionDetails.text ?? 'Runtime evaluation failed');
+    const details = response.result.exceptionDetails;
+    throw new Error(details.exception?.description ?? details.text ?? 'Runtime evaluation failed');
   }
   return response.result.result.value;
+}
+
+// Serialized into browser probes that mount real components. Reuse the page's
+// optimized React instance: a hardcoded .vite path can load a second runtime
+// when the server has an isolated cache, breaking hooks in the mounted dialog.
+export function loadedModuleUrl(pathSuffix) {
+  const resource = performance.getEntriesByType('resource').findLast((entry) =>
+    new URL(entry.name).pathname.endsWith(pathSuffix));
+  if (!resource) throw new Error(`Loaded module was not recorded: ${pathSuffix}`);
+  return resource.name;
 }

@@ -63,44 +63,17 @@ jobs:
       - name: Verify
         run: npm run verify
 
-      # STILL NOT WIRED UP. This repo's only browser-level suite, and the one
-      # thing in these three repos that is not covered by CI. Both siblings run
-      # theirs here.
-      #
-      # Four attempts, three causes found and fixed in check-viewports.mjs:
-      # Chrome could not start its sandbox; a CDP evaluate lost its execution
-      # context to an in-flight navigation; several waits counted frames or
-      # slept a flat 300ms instead of waiting for the thing they wanted. Those
-      # fixes are real and are staying.
-      #
-      # What is left is undiagnosed. On a runner, at 768x1024 -- the first
-      # mobile viewport -- input stops reaching the app: F11 does not trigger
-      # the fullscreen handler, shortcut-opened dialogs never open, and the
-      # board then measures as missing because the QA interactions before it
-      # left the page in a state the sweep did not expect. It does not
-      # reproduce locally: unthrottled and 4x CPU throttling pass reliably, and
-      # at 6x a different thing fails first (the photo board's lazy chunk).
-      #
-      # Two data points since, neither a fix:
-      #
-      # The page is unfocused in headless -- `document.hasFocus()` is false on a
-      # local run too -- so `Emulation.setFocusEmulationEnabled` is now on in
-      # check-viewports.mjs. That is the usual remedy for input not reaching a
-      # headless page, it costs nothing locally (the suite still passes), and it
-      # is worth trying a run with this step uncommented to see. It is not known
-      # to be the cause.
-      #
-      # The 6x throttle does not reproduce the runner at all: it gets to the
-      # last viewport (1440x900) and fails on lazily-loaded dialogs, not at
-      # 768x1024. Those waits are already condition-based with two attempts and
-      # a 4s then 10s timeout, so slowness alone is not what the runner hits.
-      #
-      # Reproduce a runner with: VIEWPORT_CPU_THROTTLE=6 npm run test:viewport
-      # Run it normally with:    npm run test:viewport   (about a minute)
-      #
-      # It stays out of CI until it can pass, because a permanently red badge
-      # gets ignored and then stops meaning anything. That is a real gap, not a
-      # decision anyone should be comfortable with.
-      #
-      # - name: Viewport and interaction checks
-      #   run: npm run test:viewport
+      # A fresh cache reproduces first-use worker dependency reloads; never
+      # depend on a developer's already-optimized Vite cache for this check.
+      - name: Viewport and interaction checks
+        id: viewport
+        run: npm run test:viewport
+
+      - name: Keep failed viewport screenshots
+        if: failure() && steps.viewport.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: viewport-screenshots
+          path: /tmp/web-katrain-viewport-check
+          if-no-files-found: ignore
+          retention-days: 7

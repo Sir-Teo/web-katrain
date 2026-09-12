@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { chromePath, chromeTarget, connectDevtools, evaluate, freePort, setViewport, sleep, waitForHttp } from './lib/browser.mjs';
+import { chromePath, chromeTarget, connectDevtools, evaluate, freePort, navigate, setViewport, sleep, waitForHttp } from './lib/browser.mjs';
 
 // Measures synchronous study operations in a real browser, using the dev store
 // to construct repeatable fixtures. These are not production INP measurements;
@@ -27,7 +27,7 @@ async function main() {
     cdp = connectDevtools(await chromeTarget(devtoolsPort));
     await cdp.ready;
     await setViewport(cdp, { width: 1280, height: 800, mobile: false });
-    await cdp.send('Page.navigate', { url: `http://127.0.0.1:${appPort}/` });
+    await navigate(cdp, `http://127.0.0.1:${appPort}/`);
     for (let i = 0; i < 100; i++) {
       if (await evaluate(cdp, `!!document.querySelector('[data-board-snapshot="true"]')`)) break;
       await sleep(100);

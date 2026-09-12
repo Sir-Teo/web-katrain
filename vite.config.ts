@@ -152,6 +152,12 @@ function preloadDesktopShellPlugin(): Plugin {
 export default defineConfig({
   base,
   plugins: [react(), tailwindcss(), versionMetadataPlugin(), preloadDesktopShellPlugin()],
+  // These imports live behind the analysis worker, outside the initial HTML
+  // scan. Discovering them on the first Analyze click rebuilt shared chunks
+  // and reloaded the page, interrupting the game and the cold-cache browser QA.
+  optimizeDeps: {
+    include: ['@tensorflow/tfjs', '@tensorflow/tfjs-backend-webgpu', '@tensorflow/tfjs-backend-wasm'],
+  },
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
     __APP_COMMIT__: JSON.stringify(appCommit),

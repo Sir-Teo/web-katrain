@@ -7,6 +7,7 @@ import {
   connectDevtools,
   evaluate,
   freePort,
+  navigate,
   setViewport,
   sleep,
   waitForHttp,
@@ -88,7 +89,7 @@ async function main() {
       console.log(`CPU throttled ${rate}x`);
     }
     await setViewport(cdp, { width: 1280, height: 800, mobile: false });
-    await cdp.send('Page.navigate', { url: `http://127.0.0.1:${appPort}/` });
+    await navigate(cdp, `http://127.0.0.1:${appPort}/`);
     await sleep(2000);
     // A previous run's auto-save would otherwise sit over the app.
     await evaluate(cdp, `(() => {

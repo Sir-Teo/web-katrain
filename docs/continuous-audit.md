@@ -17,6 +17,7 @@ reproduced failures separate from candidates that still need investigation.
 | Library ZIP exports | Different folders with the same name merged on re-import. Slashes in names changed hierarchy, and reserved names could make games disappear. Exports now allocate distinct paths by folder ID, reserve directories before files, and traverse selected descendants using a parent index. | Five failing archive regressions turned green. Chrome preserved two same-named folders through export/import. Selecting 10,000 short games blocked synchronously for 201.13 ms before the fix and 28.81 ms after it; total ZIP generation measured 729.39 ms → 450.93 ms. |
 | Beginner lessons | Lessons were hidden from the start screen, and correct answers displayed a success message without changing the diagram. Learn Go now opens lessons from desktop and phone start screens; correct answers place a stone and apply captures. Advancing to an exercise now focuses its board instead of losing focus when Next becomes disabled. | Real pointer capture exercises passed at 1440×900, 1024×500, 390×844, 320×568, and 568×320. The captured white stone disappears, the black stone appears, and the main game remains unchanged. Phone users return to Home after closing lessons. The viewport suite now checks solved lesson diagrams, step focus, and feedback contrast. |
 | Deep branch editing | Copying, pasting, and rebuilding setup stones overflowed the call stack on a long study. A failed setup edit could leave the stored root changed while the displayed board stayed unchanged. All four recursive clipboard/replay walks now use explicit stacks and reuse immutable positions for comment nodes. | All three operations failed on a 12,000-comment Chrome fixture before the fix. They completed in about 1.7 ms, 3.8 ms, and 6.3 ms after it. Regression tests cover every comment, sibling order, legal-move pruning, parent links, and undo/redo. `test:study` now exercises the complete branch workflow. |
+| First-analysis reload and browser QA | A cold development server discovered TensorFlow's worker dependencies only when analysis started, rebuilt shared chunks, and reloaded the app. The QA helper silently replayed the interrupted test in an empty document. Vite now prepares those dependencies at startup; browser navigation waits for the requested document and never replays interrupted actions. | An isolated cold cache reproduced the exact 768×1024 failure recorded in CI. Server logs identified all three TensorFlow dependencies, then a reload and a replayed probe before the new UI mounted. Nine helper regressions cover navigation ordering, failures, deadlines, and preserving exceptions. The viewport suite now uses an isolated profile and a fresh dependency cache on every run, and the CI step is enabled with failure screenshots. |
 
 Position sharing relies on the store's existing invariant: board edits, replay,
 and komi changes replace `gameState` and its arrays. Do not mutate a stored
@@ -29,7 +30,7 @@ do not change that storage contract.
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
-the deep branch editing follow-up, `npm run verify` passed 2,409 tests, with the same skip,
+the navigation and cold-cache QA follow-up, `npm run verify` passed 2,418 tests, with the same skip,
 plus app/test typechecks, lint, and the production build. `npm audit` reported
 zero vulnerabilities in the lockfile dependency graph on 2026-09-12.
 
@@ -41,7 +42,20 @@ reported no invalid top-level dependencies.
 Every code commit was followed by the existing Chrome viewport suite. All 11
 sizes passed: 1280×800, 1024×768, 1024×500, 768×1024, 390×844, 360×800,
 320×568, 844×390, 568×320, 1280×460, and 1440×900. Screenshots were visually
-inspected for desktop, phone drawing tools, and the phone review notice.
+inspected for desktop, phone drawing tools, the phone review notice, beginner
+lessons, and deep branch editing. Deep copy/paste/setup/undo/redo also passed
+through real pointer controls at 1440×900 and 390×844.
+
+The first viewport run after refreshing dependencies reproduced a failure at
+768×1024. A cold-cache diagnostic traced it to a Vite worker dependency reload,
+followed by the helper replaying the interrupted test before React mounted.
+Warm-cache runs had hidden it. Fresh browser profiles also exposed a QA setup
+error: the test ignored an existing install banner hidden by the start screen,
+then expected an offline-ready event to replace that occupied slot. The setup
+now dismisses an existing banner whether or not the start screen hides it.
+Component probes also resolve the page's actual React runtime instead of
+hardcoding a default Vite cache path. The complete cold-cache sweep now passes,
+including score-quiz request ordering and real touch scrolling of static boards.
 
 Production response checks after `dbcdb55` measured:
 
@@ -87,7 +101,7 @@ after a setup edit, and checks that displayed and stored positions agree.
 
 | Priority | Finding or opportunity | Evidence and next step |
 | --- | --- | --- |
-| High | Browser checks are disabled in CI. | `.github/workflows/ci.yml` contains a commented-out viewport step and records unresolved Linux input failures. Reproduce with an isolated browser profile and per-scenario diagnostics, then enable a dependable subset before the full sweep. Local green results do not close this gap. |
+| High | Confirm the restored browser gate on Linux CI. | The formerly recorded first-mobile failure now reproduces locally with a cold cache and has a traced cause and fix. The full viewport gate is enabled with failure screenshots. These local commits have not been pushed, so a GitHub-hosted run of the fix remains unverified. |
 | High | More tree operations still depend on recursion. | Branch clipboard copy/count/paste and descendant replay are now iterative, following reproduced failures. Solution-path search in `problemMode.ts` and nested-variation parsing in `sgf.ts` remain candidates to reproduce with deep fixtures. Preserve pruning and sibling ordering when replacing traversal. |
 | High | Professional engine validation needs broader evidence. | The bundled model comes from KataGo's test fixtures. Existing golden/invariant tests are useful but do not prove b18 search equivalence across all supported rules and endgames. Add reference positions for stronger weights, ko/superko, seki, pass handling, and handicap compensation. |
 | High | Analysis provenance is not carried comprehensively through imported records and reports. | `AnalysisResult` exposes evaluation data without model/search identity. The undo revision fix prevents one stale-data path, but imported external analysis can still have unknown provenance. Design explicit origin, model, and settings metadata before presenting mixed-source comparisons as equivalent. |

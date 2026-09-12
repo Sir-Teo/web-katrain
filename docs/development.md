@@ -25,11 +25,11 @@ The Vite dev server sends the COOP/COEP headers required for threaded WASM.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start Vite. Runs `copy:tfjs-wasm` and `fetch:model` first. |
-| `npm run verify` | **The one to run before pushing.** typecheck → test:typecheck → lint → test → build, with npm's `&&` so the first failure stops it. Mirrors CI, minus `npm audit` so it works offline. |
+| `npm run verify` | **The one to run before pushing.** typecheck → test:typecheck → lint → test → build, with npm's `&&` so the first failure stops it. Runs the code checks used in CI; `npm audit` and the browser viewport suite run separately. |
 | `npm test` | Run all Vitest tests. Note this typechecks nothing — Vitest transpiles without checking, so a test can pass while failing to compile. With `CI` set, the 71 tests that run a real MCTS search are skipped: seconds locally, minutes on a shared runner. `ENGINE_TESTS=1 npm test` runs them regardless. |
 | `npm run typecheck` | Type-check the app and node projects. It runs `tsc -b`, and it has to: the root `tsconfig.json` has `"files": []` and only references the two project configs, so a bare `tsc --noEmit` here type-checks nothing at all and exits 0. |
 | `npm run test:typecheck` | Type-check the test project. |
-| `npm run test:viewport` | Serve the app with Vite and smoke-test key desktop/mobile viewports in Chrome. Drives a real browser. Not in `verify` or CI — reach for it after a layout, breakpoint or board-sizing change, where it is the only thing that would catch a regression. |
+| `npm run test:viewport` | Check 11 desktop/mobile sizes and study workflows in Chrome with a fresh Vite cache and browser profile. Runs in CI and separately from `verify`; about 3 minutes locally. |
 | `npm run test:responsiveness` | Measure how fast the app answers a click: first board move, board-move median, warm dialog open, INP p98, worst long task. **~15s**. Needs a current `npm run build` — it measures `dist/` through `vite preview` and refuses to fall back to dev, where React's instrumentation changes the numbers by an order of magnitude. Not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run test:study` | Reproduce the large-study regressions in Chrome: five marker edits on a 2,001-node game, then export and reparse 12,000 study comments. Uses a temporary browser profile and the dev store; reports operation timings, not production INP. Not in `verify` or CI. |
@@ -85,14 +85,15 @@ npm run lint
 npm run build
 ```
 
-Two checks drive a real Chrome and are in neither `verify` nor CI, so they only
-run when someone reaches for them. Between them they cover what the Vitest suite
-structurally cannot — where things end up on screen, and how quickly they answer:
+Browser checks cover rendered layout, real interactions, and study operations.
+The viewport suite runs in CI; responsiveness and study benchmarks run locally.
+All three run separately from `verify`:
 
 ```sh
 npm run test:viewport         # layout, breakpoints, board sizing, contrast
 npm run build                 # test:responsiveness measures dist/, not dev
 npm run test:responsiveness   # click-to-response budgets
+npm run test:study            # deep branch correctness and operation timings
 ```
 
 Reach for `test:viewport` after a layout, breakpoint or board-sizing change, and
@@ -111,7 +112,11 @@ CHROME_PATH=/path/to/chrome npm run test:viewport
 ```
 
 Viewport screenshots go to `/tmp/web-katrain-viewport-check` unless
-`VIEWPORT_SCREENSHOT_DIR` is set.
+`VIEWPORT_SCREENSHOT_DIR` is set. CI uploads them on viewport failure. Each
+viewport run prepares its own cold dependency cache under `node_modules`, so
+first-use analysis must work without a development-server reload. Navigation
+waits for the requested document; interrupted interaction expressions fail
+instead of being silently replayed.
 
 ## Local Storage During Development
 

@@ -1,4 +1,4 @@
-import { evaluate, setViewport, sleep } from './browser.mjs';
+import { evaluate, loadedModuleUrl, setViewport, sleep } from './browser.mjs';
 
 // Send a real touch gesture: programmatically setting scrollTop would pass even
 // when touch-action:none makes the preview impossible to scroll with a finger.
@@ -10,8 +10,9 @@ export async function assertStaticBoardScroll(cdp) {
     await setViewport(cdp, viewport);
     try {
       const point = await evaluate(cdp, `(async () => {
-        const { default: React } = await import('/node_modules/.vite/deps/react.js');
-        const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js');
+        const moduleUrl = ${loadedModuleUrl.toString()};
+        const { default: React } = await import(moduleUrl('/deps/react.js'));
+        const { default: ReactDOM } = await import(moduleUrl('/deps/react-dom_client.js'));
         const { StaticBoard } = await import('/src/components/StaticBoard.tsx');
         const host = document.createElement('div');
         host.dataset.staticBoardScrollCheck = 'true';
