@@ -3466,17 +3466,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
             if (!isCurrent && !isFinal && !shouldBumpTree) return;
 
-            const engineInfo = isFinal ? getKataGoEngineClient().getEngineInfo() : null;
+            // A valid progress result proves the model is loaded. Waiting for
+            // completion left “Loading model” beside live evaluations for the
+            // entire first deep search, and hid the active fallback backend.
+            const engineInfo = getKataGoEngineClient().getEngineInfo();
             set((s) => {
-              const next: Partial<GameStore> = {};
+              const next: Partial<GameStore> = {
+                engineStatus: 'ready',
+                engineError: null,
+                engineBackend: engineInfo.backend,
+                engineModelName: engineInfo.modelName,
+                engineBackendNote: engineInfo.backendNote,
+              };
               if (isCurrent) next.analysisData = analysisWithTerritory;
-              if (isFinal && engineInfo) {
-                next.engineStatus = 'ready';
-                next.engineError = null;
-                next.engineBackend = engineInfo.backend;
-                next.engineModelName = engineInfo.modelName;
-                next.engineBackendNote = engineInfo.backendNote;
-              }
               if (shouldBumpTree) next.treeVersion = s.treeVersion + 1;
               if (isFinal) next.analysisCacheSize = getAnalysisCacheSize(s.rootNode);
               return next;

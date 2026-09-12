@@ -129,6 +129,13 @@ async function main() {
     await clickAt(analyze);
     let first = await wait('auditResponses.find(r => r.type === "katago:analyze_update" && r.ok && r.visits > 0)');
     assert.equal(first.backend, 'wasm');
+    await wait(`(() => {
+      const best = document.querySelector('.cb-metric .v.best');
+      return best?.textContent && best.textContent !== '—';
+    })()`);
+    assert.equal(await evaluate(cdp, 'document.querySelector("#wk-engine-pill-label")?.textContent'),
+      'Analyzing…', 'Live evaluation must not be labeled as model loading');
+    await screenshot('first-progress');
     const stopAt = await evaluate(cdp, 'performance.now()');
     for (const type of ['keyDown', 'keyUp']) {
       await cdp.send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
