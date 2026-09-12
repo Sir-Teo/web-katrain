@@ -72,7 +72,7 @@ async function main() {
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
       localStorage.setItem('web-katrain:settings:v3', JSON.stringify({
         katagoVisits: 50000, katagoFastVisits: 50000, katagoMaxTimeMs: 8000,
-        katagoBackend: 'wasm', soundEnabled: false,
+        katagoBackend: 'wasm', soundEnabled: false, loadSgfFastAnalysis: false,
         gameRules: ${JSON.stringify(gameRules)},
       }));
       localStorage.setItem('web-katrain:library_open:v1', 'false');

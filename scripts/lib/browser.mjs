@@ -261,28 +261,52 @@ export async function chromeTarget(port) {
 // Page.navigate acknowledges the request before the new document commits.
 // Match DOMContentLoaded to its loader ID so readiness probes cannot inspect
 // the previous board. Subscribe before navigating: events can precede replies.
-export async function navigate(cdp, url, timeoutMs = 15000) {
-  await cdp.send('Page.enable');
-  await cdp.send('Page.setLifecycleEventsEnabled', { enabled: true });
+export async function navigate(cdp, url, timeoutMs = 15000, { acceptBeforeUnload = false } = {}) {
   const loaded = new Set();
   let navigation;
   let complete;
+  let fail;
+  let blockedByDialog;
+  let handlingDialog;
   let timer;
   const ready = new Promise((resolve, reject) => {
     complete = resolve;
+    fail = reject;
     timer = setTimeout(() => reject(new Error(`Navigation did not reach DOMContentLoaded: ${url}`)), timeoutMs);
   });
   // Observe a rejection even if Chrome has not yet acknowledged Page.navigate.
   // A deadline reports the failure; it never reloads the page or reruns input.
   ready.catch(() => {});
   const unsubscribe = cdp.on((message) => {
+    if (message.method === 'Page.javascriptDialogOpening') {
+      // A beforeunload confirmation pauses navigation and renderer evaluation.
+      // Keep the page unless the caller explicitly allows discarding its fixture.
+      // Other dialogs remain failures even when beforeunload is allowed.
+      const type = message.params.type;
+      const accept = type === 'beforeunload' && acceptBeforeUnload;
+      if (!accept) blockedByDialog = new Error(`Navigation blocked by ${type} dialog`);
+      handlingDialog = Promise.resolve().then(async () => {
+        const response = await cdp.send('Page.handleJavaScriptDialog', { accept });
+        if (response?.error || !response?.result) {
+          throw new Error(`Could not handle ${type} dialog: ${JSON.stringify(response)}`);
+        }
+        if (!accept) throw blockedByDialog;
+      });
+      handlingDialog.catch(fail);
+      return;
+    }
     if (message.method !== 'Page.lifecycleEvent' || message.params?.name !== 'DOMContentLoaded') return;
     const key = `${message.params.frameId}:${message.params.loaderId}`;
     loaded.add(key);
     if (navigation && key === `${navigation.frameId}:${navigation.loaderId}`) complete();
   });
   try {
+    // Setup can also stall when Chrome is waiting for a dialog. The same
+    // deadline covers it, without retrying navigation or replaying page actions.
+    await Promise.race([cdp.send('Page.enable'), ready]);
+    await Promise.race([cdp.send('Page.setLifecycleEventsEnabled', { enabled: true }), ready]);
     const response = await Promise.race([cdp.send('Page.navigate', { url }), ready]);
+    if (blockedByDialog) await Promise.race([handlingDialog, ready]);
     if (response?.error || response?.result?.errorText || !response?.result) {
       throw new Error(`Navigation failed for ${url}: ${JSON.stringify(response)}`);
     }

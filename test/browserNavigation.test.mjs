@@ -12,6 +12,11 @@ function protocol(navigation) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    dialog(type) {
+      for (const listener of listeners) listener({
+        method: 'Page.javascriptDialogOpening', params: { type, message: 'fixture dialog' },
+      });
+    },
     loaded(frameId, loaderId) {
       for (const listener of listeners) listener({
         method: 'Page.lifecycleEvent', params: { name: 'DOMContentLoaded', frameId, loaderId },
@@ -69,6 +74,62 @@ describe('browser navigation readiness', () => {
     await vi.advanceTimersByTimeAsync(100);
     await pending;
     expect(cdp.send.mock.calls.filter(([method]) => method === 'Page.navigate')).toHaveLength(1);
+    expect(cdp.listeners.size).toBe(0);
+  });
+
+  it.each(['Page.enable', 'Page.setLifecycleEventsEnabled'])('bounds stalled setup at %s', async (stalledMethod) => {
+    vi.useFakeTimers();
+    const cdp = protocol(() => ({ result: { frameId: 'main', loaderId: 'new' } }));
+    cdp.send.mockImplementation(async (method) => method === stalledMethod ? new Promise(() => {}) : { result: {} });
+    let failure;
+    void navigate(cdp, 'http://example.test/', 100).catch(error => { failure = error; });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(failure?.message).toContain('DOMContentLoaded');
+    expect(cdp.listeners.size).toBe(0);
+    expect(cdp.send.mock.calls.some(([method]) => method === 'Page.navigate')).toBe(false);
+  });
+
+  it.each([
+    ['beforeunload', false], ['confirm', true], ['alert', true],
+  ])('dismisses unexpected %s and reports blocked navigation', async (type, acceptBeforeUnload) => {
+    vi.useFakeTimers();
+    const cdp = protocol(() => new Promise(() => {}));
+    const pending = expect(navigate(cdp, 'http://example.test/', 100, { acceptBeforeUnload })).rejects.toThrow(type);
+    await vi.advanceTimersByTimeAsync(0);
+    cdp.dialog(type);
+    await vi.advanceTimersByTimeAsync(100);
+    await pending;
+    expect(cdp.send).toHaveBeenCalledWith('Page.handleJavaScriptDialog', { accept: false });
+    expect(cdp.send.mock.calls.filter(([method]) => method === 'Page.navigate')).toHaveLength(1);
+    expect(cdp.listeners.size).toBe(0);
+  });
+
+  it('accepts beforeunload only when requested and still waits for the new document', async () => {
+    vi.useFakeTimers();
+    const cdp = protocol(() => ({ result: { frameId: 'main', loaderId: 'new' } }));
+    let finished = false;
+    const pending = navigate(cdp, 'http://example.test/', 100, { acceptBeforeUnload: true }).then(() => { finished = true; });
+    await vi.advanceTimersByTimeAsync(0);
+    cdp.dialog('beforeunload');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(finished).toBe(false);
+    cdp.loaded('main', 'new');
+    await pending;
+    expect(cdp.send).toHaveBeenCalledWith('Page.handleJavaScriptDialog', { accept: true });
+    expect(cdp.listeners.size).toBe(0);
+  });
+
+  it('reports a failed dialog response instead of waiting for navigation forever', async () => {
+    vi.useFakeTimers();
+    const cdp = protocol(() => new Promise(() => {}));
+    const send = cdp.send.getMockImplementation();
+    cdp.send.mockImplementation((method, params) => method === 'Page.handleJavaScriptDialog'
+      ? Promise.resolve({ error: { message: 'No dialog is showing' } }) : send(method, params));
+    const pending = expect(navigate(cdp, 'http://example.test/', 100, { acceptBeforeUnload: true })).rejects.toThrow('No dialog is showing');
+    await vi.advanceTimersByTimeAsync(0);
+    cdp.dialog('beforeunload');
+    await vi.advanceTimersByTimeAsync(100);
+    await pending;
     expect(cdp.listeners.size).toBe(0);
   });
 

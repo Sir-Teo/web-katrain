@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { evaluate, setViewport, sleep } from './browser.mjs';
+import { assertUnsavedNavigation } from './unsaved-navigation-check.mjs';
 
 // Uses the real worker instrumentation installed by test:analysis. Complete a
 // warm-up move, stop a second search in flight, then finish a fresh move. The
@@ -111,6 +112,7 @@ export async function assertAiMoveCancellation(cdp, outputDir) {
       reports.push({ width, height, canceledAfterInputMs, warmVisits: warm.visits, freshVisits: fresh.visits,
         ...await evaluate(cdp, '({requests:auditRequests,responses:auditResponses})') });
       console.log(`AI move at ${width}x${height}: warm move, Stop, no retry, and fresh move passed.`);
+      await assertUnsavedNavigation(cdp, await evaluate(cdp, 'location.href'), outputDir, { width, height });
     } catch (error) {
       await screenshot(`${width}x${height}-ai-failure`);
       fs.writeFileSync(path.join(outputDir, `${width}x${height}-ai-failure.json`), JSON.stringify(
