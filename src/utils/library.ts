@@ -800,9 +800,17 @@ export const duplicateLibraryItem = (
     idMap.set(item.id, newId);
     duplicatedIds.push(newId);
     if (isLibraryFile(item)) {
+      // A saved record also contains tags, favorites, and metadata that may
+      // not be present in its SGF. Preserve it without reparsing unchanged SGF.
       return {
-        ...createLibraryItem(name, item.sgf, parentId, timestamp),
+        ...item,
         id: newId,
+        name,
+        parentId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        metadata: { ...item.metadata },
+        ...(item.tags ? { tags: [...item.tags] } : {}),
       };
     }
     return {
