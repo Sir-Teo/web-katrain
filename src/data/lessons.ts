@@ -1,5 +1,6 @@
-import type { BoardState } from '../types';
+import type { BoardState, Player } from '../types';
 import type { StaticBoardMarker } from '../components/StaticBoard';
+import { applyCapturesInPlace } from '../utils/gameLogic';
 
 /**
  * Build a square board from an ASCII diagram. Each row must have the same
@@ -22,6 +23,8 @@ export interface LessonStep {
   markers?: StaticBoardMarker[];
   /** Interactive step: clicking one of these intersections is correct. */
   answers?: Array<{ x: number; y: number }>;
+  /** The color played by an interactive answer. Existing lessons use Black. */
+  toPlay?: Player;
   successText?: string;
   hint?: string;
 }
@@ -33,6 +36,16 @@ export interface Lesson {
   summary: string;
   steps: LessonStep[];
 }
+
+/** Show the result of a correct answer without mutating the lesson or main game. */
+export const getLessonBoard = (step: LessonStep, answer?: { x: number; y: number } | null): BoardState => {
+  const board = boardFromRows(step.rows);
+  if (!answer || !step.answers?.some((point) => point.x === answer.x && point.y === answer.y)) return board;
+  const player = step.toPlay ?? 'black';
+  board[answer.y]![answer.x] = player;
+  applyCapturesInPlace(board, answer.x, answer.y, player);
+  return board;
+};
 
 const EMPTY_9 = [
   '.........',

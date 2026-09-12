@@ -472,6 +472,7 @@ export const Layout: React.FC = () => {
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
   const [isProGamesOpen, setIsProGamesOpen] = useState(false);
   const [isLessonsOpen, setIsLessonsOpen] = useState(false);
+  const [lessonsReturnHome, setLessonsReturnHome] = useState(false);
   const [isGuessMoveOpen, setIsGuessMoveOpen] = useState(false);
   const [isProblemOpen, setIsProblemOpen] = useState(false);
   const [isKifuPrintOpen, setIsKifuPrintOpen] = useState(false);
@@ -3616,7 +3617,11 @@ export const Layout: React.FC = () => {
           />
         )}
         {isLessonsOpen && (
-          <LessonsModal onClose={() => setIsLessonsOpen(false)} />
+          <LessonsModal onClose={() => {
+            setIsLessonsOpen(false);
+            if (lessonsReturnHome) setMobileHomeOpen(true);
+            setLessonsReturnHome(false);
+          }} />
         )}
         {isGuessMoveOpen && (
           <GuessMoveModal
@@ -3851,6 +3856,11 @@ export const Layout: React.FC = () => {
           onGamepadNavigationDisable={handleDisableGamepadNavigation}
           quickNewGameBoardSize={settings.defaultBoardSize}
           onQuickNewGame={() => void startQuickNewGame()}
+          onLessons={() => {
+            closeMobileHome();
+            setLessonsReturnHome(true);
+            setIsLessonsOpen(true);
+          }}
           onNewGame={() => {
             closeMobileHome();
             void openNewGameWithGuard();
@@ -4049,6 +4059,7 @@ export const Layout: React.FC = () => {
             isTeachMode={isTeachMode}
             onToggleTeachMode={toggleTeachMode}
             onNewGame={() => void openNewGameWithGuard()}
+            onLessons={() => setIsLessonsOpen(true)}
             onSaveSgf={handleSaveCurrentSgf}
             onCopySgf={handleCopySgf}
             onCopyBoardText={() => { void handleCopyBoardText(); }}

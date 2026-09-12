@@ -3458,6 +3458,36 @@ async function main() {
           selector: '[aria-labelledby="lessons-title"]',
           closeLabel: 'Close lessons',
           open: openViaPalette('lessons'),
+          afterOpen: async (dialog) => {
+            const capture = Array.from(dialog.querySelectorAll('.lessons-list button'))
+              .find((button) => button.textContent.includes('Capturing a stone'));
+            if (!capture) throw new Error('capture lesson missing');
+            capture.click();
+            await waitForFrames(2);
+            const next = Array.from(dialog.querySelectorAll('.lessons-footer button'))
+              .find((button) => button.textContent.trim() === 'Next');
+            if (!next) throw new Error('capture lesson Next control missing');
+            next.focus();
+            next.click();
+            await waitForFrames(2);
+            if (!dialog.contains(document.activeElement)) {
+              throw new Error('advancing to the exercise lost keyboard focus outside the lesson');
+            }
+            const answer = dialog.querySelector('.lessons-board circle[fill="transparent"][cx="4.7"][cy="4.7"]');
+            if (!answer) throw new Error('capture lesson answer missing');
+            answer.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            await waitForFrames(2);
+            if (dialog.querySelectorAll('.lessons-board circle[fill="url(#sb-white)"]').length !== 0 ||
+                dialog.querySelectorAll('.lessons-board circle[fill="url(#sb-black)"]').length !== 4) {
+              throw new Error('correct answer did not place Black and remove the captured White stone');
+            }
+            if (!dialog.querySelector('[role="status"]')?.textContent.includes('Captured')) {
+              throw new Error('capture result is not announced');
+            }
+            if (auditsModalContrast) {
+              modalContrastFailures.push(...auditContrastAllThemes(dialog).map((entry) => 'solved lesson -- ' + entry));
+            }
+          },
         });
         await smokeModal({
           name: 'pro games',

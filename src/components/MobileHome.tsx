@@ -8,6 +8,7 @@ import {
   FaCopy,
   FaFolderOpen,
   FaGamepad,
+  FaGraduationCap,
   FaPlay,
   FaBolt,
   FaSave,
@@ -38,6 +39,7 @@ interface MobileHomeProps {
   quickNewGameBoardSize?: BoardSize;
   onQuickNewGame: () => void;
   onNewGame: () => void;
+  onLessons?: () => void;
   onOpenSgf: () => void;
   onScanBoard: () => void;
   onSaveToLibrary: () => void;
@@ -109,6 +111,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   quickNewGameBoardSize = 19,
   onQuickNewGame,
   onNewGame,
+  onLessons,
   onOpenSgf,
   onScanBoard,
   onSaveToLibrary,
@@ -313,6 +316,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               primary={!hasGameToContinue}
             />
             <HomeAction label="New game" compactLabel="New game" icon={<FaPlay />} onClick={onNewGame} />
+            {onLessons && (
+              <HomeAction label="Learn Go" compactLabel="Learn Go" icon={<FaGraduationCap />} onClick={onLessons} hint="Captures, life and openings" />
+            )}
             <HomeAction label="Open SGF / model" compactLabel="Open SGF" icon={<FaFolderOpen />} onClick={onOpenSgf} />
             <HomeAction label="Photo Board" compactLabel="Photo Board" icon={<FaCamera />} onClick={onScanBoard} hint="Camera or image" />
             <HomeAction label="Paste SGF / OGS" compactLabel="Paste SGF" icon={<FaClipboard />} onClick={onPasteSgf} />

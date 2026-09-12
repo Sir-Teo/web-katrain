@@ -46,7 +46,7 @@ describe('action labels read the same on every surface', () => {
 
   it('leaves no Title Case action label on the mobile home', () => {
     // A second capitalised word that is not an acronym or a kept name.
-    const kept = new Set(['Copy SGF', 'Paste SGF / OGS', 'Photo Board', 'Open SGF', 'Settings', 'Library', 'Report', 'Board', 'Continue']);
+    const kept = new Set(['Copy SGF', 'Paste SGF / OGS', 'Photo Board', 'Open SGF', 'Learn Go', 'Settings', 'Library', 'Report', 'Board', 'Continue']);
     const offenders = homeLabels()
       .filter((label) => !kept.has(label))
       .filter((label) => label.split(' ').slice(1).some((word) => /^[A-Z][a-z]/.test(word)));

@@ -147,6 +147,7 @@ export interface DesktopDashboardProps {
 
   // ---- file / header actions ----
   onNewGame: () => void;
+  onLessons?: () => void;
   onSaveSgf: () => void;
   onCopySgf: () => void;
   onCopyBoardText: () => void;
@@ -256,7 +257,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     jumpBack, jumpForward, findMistake, canFindPreviousMistake, canFindNextMistake, rotateBoard, switchBranch, undoToBranchPoint, makeCurrentNodeMainBranch,
     passTurn, onUndo, onAiMove, onResign, onPlayBest, engineOpponent, onPlayFromHere,
     isTeachMode, onToggleTeachMode,
-    onNewGame, onSaveSgf, onCopySgf, onCopyBoardText, onCopyShareLink, onCopyBoardImage,
+    onNewGame, onLessons, onSaveSgf, onCopySgf, onCopyBoardText, onCopyShareLink, onCopyBoardImage,
     onExportBoardImage, onPrintKifu, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
     onSettings, onCommandPalette, onKeyboardHelp, onAbout,
     toast, headerNotification,
@@ -528,6 +529,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   const showCompactStartStrip = showHero && layoutMode === 'compact' && gamestripOpen;
   const renderStartActions = () => (
     <>
+      {onLessons && (
+        <button type="button" className="tbtn" onClick={onLessons} title="Learn Go with interactive lessons on captures, life and openings">
+          <Icon name="book" size={14} /> Learn Go
+        </button>
+      )}
       <button type="button" className="tbtn primary" onClick={() => { dismissHero(); onNewGame(); }}>
         <Icon name="plus" size={14} /> New game
       </button>
@@ -678,7 +684,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           <div className={`gamestrip${showCompactStartStrip ? ' start-strip' : ''}`}>
             {showCompactStartStrip ? (
               <div className="compact-start" role="region" aria-label="Get started" data-dashboard-compact-start="true">
-                <span className="compact-start-title">Start</span>
+                {!onLessons && <span className="compact-start-title">Start</span>}
                 <div className="compact-start-actions">{renderStartActions()}</div>
                 <button
                   type="button"
@@ -778,7 +784,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 >
                   <Icon name="x" size={13} />
                 </button>
-                <div className="hero-title">Start here</div>
+                {!onLessons && <div className="hero-title">Start here</div>}
                 <div className="hero-actions">{renderStartActions()}</div>
               </div>
             )}

@@ -15,6 +15,7 @@ reproduced failures separate from candidates that still need investigation.
 | `ed18b51` | SGF export recursed once per node even though long sequences can be imported. Saving a 12,000-comment study threw `RangeError`. Export now uses explicit stacks and joins output once. | Chrome reproduction changed from stack overflow to successful export. A real pointer click on Save SGF downloaded all 12,000 comments (169,034 bytes). Round-trip tests preserve all comments, sibling order, and omission of empty branches. |
 | `dbcdb55` | Undo could restore the previous model's cached evaluations. Undoing a rules change restored SGF `RU` but left the engine and legality rules unchanged. History now records analysis validity and rules. | Browser reproduction formerly restored a score of +12 from the old model; it now restores no stale analysis. Rule undo now restores Japanese in both settings and SGF. Four failing regressions turned green, including deep-tree analysis invalidation. |
 | Library ZIP exports | Different folders with the same name merged on re-import. Slashes in names changed hierarchy, and reserved names could make games disappear. Exports now allocate distinct paths by folder ID, reserve directories before files, and traverse selected descendants using a parent index. | Five failing archive regressions turned green. Chrome preserved two same-named folders through export/import. Selecting 10,000 short games blocked synchronously for 201.13 ms before the fix and 28.81 ms after it; total ZIP generation measured 729.39 ms → 450.93 ms. |
+| Beginner lessons | Lessons were hidden from the start screen, and correct answers displayed a success message without changing the diagram. Learn Go now opens lessons from desktop and phone start screens; correct answers place a stone and apply captures. Advancing to an exercise now focuses its board instead of losing focus when Next becomes disabled. | Real pointer capture exercises passed at 1440×900, 1024×500, 390×844, 320×568, and 568×320. The captured white stone disappears, the black stone appears, and the main game remains unchanged. Phone users return to Home after closing lessons. The viewport suite now checks solved lesson diagrams, step focus, and feedback contrast. |
 
 Position sharing relies on the store's existing invariant: board edits, replay,
 and komi changes replace `gameState` and its arrays. Do not mutate a stored
@@ -27,7 +28,7 @@ do not change that storage contract.
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
-the library ZIP follow-up, `npm run verify` passed 2,405 tests, with the same skip,
+the beginner lessons follow-up, `npm run verify` passed 2,406 tests, with the same skip,
 plus app/test typechecks, lint, and the production build. `npm audit` reported
 zero vulnerabilities in the lockfile dependency graph on 2026-09-12.
 
@@ -36,7 +37,7 @@ sizes passed: 1280×800, 1024×768, 1024×500, 768×1024, 390×844, 360×800,
 320×568, 844×390, 568×320, 1280×460, and 1440×900. Screenshots were visually
 inspected for desktop, phone drawing tools, and the phone review notice.
 
-Production response checks after the last code commit measured:
+Production response checks after `dbcdb55` measured:
 
 | Operation | Result | Existing budget |
 | --- | ---: | ---: |
@@ -88,8 +89,8 @@ build; dev-store timings are deliberately reported separately.
 
 ## Feature order for beginners and experienced players
 
-1. **Beginner entry points:** make the existing fundamentals lessons and a
-   guided 9×9 first game easy to reach from the start screen. Keep Coach as the
+1. **Guided first game:** Learn Go now exposes the existing fundamentals lessons
+   on both start screens. Next add a guided 9×9 first game. Keep Coach as the
    plain-language path and let players reveal technical detail when useful.
 2. **Professional import compatibility:** add GIB/NGF through the existing
    import pipeline with metadata, handicap, coordinate, and encoding fixtures.

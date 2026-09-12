@@ -401,6 +401,7 @@
 }
 .wk-dashboard .compact-start-actions {
   display: flex;
+  flex-wrap: wrap;
   flex: 1 1 auto;
   justify-content: center;
   gap: 6px;
@@ -551,7 +552,7 @@
 }
 .wk-dashboard .hero-card .hero-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
   margin-top: 0;

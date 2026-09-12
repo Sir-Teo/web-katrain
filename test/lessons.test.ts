@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LESSONS, boardFromRows } from '../src/data/lessons';
-import { applyCapturesInPlace, getLiberties } from '../src/utils/gameLogic';
+import { LESSONS, boardFromRows, getLessonBoard } from '../src/data/lessons';
+import { getLiberties } from '../src/utils/gameLogic';
 import type { Player } from '../src/types';
 
 const lessonById = (id: string) => {
@@ -47,20 +47,23 @@ describe('lesson diagrams', () => {
 describe('lesson solutions are tactically correct', () => {
   it('capture: the answer removes the white stone', () => {
     const step = lessonById('capture').steps[1]!;
-    const board = boardFromRows(step.rows);
     const a = step.answers![0]!;
-    board[a.y]![a.x] = 'black';
-    const removed = applyCapturesInPlace(board, a.x, a.y, 'black');
-    expect(removed.length).toBeGreaterThan(0);
+    const board = getLessonBoard(step, a);
+    expect(board[a.y]![a.x]).toBe('black');
     // The white stone sat just left of the captured liberty.
     expect(board[4]![3]).toBeNull();
+    expect(getLessonBoard(step)[4]![3]).toBe('white');
+  });
+
+  it('keeps the original diagram after an incorrect answer so the player can retry', () => {
+    const step = lessonById('capture').steps[1]!;
+    expect(getLessonBoard(step, { x: 0, y: 0 })).toEqual(boardFromRows(step.rows));
   });
 
   it('atari: each answer leaves the white stone with exactly one liberty', () => {
     const step = lessonById('atari').steps[0]!;
     for (const a of step.answers!) {
-      const board = boardFromRows(step.rows);
-      board[a.y]![a.x] = 'black';
+      const board = getLessonBoard(step, a);
       const { liberties } = getLiberties(board, 4, 4); // white stone location
       expect(liberties).toBe(1);
     }
@@ -68,9 +71,8 @@ describe('lesson solutions are tactically correct', () => {
 
   it('two eyes: the answer leaves two empty points each surrounded by black', () => {
     const step = lessonById('two-eyes').steps[1]!;
-    const board = boardFromRows(step.rows);
     const a = step.answers![0]!;
-    board[a.y]![a.x] = 'black';
+    const board = getLessonBoard(step, a);
     const eyes = [
       { x: 3, y: 4 },
       { x: 5, y: 4 },
