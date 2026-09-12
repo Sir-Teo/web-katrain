@@ -110,6 +110,7 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | `npm run test:typecheck` | Type-check the tests. Needed separately: `tsc -b` builds the app and node projects, and neither includes `test/`. |
 | `npm run test:viewport` | Chrome viewport smoke test. ~54s, drives a real browser; not in `verify` or CI. Run it after a layout, breakpoint or board-sizing change. |
 | `npm run test:responsiveness` | Click-to-response budgets — first board move, dialog open, INP p98, long tasks. ~15s against `dist/`, so run `npm run build` first; not in `verify` or CI. |
+| `npm run test:study` | Chrome checks for marker-edit latency on a 2,001-node game and lossless export of a 12,000-comment study. Measures dev-store operations separately from production INP; not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Type-check and build the production app. |
@@ -120,6 +121,8 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 The bundled model is a tiny KataGo test network, about 3.6 MB compressed, so the
 app can boot quickly on ordinary laptops and phones. It is useful for smoke
 testing and casual UI work, not strong analysis.
+The review panel identifies this model and offers **Choose model**, which opens
+the model setting directly. More visits alone do not replace stronger weights.
 
 For real analysis, Settings offers the recommended browser-practical b18
 network:
@@ -149,6 +152,7 @@ custom headers, but WASM runs single-threaded there; WebGPU is unaffected.
 - [Architecture](docs/architecture.md)
 - [Engine](docs/engine.md)
 - [Development](docs/development.md)
+- [Ongoing audit and improvement priorities](docs/continuous-audit.md)
 - [Deployment](docs/deployment.md)
 - [Runtime diagrams](docs/diagram.md)
 

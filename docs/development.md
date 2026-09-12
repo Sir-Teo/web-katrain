@@ -29,9 +29,10 @@ The Vite dev server sends the COOP/COEP headers required for threaded WASM.
 | `npm test` | Run all Vitest tests. Note this typechecks nothing — Vitest transpiles without checking, so a test can pass while failing to compile. With `CI` set, the 71 tests that run a real MCTS search are skipped: seconds locally, minutes on a shared runner. `ENGINE_TESTS=1 npm test` runs them regardless. |
 | `npm run typecheck` | Type-check the app and node projects. It runs `tsc -b`, and it has to: the root `tsconfig.json` has `"files": []` and only references the two project configs, so a bare `tsc --noEmit` here type-checks nothing at all and exits 0. |
 | `npm run test:typecheck` | Type-check the test project. |
-| `npm run test:viewport` | Build, serve, and smoke-test key desktop/mobile viewports in Chrome. **~54s**, drives a real browser. Not in `verify` or CI — reach for it after a layout, breakpoint or board-sizing change, where it is the only thing that would catch a regression. |
+| `npm run test:viewport` | Serve the app with Vite and smoke-test key desktop/mobile viewports in Chrome. Drives a real browser. Not in `verify` or CI — reach for it after a layout, breakpoint or board-sizing change, where it is the only thing that would catch a regression. |
 | `npm run test:responsiveness` | Measure how fast the app answers a click: first board move, board-move median, warm dialog open, INP p98, worst long task. **~15s**. Needs a current `npm run build` — it measures `dist/` through `vite preview` and refuses to fall back to dev, where React's instrumentation changes the numbers by an order of magnitude. Not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
+| `npm run test:study` | Reproduce the large-study regressions in Chrome: five marker edits on a 2,001-node game, then export and reparse 12,000 study comments. Uses a temporary browser profile and the dev store; reports operation timings, not production INP. Not in `verify` or CI. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Run `tsc -b` and build Vite output into `dist/`. |
 | `npm run preview` | Serve `dist/` locally with preview headers. |

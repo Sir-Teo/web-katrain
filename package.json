@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:viewport": "node scripts/check-viewports.mjs",
     "test:responsiveness": "node scripts/check-responsiveness.mjs",
+    "test:study": "node scripts/check-study-performance.mjs",
     "bench": "BENCH=1 vitest run test/enginePerfBench.test.ts --reporter=verbose",
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "audit": "npm audit --audit-level=moderate",

@@ -11,6 +11,8 @@ developer workflow.
   extraction, search, analysis modes, and AI play strategies.
 - [Development](development.md): setup, scripts, project layout, model assets,
   testing, and troubleshooting.
+- [Ongoing audit](continuous-audit.md): reproduced bugs, measured improvements,
+  browser QA evidence, research, and the remaining work.
 - [Deployment](deployment.md): static hosting, GitHub Pages, base paths,
   COOP/COEP headers, service worker caching, and update behavior.
 - [Runtime diagrams](diagram.md): compact diagrams for the main app flow,

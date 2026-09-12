@@ -1,0 +1,92 @@
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { chromePath, chromeTarget, connectDevtools, evaluate, freePort, setViewport, sleep, waitForHttp } from './lib/browser.mjs';
+
+// Measures synchronous study operations in a real browser, using the dev store
+// to construct repeatable fixtures. These are not production INP measurements;
+// check-responsiveness.mjs covers the rendered production UI separately.
+async function main() {
+  const appPort = await freePort();
+  const devtoolsPort = await freePort();
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'web-katrain-study-'));
+  const server = spawn(path.join('node_modules', '.bin', 'vite'), [
+    '--host', '127.0.0.1', '--port', String(appPort), '--strictPort',
+  ], { stdio: 'ignore' });
+  let chrome;
+  let cdp;
+  try {
+    await waitForHttp(`http://127.0.0.1:${appPort}/`);
+    chrome = spawn(chromePath, [
+      '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+      ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []),
+      `--user-data-dir=${profile}`, `--remote-debugging-port=${devtoolsPort}`, 'about:blank',
+    ], { stdio: 'ignore' });
+    cdp = connectDevtools(await chromeTarget(devtoolsPort));
+    await cdp.ready;
+    await setViewport(cdp, { width: 1280, height: 800, mobile: false });
+    await cdp.send('Page.navigate', { url: `http://127.0.0.1:${appPort}/` });
+    for (let i = 0; i < 100; i++) {
+      if (await evaluate(cdp, `!!document.querySelector('[data-board-snapshot="true"]')`)) break;
+      await sleep(100);
+    }
+    const result = await evaluate(cdp, `(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.ts');
+      const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
+      const state = () => useGameStore.getState();
+      state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
+      const sgf = '(;GM[1]SZ[9]' + Array.from({ length: 2000 }, (_, i) => ';' + (i % 2 ? 'W' : 'B') + '[]').join('') + ')';
+      state().loadGame(parseSgf(sgf));
+      state().setEditTool('marker-triangle');
+      const times = [];
+      for (let i = 0; i < 5; i++) {
+        const start = performance.now();
+        state().applyEditTool(i, 0);
+        times.push(performance.now() - start);
+      }
+      const markerMedianMs = [...times].sort((a, b) => a - b)[2];
+      state().resetGame();
+      // Keep the large fixture out of the UI so its rendering does not enter
+      // the export measurement. It contains comments, not fake game moves.
+      const root = { ...state().rootNode, children: [] };
+      let current = root;
+      for (let i = 0; i < 12000; i++) {
+        const child = { id: 'study-' + i, parent: current, children: [], move: null, gameState: root.gameState, note: 'Study ' + i };
+        current.children.push(child);
+        current = child;
+      }
+      const start = performance.now();
+      const exported = generateSgfFromTree(root);
+      const exportMs = performance.now() - start;
+      let parsed = parseSgf(exported).tree;
+      let comments = 0;
+      while (parsed.children.length) {
+        if (parsed.children.length !== 1) throw Error('Export changed the study sequence');
+        parsed = parsed.children[0];
+        if (parsed.props.C?.[0] !== 'Study ' + comments) throw Error('Export lost or reordered a comment');
+        comments++;
+      }
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length };
+    })()`);
+    console.log(JSON.stringify(result, null, 2));
+    // The old snapshot path measured 38ms median. Generous headroom over the
+    // new sub-millisecond path accommodates slower machines without hiding it.
+    assert.ok(result.markerMedianMs < 25, `Marker edit took ${result.markerMedianMs}ms; budget is 25ms`);
+    assert.equal(result.comments, 12000);
+    assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
+    console.log('Study performance checks passed.');
+  } finally {
+    cdp?.close();
+    if (chrome && chrome.exitCode === null && chrome.signalCode === null) {
+      const closed = new Promise((resolve) => chrome.once('exit', resolve));
+      chrome.kill('SIGTERM');
+      await closed;
+    }
+    server.kill('SIGTERM');
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+}
+
+main().catch((error) => { console.error(error); process.exitCode = 1; });
