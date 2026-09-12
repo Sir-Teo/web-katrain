@@ -1,5 +1,5 @@
 import type { BoardState, GameRules, Move, Player } from '../../types';
-import { areaFeatureModeForRules } from '../../utils/goRules';
+import { areaFeatureModeForRules, isSuicideLegal } from '../../utils/goRules';
 import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
 import {
   BLACK,
@@ -175,9 +175,10 @@ export function fillInputsV7FastForPosition(args: {
   // tax applies, matching KataGo's split in fillRowV7.
   const areaMode = areaFeatureModeForRules(args.rules);
   const useAreaFeature = areaMode !== 'none';
-  if (areaMode === 'pass-alive') computeAreaMapV7KataGoInto(s.stones, s.areaMap);
+  const multiStoneSuicideLegal = isSuicideLegal(args.rules);
+  if (areaMode === 'pass-alive') computeAreaMapV7KataGoInto(s.stones, s.areaMap, multiStoneSuicideLegal);
   else if (areaMode === 'independent-life') {
-    computeIndependentLifeAreaInto(s.stones, s.areaMap, { keepStones: true });
+    computeIndependentLifeAreaInto(s.stones, s.areaMap, { keepStones: true, isMultiStoneSuicideLegal: multiStoneSuicideLegal });
   }
 
   computeLadderFeaturesV7KataGoInto({

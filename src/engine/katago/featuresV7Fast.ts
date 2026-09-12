@@ -1,6 +1,6 @@
 import type { GameRules, Player } from '../../types';
 import { getOpponent } from '../../utils/gameLogic';
-import { areaFeatureModeForRules, rulesOf } from '../../utils/goRules';
+import { areaFeatureModeForRules, isSuicideLegal, rulesOf } from '../../utils/goRules';
 import { BLACK, WHITE, EMPTY, PASS_MOVE, BOARD_SIZE, computeLibertyMap, computeAreaMapV7KataGo, computeIndependentLifeArea, type StoneColor } from './fastBoard';
 
 const INPUT_SPATIAL_CHANNELS_V7 = 22;
@@ -138,8 +138,8 @@ export function fillInputsV7Fast(args: {
     const area =
       args.areaMap ??
       (areaMode === 'independent-life'
-        ? computeIndependentLifeArea(stones, { keepStones: true }).area
-        : computeAreaMapV7KataGo(stones));
+        ? computeIndependentLifeArea(stones, { keepStones: true, isMultiStoneSuicideLegal: isSuicideLegal(rules) }).area
+        : computeAreaMapV7KataGo(stones, isSuicideLegal(rules)));
     for (let y = 0; y < BOARD_SIZE; y++) {
       for (let x = 0; x < BOARD_SIZE; x++) {
         const pos = y * BOARD_SIZE + x;

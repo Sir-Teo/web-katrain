@@ -3095,6 +3095,7 @@ async function evaluateBatch(args: {
   const policyOptimism = Math.max(0, Math.min(args.policyOptimism, 1));
   const areaMode = areaFeatureModeForRules(rules);
   const includeAreaFeature = areaMode !== 'none';
+  const multiStoneSuicideLegal = isSuicideLegal(rules);
   const pda = args.playoutDoublingAdvantage ?? 0;
   const pdaPla = args.playoutDoublingAdvantagePla ?? 'black';
   const batch = states.length;
@@ -3115,8 +3116,9 @@ async function evaluateBatch(args: {
     let areaMap: Uint8Array = EMPTY_AREA_MAP;
     if (includeAreaFeature) {
       const slot = areaMapScratch!.subarray(i * BOARD_AREA, (i + 1) * BOARD_AREA);
-      if (areaMode === 'independent-life') computeIndependentLifeAreaInto(state.stones, slot, { keepStones: true });
-      else computeAreaMapV7KataGoInto(state.stones, slot);
+      if (areaMode === 'independent-life') {
+        computeIndependentLifeAreaInto(state.stones, slot, { keepStones: true, isMultiStoneSuicideLegal: multiStoneSuicideLegal });
+      } else computeAreaMapV7KataGoInto(state.stones, slot, multiStoneSuicideLegal);
       areaMap = slot;
     }
     if (hasLadderCandidates(libertyMap)) {
