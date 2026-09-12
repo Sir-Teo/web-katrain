@@ -1,0 +1,192 @@
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  chromePath, chromeTarget, connectDevtools, evaluate, freePort,
+  navigate, setViewport, sleep, waitForHttp,
+} from './lib/browser.mjs';
+
+// A quick click handler does not prove the engine followed the move. CPU/WASM
+// inference once starved incoming worker messages, leaving the new position's
+// evaluation blank for 32 seconds while obsolete searches finished. Exercise
+// real inference and trusted input against dist/, without replacing responses.
+const freshPositionBudgetMs = 2500;
+const root = path.resolve(import.meta.dirname, '..');
+const outputDir = process.env.ANALYSIS_SCREENSHOT_DIR
+  ?? path.join(os.tmpdir(), 'web-katrain-analysis-check');
+
+async function stopProcess(child) {
+  if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((resolve) => child.once('exit', resolve));
+  child.kill('SIGTERM');
+  const timer = setTimeout(() => child.kill('SIGKILL'), 1500);
+  try {
+    await exited;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function main() {
+  assert.ok(fs.existsSync(path.join(root, 'dist/index.html')),
+    'Run npm run build first; this check measures the production bundle.');
+  fs.mkdirSync(outputDir, { recursive: true });
+  const appPort = await freePort();
+  const devtoolsPort = await freePort();
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'web-katrain-analysis-'));
+  const server = spawn(path.join(root, 'node_modules/.bin/vite'), [
+    'preview', '--host', '127.0.0.1', '--port', String(appPort), '--strictPort',
+  ], { cwd: root, stdio: 'ignore' });
+  let chrome;
+  let cdp;
+  const errors = [];
+  const spawnErrors = [];
+  server.on('error', (error) => spawnErrors.push(error.message));
+  const screenshot = async (name) => {
+    const response = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    assert.ok(response.result?.data, `Screenshot failed: ${JSON.stringify(response.error)}`);
+    fs.writeFileSync(path.join(outputDir, `${name}.png`), Buffer.from(response.result.data, 'base64'));
+  };
+  try {
+    await waitForHttp(`http://127.0.0.1:${appPort}/`);
+    chrome = spawn(chromePath, [
+      '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+      ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []),
+      `--user-data-dir=${profile}`, `--remote-debugging-port=${devtoolsPort}`, 'about:blank',
+    ], { stdio: 'ignore' });
+    chrome.on('error', (error) => spawnErrors.push(error.message));
+    cdp = connectDevtools(await chromeTarget(devtoolsPort));
+    await cdp.ready;
+    await cdp.send('Runtime.enable');
+    cdp.on((message) => {
+      if (message.method === 'Runtime.exceptionThrown') {
+        const details = message.params.exceptionDetails;
+        errors.push(details.exception?.description ?? details.text);
+      }
+    });
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      localStorage.setItem('web-katrain:settings:v3', JSON.stringify({
+        katagoVisits: 50000, katagoFastVisits: 50000, katagoMaxTimeMs: 8000,
+        katagoBackend: 'wasm', soundEnabled: false,
+      }));
+      localStorage.setItem('web-katrain:library_open:v1', 'false');
+      window.auditRequests = [];
+      window.auditResponses = [];
+      const BaseWorker = window.Worker;
+      window.Worker = class extends BaseWorker {
+        postMessage(...args) {
+          const d = args[0];
+          if (d.type === 'katago:analyze') window.auditRequests.push({
+            at: performance.now(), id: d.id, positionId: d.positionId,
+            ply: d.moveHistory.length, visits: d.visits,
+          });
+          return super.postMessage(...args);
+        }
+        constructor(...args) {
+          super(...args);
+          this.addEventListener('message', (event) => {
+            const d = event.data;
+            if (d.type === 'katago:analyze_update' || d.type === 'katago:analyze_result') {
+              window.auditResponses.push({
+                at: performance.now(), id: d.id, type: d.type,
+                canceled: !!d.canceled, visits: d.analysis?.rootVisits, backend: d.backend, ok: d.ok,
+              });
+            }
+          });
+        }
+      };
+    ` });
+    const throttle = Number(process.env.ANALYSIS_CPU_THROTTLE ?? 1);
+    assert.ok(Number.isFinite(throttle) && throttle >= 1, 'ANALYSIS_CPU_THROTTLE must be at least 1');
+    // CDP throttles the renderer, not the separate inference worker.
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+    await setViewport(cdp, { width: 1280, height: 800, mobile: false });
+    await navigate(cdp, `http://127.0.0.1:${appPort}/`);
+    const wait = async (expression, timeoutMs = 20000) => {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        const result = await evaluate(cdp, expression);
+        if (result) return result;
+        await sleep(50);
+      }
+      throw new Error(`Timed out waiting for ${expression}`);
+    };
+    const clickAt = async (point) => {
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await cdp.send('Input.dispatchMouseEvent', {
+          type, ...point, button: 'left', clickCount: 1, buttons: type === 'mousePressed' ? 1 : 0,
+        });
+      }
+    };
+    const analyze = await wait(`(() => {
+      const b = document.querySelector('.analyze-toggle');
+      if (!b || b.disabled) return false;
+      const r = b.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+      return r.width && b.contains(document.elementFromPoint(x, y)) ? { x, y } : false;
+    })()`);
+    await clickAt(analyze);
+    const first = await wait('auditResponses.find(r => r.type === "katago:analyze_update" && r.ok && r.visits > 0)');
+    assert.equal(first.backend, 'wasm');
+    const point = await evaluate(cdp, `(() => {
+      window.auditUiAt = 0;
+      window.auditOldId = ${first.id};
+      window.auditClickAt = performance.now();
+      window.auditObserver = new MutationObserver(() => {
+        const board = document.querySelector('[data-board-snapshot=true]');
+        const best = document.querySelector('.cb-metric .v.best');
+        const freshResponse = auditResponses.some(r => r.ok && r.visits > 0
+          && auditRequests.some(q => q.id === r.id && q.ply === 1));
+        if (!auditUiAt && freshResponse && board?.dataset.boardStones.replaceAll('.', '').length === 1
+          && best?.textContent && best.textContent !== '—') window.auditUiAt = performance.now();
+      });
+      auditObserver.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+      const b = document.querySelector('[data-board-snapshot=true]'), r = b.getBoundingClientRect();
+      const x = r.x + Number(b.dataset.boardOriginX) + 3 * Number(b.dataset.boardCellSize);
+      const y = r.y + Number(b.dataset.boardOriginY) + 3 * Number(b.dataset.boardCellSize);
+      if (!b.contains(document.elementFromPoint(x, y))) throw new Error('Board point is obscured');
+      return { x, y };
+    })()`);
+    await clickAt(point);
+    await wait("document.querySelector('[data-board-snapshot=true]').dataset.boardStones.replaceAll('.', '').length === 1");
+    await wait('auditUiAt');
+    const result = await evaluate(cdp, `(() => {
+      const response = auditResponses.find(r => r.ok && r.visits > 0
+        && auditRequests.some(q => q.id === r.id && q.ply === 1));
+      const request = auditRequests.find(q => q.id === response.id);
+      const canceled = auditResponses.find(r => r.id === auditOldId && r.canceled);
+      auditObserver.disconnect();
+      return {
+        freshResponseMs: response.at - auditClickAt, freshUiMs: auditUiAt - auditClickAt,
+        dispatchDelayMs: request.at - auditClickAt, workerHandoffMs: response.at - request.at,
+        oldCanceled: !!canceled, oldCancelMs: canceled ? canceled.at - auditClickAt : null,
+        visits: response.visits, backend: response.backend, requests: auditRequests, responses: auditResponses,
+      };
+    })()`);
+    fs.writeFileSync(path.join(outputDir, 'results.json'), JSON.stringify({ rendererThrottle: throttle, ...result, errors }, null, 2));
+    await screenshot('fresh-position');
+    assert.deepEqual(spawnErrors, []);
+    assert.deepEqual(errors, []);
+    assert.equal(result.oldCanceled, true, 'The obsolete search must be canceled');
+    assert.ok(result.freshUiMs < freshPositionBudgetMs,
+      `Current-position evaluation took ${result.freshUiMs.toFixed(1)} ms (budget ${freshPositionBudgetMs} ms)`);
+    console.log(`Analysis preemption: current-position response ${result.freshResponseMs.toFixed(1)} ms,`
+      + ` rendered evaluation ${result.freshUiMs.toFixed(1)} ms, old request canceled ${result.oldCancelMs.toFixed(1)} ms.`);
+    console.log(`Analysis responsiveness checks passed. Evidence: ${outputDir}`);
+  } catch (error) {
+    if (cdp) await screenshot('failure').catch(() => {});
+    if (spawnErrors.length) console.error(spawnErrors.join('\n'));
+    throw error;
+  } finally {
+    cdp?.close();
+    await stopProcess(chrome);
+    await stopProcess(server);
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

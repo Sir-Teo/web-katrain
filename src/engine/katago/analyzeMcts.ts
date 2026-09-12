@@ -3351,6 +3351,7 @@ export class MctsSearch {
   private jobPrevLibertyMapScratch = new Uint8Array(0);
   private jobPrevPrevLibertyMapScratch = new Uint8Array(0);
   private jobRecentMovesScratch: RecentMove[][] = [];
+  private lastCancellationYieldAt = 0;
   private libertyMapStack: Uint8Array[] = [];
   private libertySeedsScratch = new Int16Array(BOARD_AREA * 5);
   private treeOwnershipCache: { visits: number; ownership: Float32Array; ownershipStdev: Float32Array; timestamp: number } | null = null;
@@ -4045,6 +4046,15 @@ export class MctsSearch {
     const maxPlayouts = maxVisits * 8;
 
     while (this.rootNode.visits < maxVisits && playouts < maxPlayouts && !timeExceeded()) {
+      if (shouldAbort && getAnimationNow() - this.lastCancellationYieldAt >= 50) {
+        // CPU/WASM tensor reads can resolve entirely through microtasks. Awaiting
+        // them does not let a worker receive the newer request that changes the
+        // abort flag. Yield between complete batches, with no in-flight paths,
+        // so queued messages can preempt this search and its tree stays reusable.
+        // Keep the timestamp across short progress-report slices too.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        this.lastCancellationYieldAt = getAnimationNow();
+      }
       if (shouldAbort?.()) return true;
       const visitsBeforeBatch = this.rootNode.visits;
       // Weightless playouts do not raise the root's visit count, so they must not

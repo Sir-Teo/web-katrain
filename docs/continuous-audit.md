@@ -22,6 +22,7 @@ reproduced failures separate from candidates that still need investigation.
 | Large file/ZIP imports | Each imported entry rebuilt and scanned the entire library for a name. Overlapping file reads also reserved names against stale state, producing duplicate names. Batches now reserve names with per-folder indexes against state at completion. Numeric suffixes remain unique beyond 9,999 collisions. | A real 10,000-game ZIP import at 1440×900 measured 2,947.74 ms → 498.15 ms; the longest observed main-thread task fell from 2,643 ms to 182 ms. Two overlapping file inputs formerly produced two `Race` entries; they now preserve both payloads as `Race` and `Race 2`. The 390×844 Library workflow passed the same count, uniqueness, and overlap checks. Five regression tests cover hierarchy, suffix gaps, concurrency ordering, and 12,000 same-named entries. |
 | International SGF records | File and ZIP readers assumed UTF-8 and silently replaced legacy-encoded player names and notes. A shared byte decoder now honors BOMs and the first root's `CA`, with UTF-8 then Latin-1 for undeclared records. Library downloads also correct stale declarations on pasted Unicode. ZIP expansion accounting now uses actual bytes rather than JavaScript string length. | A valid Shift-JIS fixture formerly displayed `�{���V` instead of `本因坊` on desktop and phone. Native file inputs now preserve names, notes, and moves. Library import → actual ZIP download → file re-import preserved five records covering Japanese, Korean, Chinese, and Latin-1 at 1440×900 and 390×844. An unsupported encoding reports an error and leaves the current game intact. Fifteen tests cover four byte fixtures, export round-trips, BOMs, size preflight, malformed declarations, and a Shift-JIS trail byte that resembles an SGF escape. |
 | OGS sync merge | Finishing an OGS sync replaced the library with the snapshot captured before downloading. Local imports and edits completed meanwhile could disappear. Sync now merges against the latest state, resolves the current destination folder, and reserves incoming names in one batch. | A real OGS dialog with mocked network responses reproduced a persisted local import disappearing when sync finished (10 entries instead of 11). The same workflow now retains both games. At 390×844, a local ZIP created the OGS destination while sync waited; completion reused that folder, preserved its local game, and expanded it. Three regressions cover late imports/edits, destination reuse and name collisions, and empty syncs. |
+| Live analysis scheduling | CPU/WASM inference could resolve through an uninterrupted chain of microtasks, preventing the worker from receiving newer-position requests. Search now yields to incoming tasks every 50 ms between completed batches, preserving the clock across progress slices and leaving the tree resumable. | A production pointer move during 50,000-visit / 8-second searches took 32.05 s to show the new evaluation before the fix and 0.37 s afterward. At 6× renderer CPU throttling it took 0.53 s; the worker itself is not throttled by that setting. Two real CPU regressions cover short progress slices, cancellation, and subsequent tree reuse. `test:analysis` repeats the real WASM workflow with a 2.5 s budget. |
 
 Position sharing relies on the store's existing invariant: board edits, replay,
 and komi changes replace `gameState` and its arrays. Do not mutate a stored
@@ -34,7 +35,7 @@ do not change that storage contract.
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
-the OGS merge follow-up, `npm run verify` passed 2,444 tests, with the same skip,
+the analysis scheduling fix, `npm run verify` passed 2,446 tests, with the same skip,
 plus app/test typechecks, lint, and the production build. `npm audit` reported
 zero vulnerabilities in the lockfile dependency graph on 2026-09-12.
 
@@ -80,6 +81,7 @@ interaction latency. Run both kinds of check:
 npm run verify
 npm run test:viewport
 npm run test:responsiveness
+npm run test:analysis
 npm run test:study
 ```
 
