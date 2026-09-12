@@ -110,6 +110,50 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
           await wait(`manualScoreCheckStore.getState().rootNode.properties.GN?.[0]===${JSON.stringify(stem)}`);
           await key('End', 35);
           await wait(`manualScoreCheckStore.getState().moveHistory.length===${fixture.position ? 3 : 2}`);
+          if (await evaluate(cdp, `!!(${visible('button[aria-label="Dismiss notification"]')})`)) {
+            await click('button[aria-label="Dismiss notification"]');
+          }
+          // The editor previously showed Japanese when an imported ruleset
+          // lacked an option, even though the store retained the correct rule.
+          if (mobile) await click('#mobile-tab-info');
+          const infoHeader = `[...document.querySelectorAll('button')].find(e=>e.textContent.trim().toLowerCase()==='game info'&&e.getBoundingClientRect().width>0&&!e.closest('[inert]'))`;
+          const infoWasOpen = await evaluate(cdp, `(${infoHeader})?.getAttribute('aria-expanded')==='true'`);
+          if (!infoWasOpen) await clickElement(infoHeader);
+          await click('[data-game-info-edit-toggle]');
+          const ruleSelect = visible('[data-game-info-edit-form] select');
+          await wait(`!!(${ruleSelect})`);
+          const editor = await evaluate(cdp, `(()=>{
+            const e=${ruleSelect};return {value:e.value,options:[...e.options].map(o=>o.value),name:e.getAttribute('aria-label'),description:document.getElementById(e.getAttribute('aria-describedby'))?.textContent};
+          })()`);
+          assert.equal(editor.value, fixture.rules ?? fixture.id, `${stem}: editor rule`);
+          assert.deepEqual(editor.options, ['japanese', 'chinese', 'korean', 'aga', 'new-zealand', 'tromp-taylor', 'stone-scoring']);
+          assert.equal(editor.name, 'Rules');
+          assert.ok(editor.description?.length > 10, `${stem}: missing rules explanation`);
+          if (fixture.id === 'chinese') {
+            // CDP key events cannot drive macOS's native select popup. Use
+            // the control's value/change path (as in the locale browser check)
+            // to test its React handler and SGF wiring, then restore Chinese.
+            const selectRule = async value => evaluate(cdp, `(()=>{
+              const e=${ruleSelect};
+              Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(value)});
+              e.dispatchEvent(new Event('change',{bubbles:true}));
+            })()`);
+            await selectRule('stone-scoring');
+            await wait(`manualScoreCheckStore.getState().settings.gameRules==='stone-scoring'`);
+            assert.equal(await evaluate(cdp, 'manualScoreCheckStore.getState().rootNode.properties.RU[0]'), 'Stone Scoring');
+            await selectRule('chinese');
+            await wait(`manualScoreCheckStore.getState().settings.gameRules==='chinese'`);
+          }
+          await evaluate(cdp, `document.getElementById((${ruleSelect}).getAttribute('aria-describedby')).scrollIntoView({block:'nearest'})`);
+          await wait(`(()=>{
+            const e=document.getElementById((${ruleSelect}).getAttribute('aria-describedby')),r=e.getBoundingClientRect();
+            return r.width&&r.top>=0&&r.bottom<=innerHeight&&e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+          })()`);
+          const editorShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+          fs.writeFileSync(path.join(screenshotDir, `${stem}-rules.png`), Buffer.from(editorShot.result.data, 'base64'));
+          await click('[data-game-info-edit-toggle]');
+          if (mobile) await click('#mobile-tab-board');
+          else if (!infoWasOpen) await clickElement(infoHeader);
           if (await evaluate(cdp, `!!(${visible('button[aria-label^="Score position"]')})`)) {
             await click('button[aria-label^="Score position"]');
           } else {
@@ -198,7 +242,7 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
             return parseSgf(${JSON.stringify(saved)}).tree.props.RE?.[0];
           })()`);
           assert.equal(roundTrip, expectedResult, `${stem}: exported result round trip`);
-          reports.push({ width, height, id: fixture.id, ...snapshot, details, recorded, roundTrip });
+          reports.push({ width, height, id: fixture.id, ...snapshot, editor, details, recorded, roundTrip });
         } catch (error) {
           const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
           fs.writeFileSync(path.join(screenshotDir, `${stem}-failure.png`), Buffer.from(screenshot.result.data, 'base64'));

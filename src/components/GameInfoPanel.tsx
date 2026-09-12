@@ -4,6 +4,7 @@ import { FaCheck, FaEdit, FaExternalLinkAlt } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_BOARD_SIZE, type GameSettings } from '../types';
 import { getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
+import { RULES_OPTIONS, rulesOf } from '../utils/goRules';
 import {
   formatGameInfoPlayer,
   formatGameInfoTitle,
@@ -44,6 +45,7 @@ const inputClass =
   'min-h-11 w-full ui-input border rounded px-2 py-1.5 text-xs text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none desktop-shell:min-h-0';
 
 export const GameInfoPanel: React.FC = () => {
+  const rulesHelpId = React.useId();
   const { rootNode, komi, gameRules, setKomi, setHandicap, setRootProperty, updateSettings, treeVersion } = useGameStore(
     (state) => ({
       rootNode: state.rootNode,
@@ -300,15 +302,18 @@ export const GameInfoPanel: React.FC = () => {
             Rules
           </span>
           <select
+            aria-label="Rules"
+            aria-describedby={rulesHelpId}
             value={gameRules}
             onChange={(e) => updateSettings({ gameRules: e.target.value as GameSettings['gameRules'] })}
             onKeyDown={handleKeyDown}
             className={inputClass}
           >
-            <option value="japanese">Japanese</option>
-            <option value="chinese">Chinese</option>
-            <option value="korean">Korean</option>
+            {RULES_OPTIONS.map((rule) => (
+              <option key={rule.id} value={rule.id}>{rule.label}</option>
+            ))}
           </select>
+          <p id={rulesHelpId} className="text-xs ui-text-faint">{rulesOf(gameRules).summary}</p>
         </label>
       </div>
     </div>
