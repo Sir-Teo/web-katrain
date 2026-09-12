@@ -58,8 +58,8 @@ import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
 import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
-import { superkoRejectionMessage } from '../utils/superko';
-import { lineViolatesSuperko } from '../utils/treeSuperko';
+import { situationalKey, superkoRejectionMessage } from '../utils/superko';
+import { lineViolatesSuperko, repetitionHistoryForNode } from '../utils/treeSuperko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
 import { countRootHandicapStones, handicapPlayoutDoublingAdvantage } from '../utils/handicapAi';
 import { getResignResult } from '../utils/resign';
@@ -580,7 +580,7 @@ const createNode = (
 const createRootNodeId = (): string => `root-${Math.random().toString(36).slice(2, 11)}`;
 
 const nodeAnalysisPositionKey = (node: GameNode, rules: GameRules): string =>
-  makeGameStateAnalysisPositionKey(node.gameState, rules);
+  makeGameStateAnalysisPositionKey(node.gameState, rules, repetitionHistoryForNode(node, rules));
 
 const parentAnalysisPositionKey = (node: GameNode, rules: GameRules): string | undefined =>
   node.parent ? nodeAnalysisPositionKey(node.parent, rules) : undefined;
@@ -1464,6 +1464,7 @@ const analyzeForPlayout = (
       previousPreviousBoard: grandparentBoard,
       currentPlayer: s.currentPlayer,
       moveHistory: s.moveHistory,
+      repetitionHistory: repetitionHistoryForNode(node, rules),
       komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, s.komi),
       rules,
       topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
@@ -1833,10 +1834,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // A pass leaves the stones alone, so the post-pass position sees the same
     // board with the turn handed over and one more entry in the history.
     const moveHistory = [...state.moveHistory, passMove];
+    const beforePassHistory = repetitionHistoryForNode(node, rules);
+    const repetitionHistory = beforePassHistory
+      ? [...new Set([...beforePassHistory, situationalKey(state.board, opponent)])].sort()
+      : undefined;
     const positionKey = makeAnalysisPositionKey({
       board: state.board,
       currentPlayer: opponent,
       moveHistory,
+      repetitionHistory,
       komi,
       rules,
     });
@@ -1883,6 +1889,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             previousPreviousBoard: node.parent?.gameState.board,
             currentPlayer: opponent,
             moveHistory,
+            repetitionHistory,
             komi,
             rules,
             topK: Math.max(1, Math.min(state.settings.katagoTopK, 50)),
@@ -2875,6 +2882,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 previousPreviousBoard: n.parent?.parent?.gameState.board,
                 currentPlayer: n.gameState.currentPlayer,
                 moveHistory: n.gameState.moveHistory,
+                repetitionHistory: repetitionHistoryForNode(n, rules),
                 komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, n.gameState.komi),
               })),
               rules,
@@ -3051,6 +3059,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               previousPreviousBoard: grandparentBoard,
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
+              repetitionHistory: repetitionHistoryForNode(node, rules),
               komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
               rules,
               topK,
@@ -3250,6 +3259,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               previousPreviousBoard: grandparentBoard,
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
+              repetitionHistory: repetitionHistoryForNode(node, rules),
               komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
               rules,
               topK,
@@ -3581,6 +3591,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          previousPreviousBoard: grandparentBoard,
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
+	          repetitionHistory: repetitionHistoryForNode(node, rules),
 	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
             rules,
             regionOfInterest: state.regionOfInterest,
@@ -4211,6 +4222,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          previousPreviousBoard: grandparentBoard,
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
+	          repetitionHistory: repetitionHistoryForNode(node, rules),
 	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
             rules,
 	          topK,

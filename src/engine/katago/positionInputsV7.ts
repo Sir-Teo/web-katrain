@@ -1,3 +1,4 @@
+import { positionSuperkoBans } from './superkoHistory';
 import type { BoardState, GameRules, Move, Player } from '../../types';
 import { areaFeatureModeForRules, isSuicideLegal } from '../../utils/goRules';
 import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
@@ -133,6 +134,7 @@ export function fillInputsV7FastForPosition(args: {
   previousPreviousBoard?: BoardState;
   currentPlayer: Player;
   moveHistory: Move[];
+  repetitionHistory?: readonly string[];
   komi: number;
   rules: GameRules;
   conservativePassAndIsRoot: boolean;
@@ -200,6 +202,7 @@ export function fillInputsV7FastForPosition(args: {
   });
 
   fillInputsV7Fast({
+    superkoBanned: positionSuperkoBans(args, { stones: s.stones, koPoint }, s.libertyMap),
     stones: s.stones,
     koPoint,
     currentPlayer: args.currentPlayer,

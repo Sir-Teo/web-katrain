@@ -29,6 +29,8 @@ export interface KataGoAnalyzeRequest {
   previousPreviousBoard?: BoardState;
   currentPlayer: Player;
   moveHistory: Move[];
+  /** Full exact situational keys for superko, separate from the five NN history moves. */
+  repetitionHistory?: readonly string[];
   komi: number;
   rules?: GameRules;
   regionOfInterest?: RegionOfInterest | null;
@@ -157,6 +159,8 @@ export interface KataGoEvalRequest {
   previousPreviousBoard?: BoardState;
   currentPlayer: Player;
   moveHistory: Move[];
+  /** Full exact situational keys for superko, separate from the five NN history moves. */
+  repetitionHistory?: readonly string[];
   komi: number;
   rules?: GameRules;
   conservativePass?: boolean;
@@ -188,6 +192,8 @@ export interface KataGoEvalBatchRequest {
     previousPreviousBoard?: BoardState;
     currentPlayer: Player;
     moveHistory: Move[];
+    /** Full exact situational keys for superko, separate from the five NN history moves. */
+    repetitionHistory?: readonly string[];
     komi: number;
   }>;
   rules?: GameRules;

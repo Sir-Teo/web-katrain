@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getKataGoEngineClient, resetKataGoEngineClientForTests } from '../src/engine/katago/client';
 import { AnalysisQueue, AnalysisQueueSignal } from '../src/utils/analysisQueue';
+import { situationalKey } from '../src/utils/superko';
+import { tripleKoFixture } from './helpers/superkoFixture';
 
 const originalWorker = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
 
@@ -83,6 +85,27 @@ describe('KataGo engine client', () => {
     });
 
     expect(() => getKataGoEngineClient()).toThrow(/Browser Worker API is unavailable/);
+  });
+
+  it('keeps full repetition history for search, single eval and each batch position', async () => {
+    installFakeWorker();
+    const client = getKataGoEngineClient();
+    const worker = createdFakeWorkers[0]!;
+    const {history, moves} = tripleKoFixture();
+    const repetitionHistory = history.map(p => situationalKey(p.board, p.playerToMove));
+    const args = {...analyzeArgs(), board:history.at(-1)!.board, currentPlayer:history.at(-1)!.playerToMove,
+      moveHistory:[...moves, {x:-1,y:-1,player:'white' as const}], repetitionHistory};
+    const search = client.analyze(args);
+    const single = client.evaluate(args);
+    const batch = client.evaluateBatch({modelUrl:args.modelUrl, positions:[args, {...args, repetitionHistory:repetitionHistory.slice(1)}]});
+    const sent = vi.mocked(worker.postMessage).mock.calls.map(call => call[0]);
+    expect(sent[0]).toMatchObject({repetitionHistory, moveHistory:args.moveHistory});
+    expect(sent[1]).toMatchObject({repetitionHistory, moveHistory:args.moveHistory.slice(-5)});
+    expect(sent[2]).toMatchObject({positions:[{repetitionHistory}, {repetitionHistory:repetitionHistory.slice(1)}]});
+    worker.onmessage?.({data:{type:'katago:analyze_result', id:1, ok:true, analysis:{rootVisits:8, moves:[]}}});
+    worker.onmessage?.({data:{type:'katago:eval_result', id:2, ok:true, eval:{rootWinRate:0.5, rootScoreLead:0}}});
+    worker.onmessage?.({data:{type:'katago:eval_batch_result', id:3, ok:true, evals:[]}});
+    await Promise.all([search, single, batch]);
   });
 
   it('does not send an already-canceled analysis to the worker', async () => {

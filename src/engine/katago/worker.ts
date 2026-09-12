@@ -79,6 +79,7 @@ let search: MctsSearch | null = null;
 let searchKey: {
   positionId: string;
   positionKey: string | null;
+  repetitionKey: string;
   modelUrl: string;
   boardSize: number;
   maxChildren: number;
@@ -358,6 +359,7 @@ async function computeHumanPolicyLogits(args: {
   previousPreviousBoard?: KataGoAnalyzeRequest['previousPreviousBoard'];
   currentPlayer: KataGoAnalyzeRequest['currentPlayer'];
   moveHistory: KataGoAnalyzeRequest['moveHistory'];
+  repetitionHistory?: readonly string[];
   komi: number;
   rules: GameRules;
   conservativePass: boolean;
@@ -376,6 +378,7 @@ async function computeHumanPolicyLogits(args: {
     previousPreviousBoard: args.previousPreviousBoard,
     currentPlayer: args.currentPlayer,
     moveHistory: args.moveHistory,
+    repetitionHistory: args.repetitionHistory,
     komi: args.komi,
     rules: args.rules,
     conservativePassAndIsRoot: args.conservativePass,
@@ -470,6 +473,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       previousPreviousBoard: msg.previousPreviousBoard,
       currentPlayer: msg.currentPlayer,
       moveHistory: msg.moveHistory,
+      repetitionHistory: msg.repetitionHistory,
       komi: msg.komi,
       rules,
       conservativePassAndIsRoot: conservativePass,
@@ -544,6 +548,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         previousPreviousBoard: pos.previousPreviousBoard,
         currentPlayer: pos.currentPlayer,
         moveHistory: pos.moveHistory,
+        repetitionHistory: pos.repetitionHistory,
         komi: pos.komi,
         rules,
         conservativePassAndIsRoot: conservativePass,
@@ -714,6 +719,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           previousPreviousBoard: msg.previousPreviousBoard,
           currentPlayer: msg.currentPlayer,
           moveHistory: msg.moveHistory,
+          repetitionHistory: msg.repetitionHistory,
           komi: msg.komi,
           rules,
           conservativePass,
@@ -725,6 +731,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
     }
     const humanMovePriors = humanLogits ? softmaxOverBoard(humanLogits) : null;
 
+    const repetitionKey = [...new Set(msg.repetitionHistory ?? [])].sort().join(';');
     const canReuse =
       msg.reuseTree === true &&
       typeof msg.positionId === 'string' &&
@@ -732,6 +739,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
       !!searchKey &&
       searchKey.positionId === msg.positionId &&
       searchKey.positionKey === (msg.positionKey ?? null) &&
+      searchKey.repetitionKey === repetitionKey &&
       searchKey.modelUrl === msg.modelUrl &&
       searchKey.boardSize === boardSize &&
       searchKey.maxChildren === maxChildren &&
@@ -794,6 +802,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
             previousPreviousBoard: msg.previousPreviousBoard,
             currentPlayer: msg.currentPlayer,
             moveHistory: msg.moveHistory,
+            repetitionHistory: msg.repetitionHistory,
             komi: msg.komi,
             rules,
             regionOfInterest: msg.regionOfInterest,
@@ -803,6 +812,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
             searchKey = {
               positionId: msg.positionId,
               positionKey: msg.positionKey ?? null,
+              repetitionKey,
               modelUrl: msg.modelUrl,
               boardSize,
               maxChildren,
@@ -835,6 +845,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         previousPreviousBoard: msg.previousPreviousBoard,
         currentPlayer: msg.currentPlayer,
         moveHistory: msg.moveHistory,
+        repetitionHistory: msg.repetitionHistory,
         komi: msg.komi,
         rules,
         nnRandomize,
@@ -857,6 +868,7 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
         searchKey = {
           positionId: msg.positionId,
           positionKey: msg.positionKey ?? null,
+          repetitionKey,
           modelUrl: msg.modelUrl,
           boardSize,
           maxChildren,

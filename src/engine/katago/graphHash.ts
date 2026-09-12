@@ -11,9 +11,9 @@ import { BOARD_AREA, EMPTY, NEIGHBOR_COUNTS, NEIGHBOR_LIST, NEIGHBOR_STARTS, PAS
  *
  * The hash values themselves are not bit-for-bit KataGo's -- they are internal, and
  * only which positions collide matters. Rules and komi are left out because they
- * are fixed for the length of a search. Superko bans are left out too, because this
- * port only tracks the simple ko point and so cannot tell those positions apart in
- * the first place.
+ * are fixed for the length of a search. MctsSearch additionally folds in the full
+ * repetition-set fingerprint under superko, so positions with different future
+ * legality do not share evaluated children.
  */
 
 /** KataGo graphSearchRepBound. */

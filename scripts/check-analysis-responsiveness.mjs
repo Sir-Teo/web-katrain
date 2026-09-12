@@ -14,6 +14,8 @@ import { assertAiMoveCancellation } from './lib/ai-move-check.mjs';
 // evaluation blank for 32 seconds while obsolete searches finished. Exercise
 // real inference and trusted input against dist/, without replacing responses.
 const freshPositionBudgetMs = 2500;
+const gameRules = process.env.ANALYSIS_GAME_RULES ?? 'japanese';
+assert.ok(['japanese', 'chinese', 'korean', 'aga', 'new-zealand', 'tromp-taylor', 'stone-scoring'].includes(gameRules), 'Unknown ANALYSIS_GAME_RULES');
 const root = path.resolve(import.meta.dirname, '..');
 const outputDir = process.env.ANALYSIS_SCREENSHOT_DIR
   ?? path.join(os.tmpdir(), 'web-katrain-analysis-check');
@@ -71,6 +73,7 @@ async function main() {
       localStorage.setItem('web-katrain:settings:v3', JSON.stringify({
         katagoVisits: 50000, katagoFastVisits: 50000, katagoMaxTimeMs: 8000,
         katagoBackend: 'wasm', soundEnabled: false,
+        gameRules: ${JSON.stringify(gameRules)},
       }));
       localStorage.setItem('web-katrain:library_open:v1', 'false');
       window.auditRequests = [];
@@ -82,6 +85,7 @@ async function main() {
           if (d.type === 'katago:analyze') window.auditRequests.push({
             at: performance.now(), id: d.id, positionId: d.positionId,
             ply: d.moveHistory.length, visits: d.visits, group: d.analysisGroup,
+            rules: d.rules, historyPositions: d.repetitionHistory?.length ?? 0,
           });
           return super.postMessage(...args);
         }
@@ -189,7 +193,11 @@ async function main() {
         visits: response.visits, backend: response.backend, requests: auditRequests, responses: auditResponses,
       };
     })()`);
-    fs.writeFileSync(path.join(outputDir, 'results.json'), JSON.stringify({ rendererThrottle: throttle, stoppedMs, ...result, errors }, null, 2));
+    assert.ok(result.requests.every(request => request.rules === gameRules), 'The worker must receive the selected rules');
+    if (['aga', 'new-zealand', 'tromp-taylor'].includes(gameRules)) {
+      assert.ok(result.requests.every(request => request.historyPositions > 0), 'Superko requests must carry repetition history');
+    }
+    fs.writeFileSync(path.join(outputDir, 'results.json'), JSON.stringify({ gameRules, rendererThrottle: throttle, stoppedMs, ...result, errors }, null, 2));
     await screenshot('fresh-position');
 
     // Play another move and stop before its 500 ms deferred request can fire.

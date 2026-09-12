@@ -27,6 +27,7 @@ function playerToColor(p: Player): StoneColor {
 export function fillInputsV7Fast(args: {
   stones: Uint8Array; // 0 empty, 1 black, 2 white
   koPoint: number; // 0..360 or -1
+  superkoBanned?: Uint8Array;
   currentPlayer: Player;
   recentMoves: RecentMove[]; // chronological order, last item is most recent
   komi: number;
@@ -81,6 +82,10 @@ export function fillInputsV7Fast(args: {
     const x = koPoint % BOARD_SIZE;
     const y = (koPoint / BOARD_SIZE) | 0;
     spatial[idxNHWC(x, y, 6)] = 1.0;
+  }
+
+  if (args.superkoBanned) {
+    for (let p = 0; p < BOARD_SIZE * BOARD_SIZE; p++) if (args.superkoBanned[p]) spatial[p * INPUT_SPATIAL_CHANNELS_V7 + 6] = 1;
   }
 
   const libs = args.libertyMap ?? computeLibertyMap(stones);

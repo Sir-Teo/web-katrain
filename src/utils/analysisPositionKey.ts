@@ -12,6 +12,7 @@ export function makeAnalysisPositionKey(args: {
   board: BoardState;
   currentPlayer: Player;
   moveHistory: Move[];
+  repetitionHistory?: readonly string[];
   komi: number;
   rules: GameRules;
 }): string {
@@ -24,14 +25,16 @@ export function makeAnalysisPositionKey(args: {
     `rules=${args.rules}`,
     `board=${boardRows}`,
     `history=${history}`,
+    ...(args.repetitionHistory ? [`repetition=${[...new Set(args.repetitionHistory)].sort().join(';')}`] : []),
   ].join('|');
 }
 
-export function makeGameStateAnalysisPositionKey(gameState: GameState, rules: GameRules): string {
+export function makeGameStateAnalysisPositionKey(gameState: GameState, rules: GameRules, repetitionHistory?: readonly string[]): string {
   return makeAnalysisPositionKey({
     board: gameState.board,
     currentPlayer: gameState.currentPlayer,
     moveHistory: gameState.moveHistory,
+    repetitionHistory,
     komi: gameState.komi,
     rules,
   });

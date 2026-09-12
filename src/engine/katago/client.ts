@@ -248,6 +248,8 @@ class KataGoEngineClient {
     previousPreviousBoard?: BoardState;
     currentPlayer: Player;
     moveHistory: Move[];
+    /** Full exact situational keys for superko, separate from the five NN history moves. */
+    repetitionHistory?: readonly string[];
     komi: number;
     rules?: GameRules;
     regionOfInterest?: RegionOfInterest | null;
@@ -296,6 +298,7 @@ class KataGoEngineClient {
       // Search uses the true turn number and repeated opponent passes, beyond
       // the five recent moves that the neural input planes consume.
       moveHistory: args.moveHistory,
+      repetitionHistory: args.repetitionHistory,
       komi: args.komi,
       rules: args.rules,
       regionOfInterest: args.regionOfInterest,
@@ -357,6 +360,8 @@ class KataGoEngineClient {
     previousPreviousBoard?: BoardState;
     currentPlayer: Player;
     moveHistory: Move[];
+    /** Full exact situational keys for superko, separate from the five NN history moves. */
+    repetitionHistory?: readonly string[];
     komi: number;
     rules?: GameRules;
     conservativePass?: boolean;
@@ -373,6 +378,7 @@ class KataGoEngineClient {
       previousPreviousBoard: args.previousPreviousBoard,
       currentPlayer: args.currentPlayer,
       moveHistory: takeFeatureHistory(args.moveHistory),
+      repetitionHistory: args.repetitionHistory,
       komi: args.komi,
       rules: args.rules,
       conservativePass: args.conservativePass,
@@ -398,6 +404,8 @@ class KataGoEngineClient {
       previousPreviousBoard?: BoardState;
       currentPlayer: Player;
       moveHistory: Move[];
+      /** Full exact situational keys for superko, separate from the five NN history moves. */
+      repetitionHistory?: readonly string[];
       komi: number;
     }>;
     rules?: GameRules;
@@ -416,6 +424,7 @@ class KataGoEngineClient {
         previousPreviousBoard: p.previousPreviousBoard,
         currentPlayer: p.currentPlayer,
         moveHistory: takeFeatureHistory(p.moveHistory),
+        repetitionHistory: p.repetitionHistory,
         komi: p.komi,
       })),
       rules: args.rules,

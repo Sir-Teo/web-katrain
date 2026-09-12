@@ -51,6 +51,8 @@ import { fillInputsV7Fast, type RecentMove } from './featuresV7Fast';
 import { areaFeatureModeForRules, groupTaxPerRegion, isAreaScoring, isSuicideLegal, rulesOf } from '../../utils/goRules';
 import { POLICY_OPTIMISM, ROOT_POLICY_OPTIMISM } from './searchParams';
 
+import { createSuperkoHistory, type SuperkoHistory } from './superkoHistory';
+
 export type OwnershipMode = 'none' | 'root' | 'tree';
 
 type PolicyValueOutput = ReturnType<KataGoModelV8Tf['forwardPolicyValue']>;
@@ -409,6 +411,7 @@ function buildRootMoveMask(args: {
   currentPlayer: Player;
   multiStoneSuicideLegal: boolean;
   symmetryPruning?: boolean;
+  superkoHistory?: SuperkoHistory | null;
   /** KataGo ignorePreRootHistory: with it on, symmetry is a matter of stones alone. */
   ignorePreRootHistory?: boolean;
   /**
@@ -450,6 +453,10 @@ function buildRootMoveMask(args: {
     recentMoves: takeLastMoves(args.moveHistory, 5),
     ignorePreRootHistory: args.ignorePreRootHistory,
   });
+  const historySymmetries = args.superkoHistory
+    ? rootSymmetries.filter(sym => args.superkoHistory!.isSymmetryInvariant(getSymPosMap().subarray(sym * BOARD_AREA, (sym + 1) * BOARD_AREA)))
+    : rootSymmetries;
+  rootSymmetries.splice(0, rootSymmetries.length, ...historySymmetries);
   const symDupMoves = markSymmetryDuplicateMoves(rootSymmetries, args.currentPlayer === 'black', allowedMoves);
   if (!symDupMoves) return { allowedMoves, roiMask, rootSymmetries };
 
@@ -467,6 +474,7 @@ function expandNode(args: {
   stones: Uint8Array;
   koPoint: number;
   multiStoneSuicideLegal: boolean;
+  superkoBanned?: Uint8Array;
   policyLogits: ArrayLike<number>; // len 361 (in symmetry space if policyLogitsSymmetry != 0)
   policyLogitsSymmetry?: number; // 0..7, where 0 is identity
   passLogit: number;
@@ -504,7 +512,7 @@ function expandNode(args: {
   const allowedMoves = args.allowedMoves;
   for (let p = 0; p < BOARD_AREA; p++) {
     if (stones[p] !== EMPTY) continue;
-    if (p === koPoint) continue;
+    if (p === koPoint || args.superkoBanned?.[p]) continue;
 
     let hasEmptyNeighbor = false;
     let captures = false;
@@ -672,6 +680,7 @@ async function buildRootEval(args: {
   rootPrevPrevStones: Uint8Array;
   rootPrevPrevKoPoint: number;
   rootMoves: RecentMove[];
+  rootHistory: SuperkoHistory | null;
   maxChildren: number;
   regionOfInterest?: RegionOfInterest | null;
   rootSymmetryPruning?: boolean;
@@ -713,6 +722,9 @@ async function buildRootEval(args: {
   rawStScoreError: number;
   rawVarTimeLeft: number;
 }> {
+  const rootSuperkoBanned = args.rootHistory?.bannedMoves(
+    { stones: args.rootStones, koPoint: args.rootKoPoint }, playerToColor(args.currentPlayer), isSuicideLegal(args.rules)
+  );
   const includeOwnership = args.ownershipMode !== 'none';
   const rootEval = await evaluateRootEval({
     model: args.model,
@@ -727,6 +739,7 @@ async function buildRootEval(args: {
     state: {
       stones: args.rootStones,
       koPoint: args.rootKoPoint,
+      superkoBanned: rootSuperkoBanned,
       prevStones: args.rootPrevStones,
       prevKoPoint: args.rootPrevKoPoint,
       prevPrevStones: args.rootPrevPrevStones,
@@ -762,6 +775,7 @@ async function buildRootEval(args: {
     currentPlayer: args.currentPlayer,
     multiStoneSuicideLegal: isSuicideLegal(args.rules),
     symmetryPruning: args.rootSymmetryPruning,
+    superkoHistory: args.rootHistory,
     ignorePreRootHistory: args.ignorePreRootHistory,
     avoidMoveUntil: args.avoidRootMoves,
   });
@@ -773,6 +787,7 @@ async function buildRootEval(args: {
     stones: args.rootStones,
     koPoint: args.rootKoPoint,
     multiStoneSuicideLegal: isSuicideLegal(args.rules),
+    superkoBanned: rootSuperkoBanned,
     policyLogits: rootEval.policy,
     policyLogitsSymmetry: rootEval.symmetry,
     passLogit: rootEval.passLogit,
@@ -3041,6 +3056,7 @@ function getEvalScratch(args: { batch: number; includeAreaFeature: boolean }): E
 }
 
 type EvalState = {
+  superkoBanned?: Uint8Array;
   stones: Uint8Array;
   koPoint: number;
   prevStones: Uint8Array;
@@ -3198,6 +3214,7 @@ async function evaluateBatch(args: {
     fillInputsV7Fast({
       stones: state.stones,
       koPoint: state.koPoint,
+      superkoBanned: state.superkoBanned,
       currentPlayer: state.currentPlayer,
       recentMoves,
       komi: state.komi ?? args.komi,
@@ -3353,6 +3370,7 @@ export class MctsSearch {
   private rootPrevStones: Uint8Array<ArrayBuffer>;
   private rootPrevKoPoint: number;
   private rootMoves: RecentMove[];
+  private rootHistory: SuperkoHistory | null;
   private rootLibertyMap: Uint8Array;
   private rootPrevLibertyMap: Uint8Array;
 
@@ -3447,6 +3465,7 @@ export class MctsSearch {
     rootPrevStones: Uint8Array<ArrayBuffer>;
     rootPrevKoPoint: number;
     rootMoves: RecentMove[];
+    rootHistory: SuperkoHistory | null;
     rootNode: Node;
     rootLibertyMap: Uint8Array;
     rootPrevLibertyMap: Uint8Array;
@@ -3498,6 +3517,7 @@ export class MctsSearch {
     this.rootPrevStones = args.rootPrevStones;
     this.rootPrevKoPoint = args.rootPrevKoPoint;
     this.rootMoves = args.rootMoves;
+    this.rootHistory = args.rootHistory;
 
     this.rootNode = args.rootNode;
     this.rootLibertyMap = args.rootLibertyMap;
@@ -3541,6 +3561,11 @@ export class MctsSearch {
       this.rootConsecutivePasses,
       this.rootGraphHash
     );
+    this.rootHistory?.reset();
+    if (this.rootHistory) {
+      this.rootGraphHash[0] ^= this.rootHistory.hash0;
+      this.rootGraphHash[1] ^= this.rootHistory.hash1;
+    }
   }
 
   /** How many times the search found a position it had already reached another way. */
@@ -3638,6 +3663,7 @@ export class MctsSearch {
     previousPreviousBoard?: BoardState;
     currentPlayer: Player;
     moveHistory: Move[];
+    repetitionHistory?: readonly string[];
     komi: number;
     rules: GameRules;
     nnRandomize: boolean;
@@ -3693,6 +3719,7 @@ export class MctsSearch {
     const outputScaleMultiplier = args.model.postProcessParams?.outputScaleMultiplier ?? 1.0;
     const rootSymmetrySamples = clampRootSymmetrySamples(args.rootSymmetrySamples);
     const rootStones = boardStateToStones(args.board);
+    const rootHistory = createSuperkoHistory(args);
     const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory, rules: args.rules });
 
     const rootPrevStones = args.previousBoard ? boardStateToStones(args.previousBoard) : rootStones;
@@ -3773,6 +3800,7 @@ export class MctsSearch {
       rootPrevPrevStones,
       rootPrevPrevKoPoint,
       rootMoves,
+      rootHistory,
       maxChildren: args.maxChildren,
       regionOfInterest: args.regionOfInterest,
       rootSymmetryPruning: args.rootSymmetryPruning,
@@ -3829,6 +3857,7 @@ export class MctsSearch {
       rootPrevStones,
       rootPrevKoPoint,
       rootMoves,
+      rootHistory,
       rootNode,
       rootLibertyMap,
       rootPrevLibertyMap,
@@ -3871,10 +3900,12 @@ export class MctsSearch {
     previousPreviousBoard?: BoardState;
     currentPlayer: Player;
     moveHistory: Move[];
+    repetitionHistory?: readonly string[];
     komi: number;
     rules: GameRules;
     regionOfInterest?: RegionOfInterest | null;
   }): Promise<boolean> {
+    if (args.rules !== this.rules || args.komi !== this.komi) return false;
     const edges = this.rootNode.edges;
     if (!edges || edges.length === 0) return false;
     const target = edges.find((edge) => edge.move === args.move);
@@ -3883,6 +3914,10 @@ export class MctsSearch {
     if (child.playerToMove !== playerToColor(args.currentPlayer)) return false;
 
     const rootStones = boardStateToStones(args.board);
+    const rootHistory = args.repetitionHistory === undefined && this.rootHistory
+      ? this.rootHistory.withPosition(rootStones, child.playerToMove)
+      : createSuperkoHistory(args);
+    if (this.rootHistory && (!rootHistory || !this.rootHistory.isContinuation(rootHistory, rootStones, child.playerToMove))) return false;
     const rootKoPoint = computeKoPointFromPrevious({ board: args.board, previousBoard: args.previousBoard, moveHistory: args.moveHistory, rules: args.rules });
 
     const rootPrevStones = args.previousBoard ? boardStateToStones(args.previousBoard) : rootStones;
@@ -3937,6 +3972,7 @@ export class MctsSearch {
       rootPrevPrevStones,
       rootPrevPrevKoPoint,
       rootMoves,
+      rootHistory,
       maxChildren: this.maxChildren,
       regionOfInterest: args.regionOfInterest,
       playoutDoublingAdvantage: this.playoutDoublingAdvantage,
@@ -3971,6 +4007,7 @@ export class MctsSearch {
     this.rootPrevStones = rootPrevStones;
     this.rootPrevKoPoint = rootPrevKoPoint;
     this.rootMoves = rootMoves;
+    this.rootHistory = rootHistory;
     this.rootLibertyMap = rootLibertyMap;
     this.rootPrevLibertyMap = rootPrevLibertyMap;
     this.rootPolicy = rootPolicy;
@@ -4084,6 +4121,7 @@ export class MctsSearch {
         stones: Uint8Array;
         koPoint: number;
         libertyMap: Uint8Array;
+        superkoBanned?: Uint8Array;
         prevStones: Uint8Array;
         prevKoPoint: number;
         prevLibertyMap?: Uint8Array;
@@ -4110,6 +4148,7 @@ export class MctsSearch {
         undoPlayers.length = 0;
         undoSnapshots.length = 0;
         pathMoves.length = 0;
+        this.rootHistory?.reset();
         sim.stones.set(this.rootStones);
         sim.koPoint = this.rootKoPoint;
         libertyMapStack[0] = this.rootLibertyMap;
@@ -4279,12 +4318,17 @@ export class MctsSearch {
           const endsGame = scoreTerminalNodes && move === PASS_MOVE && previousMove === PASS_MOVE;
 
           const childPlayer = opponentOf(player);
+          this.rootHistory?.push(sim.stones, childPlayer);
           consecutivePasses = move === PASS_MOVE ? consecutivePasses + 1 : 0;
           let childGraphH0 = 0;
           let childGraphH1 = 0;
           if (this.useGraphSearch) {
             const scratch = this.graphHashScratch;
             computeStateHash(sim.stones, sim.koPoint, childPlayer, consecutivePasses, scratch);
+            if (this.rootHistory) {
+              scratch[0] ^= this.rootHistory.hash0;
+              scratch[1] ^= this.rootHistory.hash1;
+            }
             // KataGo only lets a position stand for itself when no short repetition
             // could come back through the move that made it; otherwise the path's
             // own hash goes in too, and only the identical path matches.
@@ -4396,6 +4440,7 @@ export class MctsSearch {
         const leafPlayer = colorToPlayer(player);
         const leafDepth = depth;
         const leafLibertyMap = libertyMapStack[leafDepth] ?? this.rootLibertyMap;
+        const superkoBanned = this.rootHistory?.bannedMoves(sim, player, multiStoneSuicideLegal, leafLibertyMap);
         const leafLibertyBuf = this.jobLibertyMapScratch.subarray(jobIdx * BOARD_AREA, (jobIdx + 1) * BOARD_AREA);
         leafLibertyBuf.set(leafLibertyMap);
         let prevLibertyMap: Uint8Array | undefined;
@@ -4472,6 +4517,7 @@ export class MctsSearch {
           stones: leafStones,
           koPoint: leafKoPoint,
           libertyMap: leafLibertyBuf,
+          superkoBanned,
           prevStones,
           prevKoPoint,
           prevLibertyMap,
@@ -4532,6 +4578,7 @@ export class MctsSearch {
           stones: job.stones,
           koPoint: job.koPoint,
           multiStoneSuicideLegal,
+          superkoBanned: job.superkoBanned,
           policyLogits: ev.policy,
           policyLogitsSymmetry: ev.symmetry,
           passLogit: ev.passLogit,

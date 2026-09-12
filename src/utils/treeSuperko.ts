@@ -1,5 +1,5 @@
-import type { BoardState, GameNode, Player } from '../types';
-import type { KoRule } from './goRules';
+import type { BoardState, GameNode, GameRules, Player } from '../types';
+import { rulesOf, type KoRule } from './goRules';
 import { positionalKey } from './superko';
 
 // Stored positions are immutable: setup edits, replay and undo replace boards.
@@ -15,6 +15,18 @@ const storedBoardKey = (board: BoardState): string => {
     storedBoardKeys.set(board, key);
   }
   return key;
+};
+
+/** Complete, exact repetition context for transport to the engine. Passes and
+ * annotation nodes may repeat keys; their order and multiplicity do not affect
+ * superko. Simple-ko games need no extra history payload. */
+export const repetitionHistoryForNode = (from: GameNode, rules: GameRules): string[] | undefined => {
+  if (rulesOf(rules).ko === 'simple') return undefined;
+  const keys = new Set<string>();
+  for (let node: GameNode | null = from; node; node = node.parent) {
+    keys.add(`${node.gameState.currentPlayer[0]}|${storedBoardKey(node.gameState.board)}`);
+  }
+  return [...keys].sort();
 };
 
 /** Check this variation's ancestors, including the current position. */

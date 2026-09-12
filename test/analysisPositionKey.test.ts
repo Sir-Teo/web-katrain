@@ -2,11 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_BOARD_SIZE, type BoardState } from '../src/types';
 import { useGameStore } from '../src/store/gameStore';
 import { makeAnalysisPositionKey } from '../src/utils/analysisPositionKey';
+import { situationalKey } from '../src/utils/superko';
+import { tripleKoFixture } from './helpers/superkoFixture';
 
 const emptyBoard = (): BoardState =>
   Array.from({ length: DEFAULT_BOARD_SIZE }, () => Array.from({ length: DEFAULT_BOARD_SIZE }, () => null));
 
 describe('analysis position keys', () => {
+  it('separates identical current boards with different repetition history, regardless of key order', () => {
+    const {history, moves} = tripleKoFixture();
+    const current = history.at(-1)!;
+    const repetitionHistory = history.map(p => situationalKey(p.board, p.playerToMove));
+    const args = {board:current.board, currentPlayer:current.playerToMove, rules:'aga' as const, komi:7, moveHistory:moves, repetitionHistory};
+    const key = makeAnalysisPositionKey(args);
+    expect(makeAnalysisPositionKey({...args, repetitionHistory:repetitionHistory.slice(1)})).not.toBe(key);
+    expect(makeAnalysisPositionKey({...args, repetitionHistory:[...repetitionHistory].reverse().concat(repetitionHistory)})).toBe(key);
+  });
   it('changes when board contents or move history changes', () => {
     const board = emptyBoard();
     const base = makeAnalysisPositionKey({

@@ -1,3 +1,4 @@
+import { repetitionHistoryForNode } from './treeSuperko';
 import { getKataGoEngineClient } from '../engine/katago/client';
 import type { GameNode, GameSettings } from '../types';
 import { komiWithHandicapBonus } from './handicap';
@@ -46,6 +47,7 @@ export async function evaluateNode(node: GameNode, settings: GameSettings): Prom
     previousPreviousBoard: node.parent?.parent?.gameState.board,
     currentPlayer: node.gameState.currentPlayer,
     moveHistory: node.gameState.moveHistory,
+    repetitionHistory: repetitionHistoryForNode(node, settings.gameRules),
     komi: komiWithHandicapBonus(rootBoardOf(node), settings.gameRules, node.gameState.komi),
     rules: settings.gameRules,
     conservativePass: settings.katagoConservativePass,
