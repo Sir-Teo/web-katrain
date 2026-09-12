@@ -69,7 +69,7 @@ describe('root ending score bonus', () => {
       rules: 'japanese',
     })!;
     expect(bonuses).not.toBeNull();
-    // Two thirds of a point against black for passing, expressed for white.
+    // Two thirds of the 0.5-point bonus against black, expressed for white.
     expect(bonuses[PASS_MOVE]).toBeCloseTo(0.5 * (2 / 3), 12);
   });
 

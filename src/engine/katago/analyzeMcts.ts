@@ -2023,12 +2023,16 @@ export function computeEndingScoreBonuses(args: {
 
   const rootPla = playerToColor(args.currentPlayer);
   const opp = opponentOf(rootPla);
-  const isAreaIsh = args.rules === 'chinese';
+  const isArea = isAreaScoring(args.rules);
   const hasButton = false; // none of the rulesets this app offers use a button
   const extreme = 0.95;
   const tail = 0.05;
 
-  const passAliveArea = computePassAliveAreaInto(args.stones, new Uint8Array(BOARD_AREA), false);
+  const passAliveArea = computePassAliveAreaInto(
+    args.stones,
+    new Uint8Array(BOARD_AREA),
+    isSuicideLegal(args.rules)
+  );
   const bonuses = new Float64Array(BOARD_AREA + 1);
   let any = false;
 
@@ -2039,7 +2043,7 @@ export function computeEndingScoreBonuses(args: {
     any = true;
   };
 
-  if (isAreaIsh) {
+  if (isArea) {
     // Area scoring: discourage moves in settled territory, but never discourage
     // cleanup, dame filling, or connections of groups that are not pass-alive yet.
     if (args.koPoint < 0) {
