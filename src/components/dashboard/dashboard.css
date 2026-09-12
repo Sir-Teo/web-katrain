@@ -91,6 +91,10 @@
 
   /* App shell */
   display: grid;
+  /* Long header messages must shrink within the window. An implicit auto
+     column instead grows to their minimum content width and pushes the
+     sidebar offscreen, even though the shell hides the resulting overflow. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--header-h) minmax(0, 1fr);
   height: 100%;
   min-height: 0;
