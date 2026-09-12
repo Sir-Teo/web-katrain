@@ -807,11 +807,14 @@ type EditHistoryEntry = {
   rootNode: GameNode;
   currentNodeId: string;
   activeBranchChildIds: ActiveBranchMap;
+  gameRules: GameRules;
+  analysisRevision: number;
 };
 
 const EDIT_HISTORY_LIMIT = 50;
 let editUndoStack: EditHistoryEntry[] = [];
 let editRedoStack: EditHistoryEntry[] = [];
+let analysisRevision = 0;
 
 const cloneMove = (move: Move | null): Move | null => (move ? { ...move } : null);
 
@@ -865,6 +868,8 @@ const captureEditHistory = (state: GameStore): EditHistoryEntry => ({
   rootNode: cloneGameNodeTree(state.rootNode),
   currentNodeId: state.currentNode.id,
   activeBranchChildIds: { ...state.activeBranchChildIds },
+  gameRules: state.settings.gameRules,
+  analysisRevision,
 });
 
 const pushEditHistory = (state: GameStore) => {
@@ -875,8 +880,19 @@ const pushEditHistory = (state: GameStore) => {
 };
 
 const restoreEditHistory = (entry: EditHistoryEntry, state: GameStore) => {
+  const rulesChanged = entry.gameRules !== state.settings.gameRules;
+  const settings = rulesChanged ? { ...state.settings, gameRules: entry.gameRules } : state.settings;
+  if (rulesChanged) {
+    analysisRevision++;
+    analysisQueue.clearCache();
+    saveStoredSettings(settings);
+  }
+  // Old edits can outlive a model switch or an explicit cache clear. Keep
+  // their annotations and positions, but never revive their stale evaluations.
+  if (entry.analysisRevision !== analysisRevision) clearAnalysisInSubtree(entry.rootNode);
   const currentNode = findNodeById(entry.rootNode, entry.currentNodeId) ?? entry.rootNode;
   return {
+    settings,
     rootNode: entry.rootNode,
     currentNode,
     activeBranchChildIds: { ...entry.activeBranchChildIds },
@@ -1871,6 +1887,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   clearAnalysisCache: () => {
+      analysisRevision++;
       const removed = getAnalysisCacheSize(get().rootNode);
       const notification = {
         message: removed > 0 ? `Cleared ${removed} cached ${removed === 1 ? 'analysis' : 'analyses'}.` : 'No cached analysis to clear.',
@@ -3617,6 +3634,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
       if (!engineChanged) return { settings: nextSettings };
+      analysisRevision++;
 
       continuousToken++;
       selfplayToken++;
@@ -3624,12 +3642,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       analysisQueue.cancelWhere(() => true, 'Analysis settings changed');
       analysisQueue.clearCache();
 
-      const clearAnalysis = (node: GameNode) => {
-        node.analysis = null;
-        node.analysisVisitsRequested = 0;
-        for (const child of node.children) clearAnalysis(child);
-      };
-      clearAnalysis(state.rootNode);
+      clearAnalysisInSubtree(state.rootNode);
 
       const rulesChanged = newSettings.gameRules !== undefined && newSettings.gameRules !== state.settings.gameRules;
       const history = rulesChanged ? pushEditHistory(state) : {};
