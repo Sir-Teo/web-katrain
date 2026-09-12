@@ -36,6 +36,7 @@ async function main() {
       const { useGameStore } = await import('/src/store/gameStore.ts');
       const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
       const { findSolutionPath } = await import('/src/utils/problemMode.ts');
+      const { createLibraryItem, prependLibraryImports } = await import('/src/utils/library.ts');
       const state = () => useGameStore.getState();
       state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
       const sgf = '(;GM[1]SZ[9]' + Array.from({ length: 2000 }, (_, i) => ';' + (i % 2 ? 'W' : 'B') + '[]').join('') + ')';
@@ -113,7 +114,16 @@ async function main() {
       }
       if (state().board !== state().rootNode.gameState.board) throw Error('Displayed and stored boards disagree');
       state().resetGame();
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs };
+      const template = createLibraryItem('Game.sgf', '(;GM[1]SZ[9])');
+      const existing = Array.from({length:10000}, (_, i) => ({...template, id:'existing-'+i, name:'Existing '+i}));
+      const incoming = Array.from({length:10000}, (_, i) => ({...template, id:'import-'+i}));
+      operationStart = performance.now();
+      const merged = prependLibraryImports(existing, incoming);
+      const libraryImportNamingMs = performance.now() - operationStart;
+      if (merged.length !== 20000 || new Set(merged.map(item => item.name.toLowerCase())).size !== 20000) {
+        throw Error('Library import lost games or produced duplicate names');
+      }
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -121,7 +131,7 @@ async function main() {
     assert.ok(result.markerMedianMs < 25, `Marker edit took ${result.markerMedianMs}ms; budget is 25ms`);
     assert.equal(result.comments, 12000);
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
-    for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs']) {
+    for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs']) {
       assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
     }
     console.log('Study performance checks passed.');

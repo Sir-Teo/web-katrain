@@ -32,7 +32,7 @@ The Vite dev server sends the COOP/COEP headers required for threaded WASM.
 | `npm run test:viewport` | Check 11 desktop/mobile sizes and study workflows in Chrome with a fresh Vite cache and browser profile. Runs in CI and separately from `verify`; about 3 minutes locally. |
 | `npm run test:responsiveness` | Measure how fast the app answers a click: first board move, board-move median, warm dialog open, INP p98, worst long task. **~15s**. Needs a current `npm run build` — it measures `dist/` through `vite preview` and refuses to fall back to dev, where React's instrumentation changes the numbers by an order of magnitude. Not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
-| `npm run test:study` | Reproduce large-study regressions in Chrome: marker edits, 12,000-node export and nested import, solution lookup, branch copy/paste, and setup replay. Uses an isolated profile and the dev store; reports operation timings separately from production INP. Not in `verify` or CI. |
+| `npm run test:study` | Reproduce large-study regressions in Chrome: marker edits, 12,000-node export and nested import, solution lookup, branch copy/paste, setup replay, and 10,000-entry library import naming. Uses an isolated profile and the dev store; reports operation timings separately from production INP. Not in `verify` or CI. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Run `tsc -b` and build Vite output into `dist/`. |
 | `npm run preview` | Serve `dist/` locally with preview headers. |

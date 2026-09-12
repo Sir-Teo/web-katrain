@@ -44,6 +44,7 @@ import {
   librarySgfDownloadFilename,
   loadLibrary,
   moveLibraryItems,
+  prependLibraryImports,
   restoreLibrary,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
@@ -1290,10 +1291,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let skippedUnsupportedPhotoImages = 0;
     let skippedInvalidSgfFiles = 0;
     let skippedOversizedSgfFiles = 0;
-    const pushImportedItem = (item: LibraryItem) => {
-      const uniqueName = getUniqueLibraryItemName(item.name, [...items, ...imported], item.parentId ?? null);
-      imported.push(uniqueName === item.name ? item : { ...item, name: uniqueName });
-    };
     let unreadableFiles = 0;
     for (const file of Array.from(files)) {
       const name = file.name.toLowerCase();
@@ -1310,7 +1307,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           continue;
         }
         if (name.endsWith('.zip')) {
-          for (const item of await importLibraryItemsFromZip(file, folderId)) pushImportedItem(item);
+          for (const item of await importLibraryItemsFromZip(file, folderId)) imported.push(item);
           continue;
         }
         if (!name.endsWith('.sgf')) continue;
@@ -1325,7 +1322,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           skippedInvalidSgfFiles += 1;
           continue;
         }
-        pushImportedItem(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
+        imported.push(createLibraryItem(file.name.replace(/\.sgf$/i, ''), text, folderId));
       } catch {
         // A file that throws here -- unreadable, or a ZIP that will not open --
         // used to vanish without a counter, so the summary reported only what
@@ -1346,7 +1343,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       onToast(report.message, report.tone);
       return;
     }
-    setItems((prev) => [...imported, ...prev]);
+    // Reading files can outlive another import or edit. Reserve names against
+    // the state at completion, without rescanning every sibling for each file.
+    setItems((prev) => prependLibraryImports(prev, imported));
     const report = describeLibraryImport({
       importedEntries: imported.length,
       importedFiles: imported.filter(isFile).length,

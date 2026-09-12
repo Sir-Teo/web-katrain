@@ -717,19 +717,34 @@ const createCopyName = (name: string): string => {
   return `${name} (copy)`;
 };
 
-const uniqueLibraryName = (preferred: string, siblings: LibraryItem[]): string => {
-  const existing = new Set(siblings.map((item) => item.name.toLowerCase()));
-  if (!existing.has(preferred.toLowerCase())) return preferred;
+type LibraryNamePool = { names: Set<string>; nextSuffix: Map<string, number> };
 
-  const dotSgf = preferred.toLowerCase().endsWith('.sgf');
+const reserveLibraryName = (preferred: string, pool: LibraryNamePool): string => {
+  const key = preferred.toLowerCase();
+  if (!pool.names.has(key)) {
+    pool.names.add(key);
+    return preferred;
+  }
+
+  const dotSgf = key.endsWith('.sgf');
   const base = dotSgf ? preferred.slice(0, -4) : preferred;
   const suffix = dotSgf ? '.sgf' : '';
-  for (let i = 2; i < 10_000; i++) {
+  for (let i = pool.nextSuffix.get(key) ?? 2; ; i++) {
     const candidate = `${base} ${i}${suffix}`;
-    if (!existing.has(candidate.toLowerCase())) return candidate;
+    const candidateKey = candidate.toLowerCase();
+    if (!pool.names.has(candidateKey)) {
+      pool.names.add(candidateKey);
+      pool.nextSuffix.set(key, i + 1);
+      return candidate;
+    }
   }
-  return `${base} ${Date.now()}${suffix}`;
 };
+
+const uniqueLibraryName = (preferred: string, siblings: LibraryItem[]): string =>
+  reserveLibraryName(preferred, {
+    names: new Set(siblings.map((item) => item.name.toLowerCase())),
+    nextSuffix: new Map(),
+  });
 
 export const getUniqueLibraryItemName = (
   preferred: string,
@@ -742,6 +757,28 @@ export const getUniqueLibraryItemName = (
     (item) => item.id !== excludeId && (item.parentId ?? null) === normalizedParentId
   );
   return uniqueLibraryName(preferred.trim() || 'Untitled', siblings);
+};
+
+/** Name a completed import against the latest state, once per batch. */
+export const prependLibraryImports = (
+  items: readonly LibraryItem[],
+  imported: readonly LibraryItem[]
+): LibraryItem[] => {
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+  for (const item of items) poolFor(item.parentId ?? null).names.add(item.name.toLowerCase());
+  const named = imported.map((item) => {
+    const name = reserveLibraryName(item.name.trim() || 'Untitled', poolFor(item.parentId ?? null));
+    return name === item.name ? item : { ...item, name };
+  });
+  return [...named, ...items];
 };
 
 export const duplicateLibraryItem = (

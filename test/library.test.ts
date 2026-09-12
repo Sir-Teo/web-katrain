@@ -38,6 +38,7 @@ function restoreIndexedDB() {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   restoreIndexedDB();
 });
 
@@ -159,6 +160,18 @@ describe('library storage helpers', () => {
     expect(getUniqueLibraryItemName('Game', items, null)).toBe('Game 2');
     expect(getUniqueLibraryItemName('Game', items, folder.id, first.id)).toBe('Game');
     expect(getUniqueLibraryItemName('Game.sgf', [createLibraryItem('Game.sgf', sgf, null)], null)).toBe('Game 2.sgf');
+  });
+
+  it('keeps names unique beyond 9,999 collisions even within the same millisecond', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_234_567_890);
+    const template = createLibraryItem('Game', sgf);
+    const items = Array.from({ length: 9_999 }, (_, index) => ({
+      ...template, id: `game-${index}`, name: index === 0 ? 'Game' : `Game ${index + 1}`,
+    }));
+    items.push({ ...template, id: 'previous-fallback', name: 'Game 1234567890' });
+    const next = getUniqueLibraryItemName('Game', items, null);
+    expect(items.some((item) => item.name === next)).toBe(false);
+    expect(next).toBe('Game 10000');
   });
 
   it('moves library items while preventing folder cycles', () => {
