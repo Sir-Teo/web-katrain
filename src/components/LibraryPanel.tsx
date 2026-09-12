@@ -81,6 +81,7 @@ import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
 import { getDroppedSgfOrOgsText, hasPotentialGameImportDrag } from '../utils/dragImport';
 import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
+import { mergeOgsLibraryImports } from '../utils/libraryOgsImport';
 import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
@@ -381,6 +382,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [textDialog, setTextDialog] = useState<LibraryTextDialogState | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<LibraryConfirmDialogState | null>(null);
   const [showOgsSync, setShowOgsSync] = useState(false);
+  const [pendingOgsFileId, setPendingOgsFileId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -399,6 +401,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [sortKey, setSortKey] = useState(() => {
     return readLocalStorage('web-katrain:library_sort:v1') ?? 'recent';
   });
+  useEffect(() => {
+    if (!pendingOgsFileId) return;
+    const folderId = items.find((item) => item.id === pendingOgsFileId)?.parentId;
+    if (!folderId) return;
+    // Expand the destination chosen by the completed merge. Keep this UI
+    // update outside the pure items updater, which React may evaluate twice.
+    setExpandedFolderIds((prev) => new Set(prev).add(folderId));
+    setPendingOgsFileId(null);
+  }, [items, pendingOgsFileId]);
   useEffect(() => {
     let cancelled = false;
     setLibraryStatus('loading');
@@ -1000,27 +1011,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleOgsSyncImport = (username: string, games: OgsSyncedGame[]) => {
     if (games.length === 0) return;
     const folderName = ogsSyncFolderName(username);
-    let next = items;
-    let folder = next.find(
-      (item): item is LibraryFolder =>
-        isFolder(item) && item.parentId === null && item.name === folderName
-    );
-    if (!folder) {
-      folder = createLibraryFolder(folderName, null);
-      next = [folder, ...next];
-    }
-    const folderId = folder.id;
-    const files: LibraryItem[] = [];
-    for (const game of games) {
-      const name = getUniqueLibraryItemName(
-        ogsSyncFileName(game.summary),
-        [...next, ...files],
-        folderId
-      );
-      files.push(createLibraryItem(name, game.sgf, folderId));
-    }
-    setItems([...files, ...next]);
-    setExpandedFolderIds((prev) => new Set(prev).add(folderId));
+    const folder = createLibraryFolder(folderName, null);
+    const files = games.map((game) => createLibraryItem(ogsSyncFileName(game.summary), game.sgf, folder.id));
+    setItems((prev) => mergeOgsLibraryImports(prev, folder, files));
+    setPendingOgsFileId(files[0]!.id);
     onToast(`Synced ${games.length} OGS game${games.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
   };
 
