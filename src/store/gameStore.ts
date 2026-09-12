@@ -637,19 +637,40 @@ const cloneNodeProperties = (props: Record<string, string[]> | undefined): Recor
 const cloneDrawings = (drawings: BoardDrawing[] | undefined): BoardDrawing[] | undefined =>
   drawings?.map((drawing) => ({ ...drawing, points: drawing.points.map((point) => ({ ...point })) }));
 
-const copyBranchSnapshot = (node: GameNode): BranchClipboardNode => ({
-  move: node.move ? { ...node.move } : null,
-  properties: cloneNodeProperties(node.properties),
-  endState: node.endState ?? null,
-  timeUsedSeconds: node.timeUsedSeconds ?? 0,
-  note: node.note ?? '',
-  aiThoughts: node.aiThoughts ?? '',
-  drawings: cloneDrawings(node.drawings),
-  children: node.children.map(copyBranchSnapshot),
-});
+const copyBranchSnapshot = (node: GameNode): BranchClipboardNode => {
+  const copyNode = (source: GameNode): BranchClipboardNode => ({
+    move: source.move ? { ...source.move } : null,
+    properties: cloneNodeProperties(source.properties),
+    endState: source.endState ?? null,
+    timeUsedSeconds: source.timeUsedSeconds ?? 0,
+    note: source.note ?? '',
+    aiThoughts: source.aiThoughts ?? '',
+    drawings: cloneDrawings(source.drawings),
+    children: [],
+  });
+  const root = copyNode(node);
+  const pending = [{ source: node, target: root }];
+  while (pending.length) {
+    const { source, target } = pending.pop()!;
+    for (const child of source.children) {
+      const copy = copyNode(child);
+      target.children.push(copy);
+      pending.push({ source: child, target: copy });
+    }
+  }
+  return root;
+};
 
-const countClipboardNodes = (node: BranchClipboardNode): number =>
-  1 + node.children.reduce((total, child) => total + countClipboardNodes(child), 0);
+const countClipboardNodes = (node: BranchClipboardNode): number => {
+  let count = 0;
+  const pending = [node];
+  while (pending.length) {
+    const current = pending.pop()!;
+    count++;
+    for (const child of current.children) pending.push(child);
+  }
+  return count;
+};
 
 const removeValue = (props: Record<string, string[]>, key: string, shouldRemove: (value: string) => boolean): void => {
   const values = props[key];
@@ -1006,10 +1027,11 @@ const replayChildMove = (parent: GameNode, child: GameNode, suicideLegal = false
   const move = child.move;
   const parentState = parent.gameState;
   if (!move) {
-    const nextState = cloneGameState(parentState);
+    // Comment/setup nodes do not add a move. Positions are immutable, and
+    // applying setup properties already copies the board when stones change.
     return {
-      ...nextState,
-      board: applySetupPropsToBoard(nextState.board, child.properties),
+      ...parentState,
+      board: applySetupPropsToBoard(parentState.board, child.properties),
       currentPlayer: playerFromSgfPlayerToMove(child.properties) ?? parentState.currentPlayer,
     };
   }
@@ -1061,41 +1083,56 @@ const replayChildMove = (parent: GameNode, child: GameNode, suicideLegal = false
 };
 
 const pasteBranchSnapshot = (parent: GameNode, source: BranchClipboardNode, suicideLegal = false): GameNode | null => {
-  const node = createNode(parent, cloneMove(source.move), cloneGameState(parent.gameState));
-  node.properties = cloneNodeProperties(source.properties);
-  node.endState = source.endState;
-  node.timeUsedSeconds = source.timeUsedSeconds;
-  node.note = source.note;
-  node.aiThoughts = source.aiThoughts;
-  node.drawings = cloneDrawings(source.drawings);
+  const pasteNode = (parent: GameNode, source: BranchClipboardNode): GameNode | null => {
+    const node = createNode(parent, cloneMove(source.move), parent.gameState);
+    node.properties = cloneNodeProperties(source.properties);
+    node.endState = source.endState;
+    node.timeUsedSeconds = source.timeUsedSeconds;
+    node.note = source.note;
+    node.aiThoughts = source.aiThoughts;
+    node.drawings = cloneDrawings(source.drawings);
 
-  const rebuiltState = replayChildMove(parent, node, suicideLegal);
-  if (!rebuiltState) return null;
-  node.gameState = rebuiltState;
+    const rebuiltState = replayChildMove(parent, node, suicideLegal);
+    if (!rebuiltState) return null;
+    node.gameState = rebuiltState;
+    return node;
+  };
 
-  for (const child of source.children) {
-    const pastedChild = pasteBranchSnapshot(node, child, suicideLegal);
-    if (pastedChild) node.children.push(pastedChild);
+  const root = pasteNode(parent, source);
+  if (!root) return null;
+  const pending = [{ source, target: root }];
+  while (pending.length) {
+    const { source, target } = pending.pop()!;
+    for (const child of source.children) {
+      const pastedChild = pasteNode(target, child);
+      if (!pastedChild) continue;
+      target.children.push(pastedChild);
+      pending.push({ source: child, target: pastedChild });
+    }
   }
-  return node;
+  return root;
 };
 
 const rebuildDescendants = (node: GameNode, suicideLegal = false): number => {
   let pruned = 0;
-  const kept: GameNode[] = [];
-  for (const child of node.children) {
-    const rebuiltState = replayChildMove(node, child, suicideLegal);
-    if (!rebuiltState) {
-      pruned += countNodes(child);
-      continue;
+  const pending = [node];
+  while (pending.length) {
+    const parent = pending.pop()!;
+    const kept: GameNode[] = [];
+    for (const child of parent.children) {
+      const rebuiltState = replayChildMove(parent, child, suicideLegal);
+      if (!rebuiltState) {
+        pruned += countNodes(child);
+        continue;
+      }
+      child.gameState = rebuiltState;
+      child.analysis = null;
+      child.analysisVisitsRequested = 0;
+      kept.push(child);
+      pending.push(child);
     }
-    child.gameState = rebuiltState;
-    child.analysis = null;
-    child.analysisVisitsRequested = 0;
-    pruned += rebuildDescendants(child, suicideLegal);
-    kept.push(child);
+    parent.children = kept;
   }
-  node.children = kept;
   return pruned;
 };
 

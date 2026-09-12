@@ -68,7 +68,34 @@ async function main() {
         if (parsed.props.C?.[0] !== 'Study ' + comments) throw Error('Export lost or reordered a comment');
         comments++;
       }
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length };
+      const study = '(;GM[1]SZ[9];B[dd]' + Array.from({length:12000}, (_, i) => ';C[Study ' + i + ']').join('') + ')';
+      state().loadGame(parseSgf(study));
+      state().navigateStart();
+      state().navigateForward();
+      let operationStart = performance.now();
+      state().copyCurrentBranch();
+      const branchCopyMs = performance.now() - operationStart;
+      state().navigateStart();
+      operationStart = performance.now();
+      state().pasteCopiedBranch();
+      const branchPasteMs = performance.now() - operationStart;
+      state().navigateStart();
+      state().setEditTool('setup-black');
+      operationStart = performance.now();
+      state().applyEditTool(0, 0);
+      const setupReplayMs = performance.now() - operationStart;
+      if (state().rootNode.children.length !== 2) throw Error('Pasting the branch lost a variation');
+      for (const first of state().rootNode.children) {
+        let leaf = first;
+        let count = 0;
+        while (leaf.children.length) { leaf = leaf.children[0]; count++; }
+        if (count !== 12000 || leaf.note !== 'Study 11999' || leaf.gameState.board[0][0] !== 'black') {
+          throw Error('Copy/paste or setup replay lost part of the study');
+        }
+      }
+      if (state().board !== state().rootNode.gameState.board) throw Error('Displayed and stored boards disagree');
+      state().resetGame();
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, branchCopyMs, branchPasteMs, setupReplayMs };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -76,6 +103,9 @@ async function main() {
     assert.ok(result.markerMedianMs < 25, `Marker edit took ${result.markerMedianMs}ms; budget is 25ms`);
     assert.equal(result.comments, 12000);
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
+    for (const operation of ['branchCopyMs', 'branchPasteMs', 'setupReplayMs']) {
+      assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
+    }
     console.log('Study performance checks passed.');
   } finally {
     cdp?.close();
