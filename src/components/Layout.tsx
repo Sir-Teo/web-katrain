@@ -1410,7 +1410,7 @@ export const Layout: React.FC = () => {
   // Auto-run analysis when in analysis mode
   useEffect(() => {
     if (!isAnalysisMode) return;
-    void runAnalysis();
+    void runAnalysis({ ifIdle: true });
   }, [currentNode.id, isAnalysisMode, runAnalysis]);
 
   // PV animation

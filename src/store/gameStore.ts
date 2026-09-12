@@ -231,6 +231,9 @@ interface GameStore extends GameState {
   recordCountedResult: (result: string) => boolean;
   runAnalysis: (opts?: {
     force?: boolean;
+    /** Automatic triggers may await current work with the same position and search settings,
+     * even when its visit/time budget differs. Explicit deepening/restarts omit this. */
+    ifIdle?: boolean;
     visits?: number;
     maxTimeMs?: number;
     batchSize?: number;
@@ -1626,6 +1629,14 @@ const gameAnalysisFailureUpdate = (
 
 const analysisCacheKey = (...parts: unknown[]): string => JSON.stringify(parts);
 
+let runningInteractiveAnalysis: {
+  id: string;
+  contextKey: string;
+  cacheKey: string;
+  requestKey: string;
+  promise: Promise<void>;
+} | null = null;
+
 export const useGameStore = create<GameStore>((set, get) => ({
   // Flat properties (mirrored from currentNode.gameState for easy access)
   board: initialGameState.board,
@@ -1696,7 +1707,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleAnalysisMode: () => set((state) => {
       const newMode = !state.isAnalysisMode;
       if (newMode) {
-          scheduleAnalysis(() => void get().runAnalysis(), 0);
+          scheduleAnalysis(() => void get().runAnalysis({ ifIdle: true }), 0);
       } else {
           analysisQueue.cancelGroup('interactive');
       }
@@ -1770,6 +1781,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
               await get().runAnalysis({
                 force: true,
+                ifIdle: true,
                 visits: nextVisits,
                 reuseTree: true,
                 ownershipRefreshIntervalMs: state.settings.katagoOwnershipMode === 'tree' ? 500 : undefined,
@@ -2005,7 +2017,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newMode = !state.isTeachMode;
       if (newMode) {
            // Teach mode implies analysis
-           scheduleAnalysis(() => void get().runAnalysis(), 0);
+           scheduleAnalysis(() => void get().runAnalysis({ ifIdle: true }), 0);
       }
       return {
           isTeachMode: newMode,
@@ -3533,7 +3545,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // swaps the node's position in place, and a result for the old stones
       // must not be drawn on the new ones just because the node id matches.
       const requestPositionKey = nodeAnalysisPositionKey(node, rules);
-      const interactiveCacheKey = analysisCacheKey(
+      const interactiveContextKey = analysisCacheKey(
         'interactive',
         node.id,
         requestPositionKey,
@@ -3549,16 +3561,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
         fillDameBeforePass,
         nnRandomize,
         conservativePass,
-        visits,
-        maxTimeMs,
         batchSize,
         maxChildren,
         reuseTree,
-        ownershipRefreshIntervalMs,
         state.settings.humanSlEnabled ? state.settings.humanSlProfile : '',
         state.settings.humanSlEnabled ? state.settings.humanSlModelUrl : '',
         avoidMoves ? avoidMoves.map((m) => `${m.x},${m.y}`).sort().join(' ') : ''
       );
+      const interactiveCacheKey = analysisCacheKey(interactiveContextKey, visits, maxTimeMs, ownershipRefreshIntervalMs);
+      const requestKey = analysisCacheKey(interactiveCacheKey, reportDuringSearchEveryMs);
+      const current = runningInteractiveAnalysis;
+      if (current && (opts?.ifIdle
+        ? current.contextKey === interactiveContextKey
+        : !opts?.force && current.requestKey === requestKey)
+        && analysisQueue.hasLiveJob(current.id, current.cacheKey)) {
+        return current.promise;
+      }
       // "Loading" is about the model, not about a request being in flight.
       // Flagging it on every live-analysis pass left the pill reading
       // "Loading model" — and the notes panel "Loading engine..." — for the
@@ -3569,9 +3587,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ? { engineError: null }
         : { engineStatus: 'loading', engineError: null }));
 
-	      return analysisQueue
+      const id = `interactive:${node.id}`;
+      const promise: Promise<void> = analysisQueue
 	        .enqueue<KataGoAnalysisPayload>({
-          id: `interactive:${node.id}`,
+          id,
           label: 'Live analysis',
           group: 'interactive',
           priority: ANALYSIS_QUEUE_PRIORITY.interactive,
@@ -3697,7 +3716,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             engineError: msg,
             notification,
           });
+        }).finally(() => {
+          // A canceled request can settle after its replacement has started.
+          if (runningInteractiveAnalysis === request) runningInteractiveAnalysis = null;
         });
+      const request = { id, contextKey: interactiveContextKey, cacheKey: interactiveCacheKey, requestKey, promise };
+      runningInteractiveAnalysis = request;
+      return promise;
   },
 
   updateSettings: (newSettings) =>
@@ -4000,7 +4025,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
          get().scheduleAiMove(500);
        }
        if (after.isAnalysisMode && !after.isSelfplayToEnd) {
-         scheduleAnalysis(() => void get().runAnalysis(), 500);
+         scheduleAnalysis(() => void get().runAnalysis({ ifIdle: true }), 500);
        }
        return;
     }
@@ -4100,7 +4125,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         get().scheduleAiMove(500);
       }
 	      if (newState.isAnalysisMode && !newState.isSelfplayToEnd) {
-	          scheduleAnalysis(() => void get().runAnalysis(), 500);
+	          scheduleAnalysis(() => void get().runAnalysis({ ifIdle: true }), 500);
 	      }
 	    }
 	  },
@@ -6228,7 +6253,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
              after.scheduleAiMove(500);
            }
            if (after.isAnalysisMode && !after.isSelfplayToEnd) {
-             scheduleAnalysis(() => void after.runAnalysis(), 0);
+             scheduleAnalysis(() => void after.runAnalysis({ ifIdle: true }), 0);
            }
            return;
       }
@@ -6263,7 +6288,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!ended && after.isAiPlaying && after.aiColor && after.currentPlayer === after.aiColor) {
         after.scheduleAiMove(500);
       }
-      if (after.isAnalysisMode && !after.isSelfplayToEnd) scheduleAnalysis(() => void after.runAnalysis(), 0);
+      if (after.isAnalysisMode && !after.isSelfplayToEnd) scheduleAnalysis(() => void after.runAnalysis({ ifIdle: true }), 0);
   },
 
   resign: (player) => {

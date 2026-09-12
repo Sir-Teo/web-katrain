@@ -107,6 +107,8 @@ export async function assertUnsavedNavigation(cdp, appUrl, outputDir, { width, h
     assert.ok(await evaluate(cdp, `auditRequests.every(r=>r.rules===${JSON.stringify(gameRules)})`),
       'Every request after recovery must use the original rules');
     assert.equal(response.backend, 'wasm');
+    assert.ok(await evaluate(cdp, 'auditResponses.every(r=>!r.canceled)'),
+      'Starting recovered analysis must not cancel and replace its own work');
     // Desktop Analyze controls continuous search; Tab also leaves analysis
     // mode so the next AI-move fixture cannot schedule a second evaluation.
     if (mobile) await click(analyze);

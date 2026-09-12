@@ -201,6 +201,13 @@ export class AnalysisQueue {
     };
   }
 
+  /** A caller may share its completion handler only while this exact job is live. */
+  hasLiveJob(id: string, cacheKey: string): boolean {
+    const matches = (job: AnalysisQueueJob<unknown>) => job.id === id && job.cacheKey === cacheKey
+      && !job.signal.aborted && !this.isStale(job);
+    return this.pending.some(matches) || Array.from(this.active).some(matches);
+  }
+
   private start(job: AnalysisQueueJob<unknown>): void {
     if (job.signal.aborted) {
       job.reject(new AnalysisQueueCanceledError(job.signal.reason || undefined));

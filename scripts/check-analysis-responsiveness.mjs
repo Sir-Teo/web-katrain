@@ -134,6 +134,8 @@ async function main() {
     await clickAt(analyze);
     let first = await wait('auditResponses.find(r => r.type === "katago:analyze_update" && r.ok && r.visits > 0)');
     assert.equal(first.backend, 'wasm');
+    assert.equal(await evaluate(cdp, 'auditRequests.length'), 1,
+      'One Analyze click must start one search, without the layout preempting it');
     await wait(`(() => {
       const best = document.querySelector('.cb-metric .v.best');
       return best?.textContent && best.textContent !== '—';
