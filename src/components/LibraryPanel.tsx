@@ -122,6 +122,7 @@ type LibraryTextDialogState = {
   initialValue: string;
   placeholder?: string;
   confirmLabel: string;
+  allowEmpty?: boolean;
   folderSelect?: {
     label: string;
     rootLabel: string;
@@ -153,6 +154,7 @@ const LibraryTextDialog: React.FC<{
   const [folderId, setFolderId] = useState<string | null>(dialog.folderSelect?.initialFolderId ?? null);
   const inputRef = useRef<HTMLInputElement>(null);
   const trimmed = value.trim();
+  const canSubmit = dialog.allowEmpty === true || trimmed.length > 0;
   useEscapeToClose(onClose);
   // Declared before the effect below: the hook reads document.activeElement when
   // it runs, so anything that moves focus first would be recorded as the element
@@ -165,7 +167,7 @@ const LibraryTextDialog: React.FC<{
   }, []);
 
   const submit = () => {
-    if (!trimmed) return;
+    if (!canSubmit) return;
     dialog.onSubmit(trimmed, dialog.folderSelect ? folderId : undefined);
     onClose();
   };
@@ -238,7 +240,7 @@ const LibraryTextDialog: React.FC<{
               type="button"
               className="panel-action-button active"
               onClick={submit}
-              disabled={!trimmed}
+              disabled={!canSubmit}
             >
               {dialog.confirmLabel}
             </button>
@@ -987,6 +989,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       initialValue: (item.tags ?? []).join(', '),
       placeholder: 'joseki, review, tsumego',
       confirmLabel: 'Save tags',
+      allowEmpty: true,
       onSubmit: (next) => {
         setItems((prev) => setLibraryFileTags(prev, item.id, next.split(',')));
       },
