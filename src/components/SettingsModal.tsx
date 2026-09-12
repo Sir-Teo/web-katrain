@@ -1,4 +1,5 @@
 import React from 'react';
+import { AnalysisModelNotice } from './AnalysisModelNotice';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { FaBolt, FaCheck, FaChevronDown, FaGlobe, FaMicrochip, FaTimes } from 'react-icons/fa';
@@ -169,6 +170,7 @@ function clampSettingsVisits(value: number): number {
 
 interface SettingsModalProps {
     onClose: () => void;
+    focusModel?: boolean;
 }
 
 const ANALYSIS_OVERLAY_SHORTCUT_IDS = [
@@ -194,7 +196,7 @@ const ADVANCED_ENGINE_SETTING_IDS = new Set([
     'settings-katago-fill-dame-before-pass',
 ]);
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusModel = false }) => {
     useEscapeToClose(onClose);
     const dialogRef = useInitialDialogFocus<HTMLDivElement>();
     const { settings, updateSettings, engineBackend, engineModelName, komi, handicapStoneCount } = useGameStore(
@@ -226,6 +228,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const shortcutLabels = useShortcutLabels(ANALYSIS_OVERLAY_SHORTCUT_IDS);
 
     const [activeTab, setActiveTab] = React.useState<SettingsTabId>(() => {
+        if (focusModel) return 'ai';
         if (typeof window === 'undefined') {
             return 'general';
         }
@@ -249,7 +252,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     // Set by a search result, cleared once the control has been revealed. The
     // target panel only mounts when the tab changes, so the reveal has to wait
     // for that render rather than guess at a frame or two.
-    const [pendingReveal, setPendingReveal] = React.useState<string | null>(null);
+    const [pendingReveal, setPendingReveal] = React.useState<string | null>(focusModel ? 'settings-katago-model-url' : null);
     const revealTimerRef = React.useRef<number | null>(null);
 
     const goToSetting = (entry: SettingsSearchEntry) => {
@@ -2290,6 +2293,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 <div className={sectionClass}>  
                                     <h3 className={sectionTitleClass}>KataGo</h3>
 
+                                    <div className="mt-3">
+                                        <AnalysisModelNotice modelUrl={settings.katagoModelUrl} modelName={engineModelName} />
+                                    </div>
+
                                     <div className="mt-4 space-y-2">
                                         <label htmlFor="settings-katago-model-url" className="text-[var(--ui-text-muted)] block">Model URL</label>
                                         <div className="flex flex-wrap gap-2">
@@ -2297,17 +2304,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                 type="button"
                                                 className={pillButtonClass}
                                                 onClick={() => updateSettings({ katagoModelUrl: SMALL_MODEL_URL })}
-                                                title="Small bundled KataGo model"
+                                                title="Lightweight test weights for trying the app"
                                             >
-                                                Small Model
+                                                Small Model (test)
                                             </button>
                                             <button
                                                 type="button"
                                                 className={pillButtonClass}
                                                 onClick={() => updateSettings({ katagoModelUrl: KATAGO_RECOMMENDED_MODEL_URL })}
-                                                title="Stronger b18 browser weights"
+                                                title={`Stronger b18 browser weights (${KATAGO_RECOMMENDED_MODEL_SIZE})`}
                                             >
-                                                Strong b18
+                                                Strong b18 ({KATAGO_RECOMMENDED_MODEL_SIZE})
                                             </button>
                                         </div>
                                         <input

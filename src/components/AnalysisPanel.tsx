@@ -16,6 +16,7 @@ import type { AnalysisExperience } from '../types';
 import { EngineStatusBadge } from './layout/ui';
 import { useGameStore } from '../store/gameStore';
 import { TenukiRow } from './TenukiRow';
+import { AnalysisModelNotice } from './AnalysisModelNotice';
 import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
 import { DEFAULT_EVAL_THRESHOLDS } from '../utils/nodeAnalysis';
 import {
@@ -64,6 +65,7 @@ interface AnalysisPanelProps {
   analysisCacheSize: number;
   onOpenGameAnalysis: () => void;
   onOpenGameReport: () => void;
+  onChooseModel?: () => void;
   currentMoveNumber: number;
   winRate: number | null;
   scoreLead: number | null;
@@ -247,6 +249,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   analysisCacheSize,
   onOpenGameAnalysis,
   onOpenGameReport,
+  onChooseModel,
   currentMoveNumber,
   winRate,
   scoreLead,
@@ -612,6 +615,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         </div>
       )}
       <div className="panel-section-content border-b border-[var(--ui-border)]">
+        <AnalysisModelNotice modelUrl={modelUrl} modelName={engineModelLabel} onChooseModel={onChooseModel} />
         {isPro && (!compact || engineDetailsOpen) && (
           <div id="analysis-engine-details" data-analysis-engine-details="true">
             {/* State and backend are the badge above (its label is exactly

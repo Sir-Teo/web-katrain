@@ -1,4 +1,5 @@
 import type { KataGoBackendPreference } from '../types';
+import { isSmallKataGoModel } from '../engine/katago/modelDefaults';
 
 export type EngineStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -9,6 +10,8 @@ export interface EngineActivityPresentationArgs {
   isGameAnalysisRunning: boolean;
   isContinuousAnalysis: boolean;
   isAnalysisMode: boolean;
+  modelUrl?: string | null;
+  modelName?: string | null;
 }
 
 export interface EngineActivityPresentation {
@@ -26,7 +29,7 @@ export function getEngineActivityPresentation(
     return { state: 'running', label: 'Analyzing…' };
   }
   if (args.isAnalysisMode) return { state: 'ready', label: 'Analysis mode' };
-  return { state: 'ready', label: 'KataGo ready' };
+  return { state: 'ready', label: isSmallKataGoModel(args.modelUrl, args.modelName) ? 'Test model ready' : 'KataGo ready' };
 }
 
 /**
@@ -197,6 +200,7 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
     `Backend: ${activeBackendLabel}`,
     isFallback ? `Requested: ${requestedBackendLabel}` : '',
     args.modelLabel ? `Model: ${args.modelLabel}` : '',
+    isSmallKataGoModel(args.modelUrl, args.modelLabel) ? 'Lightweight test model. Choose stronger weights in Settings → AI for serious review.' : '',
     `Source: ${modelSource}`,
     reasonLabel ? `Reason: ${reasonLabel}` : '',
     args.error ? `Error: ${args.error}` : '',

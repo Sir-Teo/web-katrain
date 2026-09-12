@@ -101,6 +101,7 @@ interface RightPanelProps {
   analysisCacheSize: number;
   onOpenGameAnalysis: () => void;
   onOpenGameReport: () => void;
+  onChooseModel?: () => void;
   // Player info
   currentPlayer: Player;
   // Navigation
@@ -167,6 +168,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   analysisCacheSize,
   onOpenGameAnalysis,
   onOpenGameReport,
+  onChooseModel,
   currentPlayer,
   navigateStart,
   navigateEnd,
@@ -816,6 +818,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                   analysisCacheSize={analysisCacheSize}
                   onOpenGameAnalysis={onOpenGameAnalysis}
                   onOpenGameReport={onOpenGameReport}
+                  onChooseModel={onChooseModel}
                   currentMoveNumber={currentMoveNumber}
                   winRate={winRate}
                   scoreLead={scoreLead}

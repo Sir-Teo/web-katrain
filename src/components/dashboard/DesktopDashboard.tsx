@@ -18,6 +18,8 @@ import { computeTerritorySwing, describeTerritorySwing, resolveSwingBaseline } f
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
 import { formatEngineBackendLabel, getEngineModelSource } from '../../utils/engineStatusSummary';
+import { AnalysisModelNotice } from '../AnalysisModelNotice';
+import { saveSettingsActiveTab } from '../../utils/settingsTabs';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../../utils/nodeAnalysis';
 import { evalColorToCss, getKaTrainEvalColors } from '../../utils/katrainTheme';
 import { ANALYSIS_VISIT_PRESETS, clampAnalysisVisits, visitPresetLabel } from '../../utils/visitPresets';
@@ -157,6 +159,7 @@ export interface DesktopDashboardProps {
   onPasteSgf: (returnFocus?: HTMLElement | null) => void;
   onScanBoard: (returnFocus?: HTMLElement | null) => void;
   onSettings: () => void;
+  onChooseModel?: () => void;
   onCommandPalette: () => void;
   onKeyboardHelp: (returnFocus?: HTMLElement | null) => void;
   onAbout: (returnFocus?: HTMLElement | null) => void;
@@ -398,6 +401,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     setPop({ id, rect, inputMode: e.detail === 0 ? 'keyboard' : 'pointer' });
   };
   const closePop = useCallback(() => setPop(null), []);
+  const chooseModel = () => {
+    closePop();
+    saveSettingsActiveTab('ai');
+    (props.onChooseModel ?? onSettings)();
+  };
   const closePopWithFocus = useCallback(() => {
     setPop(null);
     window.setTimeout(() => popTriggerRef.current?.focus({ preventScroll: true }), 0);
@@ -1087,6 +1095,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 </div>
               ))}
               <div className="section-body flush">
+                {showAnalysis && (
+                  <div className="mx-3 my-2">
+                    <AnalysisModelNotice modelUrl={settings.katagoModelUrl} modelName={engineModelLabel} onChooseModel={chooseModel} />
+                  </div>
+                )}
                 {isGameAnalysisRunning && (
                   <div className="progress-wrap" style={{ paddingTop: 12 }}>
                     <div className="progress-track">
@@ -1266,6 +1279,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           backend={engineBackend}
           model={engineModelLabel}
           modelSource={getEngineModelSource(settings.katagoModelUrl)}
+          modelUrl={settings.katagoModelUrl}
+          onChooseModel={chooseModel}
           cacheSize={analysisCacheSize}
           visits={settings.katagoVisits}
           visitsDisabled={isGameAnalysisRunning}
@@ -1385,12 +1400,14 @@ const EnginePopover: React.FC<{
   backend: string;
   model: string;
   modelSource: string;
+  modelUrl: string;
+  onChooseModel: () => void;
   cacheSize: number;
   visits: number;
   visitsDisabled: boolean;
   onVisitsChange: (visits: number) => void;
   onClearCache: () => void;
-}> = ({ rect, engineState, backend, model, modelSource, cacheSize, visits, visitsDisabled, onVisitsChange, onClearCache }) => {
+}> = ({ rect, engineState, backend, model, modelSource, modelUrl, onChooseModel, cacheSize, visits, visitsDisabled, onVisitsChange, onClearCache }) => {
   const states: Record<EngineState, [string, string]> = {
     ready: ['Ready', 'var(--green)'],
     running: ['Analyzing', 'var(--live)'],
@@ -1402,7 +1419,7 @@ const EnginePopover: React.FC<{
   return (
     <div
       className="popover"
-      style={{ left, top: rect.bottom + 6 }}
+      style={{ left, top: rect.bottom + 6, maxHeight: `calc(100dvh - ${rect.bottom + 14}px)`, overflowY: 'auto' }}
       onClick={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="false"
@@ -1412,6 +1429,7 @@ const EnginePopover: React.FC<{
     >
       <div className="pop-head"><div className="pop-eyebrow">Engine</div><div className="pop-title">KataGo · in-browser</div></div>
       <div className="engine-detail">
+        <AnalysisModelNotice modelUrl={modelUrl} modelName={model} onChooseModel={onChooseModel} />
         <dl className="ed-grid">
           <div><dt>State</dt><dd style={{ color }}>{label}</dd></div>
           <div><dt>Backend</dt><dd>{formatEngineBackendLabel(backend)}</dd></div>

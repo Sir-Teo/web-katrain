@@ -461,6 +461,7 @@ export const Layout: React.FC = () => {
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
   const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsFocusModel, setSettingsFocusModel] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isGameAnalysisOpen, setIsGameAnalysisOpen] = useState(false);
   const [isTsumegoFrameOpen, setIsTsumegoFrameOpen] = useState(false);
@@ -1530,6 +1531,8 @@ export const Layout: React.FC = () => {
     isGameAnalysisRunning,
     isContinuousAnalysis,
     isAnalysisMode,
+    modelUrl: settings.katagoModelUrl,
+    modelName: engineModelName,
   });
 
   const statusText = engineError
@@ -1842,6 +1845,11 @@ export const Layout: React.FC = () => {
     setMenuOpen(false);
     setIsKeyboardHelpOpen(false);
     saveSettingsActiveTab('shortcuts');
+    setIsSettingsOpen(true);
+  }, []);
+
+  const openModelSettings = useCallback(() => {
+    setSettingsFocusModel(true);
     setIsSettingsOpen(true);
   }, []);
 
@@ -3532,7 +3540,10 @@ export const Layout: React.FC = () => {
         }}
       >
       <Suspense fallback={<LazyModalFallback />}>
-        {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+        {isSettingsOpen && <SettingsModal focusModel={settingsFocusModel} onClose={() => {
+          setIsSettingsOpen(false);
+          setSettingsFocusModel(false);
+        }} />}
         {isAboutOpen && (
           <AboutDialog
             onClose={() => setIsAboutOpen(false)}
@@ -4011,6 +4022,7 @@ export const Layout: React.FC = () => {
             stopGameAnalysis={stopGameAnalysis}
             onClearAnalysisCache={requestClearAnalysisCache}
             onOpenGameReport={() => setIsGameReportOpen(true)}
+            onChooseModel={openModelSettings}
             navigateBack={navigateBack}
             navigateForward={navigateForward}
             canNavigateBack={historyNavigation.back}
@@ -4360,6 +4372,7 @@ export const Layout: React.FC = () => {
           analysisCacheSize={analysisCacheSize}
           onOpenGameAnalysis={() => setIsGameAnalysisOpen(true)}
           onOpenGameReport={() => setIsGameReportOpen(true)}
+          onChooseModel={openModelSettings}
           currentPlayer={currentPlayer}
           navigateStart={navigateStart}
           navigateEnd={navigateEnd}
