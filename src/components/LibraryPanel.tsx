@@ -91,6 +91,7 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
+import { normalizeSgfUtf8, readSgfFile } from '../utils/sgfEncoding';
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
@@ -1087,7 +1088,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleDownload = (item: LibraryFile) => {
-    const blob = new Blob([item.sgf], { type: 'application/x-go-sgf' });
+    const blob = new Blob([normalizeSgfUtf8(item.sgf)], { type: 'application/x-go-sgf' });
     if (!downloadBlobFile(blob, librarySgfDownloadFilename(item.name))) {
       onToast('Failed to start SGF download.', 'error');
       return;
@@ -1315,7 +1316,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           skippedOversizedSgfFiles += 1;
           continue;
         }
-        const text = await file.text();
+        const text = await readSgfFile(file);
         try {
           assertValidLibrarySgfImport(text);
         } catch {

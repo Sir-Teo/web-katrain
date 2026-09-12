@@ -125,6 +125,7 @@ import { appendRestoredAnalysisSummary, withFailureReason } from '../utils/impor
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
+import { readSgfFile } from '../utils/sgfEncoding';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
@@ -1987,7 +1988,7 @@ export const Layout: React.FC = () => {
         toast(sizeError, 'error');
         return;
       }
-      const text = await file.text();
+      const text = await readSgfFile(file);
       await loadLocalSgfText(text, file.name);
     } catch (error) {
       toast(withFailureReason(`Could not open "${file.name}".`, error), 'error');
@@ -2163,7 +2164,7 @@ export const Layout: React.FC = () => {
           toast(sizeError, 'error');
           return;
         }
-        const text = await file.text();
+        const text = await readSgfFile(file);
         await loadLocalSgfText(text, file.name);
       } catch (error) {
         toast(withFailureReason('Failed to open the SGF file.', error), 'error');
@@ -2378,7 +2379,7 @@ export const Layout: React.FC = () => {
         toast(sizeError, 'error');
         return;
       }
-      const text = await file.text();
+      const text = await readSgfFile(file);
       await loadLocalSgfText(text, file.name);
     } catch (error) {
       toast(withFailureReason('Failed to load the dropped SGF file.', error), 'error');

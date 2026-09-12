@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { stripUnsafeFilenameControls } from './filename';
 import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
+import { decodeSgfBytes, normalizeSgfUtf8 } from './sgfEncoding';
 import {
   createLibraryFolder,
   createLibraryItem,
@@ -127,7 +128,7 @@ export async function createLibraryZipBlob(
     const rawName = sanitizeZipPart(item.name).replace(ZIP_SGF_EXT_RE, '') || 'game';
     const name = `${rawName}.sgf`;
     const path = uniqueZipPath(parentPath ? `${parentPath}/${name}` : name, usedPaths, nextSuffix);
-    zip.file(path, item.sgf);
+    zip.file(path, normalizeSgfUtf8(item.sgf));
     fileCount++;
   }
 
@@ -232,10 +233,12 @@ export async function importLibraryItemsFromZip(
     const fileName = parts.pop()!;
     let sgf = '';
     try {
-      sgf = await entry.async('string');
+      const bytes = await entry.async('uint8array');
       // Counted whether or not it turns out to be a game: the memory was spent
       // either way, and a lying archive is only caught after the fact.
-      expandedBytes += sgf.length;
+      expandedBytes += bytes.byteLength;
+      if (expandedBytes > MAX_ZIP_EXPANDED_BYTES) break;
+      sgf = decodeSgfBytes(bytes);
       assertValidLibrarySgfImport(sgf);
     } catch {
       continue;
