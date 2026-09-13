@@ -1,5 +1,6 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { createSerialTaskQueue } from './serialTaskQueue';
+import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
 import { stripUnsafeFilenameControls } from './filename';
 import { countSgfMoves } from './sgfScan';
 import { getIndexedDB, getLocalStorage, readLocalStorage, writeLocalStorage } from './storage';
@@ -664,6 +665,23 @@ export const updateStoredLibrary = <T>(
   await saveLibrarySnapshot(mutation.items);
   return mutation.result;
 });
+
+/** One panel's pending edits, acknowledged only after their write succeeds. */
+export const createLibraryEditSaver = () => {
+  let savedRevision = 0;
+  return (batches: LibraryEditBatch[]): Promise<{ items: LibraryItem[]; revision: number }> => runLibraryTask(async () => {
+    let items = await loadLibrarySnapshot();
+    const pending = batches.filter(batch => batch.revision > savedRevision);
+    for (const batch of pending) items = applyLibraryChanges(items, batch.changes);
+    if (pending.length) {
+      await saveLibrarySnapshot(items);
+      // A later batch can contain earlier in-flight edits. Do not replay those
+      // over another caller's intervening save once they have succeeded.
+      savedRevision = pending[pending.length - 1].revision;
+    }
+    return { items, revision: savedRevision };
+  });
+};
 
 export const createLibraryItem = (
   name: string,

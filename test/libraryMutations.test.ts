@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getLibraryChanges } from '../src/utils/libraryEdits';
 
 const storageKey = 'web-katrain:library:v1';
 let stored: Map<string, string>;
@@ -14,6 +15,39 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('ordered library read/modify/write operations', () => {
+  it('does not replay an acknowledged game edit over an intervening save when starring', async () => {
+    const { createLibraryEditSaver, saveLibrary, loadLibrary, createLibraryItem, updateStoredLibrary, updateLibraryFileSgf, toggleLibraryFileFavorite } = await import('../src/utils/library');
+    const before = [createLibraryItem('Study', '(;SZ[9])')];
+    await saveLibrary(before);
+    const first = updateLibraryFileSgf(before, before[0].id, '(;SZ[9];B[aa])');
+    const starred = toggleLibraryFileFavorite(first, before[0].id);
+    const edits = [
+      { revision: 1, changes: getLibraryChanges(before, first) },
+      { revision: 2, changes: getLibraryChanges(first, starred) },
+    ];
+    const save = createLibraryEditSaver();
+    const panel = save(edits.slice(0, 1));
+    const toolbar = updateStoredLibrary(items => ({ items: updateLibraryFileSgf(items, before[0].id, '(;SZ[9];B[aa];W[bb])'), result: undefined }));
+    const star = save(edits);
+    await Promise.all([panel, toolbar, star]);
+    expect(await loadLibrary()).toEqual([expect.objectContaining({ favorite: true, sgf: '(;SZ[9];B[aa];W[bb])' })]);
+  });
+
+  it('retries unacknowledged field edits against the current persisted game', async () => {
+    const { createLibraryEditSaver, saveLibrary, loadLibrary, createLibraryItem, toggleLibraryFileFavorite, updateStoredLibrary, updateLibraryFileSgf } = await import('../src/utils/library');
+    const before = [createLibraryItem('Study', '(;SZ[9])')];
+    await saveLibrary(before);
+    const edits = [{ revision: 1, changes: getLibraryChanges(before, toggleLibraryFileFavorite(before, before[0].id)) }];
+    const storage = globalThis.localStorage;
+    vi.stubGlobal('localStorage', { ...storage, setItem: () => { throw new Error('Quota exceeded'); } });
+    const save = createLibraryEditSaver();
+    await expect(save(edits)).rejects.toThrow('Could not save the library');
+    vi.stubGlobal('localStorage', storage);
+    await updateStoredLibrary(items => ({ items: updateLibraryFileSgf(items.map(item => ({ ...item, favorite: false })), before[0].id, '(;SZ[9];B[cc])'), result: undefined }));
+    await save(edits);
+    expect(await loadLibrary()).toEqual([expect.objectContaining({ favorite: true, sgf: '(;SZ[9];B[cc])' })]);
+  });
+
   it('preserves both simultaneous additions and chooses names against the preceding save', async () => {
     const { updateStoredLibrary, createLibraryItem, getUniqueLibraryItemName, loadLibrary } = await import('../src/utils/library');
     const add = (sgf: string) => updateStoredLibrary(items => {

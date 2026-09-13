@@ -28,6 +28,7 @@ import {
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
   createLibraryBackup,
+  createLibraryEditSaver,
   createLibraryFolder,
   createLibraryItem,
   deleteLibraryItem,
@@ -61,6 +62,7 @@ import {
   type LibraryFile,
   type LibraryFolder,
 } from '../utils/library';
+import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
 import { tagsFromResult } from '../utils/narrativeTags';
 
 /**
@@ -102,12 +104,23 @@ import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRe
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
 
-type LibraryItemsState = { items: LibraryItem[]; revision: number };
-type LibraryItemsAction = { type: 'edit' | 'sync'; update: React.SetStateAction<LibraryItem[]> };
+type LibraryItemsState = { items: LibraryItem[]; revision: number; edits: LibraryEditBatch[] };
+type LibraryItemsAction =
+  | { type: 'edit' | 'sync'; update: React.SetStateAction<LibraryItem[]> }
+  | { type: 'saved'; items: LibraryItem[]; revision: number }
+  | { type: 'restore'; items: LibraryItem[] };
 const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction): LibraryItemsState => {
+  if (action.type === 'restore') return { ...state, items: action.items, edits: [] };
+  if (action.type === 'saved') {
+    const edits = state.edits.filter(batch => batch.revision > action.revision);
+    const items = edits.reduce((current, batch) => applyLibraryChanges(current, batch.changes), action.items);
+    return { ...state, items, edits };
+  }
   const items = typeof action.update === 'function' ? action.update(state.items) : action.update;
   if (items === state.items) return state;
-  return { items, revision: state.revision + (action.type === 'edit' ? 1 : 0) };
+  if (action.type === 'sync') return { ...state, items };
+  const revision = state.revision + 1;
+  return { items, revision, edits: [...state.edits, { revision, changes: getLibraryChanges(state.items, items) }] };
 };
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
@@ -363,11 +376,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   externalFileUpdate = null,
   externalItemCreate = null,
 }) => {
-  const [{ items, revision: itemsRevision }, dispatchItems] = useReducer(reduceLibraryItems, { items: [], revision: 0 });
+  const [{ items, revision: itemsRevision, edits }, dispatchItems] = useReducer(reduceLibraryItems, { items: [], revision: 0, edits: [] });
   const setItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'edit', update }), []);
   const syncItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'sync', update }), []);
-  const itemsRef = useRef(items);
-  useLayoutEffect(() => { itemsRef.current = items; }, [items]);
+  const saveStateRef = useRef({ items, edits });
+  useLayoutEffect(() => { saveStateRef.current = { items, edits }; }, [items, edits]);
+  const saveEdits = useMemo(createLibraryEditSaver, []);
   const saveCallbacksRef = useRef({ getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast });
   useLayoutEffect(() => {
     saveCallbacksRef.current = { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast };
@@ -485,19 +499,22 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   useEffect(() => {
     if (!didLoadLibraryRef.current || (itemsRevision === 0 && saveRetry === 0)) return;
     let cancelled = false;
-    const items = itemsRef.current;
+    const { items, edits } = saveStateRef.current;
     const pendingGameSave = pendingGameSaveRef.current;
     setLibraryStatus('saving');
     setLibraryError(null);
-    void saveLibrary(items)
-      .then(() => {
+    // Initialization Retry has a loaded snapshot but no user edit batches.
+    const saving = edits.length ? saveEdits(edits) : saveLibrary(items).then(() => ({ items, revision: itemsRevision }));
+    void saving
+      .then(({ items: savedItems, revision }) => {
+        dispatchItems({ type: 'saved', items: savedItems, revision });
         if (cancelled) return;
         const { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast } = saveCallbacksRef.current;
         setLibraryStatus('ready');
         onLibraryUpdated?.();
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
           pendingGameSaveRef.current = null;
-          const savedItem = items.find(item => item.id === pendingGameSave.id);
+          const savedItem = savedItems.find(item => item.id === pendingGameSave.id);
           if (!savedItem || !isFile(savedItem) || savedItem.sgf !== pendingGameSave.sgf) return;
           // The board can change while storage is writing. A saved older
           // snapshot must not clear recovery data for the current position.
@@ -524,7 +541,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
     // Only local edits and Retry enqueue writes. Mirrors and callback changes
     // must not save old snapshots or cancel a pending acknowledgement.
-  }, [itemsRevision, saveRetry]);
+  }, [itemsRevision, saveRetry, saveEdits]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalFileUpdate) return;
@@ -1205,7 +1222,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       const text = await file.text();
       const restored = await restoreLibrary(text);
       didLoadLibraryRef.current = true;
-      syncItems(restored);
+      dispatchItems({ type: 'restore', items: restored });
       pendingGameSaveRef.current = null;
       setLibraryStatus('ready');
       setLibraryError(null);

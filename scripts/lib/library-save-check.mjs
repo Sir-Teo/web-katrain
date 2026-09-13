@@ -58,15 +58,18 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
       width, action: 'update', mode: 'delay', entry: width === 1280 ? 'shortcut' : 'menu', overlap, panelUpdate: true,
     }))),
     ...[1280, 390, 320].map(width => ({ width, action: 'initialize', mode: 'fail' })),
+    ...[1280, 390, 320].flatMap(width => ['read', 'write'].map(overlap => ({
+      width, action: 'update', mode: 'delay', entry: width === 1280 ? 'shortcut' : undefined, overlap, metadataEdit: true,
+    }))),
   ];
   try {
     for (const scenario of scenarios) {
-      const { width, action, mode, entry, overlap, panelUpdate } = scenario, mobile = width < 1000, height = width === 320 ? 568 : mobile ? 844 : 800;
+      const { width, action, mode, entry, overlap, panelUpdate, metadataEdit } = scenario, mobile = width < 1000, height = width === 320 ? 568 : mobile ? 844 : 800;
       const context = (await browser.send('Target.createBrowserContext')).result.browserContextId;
       const target = (await browser.send('Target.createTarget', { url: 'about:blank', browserContextId: context })).result.targetId;
       const cdp = connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);
       await cdp.ready;
-      const stem = `${width}x${height}-library-${action}-${mode}${entry ? `-${entry}` : ''}${overlap ? `-overlap-${overlap}` : ''}${panelUpdate ? '-panel' : ''}`, report = { ...scenario, stages: [] }, errors = [];
+      const stem = `${width}x${height}-library-${action}-${mode}${entry ? `-${entry}` : ''}${overlap ? `-overlap-${overlap}` : ''}${panelUpdate ? '-panel' : ''}${metadataEdit ? '-star' : ''}`, report = { ...scenario, stages: [] }, errors = [];
       const wait = async expression => {
         for (let i = 0; i < 150; i++) {
           const value = await evaluate(cdp, expression);
@@ -213,7 +216,29 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         const originalItems = await evaluate(cdp, storedItems);
         if (overlap === 'write') await evaluate(cdp, 'librarySaveAudit.skipDelayedOpens=1');
         await beginSave();
-        if (mode === 'delay') {
+        if (mode === 'delay' && metadataEdit) {
+          await wait('librarySaveAudit.held.length>0');
+          assert.deepEqual(await recovery(), firstRecovery);
+          await evaluate(cdp, `librarySaveAudit.mode='normal'`);
+          if (mobile) await click('button[aria-label="More actions for Saved study"]');
+          else await dispatch(await point(`document.querySelector('[data-library-row-name="Saved study"]')`), true);
+          await clickElement(`[...document.querySelectorAll('[role=menu][aria-label="Library actions"] [role=menuitem]')].find(e=>e.textContent.trim()==='Star')`);
+          assert.deepEqual(await evaluate(cdp, storedItems), originalItems);
+          assert.deepEqual(await recovery(), firstRecovery);
+          await evaluate(cdp, 'librarySaveAudit.held.splice(0).forEach(release=>release())');
+          await wait(`(async()=>{const items=await ${storedItems};return items.find(item=>item.id==='original')?.favorite===true})()`);
+          await wait(`!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
+          await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
+          assert.equal((await evaluate(cdp, storedItems)).find(item=>item.id==='original')?.sgf, firstRecovery.sgf, 'Starring during a save must preserve its exact game');
+          await navigate(cdp, appUrl);
+          await wait(`!!document.querySelector('[data-board-snapshot=true]')`);
+          await openLibrary();
+          await evaluate(cdp, installStorageControls);
+          const reloaded = (await evaluate(cdp, storedItems)).find(item=>item.id==='original');
+          assert.equal(reloaded?.sgf, firstRecovery.sgf);
+          assert.equal(reloaded?.favorite, true);
+          report.stages.push(`Star during a pending ${entry ? 'toolbar' : 'panel'} save retained the exact game and favorite through a delayed ${overlap} and reload`);
+        } else if (mode === 'delay') {
           await wait('librarySaveAudit.held.length>0');
           assert.deepEqual(await recovery(), firstRecovery, 'A pending save must retain recovery data');
           await play(5);
