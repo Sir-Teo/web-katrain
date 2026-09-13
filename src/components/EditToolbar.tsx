@@ -292,6 +292,35 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
     };
   }, [docked, isEditMode, isMobile, mobilePanelEl]);
 
+  React.useLayoutEffect(() => {
+    if (!mobilePanelEl || !docked || isMobile || !isEditMode) return;
+    const dashboard = mobilePanelEl.closest('.wk-dashboard');
+    const stage = dashboard?.querySelector('.board-stage');
+    const panel = mobilePanelEl.querySelector<HTMLElement>('.edit-toolbar-panel--docked');
+    if (!stage || !panel) return;
+    const update = () => {
+      // Font metrics, density and wrapping can change the game strip's height.
+      // Follow the board stage, accounting for any fixed-position containing
+      // block, instead of assuming a 43px strip beneath a 50px header.
+      const cssTop = Number.parseFloat(getComputedStyle(panel).top) || 0;
+      const origin = panel.getBoundingClientRect().top - cssTop;
+      const top = Math.ceil(stage.getBoundingClientRect().top + 10 - origin);
+      mobilePanelEl.style.setProperty('--desktop-edit-toolbar-top', `${top}px`);
+    };
+    update();
+    const Observer = getResizeObserverConstructor();
+    const observer = Observer ? new Observer(update) : null;
+    for (const element of [stage, dashboard?.querySelector('.header'), dashboard?.querySelector('.gamestrip')]) {
+      if (element) observer?.observe(element);
+    }
+    window.addEventListener('resize', update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+      mobilePanelEl.style.removeProperty('--desktop-edit-toolbar-top');
+    };
+  }, [docked, isEditMode, isMobile, mobilePanelEl]);
+
   if (!isEditMode && hideIdleLauncher) return null;
 
   return (

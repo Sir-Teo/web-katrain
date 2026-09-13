@@ -3406,7 +3406,22 @@ async function main() {
             const covered = Array.from(gameStrip.querySelectorAll('.gs-player, .gs-fact, .gs-file, .gs-save'))
               .filter((el) => intersects(panelRect, rect(el)))
               .map((el) => (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24));
-            desktopEditPanelOverlaps = covered.length > 0 ? covered : ['game strip'];
+            desktopEditPanelOverlaps = covered.length > 0 ? covered : ['game strip (panel top ' + panelRect.top + ', strip bottom ' + rect(gameStrip).bottom + ')'];
+          }
+          // Different platform fonts/density can make this strip taller than
+          // its minimum. Stress that geometry while the palette stays open;
+          // it must follow the measured stage and return when the strip shrinks.
+          if (editPanel && gameStrip) {
+            const originalMinHeight = gameStrip.style.minHeight;
+            for (const minHeight of ['120px', originalMinHeight]) {
+              gameStrip.style.minHeight = minHeight;
+              await waitForFrames(3);
+              const panelBounds = rect(editPanel);
+              const stageBounds = rect(document.querySelector('.board-stage'));
+              if (!stageBounds || Math.abs(panelBounds.top - stageBounds.top - 10) > 1) {
+                desktopEditPanelOverlaps.push('strip height ' + (minHeight || 'auto') + ': panel top ' + panelBounds.top + ', stage top ' + stageBounds?.top);
+              }
+            }
           }
           const closeEdit = Array.from(document.querySelectorAll('button')).find((button) =>
             targetSearchText(button).includes('Close edit mode'));

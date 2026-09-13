@@ -610,16 +610,13 @@
   padding-left: calc(var(--stage-pad) + 184px);
 }
 
-/* The rail cleared the 50px header but not the game strip under it, so its top
-   176px sat over both player entries: entering edit mode hid who is playing and
-   whose turn it is, for as long as it stayed open. --gamestrip-h is the strip's
-   42px min-height plus its 1px bottom border, and drops to 0 when the strip is
-   collapsed, so one rule covers both states. */
+/* The toolbar measures the board stage to clear the actual game strip. These
+   dimensions provide an initial fallback before its layout effect runs. */
 .wk-dashboard { --gamestrip-h: 43px; }
 .wk-dashboard[data-gamestrip="closed"] { --gamestrip-h: 0px; }
 
 .wk-dashboard .edit-toolbar-docked--active .edit-toolbar-panel--docked {
-  top: calc(60px + var(--gamestrip-h));
+  top: var(--desktop-edit-toolbar-top, calc(var(--header-h) + var(--gamestrip-h) + 10px));
   right: auto;
   bottom: 60px;
   left: calc(var(--library-w) + 16px);
