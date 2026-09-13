@@ -345,7 +345,7 @@ interface LibraryPanelProps {
   isMobile?: boolean;
   getCurrentSgf: () => string;
   onLoadSgf: (sgf: string) => boolean | Promise<boolean>;
-  onToast: (msg: string, type: 'info' | 'error' | 'success') => void;
+  onToast: (msg: string, type: 'info' | 'error' | 'success', copyText?: string, operationId?: string) => void;
   onOpenPhotoBoard?: (file: File) => void;
   onLibraryUpdated?: () => void;
   onCurrentSaved?: (sgf: string) => void;
@@ -394,6 +394,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     id: string;
     sgf: string;
     isNew: boolean;
+    operationId: string;
   } | null>(null);
   const indexedDbAvailable = useMemo(() => getIndexedDB() !== null, []);
   const [query, setQuery] = useState('');
@@ -524,7 +525,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           }
           onToast(
             pendingGameSave.isNew ? `Saved "${savedItem.name}" to Library.` : `Updated "${savedItem.name}" in Library.`,
-            'success'
+            'success', undefined, pendingGameSave.operationId
           );
         }
       })
@@ -533,7 +534,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         setLibraryStatus('error');
         setLibraryError(error instanceof Error ? error.message : 'Failed to save library.');
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
-          saveCallbacksRef.current.onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error');
+          saveCallbacksRef.current.onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error', undefined, pendingGameSave.operationId);
         }
       });
     return () => {
@@ -1008,8 +1009,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     if (loadedLibraryFile) {
-      localGameSaveRequestsRef.current.set(loadedLibraryFile.id, nextLibraryGameSaveRequestId());
-      pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, isNew: false };
+      const requestId = nextLibraryGameSaveRequestId();
+      localGameSaveRequestsRef.current.set(loadedLibraryFile.id, requestId);
+      pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, isNew: false, operationId: `library-save:${requestId}` };
       setItems((prev) => updateLibraryFileSgf(prev, loadedLibraryFile.id, sgf));
       return;
     }
@@ -1029,8 +1031,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         const parentId = targetFolderId ?? null;
         const uniqueName = getUniqueLibraryItemName(name, items, parentId);
         const newItem = createLibraryItem(uniqueName, sgf, parentId);
-        localGameSaveRequestsRef.current.set(newItem.id, nextLibraryGameSaveRequestId());
-        pendingGameSaveRef.current = { id: newItem.id, sgf, isNew: true };
+        const requestId = nextLibraryGameSaveRequestId();
+        localGameSaveRequestsRef.current.set(newItem.id, requestId);
+        pendingGameSaveRef.current = { id: newItem.id, sgf, isNew: true, operationId: `library-save:${requestId}` };
         setItems((prev) => [newItem, ...prev]);
       },
     });

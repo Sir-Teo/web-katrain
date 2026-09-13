@@ -123,7 +123,7 @@ interface GameStore extends GameState {
    * the toast can offer to take the change straight back — these fire from a
    * single click on the board and are easy to trigger by accident.
    */
-  notification: { message: string, type: 'info' | 'error' | 'success', copyText?: string, undoable?: boolean } | null;
+  notification: { message: string, type: 'info' | 'error' | 'success', copyText?: string, undoable?: boolean, operationId?: string } | null;
   /**
    * Set by `loadGame` when an SGF held a move this ruleset rejects.
    *

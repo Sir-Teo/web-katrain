@@ -8,8 +8,8 @@
  * "Copy details" button: an error could be pushed off screen by the next marker
  * confirmation before it could be read, let alone copied.
  *
- * So errors hold the slot until they are dismissed, and anything that arrives
- * behind one waits its turn instead of being dropped.
+ * So errors hold the slot until dismissed or updated by the same operation,
+ * and unrelated notifications wait their turn instead of being dropped.
  */
 
 export type NotificationType = 'info' | 'error' | 'success';
@@ -18,6 +18,8 @@ export interface NotificationLike {
   message: string;
   type: NotificationType;
   copyText?: string;
+  /** Status updates for one operation replace its earlier notification. */
+  operationId?: string;
 }
 
 /**
@@ -64,10 +66,14 @@ export function admitNotification<T extends NotificationLike>(
   incoming: T,
   maxQueued: number = MAX_QUEUED_NOTIFICATIONS
 ): NotificationQueueState<T> {
-  if (state.displayed?.type !== 'error') {
-    return { displayed: incoming, queued: state.queued };
+  const queued = incoming.operationId
+    ? state.queued.filter(notification => notification.operationId !== incoming.operationId)
+    : state.queued;
+  if (state.displayed?.type !== 'error'
+    || (incoming.operationId && incoming.operationId === state.displayed.operationId)) {
+    return { displayed: incoming, queued };
   }
-  return { displayed: state.displayed, queued: trimQueue([...state.queued, incoming], maxQueued) };
+  return { displayed: state.displayed, queued: trimQueue([...queued, incoming], maxQueued) };
 }
 
 /** Dismiss the visible notification and promote whatever was waiting. */

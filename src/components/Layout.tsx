@@ -795,8 +795,8 @@ export const Layout: React.FC = () => {
   // read and promotes anything queued behind them; the flat 2500ms timer that
   // used to live here cut errors short while their "Copy details" button was
   // still the reason they were shown.
-  const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info', copyText?: string) => {
-    useGameStore.setState({ notification: { message, type, ...(copyText ? { copyText } : {}) } });
+  const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info', copyText?: string, operationId?: string) => {
+    useGameStore.setState({ notification: { message, type, ...(copyText ? { copyText } : {}), ...(operationId ? { operationId } : {}) } });
   }, []);
 
   // Board edits fire from a single click and are easy to make by accident, so

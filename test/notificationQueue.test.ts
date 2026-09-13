@@ -12,6 +12,36 @@ const info = (message: string): NotificationLike => ({ message, type: 'info' });
 const error = (message: string): NotificationLike => ({ message, type: 'error', copyText: `${message} details` });
 
 describe('toast arrival policy', () => {
+  it('replaces a resolved operation error without dropping unrelated queued errors', () => {
+    let state = admitNotification(emptyNotificationQueue<NotificationLike>(), { ...error('Save failed'), operationId: 'save:1' });
+    state = admitNotification(state, error('Analysis failed'));
+    state = admitNotification(state, { message: 'Saved', type: 'success', operationId: 'save:1' });
+    expect(state.displayed?.message).toBe('Saved');
+    expect(state.queued.map(n => n.message)).toEqual(['Analysis failed']);
+  });
+
+  it('updates a queued operation while preserving the unrelated visible error', () => {
+    let state = admitNotification(emptyNotificationQueue<NotificationLike>(), error('Analysis failed'));
+    state = admitNotification(state, { ...error('Save failed'), operationId: 'save:1' });
+    state = admitNotification(state, { message: 'Saved', type: 'success', operationId: 'save:1' });
+    expect(state.displayed?.message).toBe('Analysis failed');
+    expect(state.queued.map(n => n.message)).toEqual(['Saved']);
+  });
+
+  it('deduplicates a repeated failure from one operation', () => {
+    let state = admitNotification(emptyNotificationQueue<NotificationLike>(), { ...error('Save failed'), operationId: 'save:1' });
+    state = admitNotification(state, { ...error('Retry failed'), operationId: 'save:1' });
+    expect(state.displayed?.message).toBe('Retry failed');
+    expect(state.queued).toEqual([]);
+  });
+
+  it('keeps an error when a different save operation succeeds', () => {
+    let state = admitNotification(emptyNotificationQueue<NotificationLike>(), { ...error('Save failed'), operationId: 'save:1' });
+    state = admitNotification(state, { message: 'Other game saved', type: 'success', operationId: 'save:2' });
+    expect(state.displayed?.message).toBe('Save failed');
+    expect(state.queued.map(n => n.message)).toEqual(['Other game saved']);
+  });
+
   it('shows the newest chatty message straight away', () => {
     let state = admitNotification(emptyNotificationQueue<NotificationLike>(), info('Added label B'));
     state = admitNotification(state, info('Removed marker'));

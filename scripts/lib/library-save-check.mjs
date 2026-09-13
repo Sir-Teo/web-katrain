@@ -337,6 +337,9 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           assert.ok(savedGame, 'Retry must persist the exact requested game');
           assert.ok(await evaluate(cdp, `!!document.querySelector('button[aria-label="Update loaded library game"]')`));
           report.stages.push('Retry persisted the game before clearing recovery and marking it saved');
+          await wait(`!document.body.innerText.includes('Could not save the game to Library')`);
+          assert.ok(await evaluate(cdp, `document.querySelector('[data-notification-type="success"]')?.textContent.includes(${JSON.stringify(action === 'save' ? 'Saved "Unsaved study"' : 'Updated "Saved study"')})`),
+            'A successful retry must replace its resolved save error');
           if (mobile) await click('#mobile-tab-board');
           await play(5);
           const latestBoard = await boardSnapshot(), latestRecovery = await recovery();

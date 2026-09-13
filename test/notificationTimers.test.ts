@@ -3,6 +3,16 @@ import { useGameStore } from '../src/store/gameStore';
 import { setTimedNotification } from '../src/utils/timedNotification';
 
 describe('notification auto-dismiss timers', () => {
+  it('replaces a resolved save error and times out the success normally', () => {
+    useGameStore.setState({ notification: { message: 'Save failed', type: 'error', operationId: 'save:1' } });
+    vi.advanceTimersByTime(60_000);
+    expect(useGameStore.getState().notification?.message).toBe('Save failed');
+    useGameStore.setState({ notification: { message: 'Saved', type: 'success', operationId: 'save:1' } });
+    expect(useGameStore.getState().notification?.message).toBe('Saved');
+    vi.advanceTimersByTime(2500);
+    expect(useGameStore.getState().notification).toBeNull();
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     useGameStore.setState({
