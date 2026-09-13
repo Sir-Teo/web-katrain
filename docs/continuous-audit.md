@@ -57,6 +57,13 @@ reproduced failures separate from candidates that still need investigation.
 | Edit palette follows the game strip | Linux CI reported the desktop edit palette overlapping the game-info strip at 1024×768 and 1024×500. Its top offset assumed fixed header/strip heights. It now follows the measured board-stage top and observes geometry changes. | A native local stress check with a 120px strip reproduced 67px of overlap at 1024×768, 1024×500 and 1280×800. The same six normal/enlarged-strip checks now retain a 10px gap below the strip. The regular viewport gate also expands and restores the strip while editing stays open, requiring the palette to follow both changes and reporting actual geometry on failure. |
 | Browser fixture module identity | After the layout checks passed, Linux CI failed when the long-metadata fixture dynamically imported the bare game-store URL. CI infers the `/web-katrain/` application base from `GITHUB_REPOSITORY`; root-relative imports bypass it. Fixtures now reuse recorded module URLs, including the app base and Vite timestamps, and exclude failed resource requests. The resource buffer is enlarged before app startup; components not yet loaded resolve their explicit first-import fallback against the document base. | Six unit regressions cover timestamp selection, failed requests, older timing APIs, required singleton identity, and first imports at root, project-base, and query/hash URLs. Targeted real-browser checks load long metadata into the visible app, exercise score-quiz request ordering with its actual engine client, and scroll preview boards by native touch. No application behavior is changed by this test-runner correction. |
 
+The preview-board browser check now sends a complete native touch sequence.
+Linux Chrome reported no movement for the earlier synthetic scroll command;
+the check now verifies an unobstructed, scrollable fixture before dispatching
+input and reports geometry and touch-action on failure. It also checks that
+interactive boards retain their intentional gesture lock, so a test that ignores
+touch-action cannot pass both cases. Portrait and landscape checks pass locally.
+
 Position sharing relies on the store's existing invariant: board edits, replay,
 and komi changes replace `gameState` and its arrays. Do not mutate a stored
 position in place. The new regression freezes positions during setup edits and
