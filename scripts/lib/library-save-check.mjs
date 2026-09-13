@@ -47,15 +47,19 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
   const scenarios = [
     ...[1280, 390, 320].flatMap(width => ['save', 'update'].map(action => ({ width, action, mode: 'fail' }))),
     ...['save', 'update'].map(action => ({ width: 1280, action, mode: 'delay' })),
+    { width: 1280, action: 'update', mode: 'delay', entry: 'shortcut' },
+    { width: 1280, action: 'update', mode: 'delay', entry: 'header' },
+    ...[390, 320].map(width => ({ width, action: 'update', mode: 'delay', entry: 'menu' })),
+    ...[1280, 390, 320].map(width => ({ width, action: 'save', mode: 'delay', entry: 'copy' })),
   ];
   try {
     for (const scenario of scenarios) {
-      const { width, action, mode } = scenario, mobile = width < 1000, height = width === 320 ? 568 : mobile ? 844 : 800;
+      const { width, action, mode, entry } = scenario, mobile = width < 1000, height = width === 320 ? 568 : mobile ? 844 : 800;
       const context = (await browser.send('Target.createBrowserContext')).result.browserContextId;
       const target = (await browser.send('Target.createTarget', { url: 'about:blank', browserContextId: context })).result.targetId;
       const cdp = connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);
       await cdp.ready;
-      const stem = `${width}x${height}-library-${action}-${mode}`, report = { ...scenario, stages: [] }, errors = [];
+      const stem = `${width}x${height}-library-${action}-${mode}${entry ? `-${entry}` : ''}`, report = { ...scenario, stages: [] }, errors = [];
       const wait = async expression => {
         for (let i = 0; i < 150; i++) {
           const value = await evaluate(cdp, expression);
@@ -79,6 +83,16 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
       };
       const clickElement = async expression => dispatch(await point(expression));
       const click = selector => clickElement(`document.querySelector(${JSON.stringify(selector)})`);
+      const saveShortcut = async (copy = false) => {
+        for (const type of ['keyDown', 'keyUp']) {
+          await cdp.send('Input.dispatchKeyEvent', { type, key: 's', code: 'KeyS', windowsVirtualKeyCode: 83, modifiers: copy ? 10 : 2 });
+        }
+      };
+      const saveFromMenu = async (copy = false) => {
+        await click('button[aria-label="Menu"]');
+        await click(`[aria-labelledby="menu-title"] button[aria-label^="${copy ? 'Save a copy to Library,' : 'Save to Library,'}"]`);
+        await wait(`!document.querySelector('[aria-labelledby="menu-title"]')&&!history.state?.webKatrainOverlay`);
+      };
       const openLibrary = async () => {
         if (mobile) await click('#mobile-tab-library');
         await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
@@ -101,6 +115,13 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         await wait(`!!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
       };
       const beginSave = async () => {
+        if (entry) {
+          await evaluate(cdp, `librarySaveAudit.mode=${JSON.stringify(mode)}`);
+          if (entry === 'header') await click('#wk-file-actions button[aria-label="Save SGF"]');
+          else if (entry === 'menu' || (entry === 'copy' && mobile)) await saveFromMenu(entry === 'copy');
+          else await saveShortcut(entry === 'copy');
+          return;
+        }
         if (action === 'save') {
           await click('button[aria-label="Save current game to Library"]');
           await wait(`document.activeElement===document.querySelector('${textDialog} input')`);
@@ -154,7 +175,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         } else if (mobile) await click('#mobile-tab-board');
         await play(4);
         const firstRecovery = await recovery();
-        await openLibrary();
+        if (!entry) await openLibrary();
         await evaluate(cdp, installStorageControls);
         const originalItems = await evaluate(cdp, storedItems);
         await beginSave();
@@ -165,11 +186,36 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           await wait(`JSON.parse(localStorage.getItem(${JSON.stringify(recoveryKey)}))?.sgf!==${JSON.stringify(firstRecovery.sgf)}`);
           const latestRecovery = await recovery();
           await evaluate(cdp, `(()=>{librarySaveAudit.mode='normal';const held=librarySaveAudit.held.splice(0);held.forEach(release=>release());return held.length})()`);
-          await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
+          if (entry === 'copy') {
+            await wait(`document.activeElement===document.querySelector('#save-to-library-name')`);
+            await cdp.send('Input.insertText', { text: 'Earlier snapshot' });
+            await clickElement(`[...document.querySelectorAll('[aria-labelledby="save-to-library-title"] button')].find(e=>e.textContent.trim()==='Save copy')`);
+            await wait(`!document.querySelector('[aria-labelledby="save-to-library-title"]')`);
+            if (mobile) await wait('!history.state?.webKatrainOverlay');
+          }
+          if (entry) {
+            await wait(`(async()=>{const items=await ${storedItems};return items.some(item=>item.sgf===${JSON.stringify(firstRecovery.sgf)})})()`);
+            await wait(`document.body.innerText.includes(${JSON.stringify(entry === 'copy' ? 'Saved "Earlier snapshot" to Library.' : 'Updated "Saved study" in Library.')})`);
+          } else await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
           const saved = await evaluate(cdp, storedItems);
           assert.ok(saved.some(item => item.sgf === firstRecovery.sgf));
           assert.deepEqual(await recovery(), latestRecovery, 'Completing an older save must retain newer edits');
           report.stages.push('Delayed save persisted its snapshot and kept recovery for a newer move');
+          if (entry) {
+            const savedGame = saved.find(item => item.sgf === firstRecovery.sgf);
+            if (mobile) await saveFromMenu();
+            else await saveShortcut();
+            await wait(`(async()=>{const items=await ${storedItems};return items.find(item=>item.id===${JSON.stringify(savedGame.id)})?.sgf===${JSON.stringify(latestRecovery.sgf)}})()`);
+            await wait(`!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
+            await navigate(cdp, appUrl);
+            await wait(`!!document.querySelector('[data-board-snapshot=true]')`);
+            await openLibrary();
+            await evaluate(cdp, installStorageControls);
+            const reloaded = await evaluate(cdp, storedItems);
+            assert.equal(reloaded.find(item => item.id === savedGame.id)?.sgf, latestRecovery.sgf);
+            assert.equal(await recovery(), null);
+            report.stages.push('Saving the latest position cleared recovery and retained that exact game after reload');
+          }
         } else {
           await saveFailure(firstRecovery);
           assert.deepEqual(await evaluate(cdp, storedItems), originalItems, 'A failed save must not change persisted records');
@@ -208,7 +254,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         }
         assert.deepEqual(errors, []);
         assert.ok(await evaluate(cdp, 'document.documentElement.scrollWidth<=innerWidth+1'));
-        console.log(`Library ${action} at ${width}x${height} (${mode}): ${report.stages.join('; ')}.`);
+        console.log(`Library ${action} at ${width}x${height} (${mode}${entry ? `, ${entry}` : ''}): ${report.stages.join('; ')}.`);
       } catch (error) {
         report.error = error.message;
         failures.push(`${stem}: ${error.message}`);

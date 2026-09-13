@@ -999,10 +999,14 @@ export const Layout: React.FC = () => {
   }, [generateCurrentSgf]);
 
   const markCurrentGameCleanAndClearAutoSave = useCallback((sgf?: string) => {
+    // Async saves can finish after another edit or game replacement. Only
+    // the snapshot that still matches the current game may clear recovery
+    // or replace its clean baseline.
+    if (sgf !== undefined && sgf !== generateCurrentSgf()) return;
     markCurrentGameClean(sgf);
     clearAutoSavedGame();
     setAutoSaveStatus(null);
-  }, [markCurrentGameClean]);
+  }, [generateCurrentSgf, markCurrentGameClean]);
 
   const setLoadedLibraryFile = useCallback((id: string | null, name?: string | null) => {
     setLoadedLibraryFileId(id);
