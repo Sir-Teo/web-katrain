@@ -13,7 +13,7 @@ export async function assertStaticBoardScroll(cdp) {
         const moduleUrl = ${loadedModuleUrl.toString()};
         const { default: React } = await import(moduleUrl('/deps/react.js'));
         const { default: ReactDOM } = await import(moduleUrl('/deps/react-dom_client.js'));
-        const { StaticBoard } = await import('/src/components/StaticBoard.tsx');
+        const { StaticBoard } = await import(moduleUrl('/src/components/StaticBoard.tsx', true));
         const host = document.createElement('div');
         host.dataset.staticBoardScrollCheck = 'true';
         host.style.cssText = 'position:fixed;z-index:9999;top:20px;left:20px;width:280px;height:200px;overflow-y:auto;background:white';

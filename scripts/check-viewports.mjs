@@ -19,6 +19,7 @@ import {
   connectDevtools,
   evaluate,
   freePort,
+  loadedModuleUrl,
   navigate,
   setViewport,
   sleep,
@@ -801,9 +802,10 @@ async function assertLongMetadataStaysRecoverable(cdp) {
 
   await setViewport(cdp, { width: 1440, height: 900, mobile: false });
   const loaded = await evaluate(cdp, `(async () => {
+    const moduleUrl = ${loadedModuleUrl.toString()};
     const [store, sgfUtil] = await Promise.all([
-      import('/src/store/gameStore.ts'),
-      import('/src/utils/sgf.ts'),
+      import(moduleUrl('/src/store/gameStore.ts')),
+      import(moduleUrl('/src/utils/sgf.ts')),
     ]);
     store.useGameStore.getState().loadGame(sgfUtil.parseSgf(${JSON.stringify(sgf)}));
     await new Promise((resolve) => setTimeout(resolve, 600));
@@ -1016,6 +1018,7 @@ async function main() {
     // the quiet window after that, not the churn of a first paint.
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `
+        performance.setResourceTimingBufferSize(5000);
         window.__shifts = [];
         try {
           new PerformanceObserver((list) => {

@@ -16,10 +16,10 @@ export async function assertScoreQuizRequests(cdp) {
 async function checkScoreQuiz(moduleUrl) {
   const { default: React } = await import(moduleUrl('/deps/react.js'));
   const { default: ReactDOM } = await import(moduleUrl('/deps/react-dom_client.js'));
-  const { ScoreQuizModal } = await import('/src/components/ScoreQuizModal.tsx');
-  const { useGameStore } = await import('/src/store/gameStore.ts');
-  const { getKataGoEngineClient } = await import('/src/engine/katago/client.ts');
-  const { parseSgf } = await import('/src/utils/sgf.ts');
+  const { ScoreQuizModal } = await import(moduleUrl('/src/components/ScoreQuizModal.tsx', true));
+  const { useGameStore } = await import(moduleUrl('/src/store/gameStore.ts'));
+  const { getKataGoEngineClient } = await import(moduleUrl('/src/engine/katago/client.ts'));
+  const { parseSgf } = await import(moduleUrl('/src/utils/sgf.ts'));
   const host = document.createElement('div');
   document.body.append(host);
   const root = ReactDOM.createRoot(host);

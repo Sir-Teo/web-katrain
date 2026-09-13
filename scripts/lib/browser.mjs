@@ -347,9 +347,10 @@ export async function evaluate(cdp, expression) {
 // Serialized into browser probes that mount real components. Reuse the page's
 // optimized React instance: a hardcoded .vite path can load a second runtime
 // when the server has an isolated cache, breaking hooks in the mounted dialog.
-export function loadedModuleUrl(pathSuffix) {
+export function loadedModuleUrl(pathSuffix, allowFirstImport = false) {
   const resource = performance.getEntriesByType('resource').findLast((entry) =>
-    new URL(entry.name).pathname.endsWith(pathSuffix));
+    new URL(entry.name).pathname.endsWith(pathSuffix) && !(entry.responseStatus >= 400));
+  if (!resource && allowFirstImport) return pathSuffix;
   if (!resource) throw new Error(`Loaded module was not recorded: ${pathSuffix}`);
   return resource.name;
 }
