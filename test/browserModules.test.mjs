@@ -19,9 +19,17 @@ describe('browser fixture module identity', () => {
     ]);
     expect(loadedModuleUrl('/src/store/gameStore.ts')).toBe('http://localhost:1234/src/store/gameStore.ts?t=42');
   });
-  it('requires an existing singleton but permits explicitly new component imports', () => {
+  it('requires an existing singleton', () => {
     record([]);
     expect(() => loadedModuleUrl('/src/store/gameStore.ts')).toThrow('Loaded module was not recorded');
-    expect(loadedModuleUrl('/src/components/StaticBoard.tsx', true)).toBe('/src/components/StaticBoard.tsx');
   });
+  it.each(['/', '/web-katrain/', '/web-katrain/index.html?review=1#board'])(
+    'resolves a first component import under the app base at %s', (pagePath) => {
+      record([]);
+      vi.stubGlobal('document', { baseURI: `http://localhost:1234${pagePath}` });
+      const basePath = pagePath === '/' ? '/' : '/web-katrain/';
+      expect(loadedModuleUrl('/src/components/StaticBoard.tsx', true))
+        .toBe(`http://localhost:1234${basePath}src/components/StaticBoard.tsx`);
+    },
+  );
 });

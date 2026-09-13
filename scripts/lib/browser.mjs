@@ -350,7 +350,9 @@ export async function evaluate(cdp, expression) {
 export function loadedModuleUrl(pathSuffix, allowFirstImport = false) {
   const resource = performance.getEntriesByType('resource').findLast((entry) =>
     new URL(entry.name).pathname.endsWith(pathSuffix) && !(entry.responseStatus >= 400));
-  if (!resource && allowFirstImport) return pathSuffix;
+  if (!resource && allowFirstImport) {
+    return new URL(pathSuffix.replace(/^\/+/, ''), document.baseURI).href;
+  }
   if (!resource) throw new Error(`Loaded module was not recorded: ${pathSuffix}`);
   return resource.name;
 }
