@@ -1,4 +1,5 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
+import { createSerialTaskQueue } from './serialTaskQueue';
 import { stripUnsafeFilenameControls } from './filename';
 import { countSgfMoves } from './sgfScan';
 import { getIndexedDB, getLocalStorage, readLocalStorage, writeLocalStorage } from './storage';
@@ -575,7 +576,7 @@ const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-s
 // stale legacy data), so persisting it back would wipe the real library.
 let idbLoadFailed = false;
 
-export const loadLibrary = async (): Promise<LibraryItem[]> => {
+const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
   if (!getIndexedDB()) {
     return loadFallbackLibrary();
   }
@@ -630,7 +631,7 @@ export const LIBRARY_SAVE_FAILED_MESSAGE =
  * and went with the tab. Throwing runs the callers' existing catch blocks
  * *before* that cleanup, which is what keeps the fallback copy alive.
  */
-export const saveLibrary = async (items: LibraryItem[]): Promise<void> => {
+const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
   if (!getIndexedDB() || idbLoadFailed) {
     if (saveFallbackLibrary(normalized) === 'rejected') throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
@@ -643,6 +644,26 @@ export const saveLibrary = async (items: LibraryItem[]): Promise<void> => {
     if (saveFallbackLibrary(normalized) === 'rejected') throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
   }
 };
+
+const runLibraryTask = createSerialTaskQueue();
+
+let gameSaveRequestId = 0;
+/** Order game-save UI notifications by request, independent of storage latency. */
+export const nextLibraryGameSaveRequestId = (): number => ++gameSaveRequestId;
+
+export const loadLibrary = (): Promise<LibraryItem[]> => runLibraryTask(loadLibrarySnapshot);
+
+export const saveLibrary = (items: LibraryItem[]): Promise<void> =>
+  runLibraryTask(() => saveLibrarySnapshot(items));
+
+/** Keep a read/modify/write operation together, in the order it was requested. */
+export const updateStoredLibrary = <T>(
+  update: (items: LibraryItem[]) => { items: LibraryItem[]; result: T }
+): Promise<T> => runLibraryTask(async () => {
+  const mutation = update(await loadLibrarySnapshot());
+  await saveLibrarySnapshot(mutation.items);
+  return mutation.result;
+});
 
 export const createLibraryItem = (
   name: string,

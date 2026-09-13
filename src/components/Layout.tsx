@@ -20,7 +20,8 @@ import {
   getLibrarySaveTargetFolderId,
   getUniqueLibraryItemName,
   loadLibrary,
-  saveLibrary,
+  updateStoredLibrary,
+  nextLibraryGameSaveRequestId,
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
   type LibraryFile,
@@ -570,6 +571,7 @@ export const Layout: React.FC = () => {
   const [loadedLibraryFileName, setLoadedLibraryFileName] = useState<string | null>(null);
   const [loadedExternalFile, setLoadedExternalFile] = useState<LoadedExternalFile | null>(null);
   const [externalLibraryFileUpdate, setExternalLibraryFileUpdate] = useState<{
+    requestId: number;
     id: string;
     sgf: string;
     updatedAt: number;
@@ -1016,20 +1018,26 @@ export const Layout: React.FC = () => {
 
   const saveLoadedLibraryFile = useCallback(async (sgf: string): Promise<boolean> => {
     if (!loadedLibraryFileId) return false;
+    const requestId = nextLibraryGameSaveRequestId();
     try {
-      const items = await loadLibrary();
-      const loadedItem = items.find((item) => item.id === loadedLibraryFileId);
-      if (!loadedItem || loadedItem.type !== 'file') {
+      const saved = await updateStoredLibrary((items) => {
+        const loadedItem = items.find((item) => item.id === loadedLibraryFileId);
+        if (!loadedItem || loadedItem.type !== 'file') return { items, result: null };
+        const updatedAt = Date.now();
+        return {
+          items: updateLibraryFileSgf(items, loadedLibraryFileId, sgf, updatedAt),
+          result: { name: loadedItem.name, updatedAt },
+        };
+      });
+      if (!saved) {
         setLoadedLibraryFile(null);
         toast('Loaded library file was not found. Downloading SGF instead.', 'info');
         return false;
       }
-      const updatedAt = Date.now();
-      await saveLibrary(updateLibraryFileSgf(items, loadedLibraryFileId, sgf, updatedAt));
-      setExternalLibraryFileUpdate({ id: loadedLibraryFileId, sgf, updatedAt });
+      setExternalLibraryFileUpdate({ id: loadedLibraryFileId, sgf, updatedAt: saved.updatedAt, requestId });
       setLibraryVersion((prev) => prev + 1);
       markCurrentGameCleanAndClearAutoSave(sgf);
-      toast(`Updated "${loadedItem.name}" in Library.`, 'success');
+      toast(`Updated "${saved.name}" in Library.`, 'success');
       return true;
     } catch (error) {
       toast(withFailureReason('Failed to update loaded library file. Downloading SGF instead.', error), 'error');
@@ -1250,15 +1258,15 @@ export const Layout: React.FC = () => {
     const sgf = saveToLibraryDialog?.sgf ?? generateCurrentSgf();
     const itemName = name.trim().replace(GAME_RECORD_EXTENSION, '').trim() || 'Untitled';
     try {
-      const items = await loadLibrary();
-      const targetFolderId =
-        folderId && items.some((item) => item.type === 'folder' && item.id === folderId) ? folderId : null;
-      const updatedAt = Date.now();
-      const uniqueName = getUniqueLibraryItemName(itemName, items, targetFolderId);
-      const newItem = createLibraryItem(uniqueName, sgf, targetFolderId, updatedAt);
-      await saveLibrary([newItem, ...items]);
+      const newItem = await updateStoredLibrary((items) => {
+        const targetFolderId =
+          folderId && items.some((item) => item.type === 'folder' && item.id === folderId) ? folderId : null;
+        const uniqueName = getUniqueLibraryItemName(itemName, items, targetFolderId);
+        const item = createLibraryItem(uniqueName, sgf, targetFolderId);
+        return { items: [item, ...items], result: item };
+      });
       setLoadedLibraryFile(newItem.id, newItem.name);
-      setExternalLibraryItemCreate({ item: newItem, updatedAt });
+      setExternalLibraryItemCreate({ item: newItem, updatedAt: newItem.updatedAt });
       setLibraryVersion((prev) => prev + 1);
       markCurrentGameCleanAndClearAutoSave(sgf);
       toast(`Saved "${newItem.name}" to Library.`, 'success');

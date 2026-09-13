@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
 import {
   FaTimes,
@@ -45,7 +45,8 @@ import {
   getUniqueLibraryItemName,
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
-  loadLibrary,
+  updateStoredLibrary,
+  nextLibraryGameSaveRequestId,
   moveLibraryItems,
   prependLibraryImports,
   restoreLibrary,
@@ -100,6 +101,14 @@ import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRe
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
+
+type LibraryItemsState = { items: LibraryItem[]; revision: number };
+type LibraryItemsAction = { type: 'edit' | 'sync'; update: React.SetStateAction<LibraryItem[]> };
+const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction): LibraryItemsState => {
+  const items = typeof action.update === 'function' ? action.update(state.items) : action.update;
+  if (items === state.items) return state;
+  return { items, revision: state.revision + (action.type === 'edit' ? 1 : 0) };
+};
 
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 
@@ -330,7 +339,7 @@ interface LibraryPanelProps {
   loadedFileId?: string | null;
   loadedFileDirty?: boolean;
   onLoadedFileChange?: (id: string | null, name?: string | null) => void;
-  externalFileUpdate?: { id: string; sgf: string; updatedAt: number } | null;
+  externalFileUpdate?: { id: string; sgf: string; updatedAt: number; requestId: number } | null;
   externalItemCreate?: { item: LibraryItem; updatedAt: number } | null;
 }
 
@@ -354,10 +363,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   externalFileUpdate = null,
   externalItemCreate = null,
 }) => {
-  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [{ items, revision: itemsRevision }, dispatchItems] = useReducer(reduceLibraryItems, { items: [], revision: 0 });
+  const setItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'edit', update }), []);
+  const syncItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'sync', update }), []);
+  const itemsRef = useRef(items);
+  useLayoutEffect(() => { itemsRef.current = items; }, [items]);
+  const saveCallbacksRef = useRef({ getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast });
+  useLayoutEffect(() => {
+    saveCallbacksRef.current = { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast };
+  }, [getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [saveRetry, setSaveRetry] = useState(0);
+  const localGameSaveRequestsRef = useRef(new Map<string, number>());
   const pendingGameSaveRef = useRef<{
     id: string;
     sgf: string;
@@ -428,11 +446,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let cancelled = false;
     setLibraryStatus('loading');
     setLibraryError(null);
-    void loadLibrary()
+    void updateStoredLibrary((loaded) => {
+      // Keep the loaded snapshot available for Retry if initialization's
+      // persistence fails; publishing it must not enqueue another write.
+      if (!cancelled) {
+        didLoadLibraryRef.current = true;
+        syncItems(loaded);
+      }
+      return { items: loaded, result: loaded };
+    })
       .then((loaded) => {
         if (cancelled) return;
-        didLoadLibraryRef.current = true;
-        setItems(loaded);
         // Nothing is expanded until someone expands it, so a library whose
         // files all live in folders opened on an empty-looking tree. Show what
         // it holds the first time, and only when collapsing hides everything.
@@ -446,6 +470,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           }
         }
         setLibraryStatus('ready');
+        saveCallbacksRef.current.onLibraryUpdated?.();
       })
       .catch((error) => {
         if (cancelled) return;
@@ -455,17 +480,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [hadStoredFolderExpansion]);
+  }, [hadStoredFolderExpansion, syncItems]);
 
   useEffect(() => {
-    if (!didLoadLibraryRef.current) return;
+    if (!didLoadLibraryRef.current || (itemsRevision === 0 && saveRetry === 0)) return;
     let cancelled = false;
+    const items = itemsRef.current;
     const pendingGameSave = pendingGameSaveRef.current;
     setLibraryStatus('saving');
     setLibraryError(null);
     void saveLibrary(items)
       .then(() => {
         if (cancelled) return;
+        const { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast } = saveCallbacksRef.current;
         setLibraryStatus('ready');
         onLibraryUpdated?.();
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
@@ -489,35 +516,40 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         setLibraryStatus('error');
         setLibraryError(error instanceof Error ? error.message : 'Failed to save library.');
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
-          onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error');
+          saveCallbacksRef.current.onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error');
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [items, saveRetry, getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast]);
+    // Only local edits and Retry enqueue writes. Mirrors and callback changes
+    // must not save old snapshots or cancel a pending acknowledgement.
+  }, [itemsRevision, saveRetry]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalFileUpdate) return;
-    const key = `${externalFileUpdate.id}:${externalFileUpdate.updatedAt}`;
+    const key = `${externalFileUpdate.id}:${externalFileUpdate.requestId}`;
     if (lastExternalFileUpdateRef.current === key) return;
     lastExternalFileUpdateRef.current = key;
-    setItems((prev) =>
+    // Keep a newer panel Save/Update visible even if an older toolbar save
+    // finishes later. Otherwise the next tag/star edit would persist old SGF.
+    if ((localGameSaveRequestsRef.current.get(externalFileUpdate.id) ?? 0) > externalFileUpdate.requestId) return;
+    syncItems((prev) =>
       updateLibraryFileSgf(prev, externalFileUpdate.id, externalFileUpdate.sgf, externalFileUpdate.updatedAt)
     );
-  }, [externalFileUpdate]);
+  }, [externalFileUpdate, syncItems]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalItemCreate) return;
     const key = `${externalItemCreate.item.id}:${externalItemCreate.updatedAt}`;
     if (lastExternalItemCreateRef.current === key) return;
     lastExternalItemCreateRef.current = key;
-    setItems((prev) =>
+    syncItems((prev) =>
       prev.some((item) => item.id === externalItemCreate.item.id)
         ? prev.map((item) => (item.id === externalItemCreate.item.id ? externalItemCreate.item : item))
         : [externalItemCreate.item, ...prev]
     );
-  }, [externalItemCreate]);
+  }, [externalItemCreate, syncItems]);
 
   const activeFolderId = useMemo(() => {
     if (!currentFolderId) return null;
@@ -959,6 +991,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     if (loadedLibraryFile) {
+      localGameSaveRequestsRef.current.set(loadedLibraryFile.id, nextLibraryGameSaveRequestId());
       pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, isNew: false };
       setItems((prev) => updateLibraryFileSgf(prev, loadedLibraryFile.id, sgf));
       return;
@@ -979,6 +1012,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         const parentId = targetFolderId ?? null;
         const uniqueName = getUniqueLibraryItemName(name, items, parentId);
         const newItem = createLibraryItem(uniqueName, sgf, parentId);
+        localGameSaveRequestsRef.current.set(newItem.id, nextLibraryGameSaveRequestId());
         pendingGameSaveRef.current = { id: newItem.id, sgf, isNew: true };
         setItems((prev) => [newItem, ...prev]);
       },
@@ -1171,7 +1205,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       const text = await file.text();
       const restored = await restoreLibrary(text);
       didLoadLibraryRef.current = true;
-      setItems(restored);
+      syncItems(restored);
+      pendingGameSaveRef.current = null;
+      setLibraryStatus('ready');
+      setLibraryError(null);
+      onLibraryUpdated?.();
       setSelectedIds(new Set());
       onLoadedFileChange?.(null);
       setCurrentFolderId(null);
