@@ -50,7 +50,7 @@ import {
   nextLibraryGameSaveRequestId,
   moveLibraryItems,
   prependLibraryImports,
-  restoreLibrary,
+  parseLibraryBackup,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
@@ -73,6 +73,7 @@ const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
+import { describeLibraryClear, describeLibraryReplacement } from '../utils/libraryPrompts';
 import { countSgfGames } from '../utils/sgfScan';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
@@ -1116,10 +1117,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleClearLibrary = () => {
-    const itemLabel = `${items.length} library item${items.length === 1 ? '' : 's'}`;
     setConfirmDialog({
       title: 'Clear Library',
-      message: `Clear all ${itemLabel}? This cannot be undone.`,
+      message: describeLibraryClear(items.length),
       confirmLabel: 'Clear',
       danger: true,
       onConfirm: () => {
@@ -1233,27 +1233,62 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
   };
 
+  /**
+   * Restoring a backup replaces the library; it does not merge into it.
+   *
+   * Clear Library asks first -- "Clear all 8 library items? This cannot be
+   * undone." -- and restore, which destroys exactly as much, asked nothing.
+   * Measured by choosing a one-game backup against the bundled library: eight
+   * items became one, with no dialog, no toast beforehand and nothing to undo
+   * it with. Restore is the more dangerous of the two, because its name reads
+   * as gaining games rather than losing them.
+   *
+   * The file is read and parsed before asking, so the question can name both
+   * numbers. Nothing is written until the answer is yes.
+   */
   const handleRestoreBackup = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
+    let restored: LibraryItem[];
     try {
-      const text = await file.text();
-      const restored = await restoreLibrary(text);
-      didLoadLibraryRef.current = true;
-      dispatchItems({ type: 'restore', items: restored });
-      pendingGameSaveRef.current = null;
-      setLibraryStatus('ready');
-      setLibraryError(null);
-      onLibraryUpdated?.();
-      setSelectedIds(new Set());
-      onLoadedFileChange?.(null);
-      setCurrentFolderId(null);
-      onToast(`Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.`, 'success');
+      restored = parseLibraryBackup(await file.text());
     } catch {
       onToast('Failed to restore library backup.', 'error');
-    } finally {
       if (backupInputRef.current) backupInputRef.current.value = '';
+      return;
     }
+    if (backupInputRef.current) backupInputRef.current.value = '';
+
+    const applyRestore = async () => {
+      try {
+        await saveLibrary(restored);
+        didLoadLibraryRef.current = true;
+        dispatchItems({ type: 'restore', items: restored });
+        pendingGameSaveRef.current = null;
+        setLibraryStatus('ready');
+        setLibraryError(null);
+        onLibraryUpdated?.();
+        setSelectedIds(new Set());
+        onLoadedFileChange?.(null);
+        setCurrentFolderId(null);
+        onToast(`Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.`, 'success');
+      } catch {
+        onToast('Failed to restore library backup.', 'error');
+      }
+    };
+
+    // Nothing to lose, so nothing to ask about.
+    if (items.length === 0) {
+      await applyRestore();
+      return;
+    }
+    setConfirmDialog({
+      title: 'Restore Backup',
+      message: describeLibraryReplacement(items.length, restored.length),
+      confirmLabel: 'Replace',
+      danger: true,
+      onConfirm: () => void applyRestore(),
+    });
   };
 
   const handleToggleSelect = (id: string) => {

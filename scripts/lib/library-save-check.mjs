@@ -187,6 +187,16 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           const nodeId = (await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'input[type=file][accept=".json,application/json"]' })).result.nodeId;
           const imported = await cdp.send('DOM.setFileInputFiles', { nodeId, files: [file] });
           assert.ok(!imported.error, JSON.stringify(imported.error));
+          // Restoring replaces the library rather than merging into it, so it
+          // asks before overwriting anything. A first visit carries the sample
+          // collection, so the question is expected here; answer it and go on.
+          const restoreConfirm = '[aria-labelledby="library-confirm-dialog-title"]';
+          await wait(`!!document.querySelector('${restoreConfirm}')||!!document.querySelector('[data-library-row-name="Saved study"]')`);
+          if (await evaluate(cdp, `!!document.querySelector('${restoreConfirm}')`)) {
+            await clickElement(`[...document.querySelectorAll('${restoreConfirm} button')].find(e=>e.textContent.trim()==='Replace')`);
+            await wait(`!document.querySelector('${restoreConfirm}')`);
+            if (mobile) await wait('!history.state?.webKatrainOverlay');
+          }
           await wait(`!!document.querySelector('[data-library-row-name="Saved study"]')`);
           await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
           if (mobile && mode === 'fail') {

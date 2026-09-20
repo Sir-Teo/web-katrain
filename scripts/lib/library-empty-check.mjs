@@ -118,13 +118,31 @@ export async function assertEmptyLibraryPersists(devtoolsPort, appUrl, runDir, s
           await upload('input[type=file][multiple]', 'study.sgf', '(;GM[1]SZ[9]PB[Empty library audit];B[dd])');
           await persisted(1);
           await wait(`!!document.querySelector('[data-library-row=file]')`);
-          await upload('input[type=file][accept=".json,application/json"]', 'empty.json', JSON.stringify({ app: 'web-katrain', version: 2, items: [] }));
+          // Restoring replaces the library rather than merging into it, so it
+          // asks first, the way Delete above does. Cancel must keep the game.
+          const emptyBackup = JSON.stringify({ app: 'web-katrain', version: 2, items: [] });
+          await upload('input[type=file][accept=".json,application/json"]', 'empty.json', emptyBackup);
+          const restoreMessage = await wait(`document.querySelector('${dialog} p')?.textContent`);
+          assert.ok(
+            restoreMessage.includes('Replace all 1 library item') && restoreMessage.includes('cannot be undone'),
+            `Restore must say what it replaces: ${restoreMessage}`
+          );
+          await dialogButton('Cancel');
+          await closed();
+          await persisted(1);
+          await wait(`!!document.querySelector('[data-library-row=file]')`);
+          report.stages.push({ stage: 'restore cancelled', count: 1 });
+
+          await upload('input[type=file][accept=".json,application/json"]', 'empty.json', emptyBackup);
+          await wait(`!!document.querySelector('${dialog}')`);
+          await dialogButton('Replace');
+          await closed();
           await emptyUi();
           await persisted(0);
           await checkEmptyReload('after empty backup restore');
           assert.deepEqual(errors, []);
           assert.ok(await evaluate(cdp, 'document.documentElement.scrollWidth<=innerWidth+1'));
-          console.log(`Empty library at ${width}x${height} (${storage}): first-run samples, cancel, delete, import, empty backup and reload passed.`);
+          console.log(`Empty library at ${width}x${height} (${storage}): first-run samples, cancel, delete, import, guarded empty backup restore and reload passed.`);
         } catch (error) {
           failures.push(`${stem}: ${error.message}`);
           report.error = error.message;
