@@ -25,7 +25,26 @@ export async function assertLibraryTags(devtoolsPort, appUrl, runDir, screenshot
       const tag = `tagcheck${width}`;
       const report = { width, height, stages: [] };
       const errors = [];
-      const wait = expression => waitForExpression(cdp, expression, { label: 'Library tags check' });
+      /**
+       * What to report if a wait runs out. This check fails intermittently at
+       * 1280x800 on CI and has never been reproduced locally; three
+       * explanations have already been wrong, so the run that fails is the
+       * only place the answer is going to come from.
+       */
+      const diagnose = `(async () => {
+        const lib = window.tagAuditLibrary;
+        const items = lib ? await lib.loadLibrary() : null;
+        return {
+          libraryModuleLoaded: !!lib,
+          itemCount: items ? items.length : null,
+          itemNames: items ? items.map(i => i.name).slice(0, 12) : null,
+          multipleFileInputs: document.querySelectorAll('input[type=file][multiple]').length,
+          asideCount: document.querySelectorAll('aside').length,
+          dialogCount: document.querySelectorAll('[role=dialog]').length,
+          asideText: (document.querySelector('aside')?.innerText || '').replace(/\\s+/g, ' ').slice(0, 200),
+        };
+      })()`;
+      const wait = expression => waitForExpression(cdp, expression, { label: 'Library tags check', diagnose });
       const clickElement = async expression => {
         const point = await wait(`(()=>{
           const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});

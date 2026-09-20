@@ -403,7 +403,11 @@ export function loadedModuleUrl(pathSuffix, allowFirstImport = false) {
  * The message names the budget it spent, which is what showed the first theory
  * to be wrong; keep it that way.
  */
-export async function waitForExpression(cdp, expression, { label = 'Wait', timeoutMs = 45_000, intervalMs = 100 } = {}) {
+export async function waitForExpression(
+  cdp,
+  expression,
+  { label = 'Wait', timeoutMs = 45_000, intervalMs = 100, diagnose } = {},
+) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const value = await evaluate(cdp, expression);
@@ -411,6 +415,16 @@ export async function waitForExpression(cdp, expression, { label = 'Wait', timeo
     if (Date.now() >= deadline) break;
     await sleep(intervalMs);
   }
-  throw new Error(`${label} timed out after ${timeoutMs}ms: ${expression}`);
+  // A CI-only intermittent is worth one extra round trip: the run that fails
+  // is usually the only chance to see the state that failed.
+  let state = '';
+  if (diagnose) {
+    try {
+      state = ` | state: ${JSON.stringify(await evaluate(cdp, diagnose))}`;
+    } catch (error) {
+      state = ` | diagnosis failed: ${error.message}`;
+    }
+  }
+  throw new Error(`${label} timed out after ${timeoutMs}ms: ${expression}${state}`);
 }
 
