@@ -48,6 +48,9 @@ PWA. There is no analysis server to run.
   (KataHandicap, which reads the board as if one side had more search), and
   `antimirror` (breaks mirror go). Each configuration shows KaTrain's
   calibrated strength estimate, so you know what rank you are playing.
+- Or play `human`, which samples KataGo's human SL network at the rank you pick
+  rather than the engine's own move, so the mistakes look like a person's. See
+  [Human-like moves](docs/engine.md#human-like-moves).
 - Teach mode, byo-yomi clocks, resign/pass handling, manual scoring, and 9x9,
   13x13, or 19x19 boards.
 - Japanese, Korean, Chinese, AGA, New Zealand, Tromp-Taylor, and Ancient
@@ -87,8 +90,11 @@ PWA. There is no analysis server to run.
   navigation, sound, and haptics.
 - Document language metadata for 13 languages, which tags the page and the SGF
   you export. The interface itself is English only.
-- Offline app shell, default model, TensorFlow.js WASM files, and board assets
-  are cached by the production service worker.
+- The production service worker precaches the app shell, the default model, the
+  one TensorFlow.js WASM build this deployment can run, and the default board's
+  images. Everything else — the other themes, the other WASM builds — is cached
+  the first time it is used, so what you actually use stays available offline.
+  See [Deployment](docs/deployment.md#service-worker-and-offline-cache).
 
 ## Quick Start
 
