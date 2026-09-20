@@ -378,3 +378,31 @@ export function loadedModuleUrl(pathSuffix, allowFirstImport = false) {
   if (!resource) throw new Error(`Loaded module was not recorded: ${pathSuffix}`);
   return resource.name;
 }
+
+/**
+ * Polls a page expression until it returns something truthy.
+ *
+ * The library checks each carried their own copy of this loop with a 15s
+ * ceiling (150 x 100ms). That is ample once the app is warm and not always
+ * enough for the *first* viewport on a cold CI runner, which pays for Vite
+ * compiling on demand, the first page load, and seeding the bundled games into
+ * IndexedDB before the check's own item can appear. Measured: the library-tags
+ * check timed out at 1280x800 -- the first of its three viewports -- on a
+ * commit that provably could not affect it, then passed on re-run and at the
+ * two later viewports of the same run.
+ *
+ * Polling stays at 100ms, so a check that is going to pass is no slower; only
+ * the ceiling moves. The message names the budget it spent, because "timed
+ * out" alone cannot be told apart from the page never reaching the state.
+ */
+export async function waitForExpression(cdp, expression, { label = 'Wait', timeoutMs = 45_000, intervalMs = 100 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = await evaluate(cdp, expression);
+    if (value) return value;
+    if (Date.now() >= deadline) break;
+    await sleep(intervalMs);
+  }
+  throw new Error(`${label} timed out after ${timeoutMs}ms: ${expression}`);
+}
+

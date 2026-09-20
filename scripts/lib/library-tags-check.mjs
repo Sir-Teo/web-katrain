@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { connectDevtools, evaluate, loadedModuleUrl, navigate, setViewport, sleep } from './browser.mjs';
+import { connectDevtools, evaluate, loadedModuleUrl, navigate, setViewport, sleep, waitForExpression } from './browser.mjs';
 
 // Exercise real imports, row menus, typing and persistence. Empty tags are a
 // valid edit even though the same dialog requires a name for other actions.
@@ -25,14 +25,7 @@ export async function assertLibraryTags(devtoolsPort, appUrl, runDir, screenshot
       const tag = `tagcheck${width}`;
       const report = { width, height, stages: [] };
       const errors = [];
-      const wait = async expression => {
-        for (let i = 0; i < 150; i++) {
-          const result = await evaluate(cdp, expression);
-          if (result) return result;
-          await sleep(100);
-        }
-        throw new Error(`Library tags check timed out: ${expression}`);
-      };
+      const wait = expression => waitForExpression(cdp, expression, { label: 'Library tags check' });
       const clickElement = async expression => {
         const point = await wait(`(()=>{
           const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { connectDevtools, evaluate, navigate, setViewport, sleep } from './browser.mjs';
+import { connectDevtools, evaluate, navigate, setViewport, sleep, waitForExpression } from './browser.mjs';
 
 // Read storage directly: loadLibrary itself can seed samples, so calling it
 // from a persistence assertion would change the state being checked.
@@ -33,14 +33,7 @@ export async function assertEmptyLibraryPersists(devtoolsPort, appUrl, runDir, s
         const mobile = width < 1000, stem = `${width}x${height}-empty-library-${storage}`;
         const report = { width, height, storage, stages: [] }, errors = [];
         const dialog = '[aria-labelledby="library-confirm-dialog-title"]';
-        const wait = async expression => {
-          for (let i = 0; i < 150; i++) {
-            const value = await evaluate(cdp, expression);
-            if (value) return value;
-            await sleep(100);
-          }
-          throw Error(`Empty library check timed out: ${expression}`);
-        };
+        const wait = expression => waitForExpression(cdp, expression, { label: 'Empty library check' });
         const clickElement = async expression => {
           const point = await wait(`(()=>{
             const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});

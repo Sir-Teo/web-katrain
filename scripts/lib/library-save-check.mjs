@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { connectDevtools, evaluate, navigate, setViewport, sleep } from './browser.mjs';
+import { connectDevtools, evaluate, navigate, setViewport, sleep, waitForExpression } from './browser.mjs';
 
 const recoveryKey = 'web-katrain:auto_saved_game:v1';
 const textDialog = '[aria-labelledby="library-text-dialog-title"]';
@@ -70,14 +70,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
       const cdp = connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);
       await cdp.ready;
       const stem = `${width}x${height}-library-${action}-${mode}${entry ? `-${entry}` : ''}${overlap ? `-overlap-${overlap}` : ''}${panelUpdate ? '-panel' : ''}${metadataEdit ? '-star' : ''}`, report = { ...scenario, stages: [] }, errors = [];
-      const wait = async expression => {
-        for (let i = 0; i < 150; i++) {
-          const value = await evaluate(cdp, expression);
-          if (value) return value;
-          await sleep(100);
-        }
-        throw Error(`Library save check timed out: ${expression}`);
-      };
+      const wait = expression => waitForExpression(cdp, expression, { label: 'Library save check' });
       const point = expression => wait(`(()=>{
         const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});
         const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
