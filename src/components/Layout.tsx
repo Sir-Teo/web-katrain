@@ -124,6 +124,7 @@ import { getDroppedSgfOrOgsText, getFirstDraggedFile, hasDraggedFiles, hasPotent
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { appendRestoredAnalysisSummary, withFailureReason } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
+import { countInsertedMoves, describeInsertProgress } from '../utils/insertMode';
 import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
@@ -317,6 +318,7 @@ export const Layout: React.FC = () => {
     cancelSelectRegionOfInterest,
     setRegionOfInterest,
     isInsertMode,
+    insertAnchorNodeId,
     isEditMode,
     toggleInsertMode,
     toggleEditMode,
@@ -404,6 +406,7 @@ export const Layout: React.FC = () => {
       cancelSelectRegionOfInterest: state.cancelSelectRegionOfInterest,
       setRegionOfInterest: state.setRegionOfInterest,
       isInsertMode: state.isInsertMode,
+      insertAnchorNodeId: state.insertAnchorNodeId,
       isEditMode: state.isEditMode,
       toggleInsertMode: state.toggleInsertMode,
       toggleEditMode: state.toggleEditMode,
@@ -3438,6 +3441,14 @@ export const Layout: React.FC = () => {
     toast(`Gauntlet game ${gauntlet.index + 1}/4 vs ${formatKyuRank(opponentKyu)} started.`, 'success');
   }, [startNewGame, updateSettings, settings.gameRules, toast]);
 
+  // Insert mode's parity trap, offered while there is still something to do
+  // about it: the continuation can only follow an even number of inserted
+  // moves. The store says so on the way out; this says so on the way through.
+  const insertProgress = useMemo(
+    () => describeInsertProgress(countInsertedMoves(currentNode, insertAnchorNodeId)),
+    [currentNode, insertAnchorNodeId],
+  );
+
   const gamepadBlockedByOverlay = Boolean(
     isSettingsOpen ||
     isAboutOpen ||
@@ -4013,6 +4024,7 @@ export const Layout: React.FC = () => {
             updateControls={updateControls}
             updateSettings={updateSettings}
             isInsertMode={isInsertMode}
+            insertProgress={insertProgress}
             toggleInsertMode={toggleInsertMode}
             isSelectingRegionOfInterest={isSelectingRegionOfInterest}
             startSelectRegionOfInterest={startSelectRegionOfInterest}
@@ -4189,6 +4201,7 @@ export const Layout: React.FC = () => {
               regionOfInterest={regionOfInterest}
               setRegionOfInterest={setRegionOfInterest}
               isInsertMode={isInsertMode}
+            insertProgress={insertProgress}
               isEditMode={isEditMode}
               isAnalysisMode={isAnalysisMode}
               toggleAnalysisMode={toggleAnalysisMode}

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { TopControlBar } from '../src/components/layout/TopControlBar';
 import { useGameStore } from '../src/store/gameStore';
 import { BOARD_THEME_OPTIONS } from '../src/utils/boardThemes';
+import { describeInsertProgress } from '../src/utils/insertMode';
 import type { BoardThemeId } from '../src/types';
 
 const noop = () => undefined;
@@ -19,6 +20,7 @@ const baseProps = {
   regionOfInterest: null,
   setRegionOfInterest: noop,
   isInsertMode: false,
+  insertProgress: describeInsertProgress(0),
   isEditMode: false,
   isAnalysisMode: false,
   toggleAnalysisMode: noop,

@@ -49,6 +49,7 @@ import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { useBackGestureToClose } from '../../hooks/useEscapeToClose';
 import { isFullscreenActive, subscribeFullscreenChange, toggleAppFullscreen } from '../../utils/fullscreen';
 import { getQuickNewGameWarning } from '../../utils/quickNewGame';
+import type { InsertProgress } from '../../utils/insertMode';
 
 const TOP_CONTROL_SHORTCUT_IDS = [
   'settings-modal',
@@ -101,6 +102,7 @@ interface TopControlBarProps {
   regionOfInterest: RegionOfInterest | null;
   setRegionOfInterest: (r: null) => void;
   isInsertMode: boolean;
+  insertProgress: InsertProgress;
   isEditMode: boolean;
   isAnalysisMode: boolean;
   toggleAnalysisMode: () => void;
@@ -166,6 +168,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   regionOfInterest,
   setRegionOfInterest,
   isInsertMode,
+  insertProgress,
   isEditMode,
   isAnalysisMode,
   toggleAnalysisMode,
@@ -856,8 +859,21 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
           </button>
         )}
         {isInsertMode && (
-          <div className="px-2 py-0.5 rounded-md border ui-accent-soft text-xs font-semibold">
-            Insert
+          /* The count, and a warning tone on an odd one: the continuation can
+             only follow an even number of inserted moves, and the store only
+             said so once it was too late to add another. */
+          <div
+            className={[
+              'px-2 py-0.5 rounded-md border text-xs font-semibold',
+              insertProgress.warn
+                ? 'border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] text-[var(--ui-warning)]'
+                : 'ui-accent-soft',
+            ].join(' ')}
+            title={insertProgress.title}
+            aria-label={insertProgress.title}
+            data-insert-progress={insertProgress.warn ? 'odd' : 'even'}
+          >
+            {insertProgress.label}
           </div>
         )}
         {isEditMode && (

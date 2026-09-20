@@ -1,3 +1,4 @@
+import type { InsertProgress } from '../../utils/insertMode';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard.css';
 import { Icon, type IconName } from './icons';
@@ -89,6 +90,7 @@ export interface DesktopDashboardProps {
   updateControls: (partial: Partial<AnalysisControlsState>) => void;
   updateSettings: (partial: Partial<GameSettings>) => void;
   isInsertMode: boolean;
+  insertProgress: InsertProgress;
   toggleInsertMode: () => void;
   isSelectingRegionOfInterest: boolean;
   startSelectRegionOfInterest: () => void;
@@ -248,7 +250,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     engineState, enginePillLabel, engineMetaTitle, engineBackend, engineModelLabel, analysisCacheSize,
     mode, setMode, isContinuousAnalysis, toggleContinuousAnalysis,
     settings, updateControls, updateSettings,
-    isInsertMode, toggleInsertMode, isSelectingRegionOfInterest, startSelectRegionOfInterest,
+    isInsertMode, insertProgress, toggleInsertMode, isSelectingRegionOfInterest, startSelectRegionOfInterest,
     hasMoveTimes = false,
     libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, focusMode = false,
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
@@ -930,14 +932,25 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               >
                 <Icon name="target" size={13} /><span className="bc-label">Region</span>
               </button>
+              {/* While inserting, this carries the count and warns on an odd
+                  one: the continuation can only follow an even number of
+                  inserted moves, and the store only said so on the way out,
+                  when nothing could be done about it. The classic shell's own
+                  status chip carries the same wording. */}
               <button
                 type="button"
                 className={`board-chip${isInsertMode ? ' on' : ''}`}
                 aria-pressed={isInsertMode}
-                title="Insert moves into the game record"
+                title={isInsertMode ? insertProgress.title : 'Insert moves into the game record'}
+                aria-label={isInsertMode ? insertProgress.title : undefined}
+                data-insert-progress={isInsertMode ? (insertProgress.warn ? 'odd' : 'even') : undefined}
+                style={isInsertMode && insertProgress.warn
+                  ? { borderColor: 'var(--ui-warning)', color: 'var(--ui-warning)' }
+                  : undefined}
                 onClick={toggleInsertMode}
               >
-                <Icon name="layers" size={13} /><span className="bc-label">Insert</span>
+                <Icon name="layers" size={13} />
+                <span className="bc-label">{isInsertMode ? insertProgress.label : 'Insert'}</span>
               </button>
               {/* Teach mode had exactly one control in the whole app, in the
                   mobile tools sheet, so on this shell it could be configured in
