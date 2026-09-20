@@ -244,18 +244,40 @@ export function connectDevtools(webSocketDebuggerUrl) {
   };
 }
 
-export async function chromeTarget(port) {
-  for (let i = 0; i < 40; i++) {
+/**
+ * Waits for Chrome to open its devtools port and returns the page target's
+ * WebSocket URL.
+ *
+ * The budget was 8s (40 polls, 200ms apart), which is ample for a warm laptop
+ * and not always enough for a cold CI runner. Measured: the same commit failed
+ * this step with "Timed out waiting for Chrome devtools target" and passed it
+ * on re-run four minutes later, with Chrome reporting no exit code either time
+ * -- it was still starting, not broken. A wait that is too short turns a slow
+ * start into a red main, so the ceiling is generous; polling is every 200ms
+ * regardless, so a fast start still returns immediately.
+ *
+ * The message names the port and the budget it actually spent, because the
+ * previous one could not be told apart from Chrome failing to launch at all.
+ */
+export async function chromeTarget(port, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = null;
+  for (;;) {
     try {
       const targets = await fetch(`http://127.0.0.1:${port}/json`).then((response) => response.json());
       const target = targets.find((item) => item.type === 'page') ?? targets[0];
       if (target?.webSocketDebuggerUrl) return target.webSocketDebuggerUrl;
-    } catch {
-      // Keep polling.
+      lastError = new Error(`no page target yet (${targets.length} target(s))`);
+    } catch (err) {
+      lastError = err;
     }
+    if (Date.now() >= deadline) break;
     await sleep(200);
   }
-  throw new Error('Timed out waiting for Chrome devtools target');
+  throw new Error(
+    `Timed out waiting for Chrome devtools target on port ${port} after ${timeoutMs}ms`
+    + `${lastError ? `; last attempt: ${lastError.message}` : ''}`,
+  );
 }
 
 // Page.navigate acknowledges the request before the new document commits.
