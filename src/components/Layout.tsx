@@ -1218,15 +1218,18 @@ export const Layout: React.FC = () => {
     }
   }, [autoSaveRecovery, loadGame, navigateEnd, setLoadedLibraryFile, toast]);
 
-  const handleSaveCurrentSgf = useCallback(async () => {
+  /** Whether the game is now saved. `false` means the game is still only here. */
+  const handleSaveCurrentSgf = useCallback(async (): Promise<boolean> => {
     const sgf = generateCurrentSgf();
-    if (await saveLoadedLibraryFile(sgf)) return;
+    if (await saveLoadedLibraryFile(sgf)) return true;
     try {
       const saved = downloadSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
       markCurrentGameCleanAndClearAutoSave(saved);
       toast('Downloaded SGF.', 'success');
+      return true;
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Failed to download SGF.', 'error');
+      return false;
     }
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveLoadedLibraryFile, sgfExportOptions, toast]);
 
@@ -1293,7 +1296,12 @@ export const Layout: React.FC = () => {
   const prepareForGameReplacement = useCallback(async () => {
     const choice = await confirmReplaceCurrentGame();
     if (choice === 'cancel') return false;
-    if (choice === 'save') await handleSaveCurrentSgf();
+    // Choosing Save and having it fail is not consent to lose the game. The
+    // save reported its failure in a toast and the replacement went ahead
+    // regardless, so the one answer that means "keep this" destroyed it.
+    // Stopping here leaves the board untouched and the reason on screen, with
+    // Discard still there for anyone who meant it.
+    if (choice === 'save' && !(await handleSaveCurrentSgf())) return false;
     return true;
   }, [confirmReplaceCurrentGame, handleSaveCurrentSgf]);
 
