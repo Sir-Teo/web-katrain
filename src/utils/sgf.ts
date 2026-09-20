@@ -644,6 +644,9 @@ export interface ParsedSgf {
     tree?: ParsedSgfNode;
 }
 
+/** Beyond this a komi cannot describe a game; a 19x19 board holds 361 points. */
+const MAX_SGF_KOMI = 1000;
+
 export const parseSgf = (sgfContent: string): ParsedSgf => {
     assertSgfImportSize(sgfContent);
     const moves: { x: number, y: number, player: Player }[] = [];
@@ -789,7 +792,15 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
     const rootKomi = root.props['KM']?.[0];
     if (rootKomi) {
         const k = parseFloat(rootKomi);
-        if (!Number.isNaN(k)) komi = k;
+        // `KM` comes out of a file another program wrote. `parseFloat` returns
+        // Infinity for "Infinity" and overflows "1e999" to it, and
+        // `Number.isNaN` lets both through -- komi is subtracted from every
+        // score the app shows, and goes to the net as a float32, where
+        // anything past ~3.4e38 is Infinity again and the outputs come back
+        // NaN. A whole 19x19 board is 361 points, so nothing beyond this can
+        // describe a game; as with a komi that is not a number at all, the
+        // default stands.
+        if (Number.isFinite(k) && Math.abs(k) <= MAX_SGF_KOMI) komi = k;
     }
 
     const rootSize = root.props['SZ']?.[0];
