@@ -279,6 +279,8 @@ interface GameStore extends GameState {
   setHandicap: (handicap: number) => void;
   setRootProperty: (key: string, value: string) => void;
   setCurrentNodeNote: (note: string) => void;
+  /** Write a note onto a node that is no longer the current one; see `getNoteDraftRescue`. */
+  setNodeNote: (nodeId: string, note: string) => void;
   rotateBoard: () => void;
   startNewGame: (opts: { komi: number; rules: GameRules; boardSize: BoardSize; handicap: number }) => void;
 }
@@ -4120,6 +4122,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setCurrentNodeNote: (note) =>
     set((state) => {
       state.currentNode.note = note;
+      return { treeVersion: state.treeVersion + 1 };
+    }),
+
+  setNodeNote: (nodeId, note) =>
+    set((state) => {
+      const node = findNodeById(state.rootNode, nodeId);
+      // The node can be gone -- a branch deleted while its note was open.
+      if (!node || (node.note ?? '') === note) return {};
+      node.note = note;
       return { treeVersion: state.treeVersion + 1 };
     }),
 

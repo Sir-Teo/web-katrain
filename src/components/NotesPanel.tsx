@@ -9,7 +9,7 @@ import { mediaQueryMatches } from '../utils/mediaQuery';
 import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
-import { getNoteEditorSyncDecision } from '../utils/noteEditorState';
+import { getNoteDraftRescue, getNoteEditorSyncDecision } from '../utils/noteEditorState';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 import { formatBoardNoteBlock } from '../utils/boardTextDiagram';
@@ -259,6 +259,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     rootNode,
     currentNode,
     setCurrentNodeNote,
+    setNodeNote,
     treeVersion,
     gameRules,
     isAnalysisMode,
@@ -273,6 +274,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       rootNode: state.rootNode,
       currentNode: state.currentNode,
       setCurrentNodeNote: state.setCurrentNodeNote,
+      setNodeNote: state.setNodeNote,
       treeVersion: state.treeVersion,
       gameRules: state.settings.gameRules,
       isAnalysisMode: state.isAnalysisMode,
@@ -360,6 +362,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const noteTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const shouldFocusNoteRef = React.useRef(false);
   const previousNoteNodeIdRef = React.useRef(currentNode.id);
+  // Written during render so the sync effect can read what was in the editor
+  // at the moment the board moved, without re-running on every keystroke.
+  const noteDraftRef = React.useRef(currentNote);
+  const previousNoteTextRef = React.useRef(currentNote);
   const lastFocusRequestRef = React.useRef(0);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
 
@@ -394,6 +400,21 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [focusNoteEditor]);
 
   React.useEffect(() => {
+    noteDraftRef.current = noteDraft;
+  }, [noteDraft]);
+
+  React.useEffect(() => {
+    // Keep what was typed before the sync below replaces it with the arriving
+    // node's note. It belongs to the node being left.
+    const rescue = getNoteDraftRescue({
+      previousNodeId: previousNoteNodeIdRef.current,
+      currentNodeId: currentNode.id,
+      isEditing: isEditingNote,
+      draft: noteDraftRef.current,
+      previousNote: previousNoteTextRef.current,
+    });
+    if (rescue) setNodeNote(rescue.nodeId, rescue.note);
+
     const sync = getNoteEditorSyncDecision({
       previousNodeId: previousNoteNodeIdRef.current,
       currentNodeId: currentNode.id,
@@ -401,10 +422,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       isEditing: isEditingNote,
     });
     previousNoteNodeIdRef.current = currentNode.id;
+    previousNoteTextRef.current = currentNote;
     if (!sync) return;
     setNoteDraft(sync.draft);
     setIsEditingNote(sync.editing);
-  }, [currentNode.id, currentNote, isEditingNote]);
+  }, [currentNode.id, currentNote, isEditingNote, setNodeNote]);
 
   React.useEffect(() => {
     if (!isEditingNote || !shouldFocusNoteRef.current) return;
