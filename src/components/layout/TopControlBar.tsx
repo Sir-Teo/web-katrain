@@ -223,7 +223,7 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
   const shortcutLabels = useShortcutLabels(TOP_CONTROL_SHORTCUT_IDS);
   const withShortcut = (label: string, id: TopControlShortcutId) => `${label} (${shortcutLabels[id]})`;
   const saveControlTitle = withShortcut(stripShortcutSuffix(saveTitle), 'save-sgf');
-  const quickNewGameTitle = getQuickNewGameWarning(settings.defaultBoardSize);
+  const quickNewGameTitle = getQuickNewGameWarning(settings.defaultBoardSize, settings.defaultHandicap);
   const boardThemeIndex = BOARD_THEME_OPTIONS.findIndex((theme) => theme.value === settings.boardTheme);
   const activeBoardThemeIndex = boardThemeIndex >= 0 ? boardThemeIndex : 0;
   const activeBoardThemeOption = BOARD_THEME_OPTIONS[activeBoardThemeIndex] ?? BOARD_THEME_OPTIONS[0]!;

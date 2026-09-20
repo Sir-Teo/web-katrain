@@ -71,6 +71,7 @@ function renderModal(args: {
   ai?: AiConfigValues;
   timer?: TimerConfigValues;
   handicap?: number;
+  boardSize?: 9 | 13 | 19;
   setupPosition?: SetupPositionValues;
   teachModeOn?: boolean;
 } = {}): string {
@@ -80,7 +81,7 @@ function renderModal(args: {
       onStart={() => undefined}
       defaultKomi={6.5}
       defaultRules="japanese"
-      defaultBoardSize={19}
+      defaultBoardSize={args.boardSize ?? 19}
       defaultHandicap={args.handicap ?? 0}
       defaultInfo={defaultInfo}
       defaultAiConfig={args.ai ?? aiConfig()}
@@ -303,5 +304,21 @@ describe('teach mode offer', () => {
     const layout = readFileSync('src/components/Layout.tsx', 'utf8');
     expect(layout).toContain('if (teachMode !== useGameStore.getState().isTeachMode)');
     expect(layout).toContain('teachModeOn={isTeachMode}');
+  });
+});
+
+describe('the board size the dialog opens on', () => {
+  // Layout hands this the *live* board, not the saved default, so opening a
+  // 13x13 file and then New Game still offers 13x13. It used to come from
+  // `settings.defaultBoardSize`, which `loadGame` kept in step by writing the
+  // file's size into settings -- and the file's handicap along with it.
+  it('pre-selects whatever board size it was given', () => {
+    for (const size of [9, 13, 19] as const) {
+      const html = renderModal({ boardSize: size });
+      expect(html, String(size)).toContain(`<option value="${size}" selected="">`);
+      for (const other of [9, 13, 19].filter((n) => n !== size)) {
+        expect(html, `${size} vs ${other}`).toContain(`<option value="${other}">`);
+      }
+    }
   });
 });

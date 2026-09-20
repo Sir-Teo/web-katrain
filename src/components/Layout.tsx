@@ -3801,7 +3801,12 @@ export const Layout: React.FC = () => {
           }}
             defaultKomi={komi}
             defaultRules={settings.gameRules}
-            defaultBoardSize={settings.defaultBoardSize}
+            // The board in front of the reader, not the saved default: opening
+            // a 13x13 and then New Game should still offer 13x13. That used to
+            // work because `loadGame` wrote the file's size into the settings,
+            // which dragged the file's *handicap* in with it. Reading the live
+            // board keeps the convenience without touching the setting.
+            defaultBoardSize={boardSize}
             defaultHandicap={settings.defaultHandicap}
             defaultInfo={defaultGameInfo}
             defaultAiConfig={defaultAiConfig}
@@ -3853,6 +3858,7 @@ export const Layout: React.FC = () => {
         appLocale={settings.appLocale}
         onLocaleChange={(appLocale) => updateSettings({ appLocale })}
         quickNewGameBoardSize={settings.defaultBoardSize}
+          quickNewGameHandicap={settings.defaultHandicap}
         recentItems={recentLibraryItems}
         onOpenRecent={handleOpenRecent}
       />
@@ -3872,6 +3878,7 @@ export const Layout: React.FC = () => {
           onClose={closeMobileHome}
           onGamepadNavigationDisable={handleDisableGamepadNavigation}
           quickNewGameBoardSize={settings.defaultBoardSize}
+          quickNewGameHandicap={settings.defaultHandicap}
           onQuickNewGame={() => void startQuickNewGame()}
           onLessons={() => {
             closeMobileHome();

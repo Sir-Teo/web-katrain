@@ -6305,7 +6305,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       analysisData: current.analysis || null,
       analysisCacheSize: getAnalysisCacheSize(newRoot),
 	      treeVersion: state.treeVersion + 1,
-	      settings: { ...state.settings, gameRules: rules, defaultBoardSize: boardSize, defaultHandicap: safeHandicap },
+	      // Rules follow the file, because a loaded game has to be scored under
+	      // the rules it was played with. The *new game* defaults do not: those
+	      // are the reader's own settings, and a file is not a preference.
+	      // Writing them here laundered a property of someone else's game into
+	      // a persisted setting -- open a 9-stone handicap game, press Quick
+	      // new game, and you got nine stones you never asked for, on a control
+	      // whose warning names only the board size. `startNewGame` then saved
+	      // it, so every later new game had them too.
+	      settings: { ...state.settings, gameRules: rules },
 		    }));
 
 		    // KaTrain-like: optionally start fast background analysis of the whole mainline so graphs populate fast.

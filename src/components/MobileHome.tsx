@@ -37,6 +37,7 @@ interface MobileHomeProps {
   onClose: () => void;
   onGamepadNavigationDisable?: () => void;
   quickNewGameBoardSize?: BoardSize;
+  quickNewGameHandicap?: number;
   onQuickNewGame: () => void;
   onNewGame: () => void;
   onLessons?: () => void;
@@ -109,6 +110,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   onClose,
   onGamepadNavigationDisable,
   quickNewGameBoardSize = 19,
+  quickNewGameHandicap = 0,
   onQuickNewGame,
   onNewGame,
   onLessons,
@@ -212,7 +214,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   const gamepadStatusText = hasMultipleGamepads
     ? `Gamepad navigation connected: ${gamepadName}. ${gamepadCount} controllers connected; using the most recently active. Tap to disable.`
     : `Gamepad navigation connected: ${gamepadName}. Tap to disable.`;
-  const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize);
+  const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize, quickNewGameHandicap);
 
   return (
     <div

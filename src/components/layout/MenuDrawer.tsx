@@ -68,6 +68,7 @@ interface MenuDrawerProps {
   appLocale?: AppLocaleId;
   onLocaleChange?: (locale: AppLocaleId) => void;
   quickNewGameBoardSize?: BoardSize;
+  quickNewGameHandicap?: number;
   recentItems?: LibraryFile[];
   onOpenRecent?: (item: LibraryFile) => void;
 }
@@ -103,11 +104,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   appLocale = 'en',
   onLocaleChange,
   quickNewGameBoardSize = 19,
+  quickNewGameHandicap = 0,
   recentItems = [],
   onOpenRecent,
 }) => {
   const shortcutLabels = useShortcutLabels(MENU_DRAWER_SHORTCUT_IDS);
-  const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize);
+  const quickNewGameWarning = getQuickNewGameWarning(quickNewGameBoardSize, quickNewGameHandicap);
   const activeLocale = getAppLocaleOption(appLocale);
   const drawerRef = React.useRef<HTMLDivElement>(null);
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
