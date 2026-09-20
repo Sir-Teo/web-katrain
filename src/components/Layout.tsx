@@ -124,6 +124,7 @@ import { getDroppedSgfOrOgsText, getFirstDraggedFile, hasDraggedFiles, hasPotent
 import { BOARD_THEME_OPTIONS } from '../utils/boardThemes';
 import { appendRestoredAnalysisSummary, withFailureReason } from '../utils/importSummary';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
+import { toggleAppFullscreen } from '../utils/fullscreen';
 import { countInsertedMoves, describeInsertProgress } from '../utils/insertMode';
 import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
@@ -2524,7 +2525,7 @@ export const Layout: React.FC = () => {
         category: 'Game',
         shortcutId: 'new-game',
         run: () => { void openNewGameWithGuard(); },
-        keywords: ['board size', 'handicap', 'players'],
+        keywords: ['board size', 'handicap', 'komi', 'rules', 'players'],
       },
       {
         id: 'save-sgf',
@@ -2753,6 +2754,18 @@ export const Layout: React.FC = () => {
         shortcutId: 'toggle-library',
         run: handleToggleLibrary,
         keywords: ['games', 'collection'],
+      },
+      {
+        // Reachable by shortcut and by a button in the top bar, but searching
+        // the palette for "fullscreen" found nothing at all. `run` is called
+        // straight out of the click handler, so the user gesture the
+        // Fullscreen API needs is still live here.
+        id: 'toggle-fullscreen',
+        label: 'Toggle fullscreen',
+        category: 'View',
+        shortcutId: 'fullscreen',
+        run: () => { void toggleAppFullscreen().catch(() => {}); },
+        keywords: ['full screen', 'maximise', 'maximize', 'presentation', 'zen'],
       },
       {
         id: 'toggle-sidebar',

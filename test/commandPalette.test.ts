@@ -151,3 +151,42 @@ describe('command palette recency', () => {
     expect(orderCommandsByRecency(commands, ['gone', 'b']).map((c) => c.id)).toEqual(['b', 'a']);
   });
 });
+
+describe('a reader who spells the other way', () => {
+  // The app's own copy is held to one dialect by copyDialect.test.ts, so the
+  // other spelling found nothing at all. Measured against the live palette
+  // before this: "analyse" 0 results, "analyze" 3; "colour" 0, "color" 1.
+  it('rewrites British spellings to the ones the labels use', () => {
+    expect(normalizeCommandQuery('Analyse')).toBe('analyze');
+    expect(normalizeCommandQuery('analysed')).toBe('analyzed');
+    expect(normalizeCommandQuery('analysing')).toBe('analyzing');
+    expect(normalizeCommandQuery('Colour')).toBe('color');
+    expect(normalizeCommandQuery('favourite')).toBe('favorite');
+    expect(normalizeCommandQuery('centre')).toBe('center');
+    expect(normalizeCommandQuery('customise')).toBe('customize');
+    expect(normalizeCommandQuery('grey')).toBe('gray');
+  });
+
+  it('leaves alone the words that are the same in both', () => {
+    // "analyses" is the noun the app itself uses -- "cached analyses" -- and
+    // rewriting it would lose that.
+    expect(normalizeCommandQuery('analysis')).toBe('analysis');
+    expect(normalizeCommandQuery('analyses')).toBe('analyses');
+    expect(normalizeCommandQuery('analyze')).toBe('analyze');
+    expect(normalizeCommandQuery('color')).toBe('color');
+  });
+
+  it('finds the command either way round', () => {
+    const analyze = { label: 'Analyze without the top move', category: 'Analysis' };
+    expect(scoreCommandMatch(analyze, 'analyse')).not.toBeNull();
+    expect(scoreCommandMatch(analyze, 'analyse')).toBe(scoreCommandMatch(analyze, 'analyze'));
+
+    const theme = { label: 'Set board theme: Flat Color', category: 'Appearance' };
+    expect(scoreCommandMatch(theme, 'colour')).toBe(scoreCommandMatch(theme, 'color'));
+  });
+
+  it('still refuses a query that matches nothing', () => {
+    expect(scoreCommandMatch({ label: 'Resign', category: 'Game' }, 'analyse')).toBeNull();
+  });
+});
+
