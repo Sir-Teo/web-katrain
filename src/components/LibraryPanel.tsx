@@ -438,6 +438,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
+  /**
+   * Settles when the library's own first read has published its snapshot.
+   *
+   * Saving is gated on `didLoadLibraryRef`, but nothing gated *mutating*: an
+   * import that landed before that first read finished was overwritten by the
+   * snapshot and never written back, so the file vanished with no error. The
+   * window is real -- the file input and the drop zone exist as soon as the
+   * panel mounts, while the read is still going through the storage queue and
+   * seeding the bundled games -- and it is what made the browser check for
+   * this panel fail intermittently on CI and never on a fast machine.
+   */
+  const initialLoadRef = useRef<Promise<unknown> | null>(null);
   const lastExternalFileUpdateRef = useRef<string | null>(null);
   const lastExternalItemCreateRef = useRef<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -461,7 +473,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let cancelled = false;
     setLibraryStatus('loading');
     setLibraryError(null);
-    void updateStoredLibrary((loaded) => {
+    const initialLoad = updateStoredLibrary((loaded) => {
       // Keep the loaded snapshot available for Retry if initialization's
       // persistence fails; publishing it must not enqueue another write.
       if (!cancelled) {
@@ -469,7 +481,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         syncItems(loaded);
       }
       return { items: loaded, result: loaded };
-    })
+    });
+    initialLoadRef.current = initialLoad;
+    void initialLoad
       .then((loaded) => {
         if (cancelled) return;
         // Nothing is expanded until someone expands it, so a library whose
@@ -1355,6 +1369,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleImportFilesToFolder = async (files: FileList | null, folderId: string | null) => {
     if (!files || files.length === 0) return;
+    // Before the first read publishes, `setItems` here would be overwritten by
+    // it and never saved. Reading the files is asynchronous anyway.
+    await waitForInitialLibraryLoad();
     const imported: LibraryItem[] = [];
     let openedPhotoBoard = false;
     let skippedUnsupportedPhotoImages = 0;
@@ -1447,12 +1464,26 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleImportFiles = async (files: FileList | null) =>
     handleImportFilesToFolder(files, activeFolderId);
 
+  /** Resolves once the panel's first read has published, or immediately after. */
+  const waitForInitialLibraryLoad = async (): Promise<void> => {
+    if (didLoadLibraryRef.current) return;
+    try {
+      await initialLoadRef.current;
+    } catch {
+      // A failed read surfaces through libraryStatus; an import should still
+      // be allowed to proceed rather than be swallowed here.
+    }
+  };
+
   const handleImportDroppedTextToFolder = async (
     dataTransfer: DataTransfer,
     folderId: string | null
   ): Promise<boolean> => {
     const droppedText = getDroppedSgfOrOgsText(dataTransfer);
     if (!droppedText) return false;
+    // Same window as the file input: the drop zone is live before the first
+    // read publishes, and `items` below must already hold the snapshot.
+    await waitForInitialLibraryLoad();
     try {
       const result = await createLibraryItemFromSgfOrOgsText(
         droppedText,
