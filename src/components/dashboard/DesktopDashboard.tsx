@@ -1467,7 +1467,16 @@ const EnginePopover: React.FC<{
         </div>
         <div className="ed-row">
           <span style={{ color: 'var(--faint)', fontSize: 12 }}>Cached positions</span>
-          <button type="button" className="pbtn" onClick={onClearCache}><Icon name="trash" size={12} /> {cacheSize}</button>
+          {/* The count is the only text here, so without a label the button
+              announced as just a number -- and it throws away every cached
+              evaluation. */}
+          <button
+            type="button"
+            className="pbtn"
+            onClick={onClearCache}
+            aria-label={`Clear ${cacheSize} cached position${cacheSize === 1 ? '' : 's'}`}
+            title="Clear cached positions"
+          ><Icon name="trash" size={12} /> {cacheSize}</button>
         </div>
       </div>
     </div>
