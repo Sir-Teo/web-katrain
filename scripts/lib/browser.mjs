@@ -382,18 +382,26 @@ export function loadedModuleUrl(pathSuffix, allowFirstImport = false) {
 /**
  * Polls a page expression until it returns something truthy.
  *
- * The library checks each carried their own copy of this loop with a 15s
- * ceiling (150 x 100ms). That is ample once the app is warm and not always
- * enough for the *first* viewport on a cold CI runner, which pays for Vite
- * compiling on demand, the first page load, and seeding the bundled games into
- * IndexedDB before the check's own item can appear. Measured: the library-tags
- * check timed out at 1280x800 -- the first of its three viewports -- on a
- * commit that provably could not affect it, then passed on re-run and at the
- * two later viewports of the same run.
+ * The library checks each carried their own copy of this loop, with the ceiling
+ * and the message written out three times. This is that loop, once.
  *
- * Polling stays at 100ms, so a check that is going to pass is no slower; only
- * the ceiling moves. The message names the budget it spent, because "timed
- * out" alone cannot be told apart from the page never reaching the state.
+ * The ceiling was raised from 15s to 45s on the theory that a cold CI runner
+ * needed longer. **That theory was wrong**: the library-tags check then timed
+ * out at 45s on the same viewport, so the budget was never what it was short
+ * of. It is left at 45s because a wait that is going to succeed is unaffected
+ * -- polling is 100ms either way -- but do not read the number as evidence
+ * that anything was measured to need it.
+ *
+ * What is real, and still unexplained: `library-tags-check` fails
+ * intermittently at **1280x800 only** (the desktop branch, and the first of
+ * its three viewports) on CI, never locally, waiting for an imported SGF to
+ * reach IndexedDB. The two narrow viewports pass in the same run, and a re-run
+ * passes. Ruled out so far: the wait budget, and a race between the import and
+ * first-run seeding of the bundled games -- every library operation goes
+ * through `createSerialTaskQueue`, so those cannot interleave.
+ *
+ * The message names the budget it spent, which is what showed the first theory
+ * to be wrong; keep it that way.
  */
 export async function waitForExpression(cdp, expression, { label = 'Wait', timeoutMs = 45_000, intervalMs = 100 } = {}) {
   const deadline = Date.now() + timeoutMs;
