@@ -18,18 +18,38 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Web KaTrain" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      og:image and twitter:image are absolute, not %BASE_URL%-relative.
+
+      Open Graph requires an absolute URL with a scheme, and the scrapers behave
+      accordingly: %BASE_URL% expands to "/web-katrain/" on the deployment, and
+      a link preview asking for summary_large_image was resolving that against
+      nothing and rendering with no image at all. The origin is the one
+      robots.txt and sitemap.xml already publish, and pwaAssets.test.ts pins all
+      three to the same string so it cannot drift to a fourth spelling.
+
+      A fork serving this from somewhere else gets the upstream screenshot in
+      its previews until it changes these three lines, which is the visible,
+      recoverable failure; a card with no image is neither.
+    -->
     <meta property="og:title" content="Web KaTrain" />
     <meta property="og:description" content="A polished browser-native Go study and analysis workspace." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="%BASE_URL%pwa/screenshot-wide.png" />
+    <meta property="og:url" content="https://sir-teo.github.io/web-katrain/" />
+    <meta property="og:image" content="https://sir-teo.github.io/web-katrain/pwa/screenshot-wide.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="800" />
+    <meta property="og:image:alt" content="Web KaTrain desktop study workspace" />
     <meta property="og:site_name" content="Web KaTrain" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Web KaTrain" />
     <meta name="twitter:description" content="A polished browser-native Go study and analysis workspace." />
-    <meta name="twitter:image" content="%BASE_URL%pwa/screenshot-wide.png" />
+    <meta name="twitter:image" content="https://sir-teo.github.io/web-katrain/pwa/screenshot-wide.png" />
+    <meta name="twitter:image:alt" content="Web KaTrain desktop study workspace" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%pwa/icon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%pwa/apple-touch-icon.png" />
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <link rel="canonical" href="https://sir-teo.github.io/web-katrain/" />
     <title>Web KaTrain</title>
   </head>
   <body>

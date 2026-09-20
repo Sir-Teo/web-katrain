@@ -17,6 +17,9 @@ function readPngSize(relativePath: string): { width: number; height: number } {
   };
 }
 
+/** The deployment origin, written in index.html, robots.txt and sitemap.xml. */
+const SITE_URL = 'https://sir-teo.github.io/web-katrain/';
+
 describe('PWA assets', () => {
   it('ships PNG install icons for manifest and iOS home-screen installs', () => {
     const manifest = JSON.parse(
@@ -75,8 +78,12 @@ describe('PWA assets', () => {
 
     const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
     expect(indexHtml).toContain('pwa/apple-touch-icon.png');
-    expect(indexHtml).toContain('property="og:image" content="%BASE_URL%pwa/screenshot-wide.png"');
     expect(indexHtml).toContain('name="twitter:card" content="summary_large_image"');
+    // The card asks for a large image, so the dimensions it advertises have to
+    // be the ones the file actually has. The URL itself is checked — and has to
+    // be absolute — by "gives link previews an absolute image" below.
+    expect(indexHtml).toContain('<meta property="og:image:width" content="1280" />');
+    expect(indexHtml).toContain('<meta property="og:image:height" content="800" />');
 
     // The install icons are precached; the screenshots deliberately are not.
     // See "precaches what offline needs" below for why, and for the guard that
@@ -188,12 +195,40 @@ describe('PWA assets', () => {
 
     expect(robots).toContain('User-agent: *');
     expect(robots).toContain('Allow: /');
-    expect(robots).toContain('Sitemap: https://sir-teo.github.io/web-katrain/sitemap.xml');
+    expect(robots).toContain(`Sitemap: ${SITE_URL}sitemap.xml`);
 
     expect(sitemap).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-    expect(sitemap).toContain('<loc>https://sir-teo.github.io/web-katrain/</loc>');
+    expect(sitemap).toContain(`<loc>${SITE_URL}</loc>`);
     expect(sitemap).toContain('<lastmod>2026-06-03</lastmod>');
     expect(sitemap).toContain('<changefreq>weekly</changefreq>');
+  });
+
+  it('gives link previews an absolute image, and one origin across all three files', () => {
+    /**
+     * `%BASE_URL%` expands to a root-relative "/web-katrain/", and Open Graph
+     * requires an absolute URL with a scheme. The page asks for
+     * summary_large_image and was handing the scrapers a path they could not
+     * resolve, so the card rendered with no image.
+     *
+     * Absolute means the origin is now written in three files. This checks they
+     * agree rather than leaving a fourth spelling to appear later.
+     */
+    const html = fs.readFileSync('index.html', 'utf8');
+
+    for (const property of ['og:image', 'twitter:image']) {
+      const match = new RegExp(`(?:property|name)="${property}" content="([^"]+)"`).exec(html);
+      expect(match, `${property} is missing`).toBeTruthy();
+      expect(match![1], `${property} must be absolute for scrapers to resolve it`)
+        .toBe(`${SITE_URL}pwa/screenshot-wide.png`);
+    }
+
+    expect(html).toContain(`<meta property="og:url" content="${SITE_URL}" />`);
+    expect(html).toContain(`<link rel="canonical" href="${SITE_URL}" />`);
+    // The card image has to be a file that actually ships.
+    expect(fs.existsSync(path.join(publicDir, 'pwa', 'screenshot-wide.png'))).toBe(true);
+    // No %BASE_URL% left in the social tags: that is what broke them.
+    const socialTags = html.match(/<meta (?:property="og:|name="twitter:)[^>]*>/g) ?? [];
+    expect(socialTags.filter((tag) => tag.includes('%BASE_URL%'))).toEqual([]);
   });
 
   it('precaches the board every visit draws, not the themes most visits never pick', () => {
