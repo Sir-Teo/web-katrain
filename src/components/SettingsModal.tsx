@@ -55,6 +55,7 @@ import {
     validateModelUploadFile,
 } from '../utils/modelUpload';
 import { copyTextToClipboard } from '../utils/clipboard';
+import { OBJECT_URL_UNAVAILABLE_MESSAGE, createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
 import { fetchBlobWithProgress } from '../utils/downloadProgress';
 import {
     getNextSettingsTabId,
@@ -491,8 +492,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         setHumanModelError(null);
         // Session-only: the blob URL dies with the page, and the stored setting is
         // reset on load so a dead URL never comes back.
-        if (humanBlobUrlRef.current) URL.revokeObjectURL(humanBlobUrlRef.current);
-        const url = URL.createObjectURL(file);
+        //
+        // Through objectUrl.ts rather than the bare global, which every other
+        // caller in the app already uses: `URL.createObjectURL` can be missing
+        // or throw, and the two calls here were the only ones left reaching past
+        // the guard. A throw inside an upload handler takes the whole Settings
+        // dialog to the error boundary; a reported problem loses the upload.
+        // New one first: revoking up front would leave the ref and the stored
+        // setting pointing at a dead URL if this one could not be made.
+        const url = createObjectUrl(file);
+        if (!url) {
+            setHumanModelError(OBJECT_URL_UNAVAILABLE_MESSAGE);
+            return;
+        }
+        revokeObjectUrl(humanBlobUrlRef.current);
         humanBlobUrlRef.current = url;
         setHumanModelFileName(file.name);
         updateSettings({ humanSlModelUrl: url });
@@ -512,10 +525,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     };
 
     const handleClearHumanUpload = () => {
-        if (humanBlobUrlRef.current) {
-            URL.revokeObjectURL(humanBlobUrlRef.current);
-            humanBlobUrlRef.current = null;
-        }
+        revokeObjectUrl(humanBlobUrlRef.current);
+        humanBlobUrlRef.current = null;
         setHumanModelFileName(null);
         setHumanModelError(null);
         updateSettings({ humanSlModelUrl: KATAGO_HUMAN_MODEL_URL });
