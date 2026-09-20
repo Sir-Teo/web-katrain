@@ -364,10 +364,70 @@ const countMoves = countSgfMoves;
 
 const normalizeParentId = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
 
+/**
+ * Puts back at the root anything the folder tree cannot reach.
+ *
+ * Every item carries a `parentId` and nothing checked that it named a folder
+ * that exists, or that following it ever arrived anywhere. The mutating
+ * operations all guard against making such a tree -- `moveLibraryItems` and the
+ * panel's drag-and-drop both refuse to put a folder inside its own descendant
+ * -- but `restoreLibrary` hands a file the reader chose straight to the store,
+ * and a backup is plain JSON that anything may have produced.
+ *
+ * Measured by restoring one: eight items in, "Restored 8 library items." on
+ * screen and 5 files / 3 folders in the footer, with **three** of them
+ * reachable from the root. Two games under a folder id that was not in the
+ * file, and a game inside a two-folder cycle, were stored, counted, and
+ * invisible -- across reloads, with no way back to them. The move-to-folder
+ * picker offered the cycled folders as destinations, because it does its own
+ * rescue, so the one surface that could still see them was a route to lose more.
+ *
+ * Cutting the one link that closes a cycle is enough to bring the whole run
+ * back, so a folder keeps its contents and only loses a parent it could never
+ * legitimately have had.
+ */
+const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const folderIds = new Set(items.filter((item) => item.type === 'folder').map((item) => item.id));
+
+  // A parent that is not a folder in this library is not a parent at all.
+  for (const item of items) {
+    if (item.parentId !== null && !folderIds.has(item.parentId)) item.parentId = null;
+  }
+
+  // Then the chains that never arrive: each walk cuts at the node it revisits.
+  const reachesRoot = new Set<string>();
+  for (const item of items) {
+    if (reachesRoot.has(item.id)) continue;
+    const walked: LibraryItem[] = [];
+    const onPath = new Set<string>();
+    let current: LibraryItem | undefined = item;
+    while (current) {
+      if (reachesRoot.has(current.id)) break;
+      if (onPath.has(current.id)) {
+        current.parentId = null;
+        break;
+      }
+      onPath.add(current.id);
+      walked.push(current);
+      if (current.parentId === null) break;
+      const parent = byId.get(current.parentId);
+      if (!parent) {
+        current.parentId = null;
+        break;
+      }
+      current = parent;
+    }
+    for (const node of walked) reachesRoot.add(node.id);
+  }
+
+  return items;
+};
+
 export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
   if (!Array.isArray(rawItems)) return [];
   const now = Date.now();
-  return rawItems
+  const normalized: LibraryItem[] = rawItems
     .filter((item) => item && typeof item === 'object')
     .map((item) => {
       const raw = item as Record<string, unknown>;
@@ -419,6 +479,7 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         ...(tags.length > 0 ? { tags } : {}),
       } as LibraryFile;
     });
+  return rerootUnreachableItems(normalized);
 };
 
 const safeParse = (raw: string | null): LibraryItem[] => {
