@@ -47,6 +47,52 @@ export const parseResultWinner = (re: string | null | undefined): Player | null 
   return null;
 };
 
+export interface RunResultReading {
+  /** The root to go on watching, or null when nothing is being watched. */
+  watchedRootId: string | null;
+  /** The winner to record against the run, or null for "not this game". */
+  winner: Player | null;
+}
+
+/**
+ * Whether the result now on the board belongs to the game the run started.
+ *
+ * A run waiting on a result used to accept `RE` from *whatever* tree was
+ * loaded, because the watcher only asked whether a result existed. Opening any
+ * finished game while a ladder game was underway therefore recorded that file's
+ * result as the player's own: measured in the browser, a fresh 12k run went to
+ * 1-0, promoted to 11k, "Best beaten 12k" -- and was persisted -- off an SGF
+ * nobody in the run had played. The gauntlet shares this watcher, where the
+ * same mistake ends the run outright.
+ *
+ * So the root the result arrives on has to be the root that was on the board
+ * *before* there was a result. An unfinished game is adopted as the one being
+ * played, which keeps the two ways the ladder's own game can legitimately
+ * change identity -- the game it starts, and an auto-save restored after a
+ * reload -- while a tree that arrives already carrying a result is not the game
+ * anyone just played, and is ignored. "I won" / "I lost" in the panel still
+ * covers every case this declines to guess at.
+ *
+ * Recording stops the watch, so a result cannot be counted twice if the store
+ * declines the first attempt.
+ */
+export function readRunResult(args: {
+  awaitingResult: boolean;
+  rootId: string;
+  result: string | null | undefined;
+  watchedRootId: string | null;
+}): RunResultReading {
+  const { awaitingResult, rootId, result, watchedRootId } = args;
+  if (!awaitingResult) return { watchedRootId: null, winner: null };
+  if (typeof result !== 'string' || result.trim() === '') {
+    return { watchedRootId: rootId, winner: null };
+  }
+  if (watchedRootId !== rootId) return { watchedRootId, winner: null };
+  const winner = parseResultWinner(result);
+  if (!winner) return { watchedRootId, winner: null };
+  return { watchedRootId: null, winner };
+}
+
 export const createLadder = (config: LadderConfig): LadderState => ({
   ...config,
   currentKyu: config.startKyu,

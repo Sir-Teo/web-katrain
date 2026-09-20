@@ -1,46 +1,55 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useTournamentStore } from '../store/tournamentStore';
-import { parseResultWinner } from '../utils/tournament';
+import { readRunResult } from '../utils/tournament';
+import type { GameResult } from '../utils/tournament';
+import type { Player } from '../types';
 
 /**
- * While a ladder game is awaiting its result, watch the live game's SGF result
- * (RE) and auto-record a win/loss when the game ends by resignation. Manual
- * reporting in the Tournament panel covers games that end by counting.
+ * While a ladder or gauntlet game is awaiting its result, watch the live game's
+ * SGF result (RE) and auto-record a win/loss when the game ends by resignation.
+ * Manual reporting in the Tournament panel covers games that end by counting.
+ *
+ * Which tree the result may come from is `readRunResult`'s decision; see the
+ * note there for why "any tree with an RE" was the wrong answer.
  */
-export function useTournamentWatcher(): void {
+function useRunResultWatcher(args: {
+  awaitingResult: boolean;
+  userColor: Player | null;
+  record: (result: GameResult) => void;
+}): void {
+  const { awaitingResult, userColor, record } = args;
   const rootNode = useGameStore((s) => s.rootNode);
   const treeVersion = useGameStore((s) => s.treeVersion);
+  const watchedRootIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const reading = readRunResult({
+      awaitingResult: awaitingResult && userColor !== null,
+      rootId: rootNode.id,
+      result: rootNode.properties?.RE?.[0] ?? null,
+      watchedRootId: watchedRootIdRef.current,
+    });
+    watchedRootIdRef.current = reading.watchedRootId;
+    if (!reading.winner || !userColor) return;
+    record(reading.winner === userColor ? 'win' : 'loss');
+  }, [awaitingResult, userColor, record, rootNode, treeVersion]);
+}
+
+export function useTournamentWatcher(): void {
   const ladder = useTournamentStore((s) => s.ladder);
   const recordResult = useTournamentStore((s) => s.recordResult);
   const gauntlet = useTournamentStore((s) => s.gauntlet);
   const recordGauntletResult = useTournamentStore((s) => s.recordGauntletResult);
-  const handledRef = useRef<string | null>(null);
-  const gauntletHandledRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!ladder || !ladder.awaitingResult) {
-      handledRef.current = null;
-      return;
-    }
-    const re = rootNode.properties?.RE?.[0] ?? null;
-    if (!re || re === handledRef.current) return;
-    const winner = parseResultWinner(re);
-    if (!winner) return;
-    handledRef.current = re;
-    recordResult(winner === ladder.userColor ? 'win' : 'loss');
-  }, [rootNode, treeVersion, ladder, recordResult]);
-
-  useEffect(() => {
-    if (!gauntlet || !gauntlet.awaitingResult) {
-      gauntletHandledRef.current = null;
-      return;
-    }
-    const re = rootNode.properties?.RE?.[0] ?? null;
-    if (!re || re === gauntletHandledRef.current) return;
-    const winner = parseResultWinner(re);
-    if (!winner) return;
-    gauntletHandledRef.current = re;
-    recordGauntletResult(winner === gauntlet.userColor ? 'win' : 'loss');
-  }, [rootNode, treeVersion, gauntlet, recordGauntletResult]);
+  useRunResultWatcher({
+    awaitingResult: ladder?.awaitingResult === true,
+    userColor: ladder?.userColor ?? null,
+    record: recordResult,
+  });
+  useRunResultWatcher({
+    awaitingResult: gauntlet?.awaitingResult === true,
+    userColor: gauntlet?.userColor ?? null,
+    record: recordGauntletResult,
+  });
 }
