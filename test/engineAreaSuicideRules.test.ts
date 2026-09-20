@@ -109,13 +109,13 @@ describe.skipIf(!hasModel())('rule-dependent pruning after opponent passes', () 
       // Actual visits establish whether the endgame mask allowed exploration.
       expect(analysis.policy![target]).toBeGreaterThanOrEqual(0);
       expect(analysis.moves.some(move => move.y === 5 && move.visits > 0)).toBe(isSuicideLegal(rules));
-    });
+    }, 60000);
 
     it(`does not prune the target for ${player} after only three opponent passes`, async () => {
       const search = await create(player, 'chinese', 3);
       await search.run({ visits: 8, maxTimeMs: 30000, batchSize: 1 });
       expect(search.getAnalysis({ topK: 5, analysisPvLen: 0 }).moves.some(move => move.y === 5 && move.visits > 0)).toBe(true);
-    });
+    }, 60000);
   }
 
   it.each(['new-zealand', 'tromp-taylor'] as const)('retains useful moves when reusing the fourth-pass child under %s', async (rules) => {
@@ -137,7 +137,11 @@ describe.skipIf(!hasModel())('rule-dependent pruning after opponent passes', () 
     })).toBe(true);
     await search.run({ visits: 16, maxTimeMs: 30000, batchSize: 1 });
     expect(search.getAnalysis({ topK: 5, analysisPvLen: 0 }).moves.some(move => move.y === 5 && move.visits > 0)).toBe(true);
-  });
+    // Two searches and a re-root: `maxTimeMs` caps the search at 30s, so the
+    // test's own limit has to be larger, as the rest of the engine suites are.
+    // On the default 5s this went red on a loaded CI runner while passing in
+    // 10s locally -- a throughput failure reported as a defect.
+  }, 60000);
 });
 
 describe.skipIf(!hasModel())('area features reaching the real search network', () => {
