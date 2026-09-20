@@ -118,6 +118,19 @@ describe('collapse ancestry helpers', () => {
     expect(getCollapsedAncestor(c)).toBe(b);
   });
 
+  it('names the nearest collapsed run, not the outermost one', () => {
+    // Walking to the root and overwriting the answer returned the outermost
+    // collapsed ancestor, which is the whole tree rather than the run that is
+    // actually hiding the node.
+    const { a, b, c } = buildTree();
+    a.collapsed = true;
+    b.collapsed = true;
+
+    expect(getCollapsedAncestor(c)).toBe(b);
+    expect(getCollapsedAncestor(b)).toBe(a);
+    expect(isHiddenByCollapse(c)).toBe(true);
+  });
+
   it('does not treat a childless collapsed node as a collapsed head', () => {
     const { c } = buildTree();
     c.collapsed = true;

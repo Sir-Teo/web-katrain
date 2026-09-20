@@ -67,15 +67,22 @@ export const isNodeDescendantOf = (node: GameNode, ancestor: GameNode): boolean 
   return false;
 };
 
-/** The nearest collapsed ancestor hiding `node`, if any. */
+/**
+ * The nearest collapsed ancestor hiding `node`, if any.
+ *
+ * It kept walking to the root and overwriting its answer, so with two collapsed
+ * runs in the same chain it returned the outermost one -- the opposite of what
+ * the name says. Nothing broke, because the only caller is `isHiddenByCollapse`
+ * and either answer is non-null; but the next caller to ask *which* run to
+ * expand would have been told to open the whole tree.
+ */
 export const getCollapsedAncestor = (node: GameNode): GameNode | null => {
   let current: GameNode | null = node.parent ?? null;
-  let hidden: GameNode | null = null;
   while (current) {
-    if (current.collapsed === true) hidden = current;
+    if (current.collapsed === true) return current;
     current = current.parent ?? null;
   }
-  return hidden;
+  return null;
 };
 
 /** True when a collapsed ancestor is keeping `node` out of the tree view. */
