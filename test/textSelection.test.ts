@@ -22,7 +22,10 @@ describe('a long press does not select what it is acting on', () => {
     // selection started by the same press leaves a highlight behind it.
     expect(panel).toContain('onContextMenu={(event) => openContextMenu(event, item)}');
     expect(css).toContain('  .library-tree-node {\n    user-select: none;\n    -webkit-touch-callout: none;\n  }');
-    expect(board).toContain("'relative shadow-lg rounded-sm select-none',");
+    // Matched loosely at the end so a later layout utility on the same class
+    // list — `shrink-0`, which keeps the board square — does not read as the
+    // selection rule having been removed.
+    expect(board).toMatch(/'relative shadow-lg rounded-sm select-none[^']*',/);
   });
 
   it('costs nothing, because those rows are draggable and own their menu', () => {

@@ -138,3 +138,68 @@ describe('clipboard helpers', () => {
     }
   });
 });
+
+describe('the legacy copy gives focus back', () => {
+  /**
+   * The fallback focuses a hidden textarea to select from it. Removing that
+   * textarea left focus on `document.body`, so the "Copy details" button the
+   * reader pressed stopped being where Tab resumed from -- on the one path that
+   * only runs when the modern clipboard API was missing or refused.
+   *
+   * `restoreFocusIfUnclaimed` reads the *global* document, which this stands in
+   * for: the suite runs without a DOM, so the focus moves the real elements
+   * would make are made by hand here.
+   */
+  function withFocusTracking(run: (ctx: {
+    button: { focus: ReturnType<typeof vi.fn> };
+    setActive: (value: unknown) => void;
+    body: object;
+  }) => void) {
+    const body = { nodeName: 'BODY' };
+    const button = { focus: vi.fn() };
+    let active: unknown = button;
+    const stub = { body, get activeElement() { return active; } };
+    const had = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    Object.defineProperty(globalThis, 'document', { value: stub, configurable: true, writable: true });
+    try {
+      run({ button, body, setActive: (value) => { active = value; } });
+    } finally {
+      if (had) Object.defineProperty(globalThis, 'document', had);
+      else Reflect.deleteProperty(globalThis, 'document');
+    }
+  }
+
+  it('restores the control that was focused before the copy', () => {
+    withFocusTracking(({ button, body, setActive }) => {
+      const { target, element } = createLegacyCopyDocument();
+      // Focusing the textarea takes focus; removing it drops focus to body.
+      (element.focus as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => setActive(element));
+      target.body.removeChild.mockImplementation(() => setActive(body));
+
+      expect(writeClipboardTextLegacy('copied', target as never)).toBe(true);
+      expect(button.focus).toHaveBeenCalledWith({ preventScroll: true });
+    });
+  });
+
+  it('leaves focus alone when something else claimed it', () => {
+    withFocusTracking(({ button, setActive }) => {
+      const dialog = { nodeName: 'DIALOG' };
+      // Stands in for a dialog that opens and takes focus while the copy runs.
+      const { target } = createLegacyCopyDocument(vi.fn(() => { setActive(dialog); return true; }));
+
+      expect(writeClipboardTextLegacy('copied', target as never)).toBe(true);
+      expect(button.focus).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not fail a successful copy when the restore throws', () => {
+    withFocusTracking(({ button, body, setActive }) => {
+      button.focus.mockImplementation(() => { throw new Error('detached'); });
+      const { target } = createLegacyCopyDocument();
+      target.body.removeChild.mockImplementation(() => setActive(body));
+
+      expect(writeClipboardTextLegacy('copied', target as never)).toBe(true);
+      expect(button.focus).toHaveBeenCalled();
+    });
+  });
+});

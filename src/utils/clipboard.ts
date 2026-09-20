@@ -1,3 +1,5 @@
+import { restoreFocusIfUnclaimed } from './focusRestore';
+
 export const CLIPBOARD_OPERATION_TIMEOUT_MS = 1200;
 
 export function getClipboard(target?: Navigator | null): Clipboard | null {
@@ -85,10 +87,23 @@ function getLegacyCopyDocument(target?: LegacyCopyDocument | null): LegacyCopyDo
   }
 }
 
+/**
+ * The pre-async-clipboard fallback: a hidden textarea, selected, copied from.
+ *
+ * It takes focus to do that and used to leave it on `document.body` afterwards,
+ * because the element it moved focus to had been removed. For the reader that
+ * means the "Copy details" button they pressed is no longer where Tab resumes
+ * from -- on the one path that only runs when the modern API was unavailable or
+ * refused, so it is the browser least likely to recover gracefully. The restore
+ * is the app's usual one: put focus back only if nothing else has claimed it.
+ */
 export function writeClipboardTextLegacy(text: string, target?: LegacyCopyDocument | null): boolean {
   const source = getLegacyCopyDocument(target);
   if (!source?.body) return false;
 
+  const previouslyFocused = typeof document !== 'undefined'
+    ? (document.activeElement as HTMLElement | null)
+    : null;
   let textArea: HTMLTextAreaElement | null = null;
   try {
     textArea = source.createElement('textarea') as HTMLTextAreaElement;
@@ -110,6 +125,11 @@ export function writeClipboardTextLegacy(text: string, target?: LegacyCopyDocume
       } catch {
         // Best effort cleanup for old browser fallbacks.
       }
+    }
+    try {
+      restoreFocusIfUnclaimed(previouslyFocused);
+    } catch {
+      // Focus is a courtesy here; never fail a successful copy over it.
     }
   }
 }
