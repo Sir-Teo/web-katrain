@@ -10,6 +10,16 @@
  *
  * So this walks the text once, tracking whether it is inside a property value
  * and honouring the backslash escape. No allocation, no parse tree.
+ *
+ * It stops at the end of the first game tree, because that is the game every
+ * other reader of the same text describes. An SGF file may hold a collection —
+ * several complete `(;...)` trees one after another — and `readRootSgfProperties`,
+ * `suggestLibraryItemNameFromSgf` and `parseSgf` all read the first of them. A
+ * count that spanned the file put the others' moves on the first one's label:
+ * a three-game collection whose games ran 3, 4 and 2 moves listed itself as
+ * "Alice vs Bob · B+R · 9 moves", and opened at move 3. Variations stay
+ * counted, because they are part of the game that opens; the next game in the
+ * file is not.
  */
 export interface SgfScan {
   /** Nodes carrying a one-letter `B` or `W` property, passes included. */
@@ -26,6 +36,9 @@ export function scanSgf(sgf: string): SgfScan {
   // Where a property identifier may begin: after `;` and after a value closes.
   let atPropertyStart = false;
   let nodeStart = -1;
+  // Depth of `(`, so the walk can stop when the first game tree closes.
+  let depth = 0;
+  let enteredTree = false;
   for (let i = 0; i < sgf.length; i += 1) {
     const ch = sgf[i]!;
     if (inValue) {
@@ -47,6 +60,13 @@ export function scanSgf(sgf: string): SgfScan {
     }
     if (ch === '(' || ch === ')') {
       atPropertyStart = false;
+      if (ch === '(') {
+        depth += 1;
+        enteredTree = true;
+      } else {
+        depth -= 1;
+        if (enteredTree && depth <= 0) break;
+      }
       continue;
     }
     if (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') continue;
