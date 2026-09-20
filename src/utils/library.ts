@@ -558,11 +558,11 @@ const loadFallbackLibrary = (): LibraryItem[] => {
  *
  * Reports whether the bytes actually landed, which used to be dropped on the
  * floor here. `writeLocalStorage` answers false for two very different things,
- * so they are separated: a store that is simply *absent* -- SSR, a Node test,
- * a browser with site data switched off -- is a standing condition the app
- * already runs in, memory-only and not worth an error on every save. A store
- * that exists and *refuses* the write is out of room, and that is the one
- * nobody was being told about.
+ * so they are separated: a store that is simply *absent* is a standing
+ * condition outside a browser -- SSR, a Node test -- and memory-only is the
+ * right answer there. A store that exists and *refuses* the write is out of
+ * room. Inside a browser, absent means site data is switched off, and the
+ * caller treats that as the failure it is; see `saveLibrarySnapshot`.
  */
 const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-storage' => {
   memoryItems = normalizeLibraryItems(items);
@@ -631,18 +631,34 @@ export const LIBRARY_SAVE_FAILED_MESSAGE =
  * autosave cleared straight afterwards -- the games were only in `memoryItems`
  * and went with the tab. Throwing runs the callers' existing catch blocks
  * *before* that cleanup, which is what keeps the fallback copy alive.
+ *
+ * That first fix only covered `'rejected'`. A browser with site data switched
+ * off has *no* localStorage at all, which is `'no-storage'`, and took the
+ * resolving path -- the same false "Saved to Library." and the same cleared
+ * recovery, on the one configuration least able to survive it. Outside a
+ * browser there is nobody to tell and memory-only is the intended mode, so the
+ * distinction is `window`, not the store.
  */
+const persistFallback = (items: LibraryItem[]): void => {
+  const outcome = saveFallbackLibrary(items);
+  const inBrowser = typeof window !== 'undefined';
+  if (outcome === 'rejected' || (outcome === 'no-storage' && inBrowser)) {
+    throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
+  }
+};
+
+/** @see the note above `persistFallback` for why a fallback can reject. */
 const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
   if (!getIndexedDB() || idbLoadFailed) {
-    if (saveFallbackLibrary(normalized) === 'rejected') throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
+    persistFallback(normalized);
     return;
   }
   try {
     await saveToIndexedDb(normalized);
     memoryItems = normalized;
   } catch {
-    if (saveFallbackLibrary(normalized) === 'rejected') throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
+    persistFallback(normalized);
   }
 };
 
