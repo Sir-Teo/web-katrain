@@ -194,8 +194,11 @@ file selection through the success toast and checks persisted content afterward.
    file, the row read "Alice vs Bob · 9 moves" and opened at move 3, because
    the move count spanned the file while every other reader described game one.
    The count now describes the game that opens, and import says when a file
-   holds more. Splitting a collection into separate library items remains the
-   design task noted above.
+   holds more. Saving such a record used to delete the games behind the one
+   being edited -- 187 bytes of three games became 165 bytes of one, with no
+   prompt and no undo -- so the trailing games are now carried across as the
+   verbatim text nothing ever parsed. Splitting a collection into separate
+   library items remains the design task noted above.
 3. **Reliable study archives:** harden deep branch editing, add meaningful
    large-library measurements, and keep saved/exported content recoverable.
 4. **Analysis provenance and comparison:** show which model/settings produced
