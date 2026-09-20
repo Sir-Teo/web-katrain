@@ -137,3 +137,48 @@ describe('note preview helpers', () => {
     ]);
   });
 });
+
+describe('a URL the note wrapped in punctuation', () => {
+  const hrefs = (line: string) =>
+    parseNoteInlinePreview(line).filter((s) => s.type === 'link').map((s) => (s as { href: string }).href);
+  const rendered = (line: string) =>
+    parseNoteInlinePreview(line)
+      .map((s) => (s.type === 'link' ? `<${(s as { href: string }).href}>` : (s as { text: string }).text))
+      .join('');
+
+  it('leaves the wrapper out of the href', () => {
+    // Each of these produced a link with the closing character stuck on the
+    // end, which simply does not resolve. `<...>` is markdown's own autolink.
+    expect(hrefs('<https://example.com>')).toEqual(['https://example.com']);
+    expect(hrefs('quote "https://example.com" here')).toEqual(['https://example.com']);
+    expect(hrefs("single 'https://example.com' here")).toEqual(['https://example.com']);
+    expect(hrefs('bracket [https://x.com] end')).toEqual(['https://x.com']);
+  });
+
+  it('keeps the wrapper on screen as text', () => {
+    expect(rendered('<https://example.com>')).toBe('<<https://example.com>>');
+    expect(rendered('bracket [https://x.com] end')).toBe('bracket [<https://x.com>] end');
+    expect(rendered("single 'https://example.com' here")).toBe("single '<https://example.com>' here");
+  });
+
+  it('still keeps a balanced pair that belongs to the URL', () => {
+    expect(hrefs('Read https://en.wikipedia.org/wiki/Go_(game) now'))
+      .toEqual(['https://en.wikipedia.org/wiki/Go_(game)']);
+    expect(hrefs('Read https://en.wikipedia.org/wiki/Go_(game).'))
+      .toEqual(['https://en.wikipedia.org/wiki/Go_(game)']);
+    expect(hrefs('see https://x.com/a[b] end')).toEqual(['https://x.com/a[b]']);
+  });
+
+  it('still strips the sentence punctuation it always did', () => {
+    expect(hrefs('See https://example.com.')).toEqual(['https://example.com']);
+    expect(hrefs('(see https://example.com)')).toEqual(['https://example.com']);
+    expect(hrefs('Visit https://a.com, then https://b.com!')).toEqual(['https://a.com', 'https://b.com']);
+    expect(hrefs('trailing semicolon https://x.com; next')).toEqual(['https://x.com']);
+  });
+
+  it('does not touch a query string that ends in something else', () => {
+    expect(hrefs('https://x.com/path?q=1&r=2 end')).toEqual(['https://x.com/path?q=1&r=2']);
+    expect(hrefs('[label](https://x.com) done')).toEqual(['https://x.com']);
+  });
+});
+

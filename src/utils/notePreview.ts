@@ -19,7 +19,19 @@ export type NoteBlock =
 
 const INLINE_TOKEN_RE = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\(https?:\/\/(?:[^\s()]|\([^()\s]*\))+\)|https?:\/\/[^\s<]+)/g;
 const MARKDOWN_LINK_RE = /^\[([^\]\n]+)\]\((https?:\/\/(?:[^\s()]|\([^()\s]*\))+)\)$/;
-const TRAILING_URL_PUNCTUATION_RE = /[),.;:!?]$/;
+/**
+ * Characters a note is very likely to have put *after* a URL rather than in it.
+ *
+ * `>`, `"`, `'` and `]` were missing, and they are how prose usually wraps a
+ * link: `<https://example.com>` -- markdown's own autolink form -- produced an
+ * href of `https://example.com>`, and quoting or bracketing one did the same.
+ * None of them is legal unencoded at the end of a URL, so the link simply did
+ * not work.
+ */
+const TRAILING_URL_PUNCTUATION_RE = /[),.;:!?>"'\]]$/;
+
+/** Closers that may legitimately end a URL when the opener is in it too. */
+const BALANCED_URL_CLOSERS: Record<string, string> = { ')': '(', ']': '[' };
 const FENCED_CODE_RE = /^\s*```([\w-]+)?\s*$/;
 const TABLE_SEPARATOR_RE = /^:?-+:?$/;
 const ESCAPED_TABLE_PIPE = '\u0000';
@@ -36,10 +48,12 @@ function splitPlainUrl(url: string): { href: string; trailing: string } {
   let trailing = '';
   while (TRAILING_URL_PUNCTUATION_RE.test(href)) {
     const last = href.slice(-1);
-    if (last === ')') {
-      const opens = (href.match(/\(/g) ?? []).length;
-      const closes = (href.match(/\)/g) ?? []).length;
-      // Keep balanced parentheses as part of the URL (GFM autolink rule).
+    const opener = BALANCED_URL_CLOSERS[last];
+    if (opener) {
+      const opens = href.split(opener).length - 1;
+      const closes = href.split(last).length - 1;
+      // Keep a balanced pair as part of the URL (GFM autolink rule), so
+      // .../Go_(game) and .../a[b] survive while a wrapping bracket does not.
       if (closes <= opens) break;
     }
     trailing = last + trailing;
