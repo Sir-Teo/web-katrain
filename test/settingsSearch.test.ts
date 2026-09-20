@@ -150,3 +150,36 @@ describe('a setting whose meaning is in its options', () => {
   });
 });
 
+describe('the rest of the controls whose meaning is in their options', () => {
+  const labels = (query: string) => searchSettings(query).map((entry) => entry.label);
+
+  it('finds the density control by the size it changes', () => {
+    // Its options are Compact / Comfortable / Large, and what they change is
+    // how big controls and text are -- none of which is in "UI Density".
+    for (const query of ['compact', 'comfortable', 'large', 'text size', 'spacing']) {
+      expect(labels(query), query).toContain('UI Density');
+    }
+  });
+
+  it('finds a board theme by the name of the theme', () => {
+    for (const query of ['hikaru', 'yunzi', 'shell', 'kifu', 'happy stones', 'baduktv', 'bamboo']) {
+      expect(labels(query), query).toContain('Board Theme');
+    }
+  });
+
+  it('finds the language control by the other word for it', () => {
+    expect(labels('locale')).toContain('Document language metadata');
+    expect(labels('translation')).toContain('Document language metadata');
+  });
+
+  it('offers both controls that have a Dark option, and only those', () => {
+    expect(labels('dark').sort()).toEqual(['Board Theme', 'UI Theme']);
+  });
+
+  it('has not widened the searches that were already narrow', () => {
+    expect(labels('board size')).toEqual(['Default Board Size']);
+    expect(labels('coordinates')).toEqual(['Show Coordinates']);
+    expect(labels('colorblind')).toEqual(['Evaluation Theme']);
+  });
+});
+

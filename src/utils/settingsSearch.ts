@@ -39,10 +39,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-fuzzy-stone-placement', tab: 'general', label: "Fuzzy Stone Placement" },
   { id: 'settings-default-board-size', tab: 'general', label: "Default Board Size" },
   { id: 'settings-default-handicap', tab: 'general', label: "Default Handicap" },
-  { id: 'settings-app-locale', tab: 'general', label: "Document language metadata" },
+  { id: 'settings-app-locale', tab: 'general', label: "Document language metadata", keywords: ['locale', 'translation'] },
   { id: 'settings-ui-theme', tab: 'general', label: "UI Theme", keywords: ['dark', 'light', 'system', 'kaya', 'studio', 'appearance'] },
-  { id: 'settings-board-theme', tab: 'general', label: "Board Theme" },
-  { id: 'settings-ui-density', tab: 'general', label: "UI Density" },
+  // The nine board themes by name, so the one someone remembers finds the
+  // control that offers it.
+  { id: 'settings-board-theme', tab: 'general', label: "Board Theme", keywords: ['bamboo', 'classic', 'flat color', 'dark mode', 'hikaru', 'shell', 'slate', 'yunzi', 'happy stones', 'kifu', 'baduktv', 'stones', 'wood', 'appearance'] },
+  // Its options are Compact / Comfortable / Large, and what they change is the
+  // size of controls and text -- which is what someone searching for it types.
+  { id: 'settings-ui-density', tab: 'general', label: "UI Density", keywords: ['compact', 'comfortable', 'large', 'spacing', 'text size', 'control size'] },
   { id: 'settings-sound-enabled', tab: 'general', label: "Sound Effects" },
   { id: 'settings-timer-sound', tab: 'general', label: "Timer Sound" },
   { id: 'settings-main-time', tab: 'general', label: "Main Time (min)" },
