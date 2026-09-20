@@ -113,6 +113,31 @@ describe('normalizeStoredSettings', () => {
       expect(normalizeStoredSettings({ trainerEvalThresholds })).not.toHaveProperty('trainerEvalThresholds');
     });
 
+    /**
+     * The readers clamp these, but `Math.max(1, Math.min(value, 64))` is not a
+     * clamp: with a string or NaN both comparisons are false and the answer is
+     * NaN, which still passes for a number everywhere below. Confirmed against
+     * the real engine in `engineBatchSizeGuard`: a NaN batch size returned an
+     * analysis with no visits in it at all.
+     */
+    it.each([
+      'katagoBatchSize', 'katagoVisits', 'katagoFastVisits', 'katagoMaxChildren',
+      'katagoTopK', 'katagoMaxTimeMs', 'katagoWideRootNoise', 'katagoRootPolicyTemperature',
+      'katagoAnalysisPvLen', 'noteFontScale', 'tsumegoFrameMargin', 'setupPositionMove',
+      'setupPositionAdvantage', 'timerMainTimeMinutes', 'timerByoLengthSeconds',
+      'timerByoPeriods', 'timerMinimalUseSeconds', 'showLastNMistakes', 'mistakeThreshold',
+      'animPvTimeSeconds', 'animPvMoves', 'trainerLowVisits',
+    ])('keeps a real number for %s and drops anything that is not one', (key) => {
+      expect(normalizeStoredSettings({ [key]: 12 })).toHaveProperty(key, 12);
+      // Zero and negatives are the readers' business; being a number is this one's.
+      expect(normalizeStoredSettings({ [key]: 0 })).toHaveProperty(key, 0);
+      // A number written as text still says what the reader wanted.
+      expect(normalizeStoredSettings({ [key]: '12' })).toHaveProperty(key, 12);
+      for (const bad of ['abc', '', ' ', null, {}, [], true, Number.NaN]) {
+        expect(normalizeStoredSettings({ [key]: bad }), `${key} = ${String(bad)}`).not.toHaveProperty(key);
+      }
+    });
+
     it.each([
       ['trainerShowDots', [true, false, true, true, true, true], 7],
       ['trainerSaveFeedback', [true, true, true, true, false, false], 'yes'],

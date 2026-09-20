@@ -458,6 +458,43 @@ export function normalizeStoredSettings(
       'top_move_score', 'top_move_delta_score', 'top_move_winrate',
       'top_move_delta_winrate', 'top_move_visits', 'top_move_nothing',
     );
+    /**
+     * Every remaining numeric setting, which must be a real number.
+     *
+     * The readers clamp, but `Math.max(1, Math.min(value, 64))` is not a
+     * clamp: given a string or NaN both comparisons are false and the result
+     * is NaN, which then passes for a number all the way down. Measured with
+     * the real engine: a batch size of NaN makes `jobs.length < batchSize`
+     * false on the first try, so the batch comes back empty, the root never
+     * gains a visit, and the search's own stuck-batch guard breaks out --
+     * analysis returns nothing at all, immediately, with no error anywhere.
+     *
+     * `defaultBoardSize` and `defaultHandicap` are absent because they are
+     * repaired above rather than dropped; each has a meaningful nearest value.
+     */
+    const numericSettings = [
+      'noteFontScale', 'tsumegoFrameMargin', 'setupPositionMove', 'setupPositionAdvantage',
+      'timerMainTimeMinutes', 'timerByoLengthSeconds', 'timerByoPeriods', 'timerMinimalUseSeconds',
+      'showLastNMistakes', 'mistakeThreshold', 'animPvTimeSeconds', 'animPvMoves',
+      'trainerLowVisits', 'katagoVisits', 'katagoFastVisits', 'katagoMaxTimeMs',
+      'katagoBatchSize', 'katagoMaxChildren', 'katagoTopK', 'katagoWideRootNoise',
+      'katagoRootPolicyTemperature', 'katagoAnalysisPvLen',
+    ] as const satisfies ReadonlyArray<keyof GameSettings>;
+    const numericFields = parsed as Record<string, unknown>;
+    for (const key of numericSettings) {
+      if (!(key in numericFields)) continue;
+      const value = numericFields[key];
+      if (typeof value === 'number' && Number.isFinite(value)) continue;
+      // A number written as text still says what the reader wanted, the way
+      // `defaultBoardSize` above treats one. Anything else has no number in it.
+      // `Number('')` and `Number('   ')` are both 0, which is a value nobody
+      // wrote down; only text with something in it can name a number.
+      const text = typeof value === 'string' ? value.trim() : '';
+      const parsedNumber = text ? Number(text) : Number.NaN;
+      if (Number.isFinite(parsedNumber)) numericFields[key] = parsedNumber;
+      else delete numericFields[key];
+    }
+
     const checks: Array<[keyof GameSettings, (value: unknown) => boolean]> = [
       // `labels` in computeGameReport names the second-to-last threshold, so a
       // single-entry list is not a usable ladder even though it is an array.
