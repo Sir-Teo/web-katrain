@@ -155,3 +155,43 @@ describe('ProblemModal reply handling', () => {
     expect(styles).toMatch(/@media \(max-width: 1023px\) and \(orientation: landscape\)[\s\S]*?\.problem-body \{[\s\S]*?grid-template-columns: minmax\(8rem, 0\.72fr\) minmax\(0, 1fr\);[\s\S]*?\.problem-board \{[\s\S]*?max-width: 11\.25rem !important;/);
   });
 });
+
+describe('"right." as a solution comment', () => {
+  // The pattern list spelled `right\.` on purpose -- the period keeps "right
+  // side" out -- but it sat inside a group ending in `\b`, and a word boundary
+  // after a period needs a word character next. So the one place anyone writes
+  // it, the end of a sentence, never matched, while "right.Next" did.
+  it('reads a solution comment that ends in "right."', () => {
+    for (const note of ['Right.', 'That is right.', 'Right. Black lives.', 'and black is right.']) {
+      expect(classifyProblemNode(build({ note })), note).toBe('correct');
+    }
+  });
+
+  it('still keeps "right" without a period out of it', () => {
+    for (const note of ['right side', 'the right group', 'rights.', 'outright.']) {
+      expect(classifyProblemNode(build({ note })), note).toBe('unknown');
+    }
+  });
+
+  it('still lets a wrong marker win over it', () => {
+    expect(classifyProblemNode(build({ note: 'This looks right. Wrong, black dies.' }))).toBe('wrong');
+  });
+
+  it('finds the solution line through a leaf marked only "Right."', () => {
+    // The verdict drives the grading, so an unread comment sent the solver
+    // down the main line instead of the marked answer.
+    const start = build({
+      stones: true,
+      children: [
+        { move: { x: 0, y: 1, player: 'black' }, note: 'Fails.', children: [] },
+        { move: { x: 1, y: 1, player: 'black' }, note: 'Right.', children: [] },
+      ],
+    });
+
+    const path = findSolutionPath(start);
+
+    expect(path).toHaveLength(2);
+    expect(path[1]?.move).toEqual({ x: 1, y: 1, player: 'black' });
+  });
+});
+

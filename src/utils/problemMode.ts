@@ -2,7 +2,12 @@ import type { GameNode, Player } from '../types';
 
 export type ProblemVerdict = 'correct' | 'wrong' | 'unknown';
 
-const CORRECT_PATTERNS = /\b(correct|right answer|right\.|solution|success)\b|正解|正确|正確|정답|成功|성공/i;
+// `right\.` sits outside the group because the group's trailing `\b` killed
+// it: a word boundary after `.` needs a word character *next*, so "Right." at
+// the end of a comment -- the one place anyone writes it -- never matched,
+// while "right.Next" did. The period is still required, so "right side" stays
+// out.
+const CORRECT_PATTERNS = /\b(?:correct|right answer|solution|success)\b|\bright\.|正解|正确|正確|정답|成功|성공/i;
 const WRONG_PATTERNS = /\b(wrong|incorrect|fail(?:ure|ed)?|mistake)\b|失败|失敗|錯誤|错误|오답|실패|変化図|变化图/i;
 
 const nodeText = (node: GameNode): string => {
