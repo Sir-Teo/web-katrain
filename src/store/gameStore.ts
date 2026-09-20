@@ -57,7 +57,7 @@ import {
 import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
-import { isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
+import { isGameRules, isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
 import { situationalKey, superkoRejectionMessage } from '../utils/superko';
 import { lineViolatesSuperko, repetitionHistoryForNode } from '../utils/treeSuperko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
@@ -435,6 +435,52 @@ export function normalizeStoredSettings(
         ? Math.max(0, Math.min(Math.floor(num), max))
         : 0;
     }
+
+    /**
+     * The fields above are each checked by hand because each needs a different
+     * repair. The rest only need "is this still one of the shapes the UI can
+     * read?", so they are listed rather than written out, and anything that
+     * fails is dropped so the default takes over.
+     *
+     * These were missed, and `trainerEvalThresholds` was the one that mattered:
+     * the readers all guard with `?.length`, which a *string* passes, so a
+     * stored `"abc"` reached `computeGameReport` and threw on `thresholds.map`
+     * — the Game Report died on settings the app had itself declared valid.
+     * The others degrade quietly rather than throwing (`data-ui-theme="nope"`
+     * matches no CSS; `trainerShowDots: 7` indexes to `undefined`), which is
+     * worse to diagnose, not better.
+     */
+    const oneOf = <T extends string>(...allowed: T[]) => (value: unknown): boolean =>
+      typeof value === 'string' && (allowed as string[]).includes(value);
+    const arrayOf = (test: (item: unknown) => boolean) => (value: unknown): boolean =>
+      Array.isArray(value) && value.length > 0 && value.every(test);
+    const topMovesMetric = oneOf(
+      'top_move_score', 'top_move_delta_score', 'top_move_winrate',
+      'top_move_delta_winrate', 'top_move_visits', 'top_move_nothing',
+    );
+    const checks: Array<[keyof GameSettings, (value: unknown) => boolean]> = [
+      // `labels` in computeGameReport names the second-to-last threshold, so a
+      // single-entry list is not a usable ladder even though it is an array.
+      ['trainerEvalThresholds', (value) =>
+        Array.isArray(value) && value.length >= 2
+        && value.every((item) => typeof item === 'number' && Number.isFinite(item))],
+      ['trainerShowDots', arrayOf((item) => typeof item === 'boolean')],
+      ['trainerSaveFeedback', arrayOf((item) => typeof item === 'boolean')],
+      ['uiTheme', oneOf('system', 'noir', 'kaya', 'studio', 'light')],
+      ['uiDensity', oneOf('compact', 'comfortable', 'large')],
+      ['gameRules', isGameRules],
+      ['trainerTheme', oneOf('theme:normal', 'theme:red-green-colourblind')],
+      ['trainerTopMovesShow', topMovesMetric],
+      ['trainerTopMovesShowSecondary', topMovesMetric],
+      ['analysisPolicyMetric', oneOf('policy', 'delta_score', 'delta_winrate')],
+      ['analysisSwingCompare', oneOf('previous', 'best')],
+      ['katagoOwnershipMode', oneOf('root', 'tree')],
+    ];
+    const fields = parsed as Record<string, unknown>;
+    for (const [key, isValid] of checks) {
+      if (key in fields && !isValid(fields[key])) delete fields[key];
+    }
+
     return parsed as Partial<GameSettings>;
   }
 }

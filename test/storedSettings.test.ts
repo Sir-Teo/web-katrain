@@ -86,4 +86,48 @@ describe('normalizeStoredSettings', () => {
       expect(() => normalizeStoredSettings(input)).not.toThrow();
     }
   });
+
+  /**
+   * Surviving the normalizer was never the whole contract: what comes out of it
+   * is spread over the defaults and handed straight to the UI. These fields
+   * were not checked at all, and `trainerEvalThresholds` was the one that took
+   * a screen down — its readers guard with `?.length`, which a string passes,
+   * so a stored `"abc"` reached `computeGameReport` and threw on
+   * `thresholds.map`.
+   */
+  describe('fields the UI reads back without re-checking', () => {
+    it('keeps a threshold ladder it can use', () => {
+      const thresholds = [12, 6, 3, 1.5, 0.5, 0];
+      expect(normalizeStoredSettings({ trainerEvalThresholds: thresholds })?.trainerEvalThresholds)
+        .toEqual(thresholds);
+    });
+
+    it.each([
+      ['a string that passes a length check', 'abc'],
+      ['a single threshold, which has no bucket below it', [5]],
+      ['non-numeric entries', [12, 'six', 3]],
+      ['a non-finite entry', [12, Number.NaN, 3]],
+      ['an object', { 0: 12, length: 2 }],
+      ['nothing at all', []],
+    ])('drops trainerEvalThresholds that is %s', (_label, trainerEvalThresholds) => {
+      expect(normalizeStoredSettings({ trainerEvalThresholds })).not.toHaveProperty('trainerEvalThresholds');
+    });
+
+    it.each([
+      ['trainerShowDots', [true, false, true, true, true, true], 7],
+      ['trainerSaveFeedback', [true, true, true, true, false, false], 'yes'],
+      ['uiTheme', 'kaya', 'nope'],
+      ['uiDensity', 'compact', 'roomy'],
+      ['gameRules', 'tromp-taylor', 'martian'],
+      ['trainerTheme', 'theme:red-green-colourblind', 'theme:neon'],
+      ['trainerTopMovesShow', 'top_move_winrate', 'top_move_vibes'],
+      ['trainerTopMovesShowSecondary', 'top_move_nothing', 42],
+      ['analysisPolicyMetric', 'delta_score', 'delta_everything'],
+      ['analysisSwingCompare', 'best', 'sideways'],
+      ['katagoOwnershipMode', 'tree', 'forest'],
+    ])('keeps a valid %s and drops an invalid one', (key, valid, invalid) => {
+      expect(normalizeStoredSettings({ [key]: valid })).toHaveProperty(key, valid);
+      expect(normalizeStoredSettings({ [key]: invalid })).not.toHaveProperty(key);
+    });
+  });
 });

@@ -612,10 +612,12 @@ export function computeGameReport(args: {
   const fromDepth = Math.ceil(fromFrac * boardSquares);
   const toDepth = Math.ceil(toFrac * boardSquares);
 
-  const labels = thresholds.map((t, i) => {
-    if (i === thresholds.length - 1) return `< ${thresholds[thresholds.length - 2]}`;
-    return `>= ${t}`;
-  });
+  // The last bucket is the catch-all below the one above it. With a single
+  // configured threshold there is no "one above it", and reading past the front
+  // of the array printed the bucket as "< undefined" on the histogram.
+  const lastBucketBound = thresholds[thresholds.length - 2] ?? thresholds[thresholds.length - 1];
+  const labels = thresholds.map((t, i) =>
+    i === thresholds.length - 1 ? `< ${lastBucketBound}` : `>= ${t}`);
 
   const histogram: Array<Record<Player, number>> = thresholds.map(() => ({ black: 0, white: 0 }));
   const aiTopMoveCount: Record<Player, number> = { black: 0, white: 0 };
