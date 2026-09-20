@@ -2245,6 +2245,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Copy continuation from insertAfter down its mainline onto the inserted branch.
     const insertedMoves = new Set<string>();
+    let numInserted = 0;
     {
       const above = new Set<string>();
       let n: GameNode | null = insertAfter;
@@ -2254,8 +2255,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       let cur: GameNode | null = s.currentNode;
       while (cur && !above.has(cur.id)) {
-        if (cur.move) insertedMoves.add(moveKey(cur.move));
+        if (cur.move) {
+          insertedMoves.add(moveKey(cur.move));
+          numInserted += 1;
+        }
         cur = cur.parent;
+      }
+    }
+
+    // How much continuation there is to carry over, so a copy that stops short
+    // can be reported rather than left as a branch that simply ends.
+    let numToCopy = 0;
+    {
+      let from: GameNode | null = insertAfter;
+      while (from?.move) {
+        if (!insertedMoves.has(moveKey(from.move))) numToCopy += 1;
+        from = getActiveChild(from, s.activeBranchChildIds);
       }
     }
 
@@ -2276,7 +2291,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
       from = getActiveChild(from, s.activeBranchChildIds);
     }
 
-    const notification = numCopied > 0 ? { message: `Insert mode ended: copied ${numCopied} moves.`, type: 'info' as const } : null;
+    /**
+     * Say so when the continuation did not come with it.
+     *
+     * Each copied move keeps its own colour, so an *odd* number of inserted
+     * moves puts the whole rest of the game on the wrong side: the first copy
+     * is refused, the loop breaks, and the inserted branch stops dead at the
+     * move just played. Measured before this: inserting one move copied 0 of 5
+     * continuation moves -- and reported nothing at all, because the message
+     * was written only for the success case, so the previous toast was left
+     * standing and the operation looked like it had worked. The moves are all
+     * still on the original branch, so nothing is lost; what was missing was
+     * any way to find out it had not worked.
+     */
+    const numMissing = numToCopy - numCopied;
+    const notification = numMissing > 0
+      ? {
+        message: numInserted % 2 === 1
+          ? `Insert mode ended: ${numInserted} inserted move${numInserted === 1 ? ' puts' : 's put'} the rest of the game on the other color, so ${numMissing} of ${numToCopy} continuation move${numToCopy === 1 ? '' : 's'} could not follow. Insert in pairs to carry the continuation with you.`
+          : `Insert mode ended: ${numMissing} of ${numToCopy} continuation move${numToCopy === 1 ? '' : 's'} could not be replayed after the insert.`,
+        type: 'error' as const,
+      }
+      : numCopied > 0 ? { message: `Insert mode ended: copied ${numCopied} moves.`, type: 'info' as const } : null;
     set((state) => ({
       isInsertMode: false,
       insertAfterNodeId: null,
