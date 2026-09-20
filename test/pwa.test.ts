@@ -4,6 +4,7 @@ import {
   getPwaInstallDismissed,
   getServiceWorkerUrl,
   getVersionMetadataUrl,
+  hasPendingServiceWorkerUpdate,
   hasServiceWorkerController,
   isIosPwaInstallCandidate,
   isStandalonePwa,
@@ -167,6 +168,31 @@ describe('PWA helpers', () => {
     expect(hasServiceWorkerController({ controller: null })).toBe(false);
     expect(hasServiceWorkerController(blocked)).toBe(false);
     expect(hasServiceWorkerController(controlled)).toBe(true);
+  });
+
+  it('sees an update a registration is already holding', () => {
+    // sw.js install no longer calls skipWaiting(), so a worker installed on an
+    // earlier visit is still parked in `waiting` on the next load -- and
+    // `updatefound` will not fire again for it. Nothing then re-offered an
+    // update the reader had dismissed once.
+    const waiting = {} as ServiceWorker;
+    const controlled = { controller: {} as ServiceWorker };
+    const uncontrolled = { controller: null };
+    const blocked = {} as Pick<ServiceWorkerRegistration, 'waiting'>;
+    Object.defineProperty(blocked, 'waiting', {
+      configurable: true,
+      get() {
+        throw new Error('waiting blocked');
+      },
+    });
+
+    expect(hasPendingServiceWorkerUpdate({ waiting }, controlled)).toBe(true);
+    expect(hasPendingServiceWorkerUpdate({ waiting: null }, controlled)).toBe(false);
+    expect(hasPendingServiceWorkerUpdate(null, controlled)).toBe(false);
+    // No controller means no previous version to replace: that is a first
+    // install finishing, which the offline-ready notice already announces.
+    expect(hasPendingServiceWorkerUpdate({ waiting }, uncontrolled)).toBe(false);
+    expect(hasPendingServiceWorkerUpdate(blocked, controlled)).toBe(false);
   });
 
   it('schedules periodic service worker update checks', () => {

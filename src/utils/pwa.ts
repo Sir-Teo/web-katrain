@@ -250,6 +250,34 @@ export function hasServiceWorkerController(serviceWorker: Pick<ServiceWorkerCont
   }
 }
 
+/**
+ * Whether a registration is already holding an update at the moment this page
+ * finds it.
+ *
+ * `updatefound` only fires for a worker that begins installing while this page
+ * is listening, and `install` in sw.js deliberately no longer calls
+ * `skipWaiting()`. So a worker that finished installing earlier -- on a
+ * previous visit, or in another tab -- is parked in `waiting` and stays there
+ * across reloads, with nothing to announce it: the update was offered once,
+ * dismissed, and then never offered again by this path. Ask the registration
+ * directly instead of waiting for an event that has already been and gone.
+ *
+ * Only when this page is controlled. Without a controller there is no previous
+ * version to replace, so a waiting worker is the first install finishing, which
+ * the offline-ready notice already covers.
+ */
+export function hasPendingServiceWorkerUpdate(
+  registration: Pick<PwaUpdateRegistration, 'waiting'> | null,
+  serviceWorker: Pick<ServiceWorkerContainer, 'controller'> | null
+): boolean {
+  try {
+    if (!registration?.waiting) return false;
+  } catch {
+    return false;
+  }
+  return hasServiceWorkerController(serviceWorker);
+}
+
 export async function runPwaInstallPrompt(prompt: InstallPromptLike): Promise<'accepted' | 'dismissed' | 'failed'> {
   try {
     await prompt.prompt();
@@ -293,6 +321,9 @@ export function registerServiceWorker(): void {
       .then((registration) => {
         activePwaRegistration = registration;
         schedulePwaUpdateChecks(registration);
+        if (hasPendingServiceWorkerUpdate(registration, serviceWorker)) {
+          window.dispatchEvent(new Event(PWA_UPDATE_READY_EVENT));
+        }
         registration.addEventListener('updatefound', () => {
           const worker = registration.installing;
           if (!worker) return;
