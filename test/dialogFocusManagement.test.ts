@@ -67,3 +67,73 @@ describe('modal dialogs manage focus', () => {
     ).toEqual([]);
   });
 });
+
+/**
+ * `overlayBackStack` exists so an Android back press dismisses what is on top
+ * instead of leaving the page — and closing the app outright when installed.
+ * The only way into it is `useEscapeToClose`, so a dialog that handles Escape
+ * itself silently opts out of the back gesture too.
+ *
+ * Four had, all for the same reason: they listen in the *capture* phase
+ * deliberately, because Layout's scoring-mode and focus-mode Escape handlers do
+ * not check `defaultPrevented`, so a bubble listener would close the dialog and
+ * drop out of scoring with it. They now pair that key handling with
+ * `useBackGestureToClose`. Two of them — the mobile tools sheet and the bottom
+ * "More" sheet — exist only on touch, which is the one place back is the
+ * expected way out.
+ */
+describe('modal dialogs answer the back gesture', () => {
+  const modalFiles = sourceFiles(COMPONENTS).filter((file) =>
+    readFileSync(file, 'utf8').includes('aria-modal="true"')
+  );
+
+  /**
+   * The auto-save recovery prompt is the one dialog that deliberately has no
+   * dismissal at all: `modalAccessibility.test.ts` pins it as a forced choice
+   * and asserts it never imports the escape hook, because both of its buttons
+   * change something. That leaves a real gap — a back press with it open still
+   * leaves the app — but closing it means deciding what back should mean there,
+   * which is a product call rather than a bug fix.
+   */
+  const FORCED_CHOICE = ['src/components/AutoSaveRecoveryModal.tsx'];
+
+  it('every modal dialog registers with the overlay back stack', () => {
+    const offenders = modalFiles
+      .filter((file) => !FORCED_CHOICE.includes(path.relative('.', file)))
+      .filter((file) => {
+        const source = readFileSync(file, 'utf8');
+        return !/useEscapeToClose|useBackGestureToClose/.test(source);
+      });
+
+    expect(
+      offenders.map((file) => path.relative('.', file)),
+      'these render aria-modal="true" but never reach overlayBackStack; a back press leaves the app'
+    ).toEqual([]);
+  });
+
+  it('keeps that exception to the one dialog that is a forced choice', () => {
+    // If the file is renamed or the prompt gains a dismissal, this stops
+    // silently excusing something.
+    for (const file of FORCED_CHOICE) {
+      const source = readFileSync(file, 'utf8');
+      expect(source, `${file} no longer exists or is no longer modal`).toContain('aria-modal="true"');
+      expect(source, `${file} now has a dismissal; drop it from FORCED_CHOICE`)
+        .not.toMatch(/useEscapeToClose|useBackGestureToClose/);
+    }
+  });
+
+  it('keeps the back stack reachable from exactly one module', () => {
+    // If a second caller appears, the sweep above stops proving anything.
+    const callers = sourceFiles('src')
+      .concat(
+        readdirSync('src/hooks').map((name) => path.join('src/hooks', name)),
+      )
+      .filter((file) => file.endsWith('.ts') || file.endsWith('.tsx'))
+      .filter((file) => !file.endsWith('overlayBackStack.ts'))
+      .filter((file) => /\boverlayBackStack\s*\(/.test(readFileSync(file, 'utf8')));
+
+    expect([...new Set(callers.map((file) => path.relative('.', file)))]).toEqual([
+      'src/hooks/useEscapeToClose.ts',
+    ]);
+  });
+});

@@ -2,6 +2,7 @@ import React from 'react';
 import { FaFlag, FaTimes } from 'react-icons/fa';
 import type { Player } from '../types';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { useBackGestureToClose } from '../hooks/useEscapeToClose';
 import { getPlayerLabel, getResignResult, getResignWinnerLabel } from '../utils/resign';
 
 interface ResignConfirmModalProps {
@@ -15,6 +16,12 @@ export const ResignConfirmModal: React.FC<ResignConfirmModalProps> = ({
   onCancel,
   onConfirm,
 }) => {
+  // Capture phase on purpose: Layout's scoring-mode and focus-mode Escape
+  // handlers do not check `defaultPrevented`, so a bubble listener here would
+  // cancel the resign *and* drop out of scoring. That is why this does not use
+  // `useEscapeToClose` -- and why the back gesture has to be asked for
+  // separately, which it was not, so an Android back press left the app with
+  // this dialog open instead of cancelling.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -26,6 +33,7 @@ export const ResignConfirmModal: React.FC<ResignConfirmModalProps> = ({
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onCancel]);
+  useBackGestureToClose(onCancel);
 
   const playerLabel = getPlayerLabel(player);
   const cancelButtonRef = React.useRef<HTMLButtonElement>(null);

@@ -30,6 +30,7 @@ import { getResizeObserverConstructor } from '../../utils/resizeObserver';
 import { parseIntegerDraft } from '../../utils/numberDraft';
 import type { BranchInfo } from '../../utils/branchNavigation';
 import { getSaveStatusDisplay, type AutoSaveStatus } from '../../utils/saveStatusDisplay';
+import { useBackGestureToClose } from '../../hooks/useEscapeToClose';
 
 const BOTTOM_CONTROL_SHORTCUT_IDS = [
   'pass',
@@ -226,6 +227,17 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const closeMoreControlsFromAction = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer');
   }, [closeMoreControls]);
+
+  /**
+   * This sheet only exists on touch, which is the one place the back gesture is
+   * the expected way out -- and it was the one modal here that did not answer
+   * it, so back closed the installed app instead of the sheet. The key handler
+   * below cannot ask for it: it listens in the capture phase to outrank
+   * Layout's Escape handlers, so it cannot use `useEscapeToClose`, which is the
+   * only other route into `overlayBackStack`. 'pointer' because a gesture is
+   * not a keyboard, so the trigger should come back without a focus ring.
+   */
+  useBackGestureToClose(React.useCallback(() => closeMoreControls('pointer'), [closeMoreControls]), moreOpen);
 
   useEffect(() => {
     if (!suppressMoreTriggerFocusRing) return;

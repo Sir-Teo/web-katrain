@@ -46,6 +46,7 @@ import { BOARD_THEME_OPTIONS, getBoardTheme } from '../../utils/boardThemes';
 import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 import { UI_THEME_OPTIONS } from '../../utils/uiThemes';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
+import { useBackGestureToClose } from '../../hooks/useEscapeToClose';
 import { isFullscreenActive, subscribeFullscreenChange, toggleAppFullscreen } from '../../utils/fullscreen';
 import { getQuickNewGameWarning } from '../../utils/quickNewGame';
 
@@ -261,6 +262,8 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
     setMobileToolsInputMode(mode);
   }, []);
 
+  /** See BottomControlBar: the mobile tools sheet needs the back gesture for
+   *  the same reason, and its capture-phase key handler cannot ask for it. */
   const closeViewMenuWithFocus = React.useCallback((
     restoreFocus = false,
     inputMode?: 'pointer' | 'keyboard',
@@ -271,6 +274,11 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
       window.setTimeout(() => restoreFocusIfUnclaimed(viewMenuButtonRef.current), 0);
     }
   }, [setViewMenuOpen, updateMobileToolsInputMode]);
+
+  useBackGestureToClose(
+    React.useCallback(() => closeViewMenuWithFocus(true, 'pointer'), [closeViewMenuWithFocus]),
+    isMobile && viewMenuOpen,
+  );
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return;
