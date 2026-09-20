@@ -36,6 +36,8 @@ interface TournamentStore {
   beginGauntletGame: () => void;
   /** Record the outcome of the current gauntlet game. */
   recordGauntletResult: (result: GameResult) => void;
+  /** End the run without finishing it (keeps the summary visible). */
+  retireGauntlet: () => void;
   /** Clear the gauntlet entirely. */
   resetGauntlet: () => void;
 }
@@ -98,6 +100,12 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
     const gauntlet = get().gauntlet;
     if (!gauntlet || !gauntlet.awaitingResult) return;
     set({ gauntlet: persistGauntlet(applyGauntletResult(gauntlet, result)) });
+  },
+
+  retireGauntlet: () => {
+    const gauntlet = get().gauntlet;
+    if (!gauntlet) return;
+    set({ gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false, status: 'lost' }) });
   },
 
   resetGauntlet: () => {

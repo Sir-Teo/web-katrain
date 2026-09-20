@@ -48,6 +48,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
   const gauntlet = useTournamentStore((s) => s.gauntlet);
   const startGauntlet = useTournamentStore((s) => s.startGauntlet);
   const recordGauntletResult = useTournamentStore((s) => s.recordGauntletResult);
+  const retireGauntlet = useTournamentStore((s) => s.retireGauntlet);
   const resetGauntlet = useTournamentStore((s) => s.resetGauntlet);
 
   const [mode, setMode] = useState<Mode>(gauntlet && gauntlet.status === 'active' && (!ladder || ladder.status !== 'active') ? 'gauntlet' : 'ladder');
@@ -350,9 +351,16 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
             )
           ) : isGauntletActive && gauntlet ? (
             <>
+              {/* Ends the run; it does not erase it. This used to call
+                  `resetGauntlet`, which deletes the record outright -- one
+                  unconfirmed click on a 3-1 run and nothing was left to show
+                  for it, not even the "Gauntlet ended" summary the 'lost'
+                  status already renders. The ladder's Retire beside it has
+                  always worked this way. Clearing is still available, from the
+                  finished state, where that is what the button says. */}
               <button
                 type="button"
-                onClick={resetGauntlet}
+                onClick={retireGauntlet}
                 className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]"
               >
                 <span className="inline-flex items-center gap-2"><FaFlag aria-hidden="true" /> Give up</span>
