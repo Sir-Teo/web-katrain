@@ -1497,11 +1497,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       const uniqueName = getUniqueLibraryItemName(result.item.name, items, result.item.parentId ?? null);
       const item = uniqueName === result.item.name ? result.item : { ...result.item, name: uniqueName };
       setItems((prev) => [item, ...prev]);
+      // A pasted or dropped collection opens at its first game like an
+      // imported one does, so it says so here too -- with the count, which
+      // this path knows because it made exactly one item.
+      const games = isFile(item) ? countSgfGames(item.sgf) : 1;
+      const heldMore = games > 1 ? ` It holds ${games} games; only the first opens.` : '';
       onToast(
-        result.source === 'ogs' && result.gameId
+        (result.source === 'ogs' && result.gameId
           ? `Imported OGS game ${result.gameId} to Library.`
-          : `Imported "${item.name}" to Library.`,
-        'success'
+          : `Imported "${item.name}" to Library.`) + heldMore,
+        heldMore ? 'info' : 'success'
       );
     } catch {
       onToast('Failed to import dropped SGF or OGS URL.', 'error');
