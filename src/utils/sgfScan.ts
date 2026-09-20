@@ -120,3 +120,34 @@ export const countSgfGames = (sgf: string): number => {
   }
   return games;
 };
+
+/**
+ * The games after the first, as they were written, or `''`.
+ *
+ * Editing a collection loads its first game, and saving writes that game back.
+ * Everything after it is text the editor never held, so it has to be carried
+ * across verbatim rather than re-serialized.
+ */
+export const sgfTrailingGames = (sgf: string): string => {
+  if (!sgf) return '';
+  let depth = 0;
+  let inValue = false;
+  let entered = false;
+  for (let i = 0; i < sgf.length; i += 1) {
+    const ch = sgf[i]!;
+    if (inValue) {
+      if (ch === '\\') i += 1;
+      else if (ch === ']') inValue = false;
+      continue;
+    }
+    if (ch === '[') inValue = true;
+    else if (ch === '(') {
+      depth += 1;
+      entered = true;
+    } else if (ch === ')') {
+      depth -= 1;
+      if (entered && depth <= 0) return sgf.slice(i + 1).trim();
+    }
+  }
+  return '';
+};

@@ -2,7 +2,7 @@ import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { createSerialTaskQueue } from './serialTaskQueue';
 import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
 import { stripUnsafeFilenameControls } from './filename';
-import { countSgfMoves } from './sgfScan';
+import { countSgfGames, countSgfMoves, sgfTrailingGames } from './sgfScan';
 import { getIndexedDB, getLocalStorage, readLocalStorage, writeLocalStorage } from './storage';
 import { toSearchTerms } from './searchTerms';
 
@@ -842,6 +842,20 @@ export const createLibraryItem = (
   };
 };
 
+/**
+ * Writes an edited game back over the record it came from.
+ *
+ * A record may hold a collection: several complete games in one file, of which
+ * the app opens the first. The editor therefore hands back one game, and
+ * writing it straight over the record deleted the rest. Measured by dropping a
+ * three-game file on the panel, opening it and pressing Update: 187 bytes of
+ * Alice, Carol and Eve became 165 bytes of Alice alone, with no prompt and no
+ * way back -- two complete games gone because the save could only see the one
+ * that was open.
+ *
+ * The games after the first are carried across as the text they already were.
+ * Re-serializing them is not an option: nothing parsed them.
+ */
 export const updateLibraryFileSgf = (
   items: LibraryItem[],
   id: string,
@@ -852,13 +866,17 @@ export const updateLibraryFileSgf = (
   const nextItems = items.map((item) => {
     if (item.id !== id || item.type !== 'file') return item;
     changed = true;
+    // Only when the edit is the single game this record opens; an incoming
+    // collection is already whole and must not have the old tail appended.
+    const trailing = countSgfGames(sgf) === 1 ? sgfTrailingGames(item.sgf) : '';
+    const nextSgf = trailing ? `${sgf}\n${trailing}` : sgf;
     return {
       ...item,
-      sgf,
+      sgf: nextSgf,
       updatedAt: timestamp,
-      moveCount: countMoves(sgf),
-      size: sgf.length,
-      metadata: extractLibraryMetadata(sgf),
+      moveCount: countMoves(nextSgf),
+      size: nextSgf.length,
+      metadata: extractLibraryMetadata(nextSgf),
     };
   });
   return changed ? nextItems : items;
