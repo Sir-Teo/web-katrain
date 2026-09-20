@@ -50,8 +50,20 @@ const CURATED: Record<string, { name: string; source: string }> = {
   },
 };
 
+/**
+ * The guard is a negative lookbehind, as in `boardSize.ts`, not "preceded by a
+ * separator".
+ *
+ * Its only job is to stop `PB` matching the tail of a longer identifier, but
+ * `[;\s]` also demanded that the property *start* a node or a line -- and SGF
+ * is routinely written with no separators at all. On
+ * `FF[4]PB[Lee Sedol]PW[Gu Li]` every lookup returned undefined, so a dropped
+ * game pack fell back to its filename for the display name and to "public
+ * domain" for the source. The bundled seven escape it only by being
+ * line-wrapped, and they carry curated names anyway.
+ */
 const readProp = (sgf: string, key: string): string | undefined => {
-  const match = sgf.match(new RegExp(`(?:^|[;\\s])${key}\\[([^\\]]*)\\]`));
+  const match = sgf.match(new RegExp(`(?<![A-Za-z])${key}\\[([^\\]]*)\\]`));
   return match ? match[1]!.trim() || undefined : undefined;
 };
 
@@ -68,14 +80,19 @@ const deriveName = (sgf: string, basename: string): string => {
   return basename.replace(/^__/, '').replace(/[_-]+/g, ' ').trim();
 };
 
+/** How one file presents itself in the list. Exported so it can be tested
+ *  without a game pack on disk. */
+export const describePreloadedGame = (sgf: string, basename: string): { name: string; source: string } => {
+  const curated = CURATED[basename];
+  return {
+    name: curated?.name ?? deriveName(sgf, basename),
+    source: curated?.source ?? readProp(sgf, 'SO') ?? 'public domain',
+  };
+};
+
 export const PRELOADED_GAMES: PreloadedGame[] = Object.entries(sgfModules)
   .map(([path, sgf]) => {
     const basename = path.split('/').pop()!.replace(/\.sgf$/i, '');
-    const curated = CURATED[basename];
-    return {
-      name: curated?.name ?? deriveName(sgf, basename),
-      source: curated?.source ?? readProp(sgf, 'SO') ?? 'public domain',
-      sgf,
-    };
+    return { ...describePreloadedGame(sgf, basename), sgf };
   })
   .sort((a, b) => a.name.localeCompare(b.name));
