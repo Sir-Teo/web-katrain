@@ -632,7 +632,9 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
 
     const maxVisits = Math.max(16, Math.min(msg.visits ?? 256, ENGINE_MAX_VISITS));
     const maxTimeMs = Math.max(25, Math.min(msg.maxTimeMs ?? 800, ENGINE_MAX_TIME_MS));
-    const batchSize = Math.max(1, Math.min(msg.batchSize ?? (tf.getBackend() === 'webgpu' ? 16 : 4), 64));
+    // `??` catches a missing batch size but not a broken one; NaN is a number.
+    const requestedBatchSize = Number.isFinite(msg.batchSize) ? msg.batchSize! : (tf.getBackend() === 'webgpu' ? 16 : 4);
+    const batchSize = Math.max(1, Math.min(requestedBatchSize, 64));
     const maxChildren = Math.max(4, Math.min(msg.maxChildren ?? 64, BOARD_AREA));
     const topK = Math.max(1, Math.min(msg.topK ?? 10, 50));
     const includeMovesOwnership = msg.includeMovesOwnership === true;

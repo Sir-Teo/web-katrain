@@ -4050,7 +4050,11 @@ export class MctsSearch {
   }): Promise<boolean> {
     const maxVisits = Math.max(16, Math.min(args.visits, ENGINE_MAX_VISITS));
     const maxTimeMs = Math.max(25, Math.min(args.maxTimeMs, ENGINE_MAX_TIME_MS));
-    const batchSize = Math.max(1, Math.min(args.batchSize, 64));
+    // Not a clamp on its own: with NaN, or a string that came through a
+    // message, both comparisons are false and this yields NaN. The batch loop
+    // then collects nothing, the root gains no visit, and the stuck-batch
+    // guard below ends the search with no result at all.
+    const batchSize = Number.isFinite(args.batchSize) ? Math.max(1, Math.min(args.batchSize, 64)) : 1;
     const shouldAbort = args.shouldAbort;
     const multiStoneSuicideLegal = isSuicideLegal(this.rules);
     // Territory scoring still needs dead-stone agreement or an encore; retain
