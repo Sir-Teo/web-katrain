@@ -63,6 +63,52 @@ export function describeKaTrainClock(display: KaTrainTimerDisplay, disabled = fa
   return `Byo-yomi, ${remaining}, ${periods} period${periods === 1 ? '' : 's'} left`;
 }
 
+/** Where the clock had got to in wall time, and on which node. */
+export interface KaTrainClockCursor {
+  lastUpdateMs: number;
+  lastUpdateNodeId: string | null;
+}
+
+const sharedCursor: KaTrainClockCursor = { lastUpdateMs: 0, lastUpdateNodeId: null };
+let mountedClocks = 0;
+
+/**
+ * The one cursor every mounted clock steps from.
+ *
+ * `stepKaTrainTimer` charges the time between the cursor and now, so a clock
+ * that keeps its own cursor charges the same seconds again. Every instance
+ * writes to the same store fields, so the game's clock ran once per instance
+ * on screen: measured at 390x844, where the classic shell mounts one in the
+ * top bar and one in the right panel, six seconds of wall clock charged
+ * **12.04s** of main time and a ten-minute game would be gone in five. The
+ * desktop dashboard mounts a single clock, which is why it kept correct time
+ * and this went unnoticed.
+ *
+ * Shared, whichever instance ticks first advances the clock and the rest find
+ * no elapsed time to charge -- and they still render from a step result taken
+ * against the same state, so the two clocks agree.
+ *
+ * Reset only when the first clock appears. Keeping a stale cursor across a gap
+ * with no clock mounted would charge the whole gap to whoever is to move.
+ */
+export function acquireSharedClockCursor(): KaTrainClockCursor {
+  mountedClocks += 1;
+  if (mountedClocks === 1) {
+    sharedCursor.lastUpdateMs = 0;
+    sharedCursor.lastUpdateNodeId = null;
+  }
+  return sharedCursor;
+}
+
+export function releaseSharedClockCursor(): void {
+  mountedClocks = Math.max(0, mountedClocks - 1);
+}
+
+/** Exposed so a test can prove the reset happens on the first clock only. */
+export function mountedClockCount(): number {
+  return mountedClocks;
+}
+
 export function stepKaTrainTimer(args: KaTrainTimerStepArgs): KaTrainTimerStepResult {
   const nowMs = args.nowMs;
   const lastUpdateMs = Number.isFinite(args.lastUpdateMs) ? args.lastUpdateMs : nowMs;

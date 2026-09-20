@@ -1,8 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FaPause, FaPlay } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { describeKaTrainClock, formatKaTrainClockSeconds, stepKaTrainTimer, type KaTrainTimerDisplay } from '../utils/katrainTimer';
+import {
+  acquireSharedClockCursor,
+  describeKaTrainClock,
+  formatKaTrainClockSeconds,
+  releaseSharedClockCursor,
+  stepKaTrainTimer,
+  type KaTrainTimerDisplay,
+} from '../utils/katrainTimer';
 import { getAnimationNow } from '../utils/animationFrame';
 
 export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 'default' }) => {
@@ -24,24 +31,21 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
     isAiTurn: false,
   }));
 
-  const lastUpdateMsRef = useRef<number>(0);
-  const lastUpdateNodeIdRef = useRef<string | null>(null);
-
   useEffect(() => {
     const isDisabled = timerSettings.mainTimeMinutes <= 0 && timerSettings.byoPeriods <= 0;
-    if (isDisabled) {
-      lastUpdateMsRef.current = 0;
-      lastUpdateNodeIdRef.current = null;
-      return;
-    }
+    if (isDisabled) return;
+
+    // Shared, not per-instance: see acquireSharedClockCursor. Two clocks on
+    // screen used to charge the game twice for the same seconds.
+    const cursor = acquireSharedClockCursor();
 
     const tick = () => {
       const nowMs = getAnimationNow();
       const s = useGameStore.getState();
 
-      if (lastUpdateMsRef.current <= 0) {
-        lastUpdateMsRef.current = nowMs;
-        lastUpdateNodeIdRef.current = s.currentNode.id;
+      if (cursor.lastUpdateMs <= 0) {
+        cursor.lastUpdateMs = nowMs;
+        cursor.lastUpdateNodeId = s.currentNode.id;
       }
 
       const isAiTurn = s.isAiPlaying && s.aiColor === s.currentPlayer;
@@ -50,8 +54,8 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
 
       const result = stepKaTrainTimer({
         nowMs,
-        lastUpdateMs: lastUpdateMsRef.current,
-        lastUpdateNodeId: lastUpdateNodeIdRef.current,
+        lastUpdateMs: cursor.lastUpdateMs,
+        lastUpdateNodeId: cursor.lastUpdateNodeId,
         currentNodeId: s.currentNode.id,
         currentNodeHasChildren: s.currentNode.children.length > 0,
         paused: s.timerPaused,
@@ -65,8 +69,8 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
         periodsUsedForPlayer,
       });
 
-      lastUpdateMsRef.current = result.lastUpdateMs;
-      lastUpdateNodeIdRef.current = result.lastUpdateNodeId;
+      cursor.lastUpdateMs = result.lastUpdateMs;
+      cursor.lastUpdateNodeId = result.lastUpdateNodeId;
 
       s.timerMainTimeUsedSeconds = result.mainTimeUsedSeconds;
       s.timerPeriodsUsed[s.currentPlayer] = result.periodsUsedForPlayer;
@@ -75,11 +79,12 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
       setDisplay(result.display);
     };
 
-    lastUpdateMsRef.current = 0;
-    lastUpdateNodeIdRef.current = null;
     tick();
     const id = window.setInterval(tick, 70);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+      releaseSharedClockCursor();
+    };
   }, [timerSettings.mainTimeMinutes, timerSettings.byoLengthSeconds, timerSettings.byoPeriods]);
 
   const isTimerDisabled = timerSettings.mainTimeMinutes <= 0 && timerSettings.byoPeriods <= 0;

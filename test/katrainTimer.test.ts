@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
+  acquireSharedClockCursor,
   describeKaTrainClock,
   formatKaTrainClockSeconds,
+  mountedClockCount,
+  releaseSharedClockCursor,
   stepKaTrainTimer,
+  type KaTrainClockCursor,
   type KaTrainTimerDisplay,
 } from '../src/utils/katrainTimer';
 
@@ -145,5 +149,98 @@ describe('what the clock says out loud', () => {
 
   it('says the clock is off rather than reading a meaningless zero', () => {
     expect(describeKaTrainClock(display({}), true)).toBe('Clock off, no time control set');
+  });
+});
+
+describe('the clock every mounted Timer shares', () => {
+  const baseArgs = {
+    currentNodeId: 'n1',
+    currentNodeHasChildren: false,
+    paused: false,
+    isAiTurn: false,
+    mainTimeMinutes: 10,
+    byoLengthSeconds: 30,
+    byoPeriods: 5,
+    currentPlayer: 'black' as const,
+    nodeTimeUsedSeconds: 0,
+    periodsUsedForPlayer: 0,
+  };
+
+  /** One clock on screen, stepping from `cursor` and charging `charged`. */
+  const tick = (cursor: KaTrainClockCursor, nowMs: number, charged: { mainTimeUsedSeconds: number }) => {
+    const result = stepKaTrainTimer({
+      ...baseArgs,
+      nowMs,
+      lastUpdateMs: cursor.lastUpdateMs,
+      lastUpdateNodeId: cursor.lastUpdateNodeId,
+      mainTimeUsedSeconds: charged.mainTimeUsedSeconds,
+    });
+    cursor.lastUpdateMs = result.lastUpdateMs;
+    cursor.lastUpdateNodeId = result.lastUpdateNodeId;
+    charged.mainTimeUsedSeconds = result.mainTimeUsedSeconds;
+  };
+
+  afterEach(() => {
+    while (mountedClockCount() > 0) releaseSharedClockCursor();
+  });
+
+  it('charges six seconds once, however many clocks are on screen', () => {
+    // Measured before this at 390x844, where the classic shell mounts a clock
+    // in the top bar and another in the right panel: 6s of wall clock took
+    // 12.04s off the game.
+    const cursor = acquireSharedClockCursor();
+    acquireSharedClockCursor();
+    cursor.lastUpdateMs = 1_000;
+    cursor.lastUpdateNodeId = 'n1';
+    const charged = { mainTimeUsedSeconds: 0 };
+
+    tick(cursor, 7_000, charged);
+    tick(cursor, 7_000, charged);
+
+    expect(charged.mainTimeUsedSeconds).toBeCloseTo(6, 6);
+  });
+
+  it('would charge it twice if each clock kept its own cursor', () => {
+    // The shape of the bug, kept so the fix cannot be quietly undone.
+    const own = () => ({ lastUpdateMs: 1_000, lastUpdateNodeId: 'n1' as string | null });
+    const charged = { mainTimeUsedSeconds: 0 };
+    tick(own(), 7_000, charged);
+    tick(own(), 7_000, charged);
+    expect(charged.mainTimeUsedSeconds).toBeCloseTo(12, 6);
+  });
+
+  it('hands every clock the same cursor, and leaves it alone after the first', () => {
+    const first = acquireSharedClockCursor();
+    first.lastUpdateMs = 500;
+    first.lastUpdateNodeId = 'n1';
+
+    const second = acquireSharedClockCursor();
+
+    expect(second).toBe(first);
+    expect(second.lastUpdateMs).toBe(500);
+    expect(mountedClockCount()).toBe(2);
+  });
+
+  it('re-seeds once no clock is left, so a gap is not charged to anyone', () => {
+    const cursor = acquireSharedClockCursor();
+    acquireSharedClockCursor();
+    cursor.lastUpdateMs = 500;
+    cursor.lastUpdateNodeId = 'n1';
+
+    releaseSharedClockCursor();
+    expect(cursor.lastUpdateMs).toBe(500);
+
+    releaseSharedClockCursor();
+    const later = acquireSharedClockCursor();
+
+    expect(later.lastUpdateMs).toBe(0);
+    expect(later.lastUpdateNodeId).toBeNull();
+  });
+
+  it('does not go negative when more clocks are released than acquired', () => {
+    releaseSharedClockCursor();
+    releaseSharedClockCursor();
+    expect(mountedClockCount()).toBe(0);
+    expect(acquireSharedClockCursor().lastUpdateMs).toBe(0);
   });
 });
