@@ -2995,9 +2995,20 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       className="go-board-container w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center"
       data-board-container="true"
     >
+      {/* `shrink-0` keeps the board square. `cellSize` rounds *up* (the `+ 0.1`
+          above), so the board can come out up to a tenth of a cell -- about 2px
+          on 19x19 -- wider than this flex container. As a shrinkable item the
+          width absorbed that overflow while `items-center` left the height
+          alone: measured at 1024x768, a board styled 465.75px square laid out
+          464 x 465.75, and the canvases, which keep their full styled width,
+          lost their right edge to the container's `overflow: hidden`. Held at
+          its own size the overflow is split by `justify-center` and falls in
+          the board's own 0.75-cell margin instead of on the grid. The mobile
+          edit/scoring overlays already pinned this element the same way in
+          index.css; this is the general case. */}
       <div
         className={[
-          'relative shadow-lg rounded-sm select-none',
+          'relative shadow-lg rounded-sm select-none shrink-0',
           isEditMode || scoringMode ? 'cursor-crosshair' : 'cursor-pointer',
         ].join(' ')}
         data-board-snapshot="true"

@@ -294,6 +294,18 @@ function assertViewport(result) {
   if (!result.board) failures.push('board missing');
   if (result.board && result.board.left < -1) failures.push('board overflows left edge');
   if (result.board && result.board.right > result.innerWidth + 1) failures.push('board overflows right edge');
+  // A Go board is square by construction: GoBoard styles width and height from
+  // the same `cellSize * gridSpaces`, and the x and y grid spans are equal under
+  // every setting. So a rect that is not square means layout overrode the style.
+  // It did: the board was a shrinkable flex item and `cellSize` rounds up, so at
+  // 1024x768 a board styled 465.75px square laid out 464 x 465.75 and the
+  // canvases lost their right edge. This run's own summary said `627x628` at
+  // 1440x900 and nothing read it.
+  if (result.board && Math.abs(result.board.width - result.board.height) > 0.5) {
+    failures.push(
+      `board is not square (${result.board.width.toFixed(2)}x${result.board.height.toFixed(2)})`
+    );
+  }
   if (result.desktop) {
     if (!result.topBar) failures.push('top bar missing');
     if (result.topControlsOutOfBar > 0) {
