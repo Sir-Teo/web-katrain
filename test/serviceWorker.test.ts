@@ -47,7 +47,16 @@ function runInstall(options: { failing?: string[] } = {}) {
   let waited: Promise<unknown> = Promise.resolve();
   install({ waitUntil: (p) => { waited = p; } });
 
-  return waited.then(() => ({ added, skipWaitingCalls }));
+  return waited.then(() => ({
+    added,
+    skipWaitingCalls: () => skipWaitingCalls,
+    /** Deliver a `postMessage` from the page, as the update banner does. */
+    postMessage: (data: unknown) => {
+      const listener = listeners.get('message') as unknown as ((e: { data: unknown }) => void) | undefined;
+      expect(listener, 'sw.js registered no message listener').toBeTruthy();
+      listener!({ data });
+    },
+  }));
 }
 
 /**
@@ -127,29 +136,68 @@ function runFetch(options: {
 
 describe('service worker install', () => {
   it('caches the whole list when every request succeeds', async () => {
-    const { added, skipWaitingCalls } = await runInstall();
+    const { added } = await runInstall();
 
     expect(added).toContain('./');
     expect(added).toContain('./index.html');
     expect(added).toContain('./models/katago-small.bin.gz');
-    expect(added.filter((url) => url.endsWith('.wasm'))).toHaveLength(3);
-    expect(skipWaitingCalls).toBe(1);
+  });
+
+  it('precaches the one TFJS build the deployed site can actually run', () => {
+    // TFJS picks exactly one of the three at runtime. The threaded build needs
+    // cross-origin isolation, which GitHub Pages cannot provide, and the
+    // non-SIMD build is for browsers older than this app supports — so two of
+    // them were 746KB of a 1.17MB precache that the live site never requests.
+    const source = readFileSync('public/sw.js', 'utf8');
+    const precache = source.slice(source.indexOf('PRECACHE_URLS'), source.indexOf('PRECACHE_REQUIRED'));
+    const wasm = [...precache.matchAll(/'\.\/tfjs\/([^']+)'/g)].map((match) => match[1]);
+
+    expect(wasm).toEqual(['tfjs-backend-wasm-simd.wasm']);
+    // The other two must still be reachable, cached on first use like any
+    // other asset, so a host that does send COOP/COEP keeps its threaded build.
+    expect(source).toMatch(/isCacheFirstAsset[\s\S]*?\/tfjs\//);
   });
 
   it('still installs when a large optional asset cannot be fetched', async () => {
     // `addAll` is atomic. Precaching the whole list through it meant one failed
     // request — the 3.7MB model over a bad connection, most likely — rejected
-    // the install, so skipWaiting never ran and the app had no offline support
-    // at all, silently, and again on the next visit.
-    const { added, skipWaitingCalls } = await runInstall({
+    // the install, so the worker never activated and the app had no offline
+    // support at all, silently, and again on the next visit.
+    const { added } = await runInstall({
       failing: ['./models/katago-small.bin.gz', './tfjs/tfjs-backend-wasm-simd.wasm'],
     });
 
-    expect(skipWaitingCalls).toBe(1);
     expect(added).toContain('./');
     expect(added).toContain('./index.html');
     expect(added).toContain('./pwa/icon-192.png');
     expect(added).not.toContain('./models/katago-small.bin.gz');
+  });
+
+  it('leaves a replacement worker waiting for the page to accept the update', async () => {
+    // Installing with skipWaiting() took the decision away from the reader:
+    // `registration.waiting` was already null when the "Update ready" banner
+    // was clicked, so requestPwaUpdateActivation's postMessage path never ran
+    // and the new worker had claimed a page still running the old bundle.
+    const { skipWaitingCalls } = await runInstall();
+
+    expect(skipWaitingCalls()).toBe(0);
+  });
+
+  it('activates when the page accepts the update', async () => {
+    const { skipWaitingCalls, postMessage } = await runInstall();
+
+    postMessage({ type: 'SKIP_WAITING' });
+
+    expect(skipWaitingCalls()).toBe(1);
+  });
+
+  it('ignores messages that are not the update request', async () => {
+    const { skipWaitingCalls, postMessage } = await runInstall();
+
+    postMessage({ type: 'something-else' });
+    postMessage(null);
+
+    expect(skipWaitingCalls()).toBe(0);
   });
 
   it('fails the install when the shell itself cannot be cached', async () => {

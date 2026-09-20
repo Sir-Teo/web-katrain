@@ -17,9 +17,20 @@ const PRECACHE_URLS = [
   // wanted offline. They stay runtime-cacheable like any other image, so
   // nothing is lost if something does ask for them.
   './models/katago-small.bin.gz',
-  './tfjs/tfjs-backend-wasm.wasm',
+  // One of the three TFJS builds, not all three. TFJS picks exactly one at
+  // runtime: the threaded one only when the page is cross-origin isolated, the
+  // plain one only where SIMD is missing, and the SIMD one otherwise. The
+  // deployed site is GitHub Pages, which cannot send COOP/COEP -- README and
+  // docs/deployment.md both say so -- and without them `SharedArrayBuffer` is
+  // undefined, which is the feature test TFJS uses. So on the live site the
+  // threaded build is never requested, and no browser new enough to run this
+  // app asks for the non-SIMD one either.
+  //
+  // That made 746KB of a 1.17MB wasm precache dead weight on the first visit,
+  // for the same reason the manifest screenshots are not in this list. Both of
+  // the others stay cache-first at runtime, so a self-hosted deployment that
+  // does send the headers still keeps its threaded build after using it once.
   './tfjs/tfjs-backend-wasm-simd.wasm',
-  './tfjs/tfjs-backend-wasm-threaded-simd.wasm',
   // Only the images the *default* board draws are here. `dot`, `inner` and
   // `topmove` are drawn by GoBoard under every theme, and `graph_bg` is 694
   // bytes.
@@ -43,7 +54,7 @@ const PRECACHE_URLS = [
  * The two entries the app cannot start without.
  *
  * `cache.addAll` is atomic: one failed request rejects the whole promise, so
- * `install` never resolves, `skipWaiting()` never runs, and the app is left
+ * `install` never resolves, the worker never activates, and the app is left
  * with no offline support at all -- silently, and again on the next visit if
  * the cause is not transient. The list above is 5MB of model and wasm over
  * whatever connection the first visit happens to have, which is the part most
@@ -97,6 +108,22 @@ const putRuntimeResponse = (cache, request, response) =>
     .then(() => trimRuntimeCache(cache))
     .catch(() => undefined);
 
+/**
+ * Install does *not* call `skipWaiting()`.
+ *
+ * It used to, unconditionally, which quietly defeated the app's own update
+ * flow: a replacement worker went straight past the waiting state, so
+ * `registration.waiting` was null by the time the "Update ready" banner was
+ * clicked, `requestPwaUpdateActivation`'s whole postMessage/controllerchange
+ * path was unreachable, and the `SKIP_WAITING` handler below was dead code.
+ * What actually happened instead was the opposite of what the banner offers:
+ * the new worker claimed a page still running the previous bundle, before
+ * anyone agreed to update.
+ *
+ * Waiting costs nothing on a first install -- with no active worker to replace,
+ * the new one activates immediately either way, and `clients.claim()` below is
+ * what takes over the page that registered it.
+ */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
@@ -110,7 +137,6 @@ self.addEventListener('install', (event) => {
             )
           )
       )
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -125,6 +151,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/** The page asking for the update it just offered the reader. */
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

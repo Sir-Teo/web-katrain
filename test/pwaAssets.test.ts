@@ -91,10 +91,31 @@ describe('PWA assets', () => {
     const sw = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
     const precache = sw.slice(sw.indexOf('const PRECACHE_URLS'), sw.indexOf('];', sw.indexOf('const PRECACHE_URLS')));
 
-    // The engine and its runtime are the offline promise; measured live, the
-    // shell cache holds the model and all three wasm variants.
+    // The engine and its runtime are the offline promise, so the model is here.
     expect(precache).toContain('./models/katago-small.bin.gz');
-    expect(precache.match(/\.wasm'/g) ?? []).toHaveLength(3);
+
+    /**
+     * One wasm build, not three. This used to hold all three because that is
+     * what the shell cache was measured holding -- but TFJS asks for exactly
+     * one of them, chosen at runtime, and on this deployment two of the three
+     * can never be the one it asks for.
+     *
+     * Its thread feature test constructs a `SharedArrayBuffer`, which a browser
+     * only exposes on a cross-origin-isolated page. GitHub Pages cannot send
+     * COOP/COEP -- README and docs/deployment.md both say so -- so the threaded
+     * build is never requested here, and no browser new enough to run this app
+     * asks for the non-SIMD one. That was 746KB of a 1.17MB wasm precache on
+     * every first visit, which is the same objection this test already makes to
+     * the screenshots below and to the non-default board themes.
+     */
+    expect(precache.match(/\.wasm'/g) ?? []).toHaveLength(1);
+    expect(precache).toContain('./tfjs/tfjs-backend-wasm-simd.wasm');
+    // Dropped from the precache, not from the app: a self-hosted deployment
+    // that does send the headers still keeps its threaded build after one use.
+    expect(sw).toMatch(/isCacheFirstAsset[\s\S]*?\/tfjs\//);
+    for (const name of ['tfjs-backend-wasm.wasm', 'tfjs-backend-wasm-threaded-simd.wasm']) {
+      expect(fs.existsSync(path.join(publicDir, 'tfjs', name)), `${name} must still ship`).toBe(true);
+    }
 
     /**
      * The manifest's screenshots are 504KB of the install dialog's preview and

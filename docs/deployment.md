@@ -99,10 +99,18 @@ register the service worker.
 The service worker precaches:
 
 - The app shell.
-- Manifest and PWA icons/screenshots.
+- The manifest and the PWA icons. Not the manifest screenshots: they are 504 kB
+  shown by the browser, the OS or a crawler, never by the running app.
 - The small default model.
-- TensorFlow.js WASM files.
-- Built-in board and stone assets.
+- One TensorFlow.js WASM build, `tfjs-backend-wasm-simd.wasm`. TFJS chooses one
+  of the three at runtime, and the other two cannot be chosen here: the threaded
+  build needs cross-origin isolation, which GitHub Pages cannot provide, and the
+  non-SIMD build is for browsers older than this app supports.
+- The board and stone images the *default* theme draws. The other themes are
+  cached the first time they are used.
+
+Everything left out stays cache-first at runtime, so anything actually used is
+kept offline after the first time it loads.
 
 Navigation requests fall back to the cached app shell when offline. Static
 assets are cache-first. Other same-origin GET requests are cached at runtime.
