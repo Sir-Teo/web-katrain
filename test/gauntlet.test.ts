@@ -172,3 +172,42 @@ describe('remembering a run', () => {
     expect(loadGauntlet()).toBeNull();
   });
 });
+
+describe('a stored run that survives the read must survive the next result', () => {
+  const KEY = 'web-katrain:gauntlet:v1';
+  const stored = () => JSON.parse(entries.get(KEY)!) as Record<string, unknown>;
+
+  /**
+   * `applyGauntletResult` spreads `state.history`. The loader only checked
+   * `opponents` and `index`, so an entry written before `history` existed —
+   * or edited by hand, which is why the loader is wrapped in try/catch at all —
+   * loaded cleanly and then threw "is not iterable" when the next game
+   * finished, a screen away from the read that let it through.
+   */
+  it.each([
+    ['no history at all', (run: Record<string, unknown>) => { delete run.history; }],
+    ['a history that is not an array', (run: Record<string, unknown>) => { run.history = 4; }],
+    ['a history entry that is not a result', (run: Record<string, unknown>) => { run.history = [{ kyu: 9, result: 'draw' }]; }],
+    ['a status it cannot be in', (run: Record<string, unknown>) => { run.status = 'paused'; }],
+    ['a preset that no longer exists', (run: Record<string, unknown>) => { run.preset = 'impossible'; }],
+    ['a board size the app cannot draw', (run: Record<string, unknown>) => { run.boardSize = 21; }],
+    ['a colour nobody plays', (run: Record<string, unknown>) => { run.userColor = 'green'; }],
+    ['a non-numeric index', (run: Record<string, unknown>) => { run.index = '1'; }],
+    ['opponents that are not ranks', (run: Record<string, unknown>) => { run.opponents = ['strong']; }],
+  ])('drops a run with %s', (_label, corrupt) => {
+    saveGauntlet(afterWins(1));
+    const run = stored();
+    corrupt(run);
+    entries.set(KEY, JSON.stringify(run));
+
+    expect(loadGauntlet()).toBeNull();
+  });
+
+  it('still restores a run it can act on', () => {
+    saveGauntlet(afterWins(1));
+    const restored = loadGauntlet()!;
+
+    expect(restored).toMatchObject({ index: 1, wins: 1, status: 'active' });
+    expect(() => applyGauntletResult(restored, 'win')).not.toThrow();
+  });
+});
