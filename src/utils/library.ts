@@ -637,6 +637,35 @@ const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-s
 // A failed load leaves us holding a fallback snapshot (preloaded games or
 // stale legacy data), so persisting it back would wipe the real library.
 let idbLoadFailed = false;
+/**
+ * Set when a save went to the fallback only because IndexedDB was unavailable.
+ *
+ * IndexedDB can fail for a while and then work again, and every read retried it
+ * unconditionally -- so the first read after it recovered returned the database
+ * as it stood *before* the outage and threw away everything saved during it.
+ * Measured: with 8 games stored, breaking IndexedDB, saving a ninth, then
+ * letting it recover left the ninth gone for good.
+ *
+ * While this is set the fallback is the newer copy, so a recovered database is
+ * written from it rather than read over it.
+ */
+let fallbackHasUnflushedWrites = false;
+
+/**
+ * Both copies of the library, keeping the newer record of anything in both.
+ *
+ * Used only to reconcile a fallback written during an IndexedDB outage with the
+ * database that comes back afterwards; `updatedAt` is the only ordering either
+ * side carries.
+ */
+export const mergeLibrariesByNewest = (stored: LibraryItem[], fallback: LibraryItem[]): LibraryItem[] => {
+  const byId = new Map<string, LibraryItem>();
+  for (const item of [...stored, ...fallback]) {
+    const existing = byId.get(item.id);
+    if (!existing || item.updatedAt > existing.updatedAt) byId.set(item.id, item);
+  }
+  return normalizeLibraryItems([...byId.values()]);
+};
 
 const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
   if (!getIndexedDB()) {
@@ -646,6 +675,18 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
   try {
     let items = await loadFromIndexedDb();
     idbLoadFailed = false;
+    // The database is back, and the fallback holds work it never saw. Merge
+    // rather than replace: during an outage the fallback is whatever could be
+    // scraped together, often nothing, so writing it over a recovered database
+    // would destroy everything stored before the outage. A union keeps both
+    // sides -- an item deleted during the outage comes back, which is the
+    // failure worth having when the alternative is losing one for good.
+    if (fallbackHasUnflushedWrites) {
+      const merged = mergeLibrariesByNewest(items, loadFallbackLibrary());
+      await saveToIndexedDb(merged);
+      fallbackHasUnflushedWrites = false;
+      return merged;
+    }
     const legacyRaw = readLocalStorage(LEGACY_STORAGE_KEY);
     const hasMigrated = readLocalStorage(MIGRATION_FLAG_KEY) === 'true';
 
@@ -711,15 +752,21 @@ const persistFallback = (items: LibraryItem[]): void => {
 /** @see the note above `persistFallback` for why a fallback can reject. */
 const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
-  if (!getIndexedDB() || idbLoadFailed) {
+  const hasIndexedDb = !!getIndexedDB();
+  if (!hasIndexedDb || idbLoadFailed) {
     persistFallback(normalized);
+    // Only a database that exists can come back and read over this. Where
+    // there is none, the fallback is simply the store.
+    if (hasIndexedDb) fallbackHasUnflushedWrites = true;
     return;
   }
   try {
     await saveToIndexedDb(normalized);
     memoryItems = normalized;
+    fallbackHasUnflushedWrites = false;
   } catch {
     persistFallback(normalized);
+    fallbackHasUnflushedWrites = true;
   }
 };
 
