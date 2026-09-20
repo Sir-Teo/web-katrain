@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createLibraryItem, updateLibraryFileSgf } from '../src/utils/library';
+import { createLibraryItem, updateLibraryFileSgf, type LibraryItem } from '../src/utils/library';
 import { countSgfGames, countSgfMoves, sgfTrailingGames } from '../src/utils/sgfScan';
 
 /** Three complete games in one file, the way an SGF collection is written. */
@@ -82,7 +82,7 @@ describe('saving a game that came out of a collection', () => {
 
   it('survives being saved again and again', () => {
     const item = itemFrom(COLLECTION);
-    let items = [item];
+    let items: LibraryItem[] = [item];
     for (let i = 0; i < 5; i += 1) items = updateLibraryFileSgf(items, item.id, EDITED_FIRST_GAME);
     const updated = items[0];
     if (updated.type !== 'file') throw new Error('expected a file');
