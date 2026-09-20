@@ -707,9 +707,21 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
       await saveToIndexedDb(items);
     }
     return items;
-  } catch {
+  } catch (error) {
     idbLoadFailed = true;
-    return loadFallbackLibrary();
+    // A read that failed is not an empty library. Falling back silently put
+    // "Library is empty" on screen over games that were still in the database
+    // -- alarming on its own, and an invitation to save something over them,
+    // which is the write the outage reconciliation then has to rescue.
+    //
+    // A fallback with something in it is a real, if older, copy and worth
+    // showing. An empty one says nothing, so say that instead of inventing an
+    // answer: every caller already handles this rejection, and the panel has a
+    // storage-error state waiting for it.
+    const fallback = loadFallbackLibrary();
+    if (fallback.length > 0) return fallback;
+    const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
+    throw new Error(`${LIBRARY_READ_FAILED_MESSAGE}${reason}`);
   }
 };
 
@@ -724,6 +736,9 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
  */
 export const LIBRARY_SAVE_FAILED_MESSAGE =
   'Could not save the library: browser storage is full or unavailable.';
+
+export const LIBRARY_READ_FAILED_MESSAGE =
+  'Could not read the library from browser storage. Your games are still there; reload to try again.';
 
 /**
  * Persist the library, preferring IndexedDB and falling back to localStorage.
