@@ -16,6 +16,12 @@ export interface LibraryImportCounts {
   unreadableFiles: number;
   /** Recognized game entries rejected inside ZIPs, counted independently of loose files. */
   skippedArchiveGames?: number;
+  /**
+   * Imported files that hold more than one game. Nothing is lost -- the whole
+   * file is stored and exports back intact -- but only the first game opens,
+   * so the others are present and unreachable unless the message says so.
+   */
+  collectionFiles?: number;
   /** Keep just the first actionable example, not an unbounded list of errors. */
   firstFailure?: string;
 }
@@ -51,6 +57,7 @@ function describeImportCounts(counts: LibraryImportCounts): LibraryImportReport 
     skippedInvalidSgfFiles,
     unreadableFiles,
     skippedArchiveGames = 0,
+    collectionFiles = 0,
   } = counts;
 
   const skipped = [
@@ -64,6 +71,15 @@ function describeImportCounts(counts: LibraryImportCounts): LibraryImportReport 
     skippedArchiveGames > 0 ? ` Skipped ${plural(skippedArchiveGames, 'archive game')}.` : '',
     unreadableFiles > 0 ? ` Could not read ${plural(unreadableFiles, 'file')}.` : '',
   ].join('');
+
+  // Not a skip: these games are stored. They are just not the one that opens,
+  // so this keeps its own sentence and does not turn the report into a failure.
+  const collections =
+    collectionFiles === 1
+      ? ' 1 file holds more than one game; only the first opens.'
+      : collectionFiles > 1
+        ? ` ${collectionFiles} files hold more than one game; only the first of each opens.`
+        : '';
 
   if (importedEntries === 0) {
     const failureKinds = [skippedUnsupportedPhotoImages, skippedOversizedSgfFiles, skippedInvalidSgfFiles, skippedArchiveGames, unreadableFiles]
@@ -92,9 +108,10 @@ function describeImportCounts(counts: LibraryImportCounts): LibraryImportReport 
   }
 
   return {
-    message: `Imported ${plural(importedFiles, 'file')}${openedPhotoBoard ? ' and opened photo board image' : ''}.${skipped}`,
+    message: `Imported ${plural(importedFiles, 'file')}${openedPhotoBoard ? ' and opened photo board image' : ''}.${skipped}${collections}`,
     // Losing files is not a success, and the empty case already says so.
-    tone: skipped ? 'error' : 'success',
+    // A collection lost nothing, but it is not an unqualified success either.
+    tone: skipped ? 'error' : collections ? 'info' : 'success',
   };
 }
 

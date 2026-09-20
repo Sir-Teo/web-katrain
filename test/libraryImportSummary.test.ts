@@ -79,6 +79,39 @@ describe('what an import tells you', () => {
     }
   });
 
+  /**
+   * A collection -- several games in one file -- imports as one item and opens
+   * at its first game. The rest are stored and export back intact, but nothing
+   * on screen reaches them, so the message has to admit it.
+   */
+  describe('a file holding more than one game', () => {
+    it('says only the first game opens', () => {
+      const report = describeLibraryImport(counts({ importedEntries: 1, importedFiles: 1, collectionFiles: 1 }));
+      expect(report.message).toBe('Imported 1 file. 1 file holds more than one game; only the first opens.');
+      // Nothing was lost, so this is not a failure -- but not a plain success.
+      expect(report.tone).toBe('info');
+    });
+
+    it('counts several of them', () => {
+      const report = describeLibraryImport(counts({ importedEntries: 5, importedFiles: 5, collectionFiles: 2 }));
+      expect(report.message).toContain('2 files hold more than one game; only the first of each opens.');
+    });
+
+    it('keeps quiet about ordinary single-game files', () => {
+      const report = describeLibraryImport(counts({ importedEntries: 2, importedFiles: 2, collectionFiles: 0 }));
+      expect(report).toEqual({ message: 'Imported 2 files.', tone: 'success' });
+    });
+
+    it('does not bury a real skip underneath it', () => {
+      const report = describeLibraryImport(
+        counts({ importedEntries: 2, importedFiles: 2, collectionFiles: 1, unreadableFiles: 3 })
+      );
+      expect(report.message).toContain('Could not read 3 files.');
+      expect(report.message).toContain('only the first opens');
+      expect(report.tone).toBe('error');
+    });
+  });
+
   it('still says the photo board opened', () => {
     expect(
       describeLibraryImport(counts({ importedEntries: 2, importedFiles: 2, openedPhotoBoard: true })).message

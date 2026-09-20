@@ -73,6 +73,7 @@ const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
+import { countSgfGames } from '../utils/sgfScan';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
@@ -1450,6 +1451,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const report = describeLibraryImport({
       importedEntries: imported.length,
       importedFiles: imported.filter(isFile).length,
+      // A collection keeps every game in the stored text, but only the first
+      // one opens, so say so rather than let the others be present and unseen.
+      collectionFiles: imported.filter(isFile).filter((item) => countSgfGames(item.sgf) > 1).length,
       openedPhotoBoard,
       skippedUnsupportedPhotoImages,
       skippedOversizedSgfFiles,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countSgfMoves, scanSgf, sgfHeaderText } from '../src/utils/sgfScan';
+import { countSgfGames, countSgfMoves, scanSgf, sgfHeaderText } from '../src/utils/sgfScan';
 import { parseSgf, type ParsedSgfNode } from '../src/utils/sgf';
 import { PRELOADED_GAMES } from '../src/data/preloadedGames';
 
@@ -88,5 +88,25 @@ describe('a file holding more than one game', () => {
       expect(countSgfMoves(game.sgf), game.name).toBeGreaterThan(0);
       expect(countSgfMoves(game.sgf), game.name).toBe(movesInTree(parseSgf(game.sgf).tree!));
     }
+  });
+});
+
+describe('countSgfGames', () => {
+  it('counts the trees at the top, not the variations inside them', () => {
+    expect(countSgfGames('(;GM[1]SZ[19];B[pd](;W[dp])(;W[dd]))')).toBe(1);
+    expect(countSgfGames('(;GM[1]SZ[9];B[aa])(;GM[1]SZ[9];B[bb])')).toBe(2);
+  });
+
+  it('is not fooled by parentheses inside a comment', () => {
+    expect(countSgfGames('(;GM[1]SZ[9];C[a (joseki) here](;B[aa]))')).toBe(1);
+    expect(countSgfGames('(;GM[1]SZ[9];C[see \\] ( ) there];B[aa])')).toBe(1);
+  });
+
+  it('says nothing about an empty file', () => {
+    expect(countSgfGames('')).toBe(0);
+  });
+
+  it('reads every bundled game as the single game it is', () => {
+    for (const game of PRELOADED_GAMES) expect(countSgfGames(game.sgf), game.name).toBe(1);
   });
 });

@@ -91,3 +91,32 @@ export const sgfHeaderText = (sgf: string): string => {
   const { firstMoveIndex } = scanSgf(sgf);
   return firstMoveIndex >= 0 ? sgf.slice(0, firstMoveIndex) : sgf;
 };
+
+/**
+ * How many complete game trees the text holds.
+ *
+ * An SGF file is a collection: `(;...)` repeated. Most hold one game and this
+ * returns 1 for them. The app opens the first, so a file holding more is worth
+ * saying out loud — the rest are kept and exported back, but nothing on screen
+ * reaches them.
+ */
+export const countSgfGames = (sgf: string): number => {
+  if (!sgf) return 0;
+  let games = 0;
+  let depth = 0;
+  let inValue = false;
+  for (let i = 0; i < sgf.length; i += 1) {
+    const ch = sgf[i]!;
+    if (inValue) {
+      if (ch === '\\') i += 1;
+      else if (ch === ']') inValue = false;
+      continue;
+    }
+    if (ch === '[') inValue = true;
+    else if (ch === '(') {
+      if (depth === 0) games += 1;
+      depth += 1;
+    } else if (ch === ')' && depth > 0) depth -= 1;
+  }
+  return games;
+};

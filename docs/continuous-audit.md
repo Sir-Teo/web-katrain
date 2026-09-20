@@ -189,8 +189,13 @@ file selection through the success toast and checks persisted content afterward.
 2. **Professional import compatibility:** GIB/NGF now work through normal
    file, drop, launch, and library/ZIP paths. Auto tries UTF-8 then Korean;
    other unmarked encodings require the explicit setting. Rejected archive
-   games now report their count and first reason. Inspect multi-game
-   collections next.
+   games now report their count and first reason. A multi-game collection
+   imports as one item that opens at its first game; measured on a three-game
+   file, the row read "Alice vs Bob · 9 moves" and opened at move 3, because
+   the move count spanned the file while every other reader described game one.
+   The count now describes the game that opens, and import says when a file
+   holds more. Splitting a collection into separate library items remains the
+   design task noted above.
 3. **Reliable study archives:** harden deep branch editing, add meaningful
    large-library measurements, and keep saved/exported content recoverable.
 4. **Analysis provenance and comparison:** show which model/settings produced
