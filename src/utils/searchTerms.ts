@@ -29,3 +29,39 @@ export const toSearchTerms = (query: string | null | undefined): string[] =>
 
 export const matchesSearchTerms = (haystack: string, terms: string[]): boolean =>
   terms.every((term) => haystack.includes(term));
+
+/**
+ * British spellings, rewritten to the American ones the app's copy uses.
+ *
+ * `copyDialect.test.ts` holds every user-facing string to one dialect on
+ * purpose, which leaves a reader who spells the other way finding nothing:
+ * measured against the live command palette, "analyse" returned 0 results
+ * where "analyze" returned 3, and "colour" 0 where "color" returned 1.
+ * Rewriting the query is what keeps the two in step -- and it belongs here
+ * rather than in one search box, so the palette and the settings search cannot
+ * drift into answering the same word differently.
+ *
+ * "analyses" is deliberately left alone: it is the same word in both dialects
+ * as a noun, and the app says "cached analyses".
+ */
+const DIALECT_ALIASES: ReadonlyArray<readonly [RegExp, string]> = [
+  // `e(?!s)` is what excludes "analyses".
+  [/analys(e(?!s)|ed|ing|er)/g, 'analyz$1'],
+  [/colour/g, 'color'],
+  [/favourite/g, 'favorite'],
+  [/behaviour/g, 'behavior'],
+  [/centre/g, 'center'],
+  [/grey/g, 'gray'],
+  [/cancelled/g, 'canceled'],
+  [/licence/g, 'license'],
+  [/defence/g, 'defense'],
+  [/(organi|customi|recogni)se/g, '$1ze'],
+];
+
+/** Applies the aliases above to already-lowercased text. */
+export const applySearchDialect = (lowercased: string): string => {
+  let out = lowercased;
+  for (const [pattern, replacement] of DIALECT_ALIASES) out = out.replace(pattern, replacement);
+  return out;
+};
+

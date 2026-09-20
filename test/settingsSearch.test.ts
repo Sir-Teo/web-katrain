@@ -107,3 +107,46 @@ describe('settings search', () => {
     expect(source).toContain("if (event.pointerType !== 'touch') setActiveSettingsResult(index)");
   });
 });
+
+describe('a setting whose meaning is in its options', () => {
+  // Only the label was searched, so a control could not be found by what it
+  // actually offers. Measured before this: "colorblind" returned nothing,
+  // while "Evaluation Theme" is exactly the control whose option reads
+  // "Red/Green colorblind".
+  const labels = (query: string) => searchSettings(query).map((entry) => entry.label);
+
+  it('finds the colorblind palette by its own name', () => {
+    // "colour blind" arrives through the shared dialect rewrite, so no
+    // British spelling has to live in src for it to be findable.
+    for (const query of ['colorblind', 'colour blind', 'color blind', 'red green', 'accessibility']) {
+      expect(labels(query), query).toContain('Evaluation Theme');
+    }
+  });
+
+  it('finds the UI theme by the option someone is looking for', () => {
+    expect(labels('dark')).toContain('UI Theme');
+    expect(labels('light')).toContain('UI Theme');
+  });
+
+  it('finds the clock settings by the name of the time system', () => {
+    for (const query of ['byo-yomi', 'byoyomi', 'overtime', 'time control', 'clock']) {
+      expect(labels(query), query).toEqual(
+        expect.arrayContaining(['Byo Length (sec)', 'Byo Periods']),
+      );
+    }
+  });
+
+  it('finds the engine backend by the backends it offers', () => {
+    for (const query of ['webgpu', 'gpu', 'wasm', 'cpu', 'engine']) {
+      expect(labels(query), query).toContain('Backend');
+    }
+  });
+
+  it('does not let a keyword widen an unrelated search', () => {
+    // Every term still has to match, so a keyword cannot drag in a control
+    // that has nothing to do with the query.
+    expect(labels('colorblind coordinates')).toEqual([]);
+    expect(labels('board size')).toEqual(['Default Board Size']);
+  });
+});
+

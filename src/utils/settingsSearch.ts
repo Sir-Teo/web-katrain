@@ -1,3 +1,4 @@
+import { applySearchDialect } from './searchTerms';
 import { type SettingsTabId } from './settingsTabs';
 import type { GameSettings } from '../types';
 
@@ -6,6 +7,18 @@ export interface SettingsSearchEntry {
   id: string;
   tab: SettingsTabId;
   label: string;
+  /**
+   * Words the control answers to that its label does not contain.
+   *
+   * Only the label was searched, so a control whose meaning lives in its
+   * *options* could not be found by that meaning. The sharpest case was
+   * accessibility: "Evaluation Theme" offers "Red/Green colorblind", and
+   * searching the settings for "colorblind" returned nothing at all.
+   *
+   * These are the app's own words for the same thing -- option text, or the
+   * name the rest of the UI uses -- not guesses at what someone might type.
+   */
+  keywords?: readonly string[];
 }
 
 /**
@@ -27,14 +40,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-default-board-size', tab: 'general', label: "Default Board Size" },
   { id: 'settings-default-handicap', tab: 'general', label: "Default Handicap" },
   { id: 'settings-app-locale', tab: 'general', label: "Document language metadata" },
-  { id: 'settings-ui-theme', tab: 'general', label: "UI Theme" },
+  { id: 'settings-ui-theme', tab: 'general', label: "UI Theme", keywords: ['dark', 'light', 'system', 'kaya', 'studio', 'appearance'] },
   { id: 'settings-board-theme', tab: 'general', label: "Board Theme" },
   { id: 'settings-ui-density', tab: 'general', label: "UI Density" },
   { id: 'settings-sound-enabled', tab: 'general', label: "Sound Effects" },
   { id: 'settings-timer-sound', tab: 'general', label: "Timer Sound" },
   { id: 'settings-main-time', tab: 'general', label: "Main Time (min)" },
-  { id: 'settings-byo-length', tab: 'general', label: "Byo Length (sec)" },
-  { id: 'settings-byo-periods', tab: 'general', label: "Byo Periods" },
+  { id: 'settings-byo-length', tab: 'general', label: "Byo Length (sec)", keywords: ['byo-yomi', 'byoyomi', 'overtime', 'clock', 'time control'] },
+  { id: 'settings-byo-periods', tab: 'general', label: "Byo Periods", keywords: ['byo-yomi', 'byoyomi', 'overtime', 'clock', 'time control'] },
   { id: 'settings-minimal-use', tab: 'general', label: "Minimal Use (sec)" },
   { id: 'settings-gamepad-navigation', tab: 'general', label: "Gamepad Navigation" },
   { id: 'settings-touch-haptics', tab: 'general', label: "Touch Haptics" },
@@ -50,7 +63,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-analysis-experience', tab: 'analysis', label: "Analysis Detail (Coach / Pro)" },
   { id: 'settings-analysis-policy', tab: 'analysis', label: "Move Heatmap" },
   { id: 'settings-analysis-ownership', tab: 'analysis', label: "Ownership (Territory)" },
-  { id: 'settings-analysis-evaluation-theme', tab: 'analysis', label: "Evaluation Theme" },
+  { id: 'settings-analysis-evaluation-theme', tab: 'analysis', label: "Evaluation Theme", keywords: ['colorblind', 'color blind', 'red green', 'accessibility'] },
   { id: 'settings-analysis-low-visits-threshold', tab: 'analysis', label: "Low Visits Threshold" },
   { id: 'settings-analysis-primary-label', tab: 'analysis', label: "Primary Label" },
   { id: 'settings-analysis-secondary-label', tab: 'analysis', label: "Secondary Label" },
@@ -103,7 +116,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-human-sl-url', tab: 'ai', label: 'Human model URL' },
   { id: 'settings-katago-root-policy-temperature', tab: 'ai', label: 'Root Policy Temperature' },
   { id: 'settings-katago-model-url', tab: 'ai', label: "Model URL" },
-  { id: 'settings-katago-backend', tab: 'ai', label: "Backend" },
+  { id: 'settings-katago-backend', tab: 'ai', label: "Backend", keywords: ['webgpu', 'gpu', 'wasm', 'cpu', 'engine'] },
   { id: 'settings-katago-visits', tab: 'ai', label: "Visits" },
   { id: 'settings-katago-fast-review-depth', tab: 'ai', label: "Fast review depth" },
   { id: 'settings-katago-max-time', tab: 'ai', label: "Max Time (ms)" },
@@ -146,7 +159,8 @@ export function isSettingAvailable(entry: SettingsSearchEntry, aiStrategy: GameS
   return !group || group[1].includes(aiStrategy);
 }
 
-const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const normalize = (value: string) =>
+  applySearchDialect(value.toLowerCase()).replace(/[^a-z0-9]+/g, ' ').trim();
 
 /**
  * Settings matching `query`, best first.
@@ -166,7 +180,7 @@ export function searchSettings(
 
   const scored: Array<{ entry: SettingsSearchEntry; score: number }> = [];
   for (const entry of index) {
-    const haystack = normalize(`${entry.label} ${SETTINGS_TAB_LABELS[entry.tab]}`);
+    const haystack = normalize(`${entry.label} ${SETTINGS_TAB_LABELS[entry.tab]} ${(entry.keywords ?? []).join(' ')}`);
     if (!terms.every((term) => haystack.includes(term))) continue;
     const label = normalize(entry.label);
     const first = terms[0]!;

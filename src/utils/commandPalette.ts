@@ -1,37 +1,8 @@
 import { readLocalStorage, writeLocalStorage } from './storage';
-import { MAX_SEARCH_QUERY_LENGTH } from './searchTerms';
+import { applySearchDialect, MAX_SEARCH_QUERY_LENGTH } from './searchTerms';
 
-/**
- * British spellings, rewritten to the American ones every label uses.
- *
- * `copyDialect.test.ts` holds the app's own copy to one dialect, which leaves
- * the other spelling finding nothing: measured against the live palette,
- * "analyse" returned 0 results where "analyze" returned 3, and "colour" 0
- * where "color" returned 1. Rewriting the query rather than padding every
- * keyword list keeps the two in step on their own.
- *
- * "analyses" is deliberately absent: it is the same word in both dialects as a
- * noun, and the app says "cached analyses".
- */
-const DIALECT_ALIASES: ReadonlyArray<readonly [RegExp, string]> = [
-  // `e(?!s)` so "analyses" is left alone -- see the note above.
-  [/analys(e(?!s)|ed|ing|er)/g, 'analyz$1'],
-  [/colour/g, 'color'],
-  [/favourite/g, 'favorite'],
-  [/behaviour/g, 'behavior'],
-  [/centre/g, 'center'],
-  [/grey/g, 'gray'],
-  [/cancelled/g, 'canceled'],
-  [/licence/g, 'license'],
-  [/defence/g, 'defense'],
-  [/(organi|customi|recogni)se/g, '$1ze'],
-];
-
-export const normalizeCommandQuery = (value: string): string => {
-  let query = value.slice(0, MAX_SEARCH_QUERY_LENGTH).trim().toLowerCase();
-  for (const [pattern, replacement] of DIALECT_ALIASES) query = query.replace(pattern, replacement);
-  return query;
-};
+export const normalizeCommandQuery = (value: string): string =>
+  applySearchDialect(value.slice(0, MAX_SEARCH_QUERY_LENGTH).trim().toLowerCase());
 
 export const RECENT_COMMANDS_STORAGE_KEY = 'web-katrain:recent_commands:v1';
 /**
