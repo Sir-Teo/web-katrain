@@ -242,3 +242,84 @@ describe('formatBoardNoteBlock', () => {
     expect(formatBoardNoteBlock({ board: board(), moveNumber: 0 }).startsWith('### Position\n')).toBe(true);
   });
 });
+
+describe('reading a diagram posted the way Go diagrams are posted', () => {
+  const render = (text: string) => {
+    const board = parseBoardTextDiagram(text);
+    return board
+      ? board.map((row) => row.map((c) => (c === 'black' ? 'X' : c === 'white' ? 'O' : '.')).join('')).join('\n')
+      : null;
+  };
+  const POSITION = [
+    '.........', '.........', '..XXO....', '..XOO....', '...XO....',
+    '...XO....', '.........', '.........', '.........',
+  ].join('\n');
+
+  // Sensei's Library's `$$` / `|` syntax is how Go positions are shared in
+  // text more than any other way, and not one line of it was accepted: `$` and
+  // `|` are in no character set, and the `---------` rules were read as two
+  // extra rows of empty points.
+  it("reads Sensei's Library syntax, prefix and edges and rules", () => {
+    const diagram = [
+      '$$B 9x9 problem',
+      '$$  ---------',
+      '$$ | . . . . . . . . .|',
+      '$$ | . . . . . . . . .|',
+      '$$ | . . X X O . . . .|',
+      '$$ | . . X O O . . . .|',
+      '$$ | . . . X O . . . .|',
+      '$$ | . . . X O . . . .|',
+      '$$ | . . . . . . . . .|',
+      '$$ | . . . . . . . . .|',
+      '$$ | . . . . . . . . .|',
+      '$$  ---------',
+    ].join('\n');
+
+    expect(render(diagram)).toBe(POSITION);
+  });
+
+  it('reads the same diagram with the edges but no wiki prefix', () => {
+    const diagram = [
+      '---------',
+      '| . . . . . . . . .|',
+      '| . . . . . . . . .|',
+      '| . . X X O . . . .|',
+      '| . . X O O . . . .|',
+      '| . . . X O . . . .|',
+      '| . . . X O . . . .|',
+      '| . . . . . . . . .|',
+      '| . . . . . . . . .|',
+      '| . . . . . . . . .|',
+      '---------',
+    ].join('\n');
+
+    expect(render(diagram)).toBe(POSITION);
+  });
+
+  it('still reads the plainer shapes it always did', () => {
+    expect(render(POSITION.split('\n').map((r) => r.split('').join(' ')).join('\n'))).toBe(POSITION);
+    expect(render(POSITION)).toBe(POSITION);
+  });
+
+  it('still refuses what is not a position', () => {
+    expect(render('This is a sentence about Go and nothing more at all.')).toBeNull();
+    expect(render('(;GM[1]FF[4]SZ[9];B[cc];W[gg])')).toBeNull();
+    expect(render('https://online-go.com/game/12345678')).toBeNull();
+    // A page of dots is a board someone drew, not a position.
+    expect(render(Array.from({ length: 9 }, () => '.........').join('\n'))).toBeNull();
+    // Rules alone are scenery with no grid between them.
+    expect(render('---------\n---------\n---------')).toBeNull();
+  });
+
+  it('still refuses to weld two diagrams into one board', () => {
+    const first = ['..X......', ...Array.from({ length: 8 }, () => '.........')].join('\n');
+    const second = ['..O......', ...Array.from({ length: 8 }, () => '.........')].join('\n');
+
+    // Touching, or fenced by rules, is 18 rows and no board this app plays.
+    expect(render(`${first}\n${second}`)).toBeNull();
+    expect(render(`---------\n${first}\n---------\n---------\n${second}\n---------`)).toBeNull();
+    // Separated by a blank line, the first one is the answer.
+    expect(render(`${first}\n\n${second}`)).toBe(first);
+  });
+});
+

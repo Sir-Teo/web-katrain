@@ -104,9 +104,35 @@ const BLACK_CHARS = new Set(['X', 'x', '#', '@']);
 const WHITE_CHARS = new Set(['O', 'o', '0']);
 const EMPTY_CHARS = new Set(['.', ',', '+', '-', '_', '*']);
 
-/** Strips the row number a diagram may carry on either side, and all spacing. */
+/**
+ * A row that is nothing but dashes.
+ *
+ * Ambiguous on its own: it is the border Sensei's Library draws above and
+ * below a grid, and it is also a legitimate empty row in the tools that use
+ * `-` for an empty intersection. `parseBoardTextDiagram` therefore only treats
+ * it as a border when reading it as a row would leave a board size this app
+ * cannot play.
+ */
+const isAllDashes = (row: string): boolean => /^-+$/.test(row);
+
+/**
+ * Strips the scenery a diagram may carry: the wiki prefix, the drawn edges, the
+ * row number on either side, and all spacing.
+ *
+ * `$$` and `|` are Sensei's Library's syntax, which is how Go positions are
+ * posted in text more than any other way. Neither character was accepted, so
+ * every line of such a diagram was rejected and the paste fell through to
+ * "not a board".
+ */
 function gridRow(line: string): string | null {
-  const bare = line.trim().replace(/^\d{1,2}\s+/, '').replace(/\s+\d{1,2}$/, '').replace(/\s+/g, '');
+  const bare = line
+    .trim()
+    .replace(/^\|+/, '')
+    .replace(/\|+$/, '')
+    .trim()
+    .replace(/^\d{1,2}\s+/, '')
+    .replace(/\s+\d{1,2}$/, '')
+    .replace(/\s+/g, '');
   if (!bare) return null;
   for (const ch of bare) {
     if (!BLACK_CHARS.has(ch) && !WHITE_CHARS.has(ch) && !EMPTY_CHARS.has(ch)) return null;
@@ -116,7 +142,11 @@ function gridRow(line: string): string | null {
 
 export function parseBoardTextDiagram(text: string): BoardState | null {
   const rows: string[] = [];
-  for (const line of text.split(/\r?\n/)) {
+  for (const rawLine of text.split(/\r?\n/)) {
+    // Sensei's Library prefixes every line of a diagram with `$$`; the first
+    // such line is its title, which still fails `gridRow` and is skipped like
+    // any other preamble.
+    const line = rawLine.replace(/^\s*\$\$/, '');
     const row = gridRow(line);
     // A column header is all letters, so gridRow already rejected it; anything
     // else that is not a grid row ends the run rather than being skipped over,
@@ -125,14 +155,25 @@ export function parseBoardTextDiagram(text: string): BoardState | null {
     else if (rows.length > 0) break;
   }
 
-  const size = rows.length;
+  // Only if the height is wrong do we reconsider an outer all-dash row as the
+  // border it probably is. Trying it the other way round would turn a diagram
+  // that really does draw empty points with `-` into one two rows short.
+  let grid = rows;
+  if (!isBoardSize(grid.length)) {
+    const start = grid.findIndex((row) => !isAllDashes(row));
+    let end = grid.length;
+    while (end > start && isAllDashes(grid[end - 1]!)) end -= 1;
+    if (start >= 0 && end > start) grid = grid.slice(start, end);
+  }
+
+  const size = grid.length;
   if (!isBoardSize(size)) return null;
-  if (rows.some((row) => row.length !== size)) return null;
+  if (grid.some((row) => row.length !== size)) return null;
 
   const board = createEmptyBoard(size as BoardSize);
   let stones = 0;
   for (let y = 0; y < size; y++) {
-    const row = rows[y]!;
+    const row = grid[y]!;
     for (let x = 0; x < size; x++) {
       const ch = row[x]!;
       if (BLACK_CHARS.has(ch)) { board[y]![x] = 'black'; stones += 1; }
