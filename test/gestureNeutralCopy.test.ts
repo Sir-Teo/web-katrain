@@ -47,11 +47,15 @@ describe('device-specific components use their own device\'s word', () => {
     expect(bar).not.toContain('(click to clear)');
   });
 
-  it('the library empty state names a control a phone actually has', () => {
+  it('the library empty state offers a control a phone actually has', () => {
     const library = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
-    // Dropping files in is desktop-only, so it cannot be the only route offered.
-    expect(library).toContain('use the import button');
+    // Dropping files in is desktop-only, so it cannot be the only route
+    // offered. It used to point at the header's import button, which
+    // `@container (max-width: 430px)` hides -- so the empty state now carries
+    // its own, which no width can collapse.
+    expect(library).toContain('data-library-empty-import="true"');
     expect(library).toContain('Import SGF, ZIP, or board image files');
+    expect(library).not.toContain('use the import button');
   });
 });

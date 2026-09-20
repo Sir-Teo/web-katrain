@@ -2656,7 +2656,22 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 ) : items.length === 0 ? (
                   <div className="p-6 text-sm ui-text-faint">
                     <div className="font-semibold text-[var(--ui-text-muted)] mb-2">Library is empty</div>
-                    <div>Save the current game, or use the import button for SGF, ZIP, and board image files. On a desktop you can drop them here too.</div>
+                    <div>Save the current game, or import SGF, ZIP, and board image files. On a desktop you can drop them here too.</div>
+                    {/* The header's import button collapses out of sight below
+                        430px of panel, so telling an empty library to "use the
+                        import button" named a control a phone does not show.
+                        The one state with nothing to act on is the one that
+                        most needs something to press -- the storage-error
+                        state above already works this way. */}
+                    <button
+                      type="button"
+                      className="panel-action-button mt-3"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Import SGF, ZIP, or board image files"
+                      data-library-empty-import="true"
+                    >
+                      Import files
+                    </button>
                   </div>
                 ) : (
                   <div>
