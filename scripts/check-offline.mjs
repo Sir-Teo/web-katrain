@@ -189,10 +189,6 @@ async function main() {
     assert.equal(state, 'activated', `Service worker not active: ${state}`);
     console.log('Service worker activated');
 
-    // The second load is the guarantee: see the note above.
-    await navigate(cdp, url);
-    await sleep(8000);
-
     const cached = await evaluate(cdp, `(async () => {
       const counts = {};
       for (const name of await caches.keys()) counts[name] = (await (await caches.open(name)).keys()).length;

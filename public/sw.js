@@ -204,10 +204,52 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/**
+ * The bundles a page loaded before this worker could see them.
+ *
+ * Install precaches what index.html names, but the app imports the rest of its
+ * first paint itself -- the dashboard, its stylesheet, the score graph -- and
+ * those requests are made while the worker is still installing. They are
+ * fetched outside it and never seen again, so a first visit ended at the error
+ * page offline while a second visit, having gone through the worker, was fine.
+ *
+ * Rather than guess the chunk names at build time, the page reports what it
+ * actually loaded once it is up. That is the same rule as the rest of this
+ * file -- cache what is used, not what might be -- just applied to the window
+ * before the worker took over. Best effort throughout: this is an optimisation
+ * of a later visit, never a reason for this one to fail.
+ */
+const MAX_REPORTED_ASSETS = 60;
+
+const cacheReportedAssets = async (urls) => {
+  if (!Array.isArray(urls) || urls.length === 0) return;
+  const cache = await caches.open(APP_SHELL_CACHE);
+  const wanted = [];
+  for (const raw of urls.slice(0, MAX_REPORTED_ASSETS)) {
+    if (typeof raw !== 'string') continue;
+    let url;
+    try {
+      url = new URL(raw, self.location.href);
+    } catch {
+      continue;
+    }
+    // Only this deployment's own build output, and only what is missing.
+    if (!isSameOrigin(url) || !url.pathname.includes('/assets/')) continue;
+    if (await cache.match(url.href, MATCH_OPTIONS)) continue;
+    wanted.push(url.href);
+  }
+  await Promise.allSettled(wanted.map((href) => cache.add(href)));
+};
+
 /** The page asking for the update it just offered the reader. */
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (!event.data) return;
+  if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+  if (event.data.type === 'CACHE_USED_ASSETS') {
+    event.waitUntil(cacheReportedAssets(event.data.urls).catch(() => undefined));
   }
 });
 

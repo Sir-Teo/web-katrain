@@ -48,9 +48,16 @@ function runInstall(options: { failing?: string[]; indexHtml?: string } = {}) {
         : Promise.resolve(added.push(url) && undefined),
     addAll: (urls: string[]) =>
       Promise.all(urls.map((url) => cache.add(url))).then(() => undefined),
-    // Install reads index.html back out to learn its bundles' hashed names.
+    // Install reads index.html back out to learn its bundles' hashed names,
+    // and reported assets are skipped when already present.
     match: (url: string) =>
-      Promise.resolve(url === './index.html' || url === './' ? response(indexHtml) : undefined),
+      Promise.resolve(
+        url === './index.html' || url === './'
+          ? response(indexHtml)
+          : added.includes(url)
+            ? response('cached')
+            : undefined,
+      ),
   };
 
   const selfStub = {
@@ -72,11 +79,19 @@ function runInstall(options: { failing?: string[]; indexHtml?: string } = {}) {
   return waited.then(() => ({
     added,
     skipWaitingCalls: () => skipWaitingCalls,
-    /** Deliver a `postMessage` from the page, as the update banner does. */
+    /**
+     * Deliver a `postMessage` from the page, as the update banner does, and
+     * settle whatever the handler passed to `waitUntil` so a test can assert
+     * on what it cached.
+     */
     postMessage: (data: unknown) => {
-      const listener = listeners.get('message') as unknown as ((e: { data: unknown }) => void) | undefined;
+      const listener = listeners.get('message') as unknown as
+        | ((e: { data: unknown; waitUntil: (p: Promise<unknown>) => void }) => void)
+        | undefined;
       expect(listener, 'sw.js registered no message listener').toBeTruthy();
-      listener!({ data });
+      const pending: Promise<unknown>[] = [];
+      listener!({ data, waitUntil: (p) => { pending.push(p); } });
+      return Promise.all(pending);
     },
   }));
 }
@@ -328,5 +343,52 @@ describe('the app\'s own bundles', () => {
     const { added } = await runInstall({ indexHtml: '<!doctype html><html></html>' });
     expect(added).toContain('./index.html');
     expect(added.some((url) => url.includes('/assets/'))).toBe(false);
+  });
+});
+
+/**
+ * The chunks of the first paint are requested while the worker is still
+ * installing, so they are fetched past it and never seen again. Measured with
+ * every target offline: without this, a first visit reached the error page
+ * with `DesktopDashboard`, `ScoreWinrateGraph` and the dashboard CSS missing.
+ * The page reports what it loaded once a worker is in charge.
+ */
+describe('assets the page reports having used', () => {
+  const report = async (urls: unknown) => {
+    const installed = await runInstall();
+    const before = installed.added.length;
+    await installed.postMessage({ type: 'CACHE_USED_ASSETS', urls });
+    return installed.added.slice(before);
+  };
+
+  it('caches this deployment\'s own bundles', async () => {
+    expect(await report([
+      'https://example.test/assets/DesktopDashboard-XYZ.js',
+      'https://example.test/assets/DesktopDashboard-XYZ.css',
+    ])).toEqual([
+      'https://example.test/assets/DesktopDashboard-XYZ.js',
+      'https://example.test/assets/DesktopDashboard-XYZ.css',
+    ]);
+  });
+
+  it('refuses anything that is not one', async () => {
+    expect(await report([
+      'https://cdn.example.com/assets/tracker.js',
+      'https://example.test/models/katago-small.bin.gz',
+      'not a url at all',
+      42,
+      null,
+    ])).toEqual([]);
+  });
+
+  it('is unmoved by a message with nothing in it', async () => {
+    expect(await report([])).toEqual([]);
+    expect(await report(undefined)).toEqual([]);
+    expect(await report('not an array')).toEqual([]);
+  });
+
+  it('does not re-add what install already cached', async () => {
+    // index.html's own bundles are in the cache before the page reports them.
+    expect(await report(['https://example.test/assets/main-CCC.js'])).toEqual([]);
   });
 });

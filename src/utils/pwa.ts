@@ -307,6 +307,35 @@ export function setPwaInstallDismissed(dismissed: boolean, storage?: PwaStorage 
   }
 }
 
+/**
+ * Tell the worker which bundles this page actually loaded.
+ *
+ * The worker precaches what `index.html` names, but the app imports the rest
+ * of its first paint itself, and those requests are made while the worker is
+ * still installing -- fetched outside it, and never seen again. A first visit
+ * therefore reached the error page offline, while a second visit was fine.
+ *
+ * Reporting them keeps the worker's own rule: cache what was used, not what
+ * might be. Exported for the test; safe to call when nothing is controlling
+ * the page, in which case there is nobody to tell and it does nothing.
+ */
+export function reportUsedAssetsToServiceWorker(
+  container: ServiceWorkerContainer | null = getServiceWorkerContainer(),
+): void {
+  const controller = container?.controller;
+  if (!controller || typeof performance === 'undefined') return;
+  try {
+    const urls = performance
+      .getEntriesByType('resource')
+      .map((entry) => entry.name)
+      .filter((name) => name.startsWith(window.location.origin) && name.includes('/assets/'));
+    if (urls.length === 0) return;
+    controller.postMessage({ type: 'CACHE_USED_ASSETS', urls });
+  } catch {
+    // Never let an optimisation of the next visit disturb this one.
+  }
+}
+
 export function registerServiceWorker(): void {
   if (import.meta.env.DEV) return;
   if (typeof window === 'undefined') return;
@@ -321,6 +350,13 @@ export function registerServiceWorker(): void {
       .then((registration) => {
         activePwaRegistration = registration;
         schedulePwaUpdateChecks(registration);
+        // Once a worker is in charge, hand it the bundles this load already
+        // fetched past it. `controllerchange` covers the first visit, where
+        // nothing is controlling the page until `clients.claim()` runs.
+        reportUsedAssetsToServiceWorker(serviceWorker);
+        serviceWorker.addEventListener('controllerchange', () => {
+          reportUsedAssetsToServiceWorker(serviceWorker);
+        });
         if (hasPendingServiceWorkerUpdate(registration, serviceWorker)) {
           window.dispatchEvent(new Event(PWA_UPDATE_READY_EVENT));
         }
