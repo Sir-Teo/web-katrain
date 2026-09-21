@@ -15,6 +15,7 @@
     "test:responsiveness": "node scripts/check-responsiveness.mjs",
     "test:analysis": "node scripts/check-analysis-responsiveness.mjs",
     "test:study": "node scripts/check-study-performance.mjs",
+    "test:offline": "node scripts/check-offline.mjs",
     "bench": "BENCH=1 vitest run test/enginePerfBench.test.ts --reporter=verbose",
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "audit": "npm audit --audit-level=moderate",

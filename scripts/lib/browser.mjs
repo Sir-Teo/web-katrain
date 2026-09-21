@@ -231,8 +231,18 @@ export function connectDevtools(webSocketDebuggerUrl) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    send(method, params = {}) {
-      const message = { id: ++nextId, method, params };
+    /**
+     * `sessionId` addresses a target other than the one this socket is bound
+     * to. A browser-level connection can then drive a page or a *service
+     * worker* target, which matters because CDP domains are per target: an
+     * offline emulation sent to the page leaves the worker's own fetches
+     * online, so a service worker keeps loading from the network while the
+     * page believes it is offline.
+     */
+    send(method, params = {}, sessionId) {
+      const message = sessionId
+        ? { id: ++nextId, method, params, sessionId }
+        : { id: ++nextId, method, params };
       return new Promise((resolve) => {
         pending.set(message.id, resolve);
         writeFrame(JSON.stringify(message));

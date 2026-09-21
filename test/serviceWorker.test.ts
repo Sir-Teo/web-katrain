@@ -3,11 +3,17 @@ import { readFileSync } from 'node:fs';
 
 type Listener = (event: never) => void;
 
-type FakeResponse = { status: number; body: string; clone: () => FakeResponse };
+type FakeResponse = {
+  status: number;
+  body: string;
+  clone: () => FakeResponse;
+  text: () => Promise<string>;
+};
 const response = (body: string, status = 200): FakeResponse => ({
   status,
   body,
   clone: () => response(body, status),
+  text: () => Promise.resolve(body),
 });
 
 /**
@@ -16,8 +22,21 @@ const response = (body: string, status = 200): FakeResponse => ({
  * `self.location`, `fetch` and `clients` sits inside a handler — so a plain
  * function wrapper is enough to reach the install path.
  */
-function runInstall(options: { failing?: string[] } = {}) {
+/**
+ * What index.html looks like after a build: hashed bundles, and the
+ * `crossorigin` attribute Vite puts on the module script.
+ */
+const BUILT_INDEX_HTML = `<!doctype html><html><head>
+  <link rel="modulepreload" crossorigin href="/assets/react-vendor-AAA.js">
+  <link rel="stylesheet" crossorigin href="/assets/main-BBB.css">
+  <link rel="icon" href="/pwa/icon.svg">
+  <script type="module" crossorigin src="/assets/main-CCC.js"></script>
+  <script src="https://cdn.example.com/other.js"></script>
+</head><body></body></html>`;
+
+function runInstall(options: { failing?: string[]; indexHtml?: string } = {}) {
   const failing = new Set(options.failing ?? []);
+  const indexHtml = options.indexHtml ?? BUILT_INDEX_HTML;
   const added: string[] = [];
   const listeners = new Map<string, Listener>();
   let skipWaitingCalls = 0;
@@ -29,13 +48,16 @@ function runInstall(options: { failing?: string[] } = {}) {
         : Promise.resolve(added.push(url) && undefined),
     addAll: (urls: string[]) =>
       Promise.all(urls.map((url) => cache.add(url))).then(() => undefined),
+    // Install reads index.html back out to learn its bundles' hashed names.
+    match: (url: string) =>
+      Promise.resolve(url === './index.html' || url === './' ? response(indexHtml) : undefined),
   };
 
   const selfStub = {
     addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
     skipWaiting: () => { skipWaitingCalls += 1; },
     clients: { claim: () => Promise.resolve() },
-    location: { origin: 'https://example.test' },
+    location: { origin: 'https://example.test', href: 'https://example.test/' },
   };
   const cachesStub = { open: () => Promise.resolve(cache), keys: () => Promise.resolve([]), delete: () => Promise.resolve(true) };
 
@@ -94,7 +116,7 @@ function runFetch(options: {
     addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
     skipWaiting: () => undefined,
     clients: { claim: () => Promise.resolve() },
-    location: { origin: 'https://example.test' },
+    location: { origin: 'https://example.test', href: 'https://example.test/' },
   };
   const cachesStub = {
     open: (name: string) => Promise.resolve(openCache(name)),
@@ -275,5 +297,36 @@ describe('service worker fetch', () => {
     const { answered } = runFetch({ url: 'https://senseis.xmp.net/?Tengen' });
 
     expect(answered).toBeNull();
+  });
+});
+
+/**
+ * The bundles are hashed by the build, so they cannot be named in sw.js's
+ * static list; and runtime caching never sees them, because the page requests
+ * them before the worker controls it. Measured with every target offline --
+ * the worker's own included -- a first visit cached the model, the wasm and
+ * every image, and not one line of the app's code: index.html was served from
+ * the cache and then loaded nothing.
+ */
+describe('the app\'s own bundles', () => {
+  it('precaches what index.html loads, by reading it', async () => {
+    const { added } = await runInstall();
+    expect(added).toContain('https://example.test/assets/main-CCC.js');
+    expect(added).toContain('https://example.test/assets/react-vendor-AAA.js');
+    expect(added).toContain('https://example.test/assets/main-BBB.css');
+  });
+
+  it('takes only this deployment\'s own build output', async () => {
+    const { added } = await runInstall();
+    // A cross-origin script tag, and an icon that is not a bundle.
+    expect(added.some((url) => url.includes('cdn.example.com'))).toBe(false);
+    expect(added.some((url) => url.includes('https://example.test/pwa/icon.svg'))).toBe(false);
+  });
+
+  it('still installs when index.html names no bundles', async () => {
+    // An index.html that inlines everything must not fail the install.
+    const { added } = await runInstall({ indexHtml: '<!doctype html><html></html>' });
+    expect(added).toContain('./index.html');
+    expect(added.some((url) => url.includes('/assets/'))).toBe(false);
   });
 });

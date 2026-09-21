@@ -87,6 +87,23 @@ const isCacheFirstAsset = (url) =>
  * which had inherited the same shape.
  */
 const isStorableResponse = (response) => response.status === 200;
+
+/**
+ * Cache lookups ignore `Vary`.
+ *
+ * Vite emits `<script type="module" crossorigin>`, so the page asks for its
+ * own bundles in CORS mode and sends an `Origin` header. A response served
+ * with `Vary: Origin` -- which `vite preview` does, and so do several CDNs --
+ * then only matches a stored request carrying the same header, and the
+ * requests this worker makes in `cache.add()` carry none. The entry was in the
+ * cache, with the right type and a 200, and the lookup still missed: offline,
+ * `fetch()` for the same URL succeeded from the page while the `<script>` tag
+ * failed, because only one of the two sends `Origin`.
+ *
+ * Every response here is this deployment's own static asset, so the variant
+ * distinction has nothing to choose between.
+ */
+const MATCH_OPTIONS = { ignoreVary: true };
 const isCacheableRequest = (request) => request.cache !== 'no-store';
 
 /**
@@ -124,19 +141,55 @@ const putRuntimeResponse = (cache, request, response) =>
  * the new one activates immediately either way, and `clients.claim()` below is
  * what takes over the page that registered it.
  */
+/**
+ * The bundles index.html actually loads, read out of it at install time.
+ *
+ * They cannot go in the list above: the build content-hashes their names and
+ * this file ships from `public/` untouched. Leaving them to runtime caching
+ * does not work either, because the page requests them *before* this worker
+ * controls it -- on a first visit they are fetched outside the worker and are
+ * never seen again. Only the lazily-loaded chunks reached the runtime cache.
+ *
+ * Measured against the production build, with every target put offline (the
+ * worker's own included, which is the part a page-level emulation misses):
+ * after one visit the caches held the model, the wasm and every image, and not
+ * one line of the app's code -- index.html was served from cache and then
+ * loaded nothing, a blank page with the title on it. After a second visit,
+ * with the bundles runtime-cached, the same offline load started normally. So
+ * the first visit precached five megabytes to run an app that could not start.
+ *
+ * They belong in the required, atomic group for the reason the shell does: a
+ * shell without the code that renders it is exactly the broken page that
+ * comment is about. They are same-origin, a few hundred kilobytes, and the
+ * page has just fetched them.
+ */
+const ENTRY_ASSET_PATTERN = /(?:src|href)=["']([^"']+\.(?:js|css))["']/g;
+
+const entryAssetUrls = async (cache) => {
+  const response = (await cache.match('./index.html')) || (await cache.match('./'));
+  if (!response || !isStorableResponse(response)) return [];
+  const html = await response.text();
+  const urls = new Set();
+  for (const match of html.matchAll(ENTRY_ASSET_PATTERN)) {
+    const resolved = new URL(match[1], self.location.href);
+    // Only this deployment's own build output.
+    if (isSameOrigin(resolved) && resolved.pathname.includes('/assets/')) urls.add(resolved.href);
+  }
+  return [...urls];
+};
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(APP_SHELL_CACHE)
-      .then((cache) =>
-        cache
-          .addAll(PRECACHE_REQUIRED)
-          .then(() =>
-            Promise.allSettled(
-              PRECACHE_URLS.filter((url) => !PRECACHE_REQUIRED.includes(url)).map((url) => cache.add(url))
-            )
-          )
-      )
+      .then(async (cache) => {
+        await cache.addAll(PRECACHE_REQUIRED);
+        const entryAssets = await entryAssetUrls(cache);
+        if (entryAssets.length > 0) await cache.addAll(entryAssets);
+        await Promise.allSettled(
+          PRECACHE_URLS.filter((url) => !PRECACHE_REQUIRED.includes(url)).map((url) => cache.add(url))
+        );
+      })
   );
 });
 
@@ -179,7 +232,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(async () => {
           const cache = await caches.open(APP_SHELL_CACHE);
-          return (await cache.match('./')) || cache.match('./index.html');
+          return (await cache.match('./', MATCH_OPTIONS)) || cache.match('./index.html', MATCH_OPTIONS);
         })
     );
     return;
@@ -187,7 +240,7 @@ self.addEventListener('fetch', (event) => {
 
   if (isCacheFirstAsset(url)) {
     event.respondWith(
-      caches.match(request).then(
+      caches.match(request, MATCH_OPTIONS).then(
         (cached) =>
           cached ||
           fetch(request).then((response) => {
@@ -213,9 +266,9 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       } catch {
-        const cached = await cache.match(request);
+        const cached = await cache.match(request, MATCH_OPTIONS);
         if (cached) return cached;
-        return caches.match(request);
+        return caches.match(request, MATCH_OPTIONS);
       }
     })
   );
