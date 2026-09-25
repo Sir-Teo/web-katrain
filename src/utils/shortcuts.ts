@@ -364,9 +364,25 @@ export const filterShortcutGroupsByStatus = (
     .filter((group) => group.shortcuts.length > 0);
 };
 
+/**
+ * The key an event names. On macOS, Option turns letters into other
+ * characters -- Option+C is 'ç' -- so an Alt binding never matched and a
+ * recorded one was saved as Alt+Ç. With Alt held and a character that is not
+ * a plain letter or digit, read the physical key instead.
+ */
+const eventKeyName = (event: KeyboardEvent | React.KeyboardEvent): string => {
+  if (!event.altKey || /^[a-z0-9]$/i.test(event.key)) return event.key;
+  const code = typeof event.code === 'string' ? event.code : '';
+  const letter = /^Key([A-Z])$/.exec(code);
+  if (letter) return letter[1]!.toLowerCase();
+  const digit = /^Digit(\d)$/.exec(code);
+  if (digit) return digit[1]!;
+  return event.key;
+};
+
 export const eventToShortcutBinding = (event: KeyboardEvent | React.KeyboardEvent): ShortcutBinding | null => {
   const binding = normalizeBinding({
-    key: event.key,
+    key: eventKeyName(event),
     ctrl: event.ctrlKey || event.metaKey,
     shift: event.shiftKey,
     alt: event.altKey,
@@ -385,7 +401,7 @@ export const isNativePasteShortcutEvent = (event: KeyboardEvent | React.Keyboard
 export const eventMatchesBinding = (event: KeyboardEvent, binding: ShortcutBinding): boolean => {
   const b = normalizeBinding(binding);
   const eventBinding = normalizeBinding({
-    key: event.key,
+    key: eventKeyName(event),
     ctrl: event.ctrlKey || event.metaKey,
     shift: event.shiftKey,
     alt: event.altKey,

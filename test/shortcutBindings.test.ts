@@ -23,3 +23,15 @@ describe('continuous analysis', () => {
     expect(eventMatchesShortcut(shiftSpace, 'continuous-analysis')).toBe(true);
   });
 });
+
+describe('Alt shortcuts on macOS', () => {
+  it('match the physical key when Option turned the letter into another character', async () => {
+    const { eventMatchesShortcut, eventToShortcutBinding } = await import('../src/utils/shortcuts');
+    const optionC = { key: 'ç', code: 'KeyC', altKey: true, shiftKey: false, ctrlKey: false, metaKey: false } as KeyboardEvent;
+    expect(eventMatchesShortcut(optionC, 'toggle-branch-collapse', {})).toBe(true);
+    expect(eventToShortcutBinding(optionC)).toMatchObject({ key: 'c', alt: true });
+
+    const altC = { key: 'c', code: 'KeyC', altKey: true, shiftKey: false, ctrlKey: false, metaKey: false } as KeyboardEvent;
+    expect(eventMatchesShortcut(altC, 'toggle-branch-collapse', {})).toBe(true);
+  });
+});
