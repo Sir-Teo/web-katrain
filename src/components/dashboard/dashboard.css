@@ -997,6 +997,13 @@
   .wk-dashboard .gs-sep-file,
   .wk-dashboard .gs-file { display: none; }
 }
+/* The move counter grows a character at move 10 and again at 100. At a 909px
+   column (1280px with the sidebar open) the rail had 7px to spare at move 9,
+   so the second digit wrapped it onto a second row and moved the board 21px
+   under the cursor mid-game. The "Move" label goes first; three digits fit. */
+@container boardcol (max-width: 940px) {
+  .wk-dashboard .move-counter .mc-label { display: none; }
+}
 @container boardcol (max-width: 919px) {
   .wk-dashboard .navbar { gap: 4px; }
   .wk-dashboard .playactions { gap: 4px; }
