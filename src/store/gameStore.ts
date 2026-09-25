@@ -6632,9 +6632,33 @@ analysisQueue.subscribeCacheSize((queueCacheSize) => {
   }));
 });
 
-const makeHeuristicMove = (store: GameStore) => {
+/**
+ * The moves the fallback bot may choose from: legal under the game's rules,
+ * superko included. Exported for tests.
+ */
+export const heuristicLegalMoves = (store: Pick<GameStore, 'board' | 'currentPlayer' | 'currentNode' | 'settings'>): Array<{ x: number; y: number }> => {
     const { board, currentPlayer, currentNode } = store;
     const parentBoard = koReferenceBoard(currentNode);
+    const rules = store.settings.gameRules;
+    const koRule = rulesOf(rules).ko;
+    const nextPlayer: Player = currentPlayer === 'black' ? 'white' : 'black';
+    return getLegalMoves(board, currentPlayer, parentBoard, { multiStoneSuicideLegal: isSuicideLegal(rules) }).filter((m) => {
+        if (koRule === 'simple') return true;
+        const tentative = board.map((row) => [...row]);
+        tentative[m.y]![m.x] = currentPlayer;
+        const captured = applyCapturesInPlace(tentative, m.x, m.y, currentPlayer);
+        // Superko judges the position after a legal suicide comes off, as
+        // playMove does; testing it with the group still on offered a move
+        // playMove then refused, and the bot made none.
+        if (captured.length === 0 && getLiberties(tentative, m.x, m.y).liberties === 0) {
+          applySelfCaptureInPlace(tentative, m.x, m.y);
+        }
+        return !lineViolatesSuperko(currentNode, tentative, nextPlayer, koRule);
+    });
+};
+
+const makeHeuristicMove = (store: GameStore) => {
+    const { board, currentPlayer } = store;
     const boardSize = getBoardSizeFromBoard(board);
     const center = (boardSize - 1) / 2;
     const line3 = 2;
@@ -6645,16 +6669,7 @@ const makeHeuristicMove = (store: GameStore) => {
     // 1. Get all legal moves, under the same rules playMove will apply: the
     // fallback used to offer a move playMove then refused, and the AI passed
     // on nothing.
-    const rules = store.settings.gameRules;
-    const koRule = rulesOf(rules).ko;
-    const nextPlayer: Player = currentPlayer === 'black' ? 'white' : 'black';
-    const legalMoves = getLegalMoves(board, currentPlayer, parentBoard, { multiStoneSuicideLegal: isSuicideLegal(rules) }).filter((m) => {
-        if (koRule === 'simple') return true;
-        const tentative = board.map((row) => [...row]);
-        tentative[m.y]![m.x] = currentPlayer;
-        applyCapturesInPlace(tentative, m.x, m.y, currentPlayer);
-        return !lineViolatesSuperko(currentNode, tentative, nextPlayer, koRule);
-    });
+    const legalMoves = heuristicLegalMoves(store);
 
     if (legalMoves.length === 0) {
         store.passTurn();
