@@ -589,12 +589,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                     mobileSaveStatusClass,
                   ].join(' ')}
                   title={mobileSaveStatus.title}
-                  aria-label={mobileSaveStatus.title}
                   data-mobile-save-status="true"
                   data-mobile-save-state={mobileSaveStatus.state}
                 >
                   {mobileSaveStatusIcon}
-                  <span className="mobile-bottom-save-status-label">{mobileSaveStatus.compactLabel}</span>
+                  {/* aria-label on a plain span is not read, so the full status
+                      is text for assistive tech and the short label is not. */}
+                  <span className="mobile-bottom-save-status-label" aria-hidden="true">{mobileSaveStatus.compactLabel}</span>
+                  <span className="sr-only">{mobileSaveStatus.title}</span>
                 </span>
               </>
             )}
@@ -688,7 +690,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
                 className="fixed bottom-[var(--mobile-tabbar-height,60px)] left-0 right-0 max-h-[70dvh] ui-panel border-t rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] overflow-y-auto z-50 overscroll-contain pb-safe animate-slide-up select-none touch-manipulation"
               >
                 <div className="sticky top-0 bg-[var(--ui-surface)]/95 backdrop-blur-md border-b border-[var(--ui-border)] px-4 py-2 flex items-center justify-between z-10">
-                  <div id={moreSheetTitleId} className="text-sm font-semibold">More Controls</div>
+                  <h2 id={moreSheetTitleId} className="m-0 text-sm font-semibold">More Controls</h2>
                   <button type="button"
                     ref={moreCloseRef}
                     onClick={(event) => closeMoreControls(event.detail === 0 ? 'keyboard' : 'pointer')}

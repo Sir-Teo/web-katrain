@@ -424,7 +424,9 @@ export const ScoreWinrateGraph: React.FC<{
       aria-valuemin={hasGraphData ? rangeOffset : undefined}
       aria-valuemax={hasGraphData ? rangeOffset + Math.max(0, count - 1) : undefined}
       aria-valuenow={hasGraphData ? activeSliderValue : undefined}
-      aria-valuetext={hasGraphData ? (hoverTooltip || activeMoveLabel) : 'No analyzed moves yet'}
+      // Slider attributes only on the slider; an empty graph is a region, and
+      // its state is read from the empty-state text it is described by.
+      aria-valuetext={hasGraphData ? (hoverTooltip || activeMoveLabel) : undefined}
       aria-describedby={hasGraphData ? undefined : emptyStateId}
       data-analysis-score-winrate-graph="true"
       data-analysis-graph-has-data={hasGraphData ? 'true' : 'false'}

@@ -106,7 +106,9 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
         className="h-8 min-w-[88px] px-2 rounded-lg bg-[var(--ui-surface)] border border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
         onClick={() => setOpen((value) => !value)}
         title={`Document language: ${activeLocale.label}${activeLocale.label === activeLocale.nativeLabel ? '' : ` (${activeLocale.nativeLabel})`}`}
-        aria-label={`Change document language: ${activeLocale.label}`}
+        // Starts with what the button shows, so a voice command naming the
+        // visible "SGF · EN" finds it (WCAG 2.5.3).
+        aria-label={`SGF · ${getAppLocaleShortLabel(activeLocale.value)}, document language: ${activeLocale.label}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}

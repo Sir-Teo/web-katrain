@@ -17,6 +17,7 @@ import { formatMoveLabel } from './layout/ui-utils';
  * this control should not be written twice to sit in both.
  */
 export const TenukiRow: React.FC<{ className?: string }> = ({ className }) => {
+  const tenukiDescriptionId = React.useId();
   const currentNode = useGameStore((state) => state.currentNode);
   const treeVersion = useGameStore((state) => state.treeVersion);
   const tenukiAnalysis = useGameStore((state) => state.tenukiAnalysis);
@@ -46,11 +47,13 @@ export const TenukiRow: React.FC<{ className?: string }> = ({ className }) => {
         onClick={() => analyzeTenuki()}
         disabled={row.disabled}
         title={row.disabledReason ?? 'Evaluate the position again after a pass, to price the point here'}
-        aria-label="Ask what playing elsewhere would cost"
+        // Named by what it shows, which also carries its busy state; a fixed
+        // aria-label hid "Checking..." and did not match the visible text.
+        aria-describedby={tenukiDescriptionId}
       >
         {row.buttonLabel}
       </button>
-      <div className="min-w-0 flex-1 text-[0.6875rem] ui-text-faint">{row.summary}</div>
+      <div id={tenukiDescriptionId} className="min-w-0 flex-1 text-[0.6875rem] ui-text-faint">{row.summary}</div>
     </div>
   );
 };
