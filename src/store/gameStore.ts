@@ -1673,6 +1673,13 @@ const afterBoardEdit = (get: () => GameStore): void => {
 let setupPositionToken = 0;
 // Where the current play-to-end began, so the finished line can be folded away.
 let selfplayStartNodeId: string | null = null;
+/**
+ * The first node the playout itself added. It can walk into moves the game
+ * already has -- the engine's choice is often the game's next move -- and
+ * folding the start's child then hid the real game, with the real moves it
+ * walked through counted as played out. Only what the playout made is folded.
+ */
+let selfplayHeadNodeId: string | null = null;
 
 /**
  * Fold a finished play-to-end line into a collapsed branch and step back to
@@ -1682,12 +1689,15 @@ const collapseFinishedSelfplay = (
   state: GameStore
 ): Partial<GameStore> => {
   const startId = selfplayStartNodeId;
+  const headId = selfplayHeadNodeId;
   selfplayStartNodeId = null;
-  if (!startId) return {};
+  selfplayHeadNodeId = null;
+  if (!startId || !headId) return {};
   const start = findNodeById(state.rootNode, startId);
   if (!start || !isNodeDescendantOf(state.currentNode, start)) return {};
-  const head = start.children.find((child) => isNodeDescendantOf(state.currentNode, child) || child.id === state.currentNode.id);
-  if (!head || head.children.length === 0) return {};
+  const head = findNodeById(start, headId);
+  if (!head || !(head === state.currentNode || isNodeDescendantOf(state.currentNode, head))) return {};
+  if (head.children.length === 0) return {};
   head.collapsed = true;
   const hidden = countMoveTreeDescendants(head);
   return {
@@ -2842,7 +2852,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // KaTrain folds the playout away when it finishes and puts you back where
     // you started, so a 200-move "what if" never buries the real game.
     selfplayStartNodeId = get().currentNode.id;
+    selfplayHeadNodeId = null;
     set({ isSelfplayToEnd: true });
+    // Notes the first node a step of the playout created, rather than walked into.
+    const noteCreated = (from: GameNode, existing: ReadonlySet<string>) => {
+      if (selfplayHeadNodeId) return;
+      const now = get().currentNode;
+      if (now.parent === from && !existing.has(now.id)) selfplayHeadNodeId = now.id;
+    };
 
     void (async () => {
       let safety = 0;
@@ -2878,15 +2895,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
 
           const best = analysis.moves[0] ?? null;
+          const existing = new Set(s.currentNode.children.map((child) => child.id));
           if (!best || best.x < 0 || best.y < 0) s.passTurn();
           else s.playMove(best.x, best.y);
+          noteCreated(s.currentNode, existing);
         } catch (err) {
           if (isAnalysisCanceled(err)) {
             await sleep(25);
             continue;
           }
           // Fall back to heuristics if engine fails.
+          const from = get().currentNode;
+          const existing = new Set(from.children.map((child) => child.id));
           makeHeuristicMove(get());
+          noteCreated(from, existing);
         }
 
         await sleep(50);
