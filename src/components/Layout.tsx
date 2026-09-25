@@ -26,6 +26,7 @@ import {
   updateLibraryFileSgf,
   type LibraryFile,
   type LibraryFolderOption,
+  nextUntitledGameName,
 } from '../utils/library';
 import { loadSgfOrOgs } from '../utils/ogs';
 import type { BoardSize, CandidateMove, EditTool, GameNode, Player } from '../types';
@@ -1315,8 +1316,7 @@ export const Layout: React.FC = () => {
         loadedLibraryFileId,
         preferredFolderId: readLocalStorage(LIBRARY_CURRENT_FOLDER_STORAGE_KEY),
       });
-      const fileCount = items.filter((item): item is LibraryFile => item.type === 'file').length;
-      const fallbackName = loadedLibraryFileName ?? loadedExternalFile?.name ?? `Game ${fileCount + 1}`;
+      const fallbackName = loadedLibraryFileName ?? loadedExternalFile?.name ?? nextUntitledGameName(items);
       setSaveToLibraryDialog({
         sgf,
         initialName: suggestLibraryItemNameFromSgf(sgf, fallbackName),
@@ -3479,7 +3479,19 @@ export const Layout: React.FC = () => {
   };
 
   const handleResign = () => {
-    setPendingResignPlayer(currentPlayer);
+    const st = useGameStore.getState();
+    // A game that already has its result is over; offering to resign again
+    // proposed the other side's resignation and overwrote the record.
+    const recorded = st.currentNode.endState;
+    if (recorded) {
+      toast(`This game is already over (${recorded}).`, 'info');
+      return;
+    }
+    // Against the engine it is the human who resigns, whoever is to move:
+    // while the engine is thinking it is its own turn, and reading that turn
+    // resigned on the engine's behalf and recorded a win for the player.
+    const human = st.isAiPlaying && st.aiColor ? (st.aiColor === 'black' ? 'white' : 'black') : currentPlayer;
+    setPendingResignPlayer(human);
   };
 
   /**

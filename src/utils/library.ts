@@ -868,6 +868,20 @@ export const createLibraryEditSaver = () => {
   });
 };
 
+/**
+ * "Game N" for a game with no name of its own, numbered after the player's
+ * earlier ones. Counting every item made a first save "Game 9", since the
+ * bundled famous games and their folder were counted too.
+ */
+export const nextUntitledGameName = (items: LibraryItem[]): string => {
+  let highest = 0;
+  for (const item of items) {
+    const match = item.type === 'file' ? /^Game (\d+)$/.exec(item.name) : null;
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  return `Game ${highest + 1}`;
+};
+
 export const createLibraryItem = (
   name: string,
   sgf: string,

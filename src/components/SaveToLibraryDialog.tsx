@@ -90,7 +90,11 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
                 event.stopPropagation();
-                if (event.key === 'Enter') void submit();
+                if (event.key === 'Enter') {
+                  // Or the same Enter reaches the button focus returns to.
+                  event.preventDefault();
+                  void submit();
+                }
                 if (event.key === 'Escape') onClose();
               }}
               placeholder="Game name"

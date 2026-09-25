@@ -61,6 +61,7 @@ import {
   type LibraryItem,
   type LibraryFile,
   type LibraryFolder,
+  nextUntitledGameName,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
 import { tagsFromResult } from '../utils/narrativeTags';
@@ -231,7 +232,13 @@ const LibraryTextDialog: React.FC<{
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
-                if (e.key === 'Enter') submit();
+                if (e.key === 'Enter') {
+                  // Unhandled, the same Enter went on to the button focus
+                  // returns to and opened the dialog again: a second Enter
+                  // saved a duplicate game.
+                  e.preventDefault();
+                  submit();
+                }
                 if (e.key === 'Escape') onClose();
               }}
               placeholder={dialog.placeholder}
@@ -1038,7 +1045,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setTextDialog({
       title: 'Save to Library',
       label: 'Name',
-      initialValue: suggestLibraryItemNameFromSgf(sgf, `Game ${items.length + 1}`),
+      initialValue: suggestLibraryItemNameFromSgf(sgf, nextUntitledGameName(items)),
       placeholder: 'Game name',
       confirmLabel: 'Save',
       folderSelect: {
@@ -1530,7 +1537,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       const result = await createLibraryItemFromSgfOrOgsText(
         droppedText,
         folderId,
-        `Game ${items.length + 1}`
+        nextUntitledGameName(items)
       );
       const uniqueName = getUniqueLibraryItemName(result.item.name, items, result.item.parentId ?? null);
       const item = uniqueName === result.item.name ? result.item : { ...result.item, name: uniqueName };
