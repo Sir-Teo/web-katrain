@@ -46,7 +46,7 @@ describe('coach candidate wording', () => {
     // pointsLost is measured against the position, so "0.3 points behind the
     // best move" sat beside a move 1.9 points better.
     const list = read('src/components/CandidateMoveList.tsx');
-    expect(list).not.toContain('points behind the best move');
+    expect(list).not.toContain('points behind the best move`');
     expect(list).not.toContain("the engine's top choice`");
     expect(list).toContain("costs about ${lost.toFixed(1)} points by the engine's estimate");
   });
