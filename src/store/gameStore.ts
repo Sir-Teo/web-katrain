@@ -4610,6 +4610,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               };
             }
 
+            // KaTrain passes before applying these strategies when the top
+            // move is a pass -- "don't play suicidal to balance score". Jigo
+            // otherwise filled its own territory to close the gap at the end.
+            if ((strategy === 'scoreloss' || strategy === 'jigo') && best && (best.x < 0 || best.y < 0)) {
+              return { x: best.x, y: best.y, thoughts: `${strategy === 'jigo' ? 'Jigo' : 'ScoreLoss'}: top move is pass, so passing regardless of strategy.` };
+            }
+
             if (strategy === 'scoreloss') {
               if (candidates.length === 0) return null;
               const c = Math.max(0, settings.aiScoreLossStrength);
