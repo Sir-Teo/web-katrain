@@ -312,8 +312,11 @@
       gap: 0 !important;
     }
 
+    /* `safe` sends any overflow to the end rather than both sides. Plain
+       centring clipped the leftmost item -- the turn stone -- first. */
     .mobile-bottom-meta {
       justify-content: center;
+      justify-content: safe center;
       gap: 1px !important;
       padding-left: 0 !important;
       padding-right: 0 !important;
@@ -347,6 +350,12 @@
       white-space: nowrap;
     }
 
+    /* A three-digit count ran the strip 10px past its edge. The button's
+       label still reads "Move N of M". */
+    .mobile-bottom-move-hash {
+      display: none;
+    }
+
     .mobile-bottom-move-editor {
       min-width: 72px;
       min-height: 44px;
@@ -355,8 +364,8 @@
     }
 
     .mobile-bottom-meta [data-mobile-save-status='true'] {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       justify-content: center;
       gap: 0;
       padding: 0;
@@ -449,6 +458,24 @@
 
     .mobile-bottom-meta {
       gap: 1px !important;
+    }
+
+    /* The strip here is narrower than on a 380px phone, so shed the save
+       badge for the same reason: the turn stone was clipped off entirely. */
+    .mobile-bottom-meta [data-mobile-save-status='true'] {
+      display: none !important;
+    }
+
+    .mobile-bottom-move-button {
+      padding-left: 0.25rem !important;
+      padding-right: 0.25rem !important;
+    }
+
+    /* About 56px of strip: the current move alone, as a scoreboard would
+       show it. The button's label still reads "Move N of M". */
+    .mobile-bottom-move-hash,
+    .mobile-bottom-move-button-total {
+      display: none;
     }
   }
 
@@ -6002,6 +6029,7 @@
        branch navigation remains available from More Controls. */
     .mobile-bottom-dock .mobile-bottom-meta {
       justify-content: center;
+      justify-content: safe center;
       gap: 2px !important;
       padding-left: 0 !important;
       padding-right: 0 !important;

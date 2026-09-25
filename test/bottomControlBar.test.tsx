@@ -235,4 +235,33 @@ describe('BottomControlBar', () => {
     expect(html).toContain('role="region"');
     expect(html).toContain('aria-label="Board controls"');
   });
+
+  it('edits the branch number only in the full-size control, so the chip cannot steal and drop focus', () => {
+    const source = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+
+    // Both call sites once swapped in an autofocused field; on phones the
+    // chip's hidden one took focus first and its blur closed the sheet's.
+    expect(source).toContain('if (isBranchIndexEditing && !compact) {');
+  });
+
+  it('hands focus back to the counter after Enter or Escape in a number field', () => {
+    const source = readFileSync('src/components/layout/BottomControlBar.tsx', 'utf8');
+
+    expect(source).toContain('restoreFocusIfUnclaimed(moveNumberButtonRef.current)');
+    expect(source).toContain('restoreFocusIfUnclaimed(branchIndexButtonRef.current)');
+    expect(source.match(/ref=\{moveNumberButtonRef\}/g) ?? []).toHaveLength(2);
+    expect(source).toContain('ref={compact ? undefined : branchIndexButtonRef}');
+  });
+
+  it('keeps the turn stone in view when the move strip overflows', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const html = renderToStaticMarkup(<BottomControlBar {...baseProps} isMobile={true} />);
+
+    // Plain centring spilled the overflow off both ends, clipping the turn
+    // stone first; `safe` keeps the start edge in view.
+    expect(css.match(/justify-content: safe center;/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(css).toMatch(/@media \(max-height: 499px\) and \(max-width: 699px\)[\s\S]*?\.mobile-bottom-meta \[data-mobile-save-status='true'\] \{\s*display: none !important;/);
+    expect(css).toMatch(/\.mobile-bottom-move-hash,\s*\.mobile-bottom-move-button-total \{\s*display: none;/);
+    expect(html).toContain('<span class="mobile-bottom-move-button-total">/12</span>');
+  });
 });

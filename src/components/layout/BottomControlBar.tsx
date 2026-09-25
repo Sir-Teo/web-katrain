@@ -165,6 +165,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const [isBranchIndexEditing, setIsBranchIndexEditing] = useState(false);
   const [branchIndexDraft, setBranchIndexDraft] = useState('');
   const skipBranchIndexBlurCommit = useRef(false);
+  // Enter and Escape blur the field, which then unmounts; without a hand-back
+  // focus fell to <body> and the next Tab started from the top of the page.
+  const moveNumberButtonRef = useRef<HTMLButtonElement>(null);
+  const branchIndexButtonRef = useRef<HTMLButtonElement>(null);
   const shortcutLabels = useShortcutLabels(BOTTOM_CONTROL_SHORTCUT_IDS);
   const withShortcut = (label: string, id: BottomControlShortcutId) => `${label} (${shortcutLabels[id]})`;
   const showBranchControl = !!branchInfo?.hasBranches && !!switchBranch && !!switchToBranchIndex;
@@ -332,11 +336,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
   const handleMoveNumberKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     event.stopPropagation();
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' || event.key === 'Escape') {
+      if (event.key === 'Escape') cancelMoveNumberEdit();
       event.currentTarget.blur();
-    } else if (event.key === 'Escape') {
-      cancelMoveNumberEdit();
-      event.currentTarget.blur();
+      window.setTimeout(() => restoreFocusIfUnclaimed(moveNumberButtonRef.current), 0);
     }
   };
 
@@ -374,11 +377,10 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
   const handleBranchIndexKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     event.stopPropagation();
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' || event.key === 'Escape') {
+      if (event.key === 'Escape') cancelBranchIndexEdit();
       event.currentTarget.blur();
-    } else if (event.key === 'Escape') {
-      cancelBranchIndexEdit();
-      event.currentTarget.blur();
+      window.setTimeout(() => restoreFocusIfUnclaimed(branchIndexButtonRef.current), 0);
     }
   };
 
@@ -392,7 +394,11 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
   const renderBranchIndexButton = (compact = false) => {
     if (!showBranchControl || !branchInfo) return null;
-    if (isBranchIndexEditing) {
+    // Only the full-size control edits; the chip opens More Controls. Both used
+    // to swap in an autofocused field, and the chip's -- hidden by CSS on
+    // phones -- took focus first, lost it to the sheet's, and its blur commit
+    // closed both before a digit could be typed.
+    if (isBranchIndexEditing && !compact) {
       return (
         <span className={compact ? 'inline-flex items-center gap-0.5' : 'inline-flex items-center gap-1'}>
           <span className="ui-text-faint">{compact ? 'Br' : 'Branch'}</span>
@@ -419,6 +425,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
     return (
       <button
         type="button"
+        ref={compact ? undefined : branchIndexButtonRef}
         className={[
           compact
             ? 'inline-flex min-w-0 items-center gap-0.5 rounded px-1 font-mono not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50'
@@ -554,12 +561,14 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
               <button
                 type="button"
                 className="mobile-bottom-move-button inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 font-mono text-[var(--ui-text-muted)] not-disabled:hover:bg-[var(--ui-surface-2)] not-disabled:hover:text-[var(--ui-text)] disabled:opacity-50"
+                ref={moveNumberButtonRef}
                 title="Set move number"
                 aria-label={`Move ${currentMoveNumber} of ${totalMovesInCurrentLine}. Tap to jump to a move.`}
                 onClick={openMoveNumberEditor}
                 disabled={isInsertMode}
               >
-                #{currentMoveNumber}/{totalMovesInCurrentLine}
+                <span className="mobile-bottom-move-hash">#</span>{currentMoveNumber}
+                <span className="mobile-bottom-move-button-total">/{totalMovesInCurrentLine}</span>
               </button>
             )}
             {showBranchControl && (
@@ -1084,6 +1093,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
           ) : (
             <button
               type="button"
+              ref={moveNumberButtonRef}
               className="inline-flex min-h-11 items-center gap-1 rounded px-2 text-left not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
               title="Set move number"
               onClick={openMoveNumberEditor}
