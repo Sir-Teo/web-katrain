@@ -12,7 +12,7 @@ import {
   FaDownload,
   FaUpload,
   FaCheckSquare,
-  FaSquare,
+  FaRegSquare,
   FaPlus,
   FaArrowUp,
   FaFileAlt,
@@ -1720,7 +1720,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           title={selectFileLabel}
           aria-label={selectFileLabel}
         >
-          {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
+          {isSelected ? <FaCheckSquare size={12} /> : <FaRegSquare size={12} />}
         </button>
         <span className="library-tree-node-icon">
           {item.favorite ? <FaStar size={12} className="text-[var(--ui-warning)]" /> : <FaFileAlt size={12} />}
@@ -1935,7 +1935,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             title={selectFolderLabel}
             aria-label={selectFolderLabel}
           >
-            {isSelected ? <FaCheckSquare size={12} /> : <FaSquare size={12} />}
+            {isSelected ? <FaCheckSquare size={12} /> : <FaRegSquare size={12} />}
           </button>
           <span className="library-tree-node-icon">
             <FaFolderOpen size={12} />
