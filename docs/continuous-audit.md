@@ -101,6 +101,8 @@ disagreement; the two app-side bugs it surfaced are listed below.
 | Keyboard | Enter on palette buttons ran a command; Shift+Space and Option-altered Alt shortcuts never matched; resetting a shortcut could re-create a clash. |
 | Settings | A chosen 500 visits reloaded as 5000. |
 | Offline | Activation deleted other apps' caches on the shared origin; reported bundles accumulated in the shell cache across deploys. |
+| Display | Score leads rounded their sign, not their margin (B+0.2 against W+0.1 for one lead); PV tiles ignored the player's quality thresholds; arrow keys moved the board cursor against the rotation. |
+| Photo board | Play move was never offered for a move that captures; auto-trace found no black stones on a transparent PNG. |
 | UI | Tooltips off-screen on phones, filled "unselected" library boxes, library names squeezed by hover actions, menu header gap, start-rail wrapping and reserve, lesson/quiz board size on tall phones, kifu stones in the wrong colour, large-tree centring, stale setup labels, phone move-list columns, OGS progress counter. |
 
 ## Validation and measurement
