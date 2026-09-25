@@ -1655,6 +1655,17 @@ const afterBoardEdit = (get: () => GameStore): void => {
   analysisQueue.cancelGroup('tenuki');
   tenukiToken++;
   const state = get();
+  // The token bump stops a pending answer from landing, but the pending
+  // marker itself stayed -- "Checking..." for good -- and a finished price
+  // stayed drawn over stones the edit had changed. Drop it for the edited
+  // position and everything below it.
+  const tenuki = state.tenukiAnalysis;
+  if (tenuki) {
+    const tenukiNode = findNodeById(state.rootNode, tenuki.nodeId);
+    if (!tenukiNode || tenukiNode === state.currentNode || isNodeDescendantOf(tenukiNode, state.currentNode)) {
+      useGameStore.setState({ tenukiAnalysis: null });
+    }
+  }
   if (state.isAnalysisMode && !state.isSelfplayToEnd) {
     scheduleAnalysis(() => void get().runAnalysis({ force: true }), 0);
   }
