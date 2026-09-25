@@ -107,7 +107,8 @@ describe('RightPanel layout', () => {
     expect(source).toContain('{!isMobile && treeNavButtons}');
     expect(source).toContain('{treeListNodes.length > 1 ? (');
     expect(source).toContain("const branchToolbarActionClass = branchInfo.hasBranches ? 'panel-icon-button' : 'hidden';");
-    expect(source).toContain("branchInfo.hasBranches && branchInfo.currentIndex > 1 ? 'panel-icon-button' : 'hidden'");
+    // Make main is offered off the main line, judged over the whole path.
+    expect(source).toContain("const promoteBranchActionClass = isMainLine ? 'hidden' : 'panel-icon-button';");
   });
 
   it('uses current-line step numbers for setup-only positions', () => {

@@ -100,7 +100,7 @@ import { useTournamentStore } from '../store/tournamentStore';
 import { formatKyuRank, type LadderState } from '../utils/tournament';
 import { currentGauntletOpponentKyu, type GauntletState } from '../utils/gauntlet';
 import { UnsavedChangesModal, type UnsavedChangesChoice } from './UnsavedChangesModal';
-import { getActiveChild, getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber, getCurrentLineNodes } from '../utils/branchNavigation';
+import { getActiveChild, getBranchInfo, getCurrentLineMoveCount, getCurrentLineMoveNumber, getCurrentLineNodes, isOnMainLine } from '../utils/branchNavigation';
 import { computeMoveTimes, hasMoveTimeData } from '../utils/moveTimes';
 import { getMistakeNavigationAvailability } from '../utils/mistakeNavigation';
 import { ResignConfirmModal } from './ResignConfirmModal';
@@ -810,6 +810,19 @@ export const Layout: React.FC = () => {
   const toast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info', copyText?: string, operationId?: string) => {
     useGameStore.setState({ notification: { message, type, ...(copyText ? { copyText } : {}), ...(operationId ? { operationId } : {}) } });
   }, []);
+
+  // The dashboard's navigation buttons, refused while inserting as the
+  // keyboard, side panel and palette already refuse them. Unguarded, To start
+  // mid-insert moved to the root with insert still on, and finishing grafted
+  // the rest of the game onto the new moves there.
+  const insertGuarded = <Args extends unknown[]>(action: (...args: Args) => void) =>
+    (...args: Args) => {
+      if (isInsertMode) {
+        toast('Finish inserting before navigating.', 'error');
+        return;
+      }
+      action(...args);
+    };
 
   // Board edits fire from a single click and are easy to make by accident, so
   // the toast reporting one offers to take it straight back. Undoing replaces
@@ -2730,7 +2743,7 @@ export const Layout: React.FC = () => {
         label: 'Undo to main branch',
         category: 'Navigation',
         shortcutId: 'undo-main-branch',
-        disabledReason: branchInfo.hasBranches && branchInfo.currentIndex > 1 ? undefined : 'Already on the main branch',
+        disabledReason: isOnMainLine(currentNode) ? 'Already on the main branch' : undefined,
         run: () => guardNavigation(undoToMainBranch),
         keywords: ['variation', 'main line'],
       },
@@ -2739,7 +2752,7 @@ export const Layout: React.FC = () => {
         label: 'Make current branch main',
         category: 'Navigation',
         shortcutId: 'make-main-branch',
-        disabledReason: branchInfo.hasBranches && branchInfo.currentIndex > 1 ? undefined : 'Current line is already main',
+        disabledReason: isOnMainLine(currentNode) ? 'Current line is already main' : undefined,
         run: () => guardNavigation(makeCurrentNodeMainBranch),
         keywords: ['variation', 'main line'],
       },
@@ -4065,6 +4078,7 @@ export const Layout: React.FC = () => {
             loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
             dirty={currentGameDirty}
             currentNode={currentNode}
+            treeVersion={treeVersion}
             drillHidesAnswer={drillHidesAnswer}
             hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
             onHoverCandidate={setReportHoverMove}
@@ -4132,21 +4146,21 @@ export const Layout: React.FC = () => {
             onOpenGameReport={() => setIsGameReportOpen(true)}
             onChooseModel={openModelSettings}
             navigateBack={navigateBack}
-            navigateForward={navigateForward}
+            navigateForward={insertGuarded(navigateForward)}
             canNavigateBack={historyNavigation.back}
             canNavigateForward={historyNavigation.forward}
-            navigateStart={navigateStart}
-            navigateEnd={navigateEnd}
-            navigateToMove={navigateToMove}
+            navigateStart={insertGuarded(navigateStart)}
+            navigateEnd={insertGuarded(navigateEnd)}
+            navigateToMove={insertGuarded(navigateToMove)}
             jumpBack={() => jumpBack(10)}
-            jumpForward={() => jumpForward(10)}
-            findMistake={(dir) => findMistake(dir > 0 ? 'redo' : 'undo')}
+            jumpForward={insertGuarded(() => jumpForward(10))}
+            findMistake={insertGuarded((dir: number) => findMistake(dir > 0 ? 'redo' : 'undo'))}
             canFindPreviousMistake={mistakeNavigation.previous}
             canFindNextMistake={mistakeNavigation.next}
             rotateBoard={rotateBoard}
-            switchBranch={switchBranch}
-            undoToBranchPoint={undoToBranchPoint}
-            makeCurrentNodeMainBranch={makeCurrentNodeMainBranch}
+            switchBranch={insertGuarded(switchBranch)}
+            undoToBranchPoint={insertGuarded(undoToBranchPoint)}
+            makeCurrentNodeMainBranch={insertGuarded(makeCurrentNodeMainBranch)}
             passTurn={passTurn}
             onUndo={handleUndo}
             onAiMove={requestAiMove}

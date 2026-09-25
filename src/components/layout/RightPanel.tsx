@@ -40,10 +40,12 @@ import {
   getCurrentLineMoveNumber,
   getCurrentLineNodes,
   isGameNodeStep,
+  isOnMainLine,
 } from '../../utils/branchNavigation';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
 import { parseIntegerDraft } from '../../utils/numberDraft';
 import { readLocalStorage, writeLocalStorage } from '../../utils/storage';
+import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 
 const RIGHT_PANEL_SHORTCUT_IDS = [
   'nav-back',
@@ -236,10 +238,16 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     return getBranchInfo(currentNode);
   }, [currentNode, treeVersion]);
   const branchToolbarActionClass = branchInfo.hasBranches ? 'panel-icon-button' : 'hidden';
-  const promoteBranchActionClass = branchInfo.hasBranches && branchInfo.currentIndex > 1 ? 'panel-icon-button' : 'hidden';
+  // The whole path decides, not the nearest fork: a line can be first there
+  // and still have left the main line at an earlier one.
+  const isMainLine = isOnMainLine(currentNode);
+  const promoteBranchActionClass = isMainLine ? 'hidden' : 'panel-icon-button';
   const [isBranchIndexEditing, setIsBranchIndexEditing] = React.useState(false);
   const [branchIndexDraft, setBranchIndexDraft] = React.useState('');
   const skipBranchIndexBlurCommit = React.useRef(false);
+  // Enter or Escape blurs the field, which then unmounts; without a hand-back
+  // focus fell to <body>, as it did in the bottom bar before.
+  const branchIndexChipRef = React.useRef<HTMLButtonElement>(null);
   const shortcutLabels = useShortcutLabels(RIGHT_PANEL_SHORTCUT_IDS);
   const withShortcut = (label: string, id: RightPanelShortcutId) => `${label} (${shortcutLabels[id]})`;
 
@@ -271,11 +279,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
   const handleBranchIndexKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     event.stopPropagation();
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' || event.key === 'Escape') {
+      if (event.key === 'Escape') cancelBranchIndexEdit();
       event.currentTarget.blur();
-    } else if (event.key === 'Escape') {
-      cancelBranchIndexEdit();
-      event.currentTarget.blur();
+      window.setTimeout(() => restoreFocusIfUnclaimed(branchIndexChipRef.current), 0);
     }
   };
 
@@ -614,6 +621,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       ) : (
                         <button
                           type="button"
+                          ref={branchIndexChipRef}
                           className="min-w-[4.75rem] rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-2 py-1 text-left text-[0.625rem] leading-none text-[var(--ui-text-muted)] not-disabled:hover:border-[var(--ui-border-strong)] not-disabled:hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
                           title={
                             branchInfo.isAtFork
@@ -668,7 +676,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       className={promoteBranchActionClass}
                       title={withShortcut('Make main branch', 'make-main-branch')}
                       onClick={() => guardInsertMode(makeCurrentNodeMainBranch)}
-                      disabled={isInsertMode || !branchInfo.hasBranches || branchInfo.currentIndex <= 1}
+                      disabled={isInsertMode || isMainLine}
                     >
                       <FaStar size={12} />
                     </button>

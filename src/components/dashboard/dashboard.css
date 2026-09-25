@@ -1157,7 +1157,13 @@
 .wk-dashboard .stone-mini.w { background: radial-gradient(circle at 32% 28%, #ffffff 0%, #f1f1f1 42%, #cfcfcf 100%); border: 1px solid rgba(17,24,39,.35); }
 
 /* Move tree (list view) */
-.wk-dashboard .tree-region { padding: 8px 10px; max-height: 240px; overflow: auto; }
+/* The tree scrolls inside its own scroller, which is what "Center current
+   move", the minimap and culling all act on. A capped region with auto height
+   left that scroller as tall as the whole tree, so the region scrolled instead
+   and Center could not move anything: a node 500px down stayed off-screen.
+   Capping the tree itself keeps short trees short. */
+.wk-dashboard .tree-region { padding: 8px 10px; overflow: hidden; }
+.wk-dashboard .tree-region .move-tree-shell { max-height: 224px; }
 .wk-dashboard .tree-list { max-height: 240px; overflow: auto; }
 .wk-dashboard .tl-item {
   display: flex; align-items: center; gap: 9px;

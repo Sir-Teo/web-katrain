@@ -41,6 +41,20 @@ export function findBranchRoot(currentNode: GameNode): BranchRoot | null {
   return null;
 }
 
+/**
+ * True when every step from the root to this node takes the first child, i.e.
+ * the node is on the main line. The nearest fork alone does not say so: a line
+ * can be first at its own fork after leaving the main line at an earlier one.
+ */
+export function isOnMainLine(node: GameNode): boolean {
+  let cursor: GameNode = node;
+  while (cursor.parent) {
+    if (cursor.parent.children[0]?.id !== cursor.id) return false;
+    cursor = cursor.parent;
+  }
+  return true;
+}
+
 export function rememberActiveBranchPath(activeBranches: ActiveBranchMap, node: GameNode): ActiveBranchMap {
   const next = { ...activeBranches };
   let cursor: GameNode | null = node;

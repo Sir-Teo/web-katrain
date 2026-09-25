@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './dashboard.css';
 import { Icon, type IconName } from './icons';
 import type { CandidateMove, GameNode, GameRules, GameSettings, Player } from '../../types';
-import type { BranchInfo } from '../../utils/branchNavigation';
+import { isOnMainLine, type BranchInfo } from '../../utils/branchNavigation';
 import type { AnalysisControlsState } from '../layout/types';
 import { formatMoveLabel } from '../layout/ui-utils';
 import { MoveTree } from '../MoveTree';
@@ -54,6 +54,8 @@ export interface DesktopDashboardProps {
   loadedFileName: string | null;
   dirty: boolean;
   currentNode: GameNode;
+  /** Bumps when the tree changes in place, analysis landing on a node included. */
+  treeVersion: number;
   /** True while a mistake drill is asking about this position; see `mistakeDrill`. */
   drillHidesAnswer: boolean;
   /** `${x},${y}` of the candidate whose variation is on the board, or null. */
@@ -244,7 +246,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     boardControls,
     blackName, whiteName, blackRank, whiteRank,
     capturedBlack, capturedWhite, komi, boardSize, handicap, rules, result,
-    currentPlayer, moveCount, totalMoves, loadedFileName, dirty, currentNode, drillHidesAnswer,
+    currentPlayer, moveCount, totalMoves, loadedFileName, dirty, currentNode, treeVersion, drillHidesAnswer,
     hoveredCandidateKey, onHoverCandidate, branchInfo,
     showAnalysis, winRate, scoreLead, pointsLost, pointsLostLabel,
     engineState, enginePillLabel, engineMetaTitle, engineBackend, engineModelLabel, analysisCacheSize,
@@ -479,7 +481,12 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
    * tooltip. Counted in intersections rather than points on purpose -- see
    * `territorySwing.ts` on why an ownership total must not be quoted as a score.
    */
+  // Analysis is written onto nodes in place, so the node keeps its identity
+  // when this position (or the one before) is analysed; the tooltip went on
+  // saying "needs this move and the one before it analyzed" until a move away
+  // and back.
   const swingSummary = useMemo(() => {
+    void treeVersion;
     const after = currentNode.analysis?.territory;
     const baseline = resolveSwingBaseline(currentNode, settings.analysisSwingCompare, (x, y) =>
       formatMoveLabel(x, y, boardSize)
@@ -493,7 +500,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     const against = baseline.kind === 'best' ? `vs ${baseline.label}` : 'vs the move before';
     const summary = describeTerritorySwing(computeTerritorySwing(baseline.territory, after));
     return summary ? `${against}: ${summary}` : `${against}: nothing moved`;
-  }, [boardSize, currentNode, settings.analysisSwingCompare]);
+  }, [boardSize, currentNode, settings.analysisSwingCompare, treeVersion]);
 
   const overlayBtn = (
     keyName: DashboardOverlayKey,
@@ -1086,8 +1093,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                       </span>
                     </span>
                     <button type="button" className="pbtn pico" title="Back to branch point" aria-label="Back to branch point" onClick={undoToBranchPoint}><Icon name="levelUp" size={12} /></button>
-                    {branchInfo.currentIndex > 1 ? (
-                      <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" onClick={() => { makeCurrentNodeMainBranch(); toast('Set as main branch.', 'success'); }}><Icon name="star" size={12} /></button>
+                    {!isOnMainLine(currentNode) ? (
+                      <button type="button" className="pbtn pico" title="Make main branch" aria-label="Make current move the main branch" onClick={() => { makeCurrentNodeMainBranch(); if (!isInsertMode) toast('Set as main branch.', 'success'); }}><Icon name="star" size={12} /></button>
                     ) : null}
                   </div>
                 )}
