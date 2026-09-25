@@ -1603,9 +1603,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const id = draggingId || event.dataTransfer.getData('text/plain');
     if (!id || id === folderId) return;
     if (isDescendantOf(folderId, id)) return;
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, parentId: folderId, updatedAt: Date.now() } : item))
-    );
+    setItems((prev) => moveLibraryItems(prev, [id], folderId).items);
     setDraggingId(null);
     setDragOverId(null);
   };
@@ -1626,9 +1624,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     if (!draggingId) return;
-    setItems((prev) =>
-      prev.map((item) => (item.id === draggingId ? { ...item, parentId: null, updatedAt: Date.now() } : item))
-    );
+    const id = draggingId;
+    setItems((prev) => moveLibraryItems(prev, [id], null).items);
     setDraggingId(null);
     setDragOverRoot(false);
   };

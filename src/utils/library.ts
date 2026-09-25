@@ -1174,6 +1174,12 @@ export const moveLibraryItems = (
     }
     return false;
   };
+  // Names stay unique within a folder, as creating, renaming, importing and
+  // duplicating keep them; a move was the one way to end up with two "Game"s.
+  const targetNames: LibraryNamePool = {
+    names: new Set(items.filter((item) => (item.parentId ?? null) === targetId).map((item) => item.name.toLowerCase())),
+    nextSuffix: new Map(),
+  };
   const movedIds: string[] = [];
   const skippedIds: string[] = [];
   const nextItems = items.map((item) => {
@@ -1188,7 +1194,8 @@ export const moveLibraryItems = (
       return item;
     }
     movedIds.push(item.id);
-    return { ...item, parentId: targetId, updatedAt: timestamp };
+    const name = reserveLibraryName(item.name, targetNames);
+    return { ...item, name, parentId: targetId, updatedAt: timestamp };
   });
 
   return {

@@ -21,4 +21,15 @@ describe('moving a selection that holds a folder and its contents', () => {
     expect(result.movedIds).toEqual([tournament.id]);
     expect(result.skippedIds).toEqual([archive.id]);
   });
+
+  it('gives a moved game a free name in its new folder', () => {
+    const folder = createLibraryFolder('Folder', null);
+    const inside = createLibraryItem('Game', sgf, folder.id, 1);
+    const outside = createLibraryItem('game', sgf, null, 2);
+    const items = [folder, inside, outside];
+
+    const result = moveLibraryItems(items, [outside.id], folder.id, 500);
+    const names = result.items.filter((item) => item.parentId === folder.id).map((item) => item.name);
+    expect(names.sort()).toEqual(['Game', 'game 2']);
+  });
 });
