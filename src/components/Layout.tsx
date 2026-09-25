@@ -1089,10 +1089,27 @@ export const Layout: React.FC = () => {
     if (typeof window === 'undefined') return;
 
     // The shared/opened content is the intended state, so skip the recovery
-    // prompt (auto-save itself stays active for subsequent edits).
+    // prompt (auto-save itself stays active for subsequent edits). Skipping the
+    // question must not drop the answer, though: the snapshot is the only copy
+    // of last session's unsaved game, and the load that follows overwrites or
+    // clears it. Keep it in the Library first and say where it went.
     const suppressRecoveryPrompt = () => {
+      if (autoSaveRecoveryCheckedRef.current) return;
       autoSaveRecoveryCheckedRef.current = true;
       setAutoSaveRecoveryChecked(true);
+      const snapshot = readAutoSavedGame();
+      if (!snapshot) return;
+      void updateStoredLibrary((items) => {
+        const name = getUniqueLibraryItemName('Recovered unsaved game', items, null);
+        const item = createLibraryItem(name, snapshot.sgf, null);
+        return { items: [item, ...items], result: item };
+      }).then((item) => {
+        setExternalLibraryItemCreate({ item, updatedAt: item.updatedAt });
+        setLibraryVersion((prev) => prev + 1);
+        toast(`Your unsaved game from last time is in the Library as "${item.name}".`, 'info');
+      }).catch((error) => {
+        toast(withFailureReason('Could not keep your unsaved game from last time.', error), 'error');
+      });
     };
 
     // 1) Share link — full SGF compressed into the URL fragment (#sgf=...).
@@ -1100,10 +1117,12 @@ export const Layout: React.FC = () => {
     if (sharedSgf) {
       try {
         const parsed = parseSgf(sharedSgf);
+        suppressRecoveryPrompt();
         loadGame(parsed);
         setLoadedLibraryFile(null);
         navigateEnd();
-        suppressRecoveryPrompt();
+        // Opened, not edited: clean, as a shared text or launched file is.
+        markCurrentGameCleanAndClearAutoSave();
         toast('Loaded shared game from link.', 'success');
       } catch (error) {
         toast(withFailureReason('Could not load the shared game from this link.', error), 'error');
@@ -1150,7 +1169,7 @@ export const Layout: React.FC = () => {
         })();
       });
     }
-  }, [loadGame, navigateEnd, setLoadedLibraryFile, toast]);
+  }, [loadGame, markCurrentGameCleanAndClearAutoSave, navigateEnd, setLoadedLibraryFile, toast]);
 
   useEffect(() => {
     if (autoSaveRecoveryCheckedRef.current) return;
