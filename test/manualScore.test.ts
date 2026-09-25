@@ -42,3 +42,17 @@ describe('computeJapaneseManualScoreFromOwnership', () => {
     expect(score).toBe(null);
   });
 });
+
+describe('a score lead, rounded', () => {
+  it('reads the same margin for either colour', () => {
+    for (const lead of [0.05, 0.15, 1.25, 7.45]) {
+      const black = formatResultScoreLead(lead);
+      const white = formatResultScoreLead(-lead);
+      expect(black.startsWith('B+')).toBe(true);
+      expect(white.startsWith('W+')).toBe(true);
+      expect(black.slice(2)).toBe(white.slice(2));
+    }
+    expect(formatResultScoreLead(0.04)).toBe('Jigo');
+    expect(formatResultScoreLead(-0.04)).toBe('Jigo');
+  });
+});

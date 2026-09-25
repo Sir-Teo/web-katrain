@@ -10,7 +10,10 @@ export function roundToHalf(x: number): number {
 }
 
 export function formatResultScoreLead(scoreLead: number): string {
-  const roundedScoreLead = Math.round(scoreLead * 10) / 10;
+  // Round the margin, not the signed lead: Math.round takes halves toward
+  // +infinity, so the same lead read B+0.2 for Black and W+0.1 for White,
+  // and -0.05 was Jigo while +0.05 was B+0.1.
+  const roundedScoreLead = Math.sign(scoreLead) * (Math.round(Math.abs(scoreLead) * 10) / 10);
   if (Object.is(roundedScoreLead, 0) || Object.is(roundedScoreLead, -0)) return 'Jigo';
 
   const leadingPlayer = roundedScoreLead > 0 ? 'B' : 'W';
