@@ -1232,7 +1232,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                   </button>
                 </div>
                 )}
-                {mode === 'analyze' && <TenukiRow />}
+                {mode === 'analyze' && <TenukiRow className="tenuki-row" />}
                 {!showAnalysis && (
                   <div className="coach-card">
                     <div className="cc-head">

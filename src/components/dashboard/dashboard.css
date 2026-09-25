@@ -1209,6 +1209,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* The tenuki row is shared with the mobile panel and carries no inset of its
+   own; here it sits under the padded overlay rows, so give it their 14px. */
+.wk-dashboard .tenuki-row { margin-left: 14px; margin-right: 14px; margin-top: 8px; }
+
 /* Quality legend */
 .wk-dashboard .qlegend { padding: 10px 14px 0; }
 .wk-dashboard .qlegend .qgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; margin-top: 6px; }
