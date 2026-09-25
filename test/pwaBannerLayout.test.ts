@@ -52,7 +52,7 @@ describe('every card yields on a screen with no height to spare', () => {
 
     // The promos still yield to the first-run hero, which is a separate rule
     // and about crowding rather than height.
-    expect(css).toContain("  :root[data-pwa-banner='install']:has([data-dashboard-hero='true']) .pwa-install-banner,");
+    expect(css).toContain("  :root[data-pwa-banner='install'][data-dashboard-hero='shown'] .pwa-install-banner,");
   });
 
   it('uses the same height bound as the rest of the shell rules', () => {
@@ -62,7 +62,7 @@ describe('every card yields on a screen with no height to spare', () => {
 
 describe('desktop PWA banner layout', () => {
   it('moves clear of the open analysis panel using the panel width token', () => {
-    expect(css).toContain(":root:has(.wk-dashboard[data-sidebar='open']) .pwa-install-banner");
+    expect(css).toContain(":root[data-dashboard-sidebar='open'] .pwa-install-banner");
     expect(css).toContain('right: calc(var(--sidebar-w) + max(12px, env(safe-area-inset-right)))');
   });
 
@@ -71,8 +71,8 @@ describe('desktop PWA banner layout', () => {
     // this banner's root-level 45 paints over it. Measured before the fix:
     // Rotate board 98% covered, Resign and Play on from here 85%, all three
     // returning the banner from elementFromPoint.
-    expect(css).toContain(":root:has([data-bottom-more-sheet='true']) .pwa-install-banner");
-    const start = css.indexOf(":root:has([data-bottom-more-sheet='true']) .pwa-install-banner");
+    expect(css).toContain(":root[data-bottom-more-sheet='open'] .pwa-install-banner");
+    const start = css.indexOf(":root[data-bottom-more-sheet='open'] .pwa-install-banner");
     expect(css.slice(start, css.indexOf('}', start))).toContain('display: none');
   });
 
@@ -87,14 +87,14 @@ describe('desktop PWA banner layout', () => {
      * mobile sheet gets above -- and the rail-height reserve it used to stack on
      * is gone with it.
      */
-    const selector = ":root[data-pwa-banner='install']:has([data-dashboard-hero='true']) .pwa-install-banner";
+    const selector = ":root[data-pwa-banner='install'][data-dashboard-hero='shown'] .pwa-install-banner";
     expect(css).toContain(selector);
-    expect(css).toContain(":root[data-pwa-banner='ios-install']:has([data-dashboard-hero='true'])");
+    expect(css).toContain(":root[data-pwa-banner='ios-install'][data-dashboard-hero='shown']");
     expect(css.slice(css.indexOf(selector), css.indexOf('}', css.indexOf(selector)))).toContain('display: none');
     // Only the promos step aside. `offline-ready` and `update-ready` report
     // that something happened and still show; the stage reserve keeps them off
     // the board.
-    expect(css).not.toContain(":root:has([data-dashboard-hero='true']) .pwa-install-banner");
+    expect(css).not.toContain(":root[data-dashboard-hero='shown'] .pwa-install-banner");
     expect(css).not.toContain('--desktop-start-rail-height');
   });
 
@@ -123,7 +123,7 @@ describe('desktop PWA banner layout', () => {
      * hand took that to 0. Pre-existing -- the same 19 at the commit before
      * mobile notifications were last touched.
      */
-    const start = css.indexOf(':root:has([data-notification="true"]) .pwa-install-banner');
+    const start = css.indexOf(":root[data-notification-shown='true'] .pwa-install-banner");
     expect(start, 'the notification rule is gone').toBeGreaterThan(-1);
     expect(css.slice(start, css.indexOf('}', start))).toContain('display: none');
 

@@ -56,7 +56,9 @@ describe('root data attributes the stylesheet reads', () => {
             const assigns =
                 sources.includes(`dataset.${property} =`) ||
                 sources.includes(`setAttribute('${attribute}'`) ||
-                sources.includes(`setAttribute("${attribute}"`);
+                sources.includes(`setAttribute("${attribute}"`) ||
+                // useDocumentFlag sets `data-<name>` on <html> for its owner.
+                sources.includes(`useDocumentFlag('${attribute.slice('data-'.length)}'`);
             expect(assigns, `no source file assigns dataset.${property}`).toBe(true);
 
             if (value) {

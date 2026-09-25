@@ -1272,7 +1272,7 @@
        The board column has no gap wide enough to hold the toast beside the
        board — 192px between the board's right edge and the sidebar at 1280 —
        so this clips the board's top edge instead, which is the lesser cover. */
-    body:has(.wk-dashboard[data-gamestrip="open"])
+    :root[data-dashboard-gamestrip='open']
       .notification-toast-region--desktop-dashboard:has(.notification-toast-error) {
       top: 5.9375rem; /* the 3.25rem header offset plus the strip's 43px */
     }
@@ -4498,7 +4498,7 @@
      the board column whenever that panel is open. `--sidebar-w` is shared with
      the dashboard grid, so the two stay aligned as the panel grows. */
   @media (min-width: 1024px) {
-    :root:has(.wk-dashboard[data-sidebar='open']) .pwa-install-banner {
+    :root[data-dashboard-sidebar='open'] .pwa-install-banner {
       right: calc(var(--sidebar-w) + max(12px, env(safe-area-inset-right)));
     }
   }
@@ -4588,7 +4588,7 @@
      mean editing a stacking context several other things sit in; yielding
      is the smaller and more obviously correct change, and the banner comes
      straight back when the sheet closes. */
-  :root:has([data-bottom-more-sheet='true']) .pwa-install-banner {
+  :root[data-bottom-more-sheet='open'] .pwa-install-banner {
     display: none;
   }
 
@@ -4605,7 +4605,7 @@
      in place on every tablet. On the desktop shell the card sits in the board
      column's bottom corner and the toast in the top one, so they never meet. */
   @media (max-width: 1023px), (max-height: 499px) {
-    :root:has([data-notification="true"]) .pwa-install-banner {
+    :root[data-notification-shown='true'] .pwa-install-banner {
       display: none;
     }
   }
@@ -4618,8 +4618,8 @@
      someone to install lands better once they have started a game.
      `offline-ready` and `update-ready` are not promos and still show: they say
      something happened, and the stage reserve below keeps them off the board. */
-  :root[data-pwa-banner='install']:has([data-dashboard-hero='true']) .pwa-install-banner,
-  :root[data-pwa-banner='ios-install']:has([data-dashboard-hero='true']) .pwa-install-banner {
+  :root[data-pwa-banner='install'][data-dashboard-hero='shown'] .pwa-install-banner,
+  :root[data-pwa-banner='ios-install'][data-dashboard-hero='shown'] .pwa-install-banner {
     display: none;
   }
 

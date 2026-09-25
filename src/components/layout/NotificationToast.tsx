@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaCheck, FaCheckCircle, FaCopy, FaExclamationTriangle, FaInfoCircle, FaTimes } from 'react-icons/fa';
 import { copyTextToClipboard } from '../../utils/clipboard';
+import { useDocumentFlag } from '../../hooks/useDocumentFlag';
 
 export type NotificationToastType = 'info' | 'error' | 'success';
 
@@ -56,6 +57,8 @@ export function NotificationToast({
   const Icon = meta.Icon;
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
   const canCopy = notification.type === 'error';
+  // Tells the install card to step aside while a toast is up (index.css).
+  useDocumentFlag('notification-shown', 'true');
 
   React.useEffect(() => {
     setCopyState('idle');

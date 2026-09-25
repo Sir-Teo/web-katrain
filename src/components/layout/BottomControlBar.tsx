@@ -31,6 +31,7 @@ import { parseIntegerDraft } from '../../utils/numberDraft';
 import type { BranchInfo } from '../../utils/branchNavigation';
 import { getSaveStatusDisplay, type AutoSaveStatus } from '../../utils/saveStatusDisplay';
 import { useBackGestureToClose } from '../../hooks/useEscapeToClose';
+import { useDocumentFlag } from '../../hooks/useDocumentFlag';
 
 const BOTTOM_CONTROL_SHORTCUT_IDS = [
   'pass',
@@ -156,6 +157,8 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
   const moreCloseRef = useRef<HTMLButtonElement>(null);
   const [passBtnHeight, setPassBtnHeight] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
+  // The install card yields to the More Controls sheet (index.css).
+  useDocumentFlag('bottom-more-sheet', isMobile && moreOpen ? 'open' : null);
   const [suppressMoreTriggerFocusRing, setSuppressMoreTriggerFocusRing] = useState(false);
   const moreSheetId = React.useId();
   const moreSheetTitleId = React.useId();

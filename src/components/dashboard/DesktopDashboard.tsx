@@ -28,6 +28,7 @@ import { formatRulesLabel } from '../../utils/gameInfoDisplay';
 import { GameInfoPanel } from '../GameInfoPanel';
 import { formatReadableScoreLead, formatWinRateFavorLabel, POINTS_LOST_EXPLANATION } from '../../utils/analysisSummary';
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '../../utils/storage';
+import { useDocumentFlag } from '../../hooks/useDocumentFlag';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
 
@@ -536,6 +537,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   };
 
   const showCompactStartStrip = showHero && layoutMode === 'compact' && gamestripOpen;
+  // Page-level styles that depend on the dashboard's panels (index.css):
+  // where the install card and the error toast may sit.
+  useDocumentFlag('dashboard-sidebar', sidebarOpen ? 'open' : null);
+  useDocumentFlag('dashboard-gamestrip', gamestripOpen ? 'open' : null);
+  useDocumentFlag('dashboard-hero', showHero && !showCompactStartStrip ? 'shown' : null);
   const renderStartActions = () => (
     <>
       {onLessons && (
