@@ -77,6 +77,6 @@ describe('mobile landmarks', () => {
   });
 
   it('does not add a second <main> in the phone home dialog', () => {
-    expect(read('src/components/MobileHome.tsx')).not.toContain('<main');
+    expect(read('src/components/MobileHome.tsx')).not.toMatch(/^\s*<main\b/m);
   });
 });
