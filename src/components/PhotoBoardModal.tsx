@@ -1,4 +1,5 @@
 import React from 'react';
+import { parseKomiInput } from '../utils/komiInput';
 import {
   FaArrowsAltH,
   FaArrowsAltV,
@@ -116,7 +117,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const initialTraceTool = currentPlayer ?? 'black';
   const toolRef = React.useRef<TraceTool>(initialTraceTool);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(defaultBoardSize);
-  const [komi, setKomi] = React.useState(defaultKomi);
+  // Held as typed, for the same reason as New Game: Number('') is 0.
+  const [komiText, setKomiText] = React.useState(() => String(defaultKomi));
+  const komi = parseKomiInput(komiText);
   const [nextPlayer, setNextPlayer] = React.useState<Player>(() => currentPlayer ?? 'black');
   const [tool, setToolState] = React.useState<TraceTool>(initialTraceTool);
   const [stones, setStones] = React.useState<PhotoBoardStone[]>(() => makeEmptyStones(defaultBoardSize));
@@ -263,9 +266,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const cameraButtonTitle = cameraUnavailable ? 'No camera detected' : 'Take board photo with camera';
   const clearBoardTitle = canClearBoard ? 'Clear all traced stones' : 'No traced stones to clear';
   const transformTraceTitle = canTransformTrace ? 'Adjust traced board orientation' : 'Trace stones before transforming the board';
-  const importBoardTitle = counts.total > 0
-    ? 'Import traced stones as a new board position'
-    : 'Trace at least one stone to import a board position';
+  const importBoardTitle = counts.total === 0
+    ? 'Trace at least one stone to import a board position'
+    : komi === null
+      ? 'Enter a komi to import a board position'
+      : 'Import traced stones as a new board position';
   const addToCurrentTitle =
     counts.total === 0
       ? 'Trace at least one stone to add it to the current board'
@@ -552,6 +557,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   };
 
   const importBoard = () => {
+    if (komi === null) return;
     const sgf = buildPhotoBoardSetupSgf({
       boardSize,
       stones,
@@ -903,10 +909,14 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 <input
                   type="number"
                   step="0.5"
-                  value={komi}
-                  onChange={(event) => setKomi(Number(event.target.value))}
+                  value={komiText}
+                  onChange={(event) => setKomiText(event.target.value)}
+                  aria-invalid={komi === null}
                   className="min-h-11 w-full rounded-lg border ui-input px-3 py-2 text-[var(--ui-text)]"
                 />
+                {komi === null && (
+                  <span className="block text-[0.6875rem] text-[var(--ui-danger)]">Enter a komi, such as 6.5.</span>
+                )}
               </label>
             </div>
 
@@ -1506,7 +1516,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <button
               type="button"
               className="col-span-2 min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] disabled:cursor-not-allowed disabled:opacity-50 md:col-span-1"
-              disabled={counts.total === 0}
+              disabled={counts.total === 0 || komi === null}
               onClick={importBoard}
               title={importBoardTitle}
               data-photo-board-import="true"

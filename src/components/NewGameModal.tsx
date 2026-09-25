@@ -7,7 +7,7 @@ import {
   setupPositionSummary,
 } from '../utils/setupPosition';
 import { RULES_OPTIONS, rulesOf } from '../utils/goRules';
-import { parseNewGameKomi } from '../utils/komiInput';
+import { parseKomiInput } from '../utils/komiInput';
 import { describeAiStrength, estimateAiRank } from '../utils/aiStrength';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { BotPersonaPicker } from './BotPersonaPicker';
@@ -133,7 +133,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   // legal komi, so the game quietly started at 0 instead of the value the
   // player was about to type.
   const [komiText, setKomiText] = React.useState(() => String(defaultKomi));
-  const komi = parseNewGameKomi(komiText);
+  const komi = parseKomiInput(komiText);
   const [rules, setRules] = React.useState<GameRules>(() => defaultRules);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(() => defaultBoardSize);
   const [handicap, setHandicap] = React.useState(() => defaultHandicap);
