@@ -211,3 +211,11 @@ describe('a stored run that survives the read must survive the next result', () 
     expect(() => applyGauntletResult(restored, 'win')).not.toThrow();
   });
 });
+
+describe('gauntlet opponents at the ends of the rank range', () => {
+  it('stay within 20k to 6d', () => {
+    expect(buildGauntletOpponents(20, 'easier')).toEqual([20, 20, 20, 20]);
+    expect(buildGauntletOpponents(-5, 'harder')).toEqual([-5, -5, -5, -5]);
+    expect(buildGauntletOpponents(-4, 'harder')).toEqual([-4, -5, -5, -5]);
+  });
+});

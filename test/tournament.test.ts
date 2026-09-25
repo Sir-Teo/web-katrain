@@ -174,3 +174,10 @@ describe('readRunResult', () => {
     expect(watch({ result: 'Void', watchedRootId: 'root-ladder' }).watchedRootId).toBe('root-ladder');
   });
 });
+
+describe('the rank bot range', () => {
+  it('does not promote past the strongest calibrated rank', () => {
+    expect(promoteKyu(-4)).toBe(-5);
+    expect(promoteKyu(-5)).toBe(-5);
+  });
+});

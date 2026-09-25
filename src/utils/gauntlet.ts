@@ -1,7 +1,7 @@
 import type { BoardSize, Player } from '../types';
 import { isBoardSize } from './boardSize';
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
-import { isFiniteNumber, isLadderHistory, type GameResult } from './tournament';
+import { clampRankBotKyu, isFiniteNumber, isLadderHistory, type GameResult } from './tournament';
 
 // A fixed 4-game gauntlet against bots: lose any one game and the run ends.
 // Difficulty presets pick the opponent slate relative to the player's rank.
@@ -37,15 +37,8 @@ export const GAUNTLET_PRESETS: Array<{ value: GauntletPreset; label: string; det
 ];
 
 export function buildGauntletOpponents(baseKyu: number, preset: GauntletPreset): number[] {
-  switch (preset) {
-    case 'easier':
-      return [baseKyu + 2, baseKyu + 1, baseKyu + 1, baseKyu];
-    case 'harder':
-      return [baseKyu, baseKyu - 1, baseKyu - 1, baseKyu - 2];
-    case 'match':
-    default:
-      return [baseKyu + 1, baseKyu, baseKyu, baseKyu - 1];
-  }
+  const offsets = preset === 'easier' ? [2, 1, 1, 0] : preset === 'harder' ? [0, -1, -1, -2] : [1, 0, 0, -1];
+  return offsets.map((offset) => clampRankBotKyu(baseKyu + offset));
 }
 
 export const createGauntlet = (config: GauntletConfig): GauntletState => ({

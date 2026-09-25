@@ -35,8 +35,19 @@ export const formatKyuRank = (kyu: number): string => {
   return `${1 - rounded}d`;
 };
 
-/** Stronger opponent = lower kyu number. */
-export const promoteKyu = (kyu: number): number => kyu - 1;
+/**
+ * The rank bot's calibrated range, 20k to 6d -- what New Game offers and the
+ * ladder describes. Past it the bot plays no rank anyone measured: beating
+ * the 6d rung promoted to a "7d", and a 20k gauntlet on Easier opened at 22k.
+ */
+export const RANK_BOT_WEAKEST_KYU = 20;
+export const RANK_BOT_STRONGEST_KYU = -5;
+
+export const clampRankBotKyu = (kyu: number): number =>
+  Math.min(RANK_BOT_WEAKEST_KYU, Math.max(RANK_BOT_STRONGEST_KYU, kyu));
+
+/** Stronger opponent = lower kyu number, up to the strongest calibrated rank. */
+export const promoteKyu = (kyu: number): number => clampRankBotKyu(kyu - 1);
 
 /** Parse an SGF RE result string into the winning color. */
 export const parseResultWinner = (re: string | null | undefined): Player | null => {
