@@ -9,7 +9,7 @@ import { ManualScorePanel } from './ManualScorePanel';
 import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGameModal';
 import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, getImportedSgfNameFromProperties, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { copyBoardImage, downloadBoardImage } from '../utils/boardImageExport';
-import { buildShareUrl, decodeSgfFromFragment, MAX_SHARE_URL_LENGTH } from '../utils/shareLink';
+import { buildShareUrl, decodeSgfFromFragment, hasSgfFragment, MAX_SHARE_FRAGMENT_LENGTH, MAX_SHARE_URL_LENGTH } from '../utils/shareLink';
 import { pickSharedImportText, readSharedFromQuery } from '../utils/pwaOpen';
 import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { AutoSaveStatus } from '../utils/saveStatusDisplay';
@@ -270,6 +270,9 @@ function computePointsLost(args: { currentNode: GameNode }): number | null {
   const candidate = parent.analysis?.moves.find((m) => m.x === move.x && m.y === move.y);
   return candidate?.pointsLost ?? null;
 }
+
+const UNREADABLE_SHARE_LINK_MESSAGE =
+  'Could not open this share link: it is incomplete, damaged or too large. Ask for the SGF file instead.';
 
 export const Layout: React.FC = () => {
   const {
@@ -1155,6 +1158,16 @@ export const Layout: React.FC = () => {
         }
       }
     } else {
+      if (hasSgfFragment(window.location.hash)) {
+        // A link that is cut short, damaged or too large used to do nothing
+        // and leave itself in the address bar.
+        toast(UNREADABLE_SHARE_LINK_MESSAGE, 'error');
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch {
+          // Ignore environments without the History API.
+        }
+      }
       // 2) Web Share Target (GET) — shared text / URL appended as query params.
       const shared = readSharedFromQuery(window.location.search);
       const sharedText = shared ? pickSharedImportText(shared) : null;
@@ -2140,8 +2153,17 @@ export const Layout: React.FC = () => {
   };
 
   const handleCopyShareLink = async () => {
-    const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
+    // The game, not its analysis: saved KT/KA blobs made a 200-move reviewed
+    // game a 385,000-character link, past what an opening app will read.
+    const sgf = generateSgfFromTree(rootNode, {
+      ...sgfExportOptions,
+      trainer: { ...sgfExportOptions.trainer, saveAnalysis: false },
+    });
     const url = buildShareUrl(sgf, window.location);
+    if (url.length - url.indexOf('#sgf=') - '#sgf='.length > MAX_SHARE_FRAGMENT_LENGTH) {
+      toast('This game is too large for a share link. Save it to the Library or download the SGF instead.', 'error');
+      return;
+    }
     if (!(await copyTextToClipboard(url))) {
       toast('Copy failed (clipboard unavailable).', 'error');
       return;
@@ -2152,6 +2174,37 @@ export const Layout: React.FC = () => {
       toast('Copied share link to clipboard.', 'success');
     }
   };
+
+  // A share link opened in a tab already on the app is a same-document
+  // navigation: nothing remounts, so the startup read never saw it and the
+  // link did nothing. Pasting one into this tab's address bar is the usual way.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onHashChange = () => {
+      const hash = window.location.hash;
+      if (!hasSgfFragment(hash)) return;
+      const sgf = decodeSgfFromFragment(hash);
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch {
+        // Ignore environments without the History API.
+      }
+      if (!sgf) {
+        toast(UNREADABLE_SHARE_LINK_MESSAGE, 'error');
+        return;
+      }
+      void (async () => {
+        if (!(await prepareForGameReplacement())) return;
+        loadGame(parseSgf(sgf));
+        setLoadedLibraryFile(null);
+        navigateEnd();
+        markCurrentGameCleanAndClearAutoSave();
+        toast('Loaded shared game from link.', 'success');
+      })();
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [loadGame, markCurrentGameCleanAndClearAutoSave, navigateEnd, prepareForGameReplacement, setLoadedLibraryFile, toast]);
 
   const handlePasteSgf = (returnFocus?: HTMLElement | null) => {
     modalReturnFocusRef.current = returnFocus ?? null;

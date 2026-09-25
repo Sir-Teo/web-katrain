@@ -40,6 +40,9 @@ export const encodeSgfToFragment = (sgf: string): string =>
  */
 const MAX_FRAGMENT_BYTES = 256 * 1024;
 
+/** The longest `sgf=` value a link may carry and still be read. */
+export const MAX_SHARE_FRAGMENT_LENGTH = MAX_FRAGMENT_BYTES;
+
 /** Inflate in input-sized bites, stopping the moment the output goes too far.
  *
  * `pako.inflate` in one call is unbounded on the output side, and the input is
@@ -102,6 +105,31 @@ export const decodeSgfFromFragment = (fragment: string | null | undefined): stri
   } catch {
     return null;
   }
+};
+
+/**
+ * True when the fragment is a share link at all, whether or not it decodes, so
+ * one that cannot be read can say so. Returning null for both let a truncated,
+ * damaged or oversized link do nothing, silently.
+ */
+export const hasSgfFragment = (fragment: string | null | undefined): boolean => {
+  if (!fragment) return false;
+  try {
+    return new URLSearchParams(fragment.replace(/^#/, '')).has(FRAGMENT_KEY);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The SGF in a share link given as text -- pasted, or arriving through the
+ * share sheet -- or null when the text is not one of this app's links.
+ */
+export const decodeSgfFromShareUrl = (text: string): string | null => {
+  const trimmed = text.trim();
+  if (!/^https?:\/\/\S+$/i.test(trimmed)) return null;
+  const hashAt = trimmed.indexOf('#');
+  return hashAt < 0 ? null : decodeSgfFromFragment(trimmed.slice(hashAt));
 };
 
 type ShareLocation = Pick<Location, 'origin' | 'pathname' | 'search'>;

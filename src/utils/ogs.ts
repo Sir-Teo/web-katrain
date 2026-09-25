@@ -1,6 +1,7 @@
 import { fetchOgsResource, readBoundedResponseText } from './ogsQueue';
 import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
 import { sgfFromBoardTextDiagram } from './boardTextDiagram';
+import { decodeSgfFromShareUrl } from './shareLink';
 
 const OGS_HOSTS = new Set(['online-go.com', 'www.online-go.com']);
 const OGS_TEXT_URL_RE =
@@ -90,6 +91,10 @@ export const loadSgfOrOgs = async (
   if (trimmed.startsWith('(')) {
     return { sgf: trimmed, source: 'direct' };
   }
+  // This app's own share link, pasted or handed over by the share sheet: it
+  // went to the SGF parser as text and failed ("missing game tree").
+  const shared = decodeSgfFromShareUrl(trimmed);
+  if (shared) return { sgf: shared, source: 'direct' };
   const gameId = extractOgsGameId(trimmed);
   if (gameId) {
     const sgf = await downloadOgsSgf(gameId);
