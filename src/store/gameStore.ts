@@ -1072,6 +1072,15 @@ const restoreEditHistory = (entry: EditHistoryEntry, state: GameStore) => {
     analysisData: currentNode.analysis || null,
     analysisCacheSize: getAnalysisCacheSize(entry.rootNode),
     treeVersion: state.treeVersion + 1,
+    // Undo and redo stop every running job (their tokens are bumped and the
+    // queue cancelled); the flags go with them, or a review sat at "0/3" and
+    // play-to-end read as running with nothing behind either.
+    isAiThinking: false,
+    isContinuousAnalysis: false,
+    isSelfplayToEnd: false,
+    setupPositionProgress: null,
+    isGameAnalysisRunning: false,
+    gameAnalysisType: null,
   };
 };
 
@@ -3103,6 +3112,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
             const rules = s.settings.gameRules;
             const conservativePass = s.settings.katagoConservativePass;
+            const positionKeys = toEval.map((n) => nodeAnalysisPositionKey(n, rules));
             const evals = await analysisQueue.enqueue({
               id: `quick-game:${token}:${start}`,
               label: 'Quick game analysis',
@@ -3114,7 +3124,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 s.settings.katagoBackend,
                 rules,
                 conservativePass,
-                toEval.map((n) => nodeAnalysisPositionKey(n, rules))
+                positionKeys
               ),
               run: () => getKataGoEngineClient().evaluateBatch({
               modelUrl,
@@ -3140,9 +3150,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
               metaSynced = true;
             }
 
+            // The job waited in the queue, so the node may have moved on: a
+            // live search can have landed a deeper result (a raw eval replaced
+            // it), or a setup edit changed the position (the old one's eval
+            // was stored as the new one's). Keep the first; redo the second.
+            let positionChanged = false;
             for (let i = 0; i < toEval.length; i++) {
               const node = toEval[i]!;
               const evaled = evals[i]!;
+              if (node.analysis) continue;
+              if (nodeAnalysisPositionKey(node, rules) !== positionKeys[i]) {
+                positionChanged = true;
+                continue;
+              }
               const boardSize = getBoardSizeFromBoard(node.gameState.board);
               node.analysis = {
                 rootWinRate: evaled.rootWinRate,
@@ -3157,6 +3177,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
               };
               node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, 1);
             }
+            if (positionChanged && chunkRetries < 3) {
+              chunkRetries += 1;
+              start -= evalBatchSize;
+              continue;
+            }
+            chunkRetries = 0;
           } catch (err) {
             if (isAnalysisCanceled(err)) {
               // Queue-level preemption (e.g. live analysis while the user
@@ -3167,12 +3193,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 chunkRetries += 1;
                 await sleep(25);
                 start -= evalBatchSize;
+                continue;
               }
-              continue;
+              // Retries count per chunk (reset on success); once spent, the
+              // chunk is reported as a failure rather than skipped silently,
+              // which ended the run short ("5 of 6") with a hole in the graph.
+              chunkRetries = 0;
+              failed += toEval.length;
+              lastFailure = 'Interrupted repeatedly by other analysis.';
+            } else {
+              chunkRetries = 0;
+              failed += toEval.length;
+              lastFailure = errorMessage(err);
             }
-            chunkRetries = 0;
-            failed += toEval.length;
-            lastFailure = errorMessage(err);
           }
         }
         if (token !== gameAnalysisToken) return;
@@ -3264,6 +3297,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const { previousBoard: parentBoard, previousPreviousBoard: grandparentBoard } = engineHistoryBoards(node);
             const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
             const rules = s.settings.gameRules;
+            const positionKey = nodeAnalysisPositionKey(node, rules);
             const analysis = await analysisQueue.enqueue<KataGoAnalysisPayload>({
               id: `fast-game:${token}:${node.id}`,
               label: 'Fast game analysis',
@@ -3329,7 +3363,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
               metaSynced = true;
             }
 
-            node.analysis = {
+            // A setup edit while this was in flight changed the position:
+            // storing the old one's result would mark the new one analysed.
+            if (nodeAnalysisPositionKey(node, rules) !== positionKey) {
+              const tries = preemptedRetries.get(node.id) ?? 0;
+              if (tries < 3) {
+                preemptedRetries.set(node.id, tries + 1);
+                nodeIndex -= 1;
+                continue;
+              }
+              throw new Error('The position kept changing during analysis.');
+            }
+            // Live analysis can land a deeper result while this waits; keep it.
+            if (!(node.analysis && nodeAnalysisVisitCount(node) >= fastVisits)) node.analysis = {
               rootWinRate: analysis.rootWinRate,
               rootScoreLead: analysis.rootScoreLead,
               rootScoreSelfplay: analysis.rootScoreSelfplay,
@@ -3348,7 +3394,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               ownershipStdev: undefined,
               ownershipMode: 'none',
             };
-            node.analysisVisitsRequested = fastVisits;
+            node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, fastVisits);
           } catch (err) {
             if (isAnalysisCanceled(err)) {
               // Queue-level preemption (e.g. live analysis while the user
@@ -3359,11 +3405,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 preemptedRetries.set(node.id, tries + 1);
                 await sleep(25);
                 nodeIndex -= 1;
+                continue;
               }
-              continue;
+              // Out of retries: reported, not silently skipped.
+              failed++;
+              lastFailure = 'Interrupted repeatedly by other analysis.';
+            } else {
+              failed++;
+              lastFailure = errorMessage(err);
             }
-            failed++;
-            lastFailure = errorMessage(err);
           }
         }
         if (token !== gameAnalysisToken) return;
@@ -3460,6 +3510,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const analysisPvLen = Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 60));
             const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
             const rules = s.settings.gameRules;
+            const positionKey = nodeAnalysisPositionKey(node, rules);
 
             const analysis = await analysisQueue.enqueue<KataGoAnalysisPayload>({
               id: `full-game:${token}:${node.id}`,
@@ -3531,7 +3582,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
               metaSynced = true;
             }
 
-            node.analysis = {
+            // As in the fast review: redo a position edited while this was in
+            // flight, and keep a deeper result that landed meanwhile.
+            if (nodeAnalysisPositionKey(node, rules) !== positionKey) {
+              const tries = preemptedRetries.get(node.id) ?? 0;
+              if (tries < 3) {
+                preemptedRetries.set(node.id, tries + 1);
+                nodeIndex -= 1;
+                continue;
+              }
+              throw new Error('The position kept changing during analysis.');
+            }
+            if (!(node.analysis && node.analysis.moves.length > 0 && nodeAnalysisVisitCount(node) > visits)) node.analysis = {
               rootWinRate: analysis.rootWinRate,
               rootScoreLead: analysis.rootScoreLead,
               rootScoreSelfplay: analysis.rootScoreSelfplay,
@@ -3562,11 +3624,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 preemptedRetries.set(node.id, tries + 1);
                 await sleep(25);
                 nodeIndex -= 1;
+                continue;
               }
-              continue;
+              failed++;
+              lastFailure = 'Interrupted repeatedly by other analysis.';
+            } else {
+              failed++;
+              lastFailure = errorMessage(err);
             }
-            failed++;
-            lastFailure = errorMessage(err);
           }
         }
         if (token !== gameAnalysisToken) return;
@@ -3724,7 +3789,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               includeTerritory: shouldUpdateTerritory,
               fallbackTerritory,
             });
-            node.analysis = analysisWithTerritory;
+            // A search that has not yet caught up with what the node already
+            // holds (a review's or a loaded file's result) leaves it alone:
+            // its first progress report replaced 500 visits with 12, and
+            // stepping on before it finished kept the 12.
+            const keepStored = !!node.analysis && analysis.rootVisits < nodeAnalysisVisitCount(node);
+            if (keepStored && !isFinal) return;
+            if (!keepStored) node.analysis = analysisWithTerritory;
             if (isFinal) node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, visits);
 
             const latest = get();
@@ -3748,7 +3819,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 engineModelName: engineInfo.modelName,
                 engineBackendNote: engineInfo.backendNote,
               };
-              if (isCurrent) next.analysisData = analysisWithTerritory;
+              if (isCurrent) next.analysisData = node.analysis ?? analysisWithTerritory;
               if (shouldBumpTree) next.treeVersion = s.treeVersion + 1;
               if (isFinal) next.analysisCacheSize = getAnalysisCacheSize(s.rootNode);
               return next;
