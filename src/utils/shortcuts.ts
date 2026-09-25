@@ -461,6 +461,25 @@ export const replaceShortcutCollisionOverride = (
   saveShortcutOverrides(createShortcutCollisionReplacement(overrides, currentId, conflictingId, binding));
 };
 
+/**
+ * A default that resetting `id` would restore but another command now holds.
+ * Recording checks for clashes; resetting did not, so after moving Toggle
+ * children off Q and giving Q to Pass, resetting Toggle children put Q on
+ * both -- and Pass, checked first, took every press.
+ */
+export const findShortcutResetCollision = (
+  id: string,
+  overrides = loadShortcutOverrides()
+): { binding: ShortcutBinding; conflict: ShortcutDefinition } | null => {
+  const withoutOverride: ShortcutOverrides = { ...overrides };
+  delete withoutOverride[id];
+  for (const binding of shortcutById.get(id)?.defaultBindings ?? []) {
+    const conflict = findShortcutCollision(binding, id, withoutOverride);
+    if (conflict) return { binding: normalizeBinding(binding), conflict };
+  }
+  return null;
+};
+
 export const resetShortcutOverride = (id: string): void => {
   const overrides = loadShortcutOverrides();
   delete overrides[id];

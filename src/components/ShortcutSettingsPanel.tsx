@@ -7,6 +7,7 @@ import {
   filterShortcutGroups,
   filterShortcutGroupsByStatus,
   findShortcutCollision,
+  findShortcutResetCollision,
   getShortcutBindings,
   getShortcutGroups,
   isShortcutRecordingCancelKey,
@@ -116,6 +117,19 @@ export const ShortcutSettingsPanel: React.FC = () => {
   };
 
   const handleReset = (id: string) => {
+    const clash = findShortcutResetCollision(id, overrides);
+    if (clash) {
+      setRecordingId(null);
+      setConfirmResetAll(false);
+      setCollision({
+        binding: clash.binding,
+        conflictId: clash.conflict.id,
+        conflictLabel: clash.conflict.label,
+        message: `Its default, ${bindingToDisplay(clash.binding)}, is now assigned to ${clash.conflict.label}.`,
+        targetId: id,
+      });
+      return;
+    }
     resetShortcutOverride(id);
     setCollision(null);
     setConfirmResetAll(false);
