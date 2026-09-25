@@ -138,7 +138,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             setActiveIndex((index) => Math.max(0, index - 1));
             return;
           }
-          if (event.key === 'Enter' && activeCommand) {
+          // Enter runs the highlighted command only from the search field. On
+          // a focused button it is that button's press: caught here, Enter on
+          // Close ran Quick new game, and on Clear ran the command it filtered.
+          const fromSearch = event.target === inputRef.current || event.target === event.currentTarget;
+          if (event.key === 'Enter' && activeCommand && fromSearch) {
             event.preventDefault();
             runCommand(activeCommand);
           }
