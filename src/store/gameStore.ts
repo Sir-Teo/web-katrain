@@ -1150,7 +1150,9 @@ const replayChildMove = (parent: GameNode, child: GameNode, suicideLegal = false
   if (move.x < 0 || move.y < 0) {
     const passMove: Move = { x: -1, y: -1, player: move.player };
     return {
-      board: cloneBoard(parentState.board),
+      // Setup on a pass node applies here as on any other node; the loader
+      // placed it, and a rebuild that skipped it lost the stones.
+      board: applySetupPropsToBoard(cloneBoard(parentState.board), child.properties),
       currentPlayer: playerFromSgfPlayerToMove(child.properties) ?? nextPlayer,
       moveHistory: [...parentState.moveHistory, passMove],
       capturedBlack: parentState.capturedBlack,
