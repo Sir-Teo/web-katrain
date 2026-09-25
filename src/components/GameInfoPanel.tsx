@@ -44,6 +44,68 @@ const detailFields: GameInfoField[] = [
 const inputClass =
   'min-h-11 w-full ui-input border rounded px-2 py-1.5 text-xs text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none desktop-shell:min-h-0';
 
+/**
+ * One text field, held as typed and saved when the edit ends. Saving every
+ * keystroke through the store's trim meant a space typed at the end of the
+ * text was trimmed away before the next letter arrived -- "Lee Sedol" came
+ * out "LeeSedol" -- and each keystroke was its own undo step.
+ */
+const GameInfoTextField: React.FC<{
+  field: GameInfoField;
+  value: string;
+  onCommit: (key: string, value: string) => void;
+}> = ({ field, value, onCommit }) => {
+  const [draft, setDraft] = React.useState(value);
+  const [editing, setEditing] = React.useState(false);
+  const pending = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [editing, value]);
+
+  // A panel closed mid-edit unmounts without a blur, so save on the way out.
+  // onCommit is a store action, so this cleanup runs only on unmount.
+  React.useEffect(() => () => {
+    if (pending.current !== null) onCommit(field.key, pending.current);
+  }, [field.key, onCommit]);
+
+  const commit = () => {
+    if (pending.current !== null) onCommit(field.key, pending.current);
+    pending.current = null;
+    setEditing(false);
+  };
+
+  return (
+    <label className={['min-w-0 space-y-1', field.className ?? ''].join(' ')}>
+      <span className="block text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
+        {field.label}
+      </span>
+      <input
+        value={draft}
+        onFocus={() => setEditing(true)}
+        onChange={(e) => {
+          pending.current = e.target.value;
+          setDraft(e.target.value);
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') {
+            e.currentTarget.blur();
+          } else if (e.key === 'Escape') {
+            pending.current = null;
+            setDraft(value);
+            e.currentTarget.blur();
+          }
+        }}
+        placeholder={field.placeholder}
+        className={inputClass}
+        spellCheck={false}
+      />
+    </label>
+  );
+};
+
 export const GameInfoPanel: React.FC = () => {
   const rulesHelpId = React.useId();
   const { rootNode, komi, gameRules, setKomi, setHandicap, setRootProperty, updateSettings, treeVersion } = useGameStore(
@@ -172,20 +234,8 @@ export const GameInfoPanel: React.FC = () => {
     </div>
   );
 
-  const renderField = ({ key, label, placeholder, className }: GameInfoField) => (
-    <label key={key} className={['min-w-0 space-y-1', className ?? ''].join(' ')}>
-      <span className="block text-[0.625rem] font-semibold uppercase tracking-wide ui-text-faint">
-        {label}
-      </span>
-      <input
-        value={valueFor(key)}
-        onChange={(e) => setRootProperty(key, e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className={inputClass}
-        spellCheck={false}
-      />
-    </label>
+  const renderField = (field: GameInfoField) => (
+    <GameInfoTextField key={field.key} field={field} value={valueFor(field.key)} onCommit={setRootProperty} />
   );
 
   // The Edit button above is the single affordance for opening the editor; this
