@@ -17,6 +17,11 @@ export type OgsGameSummary = {
 };
 
 export type OgsSyncProgress = {
+  /**
+   * Games dealt with so far, failed ones included. Counting only successes
+   * held the "Downloading n of m" label still through a run of failures, so a
+   * sync that was working looked hung.
+   */
   downloaded: number;
   total: number;
   current: OgsGameSummary | null;
@@ -207,7 +212,7 @@ export const downloadNewOgsGames = async (
   const failed: OgsGameSummary[] = [];
   for (const game of fresh) {
     if (isCancelled?.()) break;
-    onProgress?.({ downloaded: synced.length, total: fresh.length, current: game });
+    onProgress?.({ downloaded: synced.length + failed.length, total: fresh.length, current: game });
     try {
       const sgf = await downloadOgsSgf(String(game.id), { isCancelled });
       synced.push({ summary: game, sgf });
@@ -218,6 +223,6 @@ export const downloadNewOgsGames = async (
       failed.push(game);
     }
   }
-  onProgress?.({ downloaded: synced.length, total: fresh.length, current: null });
+  onProgress?.({ downloaded: synced.length + failed.length, total: fresh.length, current: null });
   return { synced, skipped: games.length - fresh.length, failed };
 };
