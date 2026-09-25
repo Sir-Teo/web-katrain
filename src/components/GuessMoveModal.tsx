@@ -88,6 +88,9 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
 
   const handleGuess = (x: number, y: number) => {
     if (!current || phase !== 'guess') return;
+    // Every point is a click target; a tap on a stone is a slip, not a guess,
+    // and used to be graded "Off the mark" and counted.
+    if (current.board[y]?.[x]) return;
     const result = scoreGuess(current.expected, x, y);
     setGuess({ x, y });
     setOutcome(result);

@@ -19,8 +19,8 @@ export type MovesPerDiagram = 10 | 25 | 50 | 100 | 'all';
 
 /**
  * Slice an ordered list of move nodes into numbered kifu diagrams. Each diagram
- * renders the board at its last move, numbering the moves that fall in its range
- * (moves from earlier ranges show as plain stones). "all" produces one diagram at
+ * renders the board as its range opens, numbering the moves that fall in the
+ * range (moves from earlier ranges show as plain stones). "all" produces one diagram at
  * the final position with every move numbered.
  *
  * A point played twice in one diagram -- a stone captured and the point taken
@@ -62,7 +62,13 @@ export function buildKifuDiagrams(moveNodes: GameNode[], movesPerDiagram: MovesP
     // captured and the point retaken by the other colour left a black "1"
     // over a white stone, with no disc of its own and its label in the
     // stone's colour -- unreadable -- beside the caption "4 at 1".
-    const board = lastNode.gameState.board.map((row) => [...row]);
+    //
+    // The stones around them are the position as the diagram opens, as a
+    // printed kifu shows it. Starting from the position after its last move
+    // left out any earlier stone captured within the range, so a numbered move
+    // appeared to capture nothing and the diagram could not be replayed.
+    const openingBoard = moves[start]!.parent?.gameState.board ?? lastNode.gameState.board;
+    const board = openingBoard.map((row) => [...row]);
     for (const marker of markers) {
       const row = board[marker.y];
       if (row) row[marker.x] = marker.player;
