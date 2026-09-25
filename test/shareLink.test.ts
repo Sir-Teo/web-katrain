@@ -84,7 +84,9 @@ describe('a share link from someone else', () => {
     const started = Date.now();
     expect(decodeSgfFromFragment(huge)).toBeNull();
     expect(Date.now() - started, 'the length check should be the whole cost').toBeLessThan(500);
-  });
+    // The 5s default covers forging the fragment too -- deflating 200MB, which
+    // is not what is measured and ran past it under a full parallel run.
+  }, 30_000);
 
   it('is unmoved by a fragment that is not deflate at all', () => {
     expect(decodeSgfFromFragment('sgf=' + 'A'.repeat(500))).toBeNull();
