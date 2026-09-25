@@ -58,6 +58,7 @@ import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
 import { isGameRules, isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
+import { toSgfResult } from '../utils/manualScore';
 import { situationalKey, superkoRejectionMessage } from '../utils/superko';
 import { lineViolatesSuperko, repetitionHistoryForNode } from '../utils/treeSuperko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
@@ -6529,7 +6530,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     node.endState = result;
     if (!state.rootNode.properties) state.rootNode.properties = {};
-    if (!state.rootNode.properties.RE?.[0]) state.rootNode.properties.RE = [result];
+    if (!state.rootNode.properties.RE?.[0]) state.rootNode.properties.RE = [toSgfResult(result)];
 
     set((s) => ({ treeVersion: s.treeVersion + 1 }));
     return true;

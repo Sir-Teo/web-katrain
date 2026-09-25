@@ -31,7 +31,7 @@ import { loadSgfOrOgs } from '../utils/ogs';
 import type { CandidateMove, EditTool, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
-import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, roundToHalf } from '../utils/manualScore';
+import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, readRecordedResult, roundToHalf } from '../utils/manualScore';
 import { computeManualScoreEstimate, estimateDeadStonesByPlayout, estimateDeadStonesFromOwnership, NO_MANUAL_SCORE_ESTIMATE, toggleDeadStoneChain } from '../utils/scoring';
 import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import { summarizePointsLost } from '../utils/analysisSummary';
@@ -653,10 +653,10 @@ export const Layout: React.FC = () => {
   ]);
 
   const endResult = (() => {
-    const nodeEnd = currentNode.endState;
-    if (nodeEnd && nodeEnd.includes('+')) return nodeEnd;
-    const rootEnd = rootNode.properties?.RE?.[0];
-    if (rootEnd && rootEnd.includes('+')) return rootEnd;
+    const nodeEnd = readRecordedResult(currentNode.endState);
+    if (nodeEnd) return nodeEnd;
+    const rootEnd = readRecordedResult(rootNode.properties?.RE?.[0]);
+    if (rootEnd) return rootEnd;
     const pass = (n: GameNode | null | undefined) => !!n?.move && (n.move.x < 0 || n.move.y < 0);
     if (pass(currentNode) && pass(currentNode.parent)) {
       if (settings.gameRules === 'japanese') {

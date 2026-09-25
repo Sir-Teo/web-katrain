@@ -17,6 +17,25 @@ export function formatResultScoreLead(scoreLead: number): string {
   return `${leadingPlayer}+${Math.abs(roundedScoreLead).toFixed(1)}`;
 }
 
+/** SGF writes a draw as RE[0] (or RE[Draw]); 'Jigo' is only how we say it. */
+export function toSgfResult(result: string): string {
+  return /^\s*jigo\s*$/i.test(result) ? '0' : result;
+}
+
+/**
+ * A result the game records, as the result chip should show it, or null for
+ * no result. A draw -- RE[0], RE[Draw], or the Jigo a count once stored -- is
+ * a result too; accepting only strings with a '+' showed the engine's guess
+ * with a question mark over a recorded draw.
+ */
+export function readRecordedResult(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes('+')) return trimmed;
+  if (/^(0|draw|jigo)$/i.test(trimmed)) return 'Jigo';
+  return null;
+}
+
 export function computeJapaneseManualScoreFromOwnership(args: {
   board: BoardState;
   komi: number;
