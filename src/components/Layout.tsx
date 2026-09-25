@@ -3957,7 +3957,15 @@ export const Layout: React.FC = () => {
               ...timerSettings,
             });
             const opponent = aiConfig.opponent === 'none' ? null : aiConfig.opponent;
-            useGameStore.setState({ isAiPlaying: !!opponent, aiColor: opponent });
+            // A clock chosen here is meant to run. Every game started paused,
+            // and the only start control is a small ▶ that phones under 430px
+            // do not show: a "5 × 30s" game never spent a second. A generated
+            // opening still waits, so its engine moves are not charged.
+            useGameStore.setState({
+              isAiPlaying: !!opponent,
+              aiColor: opponent,
+              ...(timerEnabled && !setupPosition.enabled ? { timerPaused: false } : {}),
+            });
             // Only when it changes: toggleTeachMode also switches analysis on,
             // and calling it for a box that was already ticked would turn the
             // mode straight back off.

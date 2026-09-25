@@ -51,3 +51,11 @@ describe('coach candidate wording', () => {
     expect(list).toContain("costs about ${lost.toFixed(1)} points by the engine's estimate");
   });
 });
+
+describe('a clock chosen for a new game', () => {
+  it('starts running with the game', () => {
+    // Every game started paused, and phones under 430px hide the only start
+    // control: a "5 × 30s" game never spent a second.
+    expect(read('src/components/Layout.tsx')).toContain('...(timerEnabled && !setupPosition.enabled ? { timerPaused: false } : {}),');
+  });
+});
