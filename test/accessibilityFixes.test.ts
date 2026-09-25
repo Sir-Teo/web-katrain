@@ -47,3 +47,12 @@ describe('dashboard toggles state their state once', () => {
     }
   });
 });
+
+describe('desktop review progress', () => {
+  it('is a progressbar with a coarse polite announcement', () => {
+    const dashboard = read('src/components/dashboard/DesktopDashboard.tsx');
+    expect(dashboard).toMatch(/className="progress-track"\s*role="progressbar"\s*aria-label="Game review"/);
+    expect(dashboard).toContain('<div className="sr-only" role="status" aria-live="polite">');
+    expect(dashboard).toContain("'Game review finished'");
+  });
+});

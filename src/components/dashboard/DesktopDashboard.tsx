@@ -1136,9 +1136,28 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     <AnalysisModelNotice modelUrl={settings.katagoModelUrl} modelName={engineModelLabel} onChooseModel={chooseModel} />
                   </div>
                 )}
+                {/* Mounted whether or not a review runs, so the live region is
+                    in place before its text changes. Quarter steps rather than
+                    every position: a 300-move review would otherwise read out
+                    300 times. */}
+                <div className="sr-only" role="status" aria-live="polite">
+                  {isGameAnalysisRunning && gameAnalysisTotal > 0
+                    ? `Reviewing the game: ${Math.floor((gameAnalysisDone / gameAnalysisTotal) * 4) * 25}% done`
+                    : !isGameAnalysisRunning && gameAnalysisTotal > 0 && gameAnalysisDone >= gameAnalysisTotal
+                      ? 'Game review finished'
+                      : ''}
+                </div>
                 {isGameAnalysisRunning && (
                   <div className="progress-wrap" style={{ paddingTop: 12 }}>
-                    <div className="progress-track">
+                    <div
+                      className="progress-track"
+                      role="progressbar"
+                      aria-label="Game review"
+                      aria-valuemin={0}
+                      aria-valuemax={gameAnalysisTotal}
+                      aria-valuenow={gameAnalysisDone}
+                      aria-valuetext={`${gameAnalysisDone} of ${gameAnalysisTotal} positions`}
+                    >
                       <div className="progress-fill" style={{ width: `${gameAnalysisTotal ? Math.round((gameAnalysisDone / gameAnalysisTotal) * 100) : 0}%` }} />
                     </div>
                     <div className="progress-label">{gameAnalysisDone}/{gameAnalysisTotal} positions · {gameAnalysisType ?? 'analysis'}</div>
