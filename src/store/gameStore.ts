@@ -307,6 +307,14 @@ const applyHandicapStones = (board: BoardState, boardSize: BoardSize, handicap: 
 const SETTINGS_STORAGE_KEY = 'web-katrain:settings:v3';
 const LEGACY_SETTINGS_STORAGE_KEYS = ['web-katrain:settings:v2', 'web-katrain:settings:v1'] as const;
 const OLD_DEFAULT_KATAGO_VISITS = 500;
+/**
+ * Stamped on every save. The visits default went from 500 to 5000 while this
+ * key was current, so stored settings holding 500 had to be read as the old
+ * default -- but a 500 chosen afterwards is a choice, and it came back as 5000
+ * on every reload. Settings saved since carry this, and keep their 500.
+ */
+const SETTINGS_REVISION_FIELD = 'settingsRevision';
+const SETTINGS_REVISION = 1;
 export const DEFAULT_KATAGO_VISITS = 5000;
 
 const normalizeModelUrl = (value: unknown): string | null => {
@@ -402,7 +410,10 @@ export function normalizeStoredSettings(
         delete (parsed as { katagoBackend?: unknown }).katagoBackend;
       }
     }
-    if ((parsed as { katagoVisits?: unknown }).katagoVisits === OLD_DEFAULT_KATAGO_VISITS) {
+    const revision = (parsed as Record<string, unknown>)[SETTINGS_REVISION_FIELD];
+    delete (parsed as Record<string, unknown>)[SETTINGS_REVISION_FIELD];
+    const savedBeforeRevisions = typeof revision !== 'number';
+    if (savedBeforeRevisions && (parsed as { katagoVisits?: unknown }).katagoVisits === OLD_DEFAULT_KATAGO_VISITS) {
       (parsed as { katagoVisits: number }).katagoVisits = DEFAULT_KATAGO_VISITS;
     }
     if ('boardTheme' in parsed) {
@@ -540,7 +551,7 @@ const loadStoredSettings = (): Partial<GameSettings> | null => {
 };
 
 const saveStoredSettings = (settings: GameSettings): void => {
-  writeLocalStorage(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  writeLocalStorage(SETTINGS_STORAGE_KEY, JSON.stringify({ ...settings, [SETTINGS_REVISION_FIELD]: SETTINGS_REVISION }));
 };
 
 const rulesToSgfRu = (rules: GameRules): string => rulesToSgf(rules);
