@@ -520,13 +520,19 @@ function serializeMoveNode(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
     return `;${serializeProps(props)}`;
 }
 
-function serializeSequence(node: GameNode, trainer: KaTrainSgfExportTrainerConfig): string {
+/**
+ * Everything below `root`, which the caller writes itself. Its lines are
+ * serialized in one pass rather than one call per child, so an empty child
+ * of the root is lifted like any other: wrapped per child, its branches came
+ * out double-parenthesized.
+ */
+function serializeVariationsBelow(root: GameNode, trainer: KaTrainSgfExportTrainerConfig): string {
     // First identify the nonempty subtrees. Empty annotation nodes are omitted,
     // and only surviving siblings need variation parentheses. Using an explicit
     // stack here lets every record the importer accepts be saved again without
     // spending one JavaScript call frame per move or study comment.
     const sequences = new Map<GameNode, { text: string; children: GameNode[] }>();
-    const pending = [{ node, expanded: false }];
+    const pending = [{ node: root, expanded: false }];
     while (pending.length > 0) {
         const task = pending.pop()!;
         if (!task.expanded) {
@@ -536,15 +542,27 @@ function serializeSequence(node: GameNode, trainer: KaTrainSgfExportTrainerConfi
             }
             continue;
         }
-        const children = task.node.children.filter((child) => sequences.has(child));
-        const text = serializeMoveNode(task.node, trainer);
+        // An empty node writes nothing, so its lines become its parent's, as
+        // the loader lifts them. Kept as one child, a branching empty node
+        // beside a sibling of its own wrote `((;B[aa])(;B[bb]))(;B[cc])`,
+        // which no reader opens -- removing the last marker from a comment
+        // node with variations was enough. Children are done first, so their
+        // lists are already lifted.
+        const children: GameNode[] = [];
+        for (const child of task.node.children) {
+            const sequence = sequences.get(child);
+            if (!sequence) continue;
+            if (sequence.text) children.push(child);
+            else children.push(...sequence.children);
+        }
+        const text = task.node === root ? '' : serializeMoveNode(task.node, trainer);
         if (text || children.length > 0) sequences.set(task.node, { text, children });
     }
 
     // Emit each node once, joining only at the end instead of rebuilding every
     // ancestor's complete SGF string as a deep sequence unwinds.
     const parts: string[] = [];
-    const output: Array<GameNode | string> = [node];
+    const output: Array<GameNode | string> = [root];
     while (output.length > 0) {
         const item = output.pop()!;
         if (typeof item === 'string') {
@@ -612,14 +630,7 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
 
     let sgf = `(;${serializeProps(props)}`;
 
-    const childSequences = rootNode.children
-        .map((child) => serializeSequence(child, trainer))
-        .filter((childSgf) => childSgf.length > 0);
-    if (childSequences.length === 1) sgf += childSequences[0]!;
-    else if (childSequences.length > 1) {
-        for (const childSgf of childSequences) sgf += `(${childSgf})`;
-    }
-
+    sgf += serializeVariationsBelow(rootNode, trainer);
     sgf += ')';
     return sgf;
 };
