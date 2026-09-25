@@ -231,6 +231,32 @@ describe('photo board SGF import', () => {
     });
   });
 
+  it('offers a move that captures, with the captured stones gone', () => {
+    const board = createEmptyBoard(9);
+    board[0]![0] = 'white';
+    board[0]![1] = 'black';
+    const after = photoBoardStonesFromBoard(board, 9);
+    after[0] = null; // A9 captured
+    after[9] = 'black'; // by A8
+
+    expect(findPhotoBoardMoveDelta({ currentBoard: board, boardSize: 9, stones: after, currentPlayer: 'black' })).toEqual({
+      x: 0,
+      y: 1,
+      player: 'black',
+    });
+  });
+
+  it('refuses a removal the move does not capture', () => {
+    const board = createEmptyBoard(9);
+    board[0]![0] = 'white';
+    board[4]![4] = 'white';
+    const after = photoBoardStonesFromBoard(board, 9);
+    after[4 * 9 + 4] = null; // E5 gone, but nothing captured it
+    after[8 * 9 + 8] = 'black';
+
+    expect(findPhotoBoardMoveDelta({ currentBoard: board, boardSize: 9, stones: after, currentPlayer: 'black' })).toBeNull();
+  });
+
   it('rejects traced move deltas that are not exactly one current-player addition', () => {
     const board = createEmptyBoard(9);
     board[0]![0] = 'black';

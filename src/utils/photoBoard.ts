@@ -1,6 +1,7 @@
 import type { BoardSize, BoardState, Player } from '../types';
 import { coordinateToSgf } from './sgf';
 import { formatGtpMove } from '../lib/gtp';
+import { applyCapturesInPlace } from './gameLogic';
 
 export type PhotoBoardStone = Player | null;
 export type PhotoBoardTraceTool = Player | 'erase';
@@ -227,6 +228,10 @@ export function findPhotoBoardMoveDelta(args: {
   if (stones.length !== boardSize * boardSize) return null;
   if (currentBoard.length !== boardSize || currentBoard.some((row) => row.length !== boardSize)) return null;
 
+  // One stone of the side to move added, and any stones gone the opponent's.
+  // Refusing every removal left out every move that captures, which a pair of
+  // photos from a real game shows as often as not.
+  const opponent: Player = currentPlayer === 'black' ? 'white' : 'black';
   const added: PhotoBoardMoveDelta[] = [];
   for (let y = 0; y < boardSize; y++) {
     for (let x = 0; x < boardSize; x++) {
@@ -237,13 +242,24 @@ export function findPhotoBoardMoveDelta(args: {
         added.push({ x, y, player: traced });
         continue;
       }
+      if (current === opponent && !traced) continue;
       return null;
     }
   }
 
   if (added.length !== 1) return null;
   const [move] = added;
-  return move && move.player === currentPlayer ? move : null;
+  if (!move || move.player !== currentPlayer) return null;
+  // The stones that went must be exactly the ones the move captures.
+  const newBoard = currentBoard.map((row) => [...row]);
+  newBoard[move.y]![move.x] = move.player;
+  applyCapturesInPlace(newBoard, move.x, move.y, move.player);
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      if ((newBoard[y]?.[x] ?? null) !== (stones[y * boardSize + x] ?? null)) return null;
+    }
+  }
+  return move;
 }
 
 export function computePhotoBoardDelta(args: {
