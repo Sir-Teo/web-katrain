@@ -231,6 +231,20 @@ describe('GameStore loadGame', () => {
         expect(state.rootNode.properties?.CR).toEqual(['dd']);
     });
 
+    it('keeps existing labels when a drag sweeps back over them', () => {
+        const store = useGameStore.getState();
+        store.resetGame();
+
+        useGameStore.getState().setEditTool('label-alpha');
+        useGameStore.getState().applyEditTool(0, 0);
+        useGameStore.getState().applyEditTool(1, 0);
+        useGameStore.getState().applyEditTool(2, 0);
+        useGameStore.getState().applyEditTool(1, 0, { paintOnly: true });
+        useGameStore.getState().applyEditTool(0, 0, { paintOnly: true });
+
+        expect(useGameStore.getState().rootNode.properties?.LB).toEqual(['aa:A', 'ba:B', 'ca:C']);
+    });
+
     it('supports right-click board marking with edit history', () => {
         const store = useGameStore.getState();
         store.resetGame();

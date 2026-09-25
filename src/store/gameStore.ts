@@ -2519,6 +2519,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       if (tool === 'label-alpha' || tool === 'label-number') {
+        // A drag that sweeps back over a label keeps it, as it keeps markers;
+        // relabelling renamed A and B to E and D on the way past.
+        if (options.paintOnly && (props.LB ?? []).some((value) => value.split(':', 1)[0] === coord)) return {};
         const history = pushEditHistory(state);
         removeMarkupCoord(props, coord);
         const label = tool === 'label-alpha' ? nextAlphaLabel(props) : nextNumberLabel(props);
