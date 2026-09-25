@@ -154,6 +154,11 @@ function targetBlocksKey(target: EventTarget | null, key: string): boolean {
   if (isDialogTarget(target)) return true;
   // Typing must never trigger a shortcut, so text fields swallow every key.
   if (isTextEntryTarget(target)) return true;
+  // Tab is KaTrain's analysis toggle, and it still is from the page or the
+  // board. From a focused control it is how the keyboard moves on: taken as
+  // the toggle, it flipped analysis and left focus where it was, so nothing
+  // past the first control could be reached.
+  if (key === 'Tab' && (isActivationTarget(target) || isSelfNavigatingTarget(target))) return true;
   if (isSelfNavigatingTarget(target)) {
     return ACTIVATION_KEYS.has(key) || SELF_NAVIGATION_KEYS.has(key);
   }

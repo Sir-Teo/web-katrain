@@ -82,6 +82,16 @@ describe('shouldIgnoreShortcutForKey', () => {
     }
   });
 
+  it('leaves Tab to move focus on from a focused control', () => {
+    // Taken as the analysis toggle, Tab flipped analysis and left focus on the
+    // button, so the keyboard could reach nothing past it.
+    expect(shouldIgnoreShortcutForKey('Tab', button, null, noDialog)).toBe(true);
+    expect(shouldIgnoreShortcutForKey('Tab', { tagName: 'A' } as unknown as EventTarget, null, noDialog)).toBe(true);
+    expect(shouldIgnoreShortcutForKey('Tab', roleTarget('tab'), null, noDialog)).toBe(true);
+    // From the page itself it is still KaTrain's analysis toggle.
+    expect(shouldIgnoreShortcutForKey('Tab', { tagName: 'BODY' } as unknown as EventTarget, null, noDialog)).toBe(false);
+  });
+
   it('still withholds the keys a focused button activates with', () => {
     for (const key of ['Enter', ' ', 'Spacebar']) {
       expect(shouldIgnoreShortcutForKey(key, button, null, noDialog), key).toBe(true);
