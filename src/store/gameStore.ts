@@ -744,6 +744,23 @@ const editToolToMarkerProperty = (tool: EditTool): MarkerProperty | null => {
 
 const cloneBoard = (board: BoardState): BoardState => board.map((row) => [...row]);
 
+/**
+ * The board a move played from `node` may not recreate under simple ko: the
+ * position before the last move. That was always taken as the grandparent,
+ * which is right only when `node` is itself a move. A comment or markup node
+ * between them made the recapture legal -- the grandparent was then the move
+ * that took the ko -- and a setup node that changed the board refused a move
+ * that merely matched an older position. Comment-only nodes are stepped over;
+ * a setup node that changed the board starts afresh, with no ko to keep.
+ */
+const koReferenceBoard = (node: GameNode | null | undefined): BoardState | undefined => {
+  let current = node;
+  while (current && !current.move && current.parent && boardsEqual(current.gameState.board, current.parent.gameState.board)) {
+    current = current.parent;
+  }
+  return current?.move && current.parent ? current.parent.gameState.board : undefined;
+};
+
 const ensureNodeProperties = (node: GameNode): Record<string, string[]> => {
   node.properties = node.properties ?? {};
   return node.properties;
@@ -1202,7 +1219,8 @@ const replayChildMove = (parent: GameNode, child: GameNode, suicideLegal = false
     }
   }
 
-  if (parent.parent && boardsEqual(tentativeBoard, parent.parent.gameState.board)) return null;
+  const koBoard = koReferenceBoard(parent);
+  if (koBoard && boardsEqual(tentativeBoard, koBoard)) return null;
 
   const newCapturedBlack =
     parentState.capturedBlack + (move.player === 'white' ? captured.length : 0) + (move.player === 'black' ? selfCaptured : 0);
@@ -1520,7 +1538,8 @@ const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false, 
       selfCaptured = applySelfCaptureInPlace(newBoard, move.x, move.y).length;
     }
   }
-  if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) return null;
+  const koBoard = koReferenceBoard(parent);
+  if (koBoard && boardsEqual(newBoard, koBoard)) return null;
   const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
   if (lineViolatesSuperko(parent, newBoard, nextPlayer, koRule)) return null;
 
@@ -4232,7 +4251,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // New Move Logic
     // Validate against the same simple-ko/no-suicide rules used by the engine presets exposed in the UI.
     if (
-      !isValidMove(state.board, x, y, state.currentPlayer, state.currentNode.parent?.gameState.board, {
+      !isValidMove(state.board, x, y, state.currentPlayer, koReferenceBoard(state.currentNode), {
         multiStoneSuicideLegal: isSuicideLegal(state.settings.gameRules),
       })
     )
@@ -4256,8 +4275,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    // Simple ko: the position two plies back must not come straight back.
-    if (state.currentNode.parent && boardsEqual(newBoard, state.currentNode.parent.gameState.board)) {
+    // Simple ko: the position before the last move must not come straight back.
+    const koBoard = koReferenceBoard(state.currentNode);
+    if (koBoard && boardsEqual(newBoard, koBoard)) {
         return;
     }
 
@@ -4583,7 +4603,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   playerToMove: playerAtStart,
                   turnNumber: latest.moveHistory.length,
                   params: humanBotPresets[settings.humanSlBotStyle],
-                  isLegal: (x, y) => isValidMove(latest.board, x, y, playerAtStart, parentBoard),
+                  isLegal: (x, y) => isValidMove(latest.board, x, y, playerAtStart, koReferenceBoard(node)),
                 });
                 if (pick) {
                   return {
@@ -6226,7 +6246,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }
 
-      if (parent.parent && boardsEqual(newBoard, parent.parent.gameState.board)) {
+      const koBoard = koReferenceBoard(parent);
+      if (koBoard && boardsEqual(newBoard, koBoard)) {
         lastRejectReason = 'ko';
         return null;
       }
@@ -6634,7 +6655,7 @@ analysisQueue.subscribeCacheSize((queueCacheSize) => {
 
 const makeHeuristicMove = (store: GameStore) => {
     const { board, currentPlayer, currentNode } = store;
-    const parentBoard = currentNode.parent ? currentNode.parent.gameState.board : undefined;
+    const parentBoard = koReferenceBoard(currentNode);
     const boardSize = getBoardSizeFromBoard(board);
     const center = (boardSize - 1) / 2;
     const line3 = 2;
