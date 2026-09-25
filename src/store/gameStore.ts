@@ -4097,8 +4097,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
       syncRootSetupPropertiesFromBoard(root.properties, nextBoard, rootBoardSize, nextHandicap);
       clearAnalysisInSubtree(root);
-      rebuildDescendants(root, isSuicideLegal(get().settings.gameRules));
+      // Moves on a new handicap point cannot be replayed and go, with their
+      // lines. That happened silently, the cursor dropping to the root, where
+      // every other edit that prunes says so and offers Undo.
+      const pruned = rebuildDescendants(root, isSuicideLegal(get().settings.gameRules));
       const currentNode = findNodeById(root, state.currentNode.id) ?? root;
+      const handicapLabel = nextHandicap > 0 ? `Handicap set to ${nextHandicap}.` : 'Handicap removed.';
 
       return {
         currentNode,
@@ -4118,6 +4122,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
         engineError: null,
         ...history,
         treeVersion: state.treeVersion + 1,
+        ...(pruned > 0
+          ? {
+            notification: {
+              message: `${handicapLabel} ${pruned} ${pruned === 1 ? 'node' : 'nodes'} no longer fit the stones and ${pruned === 1 ? 'was' : 'were'} removed.`,
+              type: 'info' as const,
+              undoable: true,
+            },
+          }
+          : {}),
       };
     });
   },
