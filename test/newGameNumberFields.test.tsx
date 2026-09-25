@@ -38,3 +38,13 @@ describe('New Game dialog', () => {
     expect(source).not.toMatch(/useEffect\(\(\) => \{\s*if \(!aiColor\) return;/);
   });
 });
+
+describe('Settings dialog', () => {
+  it('uses the draft field for every number', () => {
+    const source = readFileSync('src/components/SettingsModal.tsx', 'utf8');
+
+    // The same clamp-into-the-field made 60 byo-yomi seconds into 160.
+    expect(source.match(/<DraftNumberInput\b/g)?.length ?? 0).toBeGreaterThanOrEqual(52);
+    expect(source).not.toContain('type="number"');
+  });
+});

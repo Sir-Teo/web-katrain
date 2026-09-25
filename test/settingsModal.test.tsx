@@ -352,8 +352,10 @@ describe('engine fields agree with the engine', () => {
    * `Math.max(1, parseInt(...))` in `onChange`. `max` only governs the spinner.
    */
   it('enforces the ceiling each field declares, not just in the spinner', () => {
-    const inputs = [...source.matchAll(/<input\b[\s\S]{0,900}?\/>/g)].map((m) => m[0]);
-    const declaring = inputs.filter((block) => /type="number"/.test(block) && /max=\{/.test(block));
+    // Number fields are DraftNumberInput, which types the value as it is typed
+    // and hands the owner each complete number to clamp.
+    const inputs = [...source.matchAll(/<DraftNumberInput\b[\s\S]{0,900}?\/>/g)].map((m) => m[0]);
+    const declaring = inputs.filter((block) => /max=\{/.test(block));
     expect(declaring.length, 'the engine number fields moved').toBeGreaterThanOrEqual(5);
 
     for (const block of declaring) {
