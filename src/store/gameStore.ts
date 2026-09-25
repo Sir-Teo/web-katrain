@@ -2342,6 +2342,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!insertedMoves.has(moveKey(move))) {
         const child = createChildForMove(to, move, isSuicideLegal(s.settings.gameRules), rulesOf(s.settings.gameRules).ko);
         if (!child) break;
+        // The copy carries the move's comment, markup and drawings, as
+        // KaTrain's insert mode copies each node's properties; bare copies
+        // lost them, for good once the original line was deleted. Analysis
+        // stays behind: the inserted moves changed the position it was for.
+        child.properties = cloneNodeProperties(from.properties);
+        delete child.properties.KT;
+        delete child.properties.KA;
+        if (from.note) child.note = from.note;
+        const drawings = cloneDrawings(from.drawings);
+        if (drawings) child.drawings = drawings;
+        applySetupPropsToNode(child, child.properties);
         to = child;
         numCopied++;
       }
