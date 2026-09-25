@@ -699,6 +699,22 @@ const SEGMENT_PROPERTIES = ['AR', 'LN'] as const;
 export type SegmentProperty = (typeof SEGMENT_PROPERTIES)[number];
 const SETUP_PROPERTIES = ['AB', 'AW', 'AE'] as const;
 
+/**
+ * What a move written into an SGF root node takes with it when the loader
+ * splits that node into our root and a first move. Everything else -- game
+ * info, setup, the comment, properties we do not know -- stays on the root.
+ * The first move used to get a copy of the whole node, so its comment and
+ * game info were written twice on save and read back that way for good.
+ */
+const ROOT_MOVE_NODE_PROPERTIES = new Set([
+  'B', 'W', 'KO', 'MN',
+  'BL', 'WL', 'OB', 'OW',
+  'BM', 'DO', 'IT', 'TE',
+  'DM', 'GB', 'GW', 'HO', 'UC', 'V',
+  'AR', 'CR', 'DD', 'LB', 'LN', 'MA', 'SL', 'SQ', 'TR',
+  'KT', 'KA',
+]);
+
 const editToolToMarkerProperty = (tool: EditTool): MarkerProperty | null => {
   switch (tool) {
     case 'marker-triangle':
@@ -6166,6 +6182,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     if (sgf.tree) {
       const rootPropsCopy = cloneProps(sgf.tree.props);
+      const rootMoveProps: Record<string, string[]> = {};
+      if (extractMove(sgf.tree.props)) {
+        for (const key of Object.keys(rootPropsCopy)) {
+          if (!ROOT_MOVE_NODE_PROPERTIES.has(key)) continue;
+          rootMoveProps[key] = rootPropsCopy[key]!;
+          delete rootPropsCopy[key];
+        }
+      }
       delete rootPropsCopy.B;
       delete rootPropsCopy.W;
       const rootNote = extractKaTrainUserNoteFromSgfComment(rootPropsCopy['C']);
@@ -6260,12 +6284,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           noteRejectedMove(newRoot, rootMove, 1 + sgf.tree.children.reduce((n, child) => n + countMovesIn(child), 0));
         }
         if (first) {
-          first.properties = cloneProps(sgf.tree.props);
-          applySetupPropsToNode(first, first.properties, boardSize);
-          applySgfPlayerToMoveToNode(first, first.properties);
-          const firstNote = extractKaTrainUserNoteFromSgfComment(first.properties['C']);
-          if (firstNote) first.note = firstNote;
-          delete first.properties['C'];
+          first.properties = rootMoveProps;
           if (sgf.tree.props['KT'] && !first.analysis) {
             applyKtAnalysis(first, sgf.tree.props['KT']);
           }
