@@ -4,7 +4,7 @@ import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
 import { stripUnsafeFilenameControls } from './filename';
 import { countSgfGames, countSgfMoves, sgfTrailingGames } from './sgfScan';
 import { expandSgfPointList } from './sgf';
-import { getIndexedDB, getLocalStorage, readLocalStorage, writeLocalStorage } from './storage';
+import { getIndexedDB, getLocalStorage, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 import { toSearchTerms } from './searchTerms';
 
 export type LibraryBase = {
@@ -79,6 +79,8 @@ export type LibraryFolderOption = {
 
 const LEGACY_STORAGE_KEY = 'web-katrain:library:v1';
 const MIGRATION_FLAG_KEY = 'web-katrain:library_migrated_to_idb:v1';
+/** Persisted twin of `fallbackHasUnflushedWrites`; see `setFallbackUnflushed`. */
+const FALLBACK_UNFLUSHED_KEY = 'web-katrain:library_fallback_unflushed:v1';
 const PRELOADED_VERSION_KEY = 'web-katrain:library_preloaded_version:v1';
 export const LIBRARY_CURRENT_FOLDER_STORAGE_KEY = 'web-katrain:library_current_folder:v1';
 const PRELOADED_VERSION = 3;
@@ -457,10 +459,11 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         } as LibraryFolder;
       }
       const sgf = typeof raw.sgf === 'string' ? raw.sgf : '';
-      const metadata = {
-        ...extractLibraryMetadata(sgf),
-        ...(raw.metadata && typeof raw.metadata === 'object' ? (raw.metadata as LibraryFileMetadata) : {}),
-      };
+      // Everything here is read from the SGF, and read afresh: a stored copy
+      // took precedence, so each fix to that reading -- a player name after
+      // "( ;", an AB[aa:cc] rectangle, a comment before the first move --
+      // never reached games already in the library.
+      const metadata: LibraryFileMetadata = extractLibraryMetadata(sgf);
       const tags = Array.isArray(raw.tags)
         ? Array.from(
             new Set(
@@ -481,7 +484,7 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         parentId,
         type: 'file',
         sgf,
-        moveCount: typeof raw.moveCount === 'number' && Number.isFinite(raw.moveCount) ? raw.moveCount : countMoves(sgf),
+        moveCount: countMoves(sgf),
         size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
         metadata,
         ...(raw.favorite === true ? { favorite: true } : {}),
@@ -661,6 +664,31 @@ let idbLoadFailed = false;
 let fallbackHasUnflushedWrites = false;
 
 /**
+ * The flag above, kept in storage too. Held only in memory, it was gone after
+ * a reload: the recovered database was read on its own and the save made in
+ * the fallback -- reported as "Saved to Library" -- vanished, then the next
+ * fallback save wrote over it for good.
+ */
+const setFallbackUnflushed = (value: boolean): void => {
+  fallbackHasUnflushedWrites = value;
+  if (value) writeLocalStorage(FALLBACK_UNFLUSHED_KEY, 'true');
+  else removeLocalStorage(FALLBACK_UNFLUSHED_KEY);
+};
+
+const hasUnflushedFallback = (): boolean =>
+  fallbackHasUnflushedWrites || readLocalStorage(FALLBACK_UNFLUSHED_KEY) === 'true';
+
+/**
+ * Once the database holds the library, the legacy copy is never a first
+ * migration again. A fallback written during an outage stays in that key, and
+ * with the flag unset an emptied library read it back as one: clearing the
+ * library returned the games just deleted.
+ */
+const markMigrated = (): void => {
+  if (readLocalStorage(MIGRATION_FLAG_KEY) !== 'true') writeLocalStorage(MIGRATION_FLAG_KEY, 'true');
+};
+
+/**
  * Both copies of the library, keeping the newer record of anything in both.
  *
  * Used only to reconcile a fallback written during an IndexedDB outage with the
@@ -690,10 +718,11 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // would destroy everything stored before the outage. A union keeps both
     // sides -- an item deleted during the outage comes back, which is the
     // failure worth having when the alternative is losing one for good.
-    if (fallbackHasUnflushedWrites) {
+    if (hasUnflushedFallback()) {
       const merged = mergeLibrariesByNewest(items, loadFallbackLibrary());
       await saveToIndexedDb(merged);
-      fallbackHasUnflushedWrites = false;
+      setFallbackUnflushed(false);
+      markMigrated();
       return merged;
     }
     const legacyRaw = readLocalStorage(LEGACY_STORAGE_KEY);
@@ -781,16 +810,17 @@ const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
     persistFallback(normalized);
     // Only a database that exists can come back and read over this. Where
     // there is none, the fallback is simply the store.
-    if (hasIndexedDb) fallbackHasUnflushedWrites = true;
+    if (hasIndexedDb) setFallbackUnflushed(true);
     return;
   }
   try {
     await saveToIndexedDb(normalized);
     memoryItems = normalized;
-    fallbackHasUnflushedWrites = false;
+    if (hasUnflushedFallback()) setFallbackUnflushed(false);
+    markMigrated();
   } catch {
     persistFallback(normalized);
-    fallbackHasUnflushedWrites = true;
+    setFallbackUnflushed(true);
   }
 };
 

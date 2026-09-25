@@ -121,7 +121,10 @@ export function convertGibToSgf(text: string): string {
 
 export function convertNgfToSgf(text: string): string {
   assertSgfImportSize(text);
-  const lines = text.trim().split(/\r\n|\n|\r/);
+  // NGF is read by line position, so only the ends that are not lines may go:
+  // trimming the whole text dropped a blank title line and moved every header
+  // up one ("board size must be 9, 13, or 19").
+  const lines = text.replace(/^\uFEFF/, '').trimEnd().split(/\r\n|\n|\r/);
   const size = parseInteger(lines[1]?.trim());
   if (!isBoardSize(size)) throw new Error('NGF board size must be 9, 13, or 19.');
   if (lines.length < 11) throw new Error('The NGF header is incomplete.');
