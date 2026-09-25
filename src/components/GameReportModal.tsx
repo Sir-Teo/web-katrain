@@ -1095,7 +1095,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   >
                     <span className="min-w-0 sm:hidden">{b.compactLabel}</span>
                     <span className="hidden min-w-0 sm:inline">{b.label}</span>
-                    <span className="shrink-0 rounded-full border border-current/20 px-1.5 py-0.5 font-mono text-[0.6875rem] leading-none opacity-80">
+                    <span className="shrink-0 rounded-full border border-current/20 px-1.5 py-0.5 font-mono text-[0.6875rem] leading-none">
                       {counts.analyzed}/{counts.total}
                     </span>
                   </button>

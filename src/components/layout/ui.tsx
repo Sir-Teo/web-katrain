@@ -184,7 +184,9 @@ export const PanelHeaderButton: React.FC<{
         aria-pressed={active}
         className={[
           'min-h-11 rounded border px-2 py-1 text-xs font-semibold touch-manipulation desktop-shell:min-h-0',
-          active ? `${colorClass} border-[var(--ui-border-strong)] text-white` : 'bg-[var(--ui-panel)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
+          // Every caller's colour is a 30% tint, so white read at 1.5:1 in the light
+          // theme; the theme's text colour reads on it in both.
+          active ? `${colorClass} border-[var(--ui-border-strong)] text-[var(--ui-text)]` : 'bg-[var(--ui-panel)] border-[var(--ui-border)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]',
         ].join(' ')}
       >
         {label}

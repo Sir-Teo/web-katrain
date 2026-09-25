@@ -91,7 +91,7 @@ const HomeAction: React.FC<HomeActionProps> = ({ label, compactLabel, icon, onCl
       {compactLabel ? (
         <span className="mobile-home-action-label-compact hidden text-xs font-semibold">{compactLabel}</span>
       ) : null}
-      {hint ? <span className="mobile-home-action-hint mt-0.5 block truncate text-[0.6875rem] opacity-75">{hint}</span> : null}
+      {hint ? <span className="mobile-home-action-hint mt-0.5 block truncate text-[0.6875rem]">{hint}</span> : null}
     </span>
   </button>
 );
