@@ -223,7 +223,9 @@ export const ScoreWinrateGraph: React.FC<{
     void gameAnalysisDone;
     return displayNodes
       .map((node, index) => {
-        if (index === 0) return null;
+        // No skip for index 0: in a phase-limited graph that is the phase's
+        // first move, which went unmarked. The root has no move, and
+        // computeNodePointsLost already returns null for it.
         const rawPointsLost = computeNodePointsLost(node);
         if (typeof rawPointsLost !== 'number' || !Number.isFinite(rawPointsLost)) return null;
         const pointsLost = Math.max(0, rawPointsLost);
@@ -246,7 +248,7 @@ export const ScoreWinrateGraph: React.FC<{
   const indexAtClientX = (clientX: number): number | null => {
     if (!hasGraphData || !svgRef.current) return null;
     const rect = svgRef.current.getBoundingClientRect();
-    return indexAtGraphX({ clientX, left: rect.left, width: rect.width, count });
+    return indexAtGraphX({ clientX, left: rect.left, width: rect.width, count, span: Math.max(count - 1, 15) });
   };
 
   /**
@@ -363,6 +365,14 @@ export const ScoreWinrateGraph: React.FC<{
     ? smoothedWinrateValues[clampedHighlighted]!
     : lastFinite(smoothedWinrateValues);
 
+  // A clock alone makes the graph, and with no win rate or score behind it
+  // their dots sat on "Jigo", their scale was labelled, and the tooltip read
+  // "50.0% - B+0.0". Each series is drawn and read only where it has values.
+  const hasScoreSeries = smoothedScoreValues.some((value) => Number.isFinite(value));
+  const hasWinrateSeries = smoothedWinrateValues.some((value) => Number.isFinite(value));
+  const showScoreSeries = showScore && hasScoreSeries;
+  const showWinrateSeries = showWinrate && hasWinrateSeries;
+
   const currentScoreY = yScore(currentScore);
   const currentWinY = yWin(currentWin);
 
@@ -378,7 +388,14 @@ export const ScoreWinrateGraph: React.FC<{
     typeof hoverPointsLost === 'number' && Number.isFinite(hoverPointsLost) && Math.abs(hoverPointsLost) > 0.05
       ? formatPointLoss(hoverPointsLost)
       : '';
-  const hoverMetricsText = `${showWinrate ? `${(50 + hoverWin).toFixed(1)}%` : ''}${showScore && showWinrate ? ' - ' : ''}${showScore ? `${hoverScore >= 0 ? 'B' : 'W'}+${Math.abs(hoverScore).toFixed(1)}` : ''}`;
+  // Only this move's own readings: carrying the last analysed move's values
+  // forward put them under a later move's number.
+  const hoverHasScore = hoverIndex !== null && Number.isFinite(smoothedScoreValues[hoverIndex]!);
+  const hoverHasWin = hoverIndex !== null && Number.isFinite(smoothedWinrateValues[hoverIndex]!);
+  const hoverMetricsText = [
+    showWinrate && hoverHasWin ? `${(50 + hoverWin).toFixed(1)}%` : '',
+    showScore && hoverHasScore ? `${hoverScore >= 0 ? 'B' : 'W'}+${Math.abs(hoverScore).toFixed(1)}` : '',
+  ].filter(Boolean).join(' - ');
   const hoverSeconds = hoverIndex !== null ? timeValues[hoverIndex] : undefined;
   const hoverTimeText =
     showTime && typeof hoverSeconds === 'number' && Number.isFinite(hoverSeconds)
@@ -485,8 +502,8 @@ export const ScoreWinrateGraph: React.FC<{
         )}
 
         {/* Current dot */}
-        {showScore && <circle cx={currentX} cy={currentScoreY} r="3" fill={graphTheme.dotColor} stroke="none" />}
-        {showWinrate && <circle cx={currentX} cy={currentWinY} r="3" fill={graphTheme.dotColor} stroke="none" />}
+        {showScoreSeries && <circle cx={currentX} cy={currentScoreY} r="3" fill={graphTheme.dotColor} stroke="none" />}
+        {showWinrateSeries && <circle cx={currentX} cy={currentWinY} r="3" fill={graphTheme.dotColor} stroke="none" />}
 
         {/* Hover indicator */}
         {hoverIndex !== null && (
@@ -500,8 +517,8 @@ export const ScoreWinrateGraph: React.FC<{
               strokeWidth="1"
               vectorEffect="non-scaling-stroke"
             />
-            {showScore && <circle cx={hoverX} cy={hoverScoreY} r="3" fill={graphTheme.dotColor} stroke="none" />}
-            {showWinrate && <circle cx={hoverX} cy={hoverWinY} r="3" fill={graphTheme.dotColor} stroke="none" />}
+            {showScore && hoverHasScore && <circle cx={hoverX} cy={hoverScoreY} r="3" fill={graphTheme.dotColor} stroke="none" />}
+            {showWinrate && hoverHasWin && <circle cx={hoverX} cy={hoverWinY} r="3" fill={graphTheme.dotColor} stroke="none" />}
           </g>
         )}
       </svg>
@@ -540,7 +557,7 @@ export const ScoreWinrateGraph: React.FC<{
       )}
 
       {/* Score ticks (KaTrain-like) — meaningless without data, so they wait for it */}
-      {showScore && hasGraphData && (
+      {showScoreSeries && hasGraphData && (
         <>
           <div
             className="absolute top-1 right-1 text-[0.5625rem] pointer-events-none"
@@ -560,7 +577,7 @@ export const ScoreWinrateGraph: React.FC<{
       )}
 
       {/* Winrate ticks (KaTrain-like) */}
-      {showWinrate && hasGraphData && (
+      {showWinrateSeries && hasGraphData && (
         <>
           <div
             className="absolute top-1 left-1 text-[0.5625rem] pointer-events-none"
@@ -580,7 +597,8 @@ export const ScoreWinrateGraph: React.FC<{
           aria-live="polite"
           data-analysis-graph-tooltip="true"
           style={{
-            left: `${Math.min(Math.max(0, hoverIndex * (100 / (count - 1 || 1))), 88)}%`,
+            // Where the point is drawn, which spans at least 15 intervals.
+            left: `${Math.min(Math.max(0, (hoverIndex * xScale * 100) / width), 88)}%`,
             top: '50%',
             transform: 'translate(-50%, -50%)',
           }}

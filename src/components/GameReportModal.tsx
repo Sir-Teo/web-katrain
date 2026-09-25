@@ -152,6 +152,15 @@ function rootPropertiesForNode(node: GameNode): Record<string, string[]> {
   return root.properties ?? {};
 }
 
+const isNodeInTree = (node: GameNode, rootId: string): boolean => {
+  let cursor = node;
+  while (cursor.parent) {
+    if (!cursor.parent.children.includes(cursor)) return false;
+    cursor = cursor.parent;
+  }
+  return cursor.id === rootId;
+};
+
 export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setReportHoverMove }) => {
   const {
     currentNode,
@@ -210,7 +219,6 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [isPreparingPdf, setIsPreparingPdf] = useState(false);
   const [pdfSnapshots, setPdfSnapshots] = useState<Array<{ id: string; dataUrl: string | null; entry: MoveReportEntry }>>([]);
-  const [graphTick, setGraphTick] = useState(0);
   const [showReportGuide, setShowReportGuide] = useState(false);
   useEscapeToClose(onClose, !showReportGuide);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
@@ -893,14 +901,6 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   };
 
   useEffect(() => {
-    if (!isGameAnalysisRunning) return;
-    const id = window.setInterval(() => {
-      setGraphTick((tick) => tick + 1);
-    }, 900);
-    return () => window.clearInterval(id);
-  }, [isGameAnalysisRunning]);
-
-  useEffect(() => {
     if (snapshotTimerRef.current) {
       window.clearTimeout(snapshotTimerRef.current);
     }
@@ -916,8 +916,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   useEffect(() => {
     setPdfSnapshots([]);
-    setShowAllMistakes(false);
   }, [bucketFilter, mistakeSort, playerFilter, phaseFilter, policyFilter, treeVersion]);
+
+  // The list's length follows what is asked for, not analysis landing: with
+  // live analysis on, every result folded "Show all" back to ten.
+  useEffect(() => {
+    setShowAllMistakes(false);
+  }, [bucketFilter, mistakeSort, playerFilter, phaseFilter, policyFilter]);
 
   useEffect(() => {
     setBucketFilter(null);
@@ -941,11 +946,23 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     }
   }, [phaseCounts, phaseFilter]);
 
+  // The queue belongs to a filter set and a game. It used to reset on every
+  // tree change too, and stepping through it with live analysis on analyses
+  // each position -- so the queue closed itself two seconds into each step.
   useEffect(() => {
     setReviewQueue([]);
     setReviewIndex(0);
     setReportHoverMove(null);
-  }, [bucketFilter, mistakeSort, phaseFilter, playerFilter, policyFilter, setReportHoverMove, treeVersion]);
+  }, [bucketFilter, mistakeSort, phaseFilter, playerFilter, policyFilter, rootNodeId, setReportHoverMove]);
+
+  // A deleted move leaves the queue rather than stay there to be jumped to.
+  useEffect(() => {
+    void treeVersion;
+    setReviewQueue((queue) => {
+      const attached = queue.filter((entry) => isNodeInTree(entry.node, rootNodeId));
+      return attached.length === queue.length ? queue : attached;
+    });
+  }, [rootNodeId, treeVersion]);
 
   useEffect(() => () => setReportHoverMove(null), [setReportHoverMove]);
 
@@ -1565,7 +1582,11 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               {reportGraph.score || reportGraph.winrate || (hasMoveTimes && reportGraph.time) ? (
                 <div style={{ height: 160 }}>
                   <ScoreWinrateGraph
-                    key={`${graphRange?.start ?? 0}-${graphRange?.end ?? 'all'}-${treeVersion}-${gameAnalysisDone}-${graphTick}-${reportGraph.score ? 's' : ''}${reportGraph.winrate ? 'w' : ''}${reportGraph.time ? 't' : ''}`}
+                    // Keyed on what it shows, not on analysis progress: a key
+                    // that changed every 0.9s rebuilt the graph and threw its
+                    // keyboard focus and hover away. Its own memos follow the
+                    // tree and the review.
+                    key={`${graphRange?.start ?? 0}-${graphRange?.end ?? 'all'}-${reportGraph.score ? 's' : ''}${reportGraph.winrate ? 'w' : ''}${reportGraph.time ? 't' : ''}`}
                     showScore={reportGraph.score}
                     showWinrate={reportGraph.winrate}
                     showTime={hasMoveTimes && reportGraph.time}
