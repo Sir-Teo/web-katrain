@@ -1,5 +1,17 @@
 const CACHE_VERSION = 'web-katrain-v3';
 const APP_SHELL_CACHE = `${CACHE_VERSION}:shell`;
+/**
+ * Where an update installs, until it activates.
+ *
+ * The version above only changes when the cache layout does, so an update
+ * installed into the shell cache the old worker was still serving from: its
+ * offline launches got the new index.html with the old worker's cache behind
+ * it, and a new first-paint chunk that was not there failed the launch. An
+ * install cut short left the live shell naming a bundle nobody cached -- a
+ * blank page offline. Staging keeps the running version whole until the new
+ * one takes over.
+ */
+const STAGING_SHELL_CACHE = `${CACHE_VERSION}:shell-next`;
 const RUNTIME_CACHE = `${CACHE_VERSION}:runtime`;
 const MAX_RUNTIME_CACHE_ENTRIES = 64;
 
@@ -163,7 +175,10 @@ const putRuntimeResponse = (cache, request, response) =>
  * comment is about. They are same-origin, a few hundred kilobytes, and the
  * page has just fetched them.
  */
-const ENTRY_ASSET_PATTERN = /(?:src|href)=["']([^"']+\.(?:js|css))["']/g;
+// The build also preloads its first-paint chunks from an inline script,
+// `add("modulepreload","/assets/…")`, which the attribute form never matched.
+const ENTRY_ASSET_PATTERN =
+  /(?:src|href)=["']([^"']+\.(?:js|css))["']|add\(\s*"(?:modulepreload|preload)"\s*,\s*"([^"]+\.(?:js|css))"\s*\)/g;
 
 const entryAssetUrls = async (cache) => {
   const response = (await cache.match('./index.html')) || (await cache.match('./'));
@@ -171,7 +186,7 @@ const entryAssetUrls = async (cache) => {
   const html = await response.text();
   const urls = new Set();
   for (const match of html.matchAll(ENTRY_ASSET_PATTERN)) {
-    const resolved = new URL(match[1], self.location.href);
+    const resolved = new URL(match[1] ?? match[2], self.location.href);
     // Only this deployment's own build output.
     if (isSameOrigin(resolved) && resolved.pathname.includes('/assets/')) urls.add(resolved.href);
   }
@@ -181,7 +196,8 @@ const entryAssetUrls = async (cache) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
-      .open(APP_SHELL_CACHE)
+      .delete(STAGING_SHELL_CACHE)
+      .then(() => caches.open(STAGING_SHELL_CACHE))
       .then(async (cache) => {
         await cache.addAll(PRECACHE_REQUIRED);
         const entryAssets = await entryAssetUrls(cache);
@@ -202,10 +218,22 @@ self.addEventListener('install', (event) => {
  */
 const isStaleOwnCache = (key) => key.startsWith('web-katrain-') && !key.startsWith(`${CACHE_VERSION}:`);
 
+/** Move a completed install into the live shell, now that it is ours to serve. */
+const promoteStagedShell = async () => {
+  if (!(await caches.keys()).includes(STAGING_SHELL_CACHE)) return;
+  const staged = await caches.open(STAGING_SHELL_CACHE);
+  const live = await caches.open(APP_SHELL_CACHE);
+  for (const request of await staged.keys()) {
+    const response = await staged.match(request);
+    if (response) await live.put(request, response);
+  }
+  await caches.delete(STAGING_SHELL_CACHE);
+};
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
+    promoteStagedShell()
+      .then(() => caches.keys())
       .then((keys) => Promise.all(keys.filter(isStaleOwnCache).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
