@@ -89,13 +89,15 @@ describe('manual score contributions shown to the player', () => {
     const deadStones = new Set<string>();
     settledBoard.forEach((row, y) => row.forEach((stone, x) => { if (stone === 'black') deadStones.add(`${x},${y}`); }));
     const result = computeManualScoreEstimate({ ...countArgs, rules: 'stone-scoring', deadStones });
-    expect(result.result).toBe('W+84.0'); // White owns 81, plus 7 komi, minus 4 group tax.
+    // White owns 81, plus 7 komi, minus 2 group tax: with every black stone
+    // dead, White's two chains and the board they hold are one group.
+    expect(result.result).toBe('W+86.0');
     expect(result.points.black.livingStones).toBe(0);
     expect(result.points.black.groupTax).toBe(0);
     expect(result.points.white.deadStones).toBe(0);
     expect(result.points.white.prisoners).toBe(0);
     const html = renderToStaticMarkup(<ManualScorePanel {...baseProps} score={result} deadStoneCount={49} />);
-    expect(renderedRow(html, 'Group tax')).toEqual(['Black 0', 'White -4']);
+    expect(renderedRow(html, 'Group tax')).toEqual(['Black 0', 'White -2']);
     expect(renderedRow(html, 'Living stones')).toEqual(['Black 0', 'White 26']);
   });
 });

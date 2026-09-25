@@ -198,6 +198,25 @@ describe('rules affect play and scoring', () => {
     expect(ancient.whiteScore).toBe(chinese.whiteScore - 2);
   });
 
+  it('taxes a group once when its chains are joined by its own territory', async () => {
+    const { computeManualScoreEstimate, countLivingGroups } = await import('../src/utils/scoring');
+    // Black's wall is two chains joined through the point between them, which
+    // is Black's territory: one group, as KataGo and the engine count it.
+    const rows = ['..XO.', '..XO.', 'X.XO.', '..XO.', '..XO.'];
+    const board = rows.map((row) => [...row].map((c) => (c === 'X' ? 'black' : c === 'O' ? 'white' : null)));
+
+    expect(countLivingGroups(board as never, new Set())).toEqual({ blackGroups: 1, whiteGroups: 1 });
+    const scored = computeManualScoreEstimate({
+      board: board as never,
+      komi: 0,
+      capturedBlack: 0,
+      capturedWhite: 0,
+      deadStones: new Set(),
+      rules: 'stone-scoring',
+    });
+    expect(scored.blackScore - scored.whiteScore).toBe(5);
+  });
+
   it('does not tax groups the players marked dead', async () => {
     const { computeManualScoreEstimate, countLivingGroups } = await import('../src/utils/scoring');
     const size = 5;
@@ -206,7 +225,9 @@ describe('rules affect play and scoring', () => {
     board[0]![0] = 'black';
     board[0]![4] = 'black';
 
-    expect(countLivingGroups(board as never, new Set())).toEqual({ blackGroups: 2, whiteGroups: 0 });
+    // Alone on the board, the two stones hold all of it between them: one
+    // region of stones and territory, which is what the tax counts.
+    expect(countLivingGroups(board as never, new Set())).toEqual({ blackGroups: 1, whiteGroups: 0 });
     expect(countLivingGroups(board as never, new Set(['4,0']))).toEqual({ blackGroups: 1, whiteGroups: 0 });
 
     const scored = computeManualScoreEstimate({

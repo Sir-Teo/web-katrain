@@ -375,38 +375,41 @@ export function countLivingStones(
 }
 
 /**
- * Living groups per colour, for the rulesets that tax each group. Stones the
- * players marked dead are lifted first, so a dead group is not taxed.
+ * Taxed groups per colour, for the rulesets that tax each group: the
+ * connected regions of a colour's living stones and the territory they hold,
+ * as KataGo counts them and as this app's engine scores a finished game.
+ * Counting stone chains instead taxed a group twice when its chains were
+ * joined only through its own eyes -- B+3 where the engine said B+5. Stones
+ * the players marked dead are lifted first, so a dead group is not taxed.
  */
 export function countLivingGroups(
   board: BoardState,
   deadStones: ReadonlySet<string>
 ): { blackGroups: number; whiteGroups: number } {
   const size = board.length;
+  const { territory } = calculateTerritoryScore(board, deadStones);
+  const ownerAt = (x: number, y: number): ScoringOwner => {
+    const stone = board[y]?.[x] ?? null;
+    if (stone && !deadStones.has(scoringPointKey(x, y))) return stone === 'black' ? 1 : -1;
+    return territory[y]?.[x] ?? 0;
+  };
   const seen = new Set<string>();
   let blackGroups = 0;
   let whiteGroups = 0;
 
-  const alive = (x: number, y: number): Player | null => {
-    const stone = board[y]?.[x] ?? null;
-    if (!stone || deadStones.has(scoringPointKey(x, y))) return null;
-    return stone;
-  };
-
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < (board[y]?.length ?? 0); x++) {
-      const stone = alive(x, y);
-      if (!stone) continue;
+      const owner = ownerAt(x, y);
       const key = scoringPointKey(x, y);
-      if (seen.has(key)) continue;
-
-      if (stone === 'black') blackGroups++;
-      else whiteGroups++;
-
+      if (owner === 0 || seen.has(key)) continue;
+      // A region of territory alone, with no stone of its own, is not a group.
+      let hasStone = false;
       const stack: Point[] = [{ x, y }];
       seen.add(key);
       while (stack.length > 0) {
         const point = stack.pop()!;
+        const stone = board[point.y]?.[point.x] ?? null;
+        if (stone && !deadStones.has(scoringPointKey(point.x, point.y))) hasStone = true;
         for (const [dx, dy] of [
           [1, 0],
           [-1, 0],
@@ -417,12 +420,14 @@ export function countLivingGroups(
           const ny = point.y + dy;
           if (nx < 0 || ny < 0 || ny >= size || nx >= (board[ny]?.length ?? 0)) continue;
           const nextKey = scoringPointKey(nx, ny);
-          if (seen.has(nextKey)) continue;
-          if (alive(nx, ny) !== stone) continue;
+          if (seen.has(nextKey) || ownerAt(nx, ny) !== owner) continue;
           seen.add(nextKey);
           stack.push({ x: nx, y: ny });
         }
       }
+      if (!hasStone) continue;
+      if (owner === 1) blackGroups++;
+      else whiteGroups++;
     }
   }
 
