@@ -43,13 +43,18 @@ const moveKey = (move: CandidateMove) => `${move.x},${move.y}`;
 
 type SortKey = 'rank' | 'win' | 'score' | 'lost' | 'visits' | 'prior' | 'stdev';
 
-/** Column order for a sort: the engine's rank, or the column's own value best-first. */
-const sortCandidates = (moves: CandidateMove[], key: SortKey): CandidateMove[] => {
+/**
+ * Column order for a sort: the engine's rank, or the column's own value
+ * best-first for the side to play. Win rate and score are Black's, so with
+ * White to play the highest figure is White's worst move and went on top.
+ */
+const sortCandidates = (moves: CandidateMove[], key: SortKey, toPlay: 'black' | 'white'): CandidateMove[] => {
   if (key === 'rank') return moves;
+  const forMover = toPlay === 'white' ? -1 : 1;
   const value = (m: CandidateMove): number => {
     switch (key) {
-      case 'win': return m.winRate;
-      case 'score': return m.scoreLead;
+      case 'win': return forMover * m.winRate;
+      case 'score': return forMover * m.scoreLead;
       case 'lost': return -m.pointsLost;
       case 'visits': return m.visits;
       case 'prior': return m.prior ?? -1;
@@ -73,9 +78,10 @@ const coachQualityText = (quality: string, pointsLost: number): string => {
 };
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, lowVisits, addPvVariation } = useGameStore(
+  const { moves, toPlay, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, lowVisits, addPvVariation } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
+      toPlay: state.currentNode.gameState.currentPlayer,
       topK: state.settings.katagoTopK,
       lowVisits: state.settings.trainerLowVisits,
       addPvVariation: state.addPvVariation,
@@ -119,8 +125,8 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   const rows = useMemo(() => {
     if (drillHidesAnswer) return [];
     const onBoard = (moves ?? []).filter((move) => move.x >= 0 && move.y >= 0).slice(0, visibleCap);
-    return sortCandidates(onBoard, isPro ? sortKey : 'rank');
-  }, [drillHidesAnswer, isPro, moves, sortKey, visibleCap]);
+    return sortCandidates(onBoard, isPro ? sortKey : 'rank', toPlay);
+  }, [drillHidesAnswer, isPro, moves, sortKey, toPlay, visibleCap]);
 
   const sortButton = (key: SortKey, label: string, title: string) => (
     <button

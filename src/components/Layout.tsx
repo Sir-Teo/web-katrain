@@ -467,6 +467,14 @@ export const Layout: React.FC = () => {
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
+  // A previewed candidate belongs to the position it came from. Kept across a
+  // move, its variation stayed drawn on the new board and the row with the
+  // same coordinates read as already previewed, so one Enter played it.
+  const [reportHoverNodeId, setReportHoverNodeId] = useState(currentNode.id);
+  if (reportHoverNodeId !== currentNode.id) {
+    setReportHoverNodeId(currentNode.id);
+    if (reportHoverMove) setReportHoverMove(null);
+  }
   const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsFocusModel, setSettingsFocusModel] = useState(false);
