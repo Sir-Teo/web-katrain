@@ -40,7 +40,7 @@ describe('centring while scrubbing', () => {
      */
     expect(source).toContain('const RAPID_NAVIGATION_MS = 250;');
     expect(source).toContain('const rapid = now - centeredAtRef.current < RAPID_NAVIGATION_MS;');
-    expect(source).toContain("centerCurrentNode(last && !rapid ? preferredScrollBehavior() : 'auto');");
+    expect(source).toContain("centerCurrentNode(last && !rapid ? preferredScrollBehavior() : 'auto')");
   });
 
   it('still asks for the reader\u2019s preference when the step is deliberate', () => {

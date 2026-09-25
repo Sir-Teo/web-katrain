@@ -212,15 +212,17 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
       : 'working'
     : 'sync';
 
-  const centerCurrentNode = useCallback((behavior: ScrollBehavior = preferredScrollBehavior()) => {
+  /** Scrolls the current move into the middle; false when it is not laid out yet. */
+  const centerCurrentNode = useCallback((behavior: ScrollBehavior = preferredScrollBehavior()): boolean => {
     const container = containerRef.current;
     const activeLayout = syncLayout ?? (shouldUseWorker ? reusableWorkerLayout : null);
-    if (!container || !activeLayout) return;
+    if (!container || !activeLayout) return false;
     const pos = activeLayout.nodes.find((node) => node.id === currentNode.id);
-    if (!pos) return;
+    if (!pos) return false;
     const targetLeft = Math.max(0, pos.x - container.clientWidth * 0.5);
     const targetTop = Math.max(0, pos.y - container.clientHeight * 0.5);
     container.scrollTo({ left: targetLeft, top: targetTop, behavior });
+    return true;
   }, [currentNode.id, reusableWorkerLayout, shouldUseWorker, syncLayout]);
 
   useEffect(() => {
@@ -419,7 +421,6 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     if (!hasLayout) return;
     const last = centeredRef.current;
     if (last && last.nodeId === currentNode.id && last.container === containerElement) return;
-    centeredRef.current = { nodeId: currentNode.id, container: containerElement };
     /**
      * A smooth scroll is worth it for a deliberate step and costs nothing.
      * Held down, it is a different thing: each step starts an animation the
@@ -433,8 +434,13 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
      */
     const now = nowMs();
     const rapid = now - centeredAtRef.current < RAPID_NAVIGATION_MS;
+    // Marked done only once it has happened. A large tree keeps its previous
+    // layout on screen while the worker computes the next, and a move that
+    // layout does not hold -- one just revealed from a folded branch -- could
+    // not be centred yet; marking it anyway meant the new layout never was.
+    if (!centerCurrentNode(last && !rapid ? preferredScrollBehavior() : 'auto')) return;
+    centeredRef.current = { nodeId: currentNode.id, container: containerElement };
     centeredAtRef.current = now;
-    centerCurrentNode(last && !rapid ? preferredScrollBehavior() : 'auto');
   }, [centerCurrentNode, containerElement, currentNode.id, hasLayout]);
 
   const visible = useMemo(() => (layout ? getVisibleMoveTreeItems(layout, viewport) : null), [layout, viewport]);
