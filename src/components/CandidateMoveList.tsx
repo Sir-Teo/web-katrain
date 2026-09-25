@@ -70,11 +70,19 @@ const formatPrior = (prior: number | undefined): string =>
 const formatStdev = (stdev: number | undefined): string =>
   typeof stdev === 'number' && Number.isFinite(stdev) ? `±${stdev.toFixed(1)}` : '—';
 
-/** Coach wording for a candidate: the quality word and, when it costs something, the gap to the top move in plain points. */
+/**
+ * Coach wording for a candidate: the quality word and what the move costs.
+ *
+ * `pointsLost` is measured against the position's own evaluation, not against
+ * the top candidate, so "N points behind the best move" was wrong whenever the
+ * search had found something better than it first thought: F3 read "0.3
+ * behind the best" beside a G2 1.9 points ahead of it, and a zero-cost move
+ * that was not the top one read as "the engine's top choice".
+ */
 const coachQualityText = (quality: string, pointsLost: number): string => {
   const lost = Number.isFinite(pointsLost) ? Math.max(0, pointsLost) : 0;
-  if (lost < 0.05) return `${quality} — the engine's top choice`;
-  return `${quality}, ${lost.toFixed(1)} points behind the best move`;
+  if (lost < 0.05) return `${quality}, costs nothing by the engine's estimate`;
+  return `${quality}, costs about ${lost.toFixed(1)} points by the engine's estimate`;
 };
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {

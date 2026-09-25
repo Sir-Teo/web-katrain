@@ -40,3 +40,14 @@ describe('desktop move rail', () => {
     expect(read('src/components/dashboard/dashboard.css')).toMatch(/@container boardcol \(max-width: 940px\) \{\s*\.wk-dashboard \.move-counter \.mc-label \{ display: none; \}/);
   });
 });
+
+describe('coach candidate wording', () => {
+  it('says what a move costs, not how far it is behind the top candidate', () => {
+    // pointsLost is measured against the position, so "0.3 points behind the
+    // best move" sat beside a move 1.9 points better.
+    const list = read('src/components/CandidateMoveList.tsx');
+    expect(list).not.toContain('points behind the best move');
+    expect(list).not.toContain("the engine's top choice`");
+    expect(list).toContain("costs about ${lost.toFixed(1)} points by the engine's estimate");
+  });
+});
