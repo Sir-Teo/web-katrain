@@ -3,7 +3,7 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { isDrillHidingAnswer } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
-import { getEvaluationClass } from '../utils/nodeAnalysis';
+import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
 import { formatBoardMoveLabel } from '../lib/gtp';
 
@@ -24,7 +24,7 @@ const moveKey = (move: CandidateMove) => `${move.x},${move.y}`;
 export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, onPin }) => {
   const stripRef = useRef<HTMLDivElement>(null);
   const [scrollEdges, setScrollEdges] = useState({ overflow: false, atStart: true, atEnd: true });
-  const { moves, boardSize, nodeId, trainerTheme, addPvVariation } = useGameStore(
+  const { moves, boardSize, nodeId, trainerTheme, evalThresholds, addPvVariation } = useGameStore(
     (state) => ({
       // These tiles are the engine's candidate moves, which is the answer a
       // drill is asking for; show nothing while it is asking.
@@ -34,6 +34,9 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
       boardSize: state.currentNode.gameState.board.length,
       nodeId: state.currentNode.id,
       trainerTheme: state.settings.trainerTheme,
+      // The board, list and graph colour a loss by the player's thresholds;
+      // with the defaults here, one move showed two colours side by side.
+      evalThresholds: state.settings.trainerEvalThresholds,
       addPvVariation: state.addPvVariation,
     }),
     shallow
@@ -105,7 +108,11 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
       {tiles.map((move) => {
         const key = moveKey(move);
         const active = pinnedKey === key;
-        const cls = getEvaluationClass(move.pointsLost, undefined, evalColors.length);
+        const cls = getEvaluationClass(
+          move.pointsLost,
+          evalThresholds?.length ? evalThresholds : DEFAULT_EVAL_THRESHOLDS,
+          evalColors.length
+        );
         const dot = evalColorToCss(evalColors[cls] ?? evalColors[evalColors.length - 1]!);
         return (
           <button
