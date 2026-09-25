@@ -441,6 +441,12 @@ export function useKeyboardShortcuts({
       // Find mistakes
       if (matches('next-mistake') || matches('prev-mistake')) {
         e.preventDefault();
+        // Refused like every other jump; unguarded, N left insert mode on
+        // three moves further along the original line.
+        if (isInsertMode) {
+          toast('Finish inserting before navigating.', 'error');
+          return;
+        }
         findMistake(matches('prev-mistake') ? 'undo' : 'redo');
         return;
       }

@@ -200,6 +200,13 @@ type EditDragState = {
   painted: Set<string>;
 };
 
+/** Refuse forward navigation mid-insert, as the keyboard and panels do. */
+const refuseNavigationWhileInserting = (): boolean => {
+  if (!useGameStore.getState().isInsertMode) return false;
+  setTimedNotification('Finish inserting before navigating.', 'error');
+  return true;
+};
+
 export const GoBoard: React.FC<GoBoardProps> = ({
   hoveredMove,
   onHoverMove,
@@ -355,6 +362,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         onPvScroll(action === 'forward' ? 1 : -1);
         return;
       }
+
+      // Stepping back undoes inserted moves, as the key does. Anything else
+      // walked onto the original line with insert still on, and finishing then
+      // copied the continuation onto it.
+      if (action !== 'back' && refuseNavigationWhileInserting()) return;
 
       switch (action) {
         case 'prevMistake':
@@ -790,12 +802,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     [moveHistory, boardSize]
   );
 
+  // Add PV hangs children on this same node in place, so the tree's version,
+  // not the node's identity, says the rings are out of date.
   const childMoveRings = useMemo(() => {
+    void treeVersion;
     if (!hasAnalysisOverlay || !settings.analysisShowChildren || drillAsking) return [];
     return currentNode.children
       .map((c) => c.move)
       .filter((m): m is NonNullable<typeof m> => !!m && m.x >= 0 && m.y >= 0);
-  }, [currentNode, drillAsking, hasAnalysisOverlay, settings.analysisShowChildren]);
+  }, [currentNode, drillAsking, hasAnalysisOverlay, settings.analysisShowChildren, treeVersion]);
 
   const analysisHintMoves = useMemo(
     () => selectAnalysisHintMoves(visibleAnalysis?.moves ?? [], compactAnalysisHints),
@@ -834,7 +849,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
    * Gated on `hidesAnswer` with the hints: the swing is drawn from the played
    * move, so during a drill it is the answer.
    */
+  // Analysis lands on the node in place; without the version the wash waited
+  // for a move away and back.
   const territorySwing = useMemo(() => {
+    void treeVersion;
+    void visibleAnalysis;
     if (!hasAnalysisOverlay || !settings.analysisShowSwing || scoringMode || hidesAnswer) return null;
     const after = currentNode.analysis;
     if (!after || (after.ownershipMode ?? 'root') === 'none') return null;
@@ -852,6 +871,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     scoringMode,
     settings.analysisShowSwing,
     settings.analysisSwingCompare,
+    treeVersion,
+    visibleAnalysis,
   ]);
   const shouldShowPolicy = settings.analysisShowPolicy && !drillAsking;
   const shouldShowHints =
@@ -1660,6 +1681,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   ]);
 
   const childMoveCoords = useMemo(() => {
+    void treeVersion;
     const set = new Set<string>();
     for (const c of currentNode.children) {
       const m = c.move;
@@ -1667,7 +1689,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       set.add(`${m.x},${m.y}`);
     }
     return set;
-  }, [currentNode]);
+  }, [currentNode, treeVersion]);
 
   const eventToInternal = (
     e: { clientX: number; clientY: number; currentTarget: HTMLDivElement }
@@ -1845,6 +1867,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     if (event.key !== 'Enter' && event.key !== ' ') return;
     // Same rule: Enter is the global "AI move" shortcut when the cursor is off.
     if (!cursorOwnsKey) return;
+    // A region is chosen by dragging, as clicks and taps already respect;
+    // Enter played a stone with the selection still armed.
+    if (isSelectingRegionOfInterest) return;
     boardPointerFocusRef.current = false;
     event.preventDefault();
     event.stopPropagation();
@@ -1925,8 +1950,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       suppressNextClickRef.current = true;
       clearPendingTap();
       const beforeNodeId = useGameStore.getState().currentNode.id;
-      if (action === 'next') navigateForward();
-      else navigateBack();
+      if (action === 'next') {
+        if (refuseNavigationWhileInserting()) return;
+        navigateForward();
+      } else navigateBack();
       const didNavigate = useGameStore.getState().currentNode.id !== beforeNodeId;
       if (didNavigate && settings.hapticFeedback) playNavigationHaptic();
       return;
