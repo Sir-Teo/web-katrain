@@ -1,3 +1,4 @@
+import { engineHistoryBoards } from './positionHistory';
 import { repetitionHistoryForNode } from './treeSuperko';
 import { getKataGoEngineClient } from '../engine/katago/client';
 import type { GameNode, GameSettings } from '../types';
@@ -43,8 +44,7 @@ export async function evaluateNode(node: GameNode, settings: GameSettings): Prom
     modelUrl,
     backend: settings.katagoBackend,
     board: node.gameState.board,
-    previousBoard: node.parent?.gameState.board,
-    previousPreviousBoard: node.parent?.parent?.gameState.board,
+    ...engineHistoryBoards(node),
     currentPlayer: node.gameState.currentPlayer,
     moveHistory: node.gameState.moveHistory,
     repetitionHistory: repetitionHistoryForNode(node, settings.gameRules),

@@ -59,6 +59,7 @@ import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
 import { isGameRules, isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
 import { toSgfResult } from '../utils/manualScore';
+import { engineHistoryBoards, koReferenceBoard } from '../utils/positionHistory';
 import { situationalKey, superkoRejectionMessage } from '../utils/superko';
 import { lineViolatesSuperko, repetitionHistoryForNode } from '../utils/treeSuperko';
 import { chooseAntiMirrorMove, isOpponentMirroring } from '../utils/antiMirrorAi';
@@ -744,22 +745,6 @@ const editToolToMarkerProperty = (tool: EditTool): MarkerProperty | null => {
 
 const cloneBoard = (board: BoardState): BoardState => board.map((row) => [...row]);
 
-/**
- * The board a move played from `node` may not recreate under simple ko: the
- * position before the last move. That was always taken as the grandparent,
- * which is right only when `node` is itself a move. A comment or markup node
- * between them made the recapture legal -- the grandparent was then the move
- * that took the ko -- and a setup node that changed the board refused a move
- * that merely matched an older position. Comment-only nodes are stepped over;
- * a setup node that changed the board starts afresh, with no ko to keep.
- */
-const koReferenceBoard = (node: GameNode | null | undefined): BoardState | undefined => {
-  let current = node;
-  while (current && !current.move && current.parent && boardsEqual(current.gameState.board, current.parent.gameState.board)) {
-    current = current.parent;
-  }
-  return current?.move && current.parent ? current.parent.gameState.board : undefined;
-};
 
 const ensureNodeProperties = (node: GameNode): Record<string, string[]> => {
   node.properties = node.properties ?? {};
@@ -1575,8 +1560,7 @@ const analyzeForPlayout = (
   opts: { group: string; label: string; id: string; wideRootNoise?: number }
 ): Promise<KataGoAnalysisPayload> => {
   const node = s.currentNode;
-  const parentBoard = node.parent?.gameState.board;
-  const grandparentBoard = node.parent?.parent?.gameState.board;
+  const { previousBoard: parentBoard, previousPreviousBoard: grandparentBoard } = engineHistoryBoards(node);
   const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
   const rules = s.settings.gameRules;
   const visits = clampAnalysisVisits(s.settings.katagoFastVisits);
@@ -2045,7 +2029,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             backend: state.settings.katagoBackend,
             board: state.board,
             previousBoard: state.board,
-            previousPreviousBoard: node.parent?.gameState.board,
+            previousPreviousBoard: koReferenceBoard(node),
             currentPlayer: opponent,
             moveHistory,
             repetitionHistory,
@@ -3087,8 +3071,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               backend: s.settings.katagoBackend,
               positions: toEval.map((n) => ({
                 board: n.gameState.board,
-                previousBoard: n.parent?.gameState.board,
-                previousPreviousBoard: n.parent?.parent?.gameState.board,
+                ...engineHistoryBoards(n),
                 currentPlayer: n.gameState.currentPlayer,
                 moveHistory: n.gameState.moveHistory,
                 repetitionHistory: repetitionHistoryForNode(n, rules),
@@ -3228,8 +3211,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!already) {
           try {
             const s = get();
-            const parentBoard = node.parent?.gameState.board;
-            const grandparentBoard = node.parent?.parent?.gameState.board;
+            const { previousBoard: parentBoard, previousPreviousBoard: grandparentBoard } = engineHistoryBoards(node);
             const modelUrl = resolveModelUrlForFetch(s.settings.katagoModelUrl);
             const rules = s.settings.gameRules;
             const analysis = await analysisQueue.enqueue<KataGoAnalysisPayload>({
@@ -3419,8 +3401,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!already) {
           try {
             const s = get();
-            const parentBoard = node.parent?.gameState.board;
-            const grandparentBoard = node.parent?.parent?.gameState.board;
+            const { previousBoard: parentBoard, previousPreviousBoard: grandparentBoard } = engineHistoryBoards(node);
             const maxTimeMs = ENGINE_MAX_TIME_MS;
             const batchSize = Math.max(1, Math.min(s.settings.katagoBatchSize, 64));
             const boardSize = getBoardSizeFromBoard(node.gameState.board);
@@ -3603,8 +3584,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
 		      const node = state.currentNode;
-		      const parentBoard = node.parent?.gameState.board;
-		      const grandparentBoard = node.parent?.parent?.gameState.board;
+		      const { previousBoard: parentBoard, previousPreviousBoard: grandparentBoard } = engineHistoryBoards(node);
 		      const modelUrl = resolveModelUrlForFetch(state.settings.katagoModelUrl);
           const rules = state.settings.gameRules;
           const analysisPvLen = opts?.analysisPvLen ?? state.settings.katagoAnalysisPvLen;
@@ -4379,8 +4359,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             && (force || (latest.isAiPlaying && latest.aiColor === playerAtStart));
         };
 
-	      const parentBoard = node.parent?.gameState.board;
-	      const grandparentBoard = node.parent?.parent?.gameState.board;
+	      const { previousBoard: parentBoard, previousPreviousBoard: grandparentBoard } = engineHistoryBoards(node);
 	      const modelUrl = resolveModelUrlForFetch(state.settings.katagoModelUrl);
         const rules = state.settings.gameRules;
         const analysisPvLen = state.settings.katagoAnalysisPvLen;

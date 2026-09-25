@@ -36,3 +36,25 @@ describe('simple ko', () => {
     expect(s().currentNode.move).toMatchObject({ x: 6, y: 6, player: 'black' });
   });
 });
+
+describe('the history the engine is given', () => {
+  it('skips a comment node, so the ko point can still be found', async () => {
+    const { engineHistoryBoards } = await import('../src/utils/positionHistory');
+    s().loadGame(parseSgf(`${KO};C[Black took the ko])`));
+    s().navigateEnd();
+    const comment = s().currentNode;
+    const capture = comment.parent!;
+
+    const history = engineHistoryBoards(comment);
+    expect(history.previousBoard).toBe(capture.parent!.gameState.board);
+    expect(history.previousBoard).toEqual(engineHistoryBoards(capture).previousBoard);
+    expect(history.previousBoard![4]![4]).toBe('white');
+  });
+
+  it('gives no history after setup that changed the board', async () => {
+    const { engineHistoryBoards } = await import('../src/utils/positionHistory');
+    s().loadGame(parseSgf('(;GM[1]FF[4]SZ[9];B[ee];W[cc];AE[ee])'));
+    s().navigateEnd();
+    expect(engineHistoryBoards(s().currentNode)).toEqual({ previousBoard: undefined, previousPreviousBoard: undefined });
+  });
+});
