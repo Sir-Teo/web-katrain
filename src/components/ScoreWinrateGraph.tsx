@@ -292,6 +292,18 @@ export const ScoreWinrateGraph: React.FC<{
     setHoverIndex(null);
   };
 
+  /**
+   * The browser took the gesture -- the finger moved along pan-y and the page
+   * scrolled. That is not a choice of move: landing on where the finger first
+   * touched sent a scroll that started on the graph to move 4 of 16.
+   */
+  const cancelScrub = (e: React.PointerEvent) => {
+    if (!isScrubbing) return;
+    setIsScrubbing(false);
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    setHoverIndex(null);
+  };
+
   const handlePointerLeave = () => {
     if (isScrubbing) return;
     setHoverIndex(null);
@@ -403,7 +415,7 @@ export const ScoreWinrateGraph: React.FC<{
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={endScrub}
-      onPointerCancel={endScrub}
+      onPointerCancel={cancelScrub}
       onPointerLeave={handlePointerLeave}
       onClick={handleClick}
       onFocus={handleFocus}

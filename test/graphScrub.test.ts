@@ -46,7 +46,8 @@ describe('a finger can scrub the graph, not just a pointer', () => {
     expect(graph).toContain('onPointerDown={handlePointerDown}');
     expect(graph).toContain('onPointerMove={handlePointerMove}');
     expect(graph).toContain('onPointerUp={endScrub}');
-    expect(graph).toContain('onPointerCancel={endScrub}');
+    // A cancel is the browser taking the gesture for a scroll, not a choice.
+    expect(graph).toContain('onPointerCancel={cancelScrub}');
     expect(graph).not.toContain('onMouseMove=');
     expect(graph).not.toContain('onMouseLeave=');
   });
