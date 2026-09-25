@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../src/utils/tsumegoFrame';
+import { TSUMEGO_FRAME_MAX_MARGIN, TSUMEGO_FRAME_MIN_MARGIN } from '../src/utils/tsumegoFrameOptions';
 import type { BoardState, Player } from '../src/types';
 
 const SIZE = 19;
@@ -102,12 +103,16 @@ describe('buildTsumegoFrame', () => {
     expect(frame.region).toEqual({ xMin: 0, xMax: 4, yMin: 7, yMax: 13 });
   });
 
-  it('never touches the problem it is framing', () => {
+  it('never touches the problem it is framing, at any wall distance offered', () => {
+    // At distance 0 the wall ran along the problem's own edge and recoloured
+    // its stones -- White's corner turned Black before the first move.
     const board = withStones(CORNER_PROBLEM);
-    const frame = buildTsumegoFrame(board, { komi: 6.5, blackToPlay: true, koAllowed: false, margin: 4 });
     const problem = new Set(CORNER_PROBLEM.map(([row, col]) => `${col},${row}`));
-    for (const point of [...frame.black, ...frame.white]) {
-      expect(problem.has(`${point.x},${point.y}`)).toBe(false);
+    for (let margin = TSUMEGO_FRAME_MIN_MARGIN; margin <= TSUMEGO_FRAME_MAX_MARGIN; margin++) {
+      const frame = buildTsumegoFrame(board, { komi: 6.5, blackToPlay: true, koAllowed: false, margin });
+      for (const point of [...frame.black, ...frame.white]) {
+        expect(problem.has(`${point.x},${point.y}`), `margin ${margin}`).toBe(false);
+      }
     }
   });
 

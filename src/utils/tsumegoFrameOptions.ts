@@ -1,5 +1,6 @@
 /** Bounds for the tsumego frame's "distance of wall", shared by UI and store. */
-export const TSUMEGO_FRAME_MIN_MARGIN = 0;
+// At 0 the wall is drawn on the problem's own edge and overwrites its stones.
+export const TSUMEGO_FRAME_MIN_MARGIN = 1;
 export const TSUMEGO_FRAME_MAX_MARGIN = 8;
 export const TSUMEGO_FRAME_DEFAULT_MARGIN = 4;
 
