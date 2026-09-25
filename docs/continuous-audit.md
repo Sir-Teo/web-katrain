@@ -109,6 +109,7 @@ disagreement; the two app-side bugs it surfaced are listed below.
 | Photo board | Play move was never offered for a move that captures; auto-trace found no black stones on a transparent PNG. |
 | Phone controls | The branch-number editor in More Controls closed as it opened; Enter or Escape in a number field dropped focus to the page; the move strip clipped the turn stone off its left edge on narrow and landscape phones. |
 | Kifu and quizzes | Printing a kifu gave one page however many diagrams it had; a diagram left out earlier stones captured within it; Guess the Move graded a click on a stone as a guess. |
+| Series and edit dialogs | A gauntlet game started while the ladder awaited a result was scored by both; the tsumego wall distance clamped per keystroke and its dialog never took focus; the pro-games search lost its focus to the dialog; the edit toolbar's branch count went stale after Add PV and Copy was offered on setup nodes. |
 | UI | Theme previews (Hikaru's square SVG, Bamboo's missing lines), a repeated AI-strength sentence, tooltips off-screen on phones, filled "unselected" library boxes, library names squeezed by hover actions, menu header gap, start-rail wrapping and reserve, lesson/quiz board size on tall phones, kifu stones in the wrong colour, large-tree centring, stale setup labels, phone move-list columns, OGS progress counter. |
 
 ## Validation and measurement
