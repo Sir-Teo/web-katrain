@@ -3,6 +3,7 @@ import { createSerialTaskQueue } from './serialTaskQueue';
 import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
 import { stripUnsafeFilenameControls } from './filename';
 import { countSgfGames, countSgfMoves, sgfTrailingGames } from './sgfScan';
+import { expandSgfPointList } from './sgf';
 import { getIndexedDB, getLocalStorage, readLocalStorage, writeLocalStorage } from './storage';
 import { toSearchTerms } from './searchTerms';
 
@@ -99,9 +100,12 @@ const createId = (): string => {
 const unescapeSgfValue = (value: string): string => value.replace(/\\([\s\S])/g, '$1').trim();
 
 const readRootSgfProperties = (sgf: string): Record<string, string[]> => {
-  const start = sgf.indexOf('(;');
-  if (start < 0) return {};
-  let i = start + 2;
+  // SGF allows whitespace between '(' and ';', and the parser accepts it; a
+  // bare indexOf('(;') read such a file as having no metadata at all.
+  const opening = /\(\s*;/.exec(sgf);
+  if (!opening) return {};
+  const rootStart = opening.index + opening[0].length;
+  let i = rootStart;
   let inValue = false;
   let escaped = false;
   while (i < sgf.length) {
@@ -120,9 +124,10 @@ const readRootSgfProperties = (sgf: string): Record<string, string[]> => {
     i++;
   }
 
-  const root = sgf.slice(start + 2, i);
+  const root = sgf.slice(rootStart, i);
   const props: Record<string, string[]> = {};
-  const propRe = /([A-Za-z]+)((?:\[(?:\\.|[^\]])*\])+)/g;
+  // Values may be separated by whitespace, as wrapped AB lists are.
+  const propRe = /([A-Za-z]+)((?:\s*\[(?:\\.|[^\]])*\])+)/g;
   let propMatch: RegExpExecArray | null;
   while ((propMatch = propRe.exec(root))) {
     const key = propMatch[1]!.replace(/[a-z]/g, '');
@@ -144,7 +149,11 @@ const numberProp = (value: string | undefined): number | undefined => {
 
 export const extractLibraryMetadata = (sgf: string): LibraryFileMetadata => {
   const props = readRootSgfProperties(sgf);
-  const setupStoneCount = (props.AB?.length ?? 0) + (props.AW?.length ?? 0);
+  // Stones, not values: AB[aa:cc] is nine of them, as the board shows.
+  const boardSizeProp = numberProp(props.SZ?.[0]);
+  const countPoints = (values: string[] | undefined) =>
+    (values ?? []).reduce((total, value) => total + expandSgfPointList(value, boardSizeProp ?? 19).length, 0);
+  const setupStoneCount = countPoints(props.AB) + countPoints(props.AW);
   return {
     gameName: props.GN?.[0] || undefined,
     black: props.PB?.[0] || undefined,
