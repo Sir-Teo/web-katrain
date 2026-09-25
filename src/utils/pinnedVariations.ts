@@ -10,6 +10,14 @@ export interface PinnedVariation {
   path: number[]; // child index at each step from root to the node
   moveNumber: number;
   createdAt: number;
+  /**
+   * The pinned node within this load. The path alone went stale the moment a
+   * variation was promoted, reordered or deleted, and recall then jumped to
+   * whatever node sat at the old indices -- the other line -- without a word.
+   * Ids survive undo/redo clones but not a reload, so the path is still what
+   * is stored, and is refreshed from this after every structural edit.
+   */
+  nodeId?: string;
 }
 
 /** Child-index path from the root down to `node` (root itself => []). */
@@ -130,5 +138,47 @@ export function writeStoredPinnedVariations(gameId: string | null, pins: PinnedV
 export function restorePinnedVariations(root: GameNode): PinnedVariation[] {
   const gameId = getPinGameId(root);
   if (!gameId) return [];
-  return readStoredPinnedVariations(gameId).filter((pin) => resolveNodePath(root, pin.path) !== null);
+  const restored: PinnedVariation[] = [];
+  for (const pin of readStoredPinnedVariations(gameId)) {
+    const node = resolveNodePath(root, pin.path);
+    if (node) restored.push({ ...pin, nodeId: node.id });
+  }
+  return restored;
+}
+
+function indexNodesById(root: GameNode): Map<string, GameNode> {
+  const byId = new Map<string, GameNode>();
+  const pending = [root];
+  while (pending.length > 0) {
+    const node = pending.pop()!;
+    byId.set(node.id, node);
+    for (const child of node.children) pending.push(child);
+  }
+  return byId;
+}
+
+/** The pinned node: by id when the pin has one, else by its stored path. */
+export function resolvePinnedVariation(root: GameNode, pin: PinnedVariation): GameNode | null {
+  if (!pin.nodeId) return resolveNodePath(root, pin.path);
+  return indexNodesById(root).get(pin.nodeId) ?? null;
+}
+
+/**
+ * Pins with their paths recomputed from their nodes after the tree was
+ * restructured, or the same array when no path moved. A pin whose node is
+ * gone keeps its path: undo can bring the node back with the same id.
+ */
+export function repathPinnedVariations(root: GameNode, pins: PinnedVariation[]): PinnedVariation[] {
+  if (!pins.some((pin) => pin.nodeId)) return pins;
+  const byId = indexNodesById(root);
+  let changed = false;
+  const next = pins.map((pin) => {
+    const node = pin.nodeId ? byId.get(pin.nodeId) : undefined;
+    if (!node) return pin;
+    const path = getNodePath(node);
+    if (path.length === pin.path.length && path.every((idx, i) => idx === pin.path[i])) return pin;
+    changed = true;
+    return { ...pin, path };
+  });
+  return changed ? next : pins;
 }

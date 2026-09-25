@@ -44,7 +44,7 @@ import {
   rememberActiveBranchPath,
   type ActiveBranchMap,
 } from '../utils/branchNavigation';
-import { ensurePinGameId, getNodePath, getPinGameId, resolveNodePath, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
+import { ensurePinGameId, getNodePath, getPinGameId, repathPinnedVariations, resolvePinnedVariation, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
 import { describeHumanBotPick, pickHumanBotMove } from '../utils/humanBotMove';
 import { komiWithHandicapBonus } from '../utils/handicap';
 import { humanBotPresets } from '../engine/katago/chosenMove';
@@ -1008,6 +1008,18 @@ const pushEditHistory = (state: GameStore) => {
   if (editUndoStack.length > EDIT_HISTORY_LIMIT) editUndoStack.shift();
   editRedoStack = [];
   return editHistoryCounts();
+};
+
+/**
+ * Pins follow their nodes through an edit that moves children around, and
+ * the stored copy -- which is by path, since node ids do not survive a reload
+ * -- follows too. `root` is the tree after the edit.
+ */
+const repathPins = (root: GameNode, pins: PinnedVariation[]): { pinnedVariations?: PinnedVariation[] } => {
+  const next = repathPinnedVariations(root, pins);
+  if (next === pins) return {};
+  writeStoredPinnedVariations(getPinGameId(root), next);
+  return { pinnedVariations: next };
 };
 
 const restoreEditHistory = (entry: EditHistoryEntry, state: GameStore) => {
@@ -5337,7 +5349,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
           node = parent;
       }
-      return { ...history, treeVersion: state.treeVersion + 1 };
+      return { ...history, ...repathPins(state.rootNode, state.pinnedVariations), treeVersion: state.treeVersion + 1 };
   }),
 
   // KaTrain's 'c': fold the run of moves back to the previous branch point away,
@@ -5459,6 +5471,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       return {
           ...history,
+          ...repathPins(state.rootNode, state.pinnedVariations),
           treeVersion: state.treeVersion + 1,
           notification: {
               message: direction === 'left' ? 'Moved variation earlier.' : 'Moved variation later.',
@@ -5498,6 +5511,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       return {
           ...history,
+          ...repathPins(state.rootNode, state.pinnedVariations),
           currentNode: parent,
           board: parent.gameState.board,
           currentPlayer: parent.gameState.currentPlayer,
@@ -5535,6 +5549,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       return {
           ...history,
+          ...repathPins(state.rootNode, state.pinnedVariations),
           activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, state.currentNode),
           notification: {
               message: `Kept current line and deleted ${removedNodes} other branch node${removedNodes === 1 ? '' : 's'}.`,
@@ -5561,8 +5576,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           if (!previous) return editHistoryCounts();
           editRedoStack.push(current);
           if (editRedoStack.length > EDIT_HISTORY_LIMIT) editRedoStack.shift();
+          const restored = restoreEditHistory(previous, state);
           return {
-              ...restoreEditHistory(previous, state),
+              ...restored,
+              ...repathPins(restored.rootNode, state.pinnedVariations),
               ...editHistoryCounts(),
               notification: { message: 'Undid edit.', type: 'success' },
           };
@@ -5586,8 +5603,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           if (!next) return editHistoryCounts();
           editUndoStack.push(current);
           if (editUndoStack.length > EDIT_HISTORY_LIMIT) editUndoStack.shift();
+          const restored = restoreEditHistory(next, state);
           return {
-              ...restoreEditHistory(next, state),
+              ...restored,
+              ...repathPins(restored.rootNode, state.pinnedVariations),
               ...editHistoryCounts(),
               notification: { message: 'Redid edit.', type: 'success' },
           };
@@ -5682,6 +5701,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       path,
       moveNumber,
       createdAt: state.treeVersion,
+      nodeId: node.id,
     };
     if (state.pinnedVariations.some((p) => p.id === pin.id)) {
       return { notification: { message: 'This line is already pinned.', type: 'info' } };
@@ -5702,7 +5722,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const pin = state.pinnedVariations.find((p) => p.id === id);
     if (!pin) return;
-    const node = resolveNodePath(state.rootNode, pin.path);
+    const node = resolvePinnedVariation(state.rootNode, pin);
     if (!node) {
       set({ notification: { message: 'That pinned line no longer exists in this game.', type: 'error' } });
       return;
