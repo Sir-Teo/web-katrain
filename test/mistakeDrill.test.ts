@@ -312,3 +312,23 @@ describe('nothing on screen answers the position the drill is asking about', () 
     );
   });
 });
+
+describe('what a drill will not accept or ask', () => {
+  it('never grades the move actually played as an answer', () => {
+    const { root } = line();
+    // K10 lost six by the score change, four by the candidate list.
+    const verdict = gradeDrillGuess(root, { x: 9, y: 9 }, 6, { x: 9, y: 9 });
+    expect(verdict?.kind).toBe('miss');
+    expect(isDrillSolved(verdict!.kind)).toBe(false);
+  });
+
+  it('skips a position whose best move is the one played, or a pass', () => {
+    const { root, blunder } = line();
+    root.analysis = analysis(10, [candidate(9, 9, 0, 0), candidate(3, 3, 1, 1)]);
+    expect(collectDrillMistakes({ rootNode: root, threshold: 3 })).toHaveLength(0);
+
+    root.analysis = analysis(10, [candidate(-1, -1, 0, 0), candidate(3, 3, 2.5, 1)]);
+    expect(collectDrillMistakes({ rootNode: root, threshold: 3 })).toHaveLength(0);
+    expect(blunder.move).toMatchObject({ x: 9, y: 9 });
+  });
+});

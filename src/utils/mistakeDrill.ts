@@ -92,7 +92,12 @@ export function collectDrillMistakes(args: {
     if (!child) break;
     const move = child.move;
     const parentMoves = node.analysis?.moves;
-    if (move && move.x >= 0 && move.y >= 0 && parentMoves?.length && (side === 'both' || move.player === side)) {
+    const best = parentMoves?.length ? bestCandidate(parentMoves) : null;
+    // Nothing to find when the engine's move is the one played, and nothing
+    // the board can answer when it is a pass: every point then graded short
+    // of "solved", however well the player read the position.
+    const hasBoardAnswer = !!best && best.x >= 0 && best.y >= 0 && !(move && best.x === move.x && best.y === move.y);
+    if (move && move.x >= 0 && move.y >= 0 && hasBoardAnswer && (side === 'both' || move.player === side)) {
       const pointsLost = computeNodePointsLost(child);
       if (typeof pointsLost === 'number' && Number.isFinite(pointsLost) && pointsLost >= threshold) {
         mistakes.push({
@@ -140,7 +145,9 @@ export function findNodeOnLine(
 export function gradeDrillGuess(
   parentNode: GameNode,
   guess: { x: number; y: number },
-  playedPointsLost: number
+  playedPointsLost: number,
+  /** The move actually played, which is never the answer. */
+  played?: { x: number; y: number }
 ): DrillVerdict | null {
   const moves = parentNode.analysis?.moves;
   if (!moves?.length) return null;
@@ -151,6 +158,13 @@ export function gradeDrillGuess(
   const bestLabel = formatBoardMoveLabel(best, boardSize);
   const guessLabel = formatBoardMoveLabel(guess, boardSize);
 
+  // Playing the drilled move again is the mistake, whatever the candidate
+  // list says it costs: that figure is measured from the parent's search, the
+  // mistake's from the score change across the move, and the two differ --
+  // enough that replaying it read "better" or even "good enough".
+  if (played && played.x === guess.x && played.y === guess.y) {
+    return { kind: 'miss', guessLabel, bestLabel, guessPointsLost: playedPointsLost, playedPointsLost };
+  }
   if (best.x === guess.x && best.y === guess.y) {
     return { kind: 'best', guessLabel, bestLabel, guessPointsLost: 0, playedPointsLost };
   }

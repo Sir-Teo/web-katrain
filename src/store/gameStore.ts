@@ -5830,7 +5830,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ mistakeDrill: null });
       return;
     }
-    const verdict = gradeDrillGuess(parent, { x, y }, mistake.pointsLost);
+    const verdict = gradeDrillGuess(parent, { x, y }, mistake.pointsLost, mistake.played);
     if (!verdict) return;
     const solvedIds = isDrillSolved(verdict.kind) && !drill.solvedIds.includes(mistake.nodeId)
       ? [...drill.solvedIds, mistake.nodeId]
