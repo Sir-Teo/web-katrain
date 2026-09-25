@@ -129,9 +129,15 @@ export function stepKaTrainTimer(args: KaTrainTimerStepArgs): KaTrainTimerStepRe
 
   if (isRunning) {
     if (isSameNode && isLeaf) {
+      // A tick that crosses the end of main time charges the rest to
+      // byo-yomi. KaTrain charges all of it to main time, which loses little
+      // at its 0.1s tick; a background tab here ticks once a second or once a
+      // minute, and a sleeping laptop not at all, so the overshoot could hand
+      // a player a whole period back.
       const mainTimeRemaining = mainTimeSeconds - mainTimeUsedSeconds;
-      if (mainTimeRemaining > 0) mainTimeUsedSeconds += dtSec;
-      else nodeTimeUsedSeconds += dtSec;
+      const mainPart = mainTimeRemaining > 0 ? Math.min(dtSec, mainTimeRemaining) : 0;
+      mainTimeUsedSeconds += mainPart;
+      nodeTimeUsedSeconds += dtSec - mainPart;
     } else {
       nodeTimeUsedSeconds = 0;
     }

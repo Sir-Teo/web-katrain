@@ -88,6 +88,31 @@ describe('katrainTimer', () => {
     expect(r.display.timeSeconds).toBe(0);
   });
 
+  it('charges a tick that crosses the end of main time to byo-yomi', () => {
+    // A throttled background tab ticked 30s with 1s of main time left: 29s
+    // belong to the first period, not to main time, where they vanished.
+    const r = stepKaTrainTimer({
+      nowMs: 30_000,
+      lastUpdateMs: 0,
+      lastUpdateNodeId: 'n1',
+      currentNodeId: 'n1',
+      currentNodeHasChildren: false,
+      paused: false,
+      isAiTurn: false,
+      mainTimeMinutes: 1,
+      byoLengthSeconds: 30,
+      byoPeriods: 5,
+      currentPlayer: 'black',
+      mainTimeUsedSeconds: 59,
+      nodeTimeUsedSeconds: 0,
+      periodsUsedForPlayer: 0,
+    });
+    expect(r.mainTimeUsedSeconds).toBe(60);
+    expect(r.nodeTimeUsedSeconds).toBeCloseTo(29);
+    expect(r.display.timeSeconds).toBeCloseTo(1);
+    expect(r.display.periodsRemaining).toBe(5);
+  });
+
   it('resets per-move time when node changes (KaTrain semantics)', () => {
     const r = stepKaTrainTimer({
       nowMs: 1000,
