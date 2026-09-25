@@ -116,11 +116,25 @@ describe('reading stones off a photo', () => {
     expect(() => recognizePhotoBoardFromPixels({ ...usable, data: new Uint8ClampedArray(4) }, 9)).toThrow(/RGBA/);
   });
 
-  it('ignores fully transparent pixels rather than reading them as black', () => {
+  it('reads fully transparent pixels as board rather than as black', () => {
     const image = boardImage(9, []);
     for (let i = 0; i < image.width * image.height; i += 1) image.data[i * 4 + 3] = 0;
     const result = recognizePhotoBoardFromPixels(image, 9);
-    expect(result.backgroundLuminance).toBe(0);
+    expect(result.backgroundLuminance).toBeGreaterThan(100);
+    expect(result.total).toBe(0);
+  });
+
+  it('finds black stones on a diagram with a transparent background', () => {
+    // Every empty point used to read luminance 0, so the background median
+    // was 0 and nothing could be dark enough to count as black.
+    const image = boardImage(9, [[2, 2, 'black'], [6, 6, 'black'], [4, 4, 'white']]);
+    for (let i = 0; i < image.width * image.height; i += 1) {
+      const lum = image.data[i * 4]!;
+      if (lum !== 10 && lum !== 245) image.data[i * 4 + 3] = 0;
+    }
+    const result = recognizePhotoBoardFromPixels(image, 9);
+    expect(result.black).toBe(2);
+    expect(result.white).toBe(1);
   });
 });
 

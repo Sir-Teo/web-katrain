@@ -92,6 +92,9 @@ const median = (values: number[]): number => {
   return ((sorted[middle - 1] ?? value) + value) / 2;
 };
 
+/** A board-coloured backdrop (#d7ad68) for transparent pixels. */
+const TRANSPARENT_BACKDROP_LUMINANCE = luminance(0xd7, 0xad, 0x68);
+
 function samplePatchLuminance(image: PhotoBoardRecognitionImage, cx: number, cy: number, radius: number): number {
   const { width, height, data } = image;
   let sum = 0;
@@ -104,9 +107,13 @@ function samplePatchLuminance(image: PhotoBoardRecognitionImage, cx: number, cy:
   for (let y = top; y <= bottom; y++) {
     for (let x = left; x <= right; x++) {
       const offset = (y * width + x) * 4;
-      const alpha = data[offset + 3] ?? 255;
-      if (alpha < 8) continue;
-      sum += luminance(data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0);
+      // Transparency is seen over a wooden board, not skipped: a diagram PNG
+      // with a transparent background left every empty point with no pixels,
+      // read as luminance 0 -- as dark as a black stone -- so the background
+      // median fell to 0 and no black stone could be darker than it.
+      const alpha = (data[offset + 3] ?? 255) / 255;
+      const pixel = luminance(data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0);
+      sum += pixel * alpha + TRANSPARENT_BACKDROP_LUMINANCE * (1 - alpha);
       count += 1;
     }
   }
