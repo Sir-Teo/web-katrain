@@ -7,6 +7,7 @@ import {
   setupPositionSummary,
 } from '../utils/setupPosition';
 import { RULES_OPTIONS, rulesOf } from '../utils/goRules';
+import { parseNewGameKomi } from '../utils/komiInput';
 import { describeAiStrength, estimateAiRank } from '../utils/aiStrength';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { BotPersonaPicker } from './BotPersonaPicker';
@@ -128,7 +129,11 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
 }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
-  const [komi, setKomi] = React.useState(() => defaultKomi);
+  // Held as typed: a number state turned a cleared field into 0, which is a
+  // legal komi, so the game quietly started at 0 instead of the value the
+  // player was about to type.
+  const [komiText, setKomiText] = React.useState(() => String(defaultKomi));
+  const komi = parseNewGameKomi(komiText);
   const [rules, setRules] = React.useState<GameRules>(() => defaultRules);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(() => defaultBoardSize);
   const [handicap, setHandicap] = React.useState(() => defaultHandicap);
@@ -389,10 +394,17 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                 id="new-game-komi"
                 type="number"
                 step="0.5"
-                value={komi}
-                onChange={(e) => setKomi(Number(e.target.value))}
+                value={komiText}
+                onChange={(e) => setKomiText(e.target.value)}
+                aria-invalid={komi === null}
+                aria-describedby={komi === null ? 'new-game-komi-error' : undefined}
                 className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"
               />
+              {komi === null && (
+                <div id="new-game-komi-error" className="text-[0.6875rem] text-[var(--ui-danger)]">
+                  Enter a komi, such as 6.5.
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <label htmlFor="new-game-handicap" className="text-[var(--ui-text-muted)] text-sm">Handicap Stones</label>
@@ -1199,10 +1211,13 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
             Cancel
           </button>
           <button type="button"
-            className="px-3 py-2 rounded ui-accent-bg hover:brightness-110"
+            className="px-3 py-2 rounded ui-accent-bg hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={komi === null}
+            title={komi === null ? 'Enter a komi first' : undefined}
             onClick={() =>
+              komi !== null &&
               onStart({
-                komi: Number.isFinite(komi) ? komi : defaultKomi,
+                komi,
                 rules,
                 boardSize,
                 handicap,

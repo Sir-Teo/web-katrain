@@ -7,6 +7,7 @@ import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from './nodeAnalysis';
 import { downloadBlob } from './objectUrl';
 import { stripUnsafeFilenameControls } from './filename';
 import { assertSgfImportSize } from './sgfImportLimits';
+import { MAX_KOMI } from './komiInput';
 import { formatGtpMove } from '../lib/gtp';
 
 // KaTrain convention: auto-generated SGF comments are marked so user notes remain editable.
@@ -644,8 +645,6 @@ export interface ParsedSgf {
     tree?: ParsedSgfNode;
 }
 
-/** Beyond this a komi cannot describe a game; a 19x19 board holds 361 points. */
-const MAX_SGF_KOMI = 1000;
 
 export const parseSgf = (sgfContent: string): ParsedSgf => {
     assertSgfImportSize(sgfContent);
@@ -800,7 +799,7 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
         // NaN. A whole 19x19 board is 361 points, so nothing beyond this can
         // describe a game; as with a komi that is not a number at all, the
         // default stands.
-        if (Number.isFinite(k) && Math.abs(k) <= MAX_SGF_KOMI) komi = k;
+        if (Number.isFinite(k) && Math.abs(k) <= MAX_KOMI) komi = k;
     }
 
     const rootSize = root.props['SZ']?.[0];
