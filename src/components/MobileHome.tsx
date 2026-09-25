@@ -269,7 +269,8 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           </div>
         </header>
 
-        <main
+        {/* A div: the app's own <main> is behind this dialog, and a page gets one. */}
+        <div
           className="mobile-home-main flex-1 overflow-y-auto px-3 py-3"
           style={{
             paddingBottom: 'calc(0.75rem + var(--pwa-banner-height, 0px))',
@@ -365,7 +366,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               <HomeAction label="Settings" compactLabel="Settings" icon={<FaCog />} onClick={onOpenSettings} />
             </div>
           </section>
-        </main>
+        </div>
       </div>
     </div>
   );

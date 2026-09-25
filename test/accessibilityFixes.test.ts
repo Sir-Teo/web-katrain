@@ -67,3 +67,16 @@ describe('the board for assistive tech', () => {
     expect(board).toContain("return `${point}, ${stone ? `${stone} stone` : 'empty'}`;");
   });
 });
+
+describe('mobile landmarks', () => {
+  it('keeps the tab bar a navigation landmark with the tablist inside it', () => {
+    const bar = read('src/components/layout/MobileTabBar.tsx');
+    const nav = bar.slice(bar.indexOf('<nav'), bar.indexOf('<div', bar.indexOf('<nav')));
+    expect(nav).not.toContain('role="tablist"');
+    expect(bar).toMatch(/className="grid mobile-tabbar-grid"[\s\S]{0,200}role="tablist"/);
+  });
+
+  it('does not add a second <main> in the phone home dialog', () => {
+    expect(read('src/components/MobileHome.tsx')).not.toContain('<main');
+  });
+});

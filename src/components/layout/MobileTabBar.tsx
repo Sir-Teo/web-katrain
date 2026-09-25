@@ -92,13 +92,16 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
         'w-full mobile-tabbar transition-colors',
         hasControlBarAbove ? 'bg-transparent' : 'ui-bar border-t border-[var(--ui-border)]'
       ].filter(Boolean).join(' ')}
-      role="tablist"
       aria-label="Main sections"
-      onKeyDown={handleTabListKeyDown}
     >
+      {/* The tablist sits inside the nav: on the nav itself the role replaced
+          the navigation landmark, so the tab bar was in no landmark at all. */}
       <div
         className="grid mobile-tabbar-grid"
         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        role="tablist"
+        aria-label="Main sections"
+        onKeyDown={handleTabListKeyDown}
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
