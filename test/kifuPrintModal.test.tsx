@@ -32,4 +32,17 @@ describe('KifuPrintModal actions', () => {
     expect(source).toContain('maxPx={720}');
     expect(source).not.toContain('maxPx={360}');
   });
+
+  it('prints every diagram rather than the first screenful of the dialog', () => {
+    const source = readFileSync('src/components/KifuPrintModal.tsx', 'utf8');
+
+    // Hidden with `visibility`, the app still held the dialog inside its fixed
+    // overlay and 92dvh scroller: a three-diagram game printed one page.
+    expect(source).toContain('createPortal(dialog, document.body)');
+    expect(source).toContain('body > :not(.kifu-print-overlay) { display: none !important; }');
+    expect(source).not.toContain('visibility: hidden');
+    expect(source).toMatch(/\.kifu-print \.kifu-scroll \{\s*max-height: none !important; overflow: visible !important;/);
+    expect(source).toContain('className="kifu-scroll overflow-y-auto p-5"');
+  });
 });
+

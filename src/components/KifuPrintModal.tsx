@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FaTimes, FaPrint } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -32,12 +33,24 @@ function rootPropertiesForNode(node: GameNode): Record<string, string[]> {
 const KIFU_PRINT_STYLE = `
   @media print {
     @page { size: A4 portrait; margin: 12mm; }
-    body > * { visibility: hidden !important; }
-    .kifu-print, .kifu-print * { visibility: visible !important; }
+    /* The dialog is portalled to <body> so everything else can leave the
+       flow. Hiding the app with visibility kept the dialog inside the fixed
+       overlay and its 92dvh scroller, which printed the first screenful --
+       one page of a three-diagram game. */
+    html, body { height: auto !important; overflow: visible !important; background: #ffffff !important; }
+    body > :not(.kifu-print-overlay) { display: none !important; }
+    .kifu-print-overlay {
+      position: static !important; display: block !important;
+      padding: 0 !important; background: none !important;
+    }
     .kifu-print {
-      position: absolute !important;
-      left: 0 !important; top: 0 !important; width: 100% !important;
+      position: static !important; width: 100% !important; max-width: none !important;
+      max-height: none !important; overflow: visible !important;
+      border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
       background: #ffffff !important; color: #0f172a !important;
+    }
+    .kifu-print .kifu-scroll {
+      max-height: none !important; overflow: visible !important; padding: 0 !important;
     }
     .kifu-print .kifu-controls { display: none !important; }
     /* One diagram to a page, which is what the break below already asks for.
@@ -107,11 +120,11 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
   const canPrint = diagrams.length > 0;
   const printActionLabel = canPrint ? 'Print kifu or save as PDF' : 'No moves to print';
 
-  return (
+  const dialog = (
     <div
       ref={dialogRef}
       tabIndex={-1}
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-6"
+      className="kifu-print-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="kifu-print-title"
@@ -171,7 +184,7 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="overflow-y-auto p-5">
+        <div className="kifu-scroll overflow-y-auto p-5">
           <div className="kifu-controls mb-4 text-xs ui-text-muted">
             {diagrams.length === 0
               ? 'No moves to print yet.'
@@ -211,6 +224,7 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
       </div>
     </div>
   );
+  return typeof document === 'undefined' ? dialog : createPortal(dialog, document.body);
 };
 
 KifuPrintModal.displayName = 'KifuPrintModal';
