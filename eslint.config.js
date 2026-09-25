@@ -19,5 +19,17 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Browser globals that read like local names. A resize listener meant
+      // to close a menu was handed the bare `close` -- window.close -- and
+      // closed the app's tab instead.
+      'no-restricted-globals': [
+        'error',
+        { name: 'close', message: 'This is window.close; use a local function.' },
+        { name: 'event', message: 'Use the handler parameter, not window.event.' },
+        { name: 'name', message: 'This is window.name.' },
+        { name: 'status', message: 'This is window.status.' },
+      ],
+    },
   },
 ])

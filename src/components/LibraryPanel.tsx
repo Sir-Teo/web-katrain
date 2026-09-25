@@ -668,13 +668,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       headerMenuButtonRef.current?.focus({ preventScroll: true });
     };
 
+    // A local closer: the bare `close` this listened with was window.close,
+    // so resizing with the menu open tried to close the tab -- and did, in a
+    // tab opened without history such as an installed app's window.
+    const closeMenu = () => setHeaderMenuOpen(false);
     window.addEventListener('pointerdown', closeOnOutsidePointer);
-    window.addEventListener('resize', close);
+    window.addEventListener('resize', closeMenu);
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('pointerdown', closeOnOutsidePointer);
-      window.removeEventListener('resize', close);
+      window.removeEventListener('resize', closeMenu);
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [headerMenuOpen]);
