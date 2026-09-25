@@ -35,19 +35,21 @@ describe('library file row layout', () => {
     expect(styles).toContain(
       ".library-tree-node[data-library-row='file'] {\n    display: grid;\n    grid-template-columns: auto 16px minmax(0, 1fr) auto auto;\n    grid-template-rows: auto auto;"
     );
+    // The name spans to the row's end: sharing a column track with the hover
+    // actions cut it to two letters on the row being pointed at.
     expect(styles).toMatch(
-      /\.library-tree-node\[data-library-row='file'\] \.library-tree-node-name \{\s*grid-column: 3;\s*grid-row: 1;/
+      /\.library-tree-node\[data-library-row='file'\] \.library-tree-node-name \{\s*grid-column: 3 \/ -1;\s*grid-row: 1;/
     );
     expect(styles).toMatch(
       /\.library-tree-node\[data-library-row='file'\] \.library-tree-node-meta \{\s*grid-column: 3;\s*grid-row: 2;[^}]*text-overflow: ellipsis;/
     );
-    // The hover actions and the unsaved badge keep their own columns rather
-    // than wrapping onto the meta line.
+    // The hover actions and the unsaved badge take their own columns on the
+    // meta line, which truncates to make room for them.
     expect(styles).toMatch(
-      /\.library-tree-node\[data-library-row='file'\] \.library-dirty-indicator \{\s*grid-column: 4;\s*grid-row: 1 \/ 3;/
+      /\.library-tree-node\[data-library-row='file'\] \.library-dirty-indicator \{\s*grid-column: 4;\s*grid-row: 2;/
     );
     expect(styles).toMatch(
-      /\.library-tree-node\[data-library-row='file'\] \.library-tree-node-actions \{\s*grid-column: 5;\s*grid-row: 1 \/ 3;/
+      /\.library-tree-node\[data-library-row='file'\] \.library-tree-node-actions \{\s*grid-column: 5;\s*grid-row: 2;/
     );
   });
 });
