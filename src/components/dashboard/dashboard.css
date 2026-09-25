@@ -530,6 +530,15 @@
 .wk-dashboard .board-stage:has(.hero-card) {
   grid-template-rows: minmax(0, 1fr) auto;
 }
+/* The rail sits in the metrics bar's reserve rather than above it. Stacked,
+   the two held 102px under the board on the one screen with nothing else to
+   show -- a 331px board with an empty band below it at 1280x600. The reserve
+   exists so the board keeps its size across Tab, but the rail is only up on an
+   empty board and the board resizes anyway when it goes, so there the bigger
+   board is worth more. */
+.wk-dashboard[data-commandbar="reserved"]:not([data-focus="on"]) .board-stage:has(.hero-card) {
+  padding-bottom: calc(var(--stage-pad) + var(--pwa-stage-reserve));
+}
 
 .wk-dashboard .hero-card {
   position: relative;
