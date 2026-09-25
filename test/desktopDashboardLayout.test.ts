@@ -311,8 +311,11 @@ describe('desktop dashboard layout', () => {
     expect(gameTreeBlock).toContain('{branchInfo.hasBranches && (\n                  <div className="panel-toolbar">');
     expect(gameTreeBlock).toContain('!isOnMainLine(currentNode) ? (');
     expect(gameTreeBlock).not.toContain("className={branchInfo.hasBranches ? 'pbtn pico' : 'hidden'}");
-    expect(analysisBlock).toContain('aria-label={legend.winrate ? \'Hide win rate graph\' : \'Show win rate graph\'}');
-    expect(analysisBlock).toContain('aria-label={legend.score ? \'Hide score graph\' : \'Show score graph\'}');
+    // Graph toggles are named by their visible text ("Win rate", "Score") and
+    // carry their state in aria-pressed; a "Hide …" name said it twice.
+    expect(analysisBlock).toContain('aria-pressed={legend.winrate}');
+    expect(analysisBlock).toContain('aria-pressed={legend.score}');
+    expect(analysisBlock).not.toContain("aria-label={legend.winrate ?");
     expect(analysisBlock).toContain('aria-label={legendOpen ? \'Hide move-quality legend\' : \'Show move-quality legend\'}');
     // Gated on legendOpen: the legend only renders while open, so an
     // unconditional aria-controls left a dangling IDREF when it was closed.

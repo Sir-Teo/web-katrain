@@ -758,12 +758,16 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           )}
 
           <div className="board-stage">
+            {/* Panel toggles: named for the panel, as their label reads, with
+                aria-expanded for open or closed. A "Hide …"/"Show …" name that
+                was also aria-pressed said the state twice, and contradicted
+                itself -- "Hide analysis, pressed". */}
             <button
               type="button"
               className={`edge-toggle left${libraryOpen ? ' open' : ''}`}
               title={libraryOpen ? 'Hide library' : 'Show library'}
-              aria-label={libraryOpen ? 'Hide library' : 'Show library'}
-              aria-pressed={libraryOpen}
+              aria-label="Library"
+              aria-expanded={libraryOpen}
               onClick={toggleLibrary}
             >
               <Icon name={libraryOpen ? 'chevL' : 'chevR'} size={13} />
@@ -773,8 +777,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               type="button"
               className={`edge-toggle top${gamestripOpen ? ' open' : ''}`}
               title={gamestripOpen ? 'Hide game info' : 'Show game info'}
-              aria-label={gamestripOpen ? 'Hide game info' : 'Show game info'}
-              aria-pressed={gamestripOpen}
+              aria-label="Game info"
+              aria-expanded={gamestripOpen}
               onClick={() => setGamestripOpen((v) => !v)}
             >
               <Icon name={gamestripOpen ? 'chevU' : 'chevD'} size={13} />
@@ -807,8 +811,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
               type="button"
               className={`edge-toggle right${sidebarOpen ? ' open' : ''}`}
               title={sidebarOpen ? 'Hide analysis' : 'Show analysis'}
-              aria-label={sidebarOpen ? 'Hide analysis' : 'Show analysis'}
-              aria-pressed={sidebarOpen}
+              aria-label="Analysis"
+              aria-expanded={sidebarOpen}
               onClick={toggleSidebar}
             >
               <Icon name={sidebarOpen ? 'chevR' : 'chevL'} size={13} />
@@ -819,8 +823,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 type="button"
                 className={`edge-toggle bottom${commandbarOpen ? ' open' : ''}`}
                 title={commandbarOpen ? 'Hide metrics' : 'Show metrics'}
-                aria-label={commandbarOpen ? 'Hide metrics' : 'Show metrics'}
-                aria-pressed={commandbarOpen}
+                aria-label="Metrics"
+                aria-expanded={commandbarOpen}
                 onClick={() => setCommandbarOpen((v) => !v)}
               >
                 <Icon name={commandbarOpen ? 'chevD' : 'chevU'} size={13} />
@@ -1152,8 +1156,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     type="button"
                     className={`lg${legend.winrate ? ' on' : ''}`}
                     aria-pressed={legend.winrate}
-                    aria-label={legend.winrate ? 'Hide win rate graph' : 'Show win rate graph'}
-                    title={legend.winrate ? 'Hide win rate graph' : 'Show win rate graph'}
+                                        title={legend.winrate ? 'Hide win rate graph' : 'Show win rate graph'}
                     onClick={() => setLegend((l) => ({ ...l, winrate: !l.winrate }))}
                   >
                     <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
@@ -1163,8 +1166,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                     type="button"
                     className={`lg${legend.score ? ' on' : ''}`}
                     aria-pressed={legend.score}
-                    aria-label={legend.score ? 'Hide score graph' : 'Show score graph'}
-                    title={legend.score ? 'Hide score graph' : 'Show score graph'}
+                                        title={legend.score ? 'Hide score graph' : 'Show score graph'}
                     onClick={() => setLegend((l) => ({ ...l, score: !l.score }))}
                   >
                     <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>
@@ -1178,8 +1180,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                       type="button"
                       className={`lg${legend.time ? ' on' : ''}`}
                       aria-pressed={legend.time}
-                      aria-label={legend.time ? 'Hide time graph' : 'Show time graph'}
-                      title={legend.time ? 'Hide time graph' : 'Show time graph'}
+                                            title={legend.time ? 'Hide time graph' : 'Show time graph'}
                       onClick={() => setLegend((l) => ({ ...l, time: !l.time }))}
                     >
                       <span className="lg-check" aria-hidden="true"><Icon name="check" size={10} /></span>

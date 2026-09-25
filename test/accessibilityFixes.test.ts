@@ -35,3 +35,15 @@ describe('names and ARIA that assistive tech actually reads', () => {
     expect(tenuki).toContain('aria-describedby={tenukiDescriptionId}');
   });
 });
+
+describe('dashboard toggles state their state once', () => {
+  const dashboard = read('src/components/dashboard/DesktopDashboard.tsx');
+
+  it('names the panel toggles for the panel and reports open/closed with aria-expanded', () => {
+    for (const [name, flag] of [['Library', 'libraryOpen'], ['Game info', 'gamestripOpen'], ['Analysis', 'sidebarOpen'], ['Metrics', 'commandbarOpen']]) {
+      expect(dashboard, name).toContain(`aria-label="${name}"`);
+      expect(dashboard, name).toContain(`aria-expanded={${flag}}`);
+      expect(dashboard, name).not.toContain(`aria-pressed={${flag}}`);
+    }
+  });
+});
