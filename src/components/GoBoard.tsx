@@ -1767,6 +1767,34 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     setIsKeyboardCursorActive(false);
   };
 
+  /**
+   * A drill or an armed punish quiz takes the point as its answer, and the
+   * point is not played. True when one did. Shared by click, tap and Enter:
+   * held in the click handler alone, a tap on a phone -- whose touchend
+   * cancels the click -- played the guess as a move while the drill went on
+   * asking.
+   */
+  const answerQuizAt = (pt: { x: number; y: number }): boolean => {
+    // A drill comes before the punish quiz because it is something the player
+    // deliberately started, and before playing a move because answering must
+    // not add the guess to the game tree.
+    if (drillAsking) {
+      if (!board[pt.y]?.[pt.x]) answerMistakeDrill(pt.x, pt.y); // an occupied point is not an answer
+      return true;
+    }
+    if (punishQuiz?.phase === 'armed') {
+      if (board[pt.y]?.[pt.x]) return true; // occupied points are not a legal guess
+      const verdict = gradePunishGuess(currentNode, pt);
+      if (verdict) {
+        setPunishQuizResponse({ nodeId: currentNode.id, phase: 'result', text: punishQuizVerdictText(verdict) });
+      } else {
+        dismissPunishQuiz();
+      }
+      return true;
+    }
+    return false;
+  };
+
   const handleBoardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     // Read before anything clears it: this is the only record of whether the
@@ -1833,6 +1861,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       applyEditTool(pt.x, pt.y);
       return;
     }
+    if (answerQuizAt(pt)) return;
     tryPlayPoint(pt);
   };
 
@@ -1916,6 +1945,10 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     }
 
     const pt = eventToInternal({ clientX: endX, clientY: endY, currentTarget: e.currentTarget });
+    if (pt && answerQuizAt(pt)) {
+      clearPendingTap();
+      return;
+    }
     if (!pt || board[pt.y]?.[pt.x]) {
       clearPendingTap();
       return;
@@ -1969,28 +2002,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       return;
     }
 
-    // A drill that is asking about this position consumes the click as the
-    // answer. It comes before the punish quiz because a drill is something the
-    // player deliberately started, and before playing a move because answering
-    // must not add the guess to the game tree.
-    if (drillAsking) {
-      if (board[pt.y]?.[pt.x]) return; // an occupied point is not an answer
-      answerMistakeDrill(pt.x, pt.y);
-      return;
-    }
-
-    // An armed punish quiz consumes the click as the user's answer.
-    if (punishQuiz?.phase === 'armed') {
-      if (board[pt.y]?.[pt.x]) return; // occupied points are not a legal guess
-      const verdict = gradePunishGuess(currentNode, pt);
-      if (verdict) {
-        setPunishQuizResponse({ nodeId: currentNode.id, phase: 'result', text: punishQuizVerdictText(verdict) });
-      } else {
-        dismissPunishQuiz();
-      }
-      return;
-    }
-
+    if (answerQuizAt(pt)) return;
     tryPlayPoint(pt);
   };
 
