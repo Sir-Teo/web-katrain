@@ -74,6 +74,35 @@ checks undo/redo across rebuilt descendants.
 Drawings remain session-only and are not part of SGF export. The drawing fixes
 do not change that storage contract.
 
+## Follow-up pass (2026-09-25, `claude/eloquent-euler-6uaxqr`)
+
+Each item was reproduced first -- a failing test or a browser run -- and each
+fix carries a regression test that fails on the code before it. Differential
+fuzzing of the engine's board code against `gameLogic`/`treeSuperko` and an
+independent KataGo-rules reference (2,620 games, ~590k moves, sizes 3-19, all
+offered rules) and of terminal area scoring (17.4k positions) found no
+disagreement; the two app-side bugs it surfaced are listed below.
+
+| Area | Problem and resulting behavior |
+| --- | --- |
+| SGF export | An emptied node holding variations beside a sibling wrote `((;..)(;..))(;..)`, which no parser opens. Empty nodes are now lifted, root children included. |
+| SGF load | A move in the root node copied the root's comment and game info onto move 1. Only move-level properties go with it. |
+| Ko | Simple ko compared with the grandparent node, so a comment node after a ko capture allowed the recapture and a setup node refused a legal move; the engine, given the same boards, could rank the illegal recapture. One helper now serves play, replay, load, the bots and every engine request. |
+| Replay | Setup stones on a pass node were dropped whenever the line was rebuilt. |
+| Tree edits | Insert mode lost copied moves' comments and markup; pinned lines recalled the wrong node after variations moved; drag-painting relabelled labels; a handicap change removed moves without a word. |
+| Clock | A tick crossing the end of main time charged its overshoot to nothing. |
+| Scoring | A counted draw was written `RE[Jigo]` (now `RE[0]`), and recorded draws were not shown as results. Stone-scoring tax counted chains rather than KataGo's regions. |
+| Bots | Jigo and score-loss did not pass when the top move was a pass; the fallback bot's superko filter ignored suicide. |
+| Navigation | Next mistake stuck after the first jump and used a different points-lost measure from the rest of the app. |
+| Library | Select all then Move flattened every folder; moves could duplicate names; metadata missed legal SGF whitespace and counted `AB[aa:cc]` as one stone. |
+| Import | Pasted diagrams: `+` corners, a white `0` at a row edge, and the side to move. |
+| Study | Problem grading ignored whose GB/GW marker it was, and Show solution could show the refuted line; a 0 tsumego wall recoloured the problem; ladder and gauntlet left the bot's 20k-6d range. |
+| Inputs | Game Info fields could not take a trailing space; a cleared komi started a game at 0. |
+| Keyboard | Enter on palette buttons ran a command; Shift+Space and Option-altered Alt shortcuts never matched; resetting a shortcut could re-create a clash. |
+| Settings | A chosen 500 visits reloaded as 5000. |
+| Offline | Activation deleted other apps' caches on the shared origin; reported bundles accumulated in the shell cache across deploys. |
+| UI | Tooltips off-screen on phones, filled "unselected" library boxes, library names squeezed by hover actions, menu header gap, start-rail wrapping and reserve, lesson/quiz board size on tall phones, kifu stones in the wrong colour, large-tree centring, stale setup labels, phone move-list columns, OGS progress counter. |
+
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
