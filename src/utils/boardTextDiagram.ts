@@ -105,7 +105,8 @@ const WHITE_CHARS = new Set(['O', 'o', '0']);
 const EMPTY_CHARS = new Set(['.', ',', '+', '-', '_', '*']);
 
 /**
- * A row that is nothing but dashes.
+ * A row that is nothing but dashes, perhaps capped with the `+` corners a
+ * full-board Sensei's Library diagram draws.
  *
  * Ambiguous on its own: it is the border Sensei's Library draws above and
  * below a grid, and it is also a legitimate empty row in the tools that use
@@ -113,7 +114,7 @@ const EMPTY_CHARS = new Set(['.', ',', '+', '-', '_', '*']);
  * it as a border when reading it as a row would leave a board size this app
  * cannot play.
  */
-const isAllDashes = (row: string): boolean => /^-+$/.test(row);
+const isAllDashes = (row: string): boolean => /^\+?-+\+?$/.test(row);
 
 /**
  * Strips the scenery a diagram may carry: the wiki prefix, the drawn edges, the
@@ -130,8 +131,10 @@ function gridRow(line: string): string | null {
     .replace(/^\|+/, '')
     .replace(/\|+$/, '')
     .trim()
-    .replace(/^\d{1,2}\s+/, '')
-    .replace(/\s+\d{1,2}$/, '')
+    // Row numbers run from 1; a 0 at the edge of a row is a white stone,
+    // and stripping it as a label left the row one point short.
+    .replace(/^(?:1\d|[1-9])\s+/, '')
+    .replace(/\s+(?:1\d|[1-9])$/, '')
     .replace(/\s+/g, '');
   if (!bare) return null;
   for (const ch of bare) {
@@ -207,7 +210,23 @@ export function sgfFromBoardTextDiagram(text: string): string | null {
     black.length > 0 ? `AB${black.map((point) => `[${point}]`).join('')}` : '',
     white.length > 0 ? `AW${white.map((point) => `[${point}]`).join('')}` : '',
   ].join('');
-  return `(;GM[1]FF[4]CA[UTF-8]SZ[${size}]${placements})`;
+  const toPlay = sideToPlayInDiagram(text);
+  const player = toPlay ? `PL[${toPlay === 'white' ? 'W' : 'B'}]` : '';
+  return `(;GM[1]FF[4]CA[UTF-8]SZ[${size}]${placements}${player})`;
+}
+
+/**
+ * Whose move the diagram says it is: this app's own caption ("White to
+ * play."), or Sensei's Library's `$$W` header. Without it a pasted diagram
+ * opened with Black to move whatever it said, so copying a position out and
+ * back in changed it.
+ */
+function sideToPlayInDiagram(text: string): Player | null {
+  const caption = /\b(Black|White) to play\b/i.exec(text);
+  if (caption) return caption[1]!.toLowerCase() === 'white' ? 'white' : 'black';
+  const header = /^\s*\$\$([BW])/m.exec(text);
+  if (header) return header[1] === 'W' ? 'white' : 'black';
+  return null;
 }
 
 /**
