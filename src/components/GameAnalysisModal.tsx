@@ -61,9 +61,13 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
   const defaultMaxVisits = useMemo(() => clampAnalysisVisits(defaultVisits), [defaultVisits]);
 
   const [visits, setVisits] = useState<number>(defaultMaxVisits);
+  // What is typed stays as typed until the field is left or the run starts.
+  // Clamping each keystroke turned "5" into 16 before the zeros arrived, so
+  // 500 read 1600, and a cleared field jumped straight back to its default.
+  const [visitsDraft, setVisitsDraft] = useState<string | null>(null);
   const [useMoveRange, setUseMoveRange] = useState<boolean>(false);
-  const [startMove, setStartMove] = useState<number>(defaultStartMove);
-  const [endMove, setEndMove] = useState<number>(999);
+  const [startMoveDraft, setStartMoveDraft] = useState<string>(() => String(defaultStartMove));
+  const [endMoveDraft, setEndMoveDraft] = useState<string>('999');
   const [mistakesOnly, setMistakesOnly] = useState<boolean>(false);
 
   const isRunning = isGameAnalysisRunning && gameAnalysisType === 'full';
@@ -78,9 +82,26 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
     return n;
   };
 
+  const commitVisits = (): number => {
+    const v = clampAnalysisVisits(visitsDraft === null ? visits : clampInt(visitsDraft, defaultMaxVisits));
+    setVisits(v);
+    setVisitsDraft(null);
+    return v;
+  };
+  const commitStartMove = (): number => {
+    const n = Math.max(0, clampInt(startMoveDraft, defaultStartMove));
+    setStartMoveDraft(String(n));
+    return n;
+  };
+  const commitEndMove = (): number => {
+    const n = Math.max(0, clampInt(endMoveDraft, 999));
+    setEndMoveDraft(String(n));
+    return n;
+  };
+
   const onStart = () => {
-    const v = clampAnalysisVisits(visits);
-    const range = useMoveRange ? ([startMove, endMove] as [number, number]) : null;
+    const v = commitVisits();
+    const range = useMoveRange ? ([commitStartMove(), commitEndMove()] as [number, number]) : null;
     startFullGameAnalysis({ visits: v, moveRange: range, mistakesOnly });
     onClose();
   };
@@ -118,8 +139,9 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
                 type="number"
                 min={ANALYSIS_MIN_VISITS}
                 max={ENGINE_MAX_VISITS}
-                value={visits}
-                onChange={(e) => setVisits(clampAnalysisVisits(clampInt(e.target.value, defaultMaxVisits)))}
+                value={visitsDraft ?? visits}
+                onChange={(e) => setVisitsDraft(e.target.value)}
+                onBlur={commitVisits}
                 className="w-full ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono"
               />
               <p className="text-xs ui-text-faint">Defaults to engine Visits ({defaultMaxVisits}).</p>
@@ -170,7 +192,10 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
                         ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
                         : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
                     ].join(' ')}
-                    onClick={() => setVisits(preset)}
+                    onClick={() => {
+                      setVisits(preset);
+                      setVisitsDraft(null);
+                    }}
                     aria-pressed={active}
                   >
                     <span className="block font-mono text-sm">{preset}</span>
@@ -193,7 +218,10 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
                 aria-valuetext={`${visits} visits`}
                 data-game-analysis-depth-slider="true"
                 style={{ '--analysis-depth-fill': `${visitSliderFillPercent(visits)}%` } as React.CSSProperties}
-                onChange={(event) => setVisits(sliderValueToVisitCount(Number.parseFloat(event.currentTarget.value)))}
+                onChange={(event) => {
+                  setVisits(sliderValueToVisitCount(Number.parseFloat(event.currentTarget.value)));
+                  setVisitsDraft(null);
+                }}
               />
               <div className="analysis-command-bar__depth-scale" aria-hidden="true">
                 <span>{ANALYSIS_MIN_VISITS}</span>
@@ -229,8 +257,9 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
                   min={0}
                   step={1}
                   disabled={!useMoveRange}
-                  value={startMove}
-                  onChange={(e) => setStartMove(Math.max(0, clampInt(e.target.value, defaultStartMove)))}
+                  value={startMoveDraft}
+                  onChange={(e) => setStartMoveDraft(e.target.value)}
+                  onBlur={commitStartMove}
                   className="w-full ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono disabled:opacity-60"
                 />
               </div>
@@ -242,8 +271,9 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
                   min={0}
                   step={1}
                   disabled={!useMoveRange}
-                  value={endMove}
-                  onChange={(e) => setEndMove(Math.max(0, clampInt(e.target.value, 999)))}
+                  value={endMoveDraft}
+                  onChange={(e) => setEndMoveDraft(e.target.value)}
+                  onBlur={commitEndMove}
                   className="w-full ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono disabled:opacity-60"
                 />
               </div>

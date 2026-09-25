@@ -47,7 +47,7 @@ import { copyTextToClipboard } from '../utils/clipboard';
 import { formatEngineErrorReport } from '../utils/engineDiagnostics';
 import { setTimedNotification } from '../utils/timedNotification';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
-import { summarizeAnalysisCoverage } from '../utils/analysisCoverage';
+import { isReportReadyAnalysis, summarizeAnalysisCoverage } from '../utils/analysisCoverage';
 import { getFastReviewButtonState } from '../utils/fastReviewButtonState';
 
 interface AnalysisCommandBarProps {
@@ -183,6 +183,11 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const [depthDraft, setDepthDraft] = React.useState('');
   const [depthHintVisits, setDepthHintVisits] = React.useState<number | null>(null);
   const [reviewStartedAt, setReviewStartedAt] = React.useState<number | null>(null);
+  // A new run can replace a running one without the running flag ever going
+  // false, so the start time also resets when the kind of run changes or its
+  // count goes backwards. Otherwise the new run's rate took in the old run's
+  // elapsed time: 13 of 121 after 2s read "ETA 1m 27s" for a 19s job.
+  const reviewRunRef = React.useRef<{ type: unknown; done: number } | null>(null);
   const [reviewNow, setReviewNow] = React.useState(0);
   const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const shouldShow =
@@ -204,7 +209,12 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         nowMs: reviewNow,
       })
     : null;
-  const analysisCoverage = summarizeAnalysisCoverage(getCurrentLineNodes(currentNode, activeBranchChildIds));
+  // Counted the way the panel's button counts it: a Quick graph leaves an
+  // analysis on every node but no candidates, and read as "Reviewed" here,
+  // disabling the one Fast review entry point on tablets and phones.
+  const analysisCoverage = summarizeAnalysisCoverage(getCurrentLineNodes(currentNode, activeBranchChildIds), {
+    isAnalyzed: (node) => isReportReadyAnalysis(node.analysis),
+  });
   const fastReviewButton = getFastReviewButtonState({
     isGameAnalysisRunning,
     gameProgress,
@@ -370,12 +380,16 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
 
   React.useEffect(() => {
     if (!isGameAnalysisRunning) {
+      reviewRunRef.current = null;
       setReviewStartedAt(null);
       setReviewNow(0);
       return;
     }
     const now = Date.now();
-    setReviewStartedAt((startedAt) => startedAt ?? now);
+    const previousRun = reviewRunRef.current;
+    const isNewRun = !previousRun || previousRun.type !== gameAnalysisType || gameAnalysisDone < previousRun.done;
+    reviewRunRef.current = { type: gameAnalysisType, done: gameAnalysisDone };
+    setReviewStartedAt((startedAt) => (isNewRun || startedAt === null ? now : startedAt));
     setReviewNow(now);
   }, [isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal]);
 
