@@ -195,3 +195,38 @@ describe('"right." as a solution comment', () => {
   });
 });
 
+
+describe('grading against the solver', () => {
+  const mv = (x: number, y: number, player: Player): Move => ({ x, y, player });
+
+  it('reads GB and GW as good for one side, not success for whoever solves', () => {
+    const goodForWhite = build({ move: mv(1, 1, 'black'), properties: { GW: ['1'] } });
+    expect(classifyProblemNode(goodForWhite, 'black')).toBe('wrong');
+    expect(classifyProblemNode(goodForWhite, 'white')).toBe('correct');
+    expect(classifyProblemNode(goodForWhite)).toBe('correct');
+  });
+
+  it('shows the line marked correct, even with the verdict on the key move', () => {
+    const start = build({
+      stones: true,
+      children: [
+        { move: mv(1, 1, 'black'), note: 'Wrong', children: [{ move: mv(2, 2, 'white') }] },
+        { move: mv(3, 3, 'black'), note: 'Correct', children: [{ move: mv(4, 4, 'white') }] },
+      ],
+    });
+    const path = findSolutionPath(start, 'black');
+    expect(path[1]!.move).toMatchObject({ x: 3, y: 3 });
+    expect(classifyProblemNode(path[path.length - 1]!, 'black')).toBe('correct');
+  });
+
+  it('steers the fallback main line around a refuted move', () => {
+    const start = build({
+      stones: true,
+      children: [
+        { move: mv(1, 1, 'black'), note: 'Wrong' },
+        { move: mv(3, 3, 'black'), children: [{ move: mv(4, 4, 'white') }] },
+      ],
+    });
+    expect(findSolutionPath(start, 'black').map((node) => node.move?.x ?? null)).toEqual([null, 3, 4]);
+  });
+});

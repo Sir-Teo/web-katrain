@@ -23,21 +23,28 @@ const nodeText = (node: GameNode): string => {
   return parts.join(' ');
 };
 
-const hasGoodMarker = (node: GameNode): boolean => {
-  const props = node.properties;
-  if (!props) return false;
-  return (props.GB?.some((v) => v !== '0') ?? false) || (props.GW?.some((v) => v !== '0') ?? false);
-};
+const markerSet = (values: string[] | undefined): boolean => values?.some((v) => v !== '0') ?? false;
 
 /**
  * Best-effort classification of a problem node using SGF good-position markers
  * (GB/GW) and comment keywords across several languages. Wrong markers win over
  * positive ones; absent any signal the verdict is `unknown`.
+ *
+ * GB is good for Black and GW good for White, so with the solver's colour a
+ * marker for the other side is a failure: counting either as success told a
+ * Black solver "Correct" at a variation marked good for White.
  */
-export const classifyProblemNode = (node: GameNode): ProblemVerdict => {
+export const classifyProblemNode = (node: GameNode, solver?: Player): ProblemVerdict => {
   const text = nodeText(node);
   if (WRONG_PATTERNS.test(text)) return 'wrong';
-  if (hasGoodMarker(node) || CORRECT_PATTERNS.test(text)) return 'correct';
+  if (CORRECT_PATTERNS.test(text)) return 'correct';
+  const goodForBlack = markerSet(node.properties?.GB);
+  const goodForWhite = markerSet(node.properties?.GW);
+  if (!solver) return goodForBlack || goodForWhite ? 'correct' : 'unknown';
+  const goodForSolver = solver === 'black' ? goodForBlack : goodForWhite;
+  const goodForOpponent = solver === 'black' ? goodForWhite : goodForBlack;
+  if (goodForSolver) return 'correct';
+  if (goodForOpponent) return 'wrong';
   return 'unknown';
 };
 
@@ -98,19 +105,23 @@ export const getProblemStarts = (root: GameNode): GameNode[] => {
 };
 
 /**
- * Finds a path (including `start`) from a problem start to a leaf classified as
- * `correct`. Falls back to the main line when no leaf is explicitly marked.
+ * Finds a path (including `start`) to the first node classified `correct`,
+ * never passing through one classified `wrong`. Falls back to the main line,
+ * steering around refuted moves, when nothing is explicitly marked.
+ *
+ * Solving settles on the first node with a verdict, so this does too: looking
+ * only for a correct *leaf* missed "Correct" written on the key move, and the
+ * fallback then showed the first child even when it was the line marked Wrong.
  */
-export const findSolutionPath = (start: GameNode): GameNode[] => {
+export const findSolutionPath = (start: GameNode, solver?: Player): GameNode[] => {
   const stack = [{ node: start, nextChild: 0 }];
   while (stack.length > 0) {
     const frame = stack[stack.length - 1]!;
-    if (frame.node.children.length === 0 && classifyProblemNode(frame.node) === 'correct') {
-      return stack.map(({ node }) => node);
-    }
     if (frame.nextChild < frame.node.children.length) {
       const child = frame.node.children[frame.nextChild++]!;
-      stack.push({ node: child, nextChild: 0 });
+      const verdict = classifyProblemNode(child, solver);
+      if (verdict === 'correct') return [...stack.map(({ node }) => node), child];
+      if (verdict !== 'wrong') stack.push({ node: child, nextChild: 0 });
     } else {
       stack.pop();
     }
@@ -120,7 +131,7 @@ export const findSolutionPath = (start: GameNode): GameNode[] => {
   let node: GameNode | null = start;
   while (node) {
     mainLine.push(node);
-    node = node.children[0] ?? null;
+    node = node.children.find((child) => classifyProblemNode(child, solver) !== 'wrong') ?? null;
   }
   return mainLine;
 };

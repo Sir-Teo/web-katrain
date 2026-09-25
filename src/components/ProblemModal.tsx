@@ -76,11 +76,13 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   const node = cursor ?? start;
   const hasMoves = !!start && start.children.length > 0;
   const sideToMove = node ? problemSideToMove(node) : 'black';
+  // Whose problem it is: the side to move at the start, not at the cursor.
+  const solver = start ? problemSideToMove(start) : undefined;
 
   // Resolves the position if it carries an explicit verdict or ends a line.
   // Returns true when the round is decided, false when play should continue.
   const settleAt = (next: GameNode): boolean => {
-    const verdict = classifyProblemNode(next);
+    const verdict = classifyProblemNode(next, solver);
     if (verdict === 'correct') {
       setStatus('correct');
       setMessage('Correct — that solves it!');
@@ -134,10 +136,10 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   const handleShowSolution = () => {
     if (!start) return;
     clearReplyTimer();
-    const path = findSolutionPath(start);
+    const path = findSolutionPath(start, solver);
     const last = path[path.length - 1] ?? start;
     setCursor(last);
-    const verdict = classifyProblemNode(last);
+    const verdict = classifyProblemNode(last, solver);
     setStatus(verdict === 'correct' ? 'correct' : 'end');
     setMessage(verdict === 'correct' ? 'Solution shown.' : 'Main line shown.');
   };
