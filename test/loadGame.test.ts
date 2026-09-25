@@ -342,9 +342,11 @@ describe('GameStore loadGame', () => {
         const firstBranch = firstMove.children[0]!;
         const activeBranch = firstMove.children[2]!;
         const emptyTerritory = Array.from({ length: 9 }, () => Array(9).fill(0));
+        // No root score, so points lost come from the candidate lists: a
+        // score of 0 on every position would say no move lost anything.
         const analyzed = (moves: AnalysisResult['moves']): AnalysisResult => ({
             rootWinRate: 0.5,
-            rootScoreLead: 0,
+            rootScoreLead: Number.NaN,
             moves,
             territory: emptyTerritory,
             ownershipMode: 'none',

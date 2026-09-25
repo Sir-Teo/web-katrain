@@ -14,8 +14,10 @@ const state = (): GameState => ({
   komi: 6.5,
 });
 
+// No root score, so points lost come from the candidate list: a score of 0
+// on every position would say no move lost anything.
 const analysis = (move: Move, pointsLost: number): AnalysisResult => ({
-  rootScoreLead: 0,
+  rootScoreLead: Number.NaN,
   rootWinRate: 0.5,
   territory: [[0]],
   moves: [{ ...move, winRate: 0.5, scoreLead: 0, visits: 100, pointsLost, order: 0 }],
@@ -69,5 +71,29 @@ describe('mistake navigation', () => {
     pass.analysis = undefined;
 
     expect(getMistakeNavigationAvailability({ currentNode: root, threshold: 3 })).toEqual({ previous: false, next: false });
+  });
+
+  it('walks on to the next mistake from the position before the last one', () => {
+    const root: GameNode = { id: 'root', parent: null, children: [], move: null, gameState: state() };
+    const p1 = child('p1', root, { x: 0, y: 0, player: 'black' }, 0.5);
+    const m1 = child('m1', p1, { x: 1, y: 0, player: 'white' }, 4);
+    const p2 = child('p2', m1, { x: 2, y: 0, player: 'black' }, 0.5);
+    child('m2', p2, { x: 3, y: 0, player: 'white' }, 7);
+
+    expect(findMistakeNavigationTarget({ currentNode: root, direction: 'redo', threshold: 3 })).toBe(p1);
+    expect(findMistakeNavigationTarget({ currentNode: p1, direction: 'redo', threshold: 3 })).toBe(p2);
+    expect(getMistakeNavigationAvailability({ currentNode: p1, threshold: 3 }).next).toBe(true);
+  });
+
+  it('measures a mistake by the score change across the move when both sides have one', () => {
+    const root: GameNode = { id: 'root', parent: null, children: [], move: null, gameState: state() };
+    const listed = child('listed', root, { x: 0, y: 0, player: 'black' }, 0);
+    const unlisted: GameNode = { id: 'unlisted', parent: listed, children: [], move: { x: 5, y: 5, player: 'white' }, gameState: state() };
+    listed.children.push(unlisted);
+    listed.analysis = { ...analysis({ x: 0, y: 0, player: 'white' }, 0), rootScoreLead: 2 };
+    unlisted.analysis = { ...analysis({ x: 0, y: 0, player: 'black' }, 0), rootScoreLead: 12 };
+
+    // White's move handed Black ten points; it is not in the candidate list.
+    expect(findMistakeNavigationTarget({ currentNode: unlisted, direction: 'undo', threshold: 6 })).toBe(listed);
   });
 });
