@@ -44,7 +44,7 @@ import {
   rememberActiveBranchPath,
   type ActiveBranchMap,
 } from '../utils/branchNavigation';
-import { ensurePinGameId, getNodePath, getPinGameId, repathPinnedVariations, resolvePinnedVariation, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
+import { ensurePinGameId, getNodePath, getPinGameId, PIN_GAME_ID_PROP, repathPinnedVariations, resolvePinnedVariation, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
 import { describeHumanBotPick, pickHumanBotMove } from '../utils/humanBotMove';
 import { komiWithHandicapBonus } from '../utils/handicap';
 import { humanBotPresets } from '../engine/katago/chosenMove';
@@ -1017,12 +1017,15 @@ const captureEditHistory = (state: GameStore): EditHistoryEntry => ({
   analysisRevision,
 });
 
-const pushEditHistory = (state: GameStore) => {
-  editUndoStack.push(captureEditHistory(state));
+/** Record a snapshot taken earlier, for edits that only know afterwards whether they changed anything. */
+const commitEditHistory = (entry: EditHistoryEntry) => {
+  editUndoStack.push(entry);
   if (editUndoStack.length > EDIT_HISTORY_LIMIT) editUndoStack.shift();
   editRedoStack = [];
   return editHistoryCounts();
 };
+
+const pushEditHistory = (state: GameStore) => commitEditHistory(captureEditHistory(state));
 
 /**
  * Pins follow their nodes through an edit that moves children around, and
@@ -1037,6 +1040,13 @@ const repathPins = (root: GameNode, pins: PinnedVariation[]): { pinnedVariations
 };
 
 const restoreEditHistory = (entry: EditHistoryEntry, state: GameStore) => {
+  // Pinning names the game on its root (WKID) without recording an edit, so
+  // an older snapshot lacks it; restored without it, the pins could not be
+  // found again after a reload.
+  const pinGameId = getPinGameId(state.rootNode);
+  if (pinGameId && !getPinGameId(entry.rootNode)) {
+    entry.rootNode.properties = { ...entry.rootNode.properties, [PIN_GAME_ID_PROP]: [pinGameId] };
+  }
   const rulesChanged = entry.gameRules !== state.settings.gameRules;
   const settings = rulesChanged ? { ...state.settings, gameRules: entry.gameRules } : state.settings;
   if (rulesChanged) {
@@ -2430,6 +2440,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       : numCopied > 0 ? { message: `Insert mode ended: copied ${numCopied} moves.`, type: 'info' as const } : null;
     set((state) => ({
+      ...clearEditHistory(),
       isInsertMode: false,
       insertAfterNodeId: null,
       insertAnchorNodeId: null,
@@ -4226,10 +4237,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  // Note edits are undoable edits. Unrecorded, "Undo edit" restored a tree
+  // snapshot from before them and took the note with it.
   setCurrentNodeNote: (note) =>
     set((state) => {
+      if ((state.currentNode.note ?? '') === note) return {};
+      const history = pushEditHistory(state);
       state.currentNode.note = note;
-      return { treeVersion: state.treeVersion + 1 };
+      return { ...history, treeVersion: state.treeVersion + 1 };
     }),
 
   setNodeNote: (nodeId, note) =>
@@ -4237,8 +4252,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const node = findNodeById(state.rootNode, nodeId);
       // The node can be gone -- a branch deleted while its note was open.
       if (!node || (node.note ?? '') === note) return {};
+      const history = pushEditHistory(state);
       node.note = note;
-      return { treeVersion: state.treeVersion + 1 };
+      return { ...history, treeVersion: state.treeVersion + 1 };
     }),
 
   playMove: (x: number, y: number, isLoad = false) => {
@@ -4346,6 +4362,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     state.currentNode.children.push(newNode);
 
     set({
+      // "Undo edit" restores a whole-tree snapshot, so one taken before this
+      // move would take the move away with the edit -- and a later edit would
+      // clear the redo that could bring it back. Playing on starts afresh.
+      ...clearEditHistory(),
       currentNode: newNode,
       board: newGameState.board,
       currentPlayer: newGameState.currentPlayer,
@@ -5478,7 +5498,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return { notification: { message: 'Nothing to add from this variation.', type: 'info' as const } };
     }
     const boardSize = normalizeBoardSize(state.board.length, DEFAULT_BOARD_SIZE);
-    const history = pushEditHistory(state);
+    // Snapshot now, record only if a node is added: recording up front wiped
+    // redo for a line that was unplayable or already in the tree.
+    const snapshot = captureEditHistory(state);
 
     let parent = state.currentNode;
     let created = 0;
@@ -5509,7 +5531,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     const total = created + reused;
     return {
-      ...history,
+      ...(created > 0 ? commitEditHistory(snapshot) : {}),
       activeBranchChildIds,
       treeVersion: state.treeVersion + 1,
       notification: {
@@ -5774,14 +5796,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const side = node.move ? (node.move.player === 'black' ? 'B' : 'W') : '';
     const label = `Move ${moveNumber}${side ? ` ${side} ${coord}` : ''}`;
     const pin: PinnedVariation = {
-      id: `pin_${moveNumber}_${path.join('-')}`,
+      // The path alone is not an identity: reordering variations moves
+      // another line onto a pinned one's old path, and pinning it then read
+      // "already pinned".
+      id: `pin_${moveNumber}_${path.join('-')}_${node.id}`,
       label,
       path,
       moveNumber,
       createdAt: state.treeVersion,
       nodeId: node.id,
     };
-    if (state.pinnedVariations.some((p) => p.id === pin.id)) {
+    const pathKey = path.join('-');
+    if (state.pinnedVariations.some((p) => (p.nodeId ? p.nodeId === node.id : p.path.join('-') === pathKey))) {
       return { notification: { message: 'This line is already pinned.', type: 'info' } };
     }
     // Assigning the WKID root property makes pins recoverable after reloads;
@@ -6129,7 +6155,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     const applyKtAnalysis = (node: GameNode, kt: string[]) => {
-      const decoded = decodeKaTrainKt({ kt });
+      // The ownership and policy buffers are sized by the board: read as
+      // 19x19, a 9x9 game's came back empty and the next save wrote zeros.
+      const decoded = decodeKaTrainKt({ kt, boardSize });
       if (!decoded) return;
       const analysis = kaTrainAnalysisToAnalysisResult({
         analysis: decoded,
@@ -6542,6 +6570,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state.currentNode.children.push(newNode);
 
       set({
+          ...clearEditHistory(), // as playMove: an older snapshot would take the pass away
           currentNode: newNode,
           currentPlayer: newGameState.currentPlayer,
           moveHistory: newGameState.moveHistory,
