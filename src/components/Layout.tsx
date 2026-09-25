@@ -28,7 +28,7 @@ import {
   type LibraryFolderOption,
 } from '../utils/library';
 import { loadSgfOrOgs } from '../utils/ogs';
-import type { CandidateMove, EditTool, GameNode, Player } from '../types';
+import type { BoardSize, CandidateMove, EditTool, GameNode, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, readRecordedResult, roundToHalf } from '../utils/manualScore';
@@ -3436,9 +3436,25 @@ export const Layout: React.FC = () => {
 
   useTournamentWatcher();
 
-  const handlePlayTournamentGame = useCallback((ladder: LadderState) => {
+  /**
+   * A ladder or gauntlet game replaces the one on the board like any new
+   * game: ask first, and leave the new game unlinked from the library item
+   * that was open. Skipping both replaced unsaved work without a word, and
+   * the next Save then wrote the fresh 9x9 over the library game.
+   */
+  const replaceWithRankedGame = useCallback(async (options: { komi: number; boardSize: BoardSize; handicap: number }): Promise<boolean> => {
+    if (!(await prepareForGameReplacement())) return false;
+    startNewGame({ komi: options.komi, rules: settings.gameRules, boardSize: options.boardSize, handicap: options.handicap });
+    setLoadedLibraryFile(null);
+    setScoringMode(false);
+    setManualDeadStones(new Set());
+    markCurrentGameCleanAndClearAutoSave();
+    return true;
+  }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, setLoadedLibraryFile, settings.gameRules, startNewGame]);
+
+  const handlePlayTournamentGame = useCallback(async (ladder: LadderState) => {
     setIsTournamentOpen(false);
-    startNewGame({ komi: ladder.komi, rules: settings.gameRules, boardSize: ladder.boardSize, handicap: ladder.handicap });
+    if (!(await replaceWithRankedGame(ladder))) return;
     updateSettings({ aiStrategy: 'rank', aiRankKyu: ladder.currentKyu });
     const opponent = ladder.userColor === 'black' ? 'white' : 'black';
     // Start a fresh game first, then hand the opponent color to the rank bot.
@@ -3447,12 +3463,12 @@ export const Layout: React.FC = () => {
       useTournamentStore.getState().beginGame();
     }, 0);
     toast(`Ladder game vs ${ladder.boardSize}×${ladder.boardSize} ${ladder.userColor === 'black' ? 'White' : 'Black'} bot started.`, 'success');
-  }, [startNewGame, updateSettings, settings.gameRules, toast]);
+  }, [replaceWithRankedGame, updateSettings, toast]);
 
-  const handlePlayGauntletGame = useCallback((gauntlet: GauntletState) => {
+  const handlePlayGauntletGame = useCallback(async (gauntlet: GauntletState) => {
     setIsTournamentOpen(false);
     const opponentKyu = currentGauntletOpponentKyu(gauntlet);
-    startNewGame({ komi: gauntlet.komi, rules: settings.gameRules, boardSize: gauntlet.boardSize, handicap: gauntlet.handicap });
+    if (!(await replaceWithRankedGame(gauntlet))) return;
     updateSettings({ aiStrategy: 'rank', aiRankKyu: opponentKyu });
     const opponent = gauntlet.userColor === 'black' ? 'white' : 'black';
     window.setTimeout(() => {
@@ -3460,7 +3476,7 @@ export const Layout: React.FC = () => {
       useTournamentStore.getState().beginGauntletGame();
     }, 0);
     toast(`Gauntlet game ${gauntlet.index + 1}/4 vs ${formatKyuRank(opponentKyu)} started.`, 'success');
-  }, [startNewGame, updateSettings, settings.gameRules, toast]);
+  }, [replaceWithRankedGame, updateSettings, toast]);
 
   // Insert mode's parity trap, offered while there is still something to do
   // about it: the continuation can only follow an even number of inserted
