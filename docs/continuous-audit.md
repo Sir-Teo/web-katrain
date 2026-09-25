@@ -94,7 +94,7 @@ disagreement; the two app-side bugs it surfaced are listed below.
 | Scoring | A counted draw was written `RE[Jigo]` (now `RE[0]`), and recorded draws were not shown as results. Stone-scoring tax counted chains rather than KataGo's regions. |
 | Bots | Jigo and score-loss did not pass when the top move was a pass; the fallback bot's superko filter ignored suicide. |
 | Navigation | Next mistake stuck after the first jump and used a different points-lost measure from the rest of the app. |
-| Library | Select all then Move flattened every folder; moves could duplicate names; metadata missed legal SGF whitespace and counted `AB[aa:cc]` as one stone. |
+| Library | Select all then Move flattened every folder; moves could duplicate names; metadata missed legal SGF whitespace and counted `AB[aa:cc]` as one stone. A drop on a subfolder also landed on its parent, and dragging to Root skipped the unique-name check. Resizing with the header menu open called `window.close` (now barred by lint). |
 | Import | Pasted diagrams: `+` corners, a white `0` at a row edge, and the side to move. |
 | Study | Problem grading ignored whose GB/GW marker it was, and Show solution could show the refuted line; a 0 tsumego wall recoloured the problem; ladder and gauntlet left the bot's 20k-6d range. |
 | Inputs | Game Info fields could not take a trailing space; a cleared komi started a game at 0. |
