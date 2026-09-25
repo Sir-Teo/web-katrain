@@ -193,13 +193,20 @@ self.addEventListener('install', (event) => {
   );
 });
 
+/**
+ * Only this app's older caches are ours to delete. CacheStorage belongs to the
+ * origin, not the app, and the site is served from a GitHub Pages origin that
+ * other apps share: deleting everything but our own emptied their offline
+ * caches the moment this worker activated. The ':' keeps a future v30 from
+ * passing for v3.
+ */
+const isStaleOwnCache = (key) => key.startsWith('web-katrain-') && !key.startsWith(`${CACHE_VERSION}:`);
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((key) => !key.startsWith(CACHE_VERSION)).map((key) => caches.delete(key)))
-      )
+      .then((keys) => Promise.all(keys.filter(isStaleOwnCache).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });

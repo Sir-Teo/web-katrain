@@ -392,3 +392,32 @@ describe('assets the page reports having used', () => {
     expect(await report(['https://example.test/assets/main-CCC.js'])).toEqual([]);
   });
 });
+
+describe('service worker activation', () => {
+  it("deletes this app's older caches and leaves other apps' caches alone", async () => {
+    // GitHub Pages serves several apps from one origin, and CacheStorage is
+    // per origin: the old filter deleted everything but our own.
+    const listeners = new Map<string, Listener>();
+    const existing = ['web-chess-v1:runtime', 'web-katrain-v2:shell', 'web-katrain-v3:shell', 'web-katrain-v30:shell'];
+    const deleted: string[] = [];
+    const selfStub = {
+      addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
+      skipWaiting: () => undefined,
+      clients: { claim: () => Promise.resolve() },
+      location: { origin: 'https://example.test', href: 'https://example.test/' },
+    };
+    const cachesStub = {
+      open: () => Promise.reject(new Error('unused')),
+      keys: () => Promise.resolve(existing),
+      delete: (key: string) => Promise.resolve(deleted.push(key) > 0),
+    };
+    new Function('self', 'caches', readFileSync('public/sw.js', 'utf8'))(selfStub, cachesStub);
+
+    const activate = listeners.get('activate') as unknown as (e: { waitUntil: (p: Promise<unknown>) => void }) => void;
+    let waited: Promise<unknown> = Promise.resolve();
+    activate({ waitUntil: (p) => { waited = p; } });
+    await waited;
+
+    expect(deleted.sort()).toEqual(['web-katrain-v2:shell', 'web-katrain-v30:shell']);
+  });
+});
