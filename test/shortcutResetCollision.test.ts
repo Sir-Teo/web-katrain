@@ -15,3 +15,11 @@ describe('resetting one shortcut', () => {
     expect(findShortcutResetCollision('toggle-children', {})).toBeNull();
   });
 });
+
+describe('continuous analysis', () => {
+  it('answers Shift+Space as well, which toggles it without the notice', async () => {
+    const { eventMatchesShortcut } = await import('../src/utils/shortcuts');
+    const shiftSpace = { key: ' ', code: 'Space', shiftKey: true, ctrlKey: false, altKey: false, metaKey: false } as KeyboardEvent;
+    expect(eventMatchesShortcut(shiftSpace, 'continuous-analysis')).toBe(true);
+  });
+});

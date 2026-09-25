@@ -98,7 +98,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { id: 'toggle-coordinates', category: 'Visualization', label: 'Toggle coordinates', defaultBindings: [{ key: 'k' }] },
   { id: 'toggle-move-numbers', category: 'Visualization', label: 'Toggle move numbers', defaultBindings: [{ key: 'm' }] },
   { id: 'toggle-analysis', category: 'Analysis', label: 'Toggle analysis mode', defaultBindings: [{ key: 'Tab' }] },
-  { id: 'continuous-analysis', category: 'Analysis', label: 'Continuous analysis', defaultBindings: [{ key: 'Space' }] },
+  { id: 'continuous-analysis', category: 'Analysis', label: 'Continuous analysis', defaultBindings: [{ key: 'Space' }, { key: 'Space', shift: true }] },
   { id: 'analysis-extra', category: 'Analysis', label: 'Extra analysis', defaultBindings: [{ key: 'a' }] },
   { id: 'analysis-equalize', category: 'Analysis', label: 'Equalize', defaultBindings: [{ key: 's' }] },
   { id: 'analysis-sweep', category: 'Analysis', label: 'Sweep', defaultBindings: [{ key: 'd' }] },
