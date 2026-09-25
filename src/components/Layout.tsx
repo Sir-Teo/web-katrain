@@ -702,7 +702,10 @@ export const Layout: React.FC = () => {
   })();
 
   useEffect(() => {
-    setManualDeadStones(new Set());
+    // Keep the same empty set when there is nothing to clear: a new one on
+    // every move re-rendered the whole app a second time per step (80
+    // components and a second stone redraw).
+    setManualDeadStones((prev) => (prev.size === 0 ? prev : new Set()));
     setManualScoreMode('manual');
   }, [boardSize, currentNode.id]);
 

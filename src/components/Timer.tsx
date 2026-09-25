@@ -76,7 +76,17 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
       s.timerPeriodsUsed[s.currentPlayer] = result.periodsUsedForPlayer;
       s.currentNode.timeUsedSeconds = result.nodeTimeUsedSeconds;
 
-      setDisplay(result.display);
+      // Ticks run every 70ms, paused or not; a new object each time re-rendered
+      // the clock 14 times a second with nothing to show.
+      const next = result.display;
+      setDisplay((prev) =>
+        prev.timeSeconds === next.timeSeconds &&
+        prev.periodsRemaining === next.periodsRemaining &&
+        prev.timeout === next.timeout &&
+        prev.isAiTurn === next.isAiTurn
+          ? prev
+          : next
+      );
     };
 
     tick();

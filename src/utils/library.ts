@@ -601,13 +601,13 @@ const loadFromIndexedDb = async (): Promise<LibraryItem[]> => {
   }
 };
 
-const saveToIndexedDb = async (items: LibraryItem[]): Promise<void> => {
+const saveToIndexedDb = async (items: LibraryItem[], alreadyNormalized = false): Promise<void> => {
   const db = await openLibraryDb();
   try {
     const tx = db.transaction([ITEM_STORE, META_STORE], 'readwrite');
     const store = tx.objectStore(ITEM_STORE);
     store.clear();
-    for (const item of normalizeLibraryItems(items)) store.put(item);
+    for (const item of alreadyNormalized ? items : normalizeLibraryItems(items)) store.put(item);
     tx.objectStore(META_STORE).put({ key: 'updatedAt', value: Date.now() });
     tx.objectStore(META_STORE).put({ key: 'schemaVersion', value: DB_VERSION });
     await transactionDone(tx);
@@ -814,7 +814,8 @@ const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
     return;
   }
   try {
-    await saveToIndexedDb(normalized);
+    // Normalised just above; a second pass re-read every game's metadata.
+    await saveToIndexedDb(normalized, true);
     memoryItems = normalized;
     if (hasUnflushedFallback()) setFallbackUnflushed(false);
     markMigrated();
@@ -839,8 +840,14 @@ export const saveLibrary = (items: LibraryItem[]): Promise<void> =>
 export const updateStoredLibrary = <T>(
   update: (items: LibraryItem[]) => { items: LibraryItem[]; result: T }
 ): Promise<T> => runLibraryTask(async () => {
-  const mutation = update(await loadLibrarySnapshot());
-  await saveLibrarySnapshot(mutation.items);
+  const loaded = await loadLibrarySnapshot();
+  const mutation = update(loaded);
+  // An update that changed nothing need not rewrite every record. Opening the
+  // Library is one: it cleared and re-put the whole store each time -- 2.6s
+  // to rows at 3,000 games. A fallback-only library still writes, since that
+  // write is what keeps the fallback current.
+  const unchanged = mutation.items === loaded && !!getIndexedDB() && !idbLoadFailed;
+  if (!unchanged) await saveLibrarySnapshot(mutation.items);
   return mutation.result;
 });
 
