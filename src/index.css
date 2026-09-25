@@ -2862,6 +2862,13 @@
   }
 
   @media (max-height: 520px) and (orientation: landscape) {
+    /* Settings keeps its × in the header; the footer's Done repeats it. On a
+       320px-tall phone the two bars left the settings themselves 101px of a
+       3,000px list, so the repeat goes. */
+    .settings-modal .settings-modal-footer {
+      display: none !important;
+    }
+
     .move-tree-empty-state {
       padding: 0.75rem 3rem 0.5rem;
     }

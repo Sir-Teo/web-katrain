@@ -17,3 +17,12 @@ describe('small text keeps its contrast', () => {
     expect(read('src/components/MobileHome.tsx')).toContain('mobile-home-action-hint mt-0.5 block truncate text-[0.6875rem]"');
   });
 });
+
+describe('Settings on a short landscape phone', () => {
+  it('drops the footer that only repeats the header close button', () => {
+    const css = read('src/index.css');
+    // 101px of settings on a 320px-tall screen with both bars shown.
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\) \{[\s\S]{0,400}?\.settings-modal \.settings-modal-footer \{\s*display: none !important;/);
+    expect(read('src/components/SettingsModal.tsx')).toContain('aria-label="Close settings"');
+  });
+});
