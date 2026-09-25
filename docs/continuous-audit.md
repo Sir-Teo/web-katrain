@@ -107,6 +107,8 @@ disagreement; the two app-side bugs it surfaced are listed below.
 | Engine flows | A board edit left the play-elsewhere readout on "Checking..." or a stale price; play-to-end folded the real game when the engine chose its next move; the AI opponent answered the set-up position generator's moves. |
 | Pointer input | A stale click-suppression flag swallowed the click after a right-click; a scroll that began on the score graph jumped the game. |
 | Photo board | Play move was never offered for a move that captures; auto-trace found no black stones on a transparent PNG. |
+| Phone controls | The branch-number editor in More Controls closed as it opened; Enter or Escape in a number field dropped focus to the page; the move strip clipped the turn stone off its left edge on narrow and landscape phones. |
+| Kifu and quizzes | Printing a kifu gave one page however many diagrams it had; a diagram left out earlier stones captured within it; Guess the Move graded a click on a stone as a guess. |
 | UI | Theme previews (Hikaru's square SVG, Bamboo's missing lines), a repeated AI-strength sentence, tooltips off-screen on phones, filled "unselected" library boxes, library names squeezed by hover actions, menu header gap, start-rail wrapping and reserve, lesson/quiz board size on tall phones, kifu stones in the wrong colour, large-tree centring, stale setup labels, phone move-list columns, OGS progress counter. |
 
 ## Validation and measurement
