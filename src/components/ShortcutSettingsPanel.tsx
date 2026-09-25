@@ -105,8 +105,22 @@ export const ShortcutSettingsPanel: React.FC = () => {
   React.useEffect(() => {
     if (!recordingId) return;
     const handleKeyDown = (event: KeyboardEvent) => handleRecordEvent(event);
+    // Recording takes every key on the page, so it ends when the player moves
+    // elsewhere. Left armed, a click into the search box and "undo" bound U to
+    // the command and typed "ndo".
+    const handleElsewhere = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-shortcut-recording="true"]')) return;
+      setRecordingId(null);
+    };
     window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('pointerdown', handleElsewhere, true);
+    window.addEventListener('focusin', handleElsewhere, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('pointerdown', handleElsewhere, true);
+      window.removeEventListener('focusin', handleElsewhere, true);
+    };
   }, [handleRecordEvent, recordingId]);
 
   const handleDisable = (id: string) => {
@@ -357,6 +371,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
                         setConfirmResetAll(false);
                       }}
                       aria-pressed={isRecording}
+                      data-shortcut-recording={isRecording ? 'true' : undefined}
                       aria-label={isRecording ? `Press keys for ${shortcut.label}` : `Record shortcut for ${shortcut.label}`}
                     >
                       {isRecording ? 'Press keys' : 'Record'}

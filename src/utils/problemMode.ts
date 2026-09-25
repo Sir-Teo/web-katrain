@@ -56,8 +56,19 @@ export const findChildForMove = (node: GameNode, x: number, y: number): GameNode
   return null;
 };
 
-/** The player to move at a node (the solver's color at the problem start). */
-export const problemSideToMove = (node: GameNode): Player => node.gameState.currentPlayer;
+/**
+ * The player to move at a node (the solver's color at the problem start).
+ *
+ * `PL` says so outright. Without it, the problem's own first move does: a
+ * collection child inherits the root's side, so a White-to-play problem after
+ * a Black one was posed as "Black to play" and its correct white answer graded
+ * as failing.
+ */
+export const problemSideToMove = (node: GameNode): Player => {
+  if (node.properties?.PL?.length) return node.gameState.currentPlayer;
+  const firstMove = node.children.find((child) => child.move)?.move;
+  return firstMove?.player ?? node.gameState.currentPlayer;
+};
 
 const boardHasStones = (node: GameNode): boolean =>
   node.gameState.board.some((row) => row.some((cell) => cell !== null));

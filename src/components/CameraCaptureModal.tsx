@@ -34,6 +34,10 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCaptur
 
   React.useEffect(() => {
     let cancelled = false;
+    // The cleanup marks the modal closed; a remount (StrictMode runs effects
+    // twice in development) has to reopen it, or every capture is discarded
+    // and the shutter sticks on "Capturing...".
+    closedRef.current = false;
     const mediaDevices = typeof navigator === 'undefined' ? undefined : navigator.mediaDevices;
 
     if (!mediaDevices?.getUserMedia) {
