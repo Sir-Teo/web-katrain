@@ -52,7 +52,7 @@ import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
 import {
   boardKeyboardCursorHandlesKey,
   getInitialBoardKeyboardCursor,
-  moveBoardKeyboardCursor,
+  stepBoardKeyboardCursorOnScreen,
   type BoardKeyboardPoint,
 } from '../utils/boardKeyboardNavigation';
 import { boardToQaString, countBoardStones } from '../utils/boardQaSnapshot';
@@ -1793,7 +1793,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
       event.stopPropagation();
       clearPendingTap();
       setIsKeyboardCursorActive(true);
-      setCursorPt((prev) => moveBoardKeyboardCursor(prev, boardSize, delta[0], delta[1]));
+      setCursorPt((prev) => stepBoardKeyboardCursorOnScreen(prev, boardSize, delta[0], delta[1], toDisplay, toInternal));
       return;
     }
 

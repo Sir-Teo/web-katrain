@@ -32,6 +32,26 @@ export function moveBoardKeyboardCursor(
   };
 }
 
+/**
+ * An arrow-key step taken on screen. The cursor is kept in board coordinates
+ * but drawn through the board's rotation, so the step is made in display
+ * coordinates and mapped back: added straight to board coordinates, Right
+ * moved the cursor down after one rotation, left after two, up after three.
+ */
+export function stepBoardKeyboardCursorOnScreen(
+  current: BoardKeyboardPoint | null,
+  boardSize: number,
+  dx: number,
+  dy: number,
+  toDisplay: (x: number, y: number) => BoardKeyboardPoint,
+  toInternal: (x: number, y: number) => BoardKeyboardPoint
+): BoardKeyboardPoint {
+  const start = getInitialBoardKeyboardCursor(current, Math.max(1, Math.floor(boardSize)));
+  const onScreen = toDisplay(start.x, start.y);
+  const moved = moveBoardKeyboardCursor(onScreen, boardSize, dx, dy);
+  return toInternal(moved.x, moved.y);
+}
+
 /** The keys the on-board keyboard cursor drives. */
 const CURSOR_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ']);
 

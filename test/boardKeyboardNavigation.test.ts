@@ -79,3 +79,26 @@ describe('board keyboard navigation', () => {
     expect(handler.slice(0, cleared)).toContain('if (!cursorOwnsKey) return;');
   });
 });
+
+describe('arrow keys on a rotated board', () => {
+  const size = 19;
+  const transforms = (rotation: number) => ({
+    toDisplay: (x: number, y: number) =>
+      rotation === 1 ? { x: size - 1 - y, y: x } : rotation === 2 ? { x: size - 1 - x, y: size - 1 - y } : rotation === 3 ? { x: y, y: size - 1 - x } : { x, y },
+    toInternal: (x: number, y: number) =>
+      rotation === 1 ? { x: y, y: size - 1 - x } : rotation === 2 ? { x: size - 1 - x, y: size - 1 - y } : rotation === 3 ? { x: size - 1 - y, y: x } : { x, y },
+  });
+
+  it('moves the cursor the way the key points on screen, at every rotation', async () => {
+    const { stepBoardKeyboardCursorOnScreen } = await import('../src/utils/boardKeyboardNavigation');
+    for (const rotation of [0, 1, 2, 3]) {
+      const { toDisplay, toInternal } = transforms(rotation);
+      const start = { x: 9, y: 5 };
+      const before = toDisplay(start.x, start.y);
+      const right = toDisplay(...Object.values(stepBoardKeyboardCursorOnScreen(start, size, 1, 0, toDisplay, toInternal)) as [number, number]);
+      const down = toDisplay(...Object.values(stepBoardKeyboardCursorOnScreen(start, size, 0, 1, toDisplay, toInternal)) as [number, number]);
+      expect({ rotation, dx: right.x - before.x, dy: right.y - before.y }).toEqual({ rotation, dx: 1, dy: 0 });
+      expect({ rotation, dx: down.x - before.x, dy: down.y - before.y }).toEqual({ rotation, dx: 0, dy: 1 });
+    }
+  });
+});
