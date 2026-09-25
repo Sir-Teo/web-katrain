@@ -15,7 +15,8 @@ export type MoveTreeLayoutItem = {
 
 /**
  * A short key that changes exactly when the layout would: node identity and
- * order, the collapse flags, and the auto-undo mark the layout carries.
+ * order, the collapse flags, the auto-undo mark and the setup-node labels the
+ * layout carries.
  * Analysis results, notes and markup leave it alone, so the tree can skip its
  * layout on the analysis ticks that bump treeVersion several times a second.
  * FNV-1a over those fields; a handful of characters however long the game.
@@ -36,6 +37,10 @@ export function moveTreeStructureKey(root: GameNode): string {
     mix(node.id);
     mix(node.collapsed === true ? 'c' : '-');
     mix(node.autoUndo === true ? 'u' : '-');
+    // A move-less node's label counts its setup stones ("Setup 3"), and the
+    // flattened tree is memoised on this key; without it, editing setup left
+    // the tree saying "Setup 1".
+    if (!node.move && node.parent) mix(moveTreeNodeLabel(node));
     mix('|');
     for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]!);
   }
