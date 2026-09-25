@@ -1212,7 +1212,10 @@ export const Layout: React.FC = () => {
       return;
     }
     setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
-    const timeout = window.setTimeout(() => {
+    let written = false;
+    const writeNow = () => {
+      if (written) return;
+      written = true;
       const savedAt = Date.now();
       const result = writeAutoSavedGame(generateCurrentSgf(), undefined, savedAt);
       if (result === 'saved') {
@@ -1232,8 +1235,21 @@ export const Layout: React.FC = () => {
           toast('Recovery auto-save failed, so this game will not come back after a reload. Save to Library or download SGF to keep changes.', 'error');
         }
       }
-    }, 500);
-    return () => window.clearTimeout(timeout);
+    };
+    const timeout = window.setTimeout(writeNow, 500);
+    // A phone or installed app can be put away, and then killed, inside that
+    // half second; the edit made just before would never reach recovery.
+    // Leaving the page writes it at once.
+    const writeOnHide = () => {
+      if (document.visibilityState === 'hidden') writeNow();
+    };
+    window.addEventListener('pagehide', writeNow);
+    document.addEventListener('visibilitychange', writeOnHide);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('pagehide', writeNow);
+      document.removeEventListener('visibilitychange', writeOnHide);
+    };
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);
 
   const discardAutoSaveRecovery = useCallback(() => {
