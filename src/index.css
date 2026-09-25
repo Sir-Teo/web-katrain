@@ -2716,8 +2716,17 @@
     border-bottom: 1px solid var(--ui-border);
   }
 
-  .move-tree-list-split > button:nth-child(odd) {
+  /* Placed by colour, not by position. Counting children put White in the
+     left column for a whole handicap game -- White moves first -- and drew
+     the divider on the right column's outer edge, since the full-width root
+     row made every left cell an even child. */
+  .move-tree-list-split > .move-tree-list-split-black {
+    grid-column: 1;
     border-right: 1px solid var(--ui-border);
+  }
+
+  .move-tree-list-split > .move-tree-list-split-white {
+    grid-column: 2;
   }
 
   .move-tree-list-split-full {

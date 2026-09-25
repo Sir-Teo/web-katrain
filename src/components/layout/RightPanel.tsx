@@ -720,6 +720,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                                 // Nodes that carry no move (the root, setup-only nodes) break the
                                 // black-left/white-right rhythm of the split list, so let them span it.
                                 isMobile && !move ? 'move-tree-list-split-full' : '',
+                                isMobile && move ? `move-tree-list-split-${move.player}` : '',
                                 isCurrent ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'hover:bg-[var(--ui-surface-2)] text-[var(--ui-text)]',
                               ].join(' ')}
                               onClick={() =>
