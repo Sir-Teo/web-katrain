@@ -222,6 +222,12 @@ function policyClassification(args: {
   boardSize: number;
 }): MoveReportEntry['policy'] | undefined {
   const playedCandidate = args.candidates.find((candidate) => candidate.x === args.move.x && candidate.y === args.move.y) ?? null;
+  // Outside the candidates, only the raw policy knows the move's prior. Fast
+  // review keeps none, and reading that as a zero prior made every such move a
+  // "Blunder, unranked, 0% of top" -- a fifth of a professional game, some at
+  // a 1.7-point loss. Without it the policy's view is unknown, not bad.
+  const hasRawPolicy = !!args.policy && args.policy.length > 0;
+  if (!playedCandidate && !hasRawPolicy) return undefined;
   const topPrior = args.candidates.reduce(
     (best, candidate) => Math.max(best, finitePrior(candidate.prior)),
     finitePrior(args.topCandidate?.prior)
