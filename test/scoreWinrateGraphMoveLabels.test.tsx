@@ -106,4 +106,18 @@ describe('ScoreWinrateGraph move labels', () => {
     expect(html).toContain('>Move 2: Loss 4.5<');
     expect(html).not.toContain('Move 3:');
   });
+
+  it('windows a phase by move number, not line position', () => {
+    // The report hands the graph a range of move numbers. Sliced by position,
+    // the setup node shifted the window: "moves 2 to 2" showed the setup node,
+    // move 1, and not move 2 at all.
+    const { root, m2 } = buildTree();
+    storeState.currentNode = m2;
+    storeState.rootNode = root;
+
+    const html = renderToStaticMarkup(<ScoreWinrateGraph showScore showWinrate range={{ start: 2, end: 2 }} />);
+
+    expect(html).toContain('aria-valuetext="Move 2"');
+    expect(html).not.toContain('"Move 1');
+  });
 });

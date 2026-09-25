@@ -121,14 +121,20 @@ export const ScoreWinrateGraph: React.FC<{
     return { nodes: lineNodes, highlightedIndex: Math.max(0, currentIndex) };
   }, [activeBranchChildIds, currentNode, treeVersion, gameAnalysisDone]);
 
-  const { displayNodes, highlighted } = useMemo(() => {
-    if (nodes.length === 0) return { displayNodes: nodes, highlighted: 0 };
-    if (!range) return { displayNodes: nodes, highlighted: Math.max(0, highlightedIndex) };
-    const start = Math.max(0, Math.min(range.start, nodes.length - 1));
-    const end = Math.max(start, Math.min(range.end, nodes.length - 1));
-    const sliced = nodes.slice(start, end + 1);
-    const adjusted = Math.min(Math.max(0, highlightedIndex - start), Math.max(0, sliced.length - 1));
-    return { displayNodes: sliced, highlighted: adjusted };
+  const { displayNodes, highlighted, rangeOffset } = useMemo(() => {
+    if (nodes.length === 0) return { displayNodes: nodes, highlighted: 0, rangeOffset: 0 };
+    if (!range) return { displayNodes: nodes, highlighted: Math.max(0, highlightedIndex), rangeOffset: 0 };
+    // The range is in move numbers, so pick nodes by move number. Slicing the
+    // line by position shifted every phase by one move per setup or comment
+    // node before it: the opening ended at move 14 and the middle began at 15.
+    // A line's move numbers never go down, so the matches are one run.
+    let first = nodes.findIndex((node) => node.gameState.moveHistory.length >= range.start);
+    if (first < 0) first = nodes.length - 1;
+    let last = first;
+    while (last + 1 < nodes.length && nodes[last + 1]!.gameState.moveHistory.length <= range.end) last += 1;
+    const sliced = nodes.slice(first, last + 1);
+    const adjusted = Math.min(Math.max(0, highlightedIndex - first), Math.max(0, sliced.length - 1));
+    return { displayNodes: sliced, highlighted: adjusted, rangeOffset: first };
   }, [highlightedIndex, nodes, range]);
 
   const width = 300;
@@ -304,7 +310,7 @@ export const ScoreWinrateGraph: React.FC<{
   // occupy line positions.
   const nodeMoveNumber = (node?: (typeof displayNodes)[number]): number =>
     node ? node.gameState.moveHistory.length : 0;
-  const activeSliderValue = activeGraphIndex + (range?.start ?? 0);
+  const activeSliderValue = activeGraphIndex + rangeOffset;
   const activeMoveLabel = `Move ${nodeMoveNumber(displayNodes[activeGraphIndex])}`;
 
   const handleFocus = () => {
@@ -386,8 +392,8 @@ export const ScoreWinrateGraph: React.FC<{
           ? 'Analysis graph move preview. Use arrow keys to preview moves, Enter to jump to the selected move.'
           : 'Analysis graph. No analyzed moves yet.'
       }
-      aria-valuemin={hasGraphData ? (range?.start ?? 0) : undefined}
-      aria-valuemax={hasGraphData ? (range?.start ?? 0) + Math.max(0, count - 1) : undefined}
+      aria-valuemin={hasGraphData ? rangeOffset : undefined}
+      aria-valuemax={hasGraphData ? rangeOffset + Math.max(0, count - 1) : undefined}
       aria-valuenow={hasGraphData ? activeSliderValue : undefined}
       aria-valuetext={hasGraphData ? (hoverTooltip || activeMoveLabel) : 'No analyzed moves yet'}
       aria-describedby={hasGraphData ? undefined : emptyStateId}
