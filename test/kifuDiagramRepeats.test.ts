@@ -72,4 +72,20 @@ describe('the diagram carries its note to the page', () => {
     // Without this it prints in a muted theme colour meant for a screen.
     expect(modal).toContain('.kifu-print .kifu-diagram-repeats { color: #334155 !important; }');
   });
+
+  it('draws a numbered stone as the move it numbers, not what holds the point at the end', () => {
+    // Black 1 was captured and White 4 took the point: the final board shows
+    // white there, and the black "1" sat on a white stone in white ink.
+    const size = 9;
+    const finalBoard = Array.from({ length: size }, () => Array<Player | null>(size).fill(null));
+    finalBoard[0]![0] = 'white';
+    const moves = play([[0, 0], [0, 1], [8, 8], [0, 0]]);
+    for (const move of moves) (move as { gameState: { board: unknown } }).gameState.board = finalBoard;
+
+    const [diagram] = buildKifuDiagrams(moves, 'all');
+    expect(diagram!.markers.find((m) => m.text === '1')).toMatchObject({ x: 0, y: 0, player: 'black' });
+    expect(diagram!.board[0]![0]).toBe('black');
+    expect(diagram!.repeats).toEqual([{ move: 4, at: 1 }]);
+    expect(finalBoard[0]![0]).toBe('white');
+  });
 });

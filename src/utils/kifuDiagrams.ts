@@ -57,11 +57,21 @@ export function buildKifuDiagrams(moveNodes: GameNode[], movesPerDiagram: MovesP
       numberAt.set(point, moveNumber);
       markers.push({ x: move.x, y: move.y, text: String(moveNumber), player: move.player });
     }
+    // Each numbered stone is drawn as the move it numbers, as a printed kifu
+    // does. The final position alone can hold something else there: a stone
+    // captured and the point retaken by the other colour left a black "1"
+    // over a white stone, with no disc of its own and its label in the
+    // stone's colour -- unreadable -- beside the caption "4 at 1".
+    const board = lastNode.gameState.board.map((row) => [...row]);
+    for (const marker of markers) {
+      const row = board[marker.y];
+      if (row) row[marker.x] = marker.player;
+    }
     diagrams.push({
       index: diagrams.length,
       startMove: start + 1,
       endMove: end,
-      board: lastNode.gameState.board,
+      board,
       markers,
       repeats,
     });
