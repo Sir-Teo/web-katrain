@@ -1644,7 +1644,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                             {aiStrength.label ?? '—'}
                                         </span>
                                     </div>
-                                    <p className={subtextClass}>{describeAiStrength(aiStrength)}</p>
+                                    {/* A calibrated rank is already the row above; the sentence
+                                        only adds something for full strength, imitation, or none. */}
+                                    {(!aiStrength.calibrated || aiStrength.imitates || !aiStrength.label) && (
+                                        <p className={subtextClass}>{describeAiStrength(aiStrength)}</p>
+                                    )}
 
                                     {settings.aiStrategy === 'handicap' && (
                                         <div className="mt-3 space-y-3">
