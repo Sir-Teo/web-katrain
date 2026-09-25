@@ -2943,6 +2943,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         treeVersion: state.treeVersion + 1,
         notification: { message, type },
       }));
+      // The opponent waited while the position was built; its turn now.
+      get().scheduleAiMove(500);
     };
 
     void (async () => {
@@ -3030,6 +3032,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     setupPositionToken++;
     analysisQueue.cancelGroup('setup-position');
     const depth = get().currentNode.gameState.moveHistory.length;
+    const wasGenerating = !!get().setupPositionProgress;
     set((state) =>
       state.setupPositionProgress
         ? {
@@ -3038,6 +3041,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
         : {}
     );
+    // Only a generation that was running held the opponent back; Stop with
+    // nothing generating must not start an AI move it was meant to cancel.
+    if (wasGenerating) get().scheduleAiMove(500);
   },
 
   stopSelfplayToEnd: () => {
@@ -4376,6 +4382,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	      if (!force) {
 	        if (!state.isAiPlaying || !state.aiColor) return;
 	        if (state.currentPlayer !== state.aiColor) return;
+	        // While the engine is playing both sides -- generating a set-up
+	        // position, or playing to the end -- the opponent waits: it answered
+	        // every move the generator made, so half the position came from a
+	        // full-strength opponent instead of the score-steered generator.
+	        if (state.setupPositionProgress || state.isSelfplayToEnd) return;
 	      }
 
 	      const node = state.currentNode;
