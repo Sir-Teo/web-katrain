@@ -3548,27 +3548,32 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             });
             return (
               <div
-                className="absolute z-20 bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs px-2 py-1 rounded-lg shadow-xl pointer-events-none border border-[var(--ui-border-strong)] whitespace-nowrap"
+                className="absolute z-20 bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs px-2 py-1 rounded-lg shadow-xl pointer-events-none border border-[var(--ui-border-strong)] w-max"
                 style={{
                   left: placement.left,
                   top: placement.top,
                   transform: placement.transform,
+                  maxWidth: placement.maxWidth,
                 }}
                 data-stone-move-tooltip={hoveredStoneMoveNumber}
               >
-                <span className="font-semibold">Move {hoveredStoneMoveNumber}</span>
+                <span className="font-semibold whitespace-nowrap">Move {hoveredStoneMoveNumber}</span>
+                {/* Spaces between the parts stay outside the nowrap spans: they
+                    are where the line may break when the tooltip is narrowed. */}
+                {hoveredStonePointsLost !== null && ' '}
                 {hoveredStonePointsLost !== null && (
                   <span
-                    className="ui-text-faint"
+                    className="ui-text-faint whitespace-nowrap"
                     style={hoveredStonePointsLost >= 0.5 ? { color: 'var(--ui-danger)' } : undefined}
                   >
-                    {' · '}
+                    {'· '}
                     {hoveredStonePointsLost >= 0.05
                       ? `−${hoveredStonePointsLost.toFixed(1)} pts`
                       : 'no loss'}
                   </span>
                 )}
-                <span className="ui-text-faint"> · Alt-click to jump</span>
+                {' '}
+                <span className="ui-text-faint whitespace-nowrap">· Alt-click to jump</span>
               </div>
             );
           })()

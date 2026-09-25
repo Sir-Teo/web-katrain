@@ -15,7 +15,11 @@ export function getBoardTooltipPlacement(args: {
   const tooltipGap = Math.max(12, cellSize * 0.32);
   const openLeft = anchorX > boardWidth * 0.58;
   const openUp = anchorY > boardHeight * 0.58;
-  const maxWidth = Math.max(72, Math.min(240, boardWidth - 16));
+  // The tooltip hangs off one side of its anchor, so the board width is not
+  // the room it has: from the centre of a phone-sized board that side holds
+  // well under 240px, and the tooltip ran off the screen edge.
+  const sideRoom = openLeft ? anchorX - tooltipGap : boardWidth - anchorX - tooltipGap;
+  const maxWidth = Math.max(72, Math.min(240, boardWidth - 16, sideRoom));
   const minWidth = Math.min(120, maxWidth);
   const transform = `${openLeft ? 'translateX(-100%)' : ''}${openUp ? ' translateY(-100%)' : ''}`.trim() || undefined;
 
