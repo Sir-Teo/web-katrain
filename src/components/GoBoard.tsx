@@ -684,7 +684,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const compactAnalysisHints = usesCompactAnalysisHints(cellSize);
   const originX = Math.floor(cellSize * gridSpacesMarginX.left + 0.5);
   const originY = Math.floor(cellSize * gridSpacesMarginY.top + 0.5);
-  const coordOffset = (cellSize * 1.5) / 2;
+  // Coordinates sit just clear of the edge stones rather than centred in the
+  // margin: centred, a two-digit row number reached 0.2 of a cell past the
+  // stone's edge -- "13" under the stone on A13 at every board size -- and the
+  // bottom letters grazed row 1. A stone reaches 0.5 of a cell out.
+  const coordGap = cellSize * 0.56;
+  const coordFontSize = cellSize > 20 ? cellSize / 1.5 : cellSize * 0.7;
 
   const setupOverlayCanvas = useCallback(
     (canvas: HTMLCanvasElement): CanvasRenderingContext2D | null => {
@@ -3323,10 +3328,12 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 className="absolute font-bold tracking-tight"
                 style={{
                   left: originX + i * cellSize,
-                  top: originY + (boardSize - 1) * cellSize + coordOffset,
+                  top: originY + (boardSize - 1) * cellSize + coordGap,
                   transform:
-                    cursorCoordinate?.x === i ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%)',
-                  fontSize: cellSize > 20 ? cellSize / 1.5 : cellSize / 1.2,
+                    cursorCoordinate?.x === i ? 'translate(-50%, 0) scale(1.2)' : 'translate(-50%, 0)',
+                  transformOrigin: 'center top',
+                  lineHeight: 1,
+                  fontSize: coordFontSize,
                   color: cursorCoordinate?.x === i ? 'var(--ui-accent)' : labelColor,
                   textAlign: 'center',
                   zIndex: 4,
@@ -3345,13 +3352,15 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                    low as 1.8:1 against the wood. */
                 className="absolute font-bold tracking-tight"
                 style={{
-                  left: originX - coordOffset,
+                  left: originX - coordGap,
                   top: originY + i * cellSize,
                   transform:
-                    cursorCoordinate?.y === i ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%)',
-                  fontSize: cellSize > 20 ? cellSize / 1.5 : cellSize / 1.2,
+                    cursorCoordinate?.y === i ? 'translate(-100%, -50%) scale(1.2)' : 'translate(-100%, -50%)',
+                  transformOrigin: 'right center',
+                  lineHeight: 1,
+                  fontSize: coordFontSize,
                   color: cursorCoordinate?.y === i ? 'var(--ui-accent)' : labelColor,
-                  textAlign: 'center',
+                  textAlign: 'right',
                   zIndex: 4,
                 }}
                 data-coordinate-active={cursorCoordinate?.y === i ? 'true' : undefined}

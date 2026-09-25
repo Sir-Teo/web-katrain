@@ -26,3 +26,16 @@ describe('Settings on a short landscape phone', () => {
     expect(read('src/components/SettingsModal.tsx')).toContain('aria-label="Close settings"');
   });
 });
+
+describe('board coordinates', () => {
+  it('sit just outside the edge stones rather than centred in the margin', () => {
+    const board = read('src/components/GoBoard.tsx');
+    // Centred, "13" ran 0.2 of a cell under the stone on A13.
+    expect(board).toContain('const coordGap = cellSize * 0.56;');
+    expect(board).toContain('left: originX - coordGap,');
+    expect(board).toContain("'translate(-100%, -50%)'");
+    expect(board).toContain('top: originY + (boardSize - 1) * cellSize + coordGap,');
+    expect(board).toContain("'translate(-50%, 0)'");
+    expect(board).not.toContain('coordOffset');
+  });
+});
