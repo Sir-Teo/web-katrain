@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 /** Elements that can take focus, ordered as they appear in the DOM. */
 const FOCUSABLE_SELECTOR = [
@@ -53,13 +53,27 @@ export function useInitialDialogFocus<T extends HTMLElement>(
   },
 ) {
   const ref = useRef<T>(null);
+  // Where focus was as the dialog first rendered. By the time the effect
+  // below runs, a control inside with `autoFocus` already holds focus -- React
+  // applies it during commit -- so reading it there took the dialog's own
+  // Cancel for the opener, and closing dropped focus to <body>.
+  const [mountOpener] = useState<Element | null>(() =>
+    typeof document === 'undefined' ? null : document.activeElement
+  );
+  const usedMountOpenerRef = useRef(false);
   const focusContainer = options?.focusContainer ?? true;
   const initialFocusRef = options?.initialFocusRef ?? null;
   const returnFocus = options?.returnFocus ?? null;
 
   useEffect(() => {
     if (!active) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const firstActivation = !usedMountOpenerRef.current;
+    usedMountOpenerRef.current = true;
+    const opener =
+      firstActivation && mountOpener && mountOpener !== document.body && !ref.current?.contains(mountOpener)
+        ? mountOpener
+        : document.activeElement;
+    const previouslyFocused = opener as HTMLElement | null;
     const node = ref.current;
     // A closing menu or popover can restore focus to its own trigger after this
     // dialog mounts. Defer explicit control focus by one frame so the dialog's
@@ -103,7 +117,7 @@ export function useInitialDialogFocus<T extends HTMLElement>(
     // focusContainer is a plain boolean, so listing it keeps the lint rule happy
     // without making the effect re-run on every render the way an unstable
     // onClose dependency would.
-  }, [active, focusContainer, initialFocusRef, returnFocus]);
+  }, [active, focusContainer, initialFocusRef, mountOpener, returnFocus]);
 
   return ref;
 }
