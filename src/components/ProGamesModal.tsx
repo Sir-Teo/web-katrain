@@ -31,7 +31,9 @@ const shortPlayerName = (name: string): string => {
 
 export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGame }) => {
   useEscapeToClose(onClose);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  // The search field takes focus with autoFocus; focusing the container ran
+  // after it and took focus back, so typed text went nowhere.
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
 
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);

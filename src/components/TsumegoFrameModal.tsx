@@ -23,10 +23,20 @@ export const TsumegoFrameModal: React.FC<TsumegoFrameModalProps> = ({
   onApply,
   returnFocus,
 }) => {
-  const [margin, setMargin] = React.useState(() => clampTsumegoFrameMargin(defaultMargin));
+  // The field keeps what was typed and clamps on blur or Apply. Clamping each
+  // keystroke turned Backspace into "1" and a following 3 into "13", clamped
+  // to 8, where the player meant 3.
+  const [marginDraft, setMarginDraft] = React.useState(() => String(clampTsumegoFrameMargin(defaultMargin)));
   const [koAllowed, setKoAllowed] = React.useState(defaultKoAllowed);
   useEscapeToClose(onClose);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false, returnFocus });
+  // Nothing in the dialog takes focus itself, so the container does: with it
+  // skipped, focus stayed behind the scrim and Tab walked the page's header.
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
+  const commitMargin = () => {
+    const margin = clampTsumegoFrameMargin(Number.parseInt(marginDraft, 10));
+    setMarginDraft(String(margin));
+    return margin;
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom">
@@ -71,8 +81,9 @@ export const TsumegoFrameModal: React.FC<TsumegoFrameModalProps> = ({
                 min={TSUMEGO_FRAME_MIN_MARGIN}
                 max={TSUMEGO_FRAME_MAX_MARGIN}
                 step={1}
-                value={margin}
-                onChange={(e) => setMargin(clampTsumegoFrameMargin(parseInt(e.target.value || '0', 10)))}
+                value={marginDraft}
+                onChange={(e) => setMarginDraft(e.target.value)}
+                onBlur={commitMargin}
                 className="w-full rounded border ui-input px-2 py-2 text-sm text-[var(--ui-text)]"
               />
               <p className="text-xs ui-text-faint">How much room to leave around the problem.</p>
@@ -108,7 +119,7 @@ export const TsumegoFrameModal: React.FC<TsumegoFrameModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onApply({ margin, koAllowed })}
+            onClick={() => onApply({ margin: commitMargin(), koAllowed })}
             className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] hover:brightness-110"
           >
             <span className="inline-flex items-center gap-2">

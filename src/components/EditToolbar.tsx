@@ -199,9 +199,18 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   const siblingCount = currentNode.parent?.children.length ?? 0;
   const canShiftEarlier = siblingIndex > 0;
   const canShiftLater = siblingIndex >= 0 && siblingIndex < siblingCount - 1;
+  // Copying needs a move to anchor the branch (the store refuses otherwise),
+  // so a setup node -- the one Frame as tsumego adds -- offered Copy only to
+  // answer "Select a move branch to copy."
+  const canCopyBranch = canEditBranch && Boolean(currentNode.move);
+  // Edits change the tree in place (Add PV hangs three nodes under this one),
+  // so the count follows the tree's version, not just the node's identity.
   const currentBranchNodeCount = React.useMemo(
-    () => (canEditBranch ? countBranchNodes(currentNode) : 0),
-    [canEditBranch, currentNode]
+    () => {
+      void treeVersion;
+      return canEditBranch ? countBranchNodes(currentNode) : 0;
+    },
+    [canEditBranch, currentNode, treeVersion]
   );
   const copiedBranchNodeCount = React.useMemo(() => countBranchNodes(copiedBranch), [copiedBranch]);
   const currentBranchNodeLabel = formatBranchNodeCount(currentBranchNodeCount);
@@ -220,7 +229,7 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
   const moveVariationEarlierLabel = 'Move variation earlier';
   const moveVariationLaterLabel = 'Move variation later';
   const makeMainBranchLabel = 'Make current variation the main branch';
-  const copyBranchLabel = canEditBranch
+  const copyBranchLabel = canCopyBranch
     ? `Copy current branch (${currentBranchNodeLabel})`
     : 'Select a move branch to copy';
   const pasteBranchLabel = copiedBranch
@@ -526,8 +535,8 @@ export const EditToolbar: React.FC<{ isMobile?: boolean; analysisCommandBarVisib
               <button
                 type="button"
                 onClick={copyCurrentBranch}
-                disabled={!canEditBranch}
-                className={[toolButtonClass(false), !canEditBranch ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
+                disabled={!canCopyBranch}
+                className={[toolButtonClass(false), !canCopyBranch ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
                 title={copyBranchLabel}
                 aria-label={copyBranchLabel}
               >
