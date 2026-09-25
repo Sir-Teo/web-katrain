@@ -2005,6 +2005,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Every press starts clean. The flag is for the click a gesture itself
+    // synthesises, but a right-click or a cancelled touchend set it with no
+    // click to follow, and it swallowed the next real one: a right-click mark,
+    // then a left click that placed no stone.
+    suppressNextClickRef.current = false;
     if (e.button !== 0) return;
     boardPointerFocusRef.current = true;
     setIsKeyboardCursorActive(false);
