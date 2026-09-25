@@ -4640,8 +4640,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ownershipMode: aiOwnershipMode,
           };
 
-          // Cache analysis on the node we analyzed.
-          node.analysis = analysisWithTerritory;
+          // Cache analysis on the node we analyzed -- unless the search was
+          // biased for choosing a move (Handicap's playout-doubling advantage,
+          // Human's root exploration), which is not the position's evaluation:
+          // stored, it became the player's points lost and graph, and was
+          // never re-read. Nor over a deeper result already there.
+          const aiSearchIsBiased = handicapPda !== 0 || state.settings.aiStrategy === 'human';
+          if (!aiSearchIsBiased && !(node.analysis && analysis.rootVisits < nodeAnalysisVisitCount(node))) {
+            node.analysis = analysisWithTerritory;
+          }
 
           type PolicyMove = { prob: number; x: number; y: number; isPass: boolean };
           const policyRanking = (policy: FloatArray): PolicyMove[] => {
@@ -5152,9 +5159,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 }
 
                 const w = Math.pow(1 / lineWeight, exponent);
+                // Ranked by policy times the style's line weight, as KaTrain's
+                // generate_influence_territory_weights does; by raw policy the
+                // style only shaped the sample, and with few moves sampled an
+                // influence bot happily played the 1-1 point.
+                const weight = Number.isFinite(w) ? Math.max(0, w) : 0;
                 return {
-                  score: m.prob,
-                  weight: Number.isFinite(w) ? Math.max(0, w) : 0,
+                  score: m.prob * weight,
+                  weight,
                   x: m.x,
                   y: m.y,
                 };
