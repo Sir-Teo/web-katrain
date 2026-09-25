@@ -927,6 +927,15 @@
       min-height: 44px;
     }
 
+    /* The build link is one 11px line under the title. Its 44px target made
+       the sticky header 101px tall, a band of blank space held over the menu
+       as it scrolls; the negative margins let the target overlap the header's
+       padding instead of adding to it. */
+    [aria-labelledby='menu-title'] [data-menu-build-link='true'] {
+      line-height: 44px;
+      margin-block: -14px;
+    }
+
     [aria-labelledby='menu-title'] a[href] {
       display: inline-flex;
       align-items: center;

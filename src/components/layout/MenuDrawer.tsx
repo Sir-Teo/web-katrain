@@ -203,11 +203,19 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
         ref={drawerRef}
-        className="absolute left-0 top-0 h-full w-[90vw] max-w-sm ui-panel border-r shadow-xl p-3 overflow-y-auto overscroll-contain mobile-safe-inset mobile-safe-area-bottom"
+        className="absolute left-0 top-0 h-full w-[90vw] max-w-sm ui-panel border-r shadow-xl px-3 pt-0 pb-3 overflow-y-auto overscroll-contain mobile-safe-inset mobile-safe-area-bottom"
         data-menu-drawer-panel="true"
         onScroll={updateScrollHint}
       >
-        <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-3 flex items-start justify-between gap-3 border-b border-[var(--ui-border)] bg-[var(--ui-panel)] px-3 py-3" data-menu-header="true">
+        {/* A sticky header sticks inside its scroller's padding, so with the
+            panel's 12px top padding it rode 12px down with the menu scrolling
+            through the gap above it. The panel has no top padding; the header
+            carries it, with the notch inset the panel's padding used to drop. */}
+        <div
+          className="sticky top-0 z-10 -mx-3 mb-3 flex items-start justify-between gap-3 border-b border-[var(--ui-border)] bg-[var(--ui-panel)] px-3 pb-3"
+          style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
+          data-menu-header="true"
+        >
           <div className="min-w-0">
             <h2 className="text-lg font-semibold" id="menu-title">
               Menu
