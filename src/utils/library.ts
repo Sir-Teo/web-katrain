@@ -1153,10 +1153,23 @@ export const moveLibraryItems = (
   if (!targetIsValid) return { items, movedIds: [], skippedIds: existingSelectedIds };
 
   const parentById = libraryParentById(items);
+  // An item inside a selected folder travels with that folder, as it does
+  // for delete, duplicate and export. Moved on its own it was pulled out:
+  // Select all, then Move, emptied every folder into the target.
+  const hasSelectedAncestor = (id: string): boolean => {
+    let parentId = parentById.get(id) ?? null;
+    // Bounded, so a corrupt parent cycle cannot hang the move.
+    for (let steps = 0; parentId && steps < items.length; steps++) {
+      if (selectedIds.has(parentId)) return true;
+      parentId = parentById.get(parentId) ?? null;
+    }
+    return false;
+  };
   const movedIds: string[] = [];
   const skippedIds: string[] = [];
   const nextItems = items.map((item) => {
     if (!selectedIds.has(item.id)) return item;
+    if (hasSelectedAncestor(item.id)) return item;
     if ((item.parentId ?? null) === targetId) {
       skippedIds.push(item.id);
       return item;
