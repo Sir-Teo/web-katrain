@@ -65,7 +65,14 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   beginGame: () => {
     const ladder = get().ladder;
     if (!ladder || ladder.status !== 'active') return;
-    set({ ladder: persist({ ...ladder, awaitingResult: true }) });
+    // One game is on the board at a time. A gauntlet left awaiting its result
+    // would score this ladder game as its own -- both watchers adopt any
+    // unfinished game -- so the one it was waiting on is abandoned.
+    const gauntlet = get().gauntlet;
+    set({
+      ladder: persist({ ...ladder, awaitingResult: true }),
+      ...(gauntlet?.awaitingResult ? { gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false }) } : {}),
+    });
   },
 
   recordResult: (result: GameResult) => {
@@ -93,7 +100,12 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   beginGauntletGame: () => {
     const gauntlet = get().gauntlet;
     if (!gauntlet || gauntlet.status !== 'active') return;
-    set({ gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: true }) });
+    // The same for a ladder left waiting: see beginGame.
+    const ladder = get().ladder;
+    set({
+      gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: true }),
+      ...(ladder?.awaitingResult ? { ladder: persist({ ...ladder, awaitingResult: false }) } : {}),
+    });
   },
 
   recordGauntletResult: (result: GameResult) => {

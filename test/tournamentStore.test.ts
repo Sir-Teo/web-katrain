@@ -94,3 +94,33 @@ describe('giving up on a run', () => {
     expect(store.getState().gauntlet).toBeNull();
   });
 });
+
+describe('one series game at a time', () => {
+  // Both watchers adopt whatever unfinished game is on the board, so a ladder
+  // left waiting also scored the gauntlet game that replaced it -- one bot
+  // resignation promoted the ladder 12k -> 11k and advanced the gauntlet.
+  it('stops the ladder waiting when a gauntlet game begins', async () => {
+    const store = await loadStore();
+    store.getState().startLadder(LADDER);
+    store.getState().beginGame();
+    store.getState().startGauntlet(GAUNTLET);
+    store.getState().beginGauntletGame();
+
+    expect(store.getState().ladder?.awaitingResult).toBe(false);
+    expect(store.getState().gauntlet?.awaitingResult).toBe(true);
+    store.getState().recordResult('win');
+    expect(store.getState().ladder?.history).toHaveLength(0);
+    expect(entries.get('web-katrain:tournament:v1')).toContain('"awaitingResult":false');
+  });
+
+  it('stops the gauntlet waiting when a ladder game begins', async () => {
+    const store = await loadStore();
+    store.getState().startGauntlet(GAUNTLET);
+    store.getState().beginGauntletGame();
+    store.getState().startLadder(LADDER);
+    store.getState().beginGame();
+
+    expect(store.getState().gauntlet?.awaitingResult).toBe(false);
+    expect(store.getState().ladder?.awaitingResult).toBe(true);
+  });
+});
