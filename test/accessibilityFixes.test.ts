@@ -56,3 +56,14 @@ describe('desktop review progress', () => {
     expect(dashboard).toContain("'Game review finished'");
   });
 });
+
+describe('the board for assistive tech', () => {
+  it('is an application that announces the keyboard cursor point', () => {
+    // Its cursor moved on screen only; nothing said which point it was on.
+    const board = read('src/components/GoBoard.tsx');
+    expect(board).toContain('role="application"');
+    expect(board).toContain('aria-roledescription="Go board"');
+    expect(board).toContain('aria-describedby={boardCursorStatusId}');
+    expect(board).toContain("return `${point}, ${stone ? `${stone} stone` : 'empty'}`;");
+  });
+});

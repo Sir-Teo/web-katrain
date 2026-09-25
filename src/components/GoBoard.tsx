@@ -898,6 +898,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     null
   );
   const [cursorPt, setCursorPt] = useState<BoardKeyboardPoint | null>(null);
+  const boardCursorStatusId = React.useId();
+  const boardCursorAnnouncement = (() => {
+    if (!isKeyboardCursorActive || !cursorPt) return 'Arrow keys move a cursor over the board; Enter plays there.';
+    const stone = board[cursorPt.y]?.[cursorPt.x];
+    const point = formatBoardMoveLabel({ x: cursorPt.x, y: cursorPt.y }, boardSize);
+    return `${point}, ${stone ? `${stone} stone` : 'empty'}`;
+  })();
   // Hover affordances are for pointers that can hover. A touch "hover" is just
   // the moment before a tap, so showing them there flashes a tooltip over the
   // stone the player is trying to place.
@@ -3108,8 +3115,17 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         onWheel={handleWheel}
         onAuxClick={handleAuxClick}
         tabIndex={0}
+        // The board takes its own arrow keys, so it is an application to
+        // assistive tech, and says where its cursor is: moving it was visual
+        // only, and nothing told a screen-reader user which point they were on.
+        role="application"
+        aria-roledescription="Go board"
         aria-label="Go board"
+        aria-describedby={boardCursorStatusId}
       >
+        <span id={boardCursorStatusId} className="sr-only" aria-live="polite">
+          {boardCursorAnnouncement}
+        </span>
         {/* Region of interest (KaTrain-style) */}
         {roiRect && (
           <div
