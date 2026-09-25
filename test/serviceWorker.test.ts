@@ -421,3 +421,41 @@ describe('service worker activation', () => {
     expect(deleted.sort()).toEqual(['web-katrain-v2:shell', 'web-katrain-v30:shell']);
   });
 });
+
+describe('bundles reported across deployments', () => {
+  it('keeps this deployment\'s and lets earlier ones go', async () => {
+    const store = new Map<string, FakeResponse>([
+      ['./index.html', response(BUILT_INDEX_HTML)],
+      ['https://example.test/assets/main-CCC.js', response('entry')],
+      ['https://example.test/assets/Dashboard-OLD.js', response('old deploy')],
+      ['https://example.test/assets/Dashboard-OLD.css', response('old deploy')],
+      ['https://example.test/assets/board-texture-OLD.png', response('image')],
+    ]);
+    const cache = {
+      match: (url: string) => Promise.resolve(store.get(url)),
+      add: (url: string) => Promise.resolve(store.set(url, response('fetched')) && undefined),
+      keys: () => Promise.resolve([...store.keys()].map((url) => ({ url: new URL(url, 'https://example.test/').href }))),
+      delete: (request: { url: string }) => Promise.resolve(store.delete(request.url)),
+    };
+    const listeners = new Map<string, Listener>();
+    const selfStub = {
+      addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
+      skipWaiting: () => undefined,
+      clients: { claim: () => Promise.resolve() },
+      location: { origin: 'https://example.test', href: 'https://example.test/' },
+    };
+    const cachesStub = { open: () => Promise.resolve(cache), keys: () => Promise.resolve([]), delete: () => Promise.resolve(true) };
+    new Function('self', 'caches', readFileSync('public/sw.js', 'utf8'))(selfStub, cachesStub);
+
+    const message = listeners.get('message') as unknown as (e: { data: unknown; waitUntil: (p: Promise<unknown>) => void }) => void;
+    let waited: Promise<unknown> = Promise.resolve();
+    message({ data: { type: 'CACHE_USED_ASSETS', urls: ['https://example.test/assets/Dashboard-NEW.js'] }, waitUntil: (p) => { waited = p; } });
+    await waited;
+
+    expect(store.has('https://example.test/assets/Dashboard-NEW.js')).toBe(true);
+    expect(store.has('https://example.test/assets/main-CCC.js')).toBe(true);
+    expect(store.has('https://example.test/assets/Dashboard-OLD.js')).toBe(false);
+    expect(store.has('https://example.test/assets/Dashboard-OLD.css')).toBe(false);
+    expect(store.has('https://example.test/assets/board-texture-OLD.png')).toBe(true);
+  });
+});

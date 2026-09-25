@@ -232,6 +232,7 @@ const cacheReportedAssets = async (urls) => {
   if (!Array.isArray(urls) || urls.length === 0) return;
   const cache = await caches.open(APP_SHELL_CACHE);
   const wanted = [];
+  const reported = new Set();
   for (const raw of urls.slice(0, MAX_REPORTED_ASSETS)) {
     if (typeof raw !== 'string') continue;
     let url;
@@ -242,10 +243,38 @@ const cacheReportedAssets = async (urls) => {
     }
     // Only this deployment's own build output, and only what is missing.
     if (!isSameOrigin(url) || !url.pathname.includes('/assets/')) continue;
+    reported.add(url.href);
     if (await cache.match(url.href, MATCH_OPTIONS)) continue;
     wanted.push(url.href);
   }
   await Promise.allSettled(wanted.map((href) => cache.add(href)));
+  await pruneOldBundles(cache, reported);
+};
+
+/**
+ * Bundles from earlier deployments, gone from the shell cache.
+ *
+ * Every deployment's hashed bundles are new names, and this cache is never
+ * trimmed -- the runtime cache is, but reported bundles were put here so they
+ * would last -- so each deploy added its bundles on top of the last one's,
+ * a few megabytes at a time, for as long as the worker lived. What the page
+ * reports is what this deployment uses; keep that and whatever the current
+ * index.html names, and let the rest go. Scripts and styles only: an image
+ * that happens to live under /assets/ is not a bundle.
+ */
+const pruneOldBundles = async (cache, reported) => {
+  if (reported.size === 0) return;
+  const keep = new Set(reported);
+  for (const href of await entryAssetUrls(cache)) keep.add(href);
+  const requests = await cache.keys();
+  await Promise.allSettled(
+    requests
+      .filter((request) => {
+        const url = new URL(request.url);
+        return url.pathname.includes('/assets/') && /\.(?:js|css)$/.test(url.pathname) && !keep.has(url.href);
+      })
+      .map((request) => cache.delete(request))
+  );
 };
 
 /** The page asking for the update it just offered the reader. */
