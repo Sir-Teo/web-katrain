@@ -1385,9 +1385,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleMoveToRoot = (item: LibraryItem) => {
     if (!item.parentId) return;
-    setItems((prev) => prev.map((candidate) => (
-      candidate.id === item.id ? { ...candidate, parentId: null, updatedAt: Date.now() } : candidate
-    )));
+    // Through the shared move, so the name stays unique at Root.
+    setItems((prev) => moveLibraryItems(prev, [item.id], null).items);
     onToast(`Moved "${item.name}" to Root.`, 'success');
   };
 
@@ -1562,9 +1561,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     if (await handleImportDroppedTextToFolder(event.dataTransfer, activeFolderId)) return;
     if (draggingId) {
-      setItems((prev) =>
-        prev.map((item) => (item.id === draggingId ? { ...item, parentId: null, updatedAt: Date.now() } : item))
-      );
+      const id = draggingId;
+      setItems((prev) => moveLibraryItems(prev, [id], null).items);
       setDraggingId(null);
       setDragOverRoot(false);
     }
@@ -1595,6 +1593,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleDropOnFolder = (folderId: string) => async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    // This drop is the folder's. Bubbling on, it reached the tree's root drop
+    // too -- which moved the game back out to Root -- and the panel's, which
+    // imported a dropped file a second time into the open folder.
+    event.stopPropagation();
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
       await handleImportFilesToFolder(event.dataTransfer.files, folderId);
       setDragOverId(null);
@@ -1623,6 +1625,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleRootDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     if (event.dataTransfer.types.includes('Files')) return;
     event.preventDefault();
+    event.stopPropagation();
     if (await handleImportDroppedTextToFolder(event.dataTransfer, null)) {
       setDragOverRoot(false);
       return;
