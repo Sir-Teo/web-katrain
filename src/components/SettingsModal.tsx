@@ -781,12 +781,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                     const selected = settings.boardTheme === theme.value;
                                                     const lineColor = theme.config.board.foregroundColor ?? '#000000';
                                                     const texture = theme.config.board.texture;
+                                                    // Lines over the texture, as the board draws them, and the
+                                                    // texture covering the swatch: stretched to 100% 100%, a
+                                                    // square SVG board (Hikaru) kept its aspect ratio and sat as
+                                                    // a pale square in the middle, while Bamboo's hid its lines.
                                                     const backgroundImage = [
-                                                        texture ? `url("${texture}")` : null,
                                                         `linear-gradient(${lineColor} 1px, transparent 1px)`,
                                                         `linear-gradient(90deg, ${lineColor} 1px, transparent 1px)`,
+                                                        texture ? `url("${texture}")` : null,
                                                     ].filter(Boolean).join(', ');
-                                                    const backgroundSize = `${texture ? '100% 100%, ' : ''}20% 20%, 20% 20%`;
+                                                    const backgroundSize = `20% 20%, 20% 20%${texture ? ', cover' : ''}`;
                                                     const stoneStyle = (player: 'black' | 'white'): React.CSSProperties => {
                                                         const stone = theme.config.stones[player];
                                                         return {
