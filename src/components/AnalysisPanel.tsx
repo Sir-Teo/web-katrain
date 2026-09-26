@@ -598,7 +598,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
         ) : (
           // Activity, not engine state — only rendered when something is
           // happening, so the row never reads "Ready" twice.
-          statusText && <span className="ml-auto">{statusText}</span>
+          // One muted line: at body size a long toast message ("Loaded
+          // "<title>"") wrapped to three lines of large type beside the badge.
+          statusText && (
+            <span
+              className="ml-auto min-w-0 truncate text-xs ui-text-faint"
+              title={statusText}
+            >
+              {statusText}
+            </span>
+          )
         )}
       </div>
       {isGameAnalysisRunning && gameAnalysisTotal > 0 && (
