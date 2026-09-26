@@ -1513,7 +1513,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                             const saveFeedback = settings.trainerSaveFeedback?.[i] ?? false;
 
                                             return (
-                                                <div key={`teach-${i}`} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-start">
+                                                <div
+                                                    key={`teach-${i}`}
+                                                    className={[
+                                                        'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-start',
+                                                        i > 0 ? 'border-t border-[var(--ui-border)] pt-3' : '',
+                                                    ].join(' ')}
+                                                >
+                                                    {/* Six groups of the same four labels stacked into two dozen
+                                                        look-alike fields on a phone, with the row number only in
+                                                        screen-reader text. */}
+                                                    <div className="col-span-full text-xs font-semibold ui-text-muted" aria-hidden="true">
+                                                        Band {i + 1} · from {thr} points lost
+                                                    </div>
                                                     <div className="space-y-1">
                                                         <label htmlFor={`settings-teach-threshold-${i}`} className="text-[var(--ui-text-muted)] block text-xs">
                                                             ≥ Threshold
