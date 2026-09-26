@@ -28,6 +28,7 @@ import { formatRulesLabel } from '../../utils/gameInfoDisplay';
 import { GameInfoPanel } from '../GameInfoPanel';
 import { formatReadableScoreLead, formatWinRateFavorLabel, POINTS_LOST_EXPLANATION } from '../../utils/analysisSummary';
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '../../utils/storage';
+import { getResizeObserverConstructor } from '../../utils/resizeObserver';
 import { useDocumentFlag } from '../../hooks/useDocumentFlag';
 
 type EngineState = 'ready' | 'running' | 'loading' | 'error';
@@ -542,6 +543,30 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   useDocumentFlag('dashboard-sidebar', sidebarOpen ? 'open' : null);
   useDocumentFlag('dashboard-gamestrip', gamestripOpen ? 'open' : null);
   useDocumentFlag('dashboard-hero', showHero && !showCompactStartStrip ? 'shown' : null);
+  // The install card is fixed above the bottom edge by the shell's bar heights,
+  // and here that sum (two 56px bars) is not what sits below the board: the
+  // navbar is one row, 50px. The card floated 62px above the reserve the board
+  // stage keeps for it, onto the start rail, where it covered Paste SGF and
+  // From photo on every first visit. Publish the navbar's real height instead.
+  const navbarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const navbar = navbarRef.current;
+    const update = () => {
+      const height = navbar?.getBoundingClientRect().height ?? 0;
+      root.style.setProperty('--dashboard-navbar-height', `${Math.ceil(height)}px`);
+    };
+    update();
+    const ResizeObserverConstructor = getResizeObserverConstructor();
+    const observer = ResizeObserverConstructor && navbar ? new ResizeObserverConstructor(update) : null;
+    if (observer && navbar) observer.observe(navbar);
+    window.addEventListener('resize', update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+      root.style.removeProperty('--dashboard-navbar-height');
+    };
+  }, []);
   const renderStartActions = () => (
     <>
       {onLessons && (
@@ -879,7 +904,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           )}
 
           {/* Nav bar */}
-          <div className="navbar">
+          <div className="navbar" ref={navbarRef}>
             <button type="button" className="pass-btn" title="Pass (P)" onClick={passTurn}>Pass</button>
             <div className="navgroup">
               <button type="button" className="navbtn navbtn-pair" title={canFindPreviousMistake ? 'Previous mistake' : 'No previous analyzed mistake'} aria-label="Previous mistake" onClick={() => findMistake(-1)} disabled={!canFindPreviousMistake}><Icon name="chevL" size={11} /><span className="mistake-dot" /></button>

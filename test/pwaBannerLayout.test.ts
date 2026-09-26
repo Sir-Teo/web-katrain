@@ -170,3 +170,16 @@ describe('the card lets its own explanation be read', () => {
     expect(css).not.toMatch(/\.pwa-install-banner \{[^}]*max-height:/);
   });
 });
+
+describe('the card sits in the stage reserve on the desktop dashboard', () => {
+  it('is placed by the navbar the dashboard measures, not the shell bar sum', () => {
+    // Two 56px bars were added under a board that has one 50px navbar, so the
+    // card rose 62px above its reserve and covered Paste SGF and From photo on
+    // the first-run rail.
+    expect(css).toContain('var(--dashboard-navbar-height, calc(var(--ui-bar-height) + var(--desktop-bottom-controls-height, 0px)))');
+    const dashboard = readFileSync(new URL('../src/components/dashboard/DesktopDashboard.tsx', import.meta.url), 'utf8');
+    expect(dashboard).toContain("root.style.setProperty('--dashboard-navbar-height'");
+    expect(dashboard).toContain('<div className="navbar" ref={navbarRef}>');
+  });
+});
+
