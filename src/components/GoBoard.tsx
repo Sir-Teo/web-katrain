@@ -207,6 +207,20 @@ const refuseNavigationWhileInserting = (): boolean => {
   return true;
 };
 
+/**
+ * The row and column under the cursor or a pending tap. Marked in the board
+ * theme's own label colour: the UI accent is chosen for the app's surfaces, and
+ * in dark mode it is a pale green that read at about 1.2:1 on the (always
+ * light) wood. An underline rather than scale(1.2), which pushed "10"-"19"
+ * past the board's left edge.
+ */
+const ACTIVE_COORDINATE_STYLE: React.CSSProperties = {
+  textDecorationLine: 'underline',
+  textDecorationThickness: '2px',
+  textUnderlineOffset: '2px',
+  fontWeight: 900,
+};
+
 export const GoBoard: React.FC<GoBoardProps> = ({
   hoveredMove,
   onHoverMove,
@@ -3352,12 +3366,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 style={{
                   left: originX + i * cellSize,
                   top: originY + (boardSize - 1) * cellSize + coordGap,
-                  transform:
-                    cursorCoordinate?.x === i ? 'translate(-50%, 0) scale(1.2)' : 'translate(-50%, 0)',
-                  transformOrigin: 'center top',
+                  transform: 'translate(-50%, 0)',
                   lineHeight: 1,
                   fontSize: coordFontSize,
-                  color: cursorCoordinate?.x === i ? 'var(--ui-accent)' : labelColor,
+                  color: labelColor,
+                  ...(cursorCoordinate?.x === i ? ACTIVE_COORDINATE_STYLE : null),
                   textAlign: 'center',
                   zIndex: 4,
                 }}
@@ -3377,12 +3390,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 style={{
                   left: originX - coordGap,
                   top: originY + i * cellSize,
-                  transform:
-                    cursorCoordinate?.y === i ? 'translate(-100%, -50%) scale(1.2)' : 'translate(-100%, -50%)',
-                  transformOrigin: 'right center',
+                  transform: 'translate(-100%, -50%)',
                   lineHeight: 1,
                   fontSize: coordFontSize,
-                  color: cursorCoordinate?.y === i ? 'var(--ui-accent)' : labelColor,
+                  color: labelColor,
+                  ...(cursorCoordinate?.y === i ? ACTIVE_COORDINATE_STYLE : null),
                   textAlign: 'right',
                   zIndex: 4,
                 }}
