@@ -35,3 +35,36 @@ describe('a save that IndexedDB refused but localStorage accepted', () => {
     expect(after.map((i) => i.name).sort()).toEqual(['A', 'B']);
   });
 });
+
+describe('the fallback copy after IndexedDB recovers', () => {
+  it('is dropped, so a later failed read cannot bring deleted games back', async () => {
+    const { saveLibrary, loadLibrary, createLibraryItem } = await lib();
+    const a = createLibraryItem('A', '(;GM[1]SZ[9];B[aa])');
+    const b = createLibraryItem('B', '(;GM[1]SZ[9];B[bb])');
+    await saveLibrary([a, b]);
+
+    // One refused write puts the whole library in the fallback.
+    idb.failWrites = true;
+    await saveLibrary([a, b]);
+    idb.failWrites = false;
+    expect(ls.getItem('web-katrain:library:v1')).toContain('"B"');
+
+    // Reload: the recovered database takes the fallback in.
+    vi.resetModules();
+    expect((await (await lib()).loadLibrary()).map((i) => i.name).sort()).toEqual(['A', 'B']);
+    expect(ls.getItem('web-katrain:library:v1')).toBeNull();
+
+    // B is deleted, then after a reload one read fails and the panel's first
+    // write goes to the fallback before the database comes back.
+    const reloaded = await lib();
+    await reloaded.saveLibrary((await reloaded.loadLibrary()).filter((item) => item.name !== 'B'));
+    vi.resetModules();
+    const again = await lib();
+    idb.failReads = true;
+    await again.loadLibrary().catch(() => []);
+    idb.failReads = false;
+    vi.resetModules();
+    const final = await (await lib()).loadLibrary();
+    expect(final.map((i) => i.name)).toEqual(['A']);
+  });
+});

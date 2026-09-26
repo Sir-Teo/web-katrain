@@ -737,6 +737,13 @@ const hasUnflushedFallback = (): boolean =>
  */
 const markMigrated = (): void => {
   if (readLocalStorage(MIGRATION_FLAG_KEY) !== 'true') writeLocalStorage(MIGRATION_FLAG_KEY, 'true');
+  // With the database holding everything, the legacy copy is only a stale
+  // snapshot. Kept, it came back the next time an IndexedDB read failed: the
+  // panel showed it, its first write put it back in the fallback as unflushed
+  // work, and the next good load merged it in -- deleted games returned, and a
+  // game edited since the outage reverted to its old moves for good. It also
+  // held a whole library's worth of the localStorage quota.
+  if (readLocalStorage(LEGACY_STORAGE_KEY) !== null) removeLocalStorage(LEGACY_STORAGE_KEY);
 };
 
 /**
@@ -772,6 +779,7 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     if (hasUnflushedFallback()) {
       const merged = mergeLibrariesByNewest(items, loadFallbackLibrary());
       await saveToIndexedDb(merged);
+      memoryItems = merged;
       setFallbackUnflushed(false);
       markMigrated();
       return merged;
