@@ -14,7 +14,7 @@ export function getConnectedGamepads(target?: Navigator | null): Gamepad[] {
   return getGamepadsSafe(target).filter((pad) => pad.connected);
 }
 
-function getGamepadTimestamp(gamepad: Gamepad): number {
+export function getGamepadTimestamp(gamepad: Gamepad): number {
   return Number.isFinite(gamepad.timestamp) ? gamepad.timestamp : 0;
 }
 

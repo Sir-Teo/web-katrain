@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { cancelAnimationFrameSafe, getAnimationNow, requestAnimationFrameSafe, type AnimationFrameHandle } from '../utils/animationFrame';
-import { getGamepadConnectionSnapshot } from '../utils/gamepadAccess';
+import { getConnectedGamepads, getGamepadConnectionSnapshot, getGamepadTimestamp } from '../utils/gamepadAccess';
 import { getGamepadNavigationInput, type GamepadNavigationCommand } from '../utils/gamepadNavigation';
 
 export type GamepadNavigationStatus = {
@@ -61,13 +61,28 @@ export function useGamepadNavigation({
         return;
       }
 
-      const input = getGamepadNavigationInput(gamepad);
+      // Input from any connected pad, not just the one whose state changed
+      // last: a second pad's stick jitter made it "active" and the pad being
+      // held was ignored -- a held d-pad fired once in a second, not six
+      // times, and a tap in the same frame was lost. Among pads with input the
+      // newest wins, and the repeat key names the pad so switching resets it
+      // without skipping the repeat interval.
+      let input: ReturnType<typeof getGamepadNavigationInput> = null;
+      let inputPad: Gamepad | null = null;
+      for (const pad of getConnectedGamepads(navigator)) {
+        const padInput = getGamepadNavigationInput(pad);
+        if (padInput && (!inputPad || getGamepadTimestamp(pad) > getGamepadTimestamp(inputPad))) {
+          input = padInput;
+          inputPad = pad;
+        }
+      }
       const now = getAnimationNow();
-      if (!input) {
+      const key = input && inputPad ? `${inputPad.index}:${input.key}` : null;
+      if (!input || !key) {
         lastKey = null;
-      } else if (input.key !== lastKey || now - lastAt >= repeatMs) {
+      } else if (key !== lastKey || now - lastAt >= repeatMs) {
         handlersRef.current[input.command]();
-        lastKey = input.key;
+        lastKey = key;
         lastAt = now;
       }
 
