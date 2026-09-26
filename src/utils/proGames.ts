@@ -42,7 +42,11 @@ const PRO_GAME_EDITORIALS: Record<string, string> = {
 
 /** Read a single SGF property value from the root-node header. */
 const readHeaderProp = (header: string, key: string): string | undefined => {
-  const match = header.match(new RegExp(`(?:^|[;\\s])${key}\\[([^\\]]*)\\]`));
+  // A property usually follows the previous value's `]` directly
+  // (`KM[6.5]RE[B+R]`). Requiring a `;` or whitespace before it missed RE,
+  // BR and WR in every bundled game, so no result or rank ever showed. The
+  // lookbehind still keeps `PB` from matching inside a longer name.
+  const match = header.match(new RegExp(`(?<![A-Za-z])${key}\\[([^\\]]*)\\]`));
   return match ? match[1]!.trim() || undefined : undefined;
 };
 
