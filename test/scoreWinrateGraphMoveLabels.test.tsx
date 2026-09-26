@@ -120,4 +120,18 @@ describe('ScoreWinrateGraph move labels', () => {
     expect(html).toContain('aria-valuetext="Move 2"');
     expect(html).not.toContain('"Move 1');
   });
+
+  it('draws nothing for a phase the game never reached', () => {
+    // The endgame window of a short game fell back to the last node and
+    // plotted a middle-game move, loss marker and all.
+    const { root, m2 } = buildTree();
+    storeState.currentNode = m2;
+    storeState.rootNode = root;
+
+    const html = renderToStaticMarkup(<ScoreWinrateGraph showScore showWinrate range={{ start: 5, end: 10 }} />);
+
+    expect(html).not.toContain('Move 2');
+    expect(html).not.toContain('Loss 4.5');
+  });
 });
+

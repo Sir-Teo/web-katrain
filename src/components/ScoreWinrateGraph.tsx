@@ -11,6 +11,7 @@ import { indexAtGraphX } from '../utils/graphScrub';
 import { computeMoveTimes, formatMoveTime } from '../utils/moveTimes';
 import { getScoreWinrateGraphTheme } from '../utils/scoreWinrateGraphTheme';
 import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
+import { formatAnalysisScoreLead } from '../utils/analysisSummary';
 
 const SCORE_GRANULARITY = 5;
 const WINRATE_GRANULARITY = 10;
@@ -128,8 +129,10 @@ export const ScoreWinrateGraph: React.FC<{
     // line by position shifted every phase by one move per setup or comment
     // node before it: the opening ended at move 14 and the middle began at 15.
     // A line's move numbers never go down, so the matches are one run.
-    let first = nodes.findIndex((node) => node.gameState.moveHistory.length >= range.start);
-    if (first < 0) first = nodes.length - 1;
+    const first = nodes.findIndex((node) => node.gameState.moveHistory.length >= range.start);
+    // A phase the game never reached has no moves to draw. Falling back to
+    // the last node plotted a move from the phase before, with its marker.
+    if (first < 0) return { displayNodes: [] as typeof nodes, highlighted: 0, rangeOffset: 0 };
     let last = first;
     while (last + 1 < nodes.length && nodes[last + 1]!.gameState.moveHistory.length <= range.end) last += 1;
     const sliced = nodes.slice(first, last + 1);
@@ -390,11 +393,16 @@ export const ScoreWinrateGraph: React.FC<{
       : '';
   // Only this move's own readings: carrying the last analysed move's values
   // forward put them under a later move's number.
-  const hoverHasScore = hoverIndex !== null && Number.isFinite(smoothedScoreValues[hoverIndex]!);
-  const hoverHasWin = hoverIndex !== null && Number.isFinite(smoothedWinrateValues[hoverIndex]!);
+  // The text reads the move's own values. The smoothed series draws the line,
+  // but it averages each point with the one before: a move from B+10 to W+10
+  // was captioned "50.0% - B+0.0" while the panel said W+10.
+  const rawHoverScore = hoverIndex !== null ? scoreValues[hoverIndex] : undefined;
+  const rawHoverWin = hoverIndex !== null ? winrateValues[hoverIndex] : undefined;
+  const hoverHasScore = typeof rawHoverScore === 'number' && Number.isFinite(rawHoverScore);
+  const hoverHasWin = typeof rawHoverWin === 'number' && Number.isFinite(rawHoverWin);
   const hoverMetricsText = [
-    showWinrate && hoverHasWin ? `${(50 + hoverWin).toFixed(1)}%` : '',
-    showScore && hoverHasScore ? `${hoverScore >= 0 ? 'B' : 'W'}+${Math.abs(hoverScore).toFixed(1)}` : '',
+    showWinrate && hoverHasWin ? `${(50 + rawHoverWin).toFixed(1)}%` : '',
+    showScore && hoverHasScore ? formatAnalysisScoreLead(rawHoverScore) : '',
   ].filter(Boolean).join(' - ');
   const hoverSeconds = hoverIndex !== null ? timeValues[hoverIndex] : undefined;
   const hoverTimeText =

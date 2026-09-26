@@ -11,7 +11,8 @@ export function formatCandidateVisits(visits: number | undefined): string {
   if (typeof visits !== 'number' || !Number.isFinite(visits)) return '—';
   const rounded = Math.max(0, Math.round(visits));
   if (rounded < 1000) return String(rounded);
-  if (rounded < 100_000) return `${(rounded / 1000).toFixed(1)}k`;
+  // 99,950 and up round to "100.0k" at one decimal: past the column's width.
+  if (rounded < 99_950) return `${(rounded / 1000).toFixed(1)}k`;
   return `${Math.round(rounded / 1000)}k`;
 }
 

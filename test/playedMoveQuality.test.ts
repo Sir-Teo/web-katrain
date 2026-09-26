@@ -126,4 +126,15 @@ describe('played move quality', () => {
       valueLabel: 'Lost 2.4',
     });
   });
+
+  it('calls the engine’s own top move Best when its loss is unknown', () => {
+    const move = { x: 3, y: 15, player: 'black' as const };
+    const parent = node({ move: null, parent: null, analysis: analysis([candidate({ x: 3, y: 15, order: 0, pointsLost: Number.NaN })]) });
+    const child = node({ move, parent });
+    parent.children.push(child);
+    const quality = getPlayedMoveQuality(child, Number.NaN);
+    expect(quality?.valueLabel).toBe('Best');
+    expect(quality?.tone).toBe('success');
+  });
 });
+

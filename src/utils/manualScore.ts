@@ -5,8 +5,14 @@ const HI_THRESHOLD = 0.85;
 const MAX_UNKNOWN = 10;
 const maxDame = (boardSize: number) => 4 * (boardSize + boardSize);
 
+/**
+ * Nearest half point, rounding the margin rather than the signed lead:
+ * Math.round takes halves toward +infinity, so a lead of 0.75 was B+1.0 while
+ * the same lead for White was W+0.5, and -0.25 was Jigo where +0.25 was B+0.5.
+ */
 export function roundToHalf(x: number): number {
-  return Math.round(x * 2) / 2;
+  const rounded = Math.sign(x) * (Math.round(Math.abs(x) * 2) / 2);
+  return rounded === 0 ? 0 : rounded;
 }
 
 export function formatResultScoreLead(scoreLead: number): string {

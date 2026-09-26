@@ -70,9 +70,15 @@ function fmtNum(x: number | undefined, digits = 2): string {
   return x.toFixed(digits);
 }
 
+/**
+ * Signed, with the sign taken after rounding: a raw -0.004 printed "-0.00",
+ * a swing that is no swing at all.
+ */
 function fmtSigned(x: number | undefined, digits = 1): string {
   if (typeof x !== 'number' || !Number.isFinite(x)) return NO_VALUE;
-  return x > 0 ? `+${x.toFixed(digits)}` : x.toFixed(digits);
+  const rounded = Number(x.toFixed(digits));
+  if (rounded === 0) return (0).toFixed(digits);
+  return rounded > 0 ? `+${rounded.toFixed(digits)}` : rounded.toFixed(digits);
 }
 
 function fmtPolicyPct(value: number | undefined): string {
@@ -93,8 +99,7 @@ function moverWinRate(value: number | undefined, player: 'black' | 'white'): num
 
 function fmtWinSwing(value: number | undefined): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return NO_VALUE;
-  const points = value * 100;
-  return points > 0 ? `+${points.toFixed(1)}pp` : `${points.toFixed(1)}pp`;
+  return `${fmtSigned(value * 100, 1)}pp`;
 }
 
 function policyCategoryLabel(category: MovePolicyCategory | undefined): string {
@@ -1687,7 +1692,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                         'rounded-full border px-2 py-0.5 font-semibold',
                         policyCategoryClass(entry.policy.category),
                       ].join(' ')}>
-                        {policyCategoryLabel(entry.policy.category)} #{entry.policy.rank || '?'}
+                        {policyCategoryLabel(entry.policy.category)} {formatPolicyRank(entry.policy.rank)}
                       </span>
                     )}
                     <button
@@ -1787,13 +1792,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                   <span className={mutedClass}>
                     Move {activeReview.moveNumber} · {playerNames[activeReview.player]} · {activeReview.move}
                   </span>
-                  <span className="font-mono text-rose-300">-{fmtNum(activeReview.pointsLost, 2)}</span>
+                  <span className="font-mono text-rose-300">{describeStudyFocusEntry(activeReview).lossLabel}</span>
                   {activeReview.policy && (
                     <span className={[
                       'rounded-full border px-2 py-0.5 font-semibold',
                       policyCategoryClass(activeReview.policy.category),
                     ].join(' ')}>
-                      {policyCategoryLabel(activeReview.policy.category)} #{activeReview.policy.rank || '?'} · {fmtPolicyPct(activeReview.policy.relativePrior)}
+                      {policyCategoryLabel(activeReview.policy.category)} {formatPolicyRank(activeReview.policy.rank)} · {fmtPolicyPct(activeReview.policy.relativePrior)}
                     </span>
                   )}
                   <div className="ml-auto flex items-center gap-2">
