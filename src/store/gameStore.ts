@@ -152,6 +152,13 @@ interface GameStore extends GameState {
    * Null when no drill is running.
    */
   mistakeDrill: MistakeDrillSession | null;
+  /**
+   * The node whose punish-quiz guess is armed, or null. The quiz lives in the
+   * board, but its answer is the node's own candidate list, which the panels
+   * showed while the board hid it.
+   */
+  punishQuizArmedNodeId: string | null;
+  setPunishQuizArmedNodeId: (nodeId: string | null) => void;
   analysisCacheSize: number;
   settings: GameSettings;
   engineStatus: 'idle' | 'loading' | 'ready' | 'error';
@@ -1929,6 +1936,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   analysisData: null,
   tenukiAnalysis: null,
   mistakeDrill: null,
+  punishQuizArmedNodeId: null,
+  setPunishQuizArmedNodeId: (nodeId) => {
+    if (useGameStore.getState().punishQuizArmedNodeId !== nodeId) useGameStore.setState({ punishQuizArmedNodeId: nodeId });
+  },
   analysisCacheSize: getAnalysisCacheSize(initialRoot),
   settings: initialSettings,
   engineStatus: 'idle',

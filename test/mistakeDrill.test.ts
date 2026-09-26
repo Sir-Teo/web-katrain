@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { AnalysisResult, CandidateMove, GameNode, GameState, Move } from '../src/types';
 import { resolveSwingBaseline } from '../src/utils/territorySwing';
@@ -7,6 +8,7 @@ import {
   drillSummaryText,
   drillVerdictText,
   gradeDrillGuess,
+  isAnswerHidden,
   isDrillSolved,
 } from '../src/utils/mistakeDrill';
 
@@ -257,11 +259,11 @@ describe('nothing on screen answers the position the drill is asking about', () 
       'src/components/CandidatePvTiles.tsx',
       'src/components/CandidateMoveList.tsx',
     ]) {
-      expect(await read(path), path).toContain('isDrillHidingAnswer');
+      expect(await read(path), path).toContain('isAnswerHidden');
     }
     // The dashboard takes the answer as a prop rather than reading the store.
     expect(await read('src/components/dashboard/DesktopDashboard.tsx')).toContain('drillHidesAnswer ? null :');
-    expect(await read('src/components/Layout.tsx')).toContain('isDrillHidingAnswer(mistakeDrill, currentNode.id)');
+    expect(await read('src/components/Layout.tsx')).toContain('isAnswerHidden({ mistakeDrill, punishQuizArmedNodeId }, currentNode.id)');
   });
 
   it('covers every reader of the best-move summary', async () => {
@@ -274,7 +276,7 @@ describe('nothing on screen answers the position the drill is asking about', () 
       .filter(Boolean);
     expect(hits.length).toBeGreaterThan(0);
     for (const path of hits) {
-      expect(await read(path), path).toContain('isDrillHidingAnswer');
+      expect(await read(path), path).toContain('isAnswerHidden');
     }
   });
 
@@ -342,3 +344,21 @@ describe('what a drill will not accept or ask', () => {
     expect(blunder.move).toMatchObject({ x: 9, y: 9 });
   });
 });
+
+describe('isAnswerHidden', () => {
+  it('hides the answer for an armed punish quiz as well as for a drill', () => {
+    expect(isAnswerHidden({ mistakeDrill: null, punishQuizArmedNodeId: 'blunder' }, 'blunder')).toBe(true);
+    expect(isAnswerHidden({ mistakeDrill: null, punishQuizArmedNodeId: 'blunder' }, 'other')).toBe(false);
+    expect(isAnswerHidden({ mistakeDrill: null, punishQuizArmedNodeId: null }, 'blunder')).toBe(false);
+  });
+
+  it('is what every panel that names the engine move asks', () => {
+    for (const file of ['CandidateMoveList', 'CandidatePvTiles', 'AnalysisCommandBar', 'AnalysisPanel']) {
+      const source = readFileSync(`src/components/${file}.tsx`, 'utf8');
+      expect(source).toContain('isAnswerHidden(state, state.currentNode.id)');
+      expect(source).not.toContain('isDrillHidingAnswer(');
+    }
+    expect(readFileSync('src/components/GoBoard.tsx', 'utf8')).toContain('setPunishQuizArmedNodeId(armedNodeId)');
+  });
+});
+

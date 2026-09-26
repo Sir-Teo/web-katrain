@@ -49,7 +49,7 @@ describe('the candidate list', () => {
   const source = readFileSync('src/components/CandidateMoveList.tsx', 'utf8');
 
   it('withholds the list while a drill is asking for exactly these moves', () => {
-    expect(source).toContain('isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id)');
+    expect(source).toContain('isAnswerHidden(state, state.currentNode.id)');
   });
 
   it('plays a row only once that row is the one on the board', () => {

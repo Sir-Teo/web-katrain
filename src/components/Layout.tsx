@@ -39,7 +39,7 @@ import { DEFAULT_BOARD_SIZE } from '../types';
 import { parseGtpMove } from '../lib/gtp';
 import { computeJapaneseManualScoreFromOwnership, formatResultScoreLead, readRecordedResult, roundToHalf } from '../utils/manualScore';
 import { computeManualScoreEstimate, estimateDeadStonesByPlayout, estimateDeadStonesFromOwnership, NO_MANUAL_SCORE_ESTIMATE, toggleDeadStoneChain } from '../utils/scoring';
-import { isDrillHidingAnswer } from '../utils/mistakeDrill';
+import { isAnswerHidden } from '../utils/mistakeDrill';
 import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
@@ -310,6 +310,7 @@ export const Layout: React.FC = () => {
     makeCurrentNodeMainBranch,
     findMistake,
     mistakeDrill,
+    punishQuizArmedNodeId,
     startMistakeDrill,
     stopMistakeDrill,
     loadGame,
@@ -398,6 +399,7 @@ export const Layout: React.FC = () => {
       makeCurrentNodeMainBranch: state.makeCurrentNodeMainBranch,
       findMistake: state.findMistake,
       mistakeDrill: state.mistakeDrill,
+      punishQuizArmedNodeId: state.punishQuizArmedNodeId,
       startMistakeDrill: state.startMistakeDrill,
       stopMistakeDrill: state.stopMistakeDrill,
       loadGame: state.loadGame,
@@ -465,7 +467,7 @@ export const Layout: React.FC = () => {
   const boardSize = normalizeBoardSize(board.length, DEFAULT_BOARD_SIZE);
   // Surfaces that would name the engine's move have to withhold it while a
   // drill is asking about the position they are describing.
-  const drillHidesAnswer = isDrillHidingAnswer(mistakeDrill, currentNode.id);
+  const drillHidesAnswer = isAnswerHidden({ mistakeDrill, punishQuizArmedNodeId }, currentNode.id);
   // Shared with the handicap AI strategy, which reads the same number to decide
   // how much search advantage to hand Black. Two copies of this had already
   // drifted: this one consulted HA first, the engine's did not.

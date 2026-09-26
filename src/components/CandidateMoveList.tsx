@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import { copyTextToClipboard } from '../utils/clipboard';
-import { isDrillHidingAnswer } from '../utils/mistakeDrill';
+import { isAnswerHidden } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
@@ -94,7 +94,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
       lowVisits: state.settings.trainerLowVisits,
       addPvVariation: state.addPvVariation,
       // A drill asking about this position is asking for exactly this list.
-      drillHidesAnswer: isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id),
+      drillHidesAnswer: isAnswerHidden(state, state.currentNode.id),
       boardSize: state.currentNode.gameState.board.length,
       playMove: state.playMove,
       trainerTheme: state.settings.trainerTheme,

@@ -228,6 +228,17 @@ export interface MistakeDrillSession {
  * hints are only the most obvious one, and a metric strip reading "BEST MOVE
  * G4" under the board answers the question just as completely.
  */
+/**
+ * Whether anything that would name the engine's move at `nodeId` must hold it
+ * back: a drill asking about the position, or a punish quiz armed on it.
+ */
+export function isAnswerHidden(
+  state: { mistakeDrill: MistakeDrillSession | null; punishQuizArmedNodeId?: string | null },
+  nodeId: string
+): boolean {
+  return isDrillHidingAnswer(state.mistakeDrill, nodeId) || state.punishQuizArmedNodeId === nodeId;
+}
+
 export function isDrillHidingAnswer(drill: MistakeDrillSession | null, nodeId: string): boolean {
   if (!drill || drill.phase !== 'asking') return false;
   return drill.mistakes[drill.index]?.parentNodeId === nodeId;

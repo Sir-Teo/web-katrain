@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { isDrillHidingAnswer } from '../utils/mistakeDrill';
+import { isAnswerHidden } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
 import { evalColorToCss, getKaTrainEvalColors } from '../utils/katrainTheme';
@@ -28,7 +28,7 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
     (state) => ({
       // These tiles are the engine's candidate moves, which is the answer a
       // drill is asking for; show nothing while it is asking.
-      moves: isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id)
+      moves: isAnswerHidden(state, state.currentNode.id)
         ? null
         : state.currentNode.analysis?.moves ?? null,
       boardSize: state.currentNode.gameState.board.length,

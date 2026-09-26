@@ -24,7 +24,7 @@ import {
   nextTopMoveMetric,
 } from '../utils/topMoveMetric';
 import { getCurrentNodeBestMoveSummary } from '../utils/bestMoveSummary';
-import { isDrillHidingAnswer } from '../utils/mistakeDrill';
+import { isAnswerHidden } from '../utils/mistakeDrill';
 import { summarizeGameAnalysisProgress } from '../utils/gameAnalysisProgress';
 import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import {
@@ -170,7 +170,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const isPro = (analysisExperienceOverride ?? analysisExperience) === 'pro';
   const showAnalysisBar = useGameStore((state) => state.settings.showAnalysisBar);
   const currentNode = useGameStore((state) => state.currentNode);
-  const drillHidesAnswer = useGameStore((state) => isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id));
+  const drillHidesAnswer = useGameStore((state) => isAnswerHidden(state, state.currentNode.id));
   const treeVersion = useGameStore((state) => state.treeVersion);
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);

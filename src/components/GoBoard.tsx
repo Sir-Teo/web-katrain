@@ -844,6 +844,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   // hints and the policy heatmap say where the engine wants to play, and the
   // child rings and next-move ghost say what was played.
   const hidesAnswer = punishQuizArmed || drillAsking;
+  // Tell the panels too: the answer is this node's candidate list.
+  const setPunishQuizArmedNodeId = useGameStore((s) => s.setPunishQuizArmedNodeId);
+  const armedNodeId = punishQuizArmed ? currentNode.id : null;
+  useEffect(() => {
+    setPunishQuizArmedNodeId(armedNodeId);
+  }, [armedNodeId, setPunishQuizArmedNodeId]);
+  useEffect(() => () => setPunishQuizArmedNodeId(null), [setPunishQuizArmedNodeId]);
   /**
    * What the move that reached this position changed, rather than who owns
    * what now. Both maps have to come from a real analysis of their own node --

@@ -27,7 +27,7 @@ import {
 } from '../utils/visitPresets';
 import { NO_VALUE, formatAnalysisScoreLead, summarizePointsLost, POINTS_LOST_EXPLANATION } from '../utils/analysisSummary';
 import { getCurrentNodeBestMoveSummary } from '../utils/bestMoveSummary';
-import { isDrillHidingAnswer } from '../utils/mistakeDrill';
+import { isAnswerHidden } from '../utils/mistakeDrill';
 import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
 import { setTimedNotification } from '../utils/timedNotification';
 import { copyTextToClipboard } from '../utils/clipboard';
@@ -320,7 +320,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   React.useEffect(() => {
     setEngineErrorCopied(false);
   }, [engineError]);
-  const drillHidesAnswer = useGameStore((state) => isDrillHidingAnswer(state.mistakeDrill, state.currentNode.id));
+  const drillHidesAnswer = useGameStore((state) => isAnswerHidden(state, state.currentNode.id));
   const bestMoveSummary = React.useMemo(() => {
     // Node analysis mutates in place; treeVersion bumps whenever it changes.
     void treeVersion;
