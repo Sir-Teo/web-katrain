@@ -150,6 +150,16 @@ describe('gradeDrillGuess', () => {
     expect(isDrillSolved(verdict.kind)).toBe(true);
   });
 
+  it('does not call a guess worse than the drilled move good enough', () => {
+    const { root } = line();
+    root.analysis = analysis(10, [candidate(3, 3, 0, 0), candidate(15, 15, 0.6, 1), candidate(9, 9, 0.95, 2)]);
+
+    const verdict = gradeDrillGuess(root, { x: 9, y: 9 }, 0.6, { x: 15, y: 15 })!;
+
+    expect(verdict.kind).toBe('miss');
+    expect(isDrillSolved(verdict.kind)).toBe(false);
+  });
+
   it('separates a real improvement from repeating the mistake', () => {
     const { root } = line();
     root.analysis = analysis(10, [candidate(3, 3, 0, 0), candidate(4, 4, 3, 1), candidate(9, 9, 5.5, 2)]);

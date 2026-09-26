@@ -181,7 +181,10 @@ export function gradeDrillGuess(
     // measurement nobody made.
     return { kind: 'miss', guessLabel, bestLabel, guessPointsLost: null, playedPointsLost };
   }
-  if (guessPointsLost <= DRILL_CLOSE_ENOUGH_LOSS) {
+  // "Good enough" still has to beat the move being drilled: with the mistake
+  // threshold at its 0.5 minimum, a guess losing 0.95 against a played 0.6
+  // counted as solving the position.
+  if (guessPointsLost <= DRILL_CLOSE_ENOUGH_LOSS && guessPointsLost < playedPointsLost) {
     return { kind: 'good', guessLabel, bestLabel, guessPointsLost, playedPointsLost };
   }
   // "Better" has to mean better by enough to be a real difference; landing

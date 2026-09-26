@@ -8,6 +8,10 @@ export type ProblemVerdict = 'correct' | 'wrong' | 'unknown';
 // while "right.Next" did. The period is still required, so "right side" stays
 // out.
 const CORRECT_PATTERNS = /\b(?:correct|right answer|solution|success)\b|\bright\.|正解|正确|正確|정답|成功|성공/i;
+// goproblems.com marks its solutions C[RIGHT], often with more text after it
+// and no period, so the pattern above never matched them. Upper case only, so
+// "right side" in a comment still says nothing.
+const GOPROBLEMS_RIGHT = /(?:^|\s)RIGHT(?=$|[\s.!,:;])/;
 const WRONG_PATTERNS = /\b(wrong|incorrect|fail(?:ure|ed)?|mistake)\b|失败|失敗|錯誤|错误|오답|실패|変化図|变化图/i;
 
 const nodeText = (node: GameNode): string => {
@@ -37,7 +41,7 @@ const markerSet = (values: string[] | undefined): boolean => values?.some((v) =>
 export const classifyProblemNode = (node: GameNode, solver?: Player): ProblemVerdict => {
   const text = nodeText(node);
   if (WRONG_PATTERNS.test(text)) return 'wrong';
-  if (CORRECT_PATTERNS.test(text)) return 'correct';
+  if (CORRECT_PATTERNS.test(text) || GOPROBLEMS_RIGHT.test(text)) return 'correct';
   const goodForBlack = markerSet(node.properties?.GB);
   const goodForWhite = markerSet(node.properties?.GW);
   if (!solver) return goodForBlack || goodForWhite ? 'correct' : 'unknown';
@@ -106,13 +110,30 @@ export const isProblemStart = (node: GameNode): boolean =>
  * instead of posing an empty board.
  */
 export const getProblemStarts = (root: GameNode): GameNode[] => {
+  // Collection entries are set-up nodes. Counting any child with a stone let
+  // a game that branches at move 1 -- the move's own stone counted -- be posed
+  // as "Problem 1/2, White to play" at move 1 of an ordinary game.
   const looksLikeCollection =
     !root.move &&
     !boardHasStones(root) &&
     root.children.length > 1 &&
-    root.children.every((child) => boardHasStones(child) || child.children.length > 0);
+    root.children.every((child) => !child.move && (boardHasStones(child) || child.children.length > 0));
+  // A handicap game's stones are not a problem's set-up.
+  const handicap = Number.parseInt(root.properties?.HA?.[0] ?? '', 10);
+  if (!looksLikeCollection && handicap >= 2 && !subtreeHasVerdict(root)) return [];
   const starts = looksLikeCollection ? root.children : [root];
-  return starts.filter(isProblemStart);
+  return starts.map(skipLeadingSetupNodes).filter(isProblemStart);
+};
+
+/**
+ * Many editors write a problem's stones in a node after the root. Posed from
+ * the root, that was an empty board, and every answer was "not part of this
+ * problem" because the root's only child has no move to match.
+ */
+const skipLeadingSetupNodes = (start: GameNode): GameNode => {
+  let node = start;
+  while (node.children.length === 1 && !node.children[0]!.move) node = node.children[0]!;
+  return node;
 };
 
 /**
