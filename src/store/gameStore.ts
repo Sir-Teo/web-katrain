@@ -6300,7 +6300,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const firstMovePlayer = sgf.moves[0]?.player;
     const ha = parseInt(sgfProps?.['HA']?.[0] ?? '0', 10);
     const safeHandicap = Number.isFinite(ha) ? Math.max(0, Math.min(ha, getMaxHandicap(boardSize))) : 0;
-    if (safeHandicap > 0 && !hasExplicitRootSetup) {
+    // Only a declared handicap of two or more places stones, and only when the
+    // file does not place them itself -- in the root or, as Tygem and other
+    // servers write it, in the first node after it. HA[1] put a stone on Q16,
+    // the commonest first move, so B[pd] met an occupied point and the whole
+    // game was dropped; stones in the first node were placed twice over, and
+    // White's first move usually landed on one of them. KaTrain applies the
+    // same two conditions.
+    const firstChildProps = sgf.tree?.children?.[0]?.props;
+    const firstChildPlacesStones = !!(firstChildProps?.['AB']?.length || firstChildProps?.['AW']?.length);
+    const placesHandicapStones = safeHandicap >= 2 && !hasExplicitRootSetup && !firstChildPlacesStones;
+    if (placesHandicapStones) {
       currentBoard = cloneBoard(currentBoard);
       applyHandicapStones(currentBoard, boardSize, safeHandicap);
     }
@@ -6320,8 +6330,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     newRoot.properties = { RU: [rulesToSgfRu(rules)], SZ: [String(boardSize)] };
     if (safeHandicap > 0) {
       newRoot.properties.HA = [String(safeHandicap)];
-      newRoot.properties.PL = ['W'];
-      if (!hasExplicitRootSetup) syncRootSetupPropertiesFromBoard(newRoot.properties, rootState.board, boardSize, safeHandicap);
+      if (safeHandicap >= 2 && !firstChildPlacesStones) newRoot.properties.PL = ['W'];
+      if (placesHandicapStones) syncRootSetupPropertiesFromBoard(newRoot.properties, rootState.board, boardSize, safeHandicap);
     }
 
     const applyKtAnalysis = (node: GameNode, kt: string[]) => {
@@ -6509,8 +6519,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!rootPropsCopy['SZ']?.length) rootPropsCopy['SZ'] = [String(boardSize)];
       if (safeHandicap > 0) {
         rootPropsCopy['HA'] = [String(safeHandicap)];
-        if (!rootPropsCopy['PL']?.length) rootPropsCopy['PL'] = ['W'];
-        if (!hasExplicitRootSetup) syncRootSetupPropertiesFromBoard(rootPropsCopy, rootState.board, boardSize, safeHandicap);
+        if (!rootPropsCopy['PL']?.length && safeHandicap >= 2 && !firstChildPlacesStones) rootPropsCopy['PL'] = ['W'];
+        if (placesHandicapStones) syncRootSetupPropertiesFromBoard(rootPropsCopy, rootState.board, boardSize, safeHandicap);
       }
       newRoot.properties = rootPropsCopy;
       const rootMove = extractMove(sgf.tree.props);

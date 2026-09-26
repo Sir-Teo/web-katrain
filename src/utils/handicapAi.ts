@@ -38,7 +38,10 @@ export const clampHandicapPda = (value: number): number => {
  */
 export const countRootHandicapStones = (root: GameNode): number => {
   const declared = Number.parseInt(root.properties?.HA?.[0] ?? '', 10);
-  if (Number.isFinite(declared)) return Math.max(0, declared);
+  // HA[1] is an even game without komi, not one handicap stone: the engine's
+  // count (countHandicapStones) gives it no compensation, and the manual count
+  // gave White a point the engine never did.
+  if (Number.isFinite(declared)) return declared >= 2 ? declared : 0;
   const black = root.properties?.AB?.length ?? 0;
   const white = root.properties?.AW?.length ?? 0;
   return white === 0 && black >= 2 ? black : 0;
