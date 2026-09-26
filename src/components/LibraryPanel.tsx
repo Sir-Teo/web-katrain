@@ -62,6 +62,7 @@ import {
   type LibraryFile,
   type LibraryFolder,
   nextUntitledGameName,
+  compareLibraryNames,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
 import { tagsFromResult } from '../utils/narrativeTags';
@@ -730,7 +731,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const arr = [...filteredItems];
     switch (sortKey) {
       case 'name':
-        arr.sort((a, b) => a.name.localeCompare(b.name));
+        arr.sort((a, b) => compareLibraryNames(a.name, b.name));
         break;
       case 'moves':
         arr.sort(
@@ -851,10 +852,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         const bFolder = isFolder(b);
         if (aFolder && !bFolder) return -1;
         if (!aFolder && bFolder) return 1;
-        if (aFolder && bFolder) return a.name.localeCompare(b.name);
+        if (aFolder && bFolder) return compareLibraryNames(a.name, b.name);
         switch (sortKey) {
           case 'name':
-            return a.name.localeCompare(b.name);
+            return compareLibraryNames(a.name, b.name);
           case 'moves':
             return (
               (isFile(b) ? getLibraryFileMoveSortCount(b) : 0) -

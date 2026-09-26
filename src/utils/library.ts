@@ -177,10 +177,11 @@ const sanitizeLibraryItemName = (value: string): string | null => {
     .replace(/[/\\?%*:|"<>]/g, '-')
     .replace(/\s+/g, ' ')
     .replace(/^[.\s-]+|[.\s-]+$/g, '')
-    .replace(/\.sgf$/i, '')
-    .slice(0, 96)
-    .trim();
-  return cleaned || null;
+    .replace(/\.sgf$/i, '');
+  // By code point: a UTF-16 slice split an emoji at the limit and left a lone
+  // surrogate, shown as "�" in the row and in the downloaded file's name.
+  const limited = Array.from(cleaned).slice(0, 96).join('').trim();
+  return limited || null;
 };
 
 export const suggestLibraryItemNameFromSgf = (sgf: string, fallback = 'Untitled'): string => {
@@ -229,7 +230,7 @@ export const getLibraryFolderOptions = (items: readonly LibraryItem[]): LibraryF
   }
 
   for (const siblings of childrenByParent.values()) {
-    siblings.sort((a, b) => a.name.localeCompare(b.name) || a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+    siblings.sort((a, b) => compareLibraryNames(a.name, b.name) || a.createdAt - b.createdAt || a.id.localeCompare(b.id));
   }
 
   const options: LibraryFolderOption[] = [];
@@ -280,6 +281,14 @@ export const getLibrarySaveTargetFolderId = ({
   if (!preferredFolderId) return null;
   return items.some((item) => item.type === 'folder' && item.id === preferredFolderId) ? preferredFolderId : null;
 };
+
+/**
+ * Library name order, reading numbers as numbers. The app names games
+ * "Game 1".."Game 10" and suffixes duplicates " 2", " 10"; a plain
+ * localeCompare put Game 10 and Game 11 before Game 2.
+ */
+export const compareLibraryNames = (a: string, b: string): number =>
+  a.localeCompare(b, undefined, { numeric: true });
 
 export const formatLibrarySize = (bytes: number): string => {
   const normalized = Math.max(0, Number.isFinite(bytes) ? bytes : 0);
@@ -489,6 +498,11 @@ const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
 export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
   if (!Array.isArray(rawItems)) return [];
   const now = Date.now();
+  // Ids key the IndexedDB store, so a second record under one id -- a backup
+  // merged by hand from two devices -- replaced the first on write: "Restored
+  // 2 library items", and one after a reload. A repeat gets a fresh id; links
+  // to the id keep pointing at the first.
+  const seenIds = new Set<string>();
   const normalized: LibraryItem[] = rawItems
     .filter((item) => item && typeof item === 'object')
     .map((item) => {
@@ -497,7 +511,9 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
       const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : now;
       const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
       const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Untitled';
-      const id = typeof raw.id === 'string' && raw.id ? raw.id : createId();
+      const storedId = typeof raw.id === 'string' && raw.id ? raw.id : null;
+      const id = storedId && !seenIds.has(storedId) ? storedId : createId();
+      seenIds.add(id);
       const isFolder = raw.type === 'folder' || typeof raw.sgf !== 'string';
       if (isFolder) {
         return {
