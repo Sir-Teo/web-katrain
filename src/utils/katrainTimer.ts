@@ -182,3 +182,23 @@ export function stepKaTrainTimer(args: KaTrainTimerStepArgs): KaTrainTimerStepRe
   };
 }
 
+type ClockNode = {
+  move?: { x: number; y: number } | null;
+  parent?: ClockNode | null;
+  endState?: string | null;
+  properties?: Record<string, string[]>;
+};
+
+/**
+ * A clock with nothing to time: the game ended on two passes or a result, or
+ * the record already carries one. After a resignation the AI is switched off,
+ * so the clock went on counting for whoever was to move and ran a finished
+ * game out of time.
+ */
+export function isGameClockStopped(node: ClockNode, root: ClockNode): boolean {
+  if (node.endState) return true;
+  const isPass = (n: ClockNode | null | undefined) => !!n?.move && n.move.x < 0 && n.move.y < 0;
+  if (isPass(node) && isPass(node.parent)) return true;
+  const recorded = root.properties?.RE?.[0]?.trim();
+  return !!recorded && recorded !== '?';
+}

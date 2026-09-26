@@ -3,6 +3,7 @@ import {
   acquireSharedClockCursor,
   describeKaTrainClock,
   formatKaTrainClockSeconds,
+  isGameClockStopped,
   mountedClockCount,
   releaseSharedClockCursor,
   stepKaTrainTimer,
@@ -267,5 +268,26 @@ describe('the clock every mounted Timer shares', () => {
     releaseSharedClockCursor();
     expect(mountedClockCount()).toBe(0);
     expect(acquireSharedClockCursor().lastUpdateMs).toBe(0);
+  });
+});
+
+describe('isGameClockStopped', () => {
+  const root = { move: null, parent: null, properties: {} as Record<string, string[]> };
+  const child = (parent: object, move: { x: number; y: number } | null, extra: object = {}) => ({ move, parent, ...extra });
+
+  it('keeps running mid-game and after a single pass', () => {
+    const m1 = child(root, { x: 3, y: 3 });
+    expect(isGameClockStopped(m1, root)).toBe(false);
+    expect(isGameClockStopped(child(m1, { x: -1, y: -1 }), root)).toBe(false);
+  });
+
+  it('stops after two passes, a resignation, or on a record that has a result', () => {
+    const pass1 = child(root, { x: -1, y: -1 });
+    expect(isGameClockStopped(child(pass1, { x: -1, y: -1 }), root)).toBe(true);
+    expect(isGameClockStopped(child(root, { x: 3, y: 3 }, { endState: 'W+R' }), root)).toBe(true);
+    const finished = { ...root, properties: { RE: ['B+R'] } };
+    expect(isGameClockStopped(child(finished, { x: 3, y: 3 }), finished)).toBe(true);
+    const unknown = { ...root, properties: { RE: ['?'] } };
+    expect(isGameClockStopped(child(unknown, { x: 3, y: 3 }), unknown)).toBe(false);
   });
 });

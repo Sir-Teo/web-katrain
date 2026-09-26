@@ -6,11 +6,15 @@ import {
   acquireSharedClockCursor,
   describeKaTrainClock,
   formatKaTrainClockSeconds,
+  isGameClockStopped,
   releaseSharedClockCursor,
   stepKaTrainTimer,
   type KaTrainTimerDisplay,
 } from '../utils/katrainTimer';
 import { getAnimationNow } from '../utils/animationFrame';
+
+const isClockStopped = (s: ReturnType<typeof useGameStore.getState>): boolean =>
+  isGameClockStopped(s.currentNode, s.rootNode);
 
 export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 'default' }) => {
   const timerPaused = useGameStore((s) => s.timerPaused);
@@ -49,6 +53,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
       }
 
       const isAiTurn = s.isAiPlaying && s.aiColor === s.currentPlayer;
+      const stopped = isClockStopped(s);
       const periodsUsedForPlayer = s.timerPeriodsUsed[s.currentPlayer] ?? 0;
       const nodeTimeUsedSeconds = s.currentNode.timeUsedSeconds ?? 0;
 
@@ -58,7 +63,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
         lastUpdateNodeId: cursor.lastUpdateNodeId,
         currentNodeId: s.currentNode.id,
         currentNodeHasChildren: s.currentNode.children.length > 0,
-        paused: s.timerPaused,
+        paused: s.timerPaused || stopped,
         isAiTurn,
         mainTimeMinutes: s.settings.timerMainTimeMinutes,
         byoLengthSeconds: s.settings.timerByoLengthSeconds,
@@ -76,8 +81,8 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
       s.timerPeriodsUsed[s.currentPlayer] = result.periodsUsedForPlayer;
       s.currentNode.timeUsedSeconds = result.nodeTimeUsedSeconds;
 
-      // Ticks run every 70ms, paused or not; a new object each time re-rendered
-      // the clock 14 times a second with nothing to show.
+      // A new object each tick re-rendered the clock 14 times a second with
+      // nothing to show.
       const next = result.display;
       setDisplay((prev) =>
         prev.timeSeconds === next.timeSeconds &&
@@ -89,10 +94,40 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
       );
     };
 
+    // Tick only while the clock can move. Ticking every 70ms paused or not
+    // woke a phone 14 times a second (twice, with two clocks on screen) to
+    // show the same numbers; a paused or finished clock now ticks once when
+    // what it shows can change -- a move, navigation, pause or resume.
+    let id: number | null = null;
+    const sync = () => {
+      const s = useGameStore.getState();
+      const shouldRun = !s.timerPaused && !isClockStopped(s);
+      if (shouldRun && id === null) id = window.setInterval(tick, 70);
+      else if (!shouldRun && id !== null) {
+        window.clearInterval(id);
+        id = null;
+      }
+    };
     tick();
-    const id = window.setInterval(tick, 70);
+    sync();
+    const unsubscribe = useGameStore.subscribe((s, prev) => {
+      if (
+        s.currentNode === prev.currentNode &&
+        s.timerPaused === prev.timerPaused &&
+        s.currentPlayer === prev.currentPlayer &&
+        s.isAiPlaying === prev.isAiPlaying &&
+        s.aiColor === prev.aiColor &&
+        s.treeVersion === prev.treeVersion
+      ) return;
+      // Nothing ticked while stopped, so the cursor still holds the moment
+      // it stopped; charging from there would bill the whole pause on resume.
+      if (id === null) cursor.lastUpdateMs = getAnimationNow();
+      tick();
+      sync();
+    });
     return () => {
-      window.clearInterval(id);
+      unsubscribe();
+      if (id !== null) window.clearInterval(id);
       releaseSharedClockCursor();
     };
   }, [timerSettings.mainTimeMinutes, timerSettings.byoLengthSeconds, timerSettings.byoPeriods]);
