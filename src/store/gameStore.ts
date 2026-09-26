@@ -58,7 +58,7 @@ import { formatBoardMoveLabel, formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { buildTsumegoFrame, canFrameAsTsumego } from '../utils/tsumegoFrame';
 import { clampTsumegoFrameMargin } from '../utils/tsumegoFrameOptions';
 import { isGameRules, isSuicideLegal, rulesFromSgf, rulesLabel, rulesOf, rulesToSgf, suicideAllowingRulesLabel, type KoRule } from '../utils/goRules';
-import { toSgfResult } from '../utils/manualScore';
+import { readRecordedResult, toSgfResult } from '../utils/manualScore';
 import { engineHistoryBoards, koReferenceBoard } from '../utils/positionHistory';
 import { situationalKey, superkoRejectionMessage } from '../utils/superko';
 import { lineViolatesSuperko, repetitionHistoryForNode } from '../utils/treeSuperko';
@@ -1667,6 +1667,55 @@ let selfplayToken = 0;
 // while an analysis is in flight, must not undo anything.
 let lastPlayedNodeId: string | null = null;
 
+// Moves the engine plays for itself -- the AI opponent, its heuristic
+// fallback, selfplay and the set-up position generator -- run inside
+// asEngineMove. Everything else is the player's hand.
+let engineMoveDepth = 0;
+const asEngineMove = <T,>(play: () => T): T => {
+  engineMoveDepth += 1;
+  try {
+    return play();
+  } finally {
+    engineMoveDepth -= 1;
+  }
+};
+
+/**
+ * Whether a move or pass from the player has to wait for the AI's reply.
+ *
+ * Neither playMove nor passTurn asked whose turn it was, so a second Pass (or
+ * P) while the AI thought was recorded as the AI's pass and ended the game on
+ * a move it never chose, and a board click placed a stone in its colour. Only
+ * at the end of the line: an earlier position the player stepped back to is
+ * one the AI will not answer, and trying a variation there stays allowed.
+ */
+const isAwaitingAiReply = (state: { isAiPlaying: boolean; aiColor: Player | null; currentPlayer: Player; currentNode: GameNode }) =>
+  engineMoveDepth === 0
+  && state.isAiPlaying
+  && state.aiColor === state.currentPlayer
+  && state.currentNode.children.length === 0
+  // Two passes ended the game: the AI will not move again, and play on
+  // (dispute, resumption) is the player's to choose.
+  && !(isPassMove(state.currentNode.move) && isPassMove(state.currentNode.parent?.move))
+  && !state.currentNode.endState;
+
+const AI_REPLY_PENDING_MESSAGE = 'The AI is to move. Wait for its reply, or turn the AI opponent off.';
+
+/**
+ * Refuse the player's move on the AI's turn -- and make sure a reply is on
+ * its way. Stepping forward onto the end of the line (Redo after an Undo that
+ * dropped the AI's search) left the AI to move with nothing scheduled, so the
+ * refusal alone would have stalled the game for good.
+ */
+const refuseWhileAwaitingAi = (
+  set: (partial: { notification: StoreNotification }) => void,
+  get: () => { isAiThinking: boolean; scheduleAiMove: (delayMs?: number) => void }
+) => {
+  set({ notification: { message: AI_REPLY_PENDING_MESSAGE, type: 'info' } });
+  const state = get();
+  if (!state.isAiThinking && scheduledAiMoveTimers.size === 0) state.scheduleAiMove(0);
+};
+
 /**
  * After a setup edit changed the stones on the board: the analysis in flight
  * was for the old position and would land on the new one by node id, and
@@ -2920,8 +2969,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
           const best = analysis.moves[0] ?? null;
           const existing = new Set(s.currentNode.children.map((child) => child.id));
-          if (!best || best.x < 0 || best.y < 0) s.passTurn();
-          else s.playMove(best.x, best.y);
+          asEngineMove(() => {
+            if (!best || best.x < 0 || best.y < 0) s.passTurn();
+            else s.playMove(best.x, best.y);
+          });
           noteCreated(s.currentNode, existing);
         } catch (err) {
           if (isAnalysisCanceled(err)) {
@@ -3030,7 +3081,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             );
           }
 
-          s.playMove(chosen.x, chosen.y);
+          asEngineMove(() => s.playMove(chosen.x, chosen.y));
           const played = get().currentNode.gameState.moveHistory.length;
           set({ setupPositionProgress: { move: played, untilMove: target } });
           if (played === depth) {
@@ -4334,6 +4385,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   playMove: (x: number, y: number, isLoad = false) => {
     const state = get();
+    if (!isLoad && isAwaitingAiReply(state)) {
+      refuseWhileAwaitingAi(set, get);
+      return;
+    }
 
     // Check if we are loading or playing normally.
     // First, check if move exists in children (Navigation)
@@ -5294,8 +5349,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
             makeHeuristicMove(get());
             return;
           }
-          if (chosen.x === -1 || chosen.y === -1) get().passTurn();
-          else get().playMove(chosen.x, chosen.y);
+          asEngineMove(() => {
+            if (chosen.x === -1 || chosen.y === -1) get().passTurn();
+            else get().playMove(chosen.x, chosen.y);
+          });
 
           const after = get();
           after.currentNode.aiThoughts = chosen.thoughts;
@@ -6618,6 +6675,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   passTurn: () => {
       const state = get();
+      if (isAwaitingAiReply(state)) {
+        refuseWhileAwaitingAi(set, get);
+        return;
+      }
       if (state.settings.soundEnabled) {
         playPassSound();
       }
@@ -6683,7 +6744,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     state.currentNode.endState = endState;
 
     if (!state.rootNode.properties) state.rootNode.properties = {};
-    state.rootNode.properties.RE = [endState];
+    // As recordCountedResult: never overwrite the result the game carries.
+    if (!readRecordedResult(state.rootNode.properties.RE?.[0])) state.rootNode.properties.RE = [endState];
 
     get().stopSelfplayToEnd();
 
@@ -6832,7 +6894,7 @@ const makeHeuristicMove = (store: GameStore) => {
     const legalMoves = heuristicLegalMoves(store);
 
     if (legalMoves.length === 0) {
-        store.passTurn();
+        asEngineMove(() => store.passTurn());
         return;
     }
 
@@ -6932,10 +6994,12 @@ const makeHeuristicMove = (store: GameStore) => {
         }
     }
 
-    if (bestScore < -500) {
-        // If best move is terrible (e.g. filling eye), pass.
-        store.passTurn();
-    } else {
-        store.playMove(bestMove.x, bestMove.y);
-    }
+    asEngineMove(() => {
+      if (bestScore < -500) {
+          // If best move is terrible (e.g. filling eye), pass.
+          store.passTurn();
+      } else {
+          store.playMove(bestMove.x, bestMove.y);
+      }
+    });
 };

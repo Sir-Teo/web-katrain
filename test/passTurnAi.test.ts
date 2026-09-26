@@ -62,9 +62,10 @@ describe('GameStore passTurn AI behavior', () => {
     const makeAiMoveSpy = vi.fn();
     useGameStore.setState({ makeAiMove: makeAiMoveSpy as unknown as typeof originalMakeAiMove });
 
-    useGameStore.setState({ isAiPlaying: true, aiColor: 'black' });
-
+    // The AI's own pass is played off-AI here: from the player's hand, a pass
+    // on the AI's turn is refused (see aiTurnInput.test.ts).
     store.passTurn(); // B pass -> W to play
+    useGameStore.setState({ isAiPlaying: true, aiColor: 'black' });
     store.passTurn(); // W pass -> game ended, B to play (AI), but should not auto-move
 
     vi.runAllTimers();

@@ -41,4 +41,17 @@ describe('GameStore resign', () => {
     expect(useGameStore.getState().currentNode.endState).toBe('W+R');
     expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBe('W+R');
   });
+
+  it('does not overwrite the result the game already records', () => {
+    const store = useGameStore.getState();
+    store.resetGame();
+    store.playMove(3, 3);
+    store.resign();
+    expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBe('B+R');
+
+    // A step back and a second resignation used to flip the record to W+R.
+    store.navigateBack();
+    store.resign();
+    expect(useGameStore.getState().rootNode.properties?.RE?.[0]).toBe('B+R');
+  });
 });

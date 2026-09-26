@@ -11,6 +11,7 @@ import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, getImportedSgf
 import { copyBoardImage, downloadBoardImage } from '../utils/boardImageExport';
 import { buildShareUrl, decodeSgfFromFragment, hasSgfFragment, MAX_SHARE_FRAGMENT_LENGTH, MAX_SHARE_URL_LENGTH } from '../utils/shareLink';
 import { readLibraryPosition, writeLibraryPosition } from '../utils/libraryPositions';
+import { NOTHING_TO_TAKE_BACK_MESSAGE, getPlayerUndoSteps } from '../utils/playerUndo';
 import { getNodePath, resolveNodePath } from '../utils/pinnedVariations';
 import { pickSharedImportText, readSharedFromQuery } from '../utils/pwaOpen';
 import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
@@ -3489,18 +3490,21 @@ export const Layout: React.FC = () => {
   const currentMoveInsight = getMoveInsight(currentNode.move, boardSize, currentNode.parent?.gameState.board ?? null);
 
   const handleUndo = () => {
-    const st = useGameStore.getState();
-    const lastMover = st.currentNode.move?.player ?? null;
-    const shouldUndoTwice = !!st.isAiPlaying && !!st.aiColor && lastMover === st.aiColor && st.currentPlayer !== st.aiColor;
-    navigateBack();
-    if (shouldUndoTwice) navigateBack();
+    const steps = getPlayerUndoSteps(useGameStore.getState());
+    if (steps === 0) {
+      if (useGameStore.getState().currentNode.parent) toast(NOTHING_TO_TAKE_BACK_MESSAGE, 'info');
+      return;
+    }
+    for (let i = 0; i < steps; i++) navigateBack();
   };
 
   const handleResign = () => {
     const st = useGameStore.getState();
     // A game that already has its result is over; offering to resign again
     // proposed the other side's resignation and overwrote the record.
-    const recorded = st.currentNode.endState;
+    // The root's RE counts too: resigning a line of a loaded record, or a
+    // step back after resigning, wrote B+R over the result the game had.
+    const recorded = st.currentNode.endState || readRecordedResult(st.rootNode.properties?.RE?.[0]);
     if (recorded) {
       toast(`This game is already over (${recorded}).`, 'info');
       return;

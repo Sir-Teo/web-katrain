@@ -9,6 +9,7 @@ import { shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 import { copyTextToClipboard } from '../utils/clipboard';
 import type { MoveTreeCommand } from '../utils/moveTreeCommands';
+import { NOTHING_TO_TAKE_BACK_MESSAGE, getPlayerUndoSteps } from '../utils/playerUndo';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
@@ -504,11 +505,9 @@ export function useKeyboardShortcuts({
         if (matches('nav-back-10')) jumpBack(10);
         else {
           if (mode === 'play') {
-            const st = useGameStore.getState();
-            const lastMover = st.currentNode.move?.player ?? null;
-            const shouldUndoTwice = !!st.isAiPlaying && !!st.aiColor && lastMover === st.aiColor && st.currentPlayer !== st.aiColor;
-            navigateBack();
-            if (shouldUndoTwice) navigateBack();
+            const steps = getPlayerUndoSteps(useGameStore.getState());
+            if (steps === 0 && useGameStore.getState().currentNode.parent) toast(NOTHING_TO_TAKE_BACK_MESSAGE, 'info');
+            for (let i = 0; i < steps; i++) navigateBack();
           } else {
             navigateBack();
           }

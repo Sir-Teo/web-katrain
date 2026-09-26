@@ -15,7 +15,7 @@ describe('resigning against the engine', () => {
   });
 
   it('does not offer to resign a game that already has its result', () => {
-    expect(handler).toMatch(/const recorded = st\.currentNode\.endState;\s*if \(recorded\) \{/);
+    expect(handler).toMatch(/const recorded = st\.currentNode\.endState \|\| readRecordedResult\(st\.rootNode\.properties\?\.RE\?\.\[0\]\);\s*if \(recorded\) \{/);
   });
 });
 
