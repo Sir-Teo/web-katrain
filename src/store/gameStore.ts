@@ -16,7 +16,7 @@ import { decodeKayaKa } from '../utils/kayaSgfAnalysis';
 import { publicUrl } from '../utils/publicUrl';
 import { isLegacyGameEncoding } from '../utils/gameRecordImport';
 import { isBoardThemeId } from '../utils/boardThemes';
-import { getPreferredAppLocaleId, isAppLocaleId } from '../utils/locales';
+import { isAppLocaleId } from '../utils/locales';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { makeAnalysisPositionKey, makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
 import { computeTenukiValue, opponentFollowUp, type TenukiAnalysisState } from '../utils/tenukiValue';
@@ -1437,7 +1437,11 @@ const defaultSettings: GameSettings = {
 
 const initialSettings: GameSettings = {
   ...defaultSettings,
-  appLocale: getPreferredAppLocaleId(),
+  // English until the player picks otherwise. Every string in the app is
+  // English, and this only sets <html lang>: guessed from the browser, a
+  // French system marked the whole UI French, and screen readers read it with
+  // French pronunciation (WCAG 3.1.1).
+  appLocale: 'en',
   ...(loadStoredSettings() ?? {}),
 };
 // The startup game must export and recover with the same rules it plays by.

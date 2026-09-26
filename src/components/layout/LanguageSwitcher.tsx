@@ -96,8 +96,8 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
 
   return (
     <div className={['app-language-switcher relative', className ?? ''].join(' ')} ref={containerRef} data-language-switcher="desktop">
-      {/* The trigger writes the language recorded in the saved SGF; it does not
-          translate the interface. Settings, the mobile drawer and this button's
+      {/* The trigger sets the page's language metadata; it neither translates
+          the interface nor writes anything into a saved game. Settings, the mobile drawer and this button's
           own menu all call it the document language, so the trigger's tooltip
           and accessible name say the same rather than promising a UI language. */}
       <button
@@ -107,8 +107,8 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
         onClick={() => setOpen((value) => !value)}
         title={`Document language: ${activeLocale.label}${activeLocale.label === activeLocale.nativeLabel ? '' : ` (${activeLocale.nativeLabel})`}`}
         // Starts with what the button shows, so a voice command naming the
-        // visible "SGF · EN" finds it (WCAG 2.5.3).
-        aria-label={`SGF · ${getAppLocaleShortLabel(activeLocale.value)}, document language: ${activeLocale.label}`}
+        // visible "EN" finds it (WCAG 2.5.3).
+        aria-label={`${getAppLocaleShortLabel(activeLocale.value)}, document language: ${activeLocale.label}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -117,7 +117,8 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
         data-current-locale={activeLocale.value}
       >
         <FaGlobe aria-hidden="true" size={13} />
-        <span>SGF · {getAppLocaleShortLabel(activeLocale.value)}</span>
+        {/* Not "SGF · …": nothing here is written into a saved game. */}
+        <span>{getAppLocaleShortLabel(activeLocale.value)}</span>
         <FaChevronDown aria-hidden="true" size={9} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
       </button>
 

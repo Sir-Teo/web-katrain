@@ -29,7 +29,10 @@ describe('names and ARIA that assistive tech actually reads', () => {
   });
 
   it('names buttons starting with what they show (WCAG 2.5.3)', () => {
-    expect(read('src/components/layout/LanguageSwitcher.tsx')).toContain('aria-label={`SGF · ${getAppLocaleShortLabel(activeLocale.value)}, document language:');
+    const switcher = read('src/components/layout/LanguageSwitcher.tsx');
+    expect(switcher).toContain('aria-label={`${getAppLocaleShortLabel(activeLocale.value)}, document language:');
+    // Nothing the chip sets is written into a saved game, so it does not say "SGF".
+    expect(switcher).toContain('<span>{getAppLocaleShortLabel(activeLocale.value)}</span>');
     const tenuki = read('src/components/TenukiRow.tsx');
     expect(tenuki).not.toContain('aria-label="Ask what playing elsewhere would cost"');
     expect(tenuki).toContain('aria-describedby={tenukiDescriptionId}');
@@ -78,5 +81,14 @@ describe('mobile landmarks', () => {
 
   it('does not add a second <main> in the phone home dialog', () => {
     expect(read('src/components/MobileHome.tsx')).not.toMatch(/^\s*<main\b/m);
+  });
+});
+
+describe('document language default', () => {
+  it('starts in English rather than guessing from the browser', () => {
+    // The UI is English throughout; a French browser marked it lang="fr".
+    const store = read('src/store/gameStore.ts');
+    expect(store).toMatch(/const initialSettings: GameSettings = \{\s*\.\.\.defaultSettings,[\s\S]{0,400}appLocale: 'en',/);
+    expect(store).not.toContain('appLocale: getPreferredAppLocaleId()');
   });
 });
