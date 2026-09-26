@@ -32,7 +32,8 @@ describe('score and win-rate graph', () => {
 
   it('draws and reads each series only where it has values', () => {
     expect(source).toContain('const showScoreSeries = showScore && hasScoreSeries;');
-    expect(source).toContain("showWinrate && hoverHasWin ? `${(50 + hoverWin).toFixed(1)}%` : ''");
+    expect(source).toContain("showWinrate && hoverHasWin ? `${(50 + rawHoverWin).toFixed(1)}%` : ''");
+    expect(source).toContain("showScore && hoverHasScore ? formatAnalysisScoreLead(rawHoverScore) : ''");
     expect(source).toContain('{showScoreSeries && hasGraphData && (');
     expect(source).toContain('{showWinrateSeries && hasGraphData && (');
   });
