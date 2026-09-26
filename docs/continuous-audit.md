@@ -127,6 +127,27 @@ disagreement; the two app-side bugs it surfaced are listed below.
 | Data, language and gamepad | The Pro Game Library never showed a result or rank (its header reader missed properties that follow a value directly); a non-English browser marked the English UI as that language for screen readers, and the chip claimed to set the SGF's language; a second connected gamepad took input over from the one in use. |
 | UI | Theme previews (Hikaru's square SVG, Bamboo's missing lines), a repeated AI-strength sentence, tooltips off-screen on phones, filled "unselected" library boxes, library names squeezed by hover actions, menu header gap, start-rail wrapping and reserve, lesson/quiz board size on tall phones, kifu stones in the wrong colour, large-tree centring, stale setup labels, phone move-list columns, OGS progress counter. |
 
+## Follow-up pass (2026-09-26, `claude/bug-fixes-ui-polish-hpws9z`)
+
+Found by reproducing in the browser (dev server and production build) and by
+parallel read-only audits; each fix has a regression test that fails before
+it (the Settings rows, the coordinate highlight and the start rail were
+checked in the browser).
+
+| Area | Problem and resulting behavior |
+| --- | --- |
+| AI games | A second Pass or a board click on the AI's turn was recorded as the AI's move (two passes ended the game on a pass it never chose); now refused, and a stalled AI is woken. Undo when the AI's reply was move 1 stalled the game at the root; it now declines. Resigning wrote over a recorded result. |
+| Clock | Kept counting after a resignation or two passes and ran finished games out of time; ticked 14 times a second while paused. |
+| SGF load | `HA[1]`, or handicap stones in the first child node, placed phantom stones and dropped the whole game. An empty `CA[]` refused to open. The app's own share link failed on drop and from the share sheet. The Library move counter missed `B [ee]` and `Black[dd]`. |
+| Library and settings | A localStorage copy left after an IndexedDB outage came back after a later read failure, restoring deleted games and reverting edits. A corrupt stored setting crashed the desktop UI. Duplicate ids in a backup lost records. Names sort by number; names never split an emoji. |
+| Report and graph | The tooltip showed smoothed, not per-move, values; an unreached phase plotted another phase's move; the result guess rounded halves toward Black; `-0.0`, `-0.00pp` and `#?` chips; the played-move readout missed "Best"; 99,950 visits read "100.0k". |
+| Study | Tsumego with set-up in the second node were unsolvable; games branching at move 1 and handicap games were posed as problems; goproblems' `C[RIGHT]` was not read; the punish quiz's answer showed in the side panels; the drill passed guesses worse than the played move; Score quiz re-counted re-guessed positions. |
+| UI | The offline/update card covered the desktop start rail (its offset summed two 56px bars under a 50px navbar). Phone Review status wrapped in body type. Landscape home and menu grids had stray borders and ghost cells. Settings rows squeezed labels, tabs opened mid-scroll, Teach Mode bands were unlabeled. The cursor coordinate highlight was ~1.2:1 in dark mode and overflowed the board. "Recent" listed unopened bundled games dated today. |
+| Efficiency | Every analysis update re-serialized the whole game to test for unsaved changes (3-4 ms and 570 KB of garbage per update on an analysed 231-move game); the phone move list re-centred on every update. Production main-thread script during live analysis measured about 4%. |
+
+Left as is: byo-yomi periods refresh when stepping back and forward (KaTrain
+parity); New Game with handicap 1 still places one stone (saved explicitly).
+
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
