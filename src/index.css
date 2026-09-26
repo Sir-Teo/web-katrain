@@ -4146,6 +4146,12 @@
       border-left: 1px solid var(--ui-border);
     }
 
+    /* A lone last action takes the whole row, so the grid's rules run edge to
+       edge instead of stopping at its first cell. */
+    .mobile-home-actions--primary > button:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+
     .mobile-home-recent {
       grid-area: recent;
       margin-top: 0;
@@ -4175,7 +4181,10 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .mobile-home-actions--primary > button {
+    /* :nth-child(n) matches the two-column rule's :nth-child(even) in
+       specificity; a bare `> button` lost to it and left a stray left border
+       on the fourth action, which sits in the first column here. */
+    .mobile-home-actions--primary > button:nth-child(n) {
       border-left: 0;
     }
 
@@ -4185,6 +4194,14 @@
 
     .mobile-home-actions--primary > button:not(:nth-child(3n + 1)) {
       border-left: 1px solid var(--ui-border);
+    }
+
+    .mobile-home-actions--primary > button:last-child:nth-child(odd) {
+      grid-column: auto;
+    }
+
+    .mobile-home-actions--primary > button:last-child:nth-child(3n + 1) {
+      grid-column: 1 / -1;
     }
   }
 

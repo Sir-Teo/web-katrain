@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MobileHome } from '../src/components/MobileHome';
@@ -84,6 +85,17 @@ describe('MobileHome', () => {
     expect(html).toContain('mobile-home-actions--primary');
     expect(html).toContain('mobile-home-actions--secondary');
     expect(html.indexOf('Teaching Game')).toBeLessThan(html.indexOf('Save copy to library'));
+  });
+
+  it('keeps the three-column landscape grid free of the two-column border rule', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    // The two-column rule is `> button:nth-child(even)`; the three-column reset
+    // must match its specificity or the fourth action keeps a left border in
+    // the first column.
+    expect(css).toMatch(/\.mobile-home-actions--primary > button:nth-child\(even\) \{\s*border-left: 1px/);
+    expect(css).toMatch(/\.mobile-home-actions--primary > button:nth-child\(n\) \{\s*border-left: 0;/);
+    expect(css).not.toMatch(/\.mobile-home-actions--primary > button \{\s*border-left: 0;/);
+    expect(css).toMatch(/\.mobile-home-actions--primary > button:last-child:nth-child\(3n \+ 1\) \{\s*grid-column: 1 \/ -1;/);
   });
 
   it('makes the scan action discoverable as camera or image import', () => {
