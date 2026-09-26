@@ -280,6 +280,9 @@ function computePointsLost(args: { currentNode: GameNode }): number | null {
 const UNREADABLE_SHARE_LINK_MESSAGE =
   'Could not open this share link: it is incomplete, damaged or too large. Ask for the SGF file instead.';
 
+/** How often, at most, a streaming tree change re-checks for unsaved changes. */
+const DIRTY_CHECK_INTERVAL_MS = 1500;
+
 export const Layout: React.FC = () => {
   const {
     startNewGame,
@@ -1033,8 +1036,20 @@ export const Layout: React.FC = () => {
     [sgfExportOptions]
   );
 
+  // Whether the game differs from its last saved form. Kept in state rather
+  // than read during render: the read serializes the whole tree, and analysis
+  // bumps treeVersion twice a second, so every progress update rebuilt the SGF
+  // -- 3-4 ms and a 570 KB string of garbage per update on an analysed
+  // 231-move game, several times that on a phone. Refreshed at once after an
+  // idle spell (a move shows "Unsaved" immediately) and then at most every
+  // DIRTY_CHECK_INTERVAL_MS while updates stream, with a trailing check.
+  const [currentGameDirty, setCurrentGameDirty] = useState(false);
+  const currentGameDirtyRef = useRef(currentGameDirty);
+  currentGameDirtyRef.current = currentGameDirty;
+
   const markCurrentGameClean = useCallback((sgf?: string) => {
     cleanGameSgfRef.current = sgf ?? generateCurrentSgf();
+    setCurrentGameDirty(cleanGameSgfRef.current !== generateCurrentSgf());
   }, [generateCurrentSgf]);
 
   const markCurrentGameCleanAndClearAutoSave = useCallback((sgf?: string) => {
@@ -1095,6 +1110,24 @@ export const Layout: React.FC = () => {
       return false;
     }
   }, [generateCurrentSgf]);
+
+  const lastDirtyCheckRef = useRef(0);
+  useEffect(() => {
+    const check = () => {
+      lastDirtyCheckRef.current = Date.now();
+      setCurrentGameDirty(hasUnsavedChanges());
+    };
+    // A clean game is checked every time: turning dirty is the change the
+    // player waits to see. Only a game already dirty -- one whose analysis
+    // is streaming in -- waits its turn.
+    const wait = DIRTY_CHECK_INTERVAL_MS - (Date.now() - lastDirtyCheckRef.current);
+    if (wait <= 0 || !currentGameDirtyRef.current) {
+      check();
+      return;
+    }
+    const timer = window.setTimeout(check, wait);
+    return () => window.clearTimeout(timer);
+  }, [hasUnsavedChanges, treeVersion]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1224,20 +1257,25 @@ export const Layout: React.FC = () => {
     setAutoSaveRecoveryChecked(true);
   }, [generateCurrentSgf]);
 
+  // Whether there is anything to write is decided when the write is due, not
+  // on every tree change: asking serializes the tree, and during analysis the
+  // tree changes twice a second.
   useEffect(() => {
     if (!autoSaveRecoveryChecked || autoSaveRecovery) return;
-    if (!hasUnsavedChanges()) {
-      clearAutoSavedGame();
-      setAutoSaveStatus(null);
-      autoSaveTooLargeToastShownRef.current = false;
-      autoSaveFailedToastShownRef.current = false;
-      return;
+    if (currentGameDirtyRef.current) {
+      setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
     }
-    setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
     let written = false;
     const writeNow = () => {
       if (written) return;
       written = true;
+      if (!hasUnsavedChanges()) {
+        clearAutoSavedGame();
+        setAutoSaveStatus(null);
+        autoSaveTooLargeToastShownRef.current = false;
+        autoSaveFailedToastShownRef.current = false;
+        return;
+      }
       const savedAt = Date.now();
       const result = writeAutoSavedGame(generateCurrentSgf(), undefined, savedAt);
       if (result === 'saved') {
@@ -3678,7 +3716,6 @@ export const Layout: React.FC = () => {
       branchNext: () => switchBranch(1),
     },
   });
-  const currentGameDirty = hasUnsavedChanges();
 
   /**
    * Name the tab after the game in it. Several of these are usually open at

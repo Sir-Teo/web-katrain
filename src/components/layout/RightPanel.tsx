@@ -370,13 +370,17 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   });
   const currentTreeListItemRef = React.useRef<HTMLButtonElement>(null);
 
+  // Keyed on the line's length, not treeVersion: analysis bumps that twice a
+  // second, so the list re-centred on the current move while the player was
+  // scrolling it, and forced a layout each time.
+  const treeListLength = treeListNodes.length;
   React.useEffect(() => {
     if (!isMobile || activeMobileTab !== 'tree' || treeView !== 'list') return;
     const frame = window.requestAnimationFrame(() => {
       currentTreeListItemRef.current?.scrollIntoView({ block: 'center' });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activeMobileTab, currentNode.id, isMobile, treeVersion, treeView]);
+  }, [activeMobileTab, currentNode.id, isMobile, treeListLength, treeView]);
 
   React.useEffect(() => {
     writeLocalStorage('web-katrain:tree_view:v1', treeView);
