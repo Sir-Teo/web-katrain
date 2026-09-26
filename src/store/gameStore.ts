@@ -527,10 +527,36 @@ export function normalizeStoredSettings(
       ['analysisPolicyMetric', oneOf('policy', 'delta_score', 'delta_winrate')],
       ['analysisSwingCompare', oneOf('previous', 'best')],
       ['katagoOwnershipMode', oneOf('root', 'tree')],
+      ['humanSlBotStyle', oneOf('imitate', 'search')],
+      ['analysisPolicySource', oneOf('engine', 'human')],
+      ['aiStrategy', oneOf(
+        'default', 'human', 'handicap', 'antimirror', 'rank', 'scoreloss', 'policy', 'weighted',
+        'pick', 'local', 'tenuki', 'territory', 'influence', 'jigo', 'simple', 'settle',
+      )],
+      ['teachNumUndoPrompts', (value) =>
+        Array.isArray(value) && value.every((item) => typeof item === 'number' && Number.isFinite(item))],
     ];
     const fields = parsed as Record<string, unknown>;
     for (const [key, isValid] of checks) {
       if (key in fields && !isValid(fields[key])) delete fields[key];
+    }
+
+    // Whatever is left must at least have its default's type. A stored
+    // `humanSlProfile: null` reached describeHumanProfile, whose
+    // `profile.startsWith` threw while the desktop notes panel rendered -- the
+    // whole UI failed to start on one corrupt field.
+    const defaults = defaultSettings as unknown as Record<string, unknown>;
+    for (const key of Object.keys(fields)) {
+      if (!(key in defaults)) continue;
+      const expected = defaults[key];
+      const value = fields[key];
+      if (Array.isArray(expected)) {
+        if (!Array.isArray(value)) delete fields[key];
+      } else if (typeof expected === 'number') {
+        if (typeof value !== 'number' || !Number.isFinite(value)) delete fields[key];
+      } else if (typeof expected === 'string' || typeof expected === 'boolean') {
+        if (typeof value !== typeof expected) delete fields[key];
+      }
     }
 
     return parsed as Partial<GameSettings>;

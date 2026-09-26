@@ -30,4 +30,18 @@ describe('the old 500-visit default', () => {
     expect(settings?.katagoVisits).toBe(500);
     expect(settings && 'settingsRevision' in settings).toBe(false);
   });
+
+  it('drops stored values of the wrong type instead of crashing the UI on them', () => {
+    const settings = normalizeStoredSettings({
+      humanSlProfile: null,
+      humanSlBotStyle: 7,
+      aiStrategy: 'nope',
+      analysisPolicySource: 3,
+      teachNumUndoPrompts: 'abc',
+      showCoordinates: 'yes',
+      katagoVisits: 800,
+    }, null);
+    expect(settings).toEqual({ katagoVisits: 800 });
+  });
 });
+
