@@ -968,19 +968,19 @@
       align-items: center;
     }
 
-    [data-menu-action-grid] > button:nth-child(odd) {
-      border-right: 1px solid var(--ui-border);
+    /* Grid lines are the 1px gaps over a border-coloured backdrop, not borders
+       counted per child. The counted rules drifted as groups gained items: the
+       full-width "Copy position as text" still took the odd child's right
+       border, a second line just inside the edge, and Study & Practice's
+       seventh item sat beside an empty bordered cell. A lone last action now
+       spans the rest of its row, whatever the count. */
+    [data-menu-action-grid] {
+      gap: 1px;
+      background: var(--ui-border) !important;
     }
 
-    [data-menu-action-grid] > button:nth-child(n + 3) {
-      border-top: 1px solid var(--ui-border);
-    }
-
-    /* A final unpaired action should read as a deliberate full-width row,
-       rather than leaving a bordered ghost cell beside it. */
-    [data-menu-action-grid='game'] > button:last-child:nth-child(7) {
+    [data-menu-action-grid] > button:last-child:nth-child(odd) {
       grid-column: 1 / -1;
-      border-right: 0;
     }
 
     .settings-modal button,
@@ -4315,6 +4315,9 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    /* "0:30 ×5" is one reading; squeezed, it broke to "0:30" over "×5". */
+    white-space: nowrap;
+    flex: none;
   }
 
   /* Below this the clock's own 44px pause target no longer fits the phone top
@@ -5402,43 +5405,24 @@
       grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
 
-    [data-menu-action-grid] > button:nth-child(odd) {
-      border-right: 0;
-    }
-
-    [data-menu-action-grid] > button:nth-child(n + 3) {
-      border-top: 0;
-    }
-
-    [data-menu-action-grid] > button:not(:nth-child(3n)) {
-      border-right: 1px solid var(--ui-border);
-    }
-
-    [data-menu-action-grid] > button:nth-child(n + 4) {
-      border-top: 1px solid var(--ui-border);
-    }
-
-    /* Three columns suit the seven game actions and six study actions, but
-       create empty cells in the two-action Edit and four-action Settings
-       groups. Keep those naturally balanced as two equal columns. */
+    /* Three columns suit the game and study groups; Edit and Settings stay
+       two equal columns. In three columns a lone last action spans what is
+       left of its row: all of it after a full row, two cells after one. */
     [data-menu-action-grid='edit'],
     [data-menu-action-grid='settings'] {
       grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 
-    [data-menu-action-grid='edit'] > button,
-    [data-menu-action-grid='settings'] > button {
-      border-top: 0;
-      border-right: 0;
+    [data-menu-action-grid]:not([data-menu-action-grid='edit']):not([data-menu-action-grid='settings']) > button:last-child {
+      grid-column: auto;
     }
 
-    [data-menu-action-grid='edit'] > button:nth-child(odd),
-    [data-menu-action-grid='settings'] > button:nth-child(odd) {
-      border-right: 1px solid var(--ui-border);
+    [data-menu-action-grid]:not([data-menu-action-grid='edit']):not([data-menu-action-grid='settings']) > button:last-child:nth-child(3n + 1) {
+      grid-column: 1 / -1;
     }
 
-    [data-menu-action-grid='settings'] > button:nth-child(n + 3) {
-      border-top: 1px solid var(--ui-border);
+    [data-menu-action-grid]:not([data-menu-action-grid='edit']):not([data-menu-action-grid='settings']) > button:last-child:nth-child(3n + 2) {
+      grid-column: span 2;
     }
 
     [data-mobile-tools-action-grid='true'] {

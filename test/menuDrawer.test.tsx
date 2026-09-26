@@ -192,8 +192,12 @@ describe('MenuDrawer', () => {
   it('balances incomplete action rows instead of rendering ghost cells', () => {
     const css = readFileSync('src/index.css', 'utf8');
 
-    expect(css).toMatch(/\[data-menu-action-grid='game'\] > button:last-child:nth-child\(7\) \{[^}]*grid-column: 1 \/ -1;/);
+    // Lines are gaps over a border-coloured backdrop, so no count of children
+    // decides where a border goes, and a lone last action spans its row.
+    expect(css).toMatch(/\[data-menu-action-grid\] \{\s*gap: 1px;\s*background: var\(--ui-border\) !important;/);
+    expect(css).toMatch(/\[data-menu-action-grid\] > button:last-child:nth-child\(odd\) \{\s*grid-column: 1 \/ -1;/);
+    expect(css).toContain("> button:last-child:nth-child(3n + 2) {\n      grid-column: span 2;");
+    expect(css).not.toMatch(/\[data-menu-action-grid\] > button:nth-child\(odd\) \{\s*border-right/);
     expect(css).toMatch(/\[data-menu-action-grid='edit'\],[\s\S]{0,120}\[data-menu-action-grid='settings'\] \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/);
-    expect(css).toMatch(/\[data-menu-action-grid='settings'\] > button:nth-child\(n \+ 3\) \{[^}]*border-top: 1px solid var\(--ui-border\);/);
   });
 });

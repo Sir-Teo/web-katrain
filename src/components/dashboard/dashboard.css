@@ -432,6 +432,9 @@
   content: 'to move'; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   color: var(--ui-accent); background: var(--ui-accent-soft); border: 1px solid color-mix(in srgb, var(--ui-accent) 35%, var(--line));
   padding: 1px 5px; border-radius: var(--r-pill); margin-left: 2px;
+  /* A squeezed strip (1280px with the Library open) broke "to move" over two
+     lines inside its pill. */
+  white-space: nowrap; flex: none;
 }
 .wk-dashboard .gs-player .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; white-space: nowrap; }
 .wk-dashboard .gs-player .rk { color: var(--faint); font-family: var(--mono); font-size: 11px; }
