@@ -311,6 +311,57 @@ export const formatLibraryTimestamp = (updatedAt: number): string => {
   });
 };
 
+/**
+ * The games a "Recent" list should offer. The bundled Famous Games are seeded
+ * with the moment of the first visit, so by `updatedAt` alone a new player's
+ * "Recent" list was pro games they never opened, each stamped with today.
+ * Seeded games still unchanged since seeding are left out; when nothing else
+ * remains, they come back as `featured`, to be labelled and dated as what they
+ * are rather than as the player's history.
+ */
+export type RecentLibraryFiles = { kind: 'recent' | 'featured'; files: LibraryFile[] };
+
+export const selectRecentLibraryFiles = (
+  items: LibraryItem[],
+  limit = 6,
+  /** A seeded game the player has opened counts as theirs. */
+  wasOpened: (id: string) => boolean = () => false
+): RecentLibraryFiles => {
+  const preloadedFolderIds = new Set(
+    items
+      .filter((item) => item.type === 'folder' && item.parentId === null && item.name === PRELOADED_FOLDER_NAME)
+      .map((item) => item.id)
+  );
+  const preloadedNames = new Set(PRELOADED_GAMES.map((game) => game.name));
+  const files = items
+    .filter((item): item is LibraryFile => item.type === 'file')
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const isUntouchedSeed = (file: LibraryFile) =>
+    file.parentId !== null
+    && preloadedFolderIds.has(file.parentId)
+    && preloadedNames.has(file.name)
+    && file.updatedAt === file.createdAt
+    && !file.favorite
+    && !(file.tags && file.tags.length > 0)
+    && !wasOpened(file.id);
+  const touched = files.filter((file) => !isUntouchedSeed(file));
+  if (touched.length > 0) return { kind: 'recent', files: touched.slice(0, limit) };
+  return { kind: 'featured', files: files.slice(0, limit) };
+};
+
+/** The detail line under a Recent or featured game: moves, size, and a date. */
+export const formatRecentLibraryFileDetail = (file: LibraryFile, kind: 'recent' | 'featured'): string => {
+  const parts = [`${file.moveCount} moves`];
+  if (kind === 'featured') {
+    // Bundled names already end in "(2005-12-10)"; don't say it twice.
+    if (file.metadata.date && !file.name.includes(file.metadata.date)) parts.push(file.metadata.date);
+    if (file.metadata.result) parts.push(file.metadata.result);
+  } else {
+    parts.push(formatLibrarySize(file.size), formatLibraryTimestamp(file.updatedAt));
+  }
+  return parts.filter(Boolean).join(' · ');
+};
+
 export const getLibraryFileMoveSortCount = (item: LibraryFile): number =>
   item.moveCount > 0 ? item.moveCount : item.metadata.setupStoneCount ?? 0;
 

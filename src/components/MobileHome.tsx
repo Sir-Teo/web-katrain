@@ -15,7 +15,7 @@ import {
   FaTimes,
   FaThLarge,
 } from 'react-icons/fa';
-import { formatLibrarySize, formatLibraryTimestamp, type LibraryFile } from '../utils/library';
+import { formatRecentLibraryFileDetail, type LibraryFile } from '../utils/library';
 import { formatGamepadLabel } from '../utils/gamepadLabel';
 import { getQuickNewGameWarning } from '../utils/quickNewGame';
 import type { BoardSize } from '../types';
@@ -34,6 +34,8 @@ interface MobileHomeProps {
   gamepadName?: string | null;
   gamepadCount?: number;
   recentItems: LibraryFile[];
+  /** 'featured' when the list is the bundled games, not the player's own. */
+  recentKind?: 'recent' | 'featured';
   onClose: () => void;
   onGamepadNavigationDisable?: () => void;
   quickNewGameBoardSize?: BoardSize;
@@ -107,6 +109,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   gamepadName,
   gamepadCount = 0,
   recentItems,
+  recentKind = 'recent',
   onClose,
   onGamepadNavigationDisable,
   quickNewGameBoardSize = 19,
@@ -329,7 +332,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
           {recentItems.length > 0 && (
             <section className="mobile-home-recent mt-4">
-              <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide ui-text-faint">Recent</div>
+              <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide ui-text-faint">{recentKind === 'featured' ? 'Famous games' : 'Recent'}</div>
               <div className="space-y-2">
                 {recentItems.slice(0, 3).map((item) => (
                   <button
@@ -345,7 +348,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                         covers the rest, and a pointer that can hover. */}
                     <div className="line-clamp-2 text-sm font-semibold text-[var(--ui-text)]" title={item.name}>{item.name}</div>
                     <div className="mt-1 truncate text-xs ui-text-faint">
-                      {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
+                      {formatRecentLibraryFileDetail(item, recentKind)}
                     </div>
                   </button>
                 ))}

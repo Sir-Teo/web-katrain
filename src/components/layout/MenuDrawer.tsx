@@ -27,7 +27,7 @@ import {
 import { APP_BUILD_LABEL, APP_COMMIT_URL } from '../../utils/appInfo';
 import { useEscapeToClose } from '../../hooks/useEscapeToClose';
 import { useShortcutLabels } from '../../hooks/useShortcutLabels';
-import { formatLibrarySize, formatLibraryTimestamp, type LibraryFile } from '../../utils/library';
+import { formatRecentLibraryFileDetail, type LibraryFile } from '../../utils/library';
 import { getQuickNewGameWarning } from '../../utils/quickNewGame';
 import { APP_LOCALE_OPTIONS, getAppLocaleOption } from '../../utils/locales';
 import type { AppLocaleId, BoardSize } from '../../types';
@@ -70,6 +70,8 @@ interface MenuDrawerProps {
   quickNewGameBoardSize?: BoardSize;
   quickNewGameHandicap?: number;
   recentItems?: LibraryFile[];
+  /** 'featured' when the list is the bundled games, not the player's own. */
+  recentKind?: 'recent' | 'featured';
   onOpenRecent?: (item: LibraryFile) => void;
 }
 
@@ -106,6 +108,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
   quickNewGameBoardSize = 19,
   quickNewGameHandicap = 0,
   recentItems = [],
+  recentKind = 'recent',
   onOpenRecent,
 }) => {
   const shortcutLabels = useShortcutLabels(MENU_DRAWER_SHORTCUT_IDS);
@@ -609,7 +612,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 
         {recentItems.length > 0 && onOpenRecent && (
           <div className="mt-2 border-t border-[var(--ui-border)] pt-2 space-y-2" data-menu-recent="true">
-            <div className="text-xs ui-text-faint px-3 uppercase tracking-wide">Recent</div>
+            <div className="text-xs ui-text-faint px-3 uppercase tracking-wide">{recentKind === 'featured' ? 'Famous games' : 'Recent'}</div>
             <div className="space-y-1">
               {recentItems.slice(0, 3).map((item) => (
                 <button
@@ -623,7 +626,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 >
                   <div className="truncate">{item.name}</div>
                   <div className="text-[0.6875rem] ui-text-faint">
-                    {item.moveCount} moves · {formatLibrarySize(item.size)} · {formatLibraryTimestamp(item.updatedAt)}
+                    {formatRecentLibraryFileDetail(item, recentKind)}
                   </div>
                 </button>
               ))}

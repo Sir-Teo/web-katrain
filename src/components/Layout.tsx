@@ -29,6 +29,8 @@ import {
   type LibraryFile,
   type LibraryFolderOption,
   nextUntitledGameName,
+  selectRecentLibraryFiles,
+  type RecentLibraryFiles,
 } from '../utils/library';
 import { loadSgfOrOgs } from '../utils/ogs';
 import type { BoardSize, CandidateMove, EditTool, GameNode, Player } from '../types';
@@ -584,7 +586,7 @@ export const Layout: React.FC = () => {
     return Number.isFinite(parsed) ? parsed : 360;
   });
   const [libraryVersion, setLibraryVersion] = useState(0);
-  const [recentLibraryItems, setRecentLibraryItems] = useState<LibraryFile[]>([]);
+  const [recentLibraryItems, setRecentLibraryItems] = useState<RecentLibraryFiles>({ kind: 'recent', files: [] });
   const [loadedLibraryFileId, setLoadedLibraryFileId] = useState<string | null>(null);
   const [loadedLibraryFileName, setLoadedLibraryFileName] = useState<string | null>(null);
   const [loadedExternalFile, setLoadedExternalFile] = useState<LoadedExternalFile | null>(null);
@@ -2557,14 +2559,11 @@ export const Layout: React.FC = () => {
       .then((libraryItems) => {
         if (cancelled) return;
         setRecentLibraryItems(
-          libraryItems
-            .filter((item): item is LibraryFile => item.type === 'file')
-            .sort((a, b) => b.updatedAt - a.updatedAt)
-            .slice(0, 6)
+          selectRecentLibraryFiles(libraryItems, 6, (id) => readLibraryPosition(id) !== null)
         );
       })
       .catch(() => {
-        if (!cancelled) setRecentLibraryItems([]);
+        if (!cancelled) setRecentLibraryItems({ kind: 'recent', files: [] });
       });
     return () => {
       cancelled = true;
@@ -4058,7 +4057,8 @@ export const Layout: React.FC = () => {
         onLocaleChange={(appLocale) => updateSettings({ appLocale })}
         quickNewGameBoardSize={settings.defaultBoardSize}
           quickNewGameHandicap={settings.defaultHandicap}
-        recentItems={recentLibraryItems}
+        recentItems={recentLibraryItems.files}
+        recentKind={recentLibraryItems.kind}
         onOpenRecent={handleOpenRecent}
       />
 
@@ -4073,7 +4073,8 @@ export const Layout: React.FC = () => {
           engineMeta={engineMeta}
           gamepadName={gamepadStatus.connected ? gamepadStatus.name : null}
           gamepadCount={gamepadStatus.count}
-          recentItems={recentLibraryItems}
+          recentItems={recentLibraryItems.files}
+        recentKind={recentLibraryItems.kind}
           onClose={closeMobileHome}
           onGamepadNavigationDisable={handleDisableGamepadNavigation}
           quickNewGameBoardSize={settings.defaultBoardSize}
