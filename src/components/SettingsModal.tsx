@@ -258,6 +258,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const [pendingReveal, setPendingReveal] = React.useState<string | null>(focusModel ? 'settings-katago-model-url' : null);
     const revealTimerRef = React.useRef<number | null>(null);
 
+    // The four tabs share one scroller. Left where the last tab was, a switch
+    // opened the next tab mid-way (or at its foot) with no heading in view.
+    // Layout effect, so the reset lands before a search result's reveal runs.
+    const contentRef = React.useRef<HTMLDivElement>(null);
+    React.useLayoutEffect(() => {
+        if (contentRef.current) contentRef.current.scrollTop = 0;
+    }, [activeTab]);
+
     const goToSetting = (entry: SettingsSearchEntry) => {
         if (ADVANCED_ENGINE_SETTING_IDS.has(entry.id)) {
             setAdvancedEngineOpen(true);
@@ -696,7 +704,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                     </div>  
                 
                     {/* Tab Content */}  
-                    <div className="settings-modal-content min-h-0 flex-1 overflow-y-auto space-y-6">
+                    <div ref={contentRef} className="settings-modal-content min-h-0 flex-1 overflow-y-auto space-y-6">
                         {activeTab === 'general' && (  
                             <div
                                 id="panel-general"
@@ -819,7 +827,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                             onClick={() => updateSettings({ boardTheme: theme.value })}
                                                             onKeyDown={(event) => handleBoardThemeChoiceKeyDown(event, theme.value)}
                                                             className={[
-                                                                'group rounded-lg border p-2 text-left transition-colors',
+                                                                'group flex flex-col justify-start rounded-lg border p-2 text-left transition-colors',
                                                                 selected
                                                                     ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
                                                                     : 'border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]',
@@ -1370,7 +1378,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div className={rowClass}>
-                                                    <label htmlFor="settings-analysis-extra-precision" className={labelClass}>Extra Precision</label>
+                                                    <div>
+                                                        <label htmlFor="settings-analysis-extra-precision" className={labelClass}>Extra Precision</label>
+                                                        <p className={subtextClass}>Show points lost to two decimals instead of one.</p>
+                                                    </div>
                                                     <input
                                                         id="settings-analysis-extra-precision"
                                                         type="checkbox"
@@ -1378,11 +1389,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                         onChange={(e) => updateSettings({ trainerExtraPrecision: e.target.checked })}
                                                         className="toggle"
                                                     />
-                                                    <p className={subtextClass}>Show points lost to two decimals instead of one.</p>
                                                 </div>
 
                                                 <div className={rowClass}>
-                                                    <label htmlFor="settings-analysis-show-ai-dots" className={labelClass}>Show AI Dots</label>
+                                                    <div>
+                                                        <label htmlFor="settings-analysis-show-ai-dots" className={labelClass}>Show AI Dots</label>
+                                                        <p className={subtextClass}>Draw the quality dot on moves the AI played, not only on yours.</p>
+                                                    </div>
                                                     <input
                                                         id="settings-analysis-show-ai-dots"
                                                         type="checkbox"
@@ -1390,7 +1403,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                         onChange={(e) => updateSettings({ trainerEvalShowAi: e.target.checked })}
                                                         className="toggle"
                                                     />
-                                                    <p className={subtextClass}>Draw the quality dot on moves the AI played, not only on yours.</p>
                                                 </div>
 
                                                 <div className={rowClass}>
@@ -1423,7 +1435,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                             </div>
 
                                             <div className={rowClass}>
-                                                <label htmlFor="settings-analysis-lock-ai-details" className={labelClass}>Lock AI details (Play mode)</label>
+                                                <div>
+                                                    <label htmlFor="settings-analysis-lock-ai-details" className={labelClass}>Lock AI details (Play mode)</label>
+                                                    <p className={subtextClass}>In Play mode, hide the engine's move-by-move detail (PV, policy, top move) so a game against the AI is played without it.</p>
+                                                </div>
                                                 <input
                                                     id="settings-analysis-lock-ai-details"
                                                     type="checkbox"
@@ -1431,7 +1446,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                     onChange={(e) => updateSettings({ trainerLockAi: e.target.checked })}
                                                     className="toggle"
                                                 />
-                                                <p className={subtextClass}>In Play mode, hide the engine's move-by-move detail (PV, policy, top move) so a game against the AI is played without it.</p>
                                             </div>
                                         </div>
                                     </div>  
