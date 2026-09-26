@@ -4,7 +4,8 @@ import { getPlayerUndoSteps } from '../src/utils/playerUndo';
 
 const withAiSpy = () => {
   const original = useGameStore.getState().makeAiMove;
-  const spy = vi.fn();
+  // Like the real one, the stand-in starts thinking at once.
+  const spy = vi.fn(() => useGameStore.setState({ isAiThinking: true }));
   useGameStore.setState({ makeAiMove: spy as unknown as typeof original });
   return { spy, restore: () => useGameStore.setState({ makeAiMove: original }) };
 };
@@ -97,5 +98,67 @@ describe('getPlayerUndoSteps', () => {
     expect(getPlayerUndoSteps(useGameStore.getState())).toBe(0);
     useGameStore.getState().playMove(3, 3);
     expect(getPlayerUndoSteps(useGameStore.getState())).toBe(1);
+  });
+});
+
+describe('the AI never waits on a move that nobody is searching for', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    useGameStore.getState().resetGame();
+  });
+
+  it('keeps the AI’s search running when Stop (Escape) stops analysis', () => {
+    vi.useFakeTimers();
+    useGameStore.getState().resetGame();
+    const { spy, restore } = withAiSpy();
+    useGameStore.setState({ isAiPlaying: true, aiColor: 'white' });
+    useGameStore.getState().playMove(3, 3);
+
+    useGameStore.getState().analyzeExtra('stop');
+    vi.advanceTimersByTime(500);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    restore();
+  });
+
+  it('starts the AI again after the analysis cache is cleared on its turn', () => {
+    vi.useFakeTimers();
+    useGameStore.getState().resetGame();
+    const { spy, restore } = withAiSpy();
+    useGameStore.setState({ isAiPlaying: true, aiColor: 'white' });
+    useGameStore.getState().playMove(3, 3);
+
+    useGameStore.getState().clearAnalysisCache();
+    vi.advanceTimersByTime(600);
+
+    expect(spy).toHaveBeenCalled();
+    restore();
+  });
+
+  it('wakes an AI left to move with nothing searching', () => {
+    vi.useFakeTimers();
+    useGameStore.getState().resetGame();
+    const { spy, restore } = withAiSpy();
+    // Stranded: the AI's turn at the end of the line, nothing scheduled.
+    useGameStore.setState({ isAiPlaying: true, aiColor: 'black', isAiThinking: false });
+    expect(spy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(2000);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    restore();
+  });
+
+  it('leaves the AI alone while the player edits the position', () => {
+    vi.useFakeTimers();
+    useGameStore.getState().resetGame();
+    const { spy, restore } = withAiSpy();
+    useGameStore.setState({ isAiPlaying: true, aiColor: 'black', isAiThinking: false, isEditMode: true });
+
+    vi.advanceTimersByTime(2000);
+
+    expect(spy).not.toHaveBeenCalled();
+    useGameStore.setState({ isEditMode: false });
+    restore();
   });
 });

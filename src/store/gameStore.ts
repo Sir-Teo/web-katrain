@@ -1501,6 +1501,8 @@ const cancelScheduledAnalysis = (): void => {
 // AI replies have their own timers and ownership. Cancellation must invalidate
 // the caller too, otherwise its rejected promise can schedule the move again.
 let aiMoveGeneration = 0;
+/** Whether the AI search in flight is a one-off request, not the opponent's reply. */
+let aiMoveWorkIsOnDemand = false;
 const scheduledAiMoveTimers = new Set<ReturnType<typeof setTimeout>>();
 
 const clearScheduledAiMoves = (): void => {
@@ -2060,7 +2062,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   stopAnalysis: () => {
-      cancelAiMoveWork();
+      // Stop is for analysis -- pondering, a review, play-to-end -- and it is
+      // what Escape does, so it runs whenever a dialog is closed that way. It
+      // still stops a one-off "AI move" the player asked for. It used to
+      // cancel the AI opponent's reply as well, with nothing to start it
+      // again: Escape on the AI's turn left the game waiting for a move that
+      // never came. The opponent is stopped by turning it off.
+      if (aiMoveWorkIsOnDemand) {
+        cancelAiMoveWork();
+        set({ isAiThinking: false });
+      }
       continuousToken++;
       cancelScheduledAnalysis();
       analysisQueue.cancelGroup('interactive');
@@ -2069,7 +2080,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // promise chain. Its token also prevents a late rejection from replacing
       // a new play-elsewhere request made after Stop.
       tenukiToken++;
-      set({ isAiThinking: false, isContinuousAnalysis: false, engineStatus: 'idle', engineError: null, tenukiAnalysis: null });
+      set({ isContinuousAnalysis: false, engineStatus: 'idle', engineError: null, tenukiAnalysis: null });
   },
 
   clearTenukiAnalysis: () => set({ tenukiAnalysis: null }),
@@ -2271,6 +2282,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           notification,
         };
       });
+      // Clearing cancels the AI's search along with everything else; on its
+      // turn it has to start again, or it never moves.
+      get().scheduleAiMove(100);
   },
 
   toggleTeachMode: () => set((state) => {
@@ -4558,6 +4572,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   scheduleAiMove: (delayMs = 0) => {
     const state = get();
     if (!state.isAiPlaying || state.currentPlayer !== state.aiColor) return;
+    aiMoveWorkIsOnDemand = false;
     scheduleAiMoveTask(() => get().makeAiMove(), delayMs);
   },
 
@@ -4580,6 +4595,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	      const nodeId = node.id;
 	      const playerAtStart = state.currentPlayer;
         cancelAiMoveWork();
+        aiMoveWorkIsOnDemand = force && !(state.isAiPlaying && state.aiColor === playerAtStart);
         const generation = aiMoveGeneration;
         const position = node.gameState;
         const revision = analysisRevision;
@@ -4706,7 +4722,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }),
         })
         .then((analysis) => {
-          if (!ownsPosition() || revision !== analysisRevision) return;
+          if (!ownsPosition()) return;
+          // Settings changed under the search (model, rules, visits): its
+          // answer is for the old ones. Dropped, it left the AI to move with
+          // nothing searching; ask again under the new ones.
+          if (revision !== analysisRevision) {
+            retryScheduled = true;
+            scheduleAiMoveTask(() => {
+              if (ownsPosition()) get().makeAiMove(force ? { force: true } : undefined);
+              else set({ isAiThinking: false });
+            }, 100, () => set({ isAiThinking: false }));
+            return;
+          }
           const engineInfo = getKataGoEngineClient().getEngineInfo();
           set({ engineBackend: engineInfo.backend, engineModelName: engineInfo.modelName, engineBackendNote: engineInfo.backendNote });
 
@@ -5409,6 +5436,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             return;
           }
           if (revision === analysisRevision) makeHeuristicMove(get());
+          else {
+            retryScheduled = true;
+            scheduleAiMoveTask(() => {
+              if (ownsPosition()) get().makeAiMove(force ? { force: true } : undefined);
+              else set({ isAiThinking: false });
+            }, 100, () => set({ isAiThinking: false }));
+          }
         })
         .finally(() => {
           if (generation === aiMoveGeneration && !retryScheduled) set({ isAiThinking: false });
@@ -6837,6 +6871,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
       boardRotation: (((state.boardRotation ?? 0) + 1) % 4) as 0 | 1 | 2 | 3,
     })),
 }));
+
+/**
+ * A watchdog for the AI opponent's turn.
+ *
+ * Every path that hands the AI the move is meant to schedule its reply, and
+ * every path that cancels its search is meant to start it again. Each one
+ * that forgot -- Escape's Stop, clearing the cache, a settings change landing
+ * mid-search, Undo to the root, Redo onto its turn -- left a game waiting on
+ * a move that never came, with nothing on screen saying why. Whatever the
+ * cause, a position that settles with the AI to move at the end of the line
+ * and nothing searching gets its search started.
+ */
+const AI_WATCHDOG_DELAY_MS = 1500;
+let aiWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
+const aiIsStranded = (state: GameStore): boolean =>
+  isAwaitingAiReply(state)
+  && !state.isAiThinking
+  && scheduledAiMoveTimers.size === 0
+  && !state.setupPositionProgress
+  && !state.isSelfplayToEnd
+  && !state.isGameAnalysisRunning
+  && !state.isEditMode
+  && !state.isInsertMode
+  && !state.mistakeDrill;
+// Re-armed on every change rather than held while pending, so a timer that
+// never fires (a discarded one) cannot switch the watchdog off.
+useGameStore.subscribe((state) => {
+  if (aiWatchdogTimer !== null) clearTimeout(aiWatchdogTimer);
+  aiWatchdogTimer = null;
+  if (!aiIsStranded(state)) return;
+  aiWatchdogTimer = setTimeout(() => {
+    aiWatchdogTimer = null;
+    const latest = useGameStore.getState();
+    if (aiIsStranded(latest)) latest.scheduleAiMove(0);
+  }, AI_WATCHDOG_DELAY_MS);
+});
 
 let notificationAutoDismissTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 // The store field is the single visible slot; this holds what is waiting behind

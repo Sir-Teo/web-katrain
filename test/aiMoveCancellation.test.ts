@@ -94,8 +94,11 @@ describe('AI request ownership and cancellation', () => {
     expect(state().isAiThinking).toBe(false);
   });
 
+  // Stop (Escape) used to cancel these too, and nothing started them again:
+  // the AI opponent never answered. Stop is for analysis; the opponent's reply
+  // goes ahead, and turning the opponent off is how to stop it.
   it.each(['move', 'existing move', 'pass', 'existing pass', 'opponent toggle'] as const)(
-    'cancels a delayed automatic reply after %s', async (action) => {
+    'keeps the opponent’s delayed reply after %s and Stop', async (action) => {
       if (action === 'existing move') { state().playMove(0, 0); state().navigateBack(); }
       if (action === 'existing pass') { state().passTurn(); state().navigateBack(); }
       if (action === 'opponent toggle') state().toggleAi('black');
@@ -106,11 +109,22 @@ describe('AI request ownership and cancellation', () => {
       expect(analyzeMock).not.toHaveBeenCalled();
       state().analyzeExtra('stop');
       await vi.advanceTimersByTimeAsync(1000);
-      expect(analyzeMock).not.toHaveBeenCalled();
-      state().makeAiMove();
       expect(analyzeMock).toHaveBeenCalledTimes(1);
+      expect(analyzeMock.mock.calls[0]![0].signal.aborted).toBe(false);
     },
   );
+
+  it('keeps the opponent’s search running through Stop, and plays its move', async () => {
+    useGameStore.setState({ isAiPlaying: true, aiColor: 'white' });
+    state().playMove(0, 0);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(analyzeMock).toHaveBeenCalledTimes(1);
+    state().analyzeExtra('stop');
+    expect(analyzeMock.mock.calls[0]![0].signal.aborted).toBe(false);
+    pending[0]!.resolve(answer);
+    await flush();
+    expect(state().moveHistory).toHaveLength(2);
+  });
 
   it.each(['clear cache', 'resign', 'disable opponent'] as const)('does not resurrect an AI request after %s', async (action) => {
     if (action === 'disable opponent') useGameStore.setState({ isAiPlaying: true, aiColor: 'black' });
