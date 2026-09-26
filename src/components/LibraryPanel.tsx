@@ -353,7 +353,8 @@ interface LibraryPanelProps {
   showCloseButtonOnDesktop?: boolean;
   isMobile?: boolean;
   getCurrentSgf: () => string;
-  onLoadSgf: (sgf: string) => boolean | Promise<boolean>;
+  /** `itemId` names the Library game, so the host can reopen it where it was left. */
+  onLoadSgf: (sgf: string, itemId?: string) => boolean | Promise<boolean>;
   onToast: (msg: string, type: 'info' | 'error' | 'success', copyText?: string, operationId?: string) => void;
   onOpenPhotoBoard?: (file: File) => void;
   onLibraryUpdated?: () => void;
@@ -1400,7 +1401,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleLoad = async (item: LibraryItem) => {
     if (!isFile(item)) return;
     try {
-      const loaded = await onLoadSgf(item.sgf);
+      const loaded = await onLoadSgf(item.sgf, item.id);
       if (!loaded) return;
       onLoadedFileChange?.(item.id, item.name);
       setCurrentFolderId(item.parentId ?? null);

@@ -10,6 +10,8 @@ import type { GameInfoValues, AiConfigValues, TimerConfigValues } from './NewGam
 import { downloadSgfFromTree, formatSgfDate, generateSgfFromTree, getImportedSgfNameFromProperties, parseSgf, type KaTrainSgfExportOptions } from '../utils/sgf';
 import { copyBoardImage, downloadBoardImage } from '../utils/boardImageExport';
 import { buildShareUrl, decodeSgfFromFragment, hasSgfFragment, MAX_SHARE_FRAGMENT_LENGTH, MAX_SHARE_URL_LENGTH } from '../utils/shareLink';
+import { readLibraryPosition, writeLibraryPosition } from '../utils/libraryPositions';
+import { getNodePath, resolveNodePath } from '../utils/pinnedVariations';
 import { pickSharedImportText, readSharedFromQuery } from '../utils/pwaOpen';
 import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
 import type { AutoSaveStatus } from '../utils/saveStatusDisplay';
@@ -2097,11 +2099,28 @@ export const Layout: React.FC = () => {
     }
   };
 
-  const handleLoadFromLibrary = async (sgfText: string): Promise<boolean> => {
+  // Remember where each Library game is left, a moment after it settles, so
+  // reopening it comes back there (see libraryPositions).
+  useEffect(() => {
+    if (!loadedLibraryFileId) return;
+    const id = loadedLibraryFileId;
+    const path = getNodePath(currentNode);
+    const timer = window.setTimeout(() => writeLibraryPosition(id, path), 400);
+    return () => window.clearTimeout(timer);
+  }, [currentNode, loadedLibraryFileId]);
+
+  const handleLoadFromLibrary = async (sgfText: string, itemId?: string): Promise<boolean> => {
     try {
       const parsed = parseSgf(sgfText);
       if (!(await prepareForGameReplacement())) return false;
       loadGame(parsed);
+      // Back to where this game was left, not move 0.
+      const savedPath = itemId ? readLibraryPosition(itemId) : null;
+      if (savedPath && savedPath.length > 0) {
+        const store = useGameStore.getState();
+        const node = resolveNodePath(store.rootNode, savedPath);
+        if (node) store.jumpToNode(node);
+      }
       markCurrentGameCleanAndClearAutoSave();
       const sizeNotice = boardSizeCoercionNotice(sgfText);
       if (sizeNotice) toast(sizeNotice, 'info');
