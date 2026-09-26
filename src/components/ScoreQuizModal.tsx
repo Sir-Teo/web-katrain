@@ -45,6 +45,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
 
   const nodeId = currentNode.id;
   const pendingReveal = useRef<object | null>(null);
+  const scoredNodeIds = useRef(new Set<string>());
   useEffect(() => () => { pendingReveal.current = null; }, [nodeId]);
   const board = currentNode.gameState.board;
   const moveNumber = currentNode.gameState.moveHistory.length;
@@ -78,11 +79,17 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
       const signedGuess = (winner === 'black' ? 1 : -1) * Math.abs(Number(margin) || 0);
       const err = Math.abs(signedGuess - lead);
       const leaderRight = Math.sign(signedGuess) === Math.sign(lead) || Math.abs(lead) < 0.5;
-      setStats((s) => ({
-        rounds: s.rounds + 1,
-        sumError: s.sumError + err,
-        leaderHits: s.leaderHits + (leaderRight ? 1 : 0),
-      }));
+      // One round per position. "Guess again" after seeing the answer is
+      // practice: counted, it padded the rounds, the leader hits and the
+      // average error with guesses made knowing the score.
+      if (!scoredNodeIds.current.has(nodeId)) {
+        scoredNodeIds.current.add(nodeId);
+        setStats((s) => ({
+          rounds: s.rounds + 1,
+          sumError: s.sumError + err,
+          leaderHits: s.leaderHits + (leaderRight ? 1 : 0),
+        }));
+      }
       setPhase('reveal');
     } catch (err) {
       if (!isCurrentRequest()) return;
