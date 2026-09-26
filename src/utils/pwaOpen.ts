@@ -1,4 +1,5 @@
 import { extractOgsGameId } from './ogs';
+import { decodeSgfFromShareUrl } from './shareLink';
 
 export interface SharedTargetData {
   title?: string;
@@ -38,6 +39,10 @@ export const readSharedFromQuery = (search: string | null | undefined): SharedTa
 export const pickSharedImportText = (shared: SharedTargetData): string | null => {
   const url = shared.url?.trim();
   if (url && extractOgsGameId(url)) return url;
+  // So does one of this app's share links, which arrives as `url` with a
+  // caption in `text`; the caption won and the import failed.
+  const sharedSgf = url ? decodeSgfFromShareUrl(url) : null;
+  if (sharedSgf) return sharedSgf;
 
   for (const candidate of [shared.text, url, shared.title]) {
     const trimmed = candidate?.trim();

@@ -28,6 +28,9 @@ export interface SgfScan {
   firstMoveIndex: number;
 }
 
+const isLetter = (ch: string): boolean => (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+const isSpace = (ch: string): boolean => ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t';
+
 export function scanSgf(sgf: string): SgfScan {
   if (!sgf) return { moveCount: 0, firstMoveIndex: -1 };
   let moveCount = 0;
@@ -69,11 +72,26 @@ export function scanSgf(sgf: string): SgfScan {
       }
       continue;
     }
-    if (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') continue;
-    // A move is a one-letter B or W; BL and WL are the clock, not a move.
-    if (atPropertyStart && (ch === 'B' || ch === 'W') && sgf[i + 1] === '[') {
-      moveCount += 1;
-      if (firstMoveIndex < 0) firstMoveIndex = nodeStart >= 0 ? nodeStart : i;
+    if (isSpace(ch)) continue;
+    // A move is a B or W property; BL and WL are the clock, not a move. Read
+    // the identifier as the parser does -- FF[3] lowercase padding dropped
+    // ("Black" is B), whitespace allowed before the value -- or the Library
+    // counted `B [ee]` and `Black[dd]` as no move at all.
+    if (atPropertyStart && isLetter(ch)) {
+      let end = i;
+      let ident = '';
+      while (end < sgf.length && isLetter(sgf[end]!)) {
+        const letter = sgf[end]!;
+        if (letter >= 'A' && letter <= 'Z') ident += letter;
+        end += 1;
+      }
+      let next = end;
+      while (next < sgf.length && isSpace(sgf[next]!)) next += 1;
+      if ((ident === 'B' || ident === 'W') && sgf[next] === '[') {
+        moveCount += 1;
+        if (firstMoveIndex < 0) firstMoveIndex = nodeStart >= 0 ? nodeStart : i;
+      }
+      i = end - 1;
     }
     atPropertyStart = false;
   }

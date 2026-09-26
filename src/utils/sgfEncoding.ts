@@ -27,7 +27,9 @@ function rootCharset(text: string): CharsetProperty | null {
         const value = text.slice(start, i)
           .replace(/\\(?:\r\n|\r|\n)/g, '')
           .replace(/\\([\s\S])/g, '$1').trim();
-        return { value, start, end: i };
+        // CA[] declares nothing; read as the label "" it made an ordinary
+        // ASCII file impossible to open.
+        if (value) return { value, start, end: i };
       }
       if (text[i] === ']') i++;
       skipSpace();

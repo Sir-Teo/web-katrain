@@ -1,4 +1,5 @@
 import { extractOgsGameId } from './ogs';
+import { decodeSgfFromShareUrl } from './shareLink';
 import { parseBoardTextDiagram } from './boardTextDiagram';
 
 export type PasteSgfSubmitResult = 'loaded' | 'cancelled' | 'failed';
@@ -22,7 +23,9 @@ export const getDirectGameImportText = (text: string | null | undefined): string
   const trimmed = text?.trim() ?? '';
   if (!trimmed) return null;
   if (trimmed.startsWith('(') || extractOgsGameId(trimmed)) return trimmed;
-  return null;
+  // The app's own share link, dropped or pasted onto the page: only the Paste
+  // dialog read it, so a drop said "Drop SGF text or an Online-Go game URL".
+  return decodeSgfFromShareUrl(trimmed);
 };
 
 export const getPasteSgfInputInfo = (text: string): PasteSgfInputInfo => {
