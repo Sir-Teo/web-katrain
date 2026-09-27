@@ -993,6 +993,21 @@ const EDIT_HISTORY_LIMIT = 50;
 let editUndoStack: EditHistoryEntry[] = [];
 let editRedoStack: EditHistoryEntry[] = [];
 let analysisRevision = 0;
+// Bumped when only the search budget changes (see SEARCH_BUDGET_SETTING_KEYS):
+// stored results stay valid, but a search in flight ran under the old budget.
+let searchBudgetRevision = 0;
+const searchSettingsRevision = (): string => `${analysisRevision}:${searchBudgetRevision}`;
+
+/**
+ * Engine settings that only change how long the engine searches, not what it
+ * searches with. Results from another budget are still results for the same
+ * model, rules and komi, so changing these keeps the tree's analysis.
+ */
+const SEARCH_BUDGET_SETTING_KEYS: ReadonlySet<keyof GameSettings> = new Set<keyof GameSettings>([
+  'katagoVisits',
+  'katagoMaxTimeMs',
+  'katagoBatchSize',
+]);
 
 const cloneMove = (move: Move | null): Move | null => (move ? { ...move } : null);
 
@@ -4154,14 +4169,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
         'humanSlBotStyle',
       ];
 
-      const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
+      const changed = (k: keyof GameSettings) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k];
+      const engineChanged = engineKeys.some(changed);
       if (!engineChanged) return { settings: nextSettings };
-      analysisRevision++;
 
       continuousToken++;
       selfplayToken++;
       gameAnalysisToken++;
       analysisQueue.cancelWhere(() => true, 'Analysis settings changed');
+
+      // A bigger (or smaller) search budget does not make the results already
+      // in the tree wrong. Wiping them threw away a whole reviewed game when
+      // someone raised visits; now they stay until a deeper search replaces
+      // them, and every pass that skips "already analyzed" nodes compares the
+      // node's visit count against the new target, so shallower ones are
+      // still searched again.
+      const budgetOnly = engineKeys.every((k) => !changed(k) || SEARCH_BUDGET_SETTING_KEYS.has(k));
+      if (budgetOnly) {
+        searchBudgetRevision++;
+        return {
+          settings: nextSettings,
+          isContinuousAnalysis: false,
+          isSelfplayToEnd: false,
+          setupPositionProgress: null,
+          isGameAnalysisRunning: false,
+          gameAnalysisType: null,
+        };
+      }
+
+      analysisRevision++;
       analysisQueue.clearCache();
 
       clearAnalysisInSubtree(state.rootNode);
@@ -4598,7 +4634,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         aiMoveWorkIsOnDemand = force && !(state.isAiPlaying && state.aiColor === playerAtStart);
         const generation = aiMoveGeneration;
         const position = node.gameState;
-        const revision = analysisRevision;
+        const revision = searchSettingsRevision();
         const ownsPosition = (): boolean => {
           const latest = get();
           return generation === aiMoveGeneration && latest.currentNode.id === nodeId
@@ -4726,7 +4762,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // Settings changed under the search (model, rules, visits): its
           // answer is for the old ones. Dropped, it left the AI to move with
           // nothing searching; ask again under the new ones.
-          if (revision !== analysisRevision) {
+          if (revision !== searchSettingsRevision()) {
             retryScheduled = true;
             scheduleAiMoveTask(() => {
               if (ownsPosition()) get().makeAiMove(force ? { force: true } : undefined);
@@ -5435,7 +5471,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }, 100, () => set({ isAiThinking: false }));
             return;
           }
-          if (revision === analysisRevision) makeHeuristicMove(get());
+          if (revision === searchSettingsRevision()) makeHeuristicMove(get());
           else {
             retryScheduled = true;
             scheduleAiMoveTask(() => {

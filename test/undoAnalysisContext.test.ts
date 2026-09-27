@@ -71,7 +71,7 @@ describe('undo respects the analysis context', () => {
       cursor.children.push(child);
       cursor = child;
     }
-    state().updateSettings({ katagoVisits: 250 });
+    state().updateSettings({ katagoModelUrl: 'models/stronger.bin.gz' });
     expect(root.analysis).toBeNull();
     expect(cursor.analysis).toBeNull();
     expect(cursor.analysisVisitsRequested).toBe(0);
