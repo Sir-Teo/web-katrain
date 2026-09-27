@@ -1595,14 +1595,114 @@ export const createLibraryBackup = (items: LibraryItem[]): string => {
   return JSON.stringify(backup, null, 2);
 };
 
-export const parseLibraryBackup = (raw: string): LibraryItem[] => {
-  const parsed = JSON.parse(raw) as unknown;
-  if (Array.isArray(parsed)) return normalizeLibraryItems(parsed);
-  if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
-    return normalizeLibraryItems((parsed as { items: unknown }).items);
-  }
-  throw new Error('Invalid library backup');
+/**
+ * The largest backup file read. The app's own backup is indented JSON of every
+ * game, a few KB each, so this holds tens of thousands of games; the item cap
+ * below is what bounds the work after parsing.
+ */
+export const MAX_LIBRARY_BACKUP_BYTES = 100 * 1024 * 1024;
+export const MAX_LIBRARY_BACKUP_LABEL = '100 MB';
+export const MAX_LIBRARY_BACKUP_ITEMS = 50_000;
+const MAX_LIBRARY_BACKUP_NAME_LENGTH = 256;
+/** Backup format versions this build can read. `createLibraryBackup` writes the last. */
+const LIBRARY_BACKUP_VERSIONS: ReadonlySet<unknown> = new Set([1, 2]);
+
+export const LIBRARY_BACKUP_NOT_RECOGNIZED_MESSAGE = 'This file is not a Web KaTrain library backup.';
+
+export type LibraryBackupReport = {
+  items: LibraryItem[];
+  /** Records left out because they could not be used: not a game or folder, or a game without its SGF. */
+  rejected: number;
+  /** Records kept with a fix: a new id, a missing name or date, a name cut short, or a missing parent. */
+  repaired: number;
 };
+
+/**
+ * The records inside a backup, if it is one.
+ *
+ * Any array, and any object with an `items` array, used to be taken as a
+ * backup, so a stray JSON file replaced the library with whatever objects it
+ * held -- each one read as an empty folder. Accepted now: the app's own backup
+ * (`app: 'web-katrain'` and a known version), and a bare array of records, which
+ * is how the library itself is kept in localStorage and what a copy of it holds.
+ */
+const libraryBackupRecords = (parsed: unknown): unknown[] => {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === 'object') {
+    const backup = parsed as { app?: unknown; version?: unknown; items?: unknown };
+    if (backup.app === 'web-katrain' && Array.isArray(backup.items)) {
+      if (LIBRARY_BACKUP_VERSIONS.has(backup.version)) return backup.items;
+      if (typeof backup.version === 'number' && backup.version > 2) {
+        throw new Error('This backup was made by a newer version of Web KaTrain.');
+      }
+    }
+  }
+  throw new Error(LIBRARY_BACKUP_NOT_RECOGNIZED_MESSAGE);
+};
+
+/**
+ * A record worth keeping: a folder, or a game with its SGF as text. Game size
+ * is not held to the import limit: a game edited in the app can outgrow it,
+ * and the backup as a whole is already bounded.
+ */
+const isUsableBackupRecord = (record: unknown): record is Record<string, unknown> => {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+  const raw = record as Record<string, unknown>;
+  if (raw.type === 'folder') return true;
+  if (raw.type !== 'file' && raw.type !== undefined) return false;
+  return typeof raw.sgf === 'string';
+};
+
+const backupRecordWasRepaired = (raw: Record<string, unknown>, item: LibraryItem): boolean =>
+  raw.id !== item.id
+  || raw.type !== item.type
+  || normalizeParentId(raw.parentId) !== item.parentId
+  || raw.createdAt !== item.createdAt
+  || raw.updatedAt !== item.updatedAt
+  || typeof raw.name !== 'string'
+  || raw.name.trim() !== item.name;
+
+/**
+ * Reads a backup file's text, and says what had to be left out or fixed, so
+ * that can be put to the reader before anything is replaced.
+ */
+export const readLibraryBackup = (raw: string): LibraryBackupReport => {
+  if (raw.length > MAX_LIBRARY_BACKUP_BYTES) {
+    throw new Error(`Library backups are limited to ${MAX_LIBRARY_BACKUP_LABEL}.`);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(LIBRARY_BACKUP_NOT_RECOGNIZED_MESSAGE);
+  }
+  const records = libraryBackupRecords(parsed);
+  if (records.length > MAX_LIBRARY_BACKUP_ITEMS) {
+    throw new Error(`Library backups are limited to ${MAX_LIBRARY_BACKUP_ITEMS.toLocaleString('en-US')} items.`);
+  }
+  const originals: Record<string, unknown>[] = [];
+  const accepted: Record<string, unknown>[] = [];
+  for (const record of records) {
+    if (!isUsableBackupRecord(record)) continue;
+    originals.push(record);
+    const name = typeof record.name === 'string' ? Array.from(record.name) : null;
+    accepted.push(name && name.length > MAX_LIBRARY_BACKUP_NAME_LENGTH
+      ? { ...record, name: name.slice(0, MAX_LIBRARY_BACKUP_NAME_LENGTH).join('') }
+      : record);
+  }
+  if (records.length > 0 && accepted.length === 0) {
+    throw new Error('None of the items in this backup could be read.');
+  }
+  // One normalized item per accepted record, in order.
+  const items = normalizeLibraryItems(accepted);
+  let repaired = 0;
+  for (let i = 0; i < items.length; i++) {
+    if (backupRecordWasRepaired(originals[i]!, items[i]!)) repaired++;
+  }
+  return { items, rejected: records.length - accepted.length, repaired };
+};
+
+export const parseLibraryBackup = (raw: string): LibraryItem[] => readLibraryBackup(raw).items;
 
 export const restoreLibrary = async (raw: string): Promise<LibraryItem[]> => {
   const items = parseLibraryBackup(raw);

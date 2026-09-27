@@ -52,7 +52,10 @@ import {
   nextLibraryGameSaveRequestId,
   moveLibraryItems,
   prependLibraryImports,
-  parseLibraryBackup,
+  readLibraryBackup,
+  MAX_LIBRARY_BACKUP_BYTES,
+  MAX_LIBRARY_BACKUP_LABEL,
+  type LibraryBackupReport,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
@@ -77,7 +80,12 @@ const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
-import { describeLibraryClear, describeLibraryReplacement } from '../utils/libraryPrompts';
+import {
+  describeLibraryBackupRepairs,
+  describeLibraryClear,
+  describeLibraryReplacement,
+  summarizeLibraryBackupRepairs,
+} from '../utils/libraryPrompts';
 import { countSgfGames } from '../utils/sgfScan';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
@@ -1293,15 +1301,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleRestoreBackup = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
-    let restored: LibraryItem[];
-    try {
-      restored = parseLibraryBackup(await file.text());
-    } catch {
-      onToast('Failed to restore library backup.', 'error');
-      if (backupInputRef.current) backupInputRef.current.value = '';
+    if (backupInputRef.current) backupInputRef.current.value = '';
+    // Checked before reading: text() holds the whole file in memory, and
+    // parsing holds it again.
+    if (file.size > MAX_LIBRARY_BACKUP_BYTES) {
+      onToast(`Failed to restore library backup. Library backups are limited to ${MAX_LIBRARY_BACKUP_LABEL}.`, 'error');
       return;
     }
-    if (backupInputRef.current) backupInputRef.current.value = '';
+    let report: LibraryBackupReport;
+    try {
+      report = readLibraryBackup(await file.text());
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? ` ${error.message}` : '';
+      onToast(`Failed to restore library backup.${reason}`, 'error');
+      return;
+    }
+    const restored = report.items;
+    const repairs = summarizeLibraryBackupRepairs(report);
 
     const applyRestore = async () => {
       try {
@@ -1315,7 +1331,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         setSelectedIds(new Set());
         onLoadedFileChange?.(null);
         setCurrentFolderId(null);
-        onToast(`Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.`, 'success');
+        onToast(
+          `Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.${repairs ? ` ${repairs}` : ''}`,
+          'success'
+        );
       } catch {
         onToast('Failed to restore library backup.', 'error');
       }
@@ -1328,7 +1347,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     setConfirmDialog({
       title: 'Restore Backup',
-      message: describeLibraryReplacement(items.length, restored.length),
+      message: [describeLibraryReplacement(items.length, restored.length), describeLibraryBackupRepairs(report)]
+        .filter(Boolean)
+        .join(' '),
       confirmLabel: 'Replace',
       danger: true,
       onConfirm: () => void applyRestore(),
