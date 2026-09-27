@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
 import { parseSgf } from '../src/utils/sgf';
-import { classifyProblemNode, findChildForMove, getProblemStarts, problemSideToMove } from '../src/utils/problemMode';
+import { classifyProblemNode, findChildForMove, findPassChild, getProblemStarts, isProblemPass, problemSideToMove } from '../src/utils/problemMode';
 
 const load = (sgf: string) => {
   useGameStore.getState().loadGame(parseSgf(sgf));
@@ -39,5 +40,43 @@ describe('problem starts', () => {
     const root = load('(;SZ[9]AB[cc][dc]AW[cd][dd](;B[ec]C[RIGHT])(;B[aa]C[play the right side]))');
     expect(classifyProblemNode(root.children[0]!, 'black')).toBe('correct');
     expect(classifyProblemNode(root.children[1]!, 'black')).toBe('unknown');
+  });
+});
+
+describe('a problem solved by passing', () => {
+  afterEach(() => useGameStore.getState().resetGame());
+
+  // Seki-style problems record the answer as a pass; the board alone could
+  // never reach that line.
+  const sgf = '(;GM[1]FF[4]SZ[9];AB[cc][dc]AW[cd][dd](;B[]C[Correct, it is seki.])(;B[ec];W[fc]C[Wrong]))';
+
+  it('finds the recorded pass and grades it like any other move', () => {
+    const [start] = getProblemStarts(load(sgf));
+    const pass = findPassChild(start!);
+    expect(pass).not.toBeNull();
+    expect(isProblemPass(pass!.move)).toBe(true);
+    expect(classifyProblemNode(pass!, problemSideToMove(start!))).toBe('correct');
+  });
+
+  it('follows a pass the opponent replies with, and hands the move back', () => {
+    const root = load('(;GM[1]FF[4]SZ[9];AB[cc][dc]AW[cd][dd];B[ec];W[];B[fc]C[Correct])');
+    const [start] = getProblemStarts(root);
+    const solverMove = findChildForMove(start!, 4, 2)!;
+    const reply = solverMove.children[0]!;
+    expect(isProblemPass(reply.move)).toBe(true);
+    expect(classifyProblemNode(reply, 'black')).toBe('unknown');
+    expect(problemSideToMove(reply)).toBe('black');
+  });
+
+  it('reports no pass where the problem records none', () => {
+    const [start] = getProblemStarts(load('(;GM[1]FF[4]SZ[9];AB[cc][dc]AW[cd][dd](;B[ec]C[Correct])(;B[aa]C[Wrong]))'));
+    expect(findPassChild(start!)).toBeNull();
+  });
+
+  it('offers the pass in the practice dialog', () => {
+    const source = readFileSync('src/components/ProblemModal.tsx', 'utf8');
+    expect(source).toContain('const child = findPassChild(node);');
+    expect(source).toContain('playSolverMove(child);');
+    expect(source).toContain('data-problem-pass="true"');
   });
 });

@@ -151,6 +151,17 @@ export const classifyProblemNode = (node: GameNode, solver?: Player): ProblemVer
   return 'unknown';
 };
 
+/** True for a recorded pass (SGF `B[]`, `W[]` or `B[tt]` on small boards). */
+export const isProblemPass = (move: GameNode['move']): boolean => !!move && (move.x < 0 || move.y < 0);
+
+/**
+ * Returns the child of `node` that passes, if the problem records one. Some
+ * problems -- seki, or waiting for the opponent to fill a liberty -- are
+ * solved by passing, and clicking the board could never reach that line.
+ */
+export const findPassChild = (node: GameNode): GameNode | null =>
+  node.children.find((child) => isProblemPass(child.move)) ?? null;
+
 /** Returns the child of `node` whose move lands on (x, y), if any. */
 export const findChildForMove = (node: GameNode, x: number, y: number): GameNode | null => {
   for (const child of node.children) {

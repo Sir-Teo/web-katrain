@@ -7,8 +7,10 @@ import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import {
   classifyProblemNode,
   findChildForMove,
+  findPassChild,
   findSolutionPath,
   getProblemStarts,
+  isProblemPass,
   problemSideToMove,
 } from '../utils/problemMode';
 import type { GameNode } from '../types';
@@ -101,13 +103,8 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     return false;
   };
 
-  const handlePoint = (x: number, y: number) => {
-    if (!node || status !== 'solving') return;
-    const child = findChildForMove(node, x, y);
-    if (!child) {
-      setMessage("That move isn't part of this problem — try another point.");
-      return;
-    }
+  // Plays the solver's recorded move -- a point or a pass -- and grades it.
+  const playSolverMove = (child: GameNode) => {
     setMessage(null);
     setCursor(child);
 
@@ -122,8 +119,30 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
       replyTimer.current = null;
       const reply = child.children[0]!;
       setCursor(reply);
+      // A verdict on the reply replaces this message.
+      if (isProblemPass(reply.move)) setMessage('The opponent passes.');
       if (!settleAt(reply)) setStatus('solving');
     }, OPPONENT_REPLY_DELAY_MS);
+  };
+
+  const handlePoint = (x: number, y: number) => {
+    if (!node || status !== 'solving') return;
+    const child = findChildForMove(node, x, y);
+    if (!child) {
+      setMessage("That move isn't part of this problem — try another point.");
+      return;
+    }
+    playSolverMove(child);
+  };
+
+  const handlePass = () => {
+    if (!node || status !== 'solving') return;
+    const child = findPassChild(node);
+    if (!child) {
+      setMessage("Passing isn't part of this problem — try a move on the board.");
+      return;
+    }
+    playSolverMove(child);
   };
 
   const handleRetry = () => {
@@ -226,6 +245,18 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
                   onPointClick={status === 'solving' ? handlePoint : undefined}
                   ariaLabel="Problem position"
                 />
+              </div>
+
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={handlePass}
+                  disabled={status !== 'solving'}
+                  className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+                  data-problem-pass="true"
+                >
+                  Pass
+                </button>
               </div>
 
               {message && (
