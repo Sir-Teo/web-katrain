@@ -16,6 +16,7 @@
     "test:analysis": "node scripts/check-analysis-responsiveness.mjs",
     "test:study": "node scripts/check-study-performance.mjs",
     "test:offline": "node scripts/check-offline.mjs",
+    "test:bundle": "node scripts/check-bundle-budget.mjs",
     "test:engine-smoke": "ENGINE_TESTS=1 vitest run test/engineGolden.test.ts test/engineRootPolicyGolden.test.ts test/engineTerminalScore.test.ts test/engineCancellationScheduling.test.ts",
     "test:engine": "ENGINE_TESTS=1 vitest run test/engine test/handicap.test.ts",
     "bench": "BENCH=1 vitest run test/enginePerfBench.test.ts --reporter=verbose",
@@ -27,9 +28,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-cpu": "^4.22.0",
     "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
     "jszip": "^3.10.1",
     "pako": "^2.1.0",
     "react": "^19.2.0",

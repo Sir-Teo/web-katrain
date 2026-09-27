@@ -156,7 +156,12 @@ export default defineConfig({
   // scan. Discovering them on the first Analyze click rebuilt shared chunks
   // and reloaded the page, interrupting the game and the cold-cache browser QA.
   optimizeDeps: {
-    include: ['@tensorflow/tfjs', '@tensorflow/tfjs-backend-webgpu', '@tensorflow/tfjs-backend-wasm'],
+    include: [
+      '@tensorflow/tfjs-core',
+      '@tensorflow/tfjs-backend-cpu',
+      '@tensorflow/tfjs-backend-webgpu',
+      '@tensorflow/tfjs-backend-wasm',
+    ],
   },
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),

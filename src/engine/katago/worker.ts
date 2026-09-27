@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import * as tf from '@tensorflow/tfjs';
+import * as tf from './tf';
 import { isGameRules } from '../../utils/goRules';
 import '@tensorflow/tfjs-backend-webgpu';
 import '@tensorflow/tfjs-backend-wasm';

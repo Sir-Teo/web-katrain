@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '../../src/engine/katago/tf';
 
 import { parseKataGoModelV8 } from '../../src/engine/katago/loadModelV8';
 import { KataGoModelV8Tf } from '../../src/engine/katago/modelV8';

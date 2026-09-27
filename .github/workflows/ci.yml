@@ -70,6 +70,10 @@ jobs:
       # policy, terminal scoring inside a search, and cancellation. Together
       # they take about a minute here. The full set runs on a schedule in
       # engine-tests.yml.
+      # `verify` ends with the production build; check its chunk sizes.
+      - name: Bundle size budget
+        run: npm run test:bundle
+
       - name: Engine smoke tests
         run: npm run test:engine-smoke
 

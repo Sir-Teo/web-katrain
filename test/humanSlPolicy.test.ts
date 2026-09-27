@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '../src/engine/katago/tf';
 import { parseKataGoModelV8 } from '../src/engine/katago/loadModelV8';
 import { KataGoModelV8Tf } from '../src/engine/katago/modelV8';
 import { fillInputsV7FastForPosition } from '../src/engine/katago/positionInputsV7';

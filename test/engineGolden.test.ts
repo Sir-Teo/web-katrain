@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '../src/engine/katago/tf';
 
 import { loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
 import { postprocessKataGoV8 } from '../src/engine/katago/evalV8';
