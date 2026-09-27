@@ -18,6 +18,7 @@ import {
 } from '../utils/visitPresets';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { moveCountOf } from '../utils/moveHistory';
 
 interface GameAnalysisModalProps {
   onClose: () => void;
@@ -57,7 +58,7 @@ export const GameAnalysisModal: React.FC<GameAnalysisModalProps> = ({ onClose })
     shallow
   );
 
-  const defaultStartMove = useMemo(() => currentNode.gameState.moveHistory.length, [currentNode]);
+  const defaultStartMove = useMemo(() => moveCountOf(currentNode.gameState), [currentNode]);
   const defaultMaxVisits = useMemo(() => clampAnalysisVisits(defaultVisits), [defaultVisits]);
 
   const [visits, setVisits] = useState<number>(defaultMaxVisits);

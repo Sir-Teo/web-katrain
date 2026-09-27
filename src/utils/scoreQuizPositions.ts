@@ -1,11 +1,12 @@
 import type { GameNode } from '../types';
+import { moveCountOf } from './moveHistory';
 
 /** Main-line nodes that actually hold a position worth reading. */
 export function collectQuizPositions(root: GameNode): GameNode[] {
   const positions: GameNode[] = [];
   let node: GameNode | null = root;
   while (node) {
-    if (node.gameState.moveHistory.length > 0) positions.push(node);
+    if (moveCountOf(node.gameState) > 0) positions.push(node);
     node = node.children[0] ?? null;
   }
   return positions;
@@ -22,7 +23,7 @@ export function collectQuizPositions(root: GameNode): GameNode[] {
 export function selectQuizPositionPool(positions: GameNode[]): GameNode[] {
   if (positions.length === 0) return [];
   const cutoff = Math.min(20, Math.floor(positions.length / 2));
-  const candidates = positions.filter((n) => n.gameState.moveHistory.length >= cutoff);
+  const candidates = positions.filter((n) => moveCountOf(n.gameState) >= cutoff);
   return candidates.length > 0 ? candidates : positions;
 }
 

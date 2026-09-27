@@ -40,6 +40,7 @@ import {
   type AnalysisCoverageSummary,
 } from '../utils/analysisCoverage';
 import { getFastMctsPanelButtonState } from '../utils/fastReviewButtonState';
+import { formatAnalysisProvenance } from '../utils/analysisProvenance';
 
 interface AnalysisPanelProps {
   analysisControls: AnalysisControlsState;
@@ -270,6 +271,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const [engineDetailsOpen, setEngineDetailsOpen] = React.useState(false);
   const isPro = (analysisExperienceOverride ?? analysisExperience) === 'pro';
+  // Recomputed on every render: treeVersion and analysisData updates re-render
+  // this panel whenever the node's result is replaced.
+  const analysisProvenanceLabel = formatAnalysisProvenance(currentNode.analysis);
+  const analysisProvenanceTitle = analysisProvenanceLabel ? `Analysis source: ${analysisProvenanceLabel}` : undefined;
   const engineSummary = React.useMemo(() => getEngineStatusSummary({
     status: engineStatus,
     error: engineError,
@@ -772,13 +777,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               {renderMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
               {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
               {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
-              <div className="px-2 py-1">
+              <div className="px-2 py-1" title={analysisProvenanceTitle}>
                 <div className="text-[0.6875rem] ui-text-faint">Black win</div>
                 <div className="font-mono text-sm text-[var(--ui-success)]">
                   {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : NO_VALUE}
                 </div>
               </div>
-              <div className="px-2 py-1">
+              <div className="px-2 py-1" title={analysisProvenanceTitle}>
                 <div className="text-[0.6875rem] ui-text-faint">Score</div>
                 <div className="font-mono text-sm text-[var(--ui-warning)]">
                   {scoreLeadLabel}
@@ -797,13 +802,13 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             {renderMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
             {renderBestMoveReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
             {renderMoveQualityReadout('min-w-0 px-2 py-1', 'text-[0.6875rem] ui-text-faint')}
-            <div className="px-2 py-1">
+            <div className="px-2 py-1" title={analysisProvenanceTitle}>
               <div className="text-[0.6875rem] ui-text-faint">Black win</div>
               <div className="font-mono text-sm text-[var(--ui-success)]">
                 {typeof winRate === 'number' ? `${(winRate * 100).toFixed(1)}%` : NO_VALUE}
               </div>
             </div>
-            <div className="px-2 py-1">
+            <div className="px-2 py-1" title={analysisProvenanceTitle}>
               <div className="text-[0.6875rem] ui-text-faint">Score</div>
               <div className="font-mono text-sm text-[var(--ui-warning)]">
                 {scoreLeadLabel}
@@ -815,6 +820,15 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               labelClassName="text-[0.6875rem] ui-text-faint"
             />
             {statsActions}
+          </div>
+        )}
+        {isPro && analysisProvenanceLabel && (
+          <div
+            className="mt-1 truncate px-2 text-[0.625rem] ui-text-faint"
+            title={analysisProvenanceTitle}
+            data-analysis-provenance={currentNode.analysis?.provenance?.source ?? 'unknown'}
+          >
+            {analysisProvenanceLabel}
           </div>
         )}
         <TenukiRow />

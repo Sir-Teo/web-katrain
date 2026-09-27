@@ -147,6 +147,7 @@ import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } f
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
+import { moveCountOf } from '../utils/moveHistory';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
 const SettingsModal = settingsModalChunk.Component;
@@ -2239,7 +2240,7 @@ export const Layout: React.FC = () => {
   };
 
   const handleExportBoardImage = async () => {
-    const moveNumber = useGameStore.getState().currentNode.gameState.moveHistory.length;
+    const moveNumber = moveCountOf(useGameStore.getState().currentNode.gameState);
     if (await downloadBoardImage(rootNode, moveNumber)) {
       toast('Exported board image (PNG).', 'success');
       return;

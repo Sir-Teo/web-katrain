@@ -10,6 +10,7 @@ import { assertSgfImportSize } from './sgfImportLimits';
 import { countSgfGames, sgfTrailingGames } from './sgfScan';
 import { MAX_KOMI } from './komiInput';
 import { formatGtpMove } from '../lib/gtp';
+import { moveCountOf } from './moveHistory';
 
 // KaTrain convention: auto-generated SGF comments are marked so user notes remain editable.
 export const KATRAIN_SGF_INTERNAL_COMMENTS_MARKER = "\u3164\u200b";
@@ -155,7 +156,7 @@ function buildKaTrainAutoCommentSegment(args: { node: GameNode; trainer: KaTrain
     if (!parent || !move) return null;
 
     const boardSize = normalizeBoardSize(node.gameState.board.length, DEFAULT_BOARD_SIZE);
-    const depth = node.gameState.moveHistory.length;
+    const depth = moveCountOf(node.gameState);
     const player = playerToSgfShort(move.player);
     const moveGtp = formatGtpMove(move.x, move.y, boardSize);
 

@@ -3,6 +3,7 @@ import { isReportReadyAnalysis } from './analysisCoverage';
 import { getCurrentLineNodes, type ActiveBranchMap } from './branchNavigation';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from './nodeAnalysis';
 import { formatGtpMove } from '../lib/gtp';
+import { moveCountOf } from './moveHistory';
 
 const ADDITIONAL_MOVE_ORDER = 999; // KaTrain core/constants.py
 const KAYA_PHASE_THRESHOLDS: Record<number, { openingEnd: number; middleEnd: number }> = {
@@ -645,7 +646,7 @@ export function computeGameReport(args: {
     const n = seq[depth]!;
     const move = n.move;
     if (!move || !n.parent) continue;
-    const moveNumber = n.gameState.moveHistory.length;
+    const moveNumber = moveCountOf(n.gameState);
     const phase = getMovePhase(moveNumber, boardSize);
     if (phaseFilter !== 'all' && phase !== phaseFilter) continue;
     if (depth < fromDepth || depth >= toDepth) continue;

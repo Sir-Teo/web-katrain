@@ -1,5 +1,5 @@
 import { createWithEqualityFn as create } from 'zustand/traditional';
-import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type BoardDrawing, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
+import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type BoardDrawing, type GameNode, type Move, type GameSettings, type AnalysisProvenance, type AnalysisSource, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
 import { findMistakeNavigationTarget } from '../utils/mistakeNavigation';
 import { applyCapturesInPlace, applySelfCaptureInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
@@ -73,6 +73,7 @@ import {
 } from '../utils/notificationQueue';
 import { readLocalStorage, writeLocalStorage } from '../utils/storage';
 import { getAnimationNow } from '../utils/animationFrame';
+import { gameStateAfterMove, moveCountOf, withGameState } from '../utils/moveHistory';
 
 type BranchClipboardNode = {
   move: Move | null;
@@ -620,7 +621,7 @@ const collectNodesInTree = (root: GameNode): GameNode[] => {
   return out;
 };
 
-const nodeMoveIndex = (node: GameNode): number => node.gameState.moveHistory.length - 1;
+const nodeMoveIndex = (node: GameNode): number => moveCountOf(node.gameState) - 1;
 
 const nodeIsInMoveRange = (node: GameNode, moveRange: [number, number] | null): boolean => {
   if (!moveRange) return true;
@@ -724,6 +725,25 @@ const nodeAnalysisVisitCount = (node: GameNode): number => {
   if (typeof rootVisits === 'number' && Number.isFinite(rootVisits)) return Math.max(0, Math.floor(rootVisits));
   const requested = node.analysisVisitsRequested ?? 0;
   return Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : 0;
+};
+
+/**
+ * Where a result from this app's engine came from, recorded on the result so a
+ * stored or exported evaluation can say which model, rules and budget made it.
+ */
+const localAnalysisProvenance = (args: {
+  modelUrl: string;
+  rules: GameRules;
+  komi: number;
+  visits?: number;
+  maxTimeMs?: number;
+}): AnalysisProvenance => {
+  const modelName = getKataGoEngineClient().getEngineInfo().modelName;
+  const provenance: AnalysisProvenance = { source: 'local', modelUrl: args.modelUrl, rules: args.rules, komi: args.komi };
+  if (modelName) provenance.modelName = modelName;
+  if (typeof args.visits === 'number') provenance.visits = args.visits;
+  if (typeof args.maxTimeMs === 'number') provenance.maxTimeMs = args.maxTimeMs;
+  return provenance;
 };
 
 const findNodeById = (root: GameNode, id: string): GameNode | null => {
@@ -930,7 +950,7 @@ const applySetupPropsToBoard = (
 const applySetupPropsToNode = (node: GameNode, props: Record<string, string[]> | undefined, boardSize?: number): void => {
   const nextBoard = applySetupPropsToBoard(node.gameState.board, props, boardSize ?? node.gameState.board.length);
   if (nextBoard !== node.gameState.board) {
-    node.gameState = { ...node.gameState, board: nextBoard };
+    node.gameState = withGameState(node.gameState, { board: nextBoard });
   }
 };
 
@@ -943,7 +963,7 @@ const playerFromSgfPlayerToMove = (props: Record<string, string[]> | undefined):
 
 const applySgfPlayerToMoveToNode = (node: GameNode, props: Record<string, string[]> | undefined): void => {
   const player = playerFromSgfPlayerToMove(props);
-  if (player) node.gameState = { ...node.gameState, currentPlayer: player };
+  if (player) node.gameState = withGameState(node.gameState, { currentPlayer: player });
 };
 
 const countNodes = (node: GameNode): number => {
@@ -993,17 +1013,28 @@ const EDIT_HISTORY_LIMIT = 50;
 let editUndoStack: EditHistoryEntry[] = [];
 let editRedoStack: EditHistoryEntry[] = [];
 let analysisRevision = 0;
+// Bumped when only the search budget changes (see SEARCH_BUDGET_SETTING_KEYS):
+// stored results stay valid, but a search in flight ran under the old budget.
+let searchBudgetRevision = 0;
+const searchSettingsRevision = (): string => `${analysisRevision}:${searchBudgetRevision}`;
+
+/**
+ * Engine settings that only change how long the engine searches, not what it
+ * searches with. Results from another budget are still results for the same
+ * model, rules and komi, so changing these keeps the tree's analysis.
+ */
+const SEARCH_BUDGET_SETTING_KEYS: ReadonlySet<keyof GameSettings> = new Set<keyof GameSettings>([
+  'katagoVisits',
+  'katagoMaxTimeMs',
+  'katagoBatchSize',
+]);
 
 const cloneMove = (move: Move | null): Move | null => (move ? { ...move } : null);
 
-const cloneGameState = (gameState: GameState): GameState => ({
-  board: cloneBoard(gameState.board),
-  currentPlayer: gameState.currentPlayer,
-  moveHistory: gameState.moveHistory.map((move) => ({ ...move })),
-  capturedBlack: gameState.capturedBlack,
-  capturedWhite: gameState.capturedWhite,
-  komi: gameState.komi,
-});
+// Histories are immutable and shared (see utils/moveHistory); copying one
+// here kept a full array at every setup node.
+const cloneGameState = (gameState: GameState): GameState =>
+  withGameState(gameState, { board: cloneBoard(gameState.board) });
 
 const cloneGameNodeTree = (node: GameNode): GameNode => {
   // Positions are immutable: setup edits, replay and komi changes replace
@@ -1121,7 +1152,7 @@ const applyKomiToSubtree = (node: GameNode, komi: number): void => {
   const stack = [node];
   while (stack.length > 0) {
     const n = stack.pop()!;
-    n.gameState = { ...n.gameState, komi };
+    n.gameState = withGameState(n.gameState, { komi });
     for (const child of n.children) stack.push(child);
   }
 };
@@ -1217,26 +1248,24 @@ const replayChildMove = (parent: GameNode, child: GameNode, suicideLegal = false
   if (!move) {
     // Comment/setup nodes do not add a move. Positions are immutable, and
     // applying setup properties already copies the board when stones change.
-    return {
-      ...parentState,
+    return withGameState(parentState, {
       board: applySetupPropsToBoard(parentState.board, child.properties),
       currentPlayer: playerFromSgfPlayerToMove(child.properties) ?? parentState.currentPlayer,
-    };
+    });
   }
   const nextPlayer: Player = move.player === 'black' ? 'white' : 'black';
 
   if (move.x < 0 || move.y < 0) {
     const passMove: Move = { x: -1, y: -1, player: move.player };
-    return {
+    return gameStateAfterMove(parentState, passMove, {
       // Setup on a pass node applies here as on any other node; the loader
       // placed it, and a rebuild that skipped it lost the stones.
       board: applySetupPropsToBoard(cloneBoard(parentState.board), child.properties),
       currentPlayer: playerFromSgfPlayerToMove(child.properties) ?? nextPlayer,
-      moveHistory: [...parentState.moveHistory, passMove],
       capturedBlack: parentState.capturedBlack,
       capturedWhite: parentState.capturedWhite,
       komi: parentState.komi,
-    };
+    });
   }
 
   if (parentState.board[move.y]?.[move.x] !== null) return null;
@@ -1263,14 +1292,13 @@ const replayChildMove = (parent: GameNode, child: GameNode, suicideLegal = false
     parentState.capturedBlack + (move.player === 'white' ? captured.length : 0) + (move.player === 'black' ? selfCaptured : 0);
   const newCapturedWhite =
     parentState.capturedWhite + (move.player === 'black' ? captured.length : 0) + (move.player === 'white' ? selfCaptured : 0);
-  return {
+  return gameStateAfterMove(parentState, { x: move.x, y: move.y, player: move.player }, {
     board: applySetupPropsToBoard(tentativeBoard, child.properties),
     currentPlayer: playerFromSgfPlayerToMove(child.properties) ?? nextPlayer,
-    moveHistory: [...parentState.moveHistory, { x: move.x, y: move.y, player: move.player }],
     capturedBlack: newCapturedBlack,
     capturedWhite: newCapturedWhite,
     komi: parentState.komi,
-  };
+  });
 };
 
 const pasteBranchSnapshot = (parent: GameNode, source: BranchClipboardNode, suicideLegal = false): GameNode | null => {
@@ -1555,14 +1583,13 @@ const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false, 
 
   if (isPassMove(move)) {
     const nextPlayer: Player = st.currentPlayer === 'black' ? 'white' : 'black';
-    const nextState: GameState = {
+    const nextState = gameStateAfterMove(st, move, {
       board: st.board,
       currentPlayer: nextPlayer,
-      moveHistory: [...st.moveHistory, move],
       capturedBlack: st.capturedBlack,
       capturedWhite: st.capturedWhite,
       komi: st.komi,
-    };
+    });
     const child = createNode(parent, move, nextState);
     parent.children.push(child);
     return child;
@@ -1594,14 +1621,13 @@ const createChildForMove = (parent: GameNode, move: Move, suicideLegal = false, 
     st.capturedWhite +
     (st.currentPlayer === 'black' ? captured.length : 0) +
     (st.currentPlayer === 'white' ? selfCaptured : 0);
-  const nextState: GameState = {
+  const nextState = gameStateAfterMove(st, move, {
     board: newBoard,
     currentPlayer: nextPlayer,
-    moveHistory: [...st.moveHistory, move],
     capturedBlack: newCapturedBlack,
     capturedWhite: newCapturedWhite,
     komi: st.komi,
-  };
+  });
 
   const child = createNode(parent, move, nextState);
   parent.children.push(child);
@@ -2713,7 +2739,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       else if (nextStone === 'white') addUniqueValue(props, 'AW', coord);
       else addUniqueValue(props, 'AE', coord);
 
-      node.gameState = { ...node.gameState, board: nextBoard };
+      node.gameState = withGameState(node.gameState, { board: nextBoard });
       node.analysis = null;
       node.analysisVisitsRequested = 0;
       clearAnalysisInSubtree(node);
@@ -2766,7 +2792,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         removeSetupCoord(props, coord);
         addUniqueValue(props, 'AE', coord);
 
-        node.gameState = { ...node.gameState, board: nextBoard };
+        node.gameState = withGameState(node.gameState, { board: nextBoard });
         node.analysis = null;
         node.analysisVisitsRequested = 0;
         clearAnalysisInSubtree(node);
@@ -2826,10 +2852,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const handicap = Number.parseInt(props.HA?.[0] ?? '0', 10);
         const safeHandicap = Number.isFinite(handicap) ? Math.max(0, Math.min(handicap, getMaxHandicap(boardSize))) : 0;
         if (safeHandicap > 0) applyHandicapStones(board, boardSize, safeHandicap);
-        node.gameState = {
-          ...node.gameState,
-          board,
-        };
+        node.gameState = withGameState(node.gameState, { board });
       }
 
       node.analysis = null;
@@ -2885,7 +2908,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       if (changed === 0) return {};
 
-      node.gameState = { ...node.gameState, board: nextBoard };
+      node.gameState = withGameState(node.gameState, { board: nextBoard });
       node.analysis = null;
       node.analysisVisitsRequested = 0;
       clearAnalysisInSubtree(node);
@@ -3055,7 +3078,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   generateSetupPosition: ({ untilMove, targetAdvantage }) => {
     const token = ++setupPositionToken;
     analysisQueue.cancelGroup('setup-position');
-    const startDepth = get().currentNode.gameState.moveHistory.length;
+    const startDepth = moveCountOf(get().currentNode.gameState);
     const target = Math.max(startDepth + 1, Math.floor(untilMove));
     let startScore: number | null = null;
 
@@ -3080,7 +3103,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (token !== setupPositionToken) return;
         if (!s.setupPositionProgress) return;
 
-        const depth = s.currentNode.gameState.moveHistory.length;
+        const depth = moveCountOf(s.currentNode.gameState);
         if (depth >= target) {
           const score = s.currentNode.analysis?.rootScoreLead;
           const lead = typeof score === 'number' ? formatScoreLead(score) : `about ${formatScoreLead(targetAdvantage)}`;
@@ -3133,7 +3156,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
 
           asEngineMove(() => s.playMove(chosen.x, chosen.y));
-          const played = get().currentNode.gameState.moveHistory.length;
+          const played = moveCountOf(get().currentNode.gameState);
           set({ setupPositionProgress: { move: played, untilMove: target } });
           if (played === depth) {
             finish('Could not continue generating this position.', 'error');
@@ -3157,7 +3180,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   stopSetupPositionGeneration: () => {
     setupPositionToken++;
     analysisQueue.cancelGroup('setup-position');
-    const depth = get().currentNode.gameState.moveHistory.length;
+    const depth = moveCountOf(get().currentNode.gameState);
     const wasGenerating = !!get().setupPositionProgress;
     set((state) =>
       state.setupPositionProgress
@@ -3280,6 +3303,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 policy: undefined,
                 ownershipStdev: undefined,
                 ownershipMode: 'none',
+                provenance: localAnalysisProvenance({
+                  modelUrl,
+                  rules,
+                  komi: komiWithHandicapBonus(s.rootNode, rules, node.gameState.komi),
+                  visits: 1,
+                }),
               };
               node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, 1);
             }
@@ -3499,6 +3528,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               policy: undefined,
               ownershipStdev: undefined,
               ownershipMode: 'none',
+              provenance: localAnalysisProvenance({
+                modelUrl,
+                rules,
+                komi: komiWithHandicapBonus(s.rootNode, rules, node.gameState.komi),
+                visits: fastVisits,
+                maxTimeMs,
+              }),
             };
             node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, fastVisits);
           } catch (err) {
@@ -3718,6 +3754,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               policy: analysis.policy,
               ownershipStdev: analysis.ownershipStdev,
               ownershipMode: s.settings.katagoOwnershipMode,
+              provenance: localAnalysisProvenance({
+                modelUrl,
+                rules,
+                komi: komiWithHandicapBonus(s.rootNode, rules, node.gameState.komi),
+                visits,
+                maxTimeMs,
+              }),
             };
             node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, visits);
           } catch (err) {
@@ -3859,6 +3902,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               humanPolicy: analysis.humanPolicy,
               ownershipStdev: analysis.ownershipStdev,
               ownershipMode: state.settings.katagoOwnershipMode,
+              provenance: localAnalysisProvenance({
+                modelUrl,
+                rules,
+                komi: komiWithHandicapBonus(state.rootNode, rules, state.komi),
+                visits,
+                maxTimeMs,
+              }),
             };
 
             const roi = get().regionOfInterest;
@@ -4154,14 +4204,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
         'humanSlBotStyle',
       ];
 
-      const engineChanged = engineKeys.some((k) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k]);
+      const changed = (k: keyof GameSettings) => newSettings[k] !== undefined && newSettings[k] !== state.settings[k];
+      const engineChanged = engineKeys.some(changed);
       if (!engineChanged) return { settings: nextSettings };
-      analysisRevision++;
 
       continuousToken++;
       selfplayToken++;
       gameAnalysisToken++;
       analysisQueue.cancelWhere(() => true, 'Analysis settings changed');
+
+      // A bigger (or smaller) search budget does not make the results already
+      // in the tree wrong. Wiping them threw away a whole reviewed game when
+      // someone raised visits; now they stay until a deeper search replaces
+      // them, and every pass that skips "already analyzed" nodes compares the
+      // node's visit count against the new target, so shallower ones are
+      // still searched again.
+      const budgetOnly = engineKeys.every((k) => !changed(k) || SEARCH_BUDGET_SETTING_KEYS.has(k));
+      if (budgetOnly) {
+        searchBudgetRevision++;
+        return {
+          settings: nextSettings,
+          isContinuousAnalysis: false,
+          isSelfplayToEnd: false,
+          setupPositionProgress: null,
+          isGameAnalysisRunning: false,
+          gameAnalysisType: null,
+        };
+      }
+
+      analysisRevision++;
       analysisQueue.clearCache();
 
       clearAnalysisInSubtree(state.rootNode);
@@ -4529,14 +4600,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const move: Move = { x, y, player: state.currentPlayer };
 
-    const newGameState: GameState = {
+    const newGameState = gameStateAfterMove(state.currentNode.gameState, move, {
         board: newBoard,
         currentPlayer: nextPlayer,
-        moveHistory: [...state.moveHistory, move],
         capturedBlack: newCapturedBlack,
         capturedWhite: newCapturedWhite,
         komi: state.komi,
-    };
+    });
 
     const newNode = createNode(state.currentNode, move, newGameState);
     lastPlayedNodeId = newNode.id;
@@ -4598,7 +4668,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         aiMoveWorkIsOnDemand = force && !(state.isAiPlaying && state.aiColor === playerAtStart);
         const generation = aiMoveGeneration;
         const position = node.gameState;
-        const revision = analysisRevision;
+        const revision = searchSettingsRevision();
         const ownsPosition = (): boolean => {
           const latest = get();
           return generation === aiMoveGeneration && latest.currentNode.id === nodeId
@@ -4726,7 +4796,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // Settings changed under the search (model, rules, visits): its
           // answer is for the old ones. Dropped, it left the AI to move with
           // nothing searching; ask again under the new ones.
-          if (revision !== analysisRevision) {
+          if (revision !== searchSettingsRevision()) {
             retryScheduled = true;
             scheduleAiMoveTask(() => {
               if (ownsPosition()) get().makeAiMove(force ? { force: true } : undefined);
@@ -4761,6 +4831,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             humanPolicy: analysis.humanPolicy,
             ownershipStdev: analysis.ownershipStdev,
             ownershipMode: aiOwnershipMode,
+            provenance: localAnalysisProvenance({
+              modelUrl,
+              rules,
+              komi: komiWithHandicapBonus(state.rootNode, rules, state.komi),
+              visits,
+              maxTimeMs,
+            }),
           };
 
           // Cache analysis on the node we analyzed -- unless the search was
@@ -5435,7 +5512,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }, 100, () => set({ isAiThinking: false }));
             return;
           }
-          if (revision === analysisRevision) makeHeuristicMove(get());
+          if (revision === searchSettingsRevision()) makeHeuristicMove(get());
           else {
             retryScheduled = true;
             scheduleAiMoveTask(() => {
@@ -6381,6 +6458,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (placesHandicapStones) syncRootSetupPropertiesFromBoard(newRoot.properties, rootState.board, boardSize, safeHandicap);
     }
 
+    // Neither format records the model or the rules and komi it searched
+    // with; the game's own (as loaded) are the best statement of them.
+    const importedAnalysisProvenance = (source: AnalysisSource, visits: number): AnalysisProvenance => {
+      const provenance: AnalysisProvenance = { source, rules, komi: rootState.komi };
+      if (visits > 0) provenance.visits = visits;
+      return provenance;
+    };
+
     const applyKtAnalysis = (node: GameNode, kt: string[]) => {
       // The ownership and policy buffers are sized by the board: read as
       // 19x19, a 9x9 game's came back empty and the next save wrote zeros.
@@ -6392,10 +6477,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         boardSize,
       });
       if (!analysis) return;
-      node.analysis = analysis;
       const rootInfo = decoded.root as { visits?: unknown } | null;
       const visitsRaw = rootInfo?.visits;
       const visits = typeof visitsRaw === 'number' && Number.isFinite(visitsRaw) ? Math.max(0, Math.floor(visitsRaw)) : 0;
+      node.analysis = { ...analysis, provenance: importedAnalysisProvenance('imported-katrain', visits) };
       if (visits > 0) node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, Math.min(visits, ENGINE_MAX_VISITS));
     };
 
@@ -6406,10 +6491,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         boardSize,
       });
       if (!analysis) return;
-      node.analysis = analysis;
       const visits = typeof analysis.rootVisits === 'number' && Number.isFinite(analysis.rootVisits)
         ? Math.max(0, Math.floor(analysis.rootVisits))
         : 0;
+      node.analysis = { ...analysis, provenance: importedAnalysisProvenance('imported-kaya', visits) };
       if (visits > 0) node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, Math.min(visits, ENGINE_MAX_VISITS));
     };
 
@@ -6491,14 +6576,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       if (move.x < 0 || move.y < 0) {
         const passMove: Move = { x: -1, y: -1, player: move.player };
-        const newGameState: GameState = {
+        const newGameState = gameStateAfterMove(parentState, passMove, {
           board: parentState.board,
           currentPlayer: nextPlayer,
-          moveHistory: [...parentState.moveHistory, passMove],
           capturedBlack: parentState.capturedBlack,
           capturedWhite: parentState.capturedWhite,
           komi: parentState.komi,
-        };
+        });
         return createNode(parent, passMove, newGameState);
       }
 
@@ -6536,14 +6620,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         parentState.capturedWhite + (move.player === 'black' ? captured.length : 0) + (move.player === 'white' ? selfCaptured : 0);
 
       const newMove: Move = { x: move.x, y: move.y, player: move.player };
-      const newGameState: GameState = {
+      const newGameState = gameStateAfterMove(parentState, newMove, {
         board: newBoard,
         currentPlayer: nextPlayer,
-        moveHistory: [...parentState.moveHistory, newMove],
         capturedBlack: newCapturedBlack,
         capturedWhite: newCapturedWhite,
         komi: parentState.komi,
-      };
+      });
       return createNode(parent, newMove, newGameState);
     };
 
@@ -6787,14 +6870,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       const nextPlayer = state.currentPlayer === 'black' ? 'white' : 'black';
-      const newGameState: GameState = {
+      const newGameState = gameStateAfterMove(state.currentNode.gameState, move, {
         board: state.board, // No change
         currentPlayer: nextPlayer,
-        moveHistory: [...state.moveHistory, move],
         capturedBlack: state.capturedBlack,
         capturedWhite: state.capturedWhite,
         komi: state.komi
-      };
+      });
 
       const newNode = createNode(state.currentNode, move, newGameState);
       lastPlayedNodeId = newNode.id;

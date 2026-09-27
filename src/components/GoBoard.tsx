@@ -57,6 +57,7 @@ import {
 } from '../utils/boardKeyboardNavigation';
 import { boardToQaString, countBoardStones } from '../utils/boardQaSnapshot';
 import { computeTerritorySwing, hasVisibleSwing, resolveSwingBaseline, swingAlpha } from '../utils/territorySwing';
+import { moveCountOf } from '../utils/moveHistory';
 
 const OWNERSHIP_COLORS = {
   black: [0.0, 0.0, 0.1, 0.75],
@@ -964,8 +965,8 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   const hoveredStonePointsLost = useMemo(() => {
     if (hoveredStoneMoveNumber === null) return null;
     let node: GameNode | null = currentNode;
-    while (node && node.gameState.moveHistory.length > hoveredStoneMoveNumber) node = node.parent;
-    if (!node || node.gameState.moveHistory.length !== hoveredStoneMoveNumber) return null;
+    while (node && moveCountOf(node.gameState) > hoveredStoneMoveNumber) node = node.parent;
+    if (!node || moveCountOf(node.gameState) !== hoveredStoneMoveNumber) return null;
     const lost = computeNodePointsLost(node);
     return typeof lost === 'number' && Number.isFinite(lost) ? lost : null;
   }, [currentNode, hoveredStoneMoveNumber]);
