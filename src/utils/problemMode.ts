@@ -1,3 +1,4 @@
+import { formatBoardMoveLabel } from '../lib/gtp';
 import type { GameNode, Player } from '../types';
 
 export type ProblemVerdict = 'correct' | 'wrong' | 'unknown';
@@ -276,4 +277,37 @@ export const findSolutionPath = (start: GameNode, solver?: Player): GameNode[] =
     node = node.children.find((child) => classifyProblemNode(child, solver) !== 'wrong') ?? null;
   }
   return mainLine;
+};
+
+/** The comment a problem node carries: the loaded `C`, or its raw property. */
+export const problemNodeComment = (node: GameNode): string =>
+  (node.note?.trim() || node.properties?.C?.join(' ').trim() || '');
+
+export interface SolutionStep {
+  /** 0 is the problem position; 1..total are the moves of the line. */
+  step: number;
+  total: number;
+  /** "Black C3", "White passes", or null at the problem position. */
+  moveLabel: string | null;
+  comment: string;
+}
+
+/**
+ * What to show at one step of a solution line, so "Show solution" can walk
+ * through it move by move -- with the comments problem authors write on each
+ * move -- instead of jumping to the final position.
+ */
+export const describeSolutionStep = (path: GameNode[], step: number): SolutionStep => {
+  const total = Math.max(0, path.length - 1);
+  const index = Math.max(0, Math.min(step, total));
+  const node = path[index];
+  const move = index > 0 ? node?.move : null;
+  let moveLabel: string | null = null;
+  if (move) {
+    const side = move.player === 'black' ? 'Black' : 'White';
+    moveLabel = isProblemPass(move)
+      ? `${side} passes`
+      : `${side} ${formatBoardMoveLabel(move, node!.gameState.board.length)}`;
+  }
+  return { step: index, total, moveLabel, comment: node ? problemNodeComment(node) : '' };
 };

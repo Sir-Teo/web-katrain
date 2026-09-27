@@ -2,7 +2,16 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
 import { parseSgf } from '../src/utils/sgf';
-import { classifyProblemNode, findChildForMove, findPassChild, getProblemStarts, isProblemPass, problemSideToMove } from '../src/utils/problemMode';
+import {
+  classifyProblemNode,
+  describeSolutionStep,
+  findChildForMove,
+  findPassChild,
+  findSolutionPath,
+  getProblemStarts,
+  isProblemPass,
+  problemSideToMove,
+} from '../src/utils/problemMode';
 
 const load = (sgf: string) => {
   useGameStore.getState().loadGame(parseSgf(sgf));
@@ -40,6 +49,34 @@ describe('problem starts', () => {
     const root = load('(;SZ[9]AB[cc][dc]AW[cd][dd](;B[ec]C[RIGHT])(;B[aa]C[play the right side]))');
     expect(classifyProblemNode(root.children[0]!, 'black')).toBe('correct');
     expect(classifyProblemNode(root.children[1]!, 'black')).toBe('unknown');
+  });
+});
+
+describe('stepping through a solution', () => {
+  afterEach(() => useGameStore.getState().resetGame());
+
+  it('describes each move of the line with its number and comment', () => {
+    const root = load('(;GM[1]FF[4]SZ[9];AB[cc][dc]AW[cd][dd]C[Black to live](;B[aa]C[Wrong])(;B[ec]C[The key point.];W[];B[fc]C[Correct, black lives.]))');
+    const [start] = getProblemStarts(root);
+    const path = findSolutionPath(start!, 'black');
+    expect(path).toHaveLength(4);
+
+    expect(describeSolutionStep(path, 0)).toEqual({ step: 0, total: 3, moveLabel: null, comment: 'Black to live' });
+    expect(describeSolutionStep(path, 1)).toEqual({ step: 1, total: 3, moveLabel: 'Black E7', comment: 'The key point.' });
+    expect(describeSolutionStep(path, 2)).toMatchObject({ step: 2, moveLabel: 'White passes', comment: '' });
+    expect(describeSolutionStep(path, 3)).toMatchObject({ step: 3, moveLabel: 'Black F7', comment: 'Correct, black lives.' });
+    // Out-of-range steps clamp rather than read past the line.
+    expect(describeSolutionStep(path, 9).step).toBe(3);
+    expect(describeSolutionStep(path, -1).step).toBe(0);
+  });
+
+  it('walks the line in the dialog instead of jumping to its end', () => {
+    const source = readFileSync('src/components/ProblemModal.tsx', 'utf8');
+    expect(source).toContain('showSolutionStep(path, path.length > 1 ? 1 : 0);');
+    expect(source).toContain('aria-label="Previous solution move"');
+    expect(source).toContain('aria-label="Next solution move"');
+    expect(source).toContain('aria-label="Restart solution"');
+    expect(source).toContain('data-problem-solution-comment="true"');
   });
 });
 
