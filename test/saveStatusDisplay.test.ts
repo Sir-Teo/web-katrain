@@ -1,8 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { getSaveStatusDisplay } from '../src/utils/saveStatusDisplay';
+import { formatSaveStatusTime, getSaveStatusDisplay } from '../src/utils/saveStatusDisplay';
 
 describe('getSaveStatusDisplay', () => {
+  it('says how old the retained recovery copy is when a newer write is skipped', () => {
+    const savedAt = Date.UTC(2026, 0, 1, 12, 30);
+    const time = formatSaveStatusTime(savedAt);
+
+    for (const state of ['too-large', 'failed'] as const) {
+      const display = getSaveStatusDisplay(true, { state, savedAt });
+      expect(display?.detail).toBe(time);
+      expect(display?.title).toContain(`recovery copy from ${time} does not include newer changes`);
+    }
+    // With nothing retained there is no copy to date.
+    expect(getSaveStatusDisplay(true, { state: 'too-large' })?.title).not.toContain('recovery copy from');
+  });
+
   it('hides save state when the current game is clean', () => {
     expect(getSaveStatusDisplay(false, { state: 'saved', savedAt: 123 })).toBeNull();
   });
@@ -60,7 +73,7 @@ describe('an autosave outcome that means the work is unprotected reaches every v
   it('toasts when the recovery copy fails outright', () => {
     const effect = autoSaveEffect();
     // The final `else` -- storage full, or blocked.
-    const branch = effect.slice(effect.indexOf("setAutoSaveStatus({ state: 'failed' })"));
+    const branch = effect.slice(effect.indexOf("setAutoSaveStatus({ state: 'failed'"));
     expect(
       branch,
       'a failed recovery save is silent on any viewport without the mobile dock'

@@ -42,16 +42,21 @@ describe('auto-save helpers', () => {
     expect(readAutoSavedGame(storage)).toBeNull();
   });
 
-  it('skips oversized snapshots and clears stale recovery data', () => {
+  it('skips an oversized snapshot but keeps the last copy that fit', () => {
+    // Crossing the limit used to delete the previous checkpoint, so one long
+    // comment left the game with no recovery copy at all.
     const storage = makeStorage();
 
     expect(writeAutoSavedGame('(;GM[1]SZ[19];B[pd])', storage, 123)).toBe('saved');
-    expect(storage.getItem(AUTO_SAVED_GAME_KEY)).not.toBeNull();
 
     const oversizedSgf = `(;GM[1]SZ[19]C[${'x'.repeat(AUTO_SAVE_MAX_BYTES)}])`;
 
     expect(writeAutoSavedGame(oversizedSgf, storage, 124)).toBe('too-large');
-    expect(storage.getItem(AUTO_SAVED_GAME_KEY)).toBeNull();
+    expect(readAutoSavedGame(storage)).toEqual({
+      version: 1,
+      savedAt: 123,
+      sgf: '(;GM[1]SZ[19];B[pd])',
+    });
   });
 
   it('clears snapshots', () => {

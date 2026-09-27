@@ -15,7 +15,7 @@ import { NOTHING_TO_TAKE_BACK_MESSAGE, getPlayerUndoSteps } from '../utils/playe
 import { getNodePath, resolveNodePath } from '../utils/pinnedVariations';
 import { pickSharedImportText, readSharedFromQuery } from '../utils/pwaOpen';
 import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
-import type { AutoSaveStatus } from '../utils/saveStatusDisplay';
+import { describeRetainedRecovery, type AutoSaveStatus } from '../utils/saveStatusDisplay';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
   createLibraryItem,
@@ -1285,16 +1285,21 @@ export const Layout: React.FC = () => {
         autoSaveFailedToastShownRef.current = false;
         setAutoSaveStatus({ state: 'saved', savedAt });
       } else if (result === 'too-large') {
-        setAutoSaveStatus({ state: 'too-large' });
+        // The last copy that fit is still there; say how old it is.
+        const retainedAt = readAutoSavedGame()?.savedAt;
+        setAutoSaveStatus({ state: 'too-large', savedAt: retainedAt });
         if (!autoSaveTooLargeToastShownRef.current) {
           autoSaveTooLargeToastShownRef.current = true;
-          toast(`Game is too large for recovery auto-save (${AUTO_SAVE_MAX_LABEL}). Save to Library or download SGF to keep changes.`, 'info');
+          toast(`Game is too large for recovery auto-save (${AUTO_SAVE_MAX_LABEL}).${describeRetainedRecovery(retainedAt)} Save to Library or download SGF to keep changes.`, 'info');
         }
       } else {
-        setAutoSaveStatus({ state: 'failed' });
+        const retainedAt = readAutoSavedGame()?.savedAt;
+        setAutoSaveStatus({ state: 'failed', savedAt: retainedAt });
         if (!autoSaveFailedToastShownRef.current) {
           autoSaveFailedToastShownRef.current = true;
-          toast('Recovery auto-save failed, so this game will not come back after a reload. Save to Library or download SGF to keep changes.', 'error');
+          toast(retainedAt
+            ? `Recovery auto-save failed.${describeRetainedRecovery(retainedAt)} Save to Library or download SGF to keep changes.`
+            : 'Recovery auto-save failed, so this game will not come back after a reload. Save to Library or download SGF to keep changes.', 'error');
         }
       }
     };

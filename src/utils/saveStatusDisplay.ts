@@ -22,6 +22,16 @@ export function formatSaveStatusTime(savedAt: number): string {
   return new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * A write that is skipped or refused leaves the last copy that did fit in
+ * place. Say how old it is: the badge otherwise reads as if nothing were
+ * protected, or -- worse, after a reload -- as if everything were.
+ */
+export function describeRetainedRecovery(savedAt: number | undefined): string {
+  if (!savedAt) return '';
+  return ` The recovery copy from ${formatSaveStatusTime(savedAt)} does not include newer changes.`;
+}
+
 export function getSaveStatusDisplay(
   unsavedChanges: boolean,
   autoSaveStatus: AutoSaveStatus | null = null,
@@ -70,12 +80,16 @@ export function getSaveStatusDisplay(
     };
   }
 
+  const retainedDetail = autoSaveStatus.savedAt ? formatSaveStatusTime(autoSaveStatus.savedAt) : undefined;
+  const retained = describeRetainedRecovery(autoSaveStatus.savedAt);
+
   if (autoSaveStatus.state === 'too-large') {
     return {
       state: 'too-large',
       label: 'Recovery skipped',
       compactLabel: 'Too large',
-      title: `Game is too large for recovery auto-save (${AUTO_SAVE_MAX_LABEL}). Save to Library or download SGF to keep changes.`,
+      detail: retainedDetail,
+      title: `Game is too large for recovery auto-save (${AUTO_SAVE_MAX_LABEL}).${retained} Save to Library or download SGF to keep changes.`,
       tone: 'warning',
       role: 'alert',
       ariaLive: 'assertive',
@@ -86,7 +100,8 @@ export function getSaveStatusDisplay(
     state: 'failed',
     label: 'Recovery failed',
     compactLabel: 'Save failed',
-    title: 'Recovery auto-save failed. Save to Library or download SGF to keep changes.',
+    detail: retainedDetail,
+    title: `Recovery auto-save failed.${retained} Save to Library or download SGF to keep changes.`,
     tone: 'danger',
     role: 'alert',
     ariaLive: 'assertive',

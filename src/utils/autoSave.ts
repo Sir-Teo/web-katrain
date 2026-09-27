@@ -53,10 +53,11 @@ export function writeAutoSavedGame(
   try {
     const snapshot: AutoSavedGame = { version: 1, savedAt, sgf };
     const serialized = JSON.stringify(snapshot);
-    if (getSerializedByteLength(serialized) > AUTO_SAVE_MAX_BYTES) {
-      storage.removeItem(AUTO_SAVED_GAME_KEY);
-      return 'too-large';
-    }
+    // Too large to keep: leave the last copy that fit where it is. It is
+    // older than the game on the board, but it is the only copy there is --
+    // removing it turned "the newest changes are unprotected" into "nothing
+    // is", one keystroke past the limit.
+    if (getSerializedByteLength(serialized) > AUTO_SAVE_MAX_BYTES) return 'too-large';
     storage.setItem(AUTO_SAVED_GAME_KEY, serialized);
     return 'saved';
   } catch {
