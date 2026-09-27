@@ -15,6 +15,7 @@ import { NotesPanel } from '../NotesPanel';
 import { Timer } from '../Timer';
 import { LanguageSwitcher } from '../layout/LanguageSwitcher';
 import { getDashboardLayoutMode, type DashboardLayoutMode } from '../../utils/dashboardLayout';
+import { isOverlayToggleVisible } from '../../utils/coachTools';
 import { computeTerritorySwing, describeTerritorySwing, resolveSwingBaseline } from '../../utils/territorySwing';
 import { LIBRARY_OPEN_STORAGE_KEY } from '../../utils/layoutPreferences';
 import { APP_BUILD_LABEL, APP_COMMIT_URL, APP_ISSUE_REPORT_URL } from '../../utils/appInfo';
@@ -311,6 +312,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   const commandbarState = commandbarVisible ? 'open' : commandbarOpen ? 'reserved' : 'closed';
   const [legend, setLegend] = useState({ winrate: true, score: true, time: false });
   const [legendOpen, setLegendOpen] = useState(false);
+  // Coach keeps the Review tab to the two overlays a newer player reads first
+  // (top moves and territory) and tucks the analyst's set behind "More tools".
+  const [coachToolsOpen, setCoachToolsOpen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<DashboardLayoutMode>(() => {
     if (typeof window === 'undefined') return 'wide';
     return getDashboardLayoutMode(window.innerWidth);
@@ -447,6 +451,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
   // printing "BEST MOVE G4" under the board answers the question anyway.
   const bestMove = drillHidesAnswer ? null : currentNode.analysis?.moves?.[0] ?? null;
   const isProDetail = settings.analysisExperience === 'pro';
+  const showAdvancedTools = isProDetail || coachToolsOpen;
+  const overlayVisible = (key: DashboardOverlayKey) =>
+    isOverlayToggleVisible(key, { isPro: isProDetail, toolsOpen: coachToolsOpen, on: !!settings[key] });
   // "Fast review" matches the command bar's name for the same operation;
   // avoid exposing MCTS jargon in one surface and not the other.
   const dashboardFastMctsTitle = isGameAnalysisRunning
@@ -1234,14 +1241,29 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 </div>
                 {/* Overlay toggles and review actions are analyst tooling; the
                     Play tab stays focused on the game itself. */}
+                {/* Coach shows the analyst's overlays only on request. One that
+                    is already on stays visible regardless, so it can always be
+                    turned off from where it is drawn. */}
                 {mode === 'analyze' && (
-                <div className="overlay-row overlay-row--toggles">
-                  {overlayBtn('analysisShowChildren', 'Children', 'sitemap')}
-                  {overlayBtn('analysisShowEval', 'Dots', 'circle')}
+                <div className="overlay-row overlay-row--toggles" id="dashboard-overlay-toggles">
+                  {overlayVisible('analysisShowChildren') ? overlayBtn('analysisShowChildren', 'Children', 'sitemap') : null}
+                  {overlayVisible('analysisShowEval') ? overlayBtn('analysisShowEval', 'Dots', 'circle') : null}
                   {overlayBtn('analysisShowHints', 'Top moves', 'layers', settings.analysisShowPolicy)}
-                  {overlayBtn('analysisShowPolicy', 'Heatmap', 'grid')}
+                  {overlayVisible('analysisShowPolicy') ? overlayBtn('analysisShowPolicy', 'Heatmap', 'grid') : null}
                   {overlayBtn('analysisShowOwnership', 'Territory', 'map')}
-                  {overlayBtn('analysisShowSwing', 'Swing', 'chart', false, swingSummary)}
+                  {overlayVisible('analysisShowSwing') ? overlayBtn('analysisShowSwing', 'Swing', 'chart', false, swingSummary) : null}
+                  {!isProDetail && (
+                    <button
+                      type="button"
+                      className="pbtn overlay-more"
+                      aria-expanded={coachToolsOpen}
+                      aria-controls="dashboard-overlay-toggles"
+                      onClick={() => setCoachToolsOpen((open) => !open)}
+                    >
+                      <Icon name={coachToolsOpen ? 'chevD' : 'chevR'} size={12} />
+                      {coachToolsOpen ? 'Fewer tools' : 'More tools'}
+                    </button>
+                  )}
                 </div>
                 )}
                 {legendOpen && (
@@ -1261,15 +1283,17 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 )}
                 {mode === 'analyze' && (
                 <div className="overlay-row overlay-row--actions" style={{ paddingTop: 8 }}>
-                  <button
-                    type="button"
-                    className="pbtn"
-                    aria-label="Run quick graph analysis"
-                    title="Run quick graph analysis"
-                    onClick={startQuickGameAnalysis}
-                  >
-                    <Icon name="chart" size={12} />Quick graph
-                  </button>
+                  {showAdvancedTools && (
+                    <button
+                      type="button"
+                      className="pbtn"
+                      aria-label="Run quick graph analysis"
+                      title="Run quick graph analysis"
+                      onClick={startQuickGameAnalysis}
+                    >
+                      <Icon name="chart" size={12} />Quick graph
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={`pbtn${isGameAnalysisRunning ? ' danger' : ''}`}
