@@ -148,6 +148,33 @@ checked in the browser).
 Left as is: byo-yomi periods refresh when stepping back and forward (KaTrain
 parity); New Game with handicap 1 still places one stone (saved explicitly).
 
+## Follow-up pass (2026-09-27, `claude/inspiring-cori-30ijl5`)
+
+Works through a 45-item external review (eleven items reproduced by focused
+tests before the fix). Each fix has a regression test. The full suite, type
+checks, lint, build, bundle budget and engine smoke suite pass. The viewport
+suite, run in a local headless Chromium, ends with the same single failure as
+the untouched base commit in that environment (568x320 mobile save feedback).
+Nothing in this pass was checked on WebKit, Firefox or a physical phone.
+
+| Area | Problem and resulting behavior |
+| --- | --- |
+| Library storage | Two tabs adding games at once lost one addition; writes now run under a Web Lock, check a stored revision, re-apply on conflict and tell other tabs to reload. Saves made with no IndexedDB at all were never marked for reconciliation and were lost when it came back. A one-field edit re-normalized and rewrote every record; only changed records are written now. Bulk duplication rebuilt indexes per item. Backups are size- and schema-checked and report skipped/repaired records; restore offers Merge beside Replace. Deletes can be undone for 10 s. The folder tree renders as flat rows at any depth. |
+| Recovery | A save over 5 MB deleted the last good recovery copy; it is kept and its time shown. All tabs shared one recovery slot; each tab now has its own, open tabs' copies are not offered, and only the chosen copy is deleted. The prompt shows players, move count, a board preview and a Download button. The compact badge reads "Recovery", not "Saved". |
+| Import | Opening a multi-game SGF and saving or exporting it dropped the other games; they are now carried verbatim through every open/export path. KT analysis fields inflated without a limit before any size check. JSON scores such as `1e999` became Infinity. `HA[0]` with two black setup stones gave the engine a handicap bonus the scorer did not; one helper now serves both. |
+| Engine | Replacing the human SL net, or switching backend, leaked the old net (and every model's metadata encoder). Model downloads can be cancelled, stall out after 45 s, retry once, and stop at 768 MB. Status said "Ready" before a model had loaded; it now reads Configured until the worker confirms a backend. Photo recognition reads at most 2048 px. The worker is built on tfjs-core rather than the umbrella package: 1.47 MB to 826 kB. |
+| Analysis | Raising visits wiped every node's analysis; budget-only changes now keep results and re-search shallower nodes. Every node stored a full copy of its move history (8,002,000 references on a 4,000-move game); positions now share a parent link and build the array on demand. Results record their source, model, rules, komi and budget. Jumping to the end of a long game was O(n²). |
+| Play and study | A tournament could adopt and count an unrelated game, and could not record a draw. Problem grading read "not the correct solution" as correct; problems needing a pass were unplayable; Show solution now steps move by move. Guess-move feedback describes distance, not quality. Lesson and quiz progress persist. Stopping an OGS sync keeps finished downloads. |
+| UI | One failed dialog chunk disabled every dialog until reload; each dialog now has its own boundary with Retry. The clock ran in Review, and woke 14 times a second while paused. Timer Sound and PV Animation Moves did nothing. Choosing a language relabelled the English UI for screen readers. Small dashboard text raised to 12px. Coach shows two overlays and keeps the rest behind "More tools". Clear Analysis Cache let Tab walk out into the page. |
+| Pipeline | Pages deployed on every push to main even when CI's browser suite failed; it now deploys only a commit CI passed. CI runs an engine smoke subset, a weekly workflow runs every engine suite, and a bundle budget guards the main, worker, vendor and CSS chunks. Five dialogs are driven in a rendered DOM test (focus, Tab trap, Escape, accessible name, focus return). |
+
+Left open: cross-browser automation (the harness drives Chrome over CDP only;
+Firefox/WebKit coverage needs a Playwright port and their browsers in CI);
+splitting `gameStore.ts` and `Layout.tsx`; a collection game selector (the
+other games are preserved but only the first opens); download progress in the
+UI; moving photo recognition and KT decoding into workers; the main entry
+chunk (783 kB) needs profiling before further splitting.
+
 ## Validation and measurement
 
 The baseline passed 2,384 tests, with one intentionally skipped benchmark. After
