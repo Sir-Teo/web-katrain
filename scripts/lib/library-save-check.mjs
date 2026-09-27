@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { connectDevtools, evaluate, navigate, setViewport, sleep, waitForExpression } from './browser.mjs';
+import {
+  OWN_AUTO_SAVE_ITEM,
+  connectDevtools,
+  evaluate,
+  navigate,
+  setViewport,
+  sleep,
+  waitForExpression,
+} from './browser.mjs';
 
-const recoveryKey = 'web-katrain:auto_saved_game:v1';
+// This tab's recovery copy; each tab keeps its own (see OWN_AUTO_SAVE_ITEM).
+const recoveryItem = OWN_AUTO_SAVE_ITEM;
 const textDialog = '[aria-labelledby="library-text-dialog-title"]';
 const recoveryDialog = '[aria-labelledby="auto-save-recovery-title"]';
 
@@ -101,7 +110,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
       };
       const boardSnapshot = () => evaluate(cdp, `({...document.querySelector('[data-board-snapshot=true]').dataset})`);
-      const recovery = () => evaluate(cdp, `JSON.parse(localStorage.getItem(${JSON.stringify(recoveryKey)}))`);
+      const recovery = () => evaluate(cdp, `JSON.parse(${recoveryItem})`);
       const play = async coordinate => {
         const before = await boardSnapshot();
         const p = await point(`document.querySelector('[data-board-snapshot=true]')`);
@@ -115,7 +124,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         // The phone board previews the first tap and confirms the second.
         if (mobile) { await sleep(100); await dispatch(p); }
         await wait(`document.querySelector('[data-board-snapshot=true]').dataset.boardStones!==${JSON.stringify(before.boardStones)}`);
-        await wait(`!!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
+        await wait(`!!${recoveryItem}`);
       };
       const beginSave = async () => {
         if (entry) {
@@ -230,7 +239,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           assert.deepEqual(await recovery(), firstRecovery);
           await evaluate(cdp, 'librarySaveAudit.held.splice(0).forEach(release=>release())');
           await wait(`(async()=>{const items=await ${storedItems};return items.find(item=>item.id==='original')?.favorite===true})()`);
-          await wait(`!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
+          await wait(`!${recoveryItem}`);
           await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
           assert.equal((await evaluate(cdp, storedItems)).find(item=>item.id==='original')?.sgf, firstRecovery.sgf, 'Starring during a save must preserve its exact game');
           await navigate(cdp, appUrl);
@@ -245,7 +254,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           await wait('librarySaveAudit.held.length>0');
           assert.deepEqual(await recovery(), firstRecovery, 'A pending save must retain recovery data');
           await play(5);
-          await wait(`JSON.parse(localStorage.getItem(${JSON.stringify(recoveryKey)}))?.sgf!==${JSON.stringify(firstRecovery.sgf)}`);
+          await wait(`JSON.parse(${recoveryItem})?.sgf!==${JSON.stringify(firstRecovery.sgf)}`);
           const latestRecovery = await recovery();
           if (overlap) {
             await evaluate(cdp, `librarySaveAudit.mode='normal'`);
@@ -273,7 +282,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
               await click('button[aria-label="Update loaded library game"]');
             }
             await wait(`(async()=>{const items=await ${storedItems};return items.find(item=>item.id==='original')?.sgf===${JSON.stringify(latestRecovery.sgf)}})()`);
-            await wait(`!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
+            await wait(`!${recoveryItem}`);
             await sleep(200);
             assert.equal((await evaluate(cdp, storedItems)).find(item => item.id === 'original')?.sgf, latestRecovery.sgf, 'Panel synchronization must not overwrite the newest save');
             if (panelUpdate) {
@@ -314,7 +323,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
               if (mobile) await saveFromMenu();
               else await saveShortcut();
               await wait(`(async()=>{const items=await ${storedItems};return items.find(item=>item.id===${JSON.stringify(savedGame.id)})?.sgf===${JSON.stringify(latestRecovery.sgf)}})()`);
-              await wait(`!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
+              await wait(`!${recoveryItem}`);
               await navigate(cdp, appUrl);
               await wait(`!!document.querySelector('[data-board-snapshot=true]')`);
               await openLibrary();
@@ -334,7 +343,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           await evaluate(cdp, `librarySaveAudit.mode='normal'`);
           await clickElement(`[...document.querySelectorAll('button')].find(e=>e.textContent==='Retry saving library')`);
           await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
-          await wait(`!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
+          await wait(`!${recoveryItem}`);
           const saved = await evaluate(cdp, storedItems);
           const savedGame = saved.find(item => item.sgf === firstRecovery.sgf);
           assert.ok(savedGame, 'Retry must persist the exact requested game');

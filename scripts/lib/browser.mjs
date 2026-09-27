@@ -16,6 +16,36 @@ import path from 'node:path';
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Page-side statements that delete every auto-save recovery copy.
+ *
+ * Recovery used to be one key (`auto_saved_game:v1`), and the checks removed
+ * that. Each tab now keeps its own copy under `auto_saved_game:v2:<id>`, with
+ * an index and heartbeats beside them, and the prompt offers copies left by
+ * earlier page loads. Removing only the old key left those behind, so the
+ * prompt opened over the app mid-run. Everything recovery stores starts with
+ * `web-katrain:auto_save`; the legacy key is read too, so it goes with them.
+ */
+export const CLEAR_AUTO_SAVES = `
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith('web-katrain:auto_save')) localStorage.removeItem(key);
+  }
+`;
+
+/** An expression that runs CLEAR_AUTO_SAVES and says whether anything was there. */
+export const CLEAR_AUTO_SAVES_EXPRESSION = `(() => {
+  const had = Object.keys(localStorage).some((key) => key.startsWith('web-katrain:auto_save'));
+  ${CLEAR_AUTO_SAVES}
+  return had;
+})()`;
+
+/**
+ * This tab's recovery copy, as the stored JSON string (or null). The id lives
+ * in sessionStorage; see src/utils/autoSave.ts.
+ */
+export const OWN_AUTO_SAVE_ITEM =
+  "localStorage.getItem('web-katrain:auto_saved_game:v2:' + sessionStorage.getItem('web-katrain:auto_save_session:v1'))";
+
+/**
  * Where Chrome is.
  *
  * This used to be `google-chrome` on anything but a Mac, which is true of a

@@ -158,6 +158,11 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       '@tensorflow/tfjs-core',
+      // The chained-op registrations in src/engine/katago/tf.ts are separate
+      // entry points; leaving them out reloaded the page on the first Analyze.
+      '@tensorflow/tfjs-core/dist/public/chained_ops/add',
+      '@tensorflow/tfjs-core/dist/public/chained_ops/mul',
+      '@tensorflow/tfjs-core/dist/public/chained_ops/reshape',
       '@tensorflow/tfjs-backend-cpu',
       '@tensorflow/tfjs-backend-webgpu',
       '@tensorflow/tfjs-backend-wasm',

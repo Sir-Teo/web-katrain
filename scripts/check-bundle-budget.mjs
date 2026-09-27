@@ -14,8 +14,10 @@ const assetsDir = path.resolve(import.meta.dirname, '..', 'dist', 'assets');
 // Sizes in bytes. `gzip` is what a first visit downloads; `raw` is what the
 // browser parses and compiles.
 const budgets = [
-  // Measured 2026-09-27: 753 kB raw / 223 kB gzip.
-  { name: 'main entry', pattern: /^main-[\w-]+\.js$/, raw: 790_000, gzip: 235_000 },
+  // Measured 2026-09-27: 783 kB raw / 232 kB gzip, up from 753 / 223 kB with
+  // that day's audit fixes (per-tab recovery, per-dialog error boundaries,
+  // cross-tab library writes, lazy move history, provenance, clock driver).
+  { name: 'main entry', pattern: /^main-[\w-]+\.js$/, raw: 810_000, gzip: 242_000 },
   // Measured 2026-09-27: 824 kB raw / 221 kB gzip, after dropping the tfjs umbrella package
   // (Layers, converter, tf.data, WebGL) in favour of tfjs-core. It was 1.47 MB.
   { name: 'engine worker', pattern: /^worker-[\w-]+\.js$/, raw: 870_000, gzip: 235_000 },

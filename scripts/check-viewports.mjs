@@ -14,6 +14,9 @@ import { assertHeaderNotificationsFit } from './lib/header-notification-check.mj
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
 import {
+  CLEAR_AUTO_SAVES,
+  CLEAR_AUTO_SAVES_EXPRESSION,
+  chromeCandidates,
   chromePath,
   chromeTarget,
   connectDevtools,
@@ -671,6 +674,7 @@ async function assertAutoSaveRecoveryFits(cdp, appUrl) {
   for (const [width, height] of [[568, 320], [320, 480], [740, 360], [390, 844], [1440, 900]]) {
     await setViewport(cdp, { width, height, mobile: width < 768 });
     await evaluate(cdp, `(() => {
+      ${CLEAR_AUTO_SAVES}
       localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});
       return 1;
     })()`);
@@ -702,7 +706,7 @@ async function assertAutoSaveRecoveryFits(cdp, appUrl) {
       const button = d && [...d.querySelectorAll('button')].find((b) =>
         /discard/i.test((b.textContent || '') + (b.getAttribute('aria-label') || '')));
       if (button) button.click();
-      localStorage.removeItem('web-katrain:auto_saved_game:v1');
+      ${CLEAR_AUTO_SAVES}
       return 1;
     })()`);
     await sleep(300);
@@ -759,7 +763,7 @@ async function assertPwaCardsClearTheBoard(cdp, appUrl) {
       // measure the first one three times. Navigating rather than calling
       // `location.reload()` from inside the page, which drops the execution
       // context `evaluate` is speaking to.
-      await evaluate(cdp, `(() => { localStorage.removeItem('web-katrain:auto_saved_game:v1'); return 1; })()`)
+      await evaluate(cdp, CLEAR_AUTO_SAVES_EXPRESSION)
         .catch(() => {});
       await navigate(cdp, appUrl);
       await waitForBoard(cdp);
@@ -1094,11 +1098,13 @@ async function main() {
       // which reads as a flood of unrelated failures (289 board intersections,
       // every smoke flow dead). The suite used to pass only because it beat
       // that timer; adding 700ms anywhere upstream broke it.
+      //
+      // Lesson position is remembered across openings now, so a pass that
+      // left a lesson open would start the next pass's lessons smoke inside
+      // it rather than at the list; clear that too.
       const hadAutoSave = await evaluate(cdp, `(() => {
-        const key = 'web-katrain:auto_saved_game:v1';
-        const had = localStorage.getItem(key) !== null;
-        localStorage.removeItem(key);
-        return had;
+        localStorage.removeItem('web-katrain:lesson_progress:v1');
+        return ${CLEAR_AUTO_SAVES_EXPRESSION};
       })()`);
       if (hadAutoSave) {
         await navigate(cdp, appUrl);
@@ -2919,8 +2925,11 @@ async function main() {
           }
           germanOption.click();
           await waitForFrames(4);
-          if (document.documentElement.lang !== 'de') {
-            localeSmokeFailures.push('top language switcher did not update html lang to de');
+          // The interface has no translations, so the page stays marked as
+          // English whatever is chosen; marking English text as German made
+          // screen readers read it with German pronunciation.
+          if (document.documentElement.lang !== 'en') {
+            localeSmokeFailures.push('top language switcher relabelled the English interface as ' + document.documentElement.lang);
           }
           if (document.documentElement.getAttribute('data-locale') !== 'de') {
             localeSmokeFailures.push('top language switcher did not update root data-locale to de');
@@ -2987,12 +2996,11 @@ async function main() {
           selector.dispatchEvent(new Event('change', { bubbles: true }));
           await waitForCondition(() => (
             selector.value === 'ja'
-            && document.documentElement.lang === 'ja'
             && document.documentElement.getAttribute('data-locale') === 'ja'
           ));
           if (selector.value !== 'ja') localeSmokeFailures.push('locale selector did not keep Japanese value');
-          if (document.documentElement.lang !== 'ja') {
-            localeSmokeFailures.push('html lang did not update to ja');
+          if (document.documentElement.lang !== 'en') {
+            localeSmokeFailures.push('locale selector relabelled the English interface as ' + document.documentElement.lang);
           }
           if (document.documentElement.getAttribute('data-locale') !== 'ja') {
             localeSmokeFailures.push('root data-locale did not update to ja');
@@ -3665,8 +3673,8 @@ async function main() {
                 else menuLocale.value = 'fr';
                 menuLocale.dispatchEvent(new Event('change', { bubbles: true }));
                 await waitForFrames(4);
-                if (document.documentElement.lang !== 'fr') {
-                  localeSmokeFailures.push('mobile menu locale did not update html lang to fr');
+                if (document.documentElement.lang !== 'en') {
+                  localeSmokeFailures.push('mobile menu locale relabelled the English interface as ' + document.documentElement.lang);
                 }
                 if (document.documentElement.getAttribute('data-locale') !== 'fr') {
                   localeSmokeFailures.push('mobile menu locale did not update root data-locale to fr');

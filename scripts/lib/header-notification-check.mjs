@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { connectDevtools, evaluate, navigate, setViewport, sleep } from './browser.mjs';
+import { CLEAR_AUTO_SAVES, connectDevtools, evaluate, navigate, setViewport, sleep } from './browser.mjs';
 
 // A long status toast can expand the dashboard's implicit grid column even
 // while the document reports zero overflow. Check the actual panel bounds
@@ -12,7 +12,7 @@ export async function assertHeaderNotificationsFit(devtoolsPort, appUrl, runDir,
   await browser.ready;
   let cdp;
   const preload = `
-    localStorage.removeItem('web-katrain:auto_saved_game:v1');
+    ${CLEAR_AUTO_SAVES}
     localStorage.setItem('web-katrain:mobile_home_dismissed:v1', 'true');
     localStorage.setItem('web-katrain:library_open:v1', 'false');
     localStorage.setItem('web-katrain:sidebar_open:v1', 'true');

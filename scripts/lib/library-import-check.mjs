@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import JSZip from 'jszip';
-import { evaluate, loadedModuleUrl, navigate, setViewport, sleep } from './browser.mjs';
+import { CLEAR_AUTO_SAVES, evaluate, loadedModuleUrl, navigate, setViewport, sleep } from './browser.mjs';
 
 // A toast in an inert, hidden board can have correct text while being invisible
 // in Library. Use real file input and hit-test its actions on the active panel.
@@ -12,7 +12,7 @@ export async function assertLibraryImportFailures(cdp, appUrl, runDir, screensho
   zip.file('Encoding.sgf', '(;SZ[9]CA[Unsupported])');
   const zipPath = path.join(runDir, 'partial.zip');
   const preload = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
-    localStorage.removeItem('web-katrain:auto_saved_game:v1');
+    ${CLEAR_AUTO_SAVES}
     localStorage.setItem('web-katrain:mobile_home_dismissed:v1', 'true');
     localStorage.setItem('web-katrain:library_open:v1', 'true');
     localStorage.setItem('web-katrain:settings:v3', JSON.stringify({soundEnabled:false, loadSgfFastAnalysis:false}));
