@@ -53,7 +53,6 @@ import {
   type ChunkWarmer,
 } from '../utils/idleChunkWarming';
 import { createWarmableLazy } from '../utils/warmableLazy';
-import { isStaleBuildError } from '../utils/errorReporting';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
   PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE,
@@ -3777,45 +3776,50 @@ export const Layout: React.FC = () => {
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-board-announcer="true">
         {boardAnnouncement}
       </div>
-      <LazyModalBoundary
-        onError={(error) => {
-          const message = error instanceof Error ? error.message : String(error);
-          // A deploy is news, not a fault; only a genuine load failure is an error.
-          const stale = isStaleBuildError(message);
-          toast(
-            stale
-              ? 'Web KaTrain has been updated. Reload to open this.'
-              : 'That panel could not be opened. Reload to try again.',
-            stale ? 'info' : 'error'
-          );
-        }}
-      >
       <Suspense fallback={<LazyModalFallback />}>
-        {isSettingsOpen && <SettingsModal focusModel={settingsFocusModel} onClose={() => {
-          setIsSettingsOpen(false);
-          setSettingsFocusModel(false);
-        }} />}
+        {isSettingsOpen && (
+          <LazyModalBoundary onDismiss={() => {
+            setIsSettingsOpen(false);
+            setSettingsFocusModel(false);
+          }}>
+            <SettingsModal focusModel={settingsFocusModel} onClose={() => {
+              setIsSettingsOpen(false);
+              setSettingsFocusModel(false);
+            }} />
+          </LazyModalBoundary>
+        )}
         {isAboutOpen && (
+          <LazyModalBoundary onDismiss={() => setIsAboutOpen(false)}>
           <AboutDialog
             onClose={() => setIsAboutOpen(false)}
             returnFocus={modalReturnFocusRef.current}
           />
+          </LazyModalBoundary>
         )}
         {autoSaveRecovery && (
+          <LazyModalBoundary>
           <AutoSaveRecoveryModal
             snapshot={autoSaveRecovery}
             onRestore={restoreAutoSavedGame}
             onDiscard={discardAutoSaveRecovery}
           />
+          </LazyModalBoundary>
         )}
         {isUnsavedChangesOpen && (
+          <LazyModalBoundary onDismiss={() => handleUnsavedChangesChoice('cancel')}>
           <UnsavedChangesModal
             onChoice={handleUnsavedChangesChoice}
             saveTarget={loadedLibraryFileId ? 'library' : 'download'}
           />
+          </LazyModalBoundary>
         )}
-        {isGameAnalysisOpen && <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />}
+        {isGameAnalysisOpen && (
+          <LazyModalBoundary onDismiss={() => setIsGameAnalysisOpen(false)}>
+            <GameAnalysisModal onClose={() => setIsGameAnalysisOpen(false)} />
+          </LazyModalBoundary>
+        )}
         {isTsumegoFrameOpen && (
+          <LazyModalBoundary onDismiss={() => setIsTsumegoFrameOpen(false)}>
           <TsumegoFrameModal
             defaultMargin={settings.tsumegoFrameMargin}
             defaultKoAllowed={settings.tsumegoFrameKoAllowed}
@@ -3826,9 +3830,18 @@ export const Layout: React.FC = () => {
               setIsTsumegoFrameOpen(false);
             }}
           />
+          </LazyModalBoundary>
         )}
-        {isKifuPrintOpen && <KifuPrintModal onClose={() => setIsKifuPrintOpen(false)} />}
+        {isKifuPrintOpen && (
+          <LazyModalBoundary onDismiss={() => setIsKifuPrintOpen(false)}>
+            <KifuPrintModal onClose={() => setIsKifuPrintOpen(false)} />
+          </LazyModalBoundary>
+        )}
         {isGameReportOpen && (
+          <LazyModalBoundary onDismiss={() => {
+            setIsGameReportOpen(false);
+            setReportHoverMove(null);
+          }}>
           <GameReportModal
             onClose={() => {
               setIsGameReportOpen(false);
@@ -3836,44 +3849,62 @@ export const Layout: React.FC = () => {
             }}
             setReportHoverMove={setReportHoverMove}
           />
+          </LazyModalBoundary>
         )}
         {isCommandPaletteOpen && (
+          <LazyModalBoundary onDismiss={() => setIsCommandPaletteOpen(false)}>
           <CommandPaletteModal
             commands={commandPaletteCommands}
             onClose={() => setIsCommandPaletteOpen(false)}
           />
+          </LazyModalBoundary>
         )}
         {isKeyboardHelpOpen && (
+          <LazyModalBoundary onDismiss={() => setIsKeyboardHelpOpen(false)}>
           <KeyboardHelpModal
             onClose={() => setIsKeyboardHelpOpen(false)}
             onOpenShortcutSettings={openShortcutSettings}
             returnFocus={modalReturnFocusRef.current}
           />
+          </LazyModalBoundary>
         )}
         {isScoreQuizOpen && (
+          <LazyModalBoundary onDismiss={() => setIsScoreQuizOpen(false)}>
           <ScoreQuizModal onClose={() => setIsScoreQuizOpen(false)} />
+          </LazyModalBoundary>
         )}
         {isTournamentOpen && (
+          <LazyModalBoundary onDismiss={() => setIsTournamentOpen(false)}>
           <TournamentModal
             onClose={() => setIsTournamentOpen(false)}
             onPlayGame={handlePlayTournamentGame}
             onPlayGauntletGame={handlePlayGauntletGame}
           />
+          </LazyModalBoundary>
         )}
         {isProGamesOpen && (
+          <LazyModalBoundary onDismiss={() => setIsProGamesOpen(false)}>
           <ProGamesModal
             onClose={() => setIsProGamesOpen(false)}
             onLoadGame={handleLoadProGame}
           />
+          </LazyModalBoundary>
         )}
         {isLessonsOpen && (
+          <LazyModalBoundary onDismiss={() => {
+            setIsLessonsOpen(false);
+            if (lessonsReturnHome) setMobileHomeOpen(true);
+            setLessonsReturnHome(false);
+          }}>
           <LessonsModal onClose={() => {
             setIsLessonsOpen(false);
             if (lessonsReturnHome) setMobileHomeOpen(true);
             setLessonsReturnHome(false);
           }} />
+          </LazyModalBoundary>
         )}
         {isGuessMoveOpen && (
+          <LazyModalBoundary onDismiss={() => setIsGuessMoveOpen(false)}>
           <GuessMoveModal
             onClose={() => setIsGuessMoveOpen(false)}
             onBrowseProGames={() => {
@@ -3885,14 +3916,18 @@ export const Layout: React.FC = () => {
               handleLoadClick();
             }}
           />
+          </LazyModalBoundary>
         )}
         {isProblemOpen && (
+          <LazyModalBoundary onDismiss={() => setIsProblemOpen(false)}>
           <ProblemModal
             onClose={() => setIsProblemOpen(false)}
             onOpenSgf={handleLoadClick}
           />
+          </LazyModalBoundary>
         )}
         {isPhotoBoardOpen && (
+          <LazyModalBoundary onDismiss={closePhotoBoard}>
           <PhotoBoardModal
             onClose={closePhotoBoard}
             onImportSgf={handlePhotoBoardImport}
@@ -3905,8 +3940,10 @@ export const Layout: React.FC = () => {
             initialPhotoFile={photoBoardInitialFile}
             returnFocus={modalReturnFocusRef.current}
           />
+          </LazyModalBoundary>
         )}
         {isPasteSgfOpen && (
+          <LazyModalBoundary onDismiss={() => setIsPasteSgfOpen(false)}>
           <PasteSgfModal
             onClose={() => setIsPasteSgfOpen(false)}
             onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}
@@ -3917,8 +3954,10 @@ export const Layout: React.FC = () => {
             }}
             returnFocus={modalReturnFocusRef.current}
           />
+          </LazyModalBoundary>
         )}
         {saveToLibraryDialog && (
+          <LazyModalBoundary onDismiss={() => setSaveToLibraryDialog(null)}>
           <SaveToLibraryDialog
             open
             initialName={saveToLibraryDialog.initialName}
@@ -3928,8 +3967,10 @@ export const Layout: React.FC = () => {
             onSave={handleSaveCopyToLibrary}
             returnFocus={modalReturnFocusRef.current}
           />
+          </LazyModalBoundary>
         )}
         {isNewGameOpen && (
+          <LazyModalBoundary onDismiss={() => setIsNewGameOpen(false)}>
           <NewGameModal
             teachModeOn={isTeachMode}
             onClose={() => setIsNewGameOpen(false)}
@@ -4053,9 +4094,9 @@ export const Layout: React.FC = () => {
             defaultAiConfig={defaultAiConfig}
             defaultTimerConfig={defaultTimerConfig}
           />
+          </LazyModalBoundary>
         )}
       </Suspense>
-      </LazyModalBoundary>
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={mainFileInputAccept} />
 
