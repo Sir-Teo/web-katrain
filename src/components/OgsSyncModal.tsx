@@ -55,20 +55,32 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   const [summary, setSummary] = React.useState<SyncSummary | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const cancelledRef = React.useRef(false);
+  const mountedRef = React.useRef(true);
   const inputRef = React.useRef<HTMLInputElement>(null);
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { initialFocusRef: inputRef });
 
+  // Closing the dialog mid-sync stops it, like Stop does; the games already
+  // downloaded are still imported (see runSync).
   React.useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       cancelledRef.current = true;
     };
   }, []);
+
+  const [isStopping, setIsStopping] = React.useState(false);
+  const stopSync = () => {
+    cancelledRef.current = true;
+    setIsStopping(true);
+  };
 
   const runSync = async () => {
     const trimmed = username.trim();
     if (!trimmed || isRunning) return;
     cancelledRef.current = false;
+    setIsStopping(false);
     setIsRunning(true);
     setError(null);
     setSummary(null);
@@ -77,31 +89,47 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
       const player = await resolveOgsPlayer(trimmed);
       writeLocalStorage(OGS_SYNC_USERNAME_STORAGE_KEY, player.username);
       const games = await listOgsFinishedGames(player.id, limit);
+      if (cancelledRef.current) {
+        if (mountedRef.current) setSummary({ added: 0, skipped: 0, failed: 0, username: player.username, stopped: true });
+        return;
+      }
       if (games.length === 0) {
         setError(`"${player.username}" has no finished games OGS will list.`);
         return;
       }
-      const { synced, skipped, failed } = await downloadNewOgsGames(
+      const { synced, skipped, failed, notDownloaded } = await downloadNewOgsGames(
         games,
         collectExistingOgsGameIds(items),
-        setProgress,
+        (next) => {
+          if (mountedRef.current) setProgress(next);
+        },
         () => cancelledRef.current
       );
-      if (cancelledRef.current) return;
+      // Stopping -- with Stop, or by closing the dialog -- used to return here
+      // and drop every game already downloaded. They are kept now; the parent
+      // announces the import itself, so it also reaches someone who closed
+      // the dialog.
+      const stopped = cancelledRef.current;
       if (synced.length > 0) onImport(player.username, synced);
+      if (!mountedRef.current) return;
       setSummary({
         added: synced.length,
         skipped,
         failed: failed.length,
         username: player.username,
+        stopped: stopped && notDownloaded > 0,
+        notDownloaded: stopped ? notDownloaded : 0,
       });
     } catch (cause) {
-      if (!cancelledRef.current) {
+      if (!cancelledRef.current && mountedRef.current) {
         setError(cause instanceof Error ? cause.message : 'OGS sync failed.');
       }
     } finally {
-      setIsRunning(false);
-      setProgress(null);
+      if (mountedRef.current) {
+        setIsRunning(false);
+        setIsStopping(false);
+        setProgress(null);
+      }
     }
   };
 
@@ -181,13 +209,15 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               role="status"
               aria-live="polite"
             >
-              {backoffSeconds > 0
-                ? `OGS is rate limiting us - resuming in ${backoffSeconds}s...`
-                : progress && progress.total > 0
-                  ? `Downloading ${Math.min(progress.downloaded + 1, progress.total)} of ${progress.total}${
-                      progress.current ? ` - ${progress.current.black} vs ${progress.current.white}` : ''
-                    }...`
-                  : 'Looking up player and games...'}
+              {isStopping
+                ? 'Stopping...'
+                : backoffSeconds > 0
+                  ? `OGS is rate limiting us - resuming in ${backoffSeconds}s...`
+                  : progress && progress.total > 0
+                    ? `Downloading ${Math.min(progress.downloaded + 1, progress.total)} of ${progress.total}${
+                        progress.current ? ` - ${progress.current.black} vs ${progress.current.white}` : ''
+                      }...`
+                    : 'Looking up player and games...'}
             </div>
           )}
           {error && (
@@ -206,13 +236,25 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
         </div>
 
         <div className="ogs-sync-footer ui-bar flex items-center justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
-          >
-            {summary ? 'Done' : 'Cancel'}
-          </button>
+          {isRunning ? (
+            <button
+              type="button"
+              onClick={stopSync}
+              disabled={isStopping}
+              className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+              data-ogs-sync-stop="true"
+            >
+              {isStopping ? 'Stopping...' : 'Stop'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+            >
+              {summary ? 'Done' : 'Cancel'}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void runSync()}

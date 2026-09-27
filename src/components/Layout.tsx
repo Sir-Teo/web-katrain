@@ -3686,7 +3686,7 @@ export const Layout: React.FC = () => {
     // Start a fresh game first, then hand the opponent color to the rank bot.
     window.setTimeout(() => {
       useGameStore.getState().toggleAi(opponent);
-      useTournamentStore.getState().beginGame();
+      useTournamentStore.getState().beginGame(useGameStore.getState().rootNode);
     }, 0);
     toast(`Ladder game vs ${ladder.boardSize}×${ladder.boardSize} ${ladder.userColor === 'black' ? 'White' : 'Black'} bot started.`, 'success');
   }, [replaceWithRankedGame, updateSettings, toast]);
@@ -3699,7 +3699,7 @@ export const Layout: React.FC = () => {
     const opponent = gauntlet.userColor === 'black' ? 'white' : 'black';
     window.setTimeout(() => {
       useGameStore.getState().toggleAi(opponent);
-      useTournamentStore.getState().beginGauntletGame();
+      useTournamentStore.getState().beginGauntletGame(useGameStore.getState().rootNode);
     }, 0);
     toast(`Gauntlet game ${gauntlet.index + 1}/4 vs ${formatKyuRank(opponentKyu)} started.`, 'success');
   }, [replaceWithRankedGame, updateSettings, toast]);

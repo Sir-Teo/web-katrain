@@ -2,7 +2,13 @@ import type { BoardSize, Player } from '../types';
 import { isBoardSize } from './boardSize';
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 
-export type GameResult = 'win' | 'loss';
+/**
+ * How a series game ended for the player. A draw (jigo) has no winner, so
+ * win/loss alone left a drawn game's run waiting on a result forever.
+ */
+export type GameResult = 'win' | 'loss' | 'draw';
+
+const GAME_RESULTS: readonly GameResult[] = ['win', 'loss', 'draw'];
 
 export interface LadderConfig {
   boardSize: BoardSize;
@@ -16,11 +22,26 @@ export interface LadderState extends LadderConfig {
   currentKyu: number;
   wins: number;
   losses: number;
+  draws: number;
   streak: number; // current consecutive wins
   bestKyu: number; // strongest (lowest kyu) opponent defeated; +Infinity if none
   history: Array<{ kyu: number; result: GameResult }>;
   awaitingResult: boolean; // a live game is underway for currentKyu
   status: 'active' | 'ended';
+  /** Names this run, so a result meant for an earlier run is not counted here. */
+  runId: string;
+  /**
+   * The id (`WKID`) stamped on the root of the game this run is waiting on, or
+   * null when no game is underway -- or when the entry predates the stamp, in
+   * which case only the manual buttons can settle it.
+   */
+  gameId: string | null;
+}
+
+/** Which run and game a result was read from. */
+export interface RunGameRef {
+  runId: string;
+  gameId: string | null;
 }
 
 const STORAGE_KEY = 'web-katrain:tournament:v1';
@@ -49,6 +70,17 @@ export const clampRankBotKyu = (kyu: number): number =>
 /** Stronger opponent = lower kyu number, up to the strongest calibrated rank. */
 export const promoteKyu = (kyu: number): number => clampRankBotKyu(kyu - 1);
 
+/**
+ * Parse an SGF RE result string into the winner, or 'draw' for a drawn game
+ * (RE[0], RE[Draw], or the Jigo a count once stored). Void, unknown and
+ * unreadable results are null: there is nothing to record.
+ */
+export const parseResultOutcome = (re: string | null | undefined): Player | 'draw' | null => {
+  if (!re) return null;
+  if (/^\s*(0|draw|jigo)\s*$/i.test(re)) return 'draw';
+  return parseResultWinner(re);
+};
+
 /** Parse an SGF RE result string into the winning color. */
 export const parseResultWinner = (re: string | null | undefined): Player | null => {
   if (!re) return null;
@@ -58,65 +90,91 @@ export const parseResultWinner = (re: string | null | undefined): Player | null 
   return null;
 };
 
-export interface RunResultReading {
-  /** The root to go on watching, or null when nothing is being watched. */
-  watchedRootId: string | null;
-  /** The winner to record against the run, or null for "not this game". */
-  winner: Player | null;
-}
-
 /**
- * Whether the result now on the board belongs to the game the run started.
+ * The winner to record against the run for the result now on the board, or
+ * null for "not this game" / "nothing to record yet".
  *
  * A run waiting on a result used to accept `RE` from *whatever* tree was
- * loaded, because the watcher only asked whether a result existed. Opening any
- * finished game while a ladder game was underway therefore recorded that file's
- * result as the player's own: measured in the browser, a fresh 12k run went to
- * 1-0, promoted to 11k, "Best beaten 12k" -- and was persisted -- off an SGF
- * nobody in the run had played. The gauntlet shares this watcher, where the
- * same mistake ends the run outright.
+ * loaded. Opening any finished game while a ladder game was underway recorded
+ * that file's result as the player's own: measured in the browser, a fresh 12k
+ * run went to 1-0, promoted to 11k, "Best beaten 12k" -- and was persisted --
+ * off an SGF nobody in the run had played.
  *
- * So the root the result arrives on has to be the root that was on the board
- * *before* there was a result. An unfinished game is adopted as the one being
- * played, which keeps the two ways the ladder's own game can legitimately
- * change identity -- the game it starts, and an auto-save restored after a
- * reload -- while a tree that arrives already carrying a result is not the game
- * anyone just played, and is ignored. "I won" / "I lost" in the panel still
- * covers every case this declines to guess at.
+ * The next version kept the watch on the root that was on the board before
+ * there was a result, adopting any *unfinished* tree as the game being played
+ * so that an auto-save restored after a reload -- which gets fresh node ids --
+ * kept being watched. That adoption was the next hole: open any other
+ * unfinished game mid-run (a library game, a pasted position, a fresh New
+ * Game) and the watch moved onto it, so its result was later counted as the
+ * series game's.
  *
- * Recording stops the watch, so a result cannot be counted twice if the store
- * declines the first attempt.
+ * So the run now names its game outright. `beginGame` stamps the new game's
+ * root with a stable id (`WKID`, which travels inside the SGF and so survives
+ * auto-save and library round-trips) and persists it on the run; only a result
+ * on a root carrying that same id is counted. Switching games leaves the run
+ * waiting on the one it started. "I won" / "I lost" in the panel still covers
+ * every case this declines to guess at.
  */
 export function readRunResult(args: {
   awaitingResult: boolean;
-  rootId: string;
+  /** The game id the run persisted when its game began. */
+  watchedGameId: string | null;
+  /** The game id on the root now on the board. */
+  gameId: string | null;
   result: string | null | undefined;
-  watchedRootId: string | null;
-}): RunResultReading {
-  const { awaitingResult, rootId, result, watchedRootId } = args;
-  if (!awaitingResult) return { watchedRootId: null, winner: null };
-  if (typeof result !== 'string' || result.trim() === '') {
-    return { watchedRootId: rootId, winner: null };
-  }
-  if (watchedRootId !== rootId) return { watchedRootId, winner: null };
-  const winner = parseResultWinner(result);
-  if (!winner) return { watchedRootId, winner: null };
-  return { watchedRootId: null, winner };
+}): Player | 'draw' | null {
+  const { awaitingResult, watchedGameId, gameId, result } = args;
+  if (!awaitingResult || !watchedGameId || gameId !== watchedGameId) return null;
+  return parseResultOutcome(result);
 }
+
+/** The player's result for a game outcome read off the board. */
+export const outcomeForPlayer = (outcome: Player | 'draw', player: Player): GameResult => {
+  if (outcome === 'draw') return 'draw';
+  return outcome === player ? 'win' : 'loss';
+};
+
+/** A fresh run id; unique enough to tell one practice run from the next. */
+export const createRunId = (): string => {
+  const cryptoObj = typeof globalThis.crypto !== 'undefined' ? globalThis.crypto : null;
+  if (cryptoObj?.randomUUID) return `run-${cryptoObj.randomUUID()}`;
+  return `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+/**
+ * Whether a result read from `from` belongs to the game `state` is waiting on.
+ * A manual report carries no ref and always applies to the awaited game.
+ */
+export const isResultForRun = (
+  state: { awaitingResult: boolean; runId: string; gameId: string | null },
+  from?: RunGameRef,
+): boolean => {
+  if (!state.awaitingResult) return false;
+  if (!from) return true;
+  return from.runId === state.runId && from.gameId !== null && from.gameId === state.gameId;
+};
 
 export const createLadder = (config: LadderConfig): LadderState => ({
   ...config,
   currentKyu: config.startKyu,
   wins: 0,
   losses: 0,
+  draws: 0,
   streak: 0,
   bestKyu: Number.POSITIVE_INFINITY,
   history: [],
   awaitingResult: false,
   status: 'active',
+  runId: createRunId(),
+  gameId: null,
 });
 
-/** Apply a reported game result and return the next ladder state. */
+/**
+ * Apply a reported game result and return the next ladder state.
+ *
+ * A win promotes; a loss or a draw keeps the rung. A draw counts as a game
+ * played and, not being a win, ends the win streak.
+ */
 export const applyResult = (state: LadderState, result: GameResult): LadderState => {
   const playedKyu = state.currentKyu;
   const history = [...state.history, { kyu: playedKyu, result }].slice(-50);
@@ -129,6 +187,17 @@ export const applyResult = (state: LadderState, result: GameResult): LadderState
       currentKyu: promoteKyu(playedKyu),
       history,
       awaitingResult: false,
+      gameId: null,
+    };
+  }
+  if (result === 'draw') {
+    return {
+      ...state,
+      draws: state.draws + 1,
+      streak: 0,
+      history,
+      awaitingResult: false,
+      gameId: null,
     };
   }
   return {
@@ -137,6 +206,7 @@ export const applyResult = (state: LadderState, result: GameResult): LadderState
     streak: 0,
     history,
     awaitingResult: false,
+    gameId: null,
   };
 };
 
@@ -159,7 +229,17 @@ export const isLadderHistory = (value: unknown): value is LadderState['history']
   Array.isArray(value)
   && value.every((entry) => !!entry && typeof entry === 'object'
     && isFiniteNumber((entry as { kyu?: unknown }).kyu)
-    && ((entry as { result?: unknown }).result === 'win' || (entry as { result?: unknown }).result === 'loss'));
+    && GAME_RESULTS.includes((entry as { result?: unknown }).result as GameResult));
+
+/**
+ * A stored run's identity. Entries written before runs named their game have
+ * neither; they get a fresh run id and no game, which leaves a game already
+ * underway to the manual buttons rather than to whichever game is open.
+ */
+export const readRunIdentity = (parsed: { runId?: unknown; gameId?: unknown }): RunGameRef => ({
+  runId: typeof parsed.runId === 'string' && parsed.runId ? parsed.runId : createRunId(),
+  gameId: typeof parsed.gameId === 'string' && parsed.gameId ? parsed.gameId : null,
+});
 
 /**
  * Storage goes through the guarded helpers rather than touching `localStorage`
@@ -185,7 +265,14 @@ export const loadLadder = (): LadderState | null => {
     if (!isBoardSize(parsed.boardSize as number)) return null;
     // bestKyu serializes Infinity as null via JSON; restore it.
     const bestKyu = isFiniteNumber(parsed.bestKyu) ? parsed.bestKyu : Number.POSITIVE_INFINITY;
-    return { ...(parsed as LadderState), bestKyu, awaitingResult: parsed.awaitingResult === true };
+    return {
+      ...(parsed as LadderState),
+      bestKyu,
+      // Runs saved before draws were recorded have none.
+      draws: isFiniteNumber(parsed.draws) ? parsed.draws : 0,
+      awaitingResult: parsed.awaitingResult === true,
+      ...readRunIdentity(parsed),
+    };
   } catch {
     return null;
   }

@@ -3,7 +3,9 @@ import { FaTimes, FaTrophy, FaPlay, FaFlag, FaBolt } from 'react-icons/fa';
 import { KOMI, type BoardSize, type Player } from '../types';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { useGameStore } from '../store/gameStore';
 import { useTournamentStore } from '../store/tournamentStore';
+import { getPinGameId } from '../utils/pinnedVariations';
 import { formatKyuRank, type LadderState } from '../utils/tournament';
 import {
   GAUNTLET_PRESETS,
@@ -28,6 +30,10 @@ const BOARD_OPTIONS: BoardSize[] = [9, 13, 19];
 // Calibrated kyu rungs spanning 20k → 6d (KaTrain rank convention: 0 = 1d, -5 = 6d).
 const RANK_OPTIONS = [20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 0, -2, -4, -5];
 
+/** "3–1", or "3–1–1" once a game has been drawn. */
+const formatRecord = (wins: number, losses: number, draws: number): string =>
+  draws > 0 ? `${wins}–${losses}–${draws}` : `${wins}–${losses}`;
+
 const statClass = 'rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-3 py-2 text-center';
 const boardButtonClass = (active: boolean) =>
   `min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold ${
@@ -43,11 +49,13 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
   const ladder = useTournamentStore((s) => s.ladder);
   const startLadder = useTournamentStore((s) => s.startLadder);
   const recordResult = useTournamentStore((s) => s.recordResult);
+  const abandonGame = useTournamentStore((s) => s.abandonGame);
   const retire = useTournamentStore((s) => s.retire);
   const reset = useTournamentStore((s) => s.reset);
   const gauntlet = useTournamentStore((s) => s.gauntlet);
   const startGauntlet = useTournamentStore((s) => s.startGauntlet);
   const recordGauntletResult = useTournamentStore((s) => s.recordGauntletResult);
+  const abandonGauntletGame = useTournamentStore((s) => s.abandonGauntletGame);
   const retireGauntlet = useTournamentStore((s) => s.retireGauntlet);
   const resetGauntlet = useTournamentStore((s) => s.resetGauntlet);
 
@@ -56,6 +64,15 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
   const [userColor, setUserColor] = useState<Player>('black');
   const [startKyu, setStartKyu] = useState<number>(12);
   const [preset, setPreset] = useState<GauntletPreset>('match');
+
+  // The run counts only the game it started; say so when another is open.
+  const boardGameId = useGameStore((s) => getPinGameId(s.rootNode));
+  const isOtherGameOnBoard = (run: { gameId: string | null }) => run.gameId !== null && run.gameId !== boardGameId;
+  const otherGameNote = (
+    <p className="text-[var(--ui-text-muted)]">
+      A different game is on the board. Its result will not count for this series.
+    </p>
+  );
 
   const isLadderActive = ladder?.status === 'active';
   const isGauntletActive = gauntlet?.status === 'active';
@@ -134,8 +151,8 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
 
                 <div className="grid grid-cols-3 gap-2 text-sm text-[var(--ui-text)]">
                   <div className={statClass}>
-                    <div className="text-lg font-semibold">{ladder.wins}–{ladder.losses}</div>
-                    <div className="text-xs text-[var(--ui-text-muted)]">W–L</div>
+                    <div className="text-lg font-semibold">{formatRecord(ladder.wins, ladder.losses, ladder.draws)}</div>
+                    <div className="text-xs text-[var(--ui-text-muted)]">{ladder.draws > 0 ? 'W–L–D' : 'W–L'}</div>
                   </div>
                   <div className={statClass}>
                     <div className="text-lg font-semibold">{ladder.streak}</div>
@@ -155,7 +172,8 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                     <p className="text-[var(--ui-text-muted)]">
                       Resign results are detected automatically. If you counted the game out, report it below.
                     </p>
-                    <div className="grid grid-cols-2 gap-2 pt-1">
+                    {isOtherGameOnBoard(ladder) ? otherGameNote : null}
+                    <div className="grid grid-cols-3 gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => recordResult('win')}
@@ -170,7 +188,22 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                       >
                         I lost
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => recordResult('draw')}
+                        className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                      >
+                        Draw
+                      </button>
                     </div>
+                    <p className="text-xs text-[var(--ui-text-muted)]">A draw keeps your rank and counts as a game played.</p>
+                    <button
+                      type="button"
+                      onClick={abandonGame}
+                      className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]"
+                    >
+                      No result (abandon this game)
+                    </button>
                     <button
                       type="button"
                       onClick={onClose}
@@ -187,7 +220,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                   <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm text-[var(--ui-text)]">
                     <div className="font-semibold">Run complete</div>
                     <div className="text-[var(--ui-text-muted)]">
-                      Record {ladder.wins}–{ladder.losses}. Strongest opponent beaten:{' '}
+                      Record {formatRecord(ladder.wins, ladder.losses, ladder.draws)}. Strongest opponent beaten:{' '}
                       {Number.isFinite(ladder.bestKyu) ? formatKyuRank(ladder.bestKyu) : '—'}.
                     </div>
                   </div>
@@ -232,7 +265,8 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                 <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
                   <div className="font-semibold text-[var(--ui-text)]">Game in progress vs {formatKyuRank(currentGauntletOpponentKyu(gauntlet))}</div>
                   <p className="text-[var(--ui-text-muted)]">Resign results are detected automatically; report a counted game below.</p>
-                  <div className="grid grid-cols-2 gap-2 pt-1">
+                  {isOtherGameOnBoard(gauntlet) ? otherGameNote : null}
+                  <div className="grid grid-cols-3 gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => recordGauntletResult('win')}
@@ -247,7 +281,22 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                     >
                       I lost
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => recordGauntletResult('draw')}
+                      className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+                    >
+                      Draw
+                    </button>
                   </div>
+                  <p className="text-xs text-[var(--ui-text-muted)]">A draw replays this round against the same opponent.</p>
+                  <button
+                    type="button"
+                    onClick={abandonGauntletGame}
+                    className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]"
+                  >
+                    No result (abandon this game)
+                  </button>
                   <button
                     type="button"
                     onClick={onClose}

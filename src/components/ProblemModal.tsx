@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaTimes, FaRedo, FaLightbulb, FaArrowLeft, FaArrowRight, FaFolderOpen } from 'react-icons/fa';
+import { FaTimes, FaRedo, FaLightbulb, FaArrowLeft, FaArrowRight, FaFolderOpen, FaStepBackward, FaStepForward, FaUndo } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import {
   classifyProblemNode,
+  describeSolutionStep,
   findChildForMove,
+  findPassChild,
   findSolutionPath,
   getProblemStarts,
+  isProblemPass,
   problemSideToMove,
 } from '../utils/problemMode';
 import type { GameNode } from '../types';
@@ -18,7 +21,7 @@ interface ProblemModalProps {
   onOpenSgf: () => void;
 }
 
-type Status = 'solving' | 'replying' | 'correct' | 'wrong' | 'end';
+type Status = 'solving' | 'replying' | 'correct' | 'wrong' | 'end' | 'solution';
 
 const OPPONENT_REPLY_DELAY_MS = 420;
 
@@ -50,6 +53,9 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   const [cursor, setCursor] = useState<GameNode | null>(start);
   const [status, setStatus] = useState<Status>('solving');
   const [message, setMessage] = useState<string | null>(null);
+  // "Show solution" walks the line step by step rather than jumping to its end.
+  const [solutionPath, setSolutionPath] = useState<GameNode[] | null>(null);
+  const [solutionStep, setSolutionStep] = useState(0);
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearReplyTimer = () => {
@@ -65,6 +71,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     setCursor(start);
     setStatus('solving');
     setMessage(null);
+    setSolutionPath(null);
     return clearReplyTimer;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start?.id]);
@@ -101,13 +108,8 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     return false;
   };
 
-  const handlePoint = (x: number, y: number) => {
-    if (!node || status !== 'solving') return;
-    const child = findChildForMove(node, x, y);
-    if (!child) {
-      setMessage("That move isn't part of this problem — try another point.");
-      return;
-    }
+  // Plays the solver's recorded move -- a point or a pass -- and grades it.
+  const playSolverMove = (child: GameNode) => {
     setMessage(null);
     setCursor(child);
 
@@ -122,8 +124,30 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
       replyTimer.current = null;
       const reply = child.children[0]!;
       setCursor(reply);
+      // A verdict on the reply replaces this message.
+      if (isProblemPass(reply.move)) setMessage('The opponent passes.');
       if (!settleAt(reply)) setStatus('solving');
     }, OPPONENT_REPLY_DELAY_MS);
+  };
+
+  const handlePoint = (x: number, y: number) => {
+    if (!node || status !== 'solving') return;
+    const child = findChildForMove(node, x, y);
+    if (!child) {
+      setMessage("That move isn't part of this problem — try another point.");
+      return;
+    }
+    playSolverMove(child);
+  };
+
+  const handlePass = () => {
+    if (!node || status !== 'solving') return;
+    const child = findPassChild(node);
+    if (!child) {
+      setMessage("Passing isn't part of this problem — try a move on the board.");
+      return;
+    }
+    playSolverMove(child);
   };
 
   const handleRetry = () => {
@@ -131,18 +155,31 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     setCursor(start);
     setStatus('solving');
     setMessage(null);
+    setSolutionPath(null);
+  };
+
+  const showSolutionStep = (path: GameNode[], step: number) => {
+    const index = Math.max(0, Math.min(step, path.length - 1));
+    setSolutionStep(index);
+    setCursor(path[index] ?? start);
+    setStatus('solution');
+    if (index === path.length - 1 && index > 0) {
+      const verdict = classifyProblemNode(path[index]!, solver);
+      setMessage(verdict === 'correct' ? 'End of the solution.' : 'End of the main line (no line is marked correct).');
+    } else {
+      setMessage(null);
+    }
   };
 
   const handleShowSolution = () => {
     if (!start) return;
     clearReplyTimer();
     const path = findSolutionPath(start, solver);
-    const last = path[path.length - 1] ?? start;
-    setCursor(last);
-    const verdict = classifyProblemNode(last, solver);
-    setStatus(verdict === 'correct' ? 'correct' : 'end');
-    setMessage(verdict === 'correct' ? 'Solution shown.' : 'Main line shown.');
+    setSolutionPath(path);
+    showSolutionStep(path, path.length > 1 ? 1 : 0);
   };
+
+  const solutionView = status === 'solution' && solutionPath ? describeSolutionStep(solutionPath, solutionStep) : null;
 
   const goToProblem = (next: number) => {
     if (next < 0 || next >= problems.length) return;
@@ -211,7 +248,9 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
                     ? `${playerLabel(sideToMove)} to play`
                     : status === 'replying'
                       ? 'Opponent replying…'
-                      : 'Result'}
+                      : status === 'solution'
+                        ? 'Solution'
+                        : 'Result'}
                 </p>
                 {problems.length > 1 && (
                   <span className="text-xs text-[var(--ui-text-muted)]">Problem {safeIndex + 1} / {problems.length}</span>
@@ -227,6 +266,67 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
                   ariaLabel="Problem position"
                 />
               </div>
+
+              {solutionView && solutionPath ? (
+                <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-3 py-2 text-sm" data-problem-solution-steps="true">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-[var(--ui-text)]" aria-live="polite">
+                      {solutionView.step === 0
+                        ? 'Problem position'
+                        : `Move ${solutionView.step} of ${solutionView.total}: ${solutionView.moveLabel}`}
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => showSolutionStep(solutionPath, 0)}
+                        disabled={solutionView.step === 0}
+                        className="grid min-h-11 min-w-11 place-items-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+                        aria-label="Restart solution"
+                        title="Restart"
+                      >
+                        <FaUndo aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => showSolutionStep(solutionPath, solutionView.step - 1)}
+                        disabled={solutionView.step === 0}
+                        className="grid min-h-11 min-w-11 place-items-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+                        aria-label="Previous solution move"
+                        title="Previous"
+                      >
+                        <FaStepBackward aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => showSolutionStep(solutionPath, solutionView.step + 1)}
+                        disabled={solutionView.step >= solutionView.total}
+                        className="grid min-h-11 min-w-11 place-items-center rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+                        aria-label="Next solution move"
+                        title="Next"
+                      >
+                        <FaStepForward aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                  {solutionView.comment ? (
+                    <p className="whitespace-pre-line text-[var(--ui-text-muted)]" data-problem-solution-comment="true">
+                      {solutionView.comment}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handlePass}
+                    disabled={status !== 'solving'}
+                    className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
+                    data-problem-pass="true"
+                  >
+                    Pass
+                  </button>
+                </div>
+              )}
 
               {message && (
                 <div

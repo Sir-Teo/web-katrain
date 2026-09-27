@@ -75,7 +75,19 @@ describe('scoreGuess / guessVerdict', () => {
   it('reports manhattan distance and a tone for misses', () => {
     expect(scoreGuess(expected, 11, 10).distance).toBe(1);
     expect(guessVerdict(scoreGuess(expected, 11, 11)).tone).toBe('warning');
-    expect(guessVerdict(scoreGuess(expected, 2, 2)).tone).toBe('danger');
+    // Far is not worse: a distant point can be as good a move as the game's.
+    expect(guessVerdict(scoreGuess(expected, 2, 2)).tone).toBe('warning');
+  });
+
+  it('describes a miss by its distance from the game move, not as a grade', () => {
+    expect(guessVerdict(scoreGuess(expected, 10, 10)).label).toBe('Matches the game move');
+    expect(guessVerdict(scoreGuess(expected, 11, 10)).label).toBe('Near the game move (1 point away)');
+    expect(guessVerdict(scoreGuess(expected, 11, 11)).label).toBe('Near the game move (2 points away)');
+    expect(guessVerdict(scoreGuess(expected, 13, 12)).label).toBe('Same area as the game move (5 points away)');
+    expect(guessVerdict(scoreGuess(expected, 2, 2)).label).toBe('Far from the game move (16 points away)');
+    for (const [x, y] of [[11, 10], [13, 12], [2, 2]] as const) {
+      expect(guessVerdict(scoreGuess(expected, x, y)).label).not.toMatch(/close|mark|good|bad/i);
+    }
   });
 });
 

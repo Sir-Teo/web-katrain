@@ -1,7 +1,7 @@
 import type { BoardSize, Player } from '../types';
 import { isBoardSize } from './boardSize';
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
-import { clampRankBotKyu, isFiniteNumber, isLadderHistory, type GameResult } from './tournament';
+import { clampRankBotKyu, createRunId, isFiniteNumber, isLadderHistory, readRunIdentity, type GameResult } from './tournament';
 
 // A fixed 4-game gauntlet against bots: lose any one game and the run ends.
 // Difficulty presets pick the opponent slate relative to the player's rank.
@@ -25,9 +25,15 @@ export interface GauntletState extends GauntletConfig {
   status: 'active' | 'won' | 'lost';
   awaitingResult: boolean;
   history: Array<{ kyu: number; result: GameResult }>;
+  /** As `LadderState.runId`. */
+  runId: string;
+  /** As `LadderState.gameId`: the one game this run will count a result from. */
+  gameId: string | null;
 }
 
 export const GAUNTLET_ROUNDS = 4;
+// A drawn round is replayed, so a run can take more games than rounds.
+const MAX_GAUNTLET_HISTORY = 50;
 const STORAGE_KEY = 'web-katrain:gauntlet:v1';
 
 export const GAUNTLET_PRESETS: Array<{ value: GauntletPreset; label: string; detail: string }> = [
@@ -49,23 +55,32 @@ export const createGauntlet = (config: GauntletConfig): GauntletState => ({
   status: 'active',
   awaitingResult: false,
   history: [],
+  runId: createRunId(),
+  gameId: null,
 });
 
 export const currentGauntletOpponentKyu = (state: GauntletState): number =>
   state.opponents[Math.min(state.index, state.opponents.length - 1)] ?? state.baseKyu;
 
+/**
+ * A loss ends the run and a win advances it. A draw neither beats the
+ * opponent nor loses to it, so the same round is played again.
+ */
 export const applyGauntletResult = (state: GauntletState, result: GameResult): GauntletState => {
   const playedKyu = currentGauntletOpponentKyu(state);
-  const history = [...state.history, { kyu: playedKyu, result }].slice(-GAUNTLET_ROUNDS);
+  const history = [...state.history, { kyu: playedKyu, result }].slice(-MAX_GAUNTLET_HISTORY);
+  if (result === 'draw') {
+    return { ...state, awaitingResult: false, gameId: null, history };
+  }
   if (result === 'loss') {
-    return { ...state, status: 'lost', awaitingResult: false, history };
+    return { ...state, status: 'lost', awaitingResult: false, gameId: null, history };
   }
   const wins = state.wins + 1;
   const nextIndex = state.index + 1;
   if (nextIndex >= GAUNTLET_ROUNDS) {
-    return { ...state, wins, index: GAUNTLET_ROUNDS, status: 'won', awaitingResult: false, history };
+    return { ...state, wins, index: GAUNTLET_ROUNDS, status: 'won', awaitingResult: false, gameId: null, history };
   }
-  return { ...state, wins, index: nextIndex, awaitingResult: false, history };
+  return { ...state, wins, index: nextIndex, awaitingResult: false, gameId: null, history };
 };
 
 /** Guarded the same way, and for the same reason, as `loadLadder`. */
@@ -85,7 +100,7 @@ export const loadGauntlet = (): GauntletState | null => {
     if (parsed.userColor !== 'black' && parsed.userColor !== 'white') return null;
     if (!GAUNTLET_PRESETS.some((preset) => preset.value === parsed.preset)) return null;
     if (!isBoardSize(parsed.boardSize as number)) return null;
-    return { ...(parsed as GauntletState), awaitingResult: parsed.awaitingResult === true };
+    return { ...(parsed as GauntletState), awaitingResult: parsed.awaitingResult === true, ...readRunIdentity(parsed) };
   } catch {
     return null;
   }

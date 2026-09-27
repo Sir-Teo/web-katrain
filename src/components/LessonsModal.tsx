@@ -4,6 +4,7 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { LESSONS, getLessonBoard } from '../data/lessons';
+import { completeLesson, loadLessonProgress, resetLessonProgress, saveLessonProgress } from '../utils/studyProgress';
 
 interface LessonsModalProps {
   onClose: () => void;
@@ -13,8 +14,12 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
 
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [stepIndex, setStepIndex] = useState(0);
+  // Progress outlives the dialog: which lessons are done, and the lesson and
+  // step that were open when it closed, which is where it reopens.
+  const [initialProgress] = useState(() => loadLessonProgress(LESSONS));
+  const [completed, setCompleted] = useState<string[]>(initialProgress.completed);
+  const [activeId, setActiveId] = useState<string | null>(initialProgress.current?.lessonId ?? null);
+  const [stepIndex, setStepIndex] = useState(initialProgress.current?.stepIndex ?? 0);
   const [solved, setSolved] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: string; text: string } | null>(null);
   const [clickMark, setClickMark] = useState<{ x: number; y: number; ok: boolean } | null>(null);
@@ -42,6 +47,25 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
     const board = dialog?.querySelector<SVGSVGElement>('[data-static-board-interactive="true"]');
     (board ?? dialog)?.focus({ preventScroll: true });
   }, [stepKey, dialogRef]);
+
+  useEffect(() => {
+    if (completed.length === 0 && !activeId) {
+      resetLessonProgress();
+      return;
+    }
+    saveLessonProgress({ completed, current: activeId ? { lessonId: activeId, stepIndex } : null });
+  }, [completed, activeId, stepIndex]);
+
+  const finishLesson = () => {
+    if (activeId) setCompleted((done) => completeLesson({ completed: done, current: null }, activeId).completed);
+    setActiveId(null);
+  };
+
+  const handleResetProgress = () => {
+    setCompleted([]);
+    setActiveId(null);
+    setStepIndex(0);
+  };
 
   const board = useMemo(() => (step ? getLessonBoard(step, clickMark) : null), [step, clickMark]);
   const isInteractive = !!step?.answers?.length;
@@ -113,6 +137,18 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
               <p className="lessons-intro text-sm text-[var(--ui-text-muted)]">
                 Short, interactive lessons on the fundamentals. Read each step, then play on the board when asked.
               </p>
+              {completed.length > 0 && (
+                <div className="lessons-progress flex items-center justify-between gap-2 text-xs text-[var(--ui-text-muted)]" data-lessons-progress="true">
+                  <span>Completed {completed.length} of {LESSONS.length}</span>
+                  <button
+                    type="button"
+                    onClick={handleResetProgress}
+                    className="min-h-11 rounded-lg px-2 underline hover:text-[var(--ui-text)]"
+                  >
+                    Reset progress
+                  </button>
+                </div>
+              )}
               <ul className="lessons-list space-y-2">
                 {LESSONS.map((l) => (
                   <li key={l.id}>
@@ -122,7 +158,12 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
                       className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-3 text-left hover:bg-[var(--ui-surface-2)]"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-[var(--ui-text)]">{l.title}</span>
+                        <span className="inline-flex items-center gap-2 font-semibold text-[var(--ui-text)]">
+                          {completed.includes(l.id) && (
+                            <FaCheckCircle className="text-[var(--ui-success,#38a169)]" aria-label="Completed" role="img" />
+                          )}
+                          {l.title}
+                        </span>
                         <span className="rounded-full border border-[var(--ui-border)] px-2 py-0.5 text-xs text-[var(--ui-text-muted)]">{l.level}</span>
                       </div>
                       <div className="mt-1 text-xs text-[var(--ui-text-muted)]">{l.summary}</div>
@@ -178,7 +219,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
             <button
               type="button"
               disabled={!canAdvance}
-              onClick={() => (isLastStep ? setActiveId(null) : setStepIndex((i) => i + 1))}
+              onClick={() => (isLastStep ? finishLesson() : setStepIndex((i) => i + 1))}
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
             >
               <span className="inline-flex items-center gap-2">

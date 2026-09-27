@@ -1,12 +1,16 @@
 import { createWithEqualityFn as create } from 'zustand/traditional';
+import type { GameNode } from '../types';
+import { ensurePinGameId } from '../utils/pinnedVariations';
 import {
   applyResult,
   createLadder,
+  isResultForRun,
   loadLadder,
   saveLadder,
   type GameResult,
   type LadderConfig,
   type LadderState,
+  type RunGameRef,
 } from '../utils/tournament';
 import {
   applyGauntletResult,
@@ -22,20 +26,35 @@ interface TournamentStore {
   gauntlet: GauntletState | null;
   /** Start a fresh ladder run. Returns the created state for game setup. */
   startLadder: (config: LadderConfig) => LadderState;
-  /** Mark the current rung's game as underway (awaiting a result). */
-  beginGame: () => void;
-  /** Record the outcome of the current rung's game. */
-  recordResult: (result: GameResult) => void;
+  /**
+   * Mark the current rung's game as underway (awaiting a result). `gameRoot`
+   * is the root of the game just started: it is stamped with a stable id that
+   * the run keeps, so only that game's result is ever counted automatically.
+   */
+  beginGame: (gameRoot?: GameNode) => void;
+  /**
+   * Record the outcome of the current rung's game. `from` names the run and
+   * game an automatic reading came from; it is ignored unless it matches the
+   * awaited game. A manual report passes nothing.
+   */
+  recordResult: (result: GameResult, from?: RunGameRef) => void;
+  /**
+   * Stop waiting on the current rung's game without recording anything: for
+   * a game that was abandoned, voided, or cannot be settled.
+   */
+  abandonGame: () => void;
   /** End the run (keeps the summary visible). */
   retire: () => void;
   /** Clear the ladder entirely. */
   reset: () => void;
   /** Start a fresh gauntlet run. Returns the created state for game setup. */
   startGauntlet: (config: GauntletConfig) => GauntletState;
-  /** Mark the current gauntlet game as underway (awaiting a result). */
-  beginGauntletGame: () => void;
-  /** Record the outcome of the current gauntlet game. */
-  recordGauntletResult: (result: GameResult) => void;
+  /** Mark the current gauntlet game as underway (awaiting a result). See `beginGame`. */
+  beginGauntletGame: (gameRoot?: GameNode) => void;
+  /** Record the outcome of the current gauntlet game. See `recordResult`. */
+  recordGauntletResult: (result: GameResult, from?: RunGameRef) => void;
+  /** As `abandonGame`, for the current gauntlet game; the round is played again. */
+  abandonGauntletGame: () => void;
   /** End the run without finishing it (keeps the summary visible). */
   retireGauntlet: () => void;
   /** Clear the gauntlet entirely. */
@@ -62,29 +81,35 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
     return ladder;
   },
 
-  beginGame: () => {
+  beginGame: (gameRoot) => {
     const ladder = get().ladder;
     if (!ladder || ladder.status !== 'active') return;
-    // One game is on the board at a time. A gauntlet left awaiting its result
-    // would score this ladder game as its own -- both watchers adopt any
-    // unfinished game -- so the one it was waiting on is abandoned.
+    const gameId = gameRoot ? ensurePinGameId(gameRoot) : null;
+    // One game is on the board at a time: a gauntlet left awaiting its result
+    // is abandoned rather than left waiting on a game nobody will finish.
     const gauntlet = get().gauntlet;
     set({
-      ladder: persist({ ...ladder, awaitingResult: true }),
-      ...(gauntlet?.awaitingResult ? { gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false }) } : {}),
+      ladder: persist({ ...ladder, awaitingResult: true, gameId }),
+      ...(gauntlet?.awaitingResult ? { gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false, gameId: null }) } : {}),
     });
   },
 
-  recordResult: (result: GameResult) => {
+  recordResult: (result, from) => {
+    const ladder = get().ladder;
+    if (!ladder || !isResultForRun(ladder, from)) return;
+    set({ ladder: persist(applyResult(ladder, result)) });
+  },
+
+  abandonGame: () => {
     const ladder = get().ladder;
     if (!ladder || !ladder.awaitingResult) return;
-    set({ ladder: persist(applyResult(ladder, result)) });
+    set({ ladder: persist({ ...ladder, awaitingResult: false, gameId: null }) });
   },
 
   retire: () => {
     const ladder = get().ladder;
     if (!ladder) return;
-    set({ ladder: persist({ ...ladder, awaitingResult: false, status: 'ended' }) });
+    set({ ladder: persist({ ...ladder, awaitingResult: false, gameId: null, status: 'ended' }) });
   },
 
   reset: () => {
@@ -97,27 +122,34 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
     return gauntlet;
   },
 
-  beginGauntletGame: () => {
+  beginGauntletGame: (gameRoot) => {
     const gauntlet = get().gauntlet;
     if (!gauntlet || gauntlet.status !== 'active') return;
+    const gameId = gameRoot ? ensurePinGameId(gameRoot) : null;
     // The same for a ladder left waiting: see beginGame.
     const ladder = get().ladder;
     set({
-      gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: true }),
-      ...(ladder?.awaitingResult ? { ladder: persist({ ...ladder, awaitingResult: false }) } : {}),
+      gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: true, gameId }),
+      ...(ladder?.awaitingResult ? { ladder: persist({ ...ladder, awaitingResult: false, gameId: null }) } : {}),
     });
   },
 
-  recordGauntletResult: (result: GameResult) => {
+  recordGauntletResult: (result, from) => {
+    const gauntlet = get().gauntlet;
+    if (!gauntlet || !isResultForRun(gauntlet, from)) return;
+    set({ gauntlet: persistGauntlet(applyGauntletResult(gauntlet, result)) });
+  },
+
+  abandonGauntletGame: () => {
     const gauntlet = get().gauntlet;
     if (!gauntlet || !gauntlet.awaitingResult) return;
-    set({ gauntlet: persistGauntlet(applyGauntletResult(gauntlet, result)) });
+    set({ gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false, gameId: null }) });
   },
 
   retireGauntlet: () => {
     const gauntlet = get().gauntlet;
     if (!gauntlet) return;
-    set({ gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false, status: 'lost' }) });
+    set({ gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false, gameId: null, status: 'lost' }) });
   },
 
   resetGauntlet: () => {

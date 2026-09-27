@@ -6,6 +6,13 @@ import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { evaluateNode } from '../utils/positionEval';
 import { collectQuizPositions, selectQuizJumpCandidates } from '../utils/scoreQuizPositions';
+import {
+  EMPTY_SCORE_QUIZ_STATS,
+  loadScoreQuizStats,
+  resetScoreQuizStats,
+  saveScoreQuizStats,
+  type ScoreQuizStats,
+} from '../utils/studyProgress';
 
 interface ScoreQuizModalProps {
   onClose: () => void;
@@ -13,12 +20,6 @@ interface ScoreQuizModalProps {
 
 type Phase = 'guess' | 'evaluating' | 'reveal';
 type Winner = 'black' | 'white';
-
-interface QuizStats {
-  rounds: number;
-  sumError: number;
-  leaderHits: number;
-}
 
 const ratingFor = (error: number): { label: string; tone: string } => {
   if (error <= 1.5) return { label: 'Perfect read', tone: 'var(--ui-success, #38a169)' };
@@ -41,7 +42,12 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   const [margin, setMargin] = useState<string>('5');
   const [actual, setActual] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [stats, setStats] = useState<QuizStats>({ rounds: 0, sumError: 0, leaderHits: 0 });
+  // Kept across dialog closes and reloads, until the player resets them.
+  const [stats, setStats] = useState<ScoreQuizStats>(loadScoreQuizStats);
+  useEffect(() => {
+    if (stats.rounds === 0) resetScoreQuizStats();
+    else saveScoreQuizStats(stats);
+  }, [stats]);
 
   const nodeId = currentNode.id;
   const pendingReveal = useRef<object | null>(null);
@@ -236,10 +242,19 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           )}
 
           {stats.rounds > 0 && (
-            <div className="score-quiz-stats flex justify-between text-xs text-[var(--ui-text-muted)]">
+            <div className="score-quiz-stats flex items-center justify-between text-xs text-[var(--ui-text-muted)]">
               <span>Rounds: {stats.rounds}</span>
               <span>Leader correct: {stats.leaderHits}/{stats.rounds}</span>
               <span>Avg error: {avgError.toFixed(1)} pts</span>
+              <button
+                type="button"
+                onClick={() => setStats(EMPTY_SCORE_QUIZ_STATS)}
+                className="min-h-11 px-2 underline hover:text-[var(--ui-text)]"
+                aria-label="Reset quiz stats"
+                data-score-quiz-reset="true"
+              >
+                Reset
+              </button>
             </div>
           )}
         </div>
