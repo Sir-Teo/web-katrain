@@ -1,6 +1,15 @@
 import pako from 'pako';
 import { DEFAULT_BOARD_SIZE, type AnalysisResult, type CandidateMove, type Player } from '../types';
 import { formatGtpMove } from '../lib/gtp';
+import {
+  anyInvalidField,
+  importedOrder,
+  importedPrior,
+  importedScore,
+  importedScoreStdev,
+  importedVisits,
+  importedWinRate,
+} from './importedAnalysisValues';
 
 export const KATRAIN_ANALYSIS_FORMAT_VERSION = '1.0';
 
@@ -261,11 +270,16 @@ function inflateCapped(data: Uint8Array, maxBytes: number): Uint8Array {
 }
 
 /** An empty tensor means "not stored"; anything else must match the board exactly. */
-function unpackTensor(bytes: Uint8Array, count: number): number[] | null {
+function unpackTensor(bytes: Uint8Array, count: number, sanitize: (v: number) => number): number[] | null {
   if (bytes.length === 0) return null;
   if (bytes.length !== count * 2) throw new Error(`KT tensor has ${bytes.length} bytes, expected ${count * 2}`);
-  return unpackFloat16(bytes, count);
+  const values = unpackFloat16(bytes, count);
+  return values ? values.map(sanitize) : null;
 }
+
+// float16 can hold NaN and Inf; neither is an ownership or a policy value.
+const sanitizeOwnership = (v: number) => (Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0);
+const sanitizePolicy = (v: number) => (Number.isFinite(v) && v >= 0 ? Math.min(1, v) : -1);
 
 export function decodeKaTrainKt(args: { kt: string[]; boardSize?: number }): KaTrainSgfAnalysis | null {
   const boardSize = args.boardSize ?? DEFAULT_BOARD_SIZE;
@@ -279,8 +293,8 @@ export function decodeKaTrainKt(args: { kt: string[]; boardSize?: number }): KaT
     const policyBytes = inflateCapped(decodeBase64(kt[1]!), limits.policy);
     const mainBytes = inflateCapped(decodeBase64(kt[2]!), limits.main);
 
-    const ownership = unpackTensor(ownershipBytes, boardSquares);
-    const policy = unpackTensor(policyBytes, boardSquares + 1);
+    const ownership = unpackTensor(ownershipBytes, boardSquares, sanitizeOwnership);
+    const policy = unpackTensor(policyBytes, boardSquares + 1, sanitizePolicy);
 
     const mainJson = new TextDecoder().decode(mainBytes);
     const main = JSON.parse(mainJson) as KaTrainSgfAnalysisMain;
@@ -313,46 +327,74 @@ export function kaTrainAnalysisToAnalysisResult(args: {
 }): AnalysisResult | null {
   const boardSize = args.boardSize ?? DEFAULT_BOARD_SIZE;
   const a = args.analysis;
-  const root = a.root as { winrate?: number; scoreLead?: number; scoreSelfplay?: number; scoreStdev?: number } | null;
+  const root = a.root && typeof a.root === 'object' ? (a.root as Record<string, unknown>) : null;
   if (!root) return null;
 
-  const rootWinRate = typeof root.winrate === 'number' ? root.winrate : 0.5;
-  const rootScoreLead = typeof root.scoreLead === 'number' ? root.scoreLead : 0;
-  const rootScoreSelfplay = typeof root.scoreSelfplay === 'number' ? root.scoreSelfplay : rootScoreLead;
-  const rootScoreStdev = typeof root.scoreStdev === 'number' ? root.scoreStdev : 0;
+  // Missing root fields take defaults, as before; a present but infinite or
+  // out-of-range one means the node is corrupt, so none of it is used.
+  const rootWinRateRaw = importedWinRate(root.winrate);
+  const rootScoreLeadRaw = importedScore(root.scoreLead, boardSize);
+  const rootScoreSelfplayRaw = importedScore(root.scoreSelfplay, boardSize);
+  const rootScoreStdevRaw = importedScoreStdev(root.scoreStdev, boardSize);
+  if (
+    anyInvalidField(
+      [root.winrate, rootWinRateRaw],
+      [root.scoreLead, rootScoreLeadRaw],
+      [root.scoreSelfplay, rootScoreSelfplayRaw],
+      [root.scoreStdev, rootScoreStdevRaw]
+    )
+  ) {
+    return null;
+  }
+  const rootWinRate = rootWinRateRaw ?? 0.5;
+  const rootScoreLead = rootScoreLeadRaw ?? 0;
+  const rootScoreSelfplay = rootScoreSelfplayRaw ?? rootScoreLead;
+  const rootScoreStdev = rootScoreStdevRaw ?? 0;
 
-  const moveRows = Object.values(a.moves ?? {}) as Array<{
-    move?: string;
-    order?: number;
-    visits?: number;
-    winrate?: number;
-    scoreLead?: number;
-    scoreSelfplay?: number;
-    scoreStdev?: number;
-    prior?: number;
-    pv?: string[];
-  }>;
+  const moveRows = Object.values(a.moves && typeof a.moves === 'object' ? a.moves : {}) as unknown[];
 
   const moves: CandidateMove[] = [];
-  for (const m of moveRows) {
+  for (const row of moveRows) {
+    if (!row || typeof row !== 'object') continue;
+    const m = row as Record<string, unknown>;
     // Unparseable coordinates are corrupt data, not passes; keep genuine
     // pass rows only so ranking and policy stats stay meaningful.
     const { x, y, valid } = gtpToXy(m.move, boardSize);
     if (!valid) continue;
+    const order = importedOrder(m.order);
+    const visits = importedVisits(m.visits);
+    const winRate = importedWinRate(m.winrate);
+    const scoreLead = importedScore(m.scoreLead, boardSize);
+    const scoreSelfplay = importedScore(m.scoreSelfplay, boardSize);
+    const scoreStdev = importedScoreStdev(m.scoreStdev, boardSize);
+    const prior = importedPrior(m.prior);
+    if (
+      anyInvalidField(
+        [m.order, order],
+        [m.visits, visits],
+        [m.winrate, winRate],
+        [m.scoreLead, scoreLead],
+        [m.scoreSelfplay, scoreSelfplay],
+        [m.scoreStdev, scoreStdev],
+        [m.prior, prior]
+      )
+    ) {
+      continue;
+    }
     moves.push({
       x,
       y,
-      order: typeof m.order === 'number' ? m.order : 999,
-      visits: typeof m.visits === 'number' ? m.visits : 0,
-      winRate: typeof m.winrate === 'number' ? m.winrate : rootWinRate,
+      order: order ?? 999,
+      visits: visits ?? 0,
+      winRate: winRate ?? rootWinRate,
       winRateLost: 0,
-      scoreLead: typeof m.scoreLead === 'number' ? m.scoreLead : rootScoreLead,
-      scoreSelfplay: typeof m.scoreSelfplay === 'number' ? m.scoreSelfplay : rootScoreSelfplay,
-      scoreStdev: typeof m.scoreStdev === 'number' ? m.scoreStdev : rootScoreStdev,
+      scoreLead: scoreLead ?? rootScoreLead,
+      scoreSelfplay: scoreSelfplay ?? rootScoreSelfplay,
+      scoreStdev: scoreStdev ?? rootScoreStdev,
       pointsLost: 0,
       relativePointsLost: 0,
-      prior: typeof m.prior === 'number' ? m.prior : undefined,
-      pv: Array.isArray(m.pv) ? m.pv : undefined,
+      prior: prior ?? undefined,
+      pv: Array.isArray(m.pv) ? m.pv.filter((mv): mv is string => typeof mv === 'string') : undefined,
     });
   }
 

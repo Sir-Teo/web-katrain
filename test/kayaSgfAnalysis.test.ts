@@ -101,4 +101,32 @@ describe('Kaya SGF analysis helpers', () => {
     expect(decoded?.policy?.includes(0.8)).toBe(false);
     expect(decoded?.policy?.includes(0.7)).toBe(false);
   });
+
+  it('rejects infinite or out-of-range root values', () => {
+    // JSON.parse turns 1e999 into Infinity.
+    for (const root of ['"w":0.5,"s":1e999', '"w":0.5,"s":-1e999', '"w":1e999,"s":0', '"w":0.5,"s":1e6', '"w":0.5,"s":0,"v":1e999']) {
+      expect(decodeKayaKa({ ka: `{${root},"m":[]}`, boardSize: 9, currentPlayer: 'black' })).toBeNull();
+    }
+    expect(decodeKayaKa({ ka: '{"w":0.5,"s":"3","m":[]}', boardSize: 9, currentPlayer: 'black' })).toBeNull();
+  });
+
+  it('drops candidates whose values are infinite or out of range', () => {
+    const ka =
+      '{"w":0.5,"s":1,"m":[' +
+      '{"m":"C3","p":0.1,"s":1e999},' +
+      '{"m":"D4","p":0.1,"w":-1e999},' +
+      '{"m":"E5","p":1e999},' +
+      '{"m":"F6","p":0.1,"v":1e999},' +
+      '{"m":"G7","p":0.2,"w":0.6,"s":2,"v":5}' +
+      ']}';
+    const decoded = decodeKayaKa({ ka, boardSize: 9, currentPlayer: 'black' });
+    expect(decoded).not.toBeNull();
+    expect(decoded!.moves).toHaveLength(1);
+    expect(decoded!.moves[0]).toMatchObject({ x: 6, y: 2, scoreLead: 2, visits: 5 });
+    for (const m of decoded!.moves) {
+      expect(Number.isFinite(m.pointsLost)).toBe(true);
+      expect(Number.isFinite(m.relativePointsLost)).toBe(true);
+    }
+  });
 });
+
