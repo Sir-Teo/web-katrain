@@ -32,6 +32,8 @@ export interface GauntletState extends GauntletConfig {
 }
 
 export const GAUNTLET_ROUNDS = 4;
+// A drawn round is replayed, so a run can take more games than rounds.
+const MAX_GAUNTLET_HISTORY = 50;
 const STORAGE_KEY = 'web-katrain:gauntlet:v1';
 
 export const GAUNTLET_PRESETS: Array<{ value: GauntletPreset; label: string; detail: string }> = [
@@ -60,9 +62,16 @@ export const createGauntlet = (config: GauntletConfig): GauntletState => ({
 export const currentGauntletOpponentKyu = (state: GauntletState): number =>
   state.opponents[Math.min(state.index, state.opponents.length - 1)] ?? state.baseKyu;
 
+/**
+ * A loss ends the run and a win advances it. A draw neither beats the
+ * opponent nor loses to it, so the same round is played again.
+ */
 export const applyGauntletResult = (state: GauntletState, result: GameResult): GauntletState => {
   const playedKyu = currentGauntletOpponentKyu(state);
-  const history = [...state.history, { kyu: playedKyu, result }].slice(-GAUNTLET_ROUNDS);
+  const history = [...state.history, { kyu: playedKyu, result }].slice(-MAX_GAUNTLET_HISTORY);
+  if (result === 'draw') {
+    return { ...state, awaitingResult: false, gameId: null, history };
+  }
   if (result === 'loss') {
     return { ...state, status: 'lost', awaitingResult: false, gameId: null, history };
   }

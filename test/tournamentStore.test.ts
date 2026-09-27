@@ -166,3 +166,35 @@ describe('counting only the game the run started', () => {
     expect(store.getState().gauntlet).toMatchObject({ status: 'active', awaitingResult: true });
   });
 });
+
+describe('settling a game that has no winner', () => {
+  it('records a draw on the ladder without changing the rung', async () => {
+    const store = await loadStore();
+    store.getState().startLadder(LADDER);
+    store.getState().beginGame();
+    store.getState().recordResult('draw');
+    expect(store.getState().ladder).toMatchObject({ currentKyu: 10, draws: 1, awaitingResult: false });
+  });
+
+  it('replays a drawn gauntlet round', async () => {
+    const store = await loadStore();
+    store.getState().startGauntlet(GAUNTLET);
+    store.getState().beginGauntletGame();
+    store.getState().recordGauntletResult('draw');
+    expect(store.getState().gauntlet).toMatchObject({ index: 0, wins: 0, status: 'active', awaitingResult: false });
+  });
+
+  it('can abandon a game as no result, recording nothing', async () => {
+    const store = await loadStore();
+    store.getState().startLadder(LADDER);
+    store.getState().beginGame();
+    store.getState().abandonGame();
+    expect(store.getState().ladder).toMatchObject({ awaitingResult: false, gameId: null, wins: 0, losses: 0, draws: 0, history: [] });
+    expect(entries.get('web-katrain:tournament:v1')).toContain('"awaitingResult":false');
+
+    store.getState().startGauntlet(GAUNTLET);
+    store.getState().beginGauntletGame();
+    store.getState().abandonGauntletGame();
+    expect(store.getState().gauntlet).toMatchObject({ awaitingResult: false, index: 0, status: 'active', history: [] });
+  });
+});

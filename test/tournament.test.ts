@@ -5,6 +5,8 @@ import {
   formatKyuRank,
   isResultForRun,
   loadLadder,
+  outcomeForPlayer,
+  parseResultOutcome,
   parseResultWinner,
   promoteKyu,
   readRunResult,
@@ -169,6 +171,54 @@ describe('readRunResult', () => {
     for (const result of ['', '   ', 'Void', '?']) {
       expect(watch({ result }), result).toBeNull();
     }
+  });
+
+  it('reads a drawn game as a draw rather than waiting forever', () => {
+    for (const result of ['0', 'Draw', 'jigo', ' Jigo ']) {
+      expect(watch({ result }), result).toBe('draw');
+    }
+  });
+});
+
+describe('a drawn series game', () => {
+  const start = () => ({
+    ...createLadder({ boardSize: 9, userColor: 'black', komi: 7, handicap: 0, startKyu: 10 }),
+    awaitingResult: true,
+  });
+
+  it('is scored as a draw for either colour', () => {
+    expect(outcomeForPlayer('draw', 'black')).toBe('draw');
+    expect(outcomeForPlayer('draw', 'white')).toBe('draw');
+    expect(outcomeForPlayer('white', 'white')).toBe('win');
+    expect(outcomeForPlayer('black', 'white')).toBe('loss');
+    expect(parseResultOutcome('RE')).toBeNull();
+    expect(parseResultOutcome('Void')).toBeNull();
+  });
+
+  it('keeps the rung, counts as a game played and ends the win streak', () => {
+    const won = applyResult(start(), 'win');
+    const drawn = applyResult({ ...won, awaitingResult: true, gameId: 'wk-2' }, 'draw');
+    expect(drawn).toMatchObject({
+      currentKyu: won.currentKyu,
+      wins: 1,
+      losses: 0,
+      draws: 1,
+      streak: 0,
+      awaitingResult: false,
+      gameId: null,
+    });
+    expect(drawn.history.at(-1)).toEqual({ kyu: won.currentKyu, result: 'draw' });
+  });
+
+  it('survives storage, and an older entry without draws reads as none', () => {
+    const drawn = applyResult(start(), 'draw');
+    saveLadder(drawn);
+    expect(loadLadder()).toMatchObject({ draws: 1, history: [{ kyu: 10, result: 'draw' }] });
+
+    const legacy: Record<string, unknown> = { ...start() };
+    delete legacy.draws;
+    entries.set('web-katrain:tournament:v1', JSON.stringify(legacy));
+    expect(loadLadder()?.draws).toBe(0);
   });
 });
 

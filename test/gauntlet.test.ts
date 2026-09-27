@@ -132,6 +132,13 @@ describe('playing through a run', () => {
     ]);
   });
 
+  it('replays a drawn round instead of ending or advancing the run', () => {
+    const state = afterWins(1);
+    const drawn = applyGauntletResult({ ...state, awaitingResult: true }, 'draw');
+    expect(drawn).toMatchObject({ index: 1, wins: 1, status: 'active', awaitingResult: false });
+    expect(drawn.history.at(-1)).toEqual({ kyu: state.opponents[1], result: 'draw' });
+  });
+
   it('keeps the history no longer than the run', () => {
     expect(afterWins(GAUNTLET_ROUNDS).history).toHaveLength(GAUNTLET_ROUNDS);
   });
@@ -187,7 +194,7 @@ describe('a stored run that survives the read must survive the next result', () 
   it.each([
     ['no history at all', (run: Record<string, unknown>) => { delete run.history; }],
     ['a history that is not an array', (run: Record<string, unknown>) => { run.history = 4; }],
-    ['a history entry that is not a result', (run: Record<string, unknown>) => { run.history = [{ kyu: 9, result: 'draw' }]; }],
+    ['a history entry that is not a result', (run: Record<string, unknown>) => { run.history = [{ kyu: 9, result: 'forfeit' }]; }],
     ['a status it cannot be in', (run: Record<string, unknown>) => { run.status = 'paused'; }],
     ['a preset that no longer exists', (run: Record<string, unknown>) => { run.preset = 'impossible'; }],
     ['a board size the app cannot draw', (run: Record<string, unknown>) => { run.boardSize = 21; }],

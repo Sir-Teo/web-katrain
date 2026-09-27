@@ -2,7 +2,13 @@ import type { BoardSize, Player } from '../types';
 import { isBoardSize } from './boardSize';
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 
-export type GameResult = 'win' | 'loss';
+/**
+ * How a series game ended for the player. A draw (jigo) has no winner, so
+ * win/loss alone left a drawn game's run waiting on a result forever.
+ */
+export type GameResult = 'win' | 'loss' | 'draw';
+
+const GAME_RESULTS: readonly GameResult[] = ['win', 'loss', 'draw'];
 
 export interface LadderConfig {
   boardSize: BoardSize;
@@ -16,6 +22,7 @@ export interface LadderState extends LadderConfig {
   currentKyu: number;
   wins: number;
   losses: number;
+  draws: number;
   streak: number; // current consecutive wins
   bestKyu: number; // strongest (lowest kyu) opponent defeated; +Infinity if none
   history: Array<{ kyu: number; result: GameResult }>;
@@ -63,6 +70,17 @@ export const clampRankBotKyu = (kyu: number): number =>
 /** Stronger opponent = lower kyu number, up to the strongest calibrated rank. */
 export const promoteKyu = (kyu: number): number => clampRankBotKyu(kyu - 1);
 
+/**
+ * Parse an SGF RE result string into the winner, or 'draw' for a drawn game
+ * (RE[0], RE[Draw], or the Jigo a count once stored). Void, unknown and
+ * unreadable results are null: there is nothing to record.
+ */
+export const parseResultOutcome = (re: string | null | undefined): Player | 'draw' | null => {
+  if (!re) return null;
+  if (/^\s*(0|draw|jigo)\s*$/i.test(re)) return 'draw';
+  return parseResultWinner(re);
+};
+
 /** Parse an SGF RE result string into the winning color. */
 export const parseResultWinner = (re: string | null | undefined): Player | null => {
   if (!re) return null;
@@ -104,11 +122,17 @@ export function readRunResult(args: {
   /** The game id on the root now on the board. */
   gameId: string | null;
   result: string | null | undefined;
-}): Player | null {
+}): Player | 'draw' | null {
   const { awaitingResult, watchedGameId, gameId, result } = args;
   if (!awaitingResult || !watchedGameId || gameId !== watchedGameId) return null;
-  return parseResultWinner(result);
+  return parseResultOutcome(result);
 }
+
+/** The player's result for a game outcome read off the board. */
+export const outcomeForPlayer = (outcome: Player | 'draw', player: Player): GameResult => {
+  if (outcome === 'draw') return 'draw';
+  return outcome === player ? 'win' : 'loss';
+};
 
 /** A fresh run id; unique enough to tell one practice run from the next. */
 export const createRunId = (): string => {
@@ -135,6 +159,7 @@ export const createLadder = (config: LadderConfig): LadderState => ({
   currentKyu: config.startKyu,
   wins: 0,
   losses: 0,
+  draws: 0,
   streak: 0,
   bestKyu: Number.POSITIVE_INFINITY,
   history: [],
@@ -144,7 +169,12 @@ export const createLadder = (config: LadderConfig): LadderState => ({
   gameId: null,
 });
 
-/** Apply a reported game result and return the next ladder state. */
+/**
+ * Apply a reported game result and return the next ladder state.
+ *
+ * A win promotes; a loss or a draw keeps the rung. A draw counts as a game
+ * played and, not being a win, ends the win streak.
+ */
 export const applyResult = (state: LadderState, result: GameResult): LadderState => {
   const playedKyu = state.currentKyu;
   const history = [...state.history, { kyu: playedKyu, result }].slice(-50);
@@ -155,6 +185,16 @@ export const applyResult = (state: LadderState, result: GameResult): LadderState
       streak: state.streak + 1,
       bestKyu: Math.min(state.bestKyu, playedKyu),
       currentKyu: promoteKyu(playedKyu),
+      history,
+      awaitingResult: false,
+      gameId: null,
+    };
+  }
+  if (result === 'draw') {
+    return {
+      ...state,
+      draws: state.draws + 1,
+      streak: 0,
       history,
       awaitingResult: false,
       gameId: null,
@@ -189,7 +229,7 @@ export const isLadderHistory = (value: unknown): value is LadderState['history']
   Array.isArray(value)
   && value.every((entry) => !!entry && typeof entry === 'object'
     && isFiniteNumber((entry as { kyu?: unknown }).kyu)
-    && ((entry as { result?: unknown }).result === 'win' || (entry as { result?: unknown }).result === 'loss'));
+    && GAME_RESULTS.includes((entry as { result?: unknown }).result as GameResult));
 
 /**
  * A stored run's identity. Entries written before runs named their game have
@@ -228,6 +268,8 @@ export const loadLadder = (): LadderState | null => {
     return {
       ...(parsed as LadderState),
       bestKyu,
+      // Runs saved before draws were recorded have none.
+      draws: isFiniteNumber(parsed.draws) ? parsed.draws : 0,
       awaitingResult: parsed.awaitingResult === true,
       ...readRunIdentity(parsed),
     };

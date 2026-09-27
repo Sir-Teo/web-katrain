@@ -2,13 +2,13 @@ import { useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useTournamentStore } from '../store/tournamentStore';
 import { getPinGameId } from '../utils/pinnedVariations';
-import { readRunResult } from '../utils/tournament';
+import { outcomeForPlayer, readRunResult } from '../utils/tournament';
 import type { GameResult, RunGameRef } from '../utils/tournament';
 import type { Player } from '../types';
 
 /**
  * While a ladder or gauntlet game is awaiting its result, watch the live game's
- * SGF result (RE) and auto-record a win/loss when the game ends by resignation.
+ * SGF result (RE) and auto-record a win, loss or draw once the game records one.
  * Manual reporting in the Tournament panel covers games that end by counting.
  *
  * Only the game the run started counts: the run persists that game's id and
@@ -27,15 +27,15 @@ function useRunResultWatcher(args: {
 
   useEffect(() => {
     if (!userColor || !runId) return;
-    const winner = readRunResult({
+    const outcome = readRunResult({
       awaitingResult,
       watchedGameId: gameId,
       gameId: getPinGameId(rootNode),
       result: rootNode.properties?.RE?.[0] ?? null,
     });
-    if (!winner) return;
+    if (!outcome) return;
     // Recording clears the run's game, so a result cannot be counted twice.
-    record(winner === userColor ? 'win' : 'loss', { runId, gameId });
+    record(outcomeForPlayer(outcome, userColor), { runId, gameId });
   }, [awaitingResult, userColor, runId, gameId, record, rootNode, treeVersion]);
 }
 

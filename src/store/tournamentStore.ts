@@ -38,6 +38,11 @@ interface TournamentStore {
    * awaited game. A manual report passes nothing.
    */
   recordResult: (result: GameResult, from?: RunGameRef) => void;
+  /**
+   * Stop waiting on the current rung's game without recording anything: for
+   * a game that was abandoned, voided, or cannot be settled.
+   */
+  abandonGame: () => void;
   /** End the run (keeps the summary visible). */
   retire: () => void;
   /** Clear the ladder entirely. */
@@ -48,6 +53,8 @@ interface TournamentStore {
   beginGauntletGame: (gameRoot?: GameNode) => void;
   /** Record the outcome of the current gauntlet game. See `recordResult`. */
   recordGauntletResult: (result: GameResult, from?: RunGameRef) => void;
+  /** As `abandonGame`, for the current gauntlet game; the round is played again. */
+  abandonGauntletGame: () => void;
   /** End the run without finishing it (keeps the summary visible). */
   retireGauntlet: () => void;
   /** Clear the gauntlet entirely. */
@@ -93,6 +100,12 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
     set({ ladder: persist(applyResult(ladder, result)) });
   },
 
+  abandonGame: () => {
+    const ladder = get().ladder;
+    if (!ladder || !ladder.awaitingResult) return;
+    set({ ladder: persist({ ...ladder, awaitingResult: false, gameId: null }) });
+  },
+
   retire: () => {
     const ladder = get().ladder;
     if (!ladder) return;
@@ -125,6 +138,12 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
     const gauntlet = get().gauntlet;
     if (!gauntlet || !isResultForRun(gauntlet, from)) return;
     set({ gauntlet: persistGauntlet(applyGauntletResult(gauntlet, result)) });
+  },
+
+  abandonGauntletGame: () => {
+    const gauntlet = get().gauntlet;
+    if (!gauntlet || !gauntlet.awaitingResult) return;
+    set({ gauntlet: persistGauntlet({ ...gauntlet, awaitingResult: false, gameId: null }) });
   },
 
   retireGauntlet: () => {
