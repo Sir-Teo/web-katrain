@@ -1,5 +1,5 @@
 import { createWithEqualityFn as create } from 'zustand/traditional';
-import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type BoardDrawing, type GameNode, type Move, type GameSettings, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
+import { DEFAULT_BOARD_SIZE, type FloatArray, type GameRules, type GameState, type BoardState, type Player, type AnalysisResult, type BoardDrawing, type GameNode, type Move, type GameSettings, type AnalysisProvenance, type AnalysisSource, type CandidateMove, type RegionOfInterest, type BoardSize, type KataGoBackendPreference, type EditTool } from '../types';
 import { findMistakeNavigationTarget } from '../utils/mistakeNavigation';
 import { applyCapturesInPlace, applySelfCaptureInPlace, boardsEqual, getLiberties, getLegalMoves, isEye, isValidMove } from '../utils/gameLogic';
 import { playStoneSound, playCaptureSound, playPassSound, playNewGameSound } from '../utils/sound';
@@ -725,6 +725,25 @@ const nodeAnalysisVisitCount = (node: GameNode): number => {
   if (typeof rootVisits === 'number' && Number.isFinite(rootVisits)) return Math.max(0, Math.floor(rootVisits));
   const requested = node.analysisVisitsRequested ?? 0;
   return Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : 0;
+};
+
+/**
+ * Where a result from this app's engine came from, recorded on the result so a
+ * stored or exported evaluation can say which model, rules and budget made it.
+ */
+const localAnalysisProvenance = (args: {
+  modelUrl: string;
+  rules: GameRules;
+  komi: number;
+  visits?: number;
+  maxTimeMs?: number;
+}): AnalysisProvenance => {
+  const modelName = getKataGoEngineClient().getEngineInfo().modelName;
+  const provenance: AnalysisProvenance = { source: 'local', modelUrl: args.modelUrl, rules: args.rules, komi: args.komi };
+  if (modelName) provenance.modelName = modelName;
+  if (typeof args.visits === 'number') provenance.visits = args.visits;
+  if (typeof args.maxTimeMs === 'number') provenance.maxTimeMs = args.maxTimeMs;
+  return provenance;
 };
 
 const findNodeById = (root: GameNode, id: string): GameNode | null => {
@@ -3284,6 +3303,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 policy: undefined,
                 ownershipStdev: undefined,
                 ownershipMode: 'none',
+                provenance: localAnalysisProvenance({
+                  modelUrl,
+                  rules,
+                  komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
+                  visits: 1,
+                }),
               };
               node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, 1);
             }
@@ -3503,6 +3528,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               policy: undefined,
               ownershipStdev: undefined,
               ownershipMode: 'none',
+              provenance: localAnalysisProvenance({
+                modelUrl,
+                rules,
+                komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
+                visits: fastVisits,
+                maxTimeMs,
+              }),
             };
             node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, fastVisits);
           } catch (err) {
@@ -3722,6 +3754,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               policy: analysis.policy,
               ownershipStdev: analysis.ownershipStdev,
               ownershipMode: s.settings.katagoOwnershipMode,
+              provenance: localAnalysisProvenance({
+                modelUrl,
+                rules,
+                komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
+                visits,
+                maxTimeMs,
+              }),
             };
             node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, visits);
           } catch (err) {
@@ -3863,6 +3902,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
               humanPolicy: analysis.humanPolicy,
               ownershipStdev: analysis.ownershipStdev,
               ownershipMode: state.settings.katagoOwnershipMode,
+              provenance: localAnalysisProvenance({
+                modelUrl,
+                rules,
+                komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
+                visits,
+                maxTimeMs,
+              }),
             };
 
             const roi = get().regionOfInterest;
@@ -4785,6 +4831,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             humanPolicy: analysis.humanPolicy,
             ownershipStdev: analysis.ownershipStdev,
             ownershipMode: aiOwnershipMode,
+            provenance: localAnalysisProvenance({
+              modelUrl,
+              rules,
+              komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
+              visits,
+              maxTimeMs,
+            }),
           };
 
           // Cache analysis on the node we analyzed -- unless the search was
@@ -6403,6 +6456,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (placesHandicapStones) syncRootSetupPropertiesFromBoard(newRoot.properties, rootState.board, boardSize, safeHandicap);
     }
 
+    // Neither format records the model or the rules and komi it searched
+    // with; the game's own (as loaded) are the best statement of them.
+    const importedAnalysisProvenance = (source: AnalysisSource, visits: number): AnalysisProvenance => {
+      const provenance: AnalysisProvenance = { source, rules, komi: rootState.komi };
+      if (visits > 0) provenance.visits = visits;
+      return provenance;
+    };
+
     const applyKtAnalysis = (node: GameNode, kt: string[]) => {
       // The ownership and policy buffers are sized by the board: read as
       // 19x19, a 9x9 game's came back empty and the next save wrote zeros.
@@ -6414,10 +6475,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         boardSize,
       });
       if (!analysis) return;
-      node.analysis = analysis;
       const rootInfo = decoded.root as { visits?: unknown } | null;
       const visitsRaw = rootInfo?.visits;
       const visits = typeof visitsRaw === 'number' && Number.isFinite(visitsRaw) ? Math.max(0, Math.floor(visitsRaw)) : 0;
+      node.analysis = { ...analysis, provenance: importedAnalysisProvenance('imported-katrain', visits) };
       if (visits > 0) node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, Math.min(visits, ENGINE_MAX_VISITS));
     };
 
@@ -6428,10 +6489,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         boardSize,
       });
       if (!analysis) return;
-      node.analysis = analysis;
       const visits = typeof analysis.rootVisits === 'number' && Number.isFinite(analysis.rootVisits)
         ? Math.max(0, Math.floor(analysis.rootVisits))
         : 0;
+      node.analysis = { ...analysis, provenance: importedAnalysisProvenance('imported-kaya', visits) };
       if (visits > 0) node.analysisVisitsRequested = Math.max(node.analysisVisitsRequested ?? 0, Math.min(visits, ENGINE_MAX_VISITS));
     };
 

@@ -82,6 +82,29 @@ export interface AnalysisResult {
   humanPolicy?: FloatArray; // same shape, from the human SL net (illegal = -1)
   ownershipStdev?: FloatArray; // len boardSize*boardSize
   ownershipMode?: 'none' | 'root' | 'tree';
+  /** Where this result came from. Absent on results made before it was recorded. */
+  provenance?: AnalysisProvenance;
+}
+
+/**
+ * - `local`: this app's in-browser KataGo.
+ * - `imported-katrain`: read from a file's KaTrain `KT` property.
+ * - `imported-kaya`: read from a file's Kaya `KA` property.
+ */
+export type AnalysisSource = 'local' | 'imported-katrain' | 'imported-kaya';
+
+export interface AnalysisProvenance {
+  source: AnalysisSource;
+  /** Model the engine reported (local), when known. */
+  modelName?: string;
+  /** Weights file the search was asked to load (local). */
+  modelUrl?: string;
+  /** Rules and komi the position was evaluated under; for imports, the game's as loaded. */
+  rules?: GameRules;
+  komi?: number;
+  /** Visit budget asked for (local); for imports, the visits the file records. */
+  visits?: number;
+  maxTimeMs?: number;
 }
 
 export type RegionOfInterest = { xMin: number; xMax: number; yMin: number; yMax: number };
