@@ -4,6 +4,7 @@ import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import {
   acquireSharedClockCursor,
+  clockSoundCue,
   describeKaTrainClock,
   flushGameClock,
   formatKaTrainClockSeconds,
@@ -18,6 +19,7 @@ import {
   type KaTrainTimerDisplay,
 } from '../utils/katrainTimer';
 import { getAnimationNow } from '../utils/animationFrame';
+import { playClockSound } from '../utils/sound';
 
 type GameState = ReturnType<typeof useGameStore.getState>;
 
@@ -61,13 +63,24 @@ function startClockDriver(): () => void {
     wake = null;
   };
 
+  // The move and player the clock was last running for. Beeps compare two
+  // steps of the same running clock, never one player's time with another's.
+  let runningFor: string | null = null;
+
   const step = () => {
     cancelWake();
     const s = useGameStore.getState();
+    const previous = clockDisplay;
+    const runningKey = `${s.currentNode.id}:${s.currentPlayer}`;
     const { display, running } = tickGameClock(s, cursor, getAnimationNow(), {
       stopped: isClockStopped(s),
       playing: isGameClockPlaying(),
     });
+    if (runningFor === runningKey && s.settings.timerSound) {
+      const cue = clockSoundCue(previous, display);
+      if (cue) playClockSound(cue);
+    }
+    runningFor = running ? runningKey : null;
     publish(display);
     if (!running) return;
     const delay = msUntilClockDisplayChanges(display);

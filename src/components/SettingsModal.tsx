@@ -1001,9 +1001,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                 type="checkbox"
                                                 checked={settings.timerSound}
                                                 onChange={(e) => updateSettings({ timerSound: e.target.checked })}
+                                                aria-describedby="settings-timer-sound-help"
                                                 className="toggle"
                                             />
                                         </div>
+                                        <p id="settings-timer-sound-help" className={subtextClass}>
+                                            Beeps each of the last 5 seconds of your time, when a byo-yomi period is used up, and when time runs out.
+                                        </p>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-1">

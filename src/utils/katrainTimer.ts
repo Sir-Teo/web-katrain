@@ -403,3 +403,28 @@ export function setActiveGameClockSync(sync: (() => void) | null): void {
 export function syncGameClockNow(): void {
   activeClockSync?.();
 }
+
+/** The last seconds of main time or a byo-yomi period that tick audibly. */
+export const CLOCK_COUNTDOWN_SECONDS = 5;
+
+/**
+ * Which beep, if any, a step of the running clock calls for. `prev` and
+ * `next` are two consecutive displays of the same player's running clock on
+ * the same move; the caller checks that.
+ */
+export function clockSoundCue(
+  prev: KaTrainTimerDisplay,
+  next: KaTrainTimerDisplay
+): 'countdown' | 'period' | 'timeout' | null {
+  if (next.timeout) return prev.timeout ? null : 'timeout';
+  if (
+    prev.periodsRemaining !== null &&
+    next.periodsRemaining !== null &&
+    next.periodsRemaining < prev.periodsRemaining
+  ) return 'period';
+  if (prev.periodsRemaining !== next.periodsRemaining) return null;
+  const shownPrev = Math.max(0, Math.floor(prev.timeSeconds + 0.99));
+  const shownNext = Math.max(0, Math.floor(next.timeSeconds + 0.99));
+  if (shownNext < shownPrev && shownNext >= 1 && shownNext <= CLOCK_COUNTDOWN_SECONDS) return 'countdown';
+  return null;
+}

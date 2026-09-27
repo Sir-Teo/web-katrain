@@ -1,5 +1,5 @@
 let audioCtx: AudioContext | null = null;
-type SoundEffectKey = 'stone' | 'capture' | 'pass' | 'new-game';
+type SoundEffectKey = 'stone' | 'capture' | 'pass' | 'new-game' | 'clock';
 
 const MIN_SOUND_INTERVAL_MS = 50;
 const lastSoundTimeByKey = new Map<SoundEffectKey, number>();
@@ -258,6 +258,43 @@ export const playNewGameSound = () => {
             osc.start(startTime);
             osc.stop(startTime + 0.3);
         });
+    });
+};
+
+export type ClockSoundCue = 'countdown' | 'period' | 'timeout';
+
+/**
+ * The clock's beeps: a short tick for each of the last seconds, a lower
+ * double tone when a byo-yomi period is used up, and a long low tone when the
+ * time is gone. Synthesised like the other effects, so there is nothing to
+ * download. The context is created and resumed on the first beep, and a
+ * browser that refuses audio just stays quiet.
+ */
+export const playClockSound = (cue: ClockSoundCue) => {
+    runSound('clock', (ctx) => {
+        const now = ctx.currentTime;
+        const tones: Array<{ freq: number; start: number; length: number; gain: number }> =
+            cue === 'countdown'
+                ? [{ freq: 880, start: 0, length: 0.08, gain: 0.25 }]
+                : cue === 'period'
+                    ? [
+                        { freq: 660, start: 0, length: 0.12, gain: 0.3 },
+                        { freq: 440, start: 0.16, length: 0.16, gain: 0.3 },
+                    ]
+                    : [{ freq: 330, start: 0, length: 0.6, gain: 0.35 }];
+        for (const tone of tones) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            const startTime = now + tone.start;
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(tone.freq, startTime);
+            gain.gain.setValueAtTime(tone.gain, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + tone.length);
+            osc.start(startTime);
+            osc.stop(startTime + tone.length);
+        }
     });
 };
 
