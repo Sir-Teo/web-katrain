@@ -583,6 +583,12 @@ export class KataGoModelV8Tf {
       this.sv3Bias.b,
       this.ownership.filter,
     ];
+    // A human SL net's metadata encoder was left out, so replacing one never
+    // freed those weights.
+    if (this.metaEncoder) {
+      const enc = this.metaEncoder;
+      tensors.push(enc.mul1.w, enc.bias1.b, enc.mul2.w, enc.bias2.b, enc.mul3.w);
+    }
 
     const pushBlockTensors = (block: TfTrunkBlock): void => {
       tensors.push(block.preBN.scale, block.preBN.bias);

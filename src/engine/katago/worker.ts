@@ -200,10 +200,15 @@ async function ensureBackend(backend?: KataGoBackendPreference): Promise<void> {
     return;
   }
 
+  // Both networks hold tensors on the backend they were built for, so both go
+  // when the backend changes; each is rebuilt on the new backend the next time
+  // a request needs it. The worker handles one message at a time, so no search
+  // or human-policy pass can be using either model here.
   model?.dispose();
   model = null;
   loadedModelName = undefined;
   loadedModelUrl = null;
+  disposeHumanModel();
   search = null;
   searchKey = null;
 
@@ -330,9 +335,18 @@ async function ensureHumanModel(modelUrl: string): Promise<KataGoModelV8Tf> {
   if (parsed.metaEncoderVersion !== 1) {
     throw new Error('That model is not a human SL net (it has no metadata encoder)');
   }
+  // Release the previous net's weights before uploading the new one; the old
+  // reference used to be dropped with its tensors still allocated.
+  disposeHumanModel();
   humanModel = new KataGoModelV8Tf(parsed);
   loadedHumanModelUrl = modelUrl;
   return humanModel;
+}
+
+function disposeHumanModel(): void {
+  humanModel?.dispose();
+  humanModel = null;
+  loadedHumanModelUrl = null;
 }
 
 /** Softmax over the board points of a logit array, ignoring the pass at the end. */
