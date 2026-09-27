@@ -7,6 +7,7 @@ import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from './nodeAnalysis';
 import { downloadBlob } from './objectUrl';
 import { stripUnsafeFilenameControls } from './filename';
 import { assertSgfImportSize } from './sgfImportLimits';
+import { countSgfGames, sgfTrailingGames } from './sgfScan';
 import { MAX_KOMI } from './komiInput';
 import { formatGtpMove } from '../lib/gtp';
 
@@ -59,6 +60,11 @@ export type KaTrainSgfExportTrainerConfig = {
 
 export type KaTrainSgfExportOptions = {
     trainer?: Partial<KaTrainSgfExportTrainerConfig>;
+    /**
+     * Write the other games of the collection this game was opened from after
+     * it (default true). Off for exports that are about the one game only.
+     */
+    includeTrailingGames?: boolean;
 };
 
 const DEFAULT_TRAINER_CONFIG: KaTrainSgfExportTrainerConfig = {
@@ -632,6 +638,10 @@ export const generateSgfFromTree = (rootNode: GameNode, opts?: KaTrainSgfExportO
 
     sgf += serializeVariationsBelow(rootNode, trainer);
     sgf += ')';
+    // A collection opens at its first game, and the rest were never parsed:
+    // carry them across as the text they were, or saving the file deletes them.
+    const trailing = opts?.includeTrailingGames === false ? '' : rootNode.trailingSgfGames?.trim();
+    if (trailing) sgf += `\n${trailing}`;
     return sgf;
 };
 
@@ -654,6 +664,8 @@ export interface ParsedSgf {
     initialBoard: BoardState;
     komi: number;
     tree?: ParsedSgfNode;
+    /** The games after the first, verbatim, when the text is a collection of several. */
+    trailingGames?: string;
 }
 
 
@@ -882,5 +894,6 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
         node = node.children[0] ?? null;
     }
 
-    return { moves, initialBoard, komi, tree: root };
+    const trailingGames = countSgfGames(sgfContent) > 1 ? sgfTrailingGames(sgfContent) : '';
+    return { moves, initialBoard, komi, tree: root, ...(trailingGames ? { trailingGames } : {}) };
 };

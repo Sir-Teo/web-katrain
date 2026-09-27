@@ -6372,6 +6372,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     const newRoot = createNode(null, null, rootState, createRootNodeId());
+    // The other games of a collection, kept so export writes them back.
+    if (sgf.trailingGames) newRoot.trailingSgfGames = sgf.trailingGames;
     newRoot.properties = { RU: [rulesToSgfRu(rules)], SZ: [String(boardSize)] };
     if (safeHandicap > 0) {
       newRoot.properties.HA = [String(safeHandicap)];
