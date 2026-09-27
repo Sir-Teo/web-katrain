@@ -1,4 +1,6 @@
 import React from 'react';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { isStaleBuildError } from '../utils/errorReporting';
 
 interface LazyModalBoundaryProps {
@@ -69,50 +71,56 @@ export const LazyModalRecovery: React.FC<{
   onRetry: () => void;
   onDismiss?: () => void;
   onReload?: () => void;
-}> = ({ staleBuild, onRetry, onDismiss, onReload = () => window.location.reload() }) => (
-  <div
-    data-lazy-modal-failed="true"
-    className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 mobile-safe-inset mobile-safe-area-bottom"
-    onKeyDown={(event) => {
-      if (event.key === 'Escape' && onDismiss) {
-        event.stopPropagation();
-        onDismiss();
-      }
-    }}
-  >
+}> = ({ staleBuild, onRetry, onDismiss, onReload = () => window.location.reload() }) => {
+  // The same focus trap, Escape and back gesture as the dialog it stands in
+  // for. Escape and back only close it when the dialog could be closed: the
+  // recovery prompt is a forced choice.
+  const reloadRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false, initialFocusRef: reloadRef });
+  const dismiss = React.useCallback(() => onDismiss?.(), [onDismiss]);
+  useEscapeToClose(dismiss, !!onDismiss);
+  return (
     <div
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="lazy-modal-failed-message"
-      className="ui-panel flex w-full max-w-sm flex-col gap-3 rounded-lg border p-4 shadow-xl"
+      data-lazy-modal-failed="true"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 mobile-safe-inset mobile-safe-area-bottom"
     >
-      <p id="lazy-modal-failed-message" className="text-sm leading-6 text-[var(--ui-text)]">
-        {staleBuild
-          ? 'Web KaTrain has been updated, or the connection dropped. Reload to open this.'
-          : 'That panel could not be opened.'}
-      </p>
-      <div className="flex flex-wrap justify-end gap-2">
-        {onDismiss && (
-          <button type="button" className={recoveryButtonClass} onClick={onDismiss}>
-            Close
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="lazy-modal-failed-message"
+        className="ui-panel flex w-full max-w-sm flex-col gap-3 rounded-lg border p-4 shadow-xl"
+      >
+        <p id="lazy-modal-failed-message" className="text-sm leading-6 text-[var(--ui-text)]">
+          {staleBuild
+            ? 'Web KaTrain has been updated, or the connection dropped. Reload to open this.'
+            : 'That panel could not be opened.'}
+        </p>
+        <div className="flex flex-wrap justify-end gap-2">
+          {onDismiss && (
+            <button type="button" className={recoveryButtonClass} onClick={onDismiss}>
+              Close
+            </button>
+          )}
+          <button type="button" className={recoveryButtonClass} onClick={onRetry}>
+            Retry
           </button>
-        )}
-        <button type="button" className={recoveryButtonClass} onClick={onRetry}>
-          Retry
-        </button>
-        <button
-          type="button"
-          // Focus lands on the button most likely to work, so Enter fixes it.
-          autoFocus
-          className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)]"
-          onClick={onReload}
-        >
-          Reload
-        </button>
+          <button
+            type="button"
+            // Focus lands on the button most likely to work, so Enter fixes it.
+            ref={reloadRef}
+            autoFocus
+            className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)]"
+            onClick={onReload}
+          >
+            Reload
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * What a dialog's first open looks like while its chunk is still arriving.
