@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { GameNode } from '../src/types';
 import type { GauntletConfig } from '../src/utils/gauntlet';
 import type { LadderConfig } from '../src/utils/tournament';
 
@@ -122,5 +123,46 @@ describe('one series game at a time', () => {
 
     expect(store.getState().gauntlet?.awaitingResult).toBe(false);
     expect(store.getState().ladder?.awaitingResult).toBe(true);
+  });
+});
+
+describe('counting only the game the run started', () => {
+  const root = () => ({ properties: {} } as unknown as GameNode);
+
+  it('stamps the started game and keeps its id on the run', async () => {
+    const store = await loadStore();
+    store.getState().startLadder(LADDER);
+    const gameRoot = root();
+    store.getState().beginGame(gameRoot);
+    const gameId = gameRoot.properties?.WKID?.[0];
+    expect(gameId).toBeTruthy();
+    expect(store.getState().ladder?.gameId).toBe(gameId);
+    expect(entries.get('web-katrain:tournament:v1')).toContain(String(gameId));
+  });
+
+  it('ignores an automatic result read from any other game', async () => {
+    const store = await loadStore();
+    const ladder = store.getState().startLadder(LADDER);
+    store.getState().beginGame(root());
+    store.getState().recordResult('win', { runId: ladder.runId, gameId: 'wk-some-other-game' });
+    expect(store.getState().ladder).toMatchObject({ wins: 0, awaitingResult: true });
+
+    const gameId = store.getState().ladder!.gameId;
+    store.getState().recordResult('win', { runId: ladder.runId, gameId });
+    expect(store.getState().ladder).toMatchObject({ wins: 1, awaitingResult: false, gameId: null });
+    // A second reading of the same result does not count again.
+    store.getState().recordResult('win', { runId: ladder.runId, gameId });
+    expect(store.getState().ladder?.wins).toBe(1);
+  });
+
+  it('ignores a result meant for an earlier run', async () => {
+    const store = await loadStore();
+    const first = store.getState().startGauntlet(GAUNTLET);
+    store.getState().beginGauntletGame(root());
+    const firstGame = store.getState().gauntlet!.gameId;
+    store.getState().startGauntlet(GAUNTLET);
+    store.getState().beginGauntletGame(root());
+    store.getState().recordGauntletResult('loss', { runId: first.runId, gameId: firstGame });
+    expect(store.getState().gauntlet).toMatchObject({ status: 'active', awaitingResult: true });
   });
 });

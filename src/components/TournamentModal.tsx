@@ -3,7 +3,9 @@ import { FaTimes, FaTrophy, FaPlay, FaFlag, FaBolt } from 'react-icons/fa';
 import { KOMI, type BoardSize, type Player } from '../types';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { useGameStore } from '../store/gameStore';
 import { useTournamentStore } from '../store/tournamentStore';
+import { getPinGameId } from '../utils/pinnedVariations';
 import { formatKyuRank, type LadderState } from '../utils/tournament';
 import {
   GAUNTLET_PRESETS,
@@ -56,6 +58,15 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
   const [userColor, setUserColor] = useState<Player>('black');
   const [startKyu, setStartKyu] = useState<number>(12);
   const [preset, setPreset] = useState<GauntletPreset>('match');
+
+  // The run counts only the game it started; say so when another is open.
+  const boardGameId = useGameStore((s) => getPinGameId(s.rootNode));
+  const isOtherGameOnBoard = (run: { gameId: string | null }) => run.gameId !== null && run.gameId !== boardGameId;
+  const otherGameNote = (
+    <p className="text-[var(--ui-text-muted)]">
+      A different game is on the board. Its result will not count for this series.
+    </p>
+  );
 
   const isLadderActive = ladder?.status === 'active';
   const isGauntletActive = gauntlet?.status === 'active';
@@ -155,6 +166,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                     <p className="text-[var(--ui-text-muted)]">
                       Resign results are detected automatically. If you counted the game out, report it below.
                     </p>
+                    {isOtherGameOnBoard(ladder) ? otherGameNote : null}
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
                         type="button"
@@ -232,6 +244,7 @@ export const TournamentModal: React.FC<TournamentModalProps> = ({ onClose, onPla
                 <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
                   <div className="font-semibold text-[var(--ui-text)]">Game in progress vs {formatKyuRank(currentGauntletOpponentKyu(gauntlet))}</div>
                   <p className="text-[var(--ui-text-muted)]">Resign results are detected automatically; report a counted game below.</p>
+                  {isOtherGameOnBoard(gauntlet) ? otherGameNote : null}
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     <button
                       type="button"

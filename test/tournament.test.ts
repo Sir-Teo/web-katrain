@@ -3,6 +3,7 @@ import {
   applyResult,
   createLadder,
   formatKyuRank,
+  isResultForRun,
   loadLadder,
   parseResultWinner,
   promoteKyu,
@@ -125,53 +126,85 @@ describe('readRunResult', () => {
   const watch = (over: Partial<Parameters<typeof readRunResult>[0]> = {}) =>
     readRunResult({
       awaitingResult: true,
-      rootId: 'root-ladder',
+      watchedGameId: 'wk-ladder',
+      gameId: 'wk-ladder',
       result: null,
-      watchedRootId: null,
       ...over,
     });
 
-  it('watches nothing while no game is awaiting a result', () => {
-    expect(watch({ awaitingResult: false, watchedRootId: 'root-ladder' }))
-      .toEqual({ watchedRootId: null, winner: null });
+  it('reads nothing while no game is awaiting a result', () => {
+    expect(watch({ awaitingResult: false, result: 'B+R' })).toBeNull();
   });
 
-  it('adopts the unfinished game on the board as the one being played', () => {
-    expect(watch()).toEqual({ watchedRootId: 'root-ladder', winner: null });
-    // An auto-save restored after a reload replaces the tree; it is still the
-    // game the run is waiting on, so the watch follows it.
-    expect(watch({ rootId: 'root-restored', watchedRootId: 'root-ladder' }))
-      .toEqual({ watchedRootId: 'root-restored', winner: null });
-  });
-
-  it('records the result that appears on the game it was watching', () => {
-    expect(watch({ result: 'W+R', watchedRootId: 'root-ladder' }))
-      .toEqual({ watchedRootId: null, winner: 'white' });
-    expect(watch({ result: 'B+7.5', watchedRootId: 'root-ladder' }))
-      .toEqual({ watchedRootId: null, winner: 'black' });
+  it('records the result that appears on the game the run started', () => {
+    expect(watch({ result: 'W+R' })).toBe('white');
+    expect(watch({ result: 'B+7.5' })).toBe('black');
   });
 
   it('ignores a result that arrives with a different game', () => {
     // Opening any finished SGF mid-run used to be recorded as the player's own
     // result: a fresh 12k ladder went to 1-0 and promoted off someone else's
     // file, and the gauntlet ends outright on a loss it invents this way.
-    expect(watch({ rootId: 'root-opened-file', result: 'B+R', watchedRootId: 'root-ladder' }))
-      .toEqual({ watchedRootId: 'root-ladder', winner: null });
+    expect(watch({ gameId: 'wk-opened-file', result: 'B+R' })).toBeNull();
+    expect(watch({ gameId: null, result: 'B+R' })).toBeNull();
   });
 
-  it('stops watching once it records, so one result counts once', () => {
-    const first = watch({ result: 'W+R', watchedRootId: 'root-ladder' });
-    expect(first.winner).toBe('white');
-    expect(watch({ result: 'W+R', watchedRootId: first.watchedRootId }).winner).toBeNull();
+  it('does not let another unfinished game take over the watch', () => {
+    // Reproduced: mid-run, opening an unfinished game moved the watch onto it
+    // (it was "adopted" as the game being played), and its result was later
+    // counted for the series. The run's game is fixed when it begins now, so
+    // the other game finishing never reaches the run...
+    expect(watch({ gameId: 'wk-other-unfinished', result: null })).toBeNull();
+    expect(watch({ gameId: 'wk-other-unfinished', result: 'B+R' })).toBeNull();
+    // ...and going back to the series game still counts it.
+    expect(watch({ gameId: 'wk-ladder', result: 'W+R' })).toBe('white');
+  });
+
+  it('leaves a run with no named game to the manual buttons', () => {
+    // An entry saved before runs named their game.
+    expect(watch({ watchedGameId: null, gameId: null, result: 'B+R' })).toBeNull();
   });
 
   it('keeps waiting through a result it cannot read', () => {
-    for (const result of ['', '   ', 'Void', '0', '?']) {
-      expect(watch({ result, watchedRootId: 'root-ladder' }).winner, result).toBeNull();
+    for (const result of ['', '   ', 'Void', '?']) {
+      expect(watch({ result }), result).toBeNull();
     }
-    // A drawn or void game leaves the run waiting on the manual buttons rather
-    // than handing the watch to the next file opened.
-    expect(watch({ result: 'Void', watchedRootId: 'root-ladder' }).watchedRootId).toBe('root-ladder');
+  });
+});
+
+describe('which run a result belongs to', () => {
+  const awaiting = { awaitingResult: true, runId: 'run-a', gameId: 'wk-1' };
+
+  it('accepts a manual report for the awaited game', () => {
+    expect(isResultForRun(awaiting)).toBe(true);
+    expect(isResultForRun({ ...awaiting, awaitingResult: false })).toBe(false);
+  });
+
+  it('accepts an automatic reading only from the same run and game', () => {
+    expect(isResultForRun(awaiting, { runId: 'run-a', gameId: 'wk-1' })).toBe(true);
+    expect(isResultForRun(awaiting, { runId: 'run-b', gameId: 'wk-1' })).toBe(false);
+    expect(isResultForRun(awaiting, { runId: 'run-a', gameId: 'wk-2' })).toBe(false);
+    expect(isResultForRun({ ...awaiting, gameId: null }, { runId: 'run-a', gameId: null })).toBe(false);
+  });
+
+  it('names each new run and restores the name and game from storage', () => {
+    const a = createLadder({ boardSize: 9, userColor: 'black', komi: 6.5, handicap: 0, startKyu: 10 });
+    const b = createLadder({ boardSize: 9, userColor: 'black', komi: 6.5, handicap: 0, startKyu: 10 });
+    expect(a.runId).not.toBe(b.runId);
+    expect(a.gameId).toBeNull();
+    saveLadder({ ...a, awaitingResult: true, gameId: 'wk-1' });
+    expect(loadLadder()).toMatchObject({ runId: a.runId, gameId: 'wk-1', awaitingResult: true });
+  });
+
+  it('restores an older entry without a game name as waiting on nothing automatic', () => {
+    const a = createLadder({ boardSize: 9, userColor: 'black', komi: 6.5, handicap: 0, startKyu: 10 });
+    const legacy: Record<string, unknown> = { ...a, awaitingResult: true };
+    delete legacy.runId;
+    delete legacy.gameId;
+    entries.set('web-katrain:tournament:v1', JSON.stringify(legacy));
+    const restored = loadLadder();
+    expect(restored?.gameId).toBeNull();
+    expect(typeof restored?.runId).toBe('string');
   });
 });
 
