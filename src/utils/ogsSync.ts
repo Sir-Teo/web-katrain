@@ -44,6 +44,10 @@ export type OgsSyncOutcome = {
   skipped: number;
   failed: number;
   username: string;
+  /** The sync was stopped before every new game was downloaded. */
+  stopped?: boolean;
+  /** New games the stop left undownloaded. */
+  notDownloaded?: number;
 };
 
 /**
@@ -62,6 +66,7 @@ export type OgsSyncOutcome = {
  */
 export const formatOgsSyncSummary = (result: OgsSyncOutcome): string => {
   const parts: string[] = [];
+  if (result.stopped) parts.push('Sync stopped.');
   if (result.added > 0) {
     const games = `${result.added} game${result.added === 1 ? '' : 's'}`;
     parts.push(`Added ${games} to "${ogsSyncFolderName(result.username)}".`);
@@ -75,6 +80,13 @@ export const formatOgsSyncSummary = (result: OgsSyncOutcome): string => {
   }
   if (result.failed > 0) {
     parts.push(`${result.failed} failed to download.`);
+  }
+  if (result.stopped && result.added === 0 && result.failed === 0 && result.skipped === 0) {
+    parts.push('No games were downloaded.');
+  }
+  const notDownloaded = result.notDownloaded ?? 0;
+  if (notDownloaded > 0) {
+    parts.push(`${notDownloaded} not downloaded yet; sync again to fetch ${notDownloaded === 1 ? 'it' : 'them'}.`);
   }
   return parts.join(' ');
 };
@@ -200,13 +212,17 @@ export const listOgsFinishedGames = async (
 /**
  * Downloads the SGFs for `games`, skipping ids in `existingIds`. Games whose
  * SGF download fails are reported in `failed` without aborting the rest.
+ *
+ * A cancel stops before the next game and still returns everything already
+ * downloaded, with `notDownloaded` counting the new games it never reached,
+ * so the caller can keep what was fetched rather than throw it away.
  */
 export const downloadNewOgsGames = async (
   games: OgsGameSummary[],
   existingIds: Set<number>,
   onProgress?: (progress: OgsSyncProgress) => void,
   isCancelled?: () => boolean
-): Promise<{ synced: OgsSyncedGame[]; skipped: number; failed: OgsGameSummary[] }> => {
+): Promise<{ synced: OgsSyncedGame[]; skipped: number; failed: OgsGameSummary[]; notDownloaded: number }> => {
   const fresh = games.filter((game) => !existingIds.has(game.id));
   const synced: OgsSyncedGame[] = [];
   const failed: OgsGameSummary[] = [];
@@ -224,5 +240,10 @@ export const downloadNewOgsGames = async (
     }
   }
   onProgress?.({ downloaded: synced.length + failed.length, total: fresh.length, current: null });
-  return { synced, skipped: games.length - fresh.length, failed };
+  return {
+    synced,
+    skipped: games.length - fresh.length,
+    failed,
+    notDownloaded: fresh.length - synced.length - failed.length,
+  };
 };
