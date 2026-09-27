@@ -16,6 +16,8 @@
     "test:analysis": "node scripts/check-analysis-responsiveness.mjs",
     "test:study": "node scripts/check-study-performance.mjs",
     "test:offline": "node scripts/check-offline.mjs",
+    "test:engine-smoke": "ENGINE_TESTS=1 vitest run test/engineGolden.test.ts test/engineRootPolicyGolden.test.ts test/engineTerminalScore.test.ts test/engineCancellationScheduling.test.ts",
+    "test:engine": "ENGINE_TESTS=1 vitest run test/engine test/handicap.test.ts",
     "bench": "BENCH=1 vitest run test/enginePerfBench.test.ts --reporter=verbose",
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "audit": "npm audit --audit-level=moderate",

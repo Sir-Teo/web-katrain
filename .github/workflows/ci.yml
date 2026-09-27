@@ -14,8 +14,9 @@ name: CI
 # Those live only here, so without a push trigger nothing browser-level ever
 # ran against main.
 #
-# This workflow deploys nothing. If it goes red the site still publishes, which
-# is the reason the browser suites belong here rather than in the deploy.
+# This workflow deploys nothing itself. deploy-pages.yml starts only after a
+# successful run of it on main, for the same commit, so a red browser suite now
+# holds the release back.
 on:
   pull_request:
   push:
@@ -62,6 +63,15 @@ jobs:
       # reached. Set ENGINE_TESTS=1 to run them anyway, and expect it to be slow.
       - name: Verify
         run: npm run verify
+
+      # The skipped search suites leave the engine with no live-search coverage
+      # on a pull request at all. These four are the bounded subset: the raw
+      # network against KataGo's recorded output, the recorded 19x19 root
+      # policy, terminal scoring inside a search, and cancellation. Together
+      # they take about a minute here. The full set runs on a schedule in
+      # engine-tests.yml.
+      - name: Engine smoke tests
+        run: npm run test:engine-smoke
 
       # A fresh cache reproduces first-use worker dependency reloads; never
       # depend on a developer's already-optimized Vite cache for this check.

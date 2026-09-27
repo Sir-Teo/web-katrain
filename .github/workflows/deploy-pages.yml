@@ -1,15 +1,27 @@
 name: Deploy to GitHub Pages
 
+# Publishes only a commit that CI has already passed, browser suites included.
+#
+# This used to run on every push to main, independently of CI. The two ran side
+# by side, and only CI drives the viewport and interaction checks, so a commit
+# that broke them still published: the site went live while CI went red.
+#
+# Now a push to main runs CI, and a successful CI run on main starts this
+# workflow for that exact commit (`head_sha`), not whatever main points at by
+# the time it starts. A manual run looks up CI's result for the commit it is
+# about to publish and refuses one that has not passed.
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: pages
@@ -17,44 +29,78 @@ concurrency:
 
 jobs:
   build:
+    # A pull request's CI run also completes on a `main`-named head branch in a
+    # fork, so require the push event as well as success.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ env.DEPLOY_SHA }}
           lfs: true
 
+      # CI runs for a manual dispatch too only if someone pushed; look the
+      # result up rather than trusting that it happened.
+      - name: Require a passing CI run for this commit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml \
+            --commit "$DEPLOY_SHA" --status success --json databaseId --jq 'length')
+          if [ "$passed" = "0" ]; then
+            echo "::error::CI has not passed on $DEPLOY_SHA; refusing to publish it."
+            exit 1
+          fi
+
+      # CI runs finish in any order. An older commit whose run ends after a
+      # newer push must not replace the newer site; that push's own CI run
+      # deploys it.
+      - name: Skip a commit main has moved past
+        id: current
+        if: github.event_name == 'workflow_run'
+        run: |
+          head=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$head" != "$DEPLOY_SHA" ]; then
+            echo "main is at $head, not $DEPLOY_SHA; leaving the deploy to its CI run."
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node
+        if: steps.current.outputs.stale != 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
 
       - name: Install dependencies
+        if: steps.current.outputs.stale != 'true'
         run: npm ci
 
-      - name: Audit dependencies
-        run: npm run audit
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Type-check tests
-        run: npm run test:typecheck
-
+      # Lint, unit tests, type checks, audit and the browser suites already
+      # passed in CI on this commit. The build is repeated here only because
+      # this checkout carries the LFS model and CI's does not.
       - name: Build
+        if: steps.current.outputs.stale != 'true'
         run: npm run build
 
       - name: Upload Pages artifact
+        if: steps.current.outputs.stale != 'true'
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+    outputs:
+      stale: ${{ steps.current.outputs.stale }}
 
   deploy:
     needs: build
+    if: needs.build.outputs.stale != 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

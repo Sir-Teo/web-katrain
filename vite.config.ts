@@ -190,7 +190,7 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: [...configDefaults.exclude, '**/.external/**'],
+    exclude: [...configDefaults.exclude, '**/.external/**', '**/.claude/**'],
   },
   resolve: {
     alias: {

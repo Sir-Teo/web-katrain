@@ -44,23 +44,30 @@ VITE_BASE_URL=/my/path/ npm run build
 
 ## GitHub Pages
 
-The repository includes `.github/workflows/deploy-pages.yml`. On pushes to
-`main` or manual dispatch, it:
+The repository includes `.github/workflows/deploy-pages.yml`. It publishes only
+a commit that CI (`.github/workflows/ci.yml`) has passed, browser suites
+included:
 
-1. Checks out the repository with LFS enabled.
-2. Sets up Node 24 with npm caching.
-3. Runs `npm ci`.
-4. Runs `npm run audit`, `npm run lint`, `npm test`, and
-   `npm run test:typecheck`. A failure in any of them stops the deploy.
-5. Runs `npm run build`.
-6. Uploads `dist/` as a Pages artifact.
-7. Deploys through `actions/deploy-pages`.
+1. A push to `main` runs CI: audit, `npm run verify`, the engine smoke tests,
+   and the viewport and interaction checks.
+2. A successful CI run from that push starts the deploy for the same commit
+   (`head_sha`). A run for a commit `main` has already moved past is skipped;
+   the newer commit's own CI run deploys it.
+3. A manual dispatch looks up CI's result for the commit it would publish and
+   stops if there is no passing run.
+4. The deploy checks the commit out with LFS enabled, runs `npm ci` and
+   `npm run build`, uploads `dist/` as a Pages artifact, and deploys through
+   `actions/deploy-pages`.
 
-The gates in step 4 are the same checks `npm run` offers locally, in the same
-order web-chess uses, so a green local run means a green deploy. Note that
-gating on `npm run audit` means a new advisory in a dependency can block a
+The build is repeated in the deploy only because its checkout carries the LFS
+model and CI's does not; every other gate already ran in CI on that commit.
+Gating on `npm run audit` means a new advisory in a dependency can block a
 release without any app code changing — if that happens, it is a real signal,
 but it is not a build failure.
+
+The suites that drive a real engine search are skipped in CI apart from the
+smoke subset; `.github/workflows/engine-tests.yml` runs all of them weekly and
+on demand (`npm run test:engine` locally).
 
 The current live URL is:
 
