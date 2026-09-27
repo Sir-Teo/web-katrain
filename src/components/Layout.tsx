@@ -42,6 +42,7 @@ import {
   nextUntitledGameName,
   selectRecentLibraryFiles,
   type RecentLibraryFiles,
+  subscribeToLibraryChanges,
 } from '../utils/library';
 import { loadSgfOrOgs } from '../utils/ogs';
 import type { BoardSize, CandidateMove, EditTool, GameNode, Player } from '../types';
@@ -605,6 +606,9 @@ export const Layout: React.FC = () => {
     return Number.isFinite(parsed) ? parsed : 360;
   });
   const [libraryVersion, setLibraryVersion] = useState(0);
+  // Another tab's library save refreshes the Recent list here too; before,
+  // only an open Library panel noticed it.
+  useEffect(() => subscribeToLibraryChanges(() => setLibraryVersion((prev) => prev + 1)), []);
   const [recentLibraryItems, setRecentLibraryItems] = useState<RecentLibraryFiles>({ kind: 'recent', files: [] });
   const [loadedLibraryFileId, setLoadedLibraryFileId] = useState<string | null>(null);
   const [loadedLibraryFileName, setLoadedLibraryFileName] = useState<string | null>(null);
