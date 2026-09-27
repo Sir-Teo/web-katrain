@@ -234,6 +234,34 @@ export function isGameClockDisabled(settings: GameClockState['settings']): boole
 }
 
 /**
+ * Whether the game is being played, as opposed to reviewed.
+ *
+ * The clock checked pause and whose turn it was, but not the UI mode, so a
+ * player who switched to Review mid-game to look at the analysis kept
+ * spending their own time. The layout sets this from its mode; the clock
+ * only charges while it is true.
+ */
+let gameClockPlaying = true;
+const playingListeners = new Set<() => void>();
+
+export function setGameClockPlaying(playing: boolean): void {
+  if (playing === gameClockPlaying) return;
+  gameClockPlaying = playing;
+  playingListeners.forEach((listener) => listener());
+}
+
+export function isGameClockPlaying(): boolean {
+  return gameClockPlaying;
+}
+
+export function subscribeGameClockPlaying(listener: () => void): () => void {
+  playingListeners.add(listener);
+  return () => {
+    playingListeners.delete(listener);
+  };
+}
+
+/**
  * Step the clock against the store as it is now, writing the time used back
  * into it. `running` says whether the displayed time is moving, i.e. whether
  * anything needs to wake up before the next state change.
@@ -242,7 +270,7 @@ export function tickGameClock(
   s: GameClockState,
   cursor: KaTrainClockCursor,
   nowMs: number,
-  opts: { stopped: boolean }
+  opts: { stopped: boolean; playing: boolean }
 ): { display: KaTrainTimerDisplay; running: boolean } {
   if (isGameClockDisabled(s.settings)) {
     cursor.live = false;
@@ -254,7 +282,7 @@ export function tickGameClock(
   }
 
   const isAiTurn = s.isAiPlaying && s.aiColor === s.currentPlayer;
-  const paused = s.timerPaused || opts.stopped;
+  const paused = s.timerPaused || opts.stopped || !opts.playing;
   const hasChildren = s.currentNode.children.length > 0;
 
   const result = stepKaTrainTimer({

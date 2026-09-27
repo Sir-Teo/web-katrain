@@ -8,10 +8,12 @@ import {
   flushGameClock,
   formatKaTrainClockSeconds,
   IDLE_CLOCK_DISPLAY,
+  isGameClockPlaying,
   isGameClockStopped,
   msUntilClockDisplayChanges,
   releaseSharedClockCursor,
   setActiveGameClockSync,
+  subscribeGameClockPlaying,
   tickGameClock,
   type KaTrainTimerDisplay,
 } from '../utils/katrainTimer';
@@ -62,15 +64,34 @@ function startClockDriver(): () => void {
   const step = () => {
     cancelWake();
     const s = useGameStore.getState();
-    const { display, running } = tickGameClock(s, cursor, getAnimationNow(), { stopped: isClockStopped(s) });
+    const { display, running } = tickGameClock(s, cursor, getAnimationNow(), {
+      stopped: isClockStopped(s),
+      playing: isGameClockPlaying(),
+    });
     publish(display);
     if (!running) return;
     const delay = msUntilClockDisplayChanges(display);
     if (delay !== null) wake = window.setTimeout(step, delay);
   };
 
+  const restep = (prev: GameState, s: GameState) => {
+    const nowMs = getAnimationNow();
+    // Time since the last wake belongs to the position it was spent on.
+    flushGameClock(prev, s, cursor, nowMs);
+    // Whatever was not charged just now was not being spent: paused, the
+    // AI's turn, off the end of the line, in Review. Resuming must not bill it.
+    cursor.lastUpdateMs = nowMs;
+    step();
+  };
+
   step();
   setActiveGameClockSync(step);
+  // Into Review: charge up to the switch, then stop. Back to Play: start from
+  // now, so the time spent reviewing is not billed on return.
+  const unsubscribePlaying = subscribeGameClockPlaying(() => {
+    const s = useGameStore.getState();
+    restep(s, s);
+  });
   const unsubscribe = useGameStore.subscribe((s, prev) => {
     if (
       s.currentNode === prev.currentNode &&
@@ -84,17 +105,12 @@ function startClockDriver(): () => void {
       s.settings.timerByoLengthSeconds === prev.settings.timerByoLengthSeconds &&
       s.settings.timerByoPeriods === prev.settings.timerByoPeriods
     ) return;
-    const nowMs = getAnimationNow();
-    // Time since the last wake belongs to the position it was spent on.
-    flushGameClock(prev, s, cursor, nowMs);
-    // Whatever was not charged just now was not being spent: paused, the
-    // AI's turn, off the end of the line. Resuming must not bill it.
-    cursor.lastUpdateMs = nowMs;
-    step();
+    restep(prev, s);
   });
 
   return () => {
     unsubscribe();
+    unsubscribePlaying();
     cancelWake();
     setActiveGameClockSync(null);
     releaseSharedClockCursor();

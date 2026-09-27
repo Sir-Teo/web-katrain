@@ -135,6 +135,7 @@ import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } f
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
+import { setGameClockPlaying } from '../utils/katrainTimer';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
 const SettingsModal = settingsModalChunk.Component;
@@ -645,6 +646,11 @@ export const Layout: React.FC = () => {
   const lastAppliedModeControlsRef = useRef<UiMode | null>(null);
   const lockAiDetails = mode === 'play' && settings.trainerLockAi;
   void treeVersion;
+  // The game clock runs in Play only; Review is time off the clock. A layout
+  // effect, so the clock knows before its own first step.
+  useLayoutEffect(() => {
+    setGameClockPlaying(mode === 'play');
+  }, [mode]);
 
   const sgfExportOptions = useMemo<KaTrainSgfExportOptions>(() => {
     const saveCommentsPlayer =
