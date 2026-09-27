@@ -53,6 +53,7 @@ import {
   moveLibraryItems,
   prependLibraryImports,
   readLibraryBackup,
+  mergeLibraryBackup,
   MAX_LIBRARY_BACKUP_BYTES,
   MAX_LIBRARY_BACKUP_LABEL,
   type LibraryBackupReport,
@@ -83,7 +84,9 @@ import { describeLibraryImport, describeLibraryImportFailure } from '../utils/li
 import {
   describeLibraryBackupRepairs,
   describeLibraryClear,
+  describeLibraryMerge,
   describeLibraryReplacement,
+  describeLibraryRestoreChoice,
   summarizeLibraryBackupRepairs,
 } from '../utils/libraryPrompts';
 import { countSgfGames } from '../utils/sgfScan';
@@ -184,6 +187,8 @@ type LibraryConfirmDialogState = {
   confirmLabel: string;
   danger?: boolean;
   onConfirm: () => void;
+  /** A second, non-destructive answer, shown between Cancel and the confirm button. */
+  secondary?: { label: string; onConfirm: () => void };
 };
 
 type LibraryContextMenuState = {
@@ -318,6 +323,10 @@ const LibraryConfirmDialog: React.FC<{
     dialog.onConfirm();
     onClose();
   };
+  const confirmSecondary = () => {
+    dialog.secondary?.onConfirm();
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -348,6 +357,11 @@ const LibraryConfirmDialog: React.FC<{
             <button type="button" className="panel-action-button" onClick={onClose} ref={cancelRef}>
               Cancel
             </button>
+            {dialog.secondary && (
+              <button type="button" className="panel-action-button active" onClick={confirmSecondary}>
+                {dialog.secondary.label}
+              </button>
+            )}
             <button
               type="button"
               className={['panel-action-button', dialog.danger ? 'danger' : 'active'].join(' ')}
@@ -1286,7 +1300,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   /**
-   * Restoring a backup replaces the library; it does not merge into it.
+   * Restoring a backup either merges it into the library or replaces the
+   * library with it; the reader chooses.
    *
    * Clear Library asks first -- "Clear all 8 library items? This cannot be
    * undone." -- and restore, which destroys exactly as much, asked nothing.
@@ -1297,6 +1312,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    *
    * The file is read and parsed before asking, so the question can name both
    * numbers. Nothing is written until the answer is yes.
+   *
+   * Replace was the only answer, so bringing back one lost folder from an old
+   * backup cost everything added since. Merge adds only what the library does
+   * not already have, through the same edit path as any other change.
    */
   const handleRestoreBackup = async (files: FileList | null) => {
     const file = files?.[0];
@@ -1340,19 +1359,34 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       }
     };
 
+    const applyMerge = () => {
+      // Against the latest items, not the ones this dialog opened over.
+      const merged = mergeLibraryBackup(saveStateRef.current.items, restored);
+      if (merged.added > 0) setItems(merged.items);
+      onToast(`${describeLibraryMerge(merged)}${repairs ? ` ${repairs}` : ''}`, merged.added > 0 ? 'success' : 'info');
+    };
+
     // Nothing to lose, so nothing to ask about.
     if (items.length === 0) {
       await applyRestore();
       return;
     }
-    setConfirmDialog({
+    const repairsQuestion = describeLibraryBackupRepairs(report);
+    // An empty backup has nothing to merge; replacing with it is the only
+    // thing it can do.
+    setConfirmDialog(restored.length === 0 ? {
       title: 'Restore Backup',
-      message: [describeLibraryReplacement(items.length, restored.length), describeLibraryBackupRepairs(report)]
-        .filter(Boolean)
-        .join(' '),
+      message: [describeLibraryReplacement(items.length, 0), repairsQuestion].filter(Boolean).join(' '),
       confirmLabel: 'Replace',
       danger: true,
       onConfirm: () => void applyRestore(),
+    } : {
+      title: 'Restore Backup',
+      message: [describeLibraryRestoreChoice(items.length, restored.length), repairsQuestion].filter(Boolean).join(' '),
+      confirmLabel: 'Replace',
+      danger: true,
+      onConfirm: () => void applyRestore(),
+      secondary: { label: 'Merge', onConfirm: applyMerge },
     });
   };
 

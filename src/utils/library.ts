@@ -1838,3 +1838,87 @@ export const restoreLibrary = async (raw: string): Promise<LibraryItem[]> => {
   await saveLibrary(items);
   return items;
 };
+
+export type LibraryBackupMergeResult = {
+  items: LibraryItem[];
+  /** Items the backup added, including any kept alongside a changed game. */
+  added: number;
+  /** Items skipped because the Library already has them. */
+  alreadyPresent: number;
+  /** Games whose id the Library already uses for different content, added under a new id. */
+  keptBoth: number;
+};
+
+/**
+ * Adds to the Library what a backup has and the Library does not.
+ *
+ * Restore could only replace, so bringing back one lost folder from last
+ * month's backup cost everything added since. Items are matched by id. A
+ * folder the Library already has takes in the backup's contents for it. A game
+ * the Library already has is skipped when its moves are the same; when they
+ * differ, both are kept and the backup's copy gets a new id and, beside the
+ * original, a numbered name.
+ */
+export const mergeLibraryBackup = (
+  current: readonly LibraryItem[],
+  incoming: readonly LibraryItem[]
+): LibraryBackupMergeResult => {
+  const currentById = new Map(current.map((item) => [item.id, item]));
+  const newIds = new Map<string, string>();
+  const additions: LibraryItem[] = [];
+  let alreadyPresent = 0;
+  let keptBoth = 0;
+  for (const item of incoming) {
+    const existing = currentById.get(item.id);
+    if (!existing) {
+      additions.push(item);
+      continue;
+    }
+    const sameItem = existing.type === item.type
+      && (item.type === 'folder' || (existing.type === 'file' && existing.sgf === item.sgf));
+    if (sameItem) {
+      alreadyPresent++;
+      continue;
+    }
+    const id = createId();
+    newIds.set(item.id, id);
+    additions.push({ ...item, id });
+    keptBoth++;
+  }
+
+  // Contents follow a folder that was given a new id. Names are kept unique
+  // among what is already in the folder an addition lands in.
+  const addedFolderIds = new Set(additions.filter((item) => item.type === 'folder').map((item) => item.id));
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      for (const item of current) {
+        if ((item.parentId ?? null) === parentId) pool.names.add(item.name.toLowerCase());
+      }
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+  const currentFolderIds = new Set(current.filter((item) => item.type === 'folder').map((item) => item.id));
+  const added = additions.map((item) => {
+    const renamedParent = item.parentId ? newIds.get(item.parentId) ?? item.parentId : null;
+    // A parent that is a folder in neither is no parent; the backup was already
+    // repaired on reading, and nothing in the Library points into the backup,
+    // so no cycle can form here.
+    const parentId = renamedParent && (addedFolderIds.has(renamedParent) || currentFolderIds.has(renamedParent))
+      ? renamedParent
+      : null;
+    const landsInLibrary = parentId === null || !addedFolderIds.has(parentId);
+    const name = landsInLibrary ? reserveLibraryName(item.name, poolFor(parentId)) : item.name;
+    return parentId === item.parentId && name === item.name ? item : { ...item, parentId, name };
+  });
+  return {
+    // The Library's own records stay the same objects, so saving writes only the additions.
+    items: [...added, ...current],
+    added: added.length,
+    alreadyPresent,
+    keptBoth,
+  };
+};
