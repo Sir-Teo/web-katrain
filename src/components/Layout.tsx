@@ -134,7 +134,7 @@ import { countInsertedMoves, describeInsertProgress } from '../utils/insertMode'
 import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } from '../utils/sound';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
-import { getPvAnimationProgress } from '../utils/pvAnimation';
+import { getPvAnimationProgress, getPvVisibleLength, isPvAnimated } from '../utils/pvAnimation';
 import { setGameClockPlaying } from '../utils/katrainTimer';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
@@ -1579,17 +1579,20 @@ export const Layout: React.FC = () => {
     const t = settings.animPvTimeSeconds;
     return typeof t === 'number' && Number.isFinite(t) ? t : 0.5;
   }, [reportHoverMove, settings.animPvTimeSeconds]);
+  // PV Animation Moves: a positive number caps the moves laid on the board;
+  // 0 shows the whole variation at once, without animating.
+  const pvAnimated = isPvAnimated(pvAnimTimeS, settings.animPvMoves);
 
   useEffect(() => {
-    if (!pvKey || pvAnimTimeS <= 0) {
+    if (!pvKey || !pvAnimated) {
       setPvAnim(null);
       return;
     }
     const now = getAnimationNow();
     setPvAnim((prev) => (prev?.key === pvKey ? prev : { key: pvKey, startMs: now, upToMove: 0 }));
-  }, [pvKey, pvAnimTimeS]);
+  }, [pvKey, pvAnimated]);
 
-  const pvLen = activeHoverMove?.pv?.length ?? 0;
+  const pvLen = getPvVisibleLength(activeHoverMove?.pv?.length ?? 0, settings.animPvMoves);
   useEffect(() => {
     if (!pvAnim) return;
     if (!pvKey || pvKey !== pvAnim.key) return;
@@ -1615,10 +1618,10 @@ export const Layout: React.FC = () => {
   const pvUpToMove = useMemo(() => {
     const pv = activeHoverMove?.pv;
     if (!pvOverlayEnabled || !pv || pv.length === 0) return null;
-    if (pvAnimTimeS <= 0) return pv.length;
+    if (!pvAnimated) return pvLen - 1;
     if (!pvAnim || pvAnim.key !== pvKey) return 0;
-    return pvAnim.upToMove;
-  }, [activeHoverMove, pvOverlayEnabled, pvAnim, pvAnimTimeS, pvKey]);
+    return Math.min(pvAnim.upToMove, pvLen - 1);
+  }, [activeHoverMove, pvOverlayEnabled, pvAnim, pvAnimated, pvKey, pvLen]);
 
   const passPv = useMemo(() => {
     const pv = activeHoverMove?.pv;
