@@ -243,8 +243,8 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
                   )}
                   {outcome && !outcome.correct && (
                     <div className="flex justify-between text-[var(--ui-text-muted)]">
-                      <span>Distance</span>
-                      <span>{outcome.distance} line{outcome.distance === 1 ? '' : 's'}</span>
+                      <span>Distance from game move</span>
+                      <span>{outcome.distance} point{outcome.distance === 1 ? '' : 's'}</span>
                     </div>
                   )}
                 </div>
