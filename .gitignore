@@ -29,3 +29,6 @@ public/tfjs/*.wasm
 *.njsproj
 *.sln
 *.sw?
+
+# Local agent worktrees
+.claude/worktrees/
