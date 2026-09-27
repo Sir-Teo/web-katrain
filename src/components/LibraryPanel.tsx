@@ -46,6 +46,8 @@ import {
   getUniqueLibraryItemName,
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
+  loadLibrary,
+  subscribeToLibraryChanges,
   updateStoredLibrary,
   nextLibraryGameSaveRequestId,
   moveLibraryItems,
@@ -112,9 +114,16 @@ type LibraryItemsState = { items: LibraryItem[]; revision: number; edits: Librar
 type LibraryItemsAction =
   | { type: 'edit' | 'sync'; update: React.SetStateAction<LibraryItem[]> }
   | { type: 'saved'; items: LibraryItem[]; revision: number }
-  | { type: 'restore'; items: LibraryItem[] };
+  | { type: 'restore'; items: LibraryItem[] }
+  | { type: 'remote'; items: LibraryItem[] };
 const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction): LibraryItemsState => {
   if (action.type === 'restore') return { ...state, items: action.items, edits: [] };
+  // Another tab's write, read back. Edits still waiting for their own save stay
+  // on top of it, as they do when a save is acknowledged.
+  if (action.type === 'remote') {
+    const items = state.edits.reduce((current, batch) => applyLibraryChanges(current, batch.changes), action.items);
+    return { ...state, items };
+  }
   if (action.type === 'saved') {
     const edits = state.edits.filter(batch => batch.revision > action.revision);
     const items = edits.reduce((current, batch) => applyLibraryChanges(current, batch.changes), action.items);
@@ -568,6 +577,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     // Only local edits and Retry enqueue writes. Mirrors and callback changes
     // must not save old snapshots or cancel a pending acknowledgement.
   }, [itemsRevision, saveRetry, saveEdits]);
+
+  // Another tab saved. Read the library again, behind any write of this tab's
+  // already queued, so the panel does not keep showing -- and later build its
+  // edits on -- a library that no longer exists.
+  const [remoteChange, setRemoteChange] = useState(0);
+  useEffect(() => subscribeToLibraryChanges(() => setRemoteChange((count) => count + 1)), []);
+  useEffect(() => {
+    if (remoteChange === 0 || !didLoadLibraryRef.current) return;
+    let cancelled = false;
+    void loadLibrary()
+      .then((loaded) => {
+        if (cancelled) return;
+        dispatchItems({ type: 'remote', items: loaded });
+        saveCallbacksRef.current.onLibraryUpdated?.();
+      })
+      .catch(() => {
+        // A failed read here changes nothing; the next save reads again.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [remoteChange]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalFileUpdate) return;

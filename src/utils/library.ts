@@ -89,8 +89,15 @@ const DB_NAME = 'web-katrain-library';
 const DB_VERSION = 1;
 const ITEM_STORE = 'items';
 const META_STORE = 'meta';
+/** Bumped by each localStorage fallback write; see `readFallbackRevision`. */
+const FALLBACK_REVISION_KEY = 'web-katrain:library_fallback_revision:v1';
+/** Web Locks name and BroadcastChannel name shared by every tab of the app. */
+const LIBRARY_LOCK_NAME = 'web-katrain:library';
+const LIBRARY_CHANNEL_NAME = 'web-katrain:library';
 
 let memoryItems: LibraryItem[] | null = null;
+/** The fallback revision `memoryItems` was last read or written at. */
+let memoryRevision: string | null = null;
 
 const createId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -657,39 +664,112 @@ const openLibraryDb = (): Promise<IDBDatabase> =>
     request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB'));
   });
 
-const loadFromIndexedDb = async (): Promise<LibraryItem[]> => {
+/**
+ * A write that found the stored library changed since it was read.
+ *
+ * Every tab has its own task queue, so two tabs could each read the library,
+ * each add a game, and each write back what they had read plus their own game:
+ * the second write replaced the first. Reproduced with two tabs saving at once
+ * -- two "Saved to Library." toasts, one game after a reload. Web Locks keep
+ * tabs from interleaving where the browser has them; this catches the rest, and
+ * the operation runs again against what the other tab wrote.
+ */
+class LibraryConflictError extends Error {
+  constructor() {
+    super('The library was changed in another tab. Try again.');
+    this.name = 'LibraryConflictError';
+  }
+}
+
+/** A library as read, with where it came from and the revision it was read at. */
+type LibrarySnapshot = { items: LibraryItem[]; source: 'idb' | 'fallback'; token: string };
+
+const readMetaValue = (meta: IDBObjectStore, key: string): Promise<unknown> =>
+  requestToPromise(meta.get(key)).then((record) => (record as { value?: unknown } | undefined)?.value);
+
+/**
+ * The stored library's revision. `updatedAt` is part of the token because a
+ * tab still running an older build writes that and nothing else.
+ */
+const readStoredRevision = async (meta: IDBObjectStore): Promise<{ revision: number; token: string }> => {
+  const [revision, updatedAt] = await Promise.all([readMetaValue(meta, 'revision'), readMetaValue(meta, 'updatedAt')]);
+  const current = typeof revision === 'number' && Number.isFinite(revision) ? revision : 0;
+  return { revision: current, token: `${current}:${typeof updatedAt === 'number' ? updatedAt : 0}` };
+};
+
+const loadFromIndexedDb = async (): Promise<{ items: LibraryItem[]; token: string }> => {
   const db = await openLibraryDb();
   try {
-    const tx = db.transaction(ITEM_STORE, 'readonly');
-    const result = await requestToPromise(tx.objectStore(ITEM_STORE).getAll());
-    return normalizeLibraryItems(result);
+    const tx = db.transaction([ITEM_STORE, META_STORE], 'readonly');
+    const [records, { token }] = await Promise.all([
+      requestToPromise(tx.objectStore(ITEM_STORE).getAll()),
+      readStoredRevision(tx.objectStore(META_STORE)),
+    ]);
+    return { items: normalizeLibraryItems(records), token };
   } finally {
     db.close();
   }
 };
 
-const saveToIndexedDb = async (items: LibraryItem[], alreadyNormalized = false): Promise<void> => {
+/**
+ * Replaces the stored library with already-normalized items. Given the token
+ * the library was read at, only if nothing wrote since: the check and the write
+ * share one transaction, which the database runs alone against any other tab's.
+ */
+const saveToIndexedDb = async (items: LibraryItem[], expectedToken: string | null = null): Promise<string> => {
   const db = await openLibraryDb();
   try {
     const tx = db.transaction([ITEM_STORE, META_STORE], 'readwrite');
+    const done = transactionDone(tx);
+    // Handled here as well, so an abort before the final await is not unhandled.
+    done.catch(() => undefined);
+    const meta = tx.objectStore(META_STORE);
+    const stored = await readStoredRevision(meta);
+    if (expectedToken !== null && stored.token !== expectedToken) {
+      tx.abort();
+      throw new LibraryConflictError();
+    }
     const store = tx.objectStore(ITEM_STORE);
     store.clear();
-    for (const item of alreadyNormalized ? items : normalizeLibraryItems(items)) store.put(item);
-    tx.objectStore(META_STORE).put({ key: 'updatedAt', value: Date.now() });
-    tx.objectStore(META_STORE).put({ key: 'schemaVersion', value: DB_VERSION });
-    await transactionDone(tx);
+    for (const item of items) store.put(item);
+    const updatedAt = Date.now();
+    const revision = stored.revision + 1;
+    meta.put({ key: 'revision', value: revision });
+    meta.put({ key: 'updatedAt', value: updatedAt });
+    meta.put({ key: 'schemaVersion', value: DB_VERSION });
+    await done;
     setPreloadedVersion(PRELOADED_VERSION);
+    return `${revision}:${updatedAt}`;
   } finally {
     db.close();
   }
 };
 
+/**
+ * Bumped by every fallback write, so a tab can tell that its memory copy is
+ * out of date and a write can tell that another tab wrote first.
+ */
+const readFallbackRevision = (): string => readLocalStorage(FALLBACK_REVISION_KEY) ?? '';
+
+const rememberItems = (items: LibraryItem[]): void => {
+  memoryItems = items;
+  memoryRevision = readFallbackRevision();
+};
+
 const loadFallbackLibrary = (): LibraryItem[] => {
-  if (memoryItems) return memoryItems;
+  const revision = readFallbackRevision();
+  // Another tab may have written the fallback since this one read it. With no
+  // stored copy there is nothing newer to read, and memory stays: where storage
+  // is off, memory is the whole library.
+  if (memoryItems && (memoryRevision === revision || readLocalStorage(LEGACY_STORAGE_KEY) === null)) {
+    memoryRevision = revision;
+    return memoryItems;
+  }
   // Use the same version check as IndexedDB, including on the first load.
   // Saving records initialization only after the library is persisted.
   const ensured = ensurePreloadedLibrary(safeParse(readLocalStorage(LEGACY_STORAGE_KEY)));
   memoryItems = ensured.items;
+  memoryRevision = revision;
   return memoryItems;
 };
 
@@ -703,11 +783,21 @@ const loadFallbackLibrary = (): LibraryItem[] => {
  * right answer there. A store that exists and *refuses* the write is out of
  * room. Inside a browser, absent means site data is switched off, and the
  * caller treats that as the failure it is; see `saveLibrarySnapshot`.
+ *
+ * Given the revision the library was read at, a write that another tab has
+ * overtaken is refused rather than written over it.
  */
-const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-storage' => {
-  memoryItems = normalizeLibraryItems(items);
+const saveFallbackLibrary = (
+  items: LibraryItem[],
+  expectedRevision: string | null = null
+): 'saved' | 'rejected' | 'no-storage' => {
+  if (expectedRevision !== null && readFallbackRevision() !== expectedRevision) throw new LibraryConflictError();
+  // A refused write still leaves memory as the newest copy this tab has.
+  rememberItems(items);
   if (!getLocalStorage()) return 'no-storage';
-  if (!writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems))) return 'rejected';
+  if (!writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(items))) return 'rejected';
+  writeLocalStorage(FALLBACK_REVISION_KEY, String((Number.parseInt(memoryRevision ?? '', 10) || 0) + 1));
+  memoryRevision = readFallbackRevision();
   setPreloadedVersion(PRELOADED_VERSION);
   return 'saved';
 };
@@ -778,13 +868,66 @@ export const mergeLibrariesByNewest = (stored: LibraryItem[], fallback: LibraryI
   return normalizeLibraryItems([...byId.values()]);
 };
 
-const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
+type LibraryChangeListener = () => void;
+const changeListeners = new Set<LibraryChangeListener>();
+let changeChannel: BroadcastChannel | null = null;
+
+/**
+ * One channel per tab, for sending and hearing alike: a channel never hears
+ * its own messages, so a tab is told only about other tabs' writes.
+ */
+const getChangeChannel = (): BroadcastChannel | null => {
+  if (changeChannel) return changeChannel;
+  try {
+    if (typeof BroadcastChannel !== 'function') return null;
+    const channel = new BroadcastChannel(LIBRARY_CHANNEL_NAME);
+    channel.onmessage = () => {
+      for (const listener of [...changeListeners]) listener();
+    };
+    // Node keeps a process alive while a channel is open; browsers have no unref.
+    (channel as unknown as { unref?: () => void }).unref?.();
+    changeChannel = channel;
+    return channel;
+  } catch {
+    return null;
+  }
+};
+
+/** Tells other tabs to read the library again. */
+const notifyLibraryChanged = (): void => {
+  try {
+    getChangeChannel()?.postMessage({ type: 'library-changed' });
+  } catch {
+    // Other tabs only miss a refresh; their next write still reads fresh.
+  }
+};
+
+/**
+ * Calls `listener` whenever another tab of the app writes the library. Returns
+ * the unsubscribe. Where BroadcastChannel is missing it never fires, and each
+ * tab still reads the stored library before its own next change.
+ */
+export const subscribeToLibraryChanges = (listener: LibraryChangeListener): (() => void) => {
+  changeListeners.add(listener);
+  getChangeChannel();
+  return () => {
+    changeListeners.delete(listener);
+  };
+};
+
+const fallbackSnapshot = (): LibrarySnapshot => {
+  const items = loadFallbackLibrary();
+  return { items, source: 'fallback', token: readFallbackRevision() };
+};
+
+const loadLibrarySnapshot = async (): Promise<LibrarySnapshot> => {
   if (!getIndexedDB()) {
-    return loadFallbackLibrary();
+    return fallbackSnapshot();
   }
 
   try {
-    let items = await loadFromIndexedDb();
+    const loaded = await loadFromIndexedDb();
+    let items = loaded.items;
     idbLoadFailed = false;
     // The database is back, and the fallback holds work it never saw. Merge
     // rather than replace: during an outage the fallback is whatever could be
@@ -794,11 +937,12 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // failure worth having when the alternative is losing one for good.
     if (hasUnflushedFallback()) {
       const merged = mergeLibrariesByNewest(items, loadFallbackLibrary());
-      await saveToIndexedDb(merged);
-      memoryItems = merged;
+      const token = await saveToIndexedDb(merged, loaded.token);
+      rememberItems(merged);
       setFallbackUnflushed(false);
       markMigrated();
-      return merged;
+      notifyLibraryChanged();
+      return { items: merged, source: 'idb', token };
     }
     const legacyRaw = readLocalStorage(LEGACY_STORAGE_KEY);
     const hasMigrated = readLocalStorage(MIGRATION_FLAG_KEY) === 'true';
@@ -807,9 +951,10 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
       items = safeParse(legacyRaw);
       const ensured = ensurePreloadedLibrary(items);
       items = ensured.items;
-      await saveToIndexedDb(items);
+      const token = await saveToIndexedDb(items, loaded.token);
       writeLocalStorage(MIGRATION_FLAG_KEY, 'true');
-      return items;
+      notifyLibraryChanged();
+      return { items, source: 'idb', token };
     }
 
     // Empty is also a valid saved library. Let the version check distinguish
@@ -817,10 +962,14 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     const ensured = ensurePreloadedLibrary(items);
     if (ensured.changed) {
       items = ensured.items;
-      await saveToIndexedDb(items);
+      const token = await saveToIndexedDb(items, loaded.token);
+      notifyLibraryChanged();
+      return { items, source: 'idb', token };
     }
-    return items;
+    return { items, source: 'idb', token: loaded.token };
   } catch (error) {
+    // Another tab wrote first; the caller reads again. Not a failed read.
+    if (error instanceof LibraryConflictError) throw error;
     idbLoadFailed = true;
     // A read that failed is not an empty library. Falling back silently put
     // "Library is empty" on screen over games that were still in the database
@@ -831,8 +980,8 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // showing. An empty one says nothing, so say that instead of inventing an
     // answer: every caller already handles this rejection, and the panel has a
     // storage-error state waiting for it.
-    const fallback = loadFallbackLibrary();
-    if (fallback.length > 0) return fallback;
+    const fallback = fallbackSnapshot();
+    if (fallback.items.length > 0) return fallback;
     const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
     throw new Error(`${LIBRARY_READ_FAILED_MESSAGE}${reason}`);
   }
@@ -869,72 +1018,130 @@ export const LIBRARY_READ_FAILED_MESSAGE =
  * browser there is nobody to tell and memory-only is the intended mode, so the
  * distinction is `window`, not the store.
  */
-const persistFallback = (items: LibraryItem[]): void => {
-  const outcome = saveFallbackLibrary(items);
+const persistFallback = (items: LibraryItem[], expectedRevision: string | null = null): void => {
+  const outcome = saveFallbackLibrary(items, expectedRevision);
   const inBrowser = typeof window !== 'undefined';
   if (outcome === 'rejected' || (outcome === 'no-storage' && inBrowser)) {
     throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
   }
 };
 
-/** @see the note above `persistFallback` for why a fallback can reject. */
-const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
+/**
+ * @see the note above `persistFallback` for why a fallback can reject.
+ *
+ * `base` is the snapshot a read-modify-write started from. The write is
+ * refused with a `LibraryConflictError` if another tab changed the library
+ * since, so the caller can apply its change again to what that tab wrote.
+ */
+const saveLibrarySnapshot = async (items: LibraryItem[], base: LibrarySnapshot | null = null): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
   const hasIndexedDb = !!getIndexedDB();
   if (!hasIndexedDb || idbLoadFailed) {
-    persistFallback(normalized);
+    persistFallback(normalized, base?.source === 'fallback' ? base.token : null);
     // Only a database that exists can come back and read over this. Where
     // there is none, the fallback is simply the store.
     if (hasIndexedDb) setFallbackUnflushed(true);
+    notifyLibraryChanged();
     return;
   }
   try {
-    // Normalised just above; a second pass re-read every game's metadata.
-    await saveToIndexedDb(normalized, true);
-    memoryItems = normalized;
+    await saveToIndexedDb(normalized, base?.source === 'idb' ? base.token : null);
+    rememberItems(normalized);
     if (hasUnflushedFallback()) setFallbackUnflushed(false);
     markMigrated();
-  } catch {
+  } catch (error) {
+    if (error instanceof LibraryConflictError) throw error;
     persistFallback(normalized);
     setFallbackUnflushed(true);
+  }
+  notifyLibraryChanged();
+};
+
+const getLockManager = (): LockManager | null => {
+  try {
+    const locks = (globalThis.navigator as Navigator | undefined)?.locks;
+    return locks && typeof locks.request === 'function' ? locks : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Holds the library across every tab of the app for one task, where the
+ * browser has Web Locks. A browser without them, or one that refuses the
+ * request, still has the revision check in each write to fall back on.
+ */
+const withLibraryLock = async <T>(task: () => Promise<T>): Promise<T> => {
+  const locks = getLockManager();
+  if (!locks) return task();
+  let started = false;
+  try {
+    return (await locks.request(LIBRARY_LOCK_NAME, () => {
+      started = true;
+      return task();
+    })) as T;
+  } catch (error) {
+    if (started) throw error;
+    return task();
+  }
+};
+
+/** A task that lost a race with another tab starts again from a fresh read. */
+const MAX_CONFLICT_RETRIES = 8;
+const retryOnConflict = async <T>(task: () => Promise<T>): Promise<T> => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await task();
+    } catch (error) {
+      if (!(error instanceof LibraryConflictError) || attempt >= MAX_CONFLICT_RETRIES) throw error;
+    }
   }
 };
 
 const runLibraryTask = createSerialTaskQueue();
+/** In request order within this tab, one tab at a time across tabs. */
+const runExclusiveLibraryTask = <T>(task: () => Promise<T>): Promise<T> =>
+  runLibraryTask(() => withLibraryLock(() => retryOnConflict(task)));
 
 let gameSaveRequestId = 0;
 /** Order game-save UI notifications by request, independent of storage latency. */
 export const nextLibraryGameSaveRequestId = (): number => ++gameSaveRequestId;
 
-export const loadLibrary = (): Promise<LibraryItem[]> => runLibraryTask(loadLibrarySnapshot);
+export const loadLibrary = (): Promise<LibraryItem[]> =>
+  runExclusiveLibraryTask(async () => (await loadLibrarySnapshot()).items);
 
 export const saveLibrary = (items: LibraryItem[]): Promise<void> =>
-  runLibraryTask(() => saveLibrarySnapshot(items));
+  runExclusiveLibraryTask(() => saveLibrarySnapshot(items));
 
-/** Keep a read/modify/write operation together, in the order it was requested. */
+/**
+ * Keep a read/modify/write operation together, in the order it was requested.
+ * `update` may run more than once if another tab writes in between, so it must
+ * not have side effects beyond its result.
+ */
 export const updateStoredLibrary = <T>(
   update: (items: LibraryItem[]) => { items: LibraryItem[]; result: T }
-): Promise<T> => runLibraryTask(async () => {
+): Promise<T> => runExclusiveLibraryTask(async () => {
   const loaded = await loadLibrarySnapshot();
-  const mutation = update(loaded);
+  const mutation = update(loaded.items);
   // An update that changed nothing need not rewrite every record. Opening the
   // Library is one: it cleared and re-put the whole store each time -- 2.6s
   // to rows at 3,000 games. A fallback-only library still writes, since that
   // write is what keeps the fallback current.
-  const unchanged = mutation.items === loaded && !!getIndexedDB() && !idbLoadFailed;
-  if (!unchanged) await saveLibrarySnapshot(mutation.items);
+  const unchanged = mutation.items === loaded.items && loaded.source === 'idb';
+  if (!unchanged) await saveLibrarySnapshot(mutation.items, loaded);
   return mutation.result;
 });
 
 /** One panel's pending edits, acknowledged only after their write succeeds. */
 export const createLibraryEditSaver = () => {
   let savedRevision = 0;
-  return (batches: LibraryEditBatch[]): Promise<{ items: LibraryItem[]; revision: number }> => runLibraryTask(async () => {
-    let items = await loadLibrarySnapshot();
+  return (batches: LibraryEditBatch[]): Promise<{ items: LibraryItem[]; revision: number }> => runExclusiveLibraryTask(async () => {
+    const loaded = await loadLibrarySnapshot();
+    let items = loaded.items;
     const pending = batches.filter(batch => batch.revision > savedRevision);
     for (const batch of pending) items = applyLibraryChanges(items, batch.changes);
     if (pending.length) {
-      await saveLibrarySnapshot(items);
+      await saveLibrarySnapshot(items, loaded);
       // A later batch can contain earlier in-flight edits. Do not replay those
       // over another caller's intervening save once they have succeeded.
       savedRevision = pending[pending.length - 1].revision;
