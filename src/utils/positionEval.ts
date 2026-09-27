@@ -31,11 +31,11 @@ export interface PositionEval {
  * The worker self-loads the model if needed, so this works even before any
  * full analysis has run.
  */
-/** The game's starting position, which is where the handicap stones live. */
-function rootBoardOf(node: GameNode): GameNode['gameState']['board'] {
+/** The game's root, which holds the handicap: its HA and its starting stones. */
+function rootOf(node: GameNode): GameNode {
   let current = node;
   while (current.parent) current = current.parent;
-  return current.gameState.board;
+  return current;
 }
 
 export async function evaluateNode(node: GameNode, settings: GameSettings): Promise<PositionEval> {
@@ -48,7 +48,7 @@ export async function evaluateNode(node: GameNode, settings: GameSettings): Prom
     currentPlayer: node.gameState.currentPlayer,
     moveHistory: node.gameState.moveHistory,
     repetitionHistory: repetitionHistoryForNode(node, settings.gameRules),
-    komi: komiWithHandicapBonus(rootBoardOf(node), settings.gameRules, node.gameState.komi),
+    komi: komiWithHandicapBonus(rootOf(node), settings.gameRules, node.gameState.komi),
     rules: settings.gameRules,
     conservativePass: settings.katagoConservativePass,
   });

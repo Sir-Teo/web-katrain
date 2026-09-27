@@ -1657,7 +1657,7 @@ const analyzeForPlayout = (
       currentPlayer: s.currentPlayer,
       moveHistory: s.moveHistory,
       repetitionHistory: repetitionHistoryForNode(node, rules),
-      komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, s.komi),
+      komi: komiWithHandicapBonus(s.rootNode, rules, s.komi),
       rules,
       topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
       analysisPvLen: Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 30)),
@@ -2110,7 +2110,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const passMove: Move = { x: -1, y: -1, player: sideToMove };
     const rules = state.settings.gameRules;
     const boardSize = getBoardSizeFromBoard(state.board);
-    const komi = komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi);
+    const komi = komiWithHandicapBonus(state.rootNode, rules, state.komi);
     const modelUrl = resolveModelUrlForFetch(state.settings.katagoModelUrl);
     const visits = clampAnalysisVisits(state.settings.katagoVisits);
     const maxTimeMs = Math.max(25, Math.min(state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
@@ -3241,7 +3241,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 currentPlayer: n.gameState.currentPlayer,
                 moveHistory: n.gameState.moveHistory,
                 repetitionHistory: repetitionHistoryForNode(n, rules),
-                komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, n.gameState.komi),
+                komi: komiWithHandicapBonus(s.rootNode, rules, n.gameState.komi),
               })),
               rules,
               conservativePass,
@@ -3441,7 +3441,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
               repetitionHistory: repetitionHistoryForNode(node, rules),
-              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
+              komi: komiWithHandicapBonus(s.rootNode, rules, node.gameState.komi),
               rules,
               topK,
               analysisPvLen,
@@ -3657,7 +3657,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
               repetitionHistory: repetitionHistoryForNode(node, rules),
-              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
+              komi: komiWithHandicapBonus(s.rootNode, rules, node.gameState.komi),
               rules,
               topK,
               analysisPvLen,
@@ -4015,7 +4015,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
 	          repetitionHistory: repetitionHistoryForNode(node, rules),
-	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
+	          komi: komiWithHandicapBonus(state.rootNode, rules, state.komi),
             rules,
             regionOfInterest: state.regionOfInterest,
 	          topK,
@@ -4694,7 +4694,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
 	          repetitionHistory: repetitionHistoryForNode(node, rules),
-	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
+	          komi: komiWithHandicapBonus(state.rootNode, rules, state.komi),
             rules,
 	          topK,
             includeMovesOwnership: aiNeedsMovesOwnership,
