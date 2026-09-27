@@ -11,17 +11,20 @@ const css = readFileSync('src/index.css', 'utf8');
  * the word is a floor rather than a fixed width.
  */
 describe('the engine status word fits its column', () => {
-  it('has "Loading" as the longest word it must hold', () => {
+  it('has "Configured" as the longest word it must hold', () => {
     const state = (args: Parameters<typeof getEngineStatusSummary>[0]) =>
       getEngineStatusSummary(args).stateLabel;
     const words = [
       state({ status: 'loading', requestedBackend: 'webgpu' }),
-      state({ status: 'ready', requestedBackend: 'webgpu' }),
+      state({ status: 'ready', requestedBackend: 'webgpu', activeBackend: 'webgpu' }),
       state({ status: 'idle', requestedBackend: 'webgpu' }),
+      state({ status: 'idle', requestedBackend: 'webgpu', modelLabel: 'kata1-b18' }),
       state({ status: 'error', error: 'boom', requestedBackend: 'webgpu' }),
     ];
-    expect(words).toEqual(['Loading', 'Ready', 'Idle', 'Error']);
-    expect([...words].sort((a, b) => b.length - a.length)[0]).toBe('Loading');
+    expect(words).toEqual(['Loading', 'Ready', 'Idle', 'Configured', 'Error']);
+    // The status track is minmax(floor, auto), so it grows to this word rather
+    // than truncating it; see the grid rules below.
+    expect([...words].sort((a, b) => b.length - a.length)[0]).toBe('Configured');
   });
 
   it('sizes the phone status column to that word instead of guessing a rem', () => {

@@ -31,7 +31,7 @@ import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '../../u
 import { getResizeObserverConstructor } from '../../utils/resizeObserver';
 import { useDocumentFlag } from '../../hooks/useDocumentFlag';
 
-type EngineState = 'ready' | 'running' | 'loading' | 'error';
+type EngineState = 'configured' | 'ready' | 'running' | 'loading' | 'error';
 
 export interface DesktopDashboardProps {
   // ---- slots (heavy components, read from the store themselves) ----
@@ -1486,6 +1486,7 @@ const EnginePopover: React.FC<{
   onClearCache: () => void;
 }> = ({ rect, engineState, backend, model, modelSource, modelUrl, onChooseModel, cacheSize, visits, visitsDisabled, onVisitsChange, onClearCache }) => {
   const states: Record<EngineState, [string, string]> = {
+    configured: ['Configured', 'var(--faint)'],
     ready: ['Ready', 'var(--green)'],
     running: ['Analyzing', 'var(--live)'],
     loading: ['Loading', 'var(--live)'],

@@ -313,6 +313,7 @@
 .wk-dashboard .engine-pill[data-state="loading"] .dot,
 .wk-dashboard .engine-pill[data-state="running"] .dot { background: var(--live); animation: wk-pulse 1.1s ease-in-out infinite; }
 .wk-dashboard .engine-pill[data-state="error"] .dot { background: var(--red); }
+.wk-dashboard .engine-pill[data-state="configured"] .dot { background: var(--faint); }
 .wk-dashboard .engine-pill .meta { color: var(--faint); font-weight: 500; font-family: var(--mono); font-size: 11.5px; }
 @keyframes wk-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 

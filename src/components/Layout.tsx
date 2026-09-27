@@ -1678,6 +1678,7 @@ export const Layout: React.FC = () => {
     isGameAnalysisRunning,
     isContinuousAnalysis,
     isAnalysisMode,
+    activeBackend: engineBackend,
     modelUrl: settings.katagoModelUrl,
     modelName: engineModelName,
   });

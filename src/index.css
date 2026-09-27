@@ -2524,8 +2524,9 @@
        preview to make their horizontal affordance obvious on a phone.
 
        The status track is a floor and not a fixed width, because what has to
-       fit in it is a word -- "Loading", the longest of Idle/Ready/Error --
-       whose pixel width follows the font size of whichever tier is in effect.
+       fit in it is a word -- "Configured" or "Loading", the longest of the
+       engine states -- whose pixel width follows the font size of whichever
+       tier is in effect.
        Fixed at 4.75rem it left 52px for a word needing 53.8px at 390px and up,
        so every common phone width rendered it as "Load...". Sizing the track
        to its content fits the word at any tier and hands the leftover back to

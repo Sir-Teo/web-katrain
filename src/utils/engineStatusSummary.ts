@@ -10,12 +10,14 @@ export interface EngineActivityPresentationArgs {
   isGameAnalysisRunning: boolean;
   isContinuousAnalysis: boolean;
   isAnalysisMode: boolean;
+  /** The backend the worker reported; null until a model has actually loaded. */
+  activeBackend: string | null | undefined;
   modelUrl?: string | null;
   modelName?: string | null;
 }
 
 export interface EngineActivityPresentation {
-  state: 'loading' | 'running' | 'ready' | 'error';
+  state: 'configured' | 'loading' | 'running' | 'ready' | 'error';
   label: string;
 }
 
@@ -27,6 +29,11 @@ export function getEngineActivityPresentation(
   if (args.isAiThinking) return { state: 'running', label: 'AI thinking…' };
   if (args.isGameAnalysisRunning || args.isContinuousAnalysis) {
     return { state: 'running', label: 'Analyzing…' };
+  }
+  // Nothing has loaded yet: the model is only chosen, so "ready" would be a
+  // promise the first analysis might not keep.
+  if (args.status !== 'ready' && !args.activeBackend?.trim()) {
+    return { state: 'configured', label: args.isAnalysisMode ? 'Analysis mode' : 'Model not loaded' };
   }
   if (args.isAnalysisMode) return { state: 'ready', label: 'Analysis mode' };
   return { state: 'ready', label: isSmallKataGoModel(args.modelUrl, args.modelName) ? 'Test model ready' : 'KataGo ready' };
@@ -58,7 +65,13 @@ export interface EngineStatusSummaryArgs {
 
 export interface EngineStatusSummary {
   stateLabel: string;
+  /** The backend the worker reported, or "Not loaded" before it has reported one. */
   activeBackendLabel: string;
+  /**
+   * What to show beside the state word: the active backend once the worker has
+   * confirmed it, otherwise the requested one marked as such.
+   */
+  backendDisplayLabel: string;
   requestedBackendLabel: string;
   modelSource: string;
   isFallback: boolean;
@@ -130,16 +143,21 @@ function getEngineBackendReason(args: {
   activeBackendLabel: string;
   activeBackend?: string | null;
   isFallback: boolean;
+  isConfigured: boolean;
   backendNote?: string | null;
 }): string {
+  const hasLoadedBackend = !!args.activeBackend?.trim();
   if (args.error) {
-    return args.isFallback
-      ? `${args.requestedBackendLabel} failed; ${args.activeBackendLabel} is the active fallback.`
-      : `${args.activeBackendLabel} failed to start.`;
+    if (args.isFallback) return `${args.requestedBackendLabel} failed; ${args.activeBackendLabel} is the active fallback.`;
+    return `${hasLoadedBackend ? args.activeBackendLabel : args.requestedBackendLabel} failed to start.`;
   }
 
   if (args.status === 'loading') {
-    return `Loading ${args.activeBackendLabel} analysis.`;
+    return `Loading ${hasLoadedBackend ? args.activeBackendLabel : args.requestedBackendLabel} analysis.`;
+  }
+
+  if (args.isConfigured) {
+    return `The model loads on ${args.requestedBackendLabel} when analysis first runs.`;
   }
 
   if (args.isFallback) {
@@ -165,24 +183,32 @@ function getEngineBackendReason(args: {
 }
 
 export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineStatusSummary {
+  // Only the worker reports a backend, and only once a model is resident on
+  // it; the store clears it whenever the model or backend setting changes. So
+  // a reported backend is the one sign the engine is really up. A configured
+  // model is not: it used to be enough for "Ready", and the requested backend
+  // stood in for the active one, both before anything had loaded.
   const hasLoadedBackend = !!args.activeBackend?.trim();
   const hasConfiguredModel = !!args.modelLabel?.trim();
-  const reportsReadyWhileIdle = args.status === 'idle' && (hasLoadedBackend || hasConfiguredModel);
+  const readyWhileIdle = args.status === 'idle' && hasLoadedBackend;
+  const isConfigured = !args.error && args.status === 'idle' && !hasLoadedBackend && hasConfiguredModel;
   const stateLabel = args.error
     ? 'Error'
     : args.status === 'loading'
       ? 'Loading'
-      : args.status === 'ready' || reportsReadyWhileIdle
+      : args.status === 'ready' || readyWhileIdle
         ? 'Ready'
-        : 'Idle';
-  const activeBackend = args.activeBackend ?? args.requestedBackend;
-  const activeBackendLabel = formatEngineBackendLabel(activeBackend);
+        : isConfigured
+          ? 'Configured'
+          : 'Idle';
+  const activeBackendLabel = formatEngineBackendLabel(hasLoadedBackend ? args.activeBackend : null);
   const requestedBackendLabel = formatEngineBackendLabel(args.requestedBackend);
-  const isFallback = !!args.activeBackend && args.activeBackend !== args.requestedBackend;
+  const backendDisplayLabel = hasLoadedBackend ? activeBackendLabel : `${requestedBackendLabel} requested`;
+  const isFallback = hasLoadedBackend && args.activeBackend !== args.requestedBackend;
   const stateDisplay = isFallback ? `${stateLabel} fallback` : stateLabel;
   // Model names are long developer detail (often a training-run hash); the
   // compact label stays at state · backend and the title carries the model.
-  const parts = [stateDisplay, activeBackendLabel];
+  const parts = [stateDisplay, backendDisplayLabel];
   const modelSource = getEngineModelSource(args.modelUrl);
   const isReady = stateLabel === 'Ready';
   const reasonLabel = getEngineBackendReason({
@@ -192,13 +218,14 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
     activeBackendLabel,
     activeBackend: args.activeBackend,
     isFallback,
+    isConfigured,
     backendNote: args.backendNote,
   });
   const titleLines = [
     `State: ${stateLabel}`,
-    reportsReadyWhileIdle ? 'Activity: Idle' : '',
+    readyWhileIdle ? 'Activity: Idle' : '',
     `Backend: ${activeBackendLabel}`,
-    isFallback ? `Requested: ${requestedBackendLabel}` : '',
+    isFallback || !hasLoadedBackend ? `Requested: ${requestedBackendLabel}` : '',
     args.modelLabel ? `Model: ${args.modelLabel}` : '',
     isSmallKataGoModel(args.modelUrl, args.modelLabel) ? 'Lightweight test model. Choose stronger weights in Settings → AI for serious review.' : '',
     `Source: ${modelSource}`,
@@ -209,6 +236,7 @@ export function getEngineStatusSummary(args: EngineStatusSummaryArgs): EngineSta
   return {
     stateLabel,
     activeBackendLabel,
+    backendDisplayLabel,
     requestedBackendLabel,
     modelSource,
     isFallback,
