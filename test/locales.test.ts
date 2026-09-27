@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   APP_LOCALE_OPTIONS,
   getAppLocaleHtmlLang,
   getAppLocaleOption,
   getAppLocaleShortLabel,
+  getDocumentHtmlLang,
   getPreferredAppLocaleId,
   isAppLocaleId,
 } from '../src/utils/locales';
@@ -40,5 +42,28 @@ describe('app locales', () => {
     expect(getPreferredAppLocaleId(['nl-NL', 'zh-TW'])).toBe('zh-TW'); // skips unsupported Dutch
     expect(getPreferredAppLocaleId(['de_DE'])).toBe('de');
     expect(getPreferredAppLocaleId(['', null, 'nl-NL'])).toBe('en'); // no supported lang → English
+  });
+});
+
+describe('document language', () => {
+  it('stays English while the interface is only in English', () => {
+    // Choosing French marked an English interface lang="fr": screen readers
+    // read it with French pronunciation and browsers offered to translate it.
+    for (const locale of APP_LOCALE_OPTIONS) {
+      expect(getDocumentHtmlLang(locale.value), locale.value).toBe('en');
+    }
+  });
+
+  it('is what the layout puts on <html>', () => {
+    const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+    expect(layout).toContain('document.documentElement.lang = getDocumentHtmlLang(settings.appLocale);');
+    expect(layout).not.toContain('getAppLocaleHtmlLang(');
+  });
+
+  it('marks only text that is really in another language', () => {
+    // A settings option reads "French (Français)"; tagging it all fr read the
+    // English half with French phonetics.
+    const settings = readFileSync('src/components/SettingsModal.tsx', 'utf8');
+    expect(settings).not.toContain('value={locale.value} lang={locale.htmlLang}');
   });
 });

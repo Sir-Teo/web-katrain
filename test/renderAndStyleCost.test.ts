@@ -22,8 +22,10 @@ describe('re-renders per move', () => {
 
   it('keeps the clock display when a tick changes nothing', () => {
     // 142 commits in 10 idle seconds, from a 70ms tick.
+    // The clock now wakes only when the shown second turns, and still keeps
+    // the old display when a step changes nothing.
     const timer = read('src/components/Timer.tsx');
-    expect(timer).toMatch(/setDisplay\(\(prev\) =>[\s\S]*?\? prev\s*: next/);
+    expect(timer).toMatch(/function publish\(next: KaTrainTimerDisplay\): void \{[\s\S]*?if \(sameDisplay\(clockDisplay, next\)\) return;/);
   });
 });
 

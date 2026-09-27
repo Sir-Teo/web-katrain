@@ -928,7 +928,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                 data-settings-locale="true"
                                             >
                                                 {APP_LOCALE_OPTIONS.map((locale) => (
-                                                    <option key={locale.value} value={locale.value} lang={locale.htmlLang}>
+                                                    // No lang here: the text leads with the English name
+                                                    // ("French (Français)"), and an option cannot mark
+                                                    // just part of itself. Tagging it all fr read the
+                                                    // English with French pronunciation.
+                                                    <option key={locale.value} value={locale.value}>
                                                         {/* Same guard as LanguageSwitcher: the native name only adds
                                                             information when it differs, else this reads "English (English)". */}
                                                         {locale.label}
@@ -937,7 +941,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                 ))}
                                             </select>
                                             {appLocaleMeta ? (
-                                                <p className={subtextClass}>Sets browser language metadata for accessibility and future translations.</p>
+                                                <p className={subtextClass}>Saved as your preferred language for future translations. The interface is English for now, so the page stays marked as English.</p>
                                             ) : null}
                                         </div>
 
@@ -1001,9 +1005,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                 type="checkbox"
                                                 checked={settings.timerSound}
                                                 onChange={(e) => updateSettings({ timerSound: e.target.checked })}
+                                                aria-describedby="settings-timer-sound-help"
                                                 className="toggle"
                                             />
                                         </div>
+                                        <p id="settings-timer-sound-help" className={subtextClass}>
+                                            Beeps each of the last 5 seconds of your time, when a byo-yomi period is used up, and when time runs out.
+                                        </p>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-1">

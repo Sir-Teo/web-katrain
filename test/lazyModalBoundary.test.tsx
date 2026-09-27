@@ -1,22 +1,71 @@
+import React from 'react';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LazyModalBoundary, LazyModalFallback } from '../src/components/LazyModalBoundary';
 
 describe('LazyModalBoundary', () => {
-  it('goes quiet on failure instead of rethrowing to the app', () => {
-    expect(LazyModalBoundary.getDerivedStateFromError()).toEqual({ failed: true });
+  const failedBoundary = (props: Partial<React.ComponentProps<typeof LazyModalBoundary>> = {}) => {
+    const boundary = new LazyModalBoundary({ children: 'modal', ...props });
+    // Not mounted, so stand in for React's state update.
+    boundary.setState = ((next: Partial<typeof boundary.state>) => {
+      boundary.state = { ...boundary.state, ...next };
+    }) as typeof boundary.setState;
+    boundary.state = LazyModalBoundary.getDerivedStateFromError(new Error('boom'));
+    return boundary;
+  };
 
-    // Rendering nothing is what keeps the board and controls alive; before this
-    // a missing chunk reached the app boundary and took the whole app with it.
-    const boundary = new LazyModalBoundary({ onError: () => {}, children: 'modal' });
-    boundary.state = { failed: true };
-    expect(boundary.render()).toBeNull();
-    boundary.state = { failed: false };
+  it('contains a failure instead of rethrowing to the app', () => {
+    expect(LazyModalBoundary.getDerivedStateFromError(new Error('boom'))).toEqual({ failed: true, staleBuild: false });
+    expect(
+      LazyModalBoundary.getDerivedStateFromError(
+        new Error('Failed to fetch dynamically imported module: /assets/SettingsModal-x.js')
+      )
+    ).toEqual({ failed: true, staleBuild: true });
+
+    const boundary = new LazyModalBoundary({ children: 'modal' });
     expect(boundary.render()).toBe('modal');
   });
 
-  it('reports the failure so the reader is not left with a dead control', () => {
+  it('says what happened and offers a way out, instead of rendering nothing', () => {
+    // It used to render null for good: the click did nothing, and neither did
+    // any other dialog until a reload.
+    const onDismiss = vi.fn();
+    const markup = renderToStaticMarkup(<>{failedBoundary({ onDismiss }).render()}</>);
+
+    expect(markup).toContain('data-lazy-modal-failed="true"');
+    expect(markup).toContain('role="alertdialog"');
+    expect(markup).toContain('That panel could not be opened.');
+    expect(markup).toContain('>Retry<');
+    expect(markup).toContain('>Reload<');
+    expect(markup).toContain('>Close<');
+
+    // A dialog with no way to close (the auto-save prompt) still gets Retry
+    // and Reload, but no Close that would do nothing.
+    const noClose = renderToStaticMarkup(<>{failedBoundary().render()}</>);
+    expect(noClose).not.toContain('>Close<');
+    expect(noClose).toContain('>Retry<');
+  });
+
+  it('names a deploy as the likely cause when it can tell', () => {
+    const boundary = new LazyModalBoundary({ children: null });
+    boundary.state = LazyModalBoundary.getDerivedStateFromError(
+      new Error('Failed to fetch dynamically imported module: /assets/SettingsModal-x.js')
+    );
+    expect(renderToStaticMarkup(<>{boundary.render()}</>)).toContain('Web KaTrain has been updated');
+  });
+
+  it('renders the dialog again on Retry', () => {
+    const boundary = failedBoundary();
+    expect(boundary.render()).not.toBe('modal');
+
+    boundary.retry();
+
+    expect(boundary.state.failed).toBe(false);
+    expect(boundary.render()).toBe('modal');
+  });
+
+  it('reports the failure to anyone listening', () => {
     const onError = vi.fn();
     const boundary = new LazyModalBoundary({ onError, children: null });
     const error = new Error('Failed to fetch dynamically imported module: /assets/SettingsModal-x.js');
@@ -26,21 +75,25 @@ describe('LazyModalBoundary', () => {
     expect(onError).toHaveBeenCalledWith(error);
   });
 
-  it('wraps every lazily loaded dialog, and names the cause it can recognise', () => {
+  it('gives every dialog a boundary of its own inside the shared Suspense', () => {
     const layout = readFileSync('src/components/Layout.tsx', 'utf8');
-
-    // One Suspense holds all 16 dialogs, and Suspense does not catch errors,
-    // so the boundary has to sit outside it.
-    const open = layout.indexOf('<LazyModalBoundary');
     const suspense = layout.indexOf('<Suspense fallback={<LazyModalFallback />}>');
-    const close = layout.indexOf('</LazyModalBoundary>');
-    expect(open).toBeGreaterThan(-1);
-    expect(open).toBeLessThan(suspense);
-    expect(layout.indexOf('</Suspense>', suspense)).toBeLessThan(close);
+    const suspenseEnd = layout.indexOf('</Suspense>', suspense);
+    expect(suspense).toBeGreaterThan(-1);
 
-    // A deploy is news, not a fault.
-    expect(layout).toContain("'Web KaTrain has been updated. Reload to open this.'");
-    expect(layout).toContain("stale ? 'info' : 'error'");
+    // One boundary around all of them meant one failure silenced every dialog
+    // until a reload. None may sit outside the Suspense any more.
+    expect(layout.slice(0, suspense)).not.toContain('<LazyModalBoundary');
+    const block = layout.slice(suspense, suspenseEnd);
+
+    const dialogs = [...block.matchAll(/\{(\w+) && \(/g)].map((m) => m[1]!);
+    const boundaries = block.match(/<LazyModalBoundary\b/g) ?? [];
+    expect(dialogs.length).toBeGreaterThan(15);
+    expect(boundaries.length).toBe(dialogs.length);
+    for (const name of dialogs) {
+      const at = block.indexOf(`{${name} && (`);
+      expect(block.slice(at, at + 200), name).toMatch(/^\{\w+ && \(\s*<LazyModalBoundary\b/);
+    }
   });
 
   it('marks the click while the chunk is still coming', () => {

@@ -1,20 +1,148 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useSyncExternalStore } from 'react';
 import { FaPause, FaPlay } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
 import {
   acquireSharedClockCursor,
+  clockSoundCue,
   describeKaTrainClock,
+  flushGameClock,
   formatKaTrainClockSeconds,
+  IDLE_CLOCK_DISPLAY,
+  isGameClockPlaying,
   isGameClockStopped,
+  msUntilClockDisplayChanges,
   releaseSharedClockCursor,
-  stepKaTrainTimer,
+  setActiveGameClockSync,
+  subscribeGameClockPlaying,
+  tickGameClock,
   type KaTrainTimerDisplay,
 } from '../utils/katrainTimer';
 import { getAnimationNow } from '../utils/animationFrame';
+import { playClockSound } from '../utils/sound';
 
-const isClockStopped = (s: ReturnType<typeof useGameStore.getState>): boolean =>
-  isGameClockStopped(s.currentNode, s.rootNode);
+type GameState = ReturnType<typeof useGameStore.getState>;
+
+const isClockStopped = (s: GameState): boolean => isGameClockStopped(s.currentNode, s.rootNode);
+
+const sameDisplay = (a: KaTrainTimerDisplay, b: KaTrainTimerDisplay): boolean =>
+  a.timeSeconds === b.timeSeconds &&
+  a.periodsRemaining === b.periodsRemaining &&
+  a.timeout === b.timeout &&
+  a.isAiTurn === b.isAiTurn;
+
+/**
+ * One driver for every clock on screen.
+ *
+ * Each <Timer> used to run its own loop: a 70ms interval that woke a phone
+ * fourteen times a second, twice with two clocks mounted, to redraw a number
+ * that changes once a second. Now the first clock to mount starts a single
+ * driver and the last to unmount stops it. It steps the game clock on every
+ * state change that matters, and otherwise sleeps until the shown second
+ * turns. Nothing is scheduled at all while the clock cannot move (paused,
+ * the AI's turn, a finished game, out of time).
+ */
+let clockDisplay: KaTrainTimerDisplay = IDLE_CLOCK_DISPLAY;
+const displayListeners = new Set<() => void>();
+let stopDriver: (() => void) | null = null;
+
+function publish(next: KaTrainTimerDisplay): void {
+  // A new object each step would re-render every clock with nothing to show.
+  if (sameDisplay(clockDisplay, next)) return;
+  clockDisplay = next;
+  displayListeners.forEach((listener) => listener());
+}
+
+function startClockDriver(): () => void {
+  // Shared, not per-instance: see acquireSharedClockCursor.
+  const cursor = acquireSharedClockCursor();
+  let wake: number | null = null;
+
+  const cancelWake = () => {
+    if (wake !== null) window.clearTimeout(wake);
+    wake = null;
+  };
+
+  // The move and player the clock was last running for. Beeps compare two
+  // steps of the same running clock, never one player's time with another's.
+  let runningFor: string | null = null;
+
+  const step = () => {
+    cancelWake();
+    const s = useGameStore.getState();
+    const previous = clockDisplay;
+    const runningKey = `${s.currentNode.id}:${s.currentPlayer}`;
+    const { display, running } = tickGameClock(s, cursor, getAnimationNow(), {
+      stopped: isClockStopped(s),
+      playing: isGameClockPlaying(),
+    });
+    if (runningFor === runningKey && s.settings.timerSound) {
+      const cue = clockSoundCue(previous, display);
+      if (cue) playClockSound(cue);
+    }
+    runningFor = running ? runningKey : null;
+    publish(display);
+    if (!running) return;
+    const delay = msUntilClockDisplayChanges(display);
+    if (delay !== null) wake = window.setTimeout(step, delay);
+  };
+
+  const restep = (prev: GameState, s: GameState) => {
+    const nowMs = getAnimationNow();
+    // Time since the last wake belongs to the position it was spent on.
+    flushGameClock(prev, s, cursor, nowMs);
+    // Whatever was not charged just now was not being spent: paused, the
+    // AI's turn, off the end of the line, in Review. Resuming must not bill it.
+    cursor.lastUpdateMs = nowMs;
+    step();
+  };
+
+  step();
+  setActiveGameClockSync(step);
+  // Into Review: charge up to the switch, then stop. Back to Play: start from
+  // now, so the time spent reviewing is not billed on return.
+  const unsubscribePlaying = subscribeGameClockPlaying(() => {
+    const s = useGameStore.getState();
+    restep(s, s);
+  });
+  const unsubscribe = useGameStore.subscribe((s, prev) => {
+    if (
+      s.currentNode === prev.currentNode &&
+      s.timerPaused === prev.timerPaused &&
+      s.currentPlayer === prev.currentPlayer &&
+      s.isAiPlaying === prev.isAiPlaying &&
+      s.aiColor === prev.aiColor &&
+      s.treeVersion === prev.treeVersion &&
+      s.rootNode === prev.rootNode &&
+      s.settings.timerMainTimeMinutes === prev.settings.timerMainTimeMinutes &&
+      s.settings.timerByoLengthSeconds === prev.settings.timerByoLengthSeconds &&
+      s.settings.timerByoPeriods === prev.settings.timerByoPeriods
+    ) return;
+    restep(prev, s);
+  });
+
+  return () => {
+    unsubscribe();
+    unsubscribePlaying();
+    cancelWake();
+    setActiveGameClockSync(null);
+    releaseSharedClockCursor();
+  };
+}
+
+function subscribeClockDisplay(listener: () => void): () => void {
+  displayListeners.add(listener);
+  if (displayListeners.size === 1) stopDriver = startClockDriver();
+  return () => {
+    displayListeners.delete(listener);
+    if (displayListeners.size === 0) {
+      stopDriver?.();
+      stopDriver = null;
+    }
+  };
+}
+
+const getClockDisplay = (): KaTrainTimerDisplay => clockDisplay;
 
 export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 'default' }) => {
   const timerPaused = useGameStore((s) => s.timerPaused);
@@ -28,109 +156,7 @@ export const Timer: React.FC<{ variant?: 'default' | 'status' }> = ({ variant = 
     shallow
   );
 
-  const [display, setDisplay] = useState<KaTrainTimerDisplay>(() => ({
-    timeSeconds: 0,
-    periodsRemaining: null,
-    timeout: false,
-    isAiTurn: false,
-  }));
-
-  useEffect(() => {
-    const isDisabled = timerSettings.mainTimeMinutes <= 0 && timerSettings.byoPeriods <= 0;
-    if (isDisabled) return;
-
-    // Shared, not per-instance: see acquireSharedClockCursor. Two clocks on
-    // screen used to charge the game twice for the same seconds.
-    const cursor = acquireSharedClockCursor();
-
-    const tick = () => {
-      const nowMs = getAnimationNow();
-      const s = useGameStore.getState();
-
-      if (cursor.lastUpdateMs <= 0) {
-        cursor.lastUpdateMs = nowMs;
-        cursor.lastUpdateNodeId = s.currentNode.id;
-      }
-
-      const isAiTurn = s.isAiPlaying && s.aiColor === s.currentPlayer;
-      const stopped = isClockStopped(s);
-      const periodsUsedForPlayer = s.timerPeriodsUsed[s.currentPlayer] ?? 0;
-      const nodeTimeUsedSeconds = s.currentNode.timeUsedSeconds ?? 0;
-
-      const result = stepKaTrainTimer({
-        nowMs,
-        lastUpdateMs: cursor.lastUpdateMs,
-        lastUpdateNodeId: cursor.lastUpdateNodeId,
-        currentNodeId: s.currentNode.id,
-        currentNodeHasChildren: s.currentNode.children.length > 0,
-        paused: s.timerPaused || stopped,
-        isAiTurn,
-        mainTimeMinutes: s.settings.timerMainTimeMinutes,
-        byoLengthSeconds: s.settings.timerByoLengthSeconds,
-        byoPeriods: s.settings.timerByoPeriods,
-        currentPlayer: s.currentPlayer,
-        mainTimeUsedSeconds: s.timerMainTimeUsedSeconds,
-        nodeTimeUsedSeconds,
-        periodsUsedForPlayer,
-      });
-
-      cursor.lastUpdateMs = result.lastUpdateMs;
-      cursor.lastUpdateNodeId = result.lastUpdateNodeId;
-
-      s.timerMainTimeUsedSeconds = result.mainTimeUsedSeconds;
-      s.timerPeriodsUsed[s.currentPlayer] = result.periodsUsedForPlayer;
-      s.currentNode.timeUsedSeconds = result.nodeTimeUsedSeconds;
-
-      // A new object each tick re-rendered the clock 14 times a second with
-      // nothing to show.
-      const next = result.display;
-      setDisplay((prev) =>
-        prev.timeSeconds === next.timeSeconds &&
-        prev.periodsRemaining === next.periodsRemaining &&
-        prev.timeout === next.timeout &&
-        prev.isAiTurn === next.isAiTurn
-          ? prev
-          : next
-      );
-    };
-
-    // Tick only while the clock can move. Ticking every 70ms paused or not
-    // woke a phone 14 times a second (twice, with two clocks on screen) to
-    // show the same numbers; a paused or finished clock now ticks once when
-    // what it shows can change -- a move, navigation, pause or resume.
-    let id: number | null = null;
-    const sync = () => {
-      const s = useGameStore.getState();
-      const shouldRun = !s.timerPaused && !isClockStopped(s);
-      if (shouldRun && id === null) id = window.setInterval(tick, 70);
-      else if (!shouldRun && id !== null) {
-        window.clearInterval(id);
-        id = null;
-      }
-    };
-    tick();
-    sync();
-    const unsubscribe = useGameStore.subscribe((s, prev) => {
-      if (
-        s.currentNode === prev.currentNode &&
-        s.timerPaused === prev.timerPaused &&
-        s.currentPlayer === prev.currentPlayer &&
-        s.isAiPlaying === prev.isAiPlaying &&
-        s.aiColor === prev.aiColor &&
-        s.treeVersion === prev.treeVersion
-      ) return;
-      // Nothing ticked while stopped, so the cursor still holds the moment
-      // it stopped; charging from there would bill the whole pause on resume.
-      if (id === null) cursor.lastUpdateMs = getAnimationNow();
-      tick();
-      sync();
-    });
-    return () => {
-      unsubscribe();
-      if (id !== null) window.clearInterval(id);
-      releaseSharedClockCursor();
-    };
-  }, [timerSettings.mainTimeMinutes, timerSettings.byoLengthSeconds, timerSettings.byoPeriods]);
+  const display = useSyncExternalStore(subscribeClockDisplay, getClockDisplay, getClockDisplay);
 
   const isTimerDisabled = timerSettings.mainTimeMinutes <= 0 && timerSettings.byoPeriods <= 0;
   const effectiveDisplay = isTimerDisabled

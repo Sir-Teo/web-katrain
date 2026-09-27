@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { prerender } from 'react-dom/static';
+import { describe, expect, it, vi } from 'vitest';
 import { createWarmableLazy } from '../src/utils/warmableLazy';
 
 const Dialog: React.FC<{ title: string }> = ({ title }) => <div data-real="true">{title}</div>;
@@ -61,6 +62,34 @@ describe('createWarmableLazy', () => {
 
     await chunk.warm();
     expect(chunk.isWarm()).toBe(true);
+  });
+
+  it('asks for the chunk again after a failed load, so Retry can work', async () => {
+    const render = async (node: React.ReactNode) => {
+      const { prelude } = await prerender(node, { onError: () => {} });
+      return new Response(prelude).text();
+    };
+    const inSuspense = (Component: React.ComponentType<{ title: string }>) => (
+      <Suspense fallback={<div data-fallback="true" />}>
+        <Component title="Settings" />
+      </Suspense>
+    );
+
+    // The premise: React.lazy keeps a rejected import for good.
+    let plainFails = true;
+    const Plain = React.lazy(() => (plainFails ? Promise.reject(new Error('offline')) : Promise.resolve({ default: Dialog })));
+    expect(await render(inSuspense(Plain))).not.toContain('data-real');
+    plainFails = false;
+    expect(await render(inSuspense(Plain))).not.toContain('data-real');
+
+    // A warmable one forgets the failure, so the next mount loads for real.
+    let fails = true;
+    const load = vi.fn(() => (fails ? Promise.reject(new Error('offline')) : Promise.resolve({ Dialog })));
+    const chunk = createWarmableLazy(load, (module) => module.Dialog);
+    expect(await render(inSuspense(chunk.Component))).not.toContain('data-real');
+    fails = false;
+    expect(await render(inSuspense(chunk.Component))).toContain('data-real="true"');
+    expect(load).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -38,7 +38,17 @@ export function createWarmableLazy<M, P extends object>(
   pick: (module: M) => React.ComponentType<P>,
 ): WarmableLazy<P> {
   let resolved: React.ComponentType<P> | null = null;
-  const Lazy = React.lazy(() => load().then((module) => ({ default: pick(module) })));
+  // React.lazy remembers a rejected import for good, so one dropped request
+  // left this dialog unopenable until a reload, whatever Retry did. A failed
+  // import now swaps in a fresh lazy, and the next mount asks again.
+  const createLazy = (): React.LazyExoticComponent<React.ComponentType<P>> => React.lazy(() => load().then(
+    (module) => ({ default: pick(module) }),
+    (error: unknown) => {
+      Lazy = createLazy();
+      throw error;
+    },
+  ));
+  let Lazy = createLazy();
 
   const Component: React.FC<P> = (props) => {
     const [Chosen] = React.useState<React.ComponentType<P>>(() => resolved ?? Lazy);
