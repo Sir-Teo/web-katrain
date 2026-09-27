@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { countHandicapStones, komiWithHandicapBonus, whiteHandicapBonus } from '../src/utils/handicap';
+import {
+  countHandicapStones,
+  countRootHandicapStones,
+  declaredHandicap,
+  komiWithHandicapBonus,
+  whiteHandicapBonus,
+} from '../src/utils/handicap';
+import { countRootHandicapStones as countRootHandicapStonesForAi } from '../src/utils/handicapAi';
+import type { BoardState } from '../src/types';
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
 import { boardFromDiagram, emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
@@ -12,6 +20,8 @@ import { boardFromDiagram, emptyBoard, loadHarnessModel, runsEngineSuites } from
 // Korean give nothing. KataGo folds that into the komi, so it reaches the network's
 // komi plane and every score it reports -- not just the final count.
 // ---------------------------------------------------------------------------
+
+const rootOf = (board: BoardState, properties?: Record<string, string[]>) => ({ properties, gameState: { board } });
 
 const boardWith = (stones: Array<[number, number, 'black' | 'white']>, size = 9) => {
   const board = emptyBoard(size);
@@ -66,9 +76,9 @@ describe('the compensation each ruleset gives', () => {
       [2, 6, 'black'],
       [6, 2, 'black'],
     ]);
-    expect(komiWithHandicapBonus(board, 'chinese', 0.5)).toBe(4.5);
-    expect(komiWithHandicapBonus(board, 'japanese', 0.5)).toBe(0.5);
-    expect(komiWithHandicapBonus(emptyBoard(9), 'chinese', 7.5)).toBe(7.5);
+    expect(komiWithHandicapBonus(rootOf(board), 'chinese', 0.5)).toBe(4.5);
+    expect(komiWithHandicapBonus(rootOf(board), 'japanese', 0.5)).toBe(0.5);
+    expect(komiWithHandicapBonus(rootOf(emptyBoard(9)), 'chinese', 7.5)).toBe(7.5);
   });
 });
 
@@ -112,12 +122,12 @@ describe.skipIf(!runsEngineSuites())('what the compensation is worth', () => {
   it('takes points off black in a Chinese handicap game', async () => {
     const board = boardFromDiagram(TWO_STONES);
     const scoreboardKomi = 0.5;
-    expect(komiWithHandicapBonus(board, 'chinese', scoreboardKomi)).toBe(2.5);
+    expect(komiWithHandicapBonus(rootOf(board), 'chinese', scoreboardKomi)).toBe(2.5);
     // Japanese rules compensate nothing, so nothing about the analysis changes.
-    expect(komiWithHandicapBonus(board, 'japanese', scoreboardKomi)).toBe(scoreboardKomi);
+    expect(komiWithHandicapBonus(rootOf(board), 'japanese', scoreboardKomi)).toBe(scoreboardKomi);
 
     const uncompensated = await rawLeadWithKomi(scoreboardKomi);
-    const compensated = await rawLeadWithKomi(komiWithHandicapBonus(board, 'chinese', scoreboardKomi));
+    const compensated = await rawLeadWithKomi(komiWithHandicapBonus(rootOf(board), 'chinese', scoreboardKomi));
     // Black's lead is smaller once white is paid for the stones black began with.
     // Leaving it out misreports every Chinese handicap game, and by a whole stone
     // per stone of handicap.
@@ -133,3 +143,46 @@ describe('whiteHandicapBonus follows the rules table', () => {
     expect(whiteHandicapBonus('new-zealand', 4)).toBe(0);
   });
 });
+
+describe('one handicap for the engine and the scorer', () => {
+  const twoBlack = () =>
+    boardWith([
+      [2, 2, 'black'],
+      [6, 6, 'black'],
+    ]);
+
+  it('reads HA[0] and HA[1] as no compensation, whatever stones are set up', () => {
+    // The engine counted the two stones and gave White two points under
+    // Chinese rules while the scorer took HA[0] at its word.
+    for (const ha of ['0', '1']) {
+      const root = rootOf(twoBlack(), { HA: [ha], AB: ['cc', 'gg'] });
+      expect(countRootHandicapStones(root)).toBe(0);
+      expect(countRootHandicapStonesForAi(root)).toBe(0);
+      expect(komiWithHandicapBonus(root, 'chinese', 7.5)).toBe(7.5);
+    }
+  });
+
+  it('counts the setup stones when HA is absent', () => {
+    const root = rootOf(twoBlack(), { AB: ['cc', 'gg'] });
+    expect(countRootHandicapStones(root)).toBe(2);
+    expect(komiWithHandicapBonus(root, 'chinese', 0.5)).toBe(2.5);
+    expect(countRootHandicapStones(rootOf(twoBlack(), { HA: ['junk'] }))).toBe(2);
+  });
+
+  it('takes a declared handicap even when its stones are not on the root board', () => {
+    // Tygem and other servers place them in the first node after the root.
+    const root = rootOf(emptyBoard(9), { HA: ['3'] });
+    expect(countRootHandicapStones(root)).toBe(3);
+    expect(komiWithHandicapBonus(root, 'chinese', 0.5)).toBe(3.5);
+  });
+
+  it('parses HA leniently but refuses what is not a count', () => {
+    expect(declaredHandicap({ HA: [' 4 '] })).toBe(4);
+    expect(declaredHandicap({ HA: ['0'] })).toBe(0);
+    expect(declaredHandicap({ HA: ['-2'] })).toBeNull();
+    expect(declaredHandicap({ HA: [''] })).toBeNull();
+    expect(declaredHandicap({})).toBeNull();
+    expect(declaredHandicap(undefined)).toBeNull();
+  });
+});
+

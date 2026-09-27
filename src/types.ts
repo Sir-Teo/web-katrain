@@ -131,6 +131,12 @@ export interface GameNode {
   properties?: Record<string, string[]>;
   drawings?: BoardDrawing[]; // Freehand pen/highlight strokes, session-only.
   collapsed?: boolean; // Move-tree branch collapsed at this node; view state, never saved to SGF.
+  /**
+   * Root only: the games after the first in the collection this game was
+   * opened from, as the text they were written in. The app opens a file's
+   * first game; export writes these back after it so the rest survive.
+   */
+  trailingSgfGames?: string;
 }
 
 export type BoardThemeId =

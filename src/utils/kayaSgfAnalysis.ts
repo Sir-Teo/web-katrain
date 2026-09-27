@@ -1,5 +1,6 @@
 import { DEFAULT_BOARD_SIZE, type AnalysisResult, type BoardSize, type CandidateMove, type Player } from '../types';
 import { formatGtpMove } from '../lib/gtp';
+import { anyInvalidField, importedPrior, importedScore, importedVisits, importedWinRate } from './importedAnalysisValues';
 
 export interface KayaSgfAnalysisMove {
   m: string;
@@ -126,30 +127,39 @@ export function decodeKayaKa(args: {
 
   const boardSize = args.boardSize ?? DEFAULT_BOARD_SIZE;
   try {
-    const data = JSON.parse(raw) as KayaSgfAnalysisData;
-    if (typeof data.w !== 'number' || typeof data.s !== 'number' || !Array.isArray(data.m)) return null;
+    const data = JSON.parse(raw) as Partial<KayaSgfAnalysisData> | null;
+    if (!data || typeof data !== 'object' || !Array.isArray(data.m)) return null;
+    // `JSON.parse('1e999')` is Infinity: root values must be finite and in range.
+    const rootWinRate = importedWinRate(data.w);
+    const rootScoreLead = importedScore(data.s, boardSize);
+    if (rootWinRate === null || rootScoreLead === null) return null;
+    const rootVisits = importedVisits(data.v);
+    if (anyInvalidField([data.v, rootVisits])) return null;
 
-    const rootWinRate = clamp01(data.w);
-    const rootScoreLead = data.s;
     const sign = args.currentPlayer === 'black' ? 1 : -1;
     const policy = new Array<number>(boardSize * boardSize + 1).fill(-1);
 
     const moves: CandidateMove[] = [];
     for (const rawItem of data.m as unknown[]) {
       if (!rawItem || typeof rawItem !== 'object') continue;
-      const item = rawItem as Partial<KayaSgfAnalysisMove>;
+      const item = rawItem as Record<string, unknown>;
       const { x, y, valid } = gtpToXy(item.m, boardSize);
       if (!valid) continue;
+      const priorRaw = importedPrior(item.p);
+      const scoreLeadRaw = importedScore(item.s, boardSize);
+      const winRateRaw = importedWinRate(item.w);
+      const visitsRaw = importedVisits(item.v);
+      if (anyInvalidField([item.p, priorRaw], [item.s, scoreLeadRaw], [item.w, winRateRaw], [item.v, visitsRaw])) continue;
       const idx = x < 0 || y < 0 ? boardSize * boardSize : y * boardSize + x;
-      const prior = typeof item.p === 'number' && Number.isFinite(item.p) ? clamp01(item.p) : 0;
+      const prior = priorRaw ?? 0;
       policy[idx] = prior;
-      const scoreLead = typeof item.s === 'number' && Number.isFinite(item.s) ? item.s : rootScoreLead;
-      const winRate = typeof item.w === 'number' && Number.isFinite(item.w) ? clamp01(item.w) : rootWinRate;
+      const scoreLead = scoreLeadRaw ?? rootScoreLead;
+      const winRate = winRateRaw ?? rootWinRate;
       moves.push({
         x,
         y,
         order: moves.length,
-        visits: typeof item.v === 'number' && Number.isFinite(item.v) ? Math.max(0, Math.floor(item.v)) : 0,
+        visits: visitsRaw ?? 0,
         winRate,
         winRateLost: sign * (rootWinRate - winRate),
         scoreLead,
@@ -164,14 +174,14 @@ export function decodeKayaKa(args: {
     const topScoreLead = moves[0]?.scoreLead ?? rootScoreLead;
     for (const move of moves) move.relativePointsLost = sign * (topScoreLead - move.scoreLead);
 
-    const ownership = data.o ? decodeKayaOwnership(data.o).slice(0, boardSize * boardSize) : null;
+    const ownership = typeof data.o === 'string' && data.o ? decodeKayaOwnership(data.o).slice(0, boardSize * boardSize) : null;
 
     return {
       rootWinRate,
       rootScoreLead,
       rootScoreSelfplay: rootScoreLead,
       rootScoreStdev: 0,
-      rootVisits: typeof data.v === 'number' && Number.isFinite(data.v) ? Math.max(0, Math.floor(data.v)) : undefined,
+      rootVisits: rootVisits ?? undefined,
       moves,
       territory: ownershipToGrid(ownership, boardSize),
       policy,

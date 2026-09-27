@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { decodeKaTrainKt, encodeKaTrainKtFromAnalysis, kaTrainAnalysisToAnalysisResult } from '../src/utils/katrainSgfAnalysis';
+import { describe, expect, it, vi } from 'vitest';
+import pako from 'pako';
+import {
+  decodeKaTrainKt,
+  encodeKaTrainKtFromAnalysis,
+  kaTrainAnalysisToAnalysisResult,
+  kaTrainKtByteLimits,
+} from '../src/utils/katrainSgfAnalysis';
 import type { AnalysisResult } from '../src/types';
 
 const emptyTerritory = (size = 19) => Array.from({ length: size }, () => Array(size).fill(0));
@@ -55,4 +61,120 @@ describe('KaTrain .kt analysis decoding', () => {
 
     expect(result!.moves.map((m) => `${m.x},${m.y}`).sort()).toEqual(['-1,-1', '15,3']);
   });
+
+  describe('decompression limits', () => {
+    const gz = (bytes: Uint8Array) => Buffer.from(pako.gzip(bytes)).toString('base64');
+    const genuine = () => encodeKaTrainKtFromAnalysis({ analysis: makeAnalysis(), boardSize: 19 });
+
+    it('refuses a tiny ownership field that inflates to megabytes', () => {
+      const bomb = gz(new Uint8Array(8 * 1024 * 1024));
+      expect(bomb.length).toBeLessThan(16 * 1024);
+      const [, policy, main] = genuine();
+      const pushed: number[] = [];
+      const originalPush = pako.Inflate.prototype.push;
+      const spy = vi.spyOn(pako.Inflate.prototype, 'push').mockImplementation(function (this: pako.Inflate, data, mode) {
+        const onData = this.onData.bind(this);
+        this.onData = (chunk) => {
+          pushed.push((chunk as Uint8Array).length);
+          onData(chunk);
+        };
+        return originalPush.call(this, data, mode);
+      });
+      try {
+        expect(decodeKaTrainKt({ kt: [bomb, policy!, main!], boardSize: 19 })).toBeNull();
+      } finally {
+        spy.mockRestore();
+      }
+      // Inflation stopped just past the ownership limit, not after 8 MB.
+      const inflated = pushed.reduce((a, b) => a + b, 0);
+      expect(inflated).toBeLessThan(kaTrainKtByteLimits(19).ownership + 64 * 1024);
+    });
+
+    it('refuses an oversized JSON part', () => {
+      const [ownership, policy] = genuine();
+      const huge = new TextEncoder().encode(JSON.stringify({ moves: {}, root: { winrate: 0.5 }, pad: ' '.repeat(4 * 1024 * 1024) }));
+      expect(decodeKaTrainKt({ kt: [ownership!, policy!, gz(huge)], boardSize: 19 })).toBeNull();
+    });
+
+    it('sizes the limits by the board and rejects tensors from another board size', () => {
+      expect(kaTrainKtByteLimits(9).ownership).toBe(81 * 2);
+      expect(kaTrainKtByteLimits(9).policy).toBe(82 * 2);
+      // A 19x19 node read as 9x9 overflows the 9x9 ownership limit.
+      expect(decodeKaTrainKt({ kt: genuine(), boardSize: 9 })).toBeNull();
+      // A short tensor is corrupt rather than silently zero-padded.
+      const [, policy, main] = genuine();
+      expect(decodeKaTrainKt({ kt: [gz(new Uint8Array(100)), policy!, main!], boardSize: 19 })).toBeNull();
+    });
+
+    it('still decodes genuine nodes, including ones without stored tensors', () => {
+      const [, , main] = genuine();
+      const empty = gz(new Uint8Array(0));
+      const decoded = decodeKaTrainKt({ kt: [empty, empty, main!], boardSize: 19 });
+      expect(decoded).not.toBeNull();
+      expect(decoded!.ownership).toBeNull();
+      expect(decoded!.policy).toBeNull();
+      expect(decodeKaTrainKt({ kt: genuine(), boardSize: 19 })!.ownership).toHaveLength(361);
+    });
+
+    it('rejects truncated gzip streams', () => {
+      const [ownership, policy, main] = genuine();
+      const truncated = Buffer.from(Buffer.from(main!, 'base64').subarray(0, 20)).toString('base64');
+      expect(decodeKaTrainKt({ kt: [ownership!, policy!, truncated], boardSize: 19 })).toBeNull();
+    });
+  });
+
+  describe('value validation', () => {
+    const gz = (bytes: Uint8Array) => Buffer.from(pako.gzip(bytes)).toString('base64');
+    const ktWithMain = (mainJson: string) => {
+      const [ownership, policy] = encodeKaTrainKtFromAnalysis({ analysis: makeAnalysis(), boardSize: 19 });
+      return [ownership!, policy!, gz(new TextEncoder().encode(mainJson))];
+    };
+    const convert = (mainJson: string) => {
+      const decoded = decodeKaTrainKt({ kt: ktWithMain(mainJson), boardSize: 19 });
+      expect(decoded).not.toBeNull();
+      return kaTrainAnalysisToAnalysisResult({ analysis: decoded!, currentPlayer: 'black', boardSize: 19 });
+    };
+
+    it('rejects a node whose root score or winrate is infinite', () => {
+      // JSON.parse turns 1e999 into Infinity.
+      expect(convert('{"moves":{},"root":{"winrate":0.5,"scoreLead":1e999}}')).toBeNull();
+      expect(convert('{"moves":{},"root":{"winrate":1e999,"scoreLead":1}}')).toBeNull();
+      expect(convert('{"moves":{},"root":{"winrate":0.5,"scoreLead":1,"scoreStdev":-1e999}}')).toBeNull();
+      expect(convert('{"moves":{},"root":{"winrate":0.5,"scoreLead":1,"scoreSelfplay":1e7}}')).toBeNull();
+      expect(convert('{"moves":{},"root":{"winrate":0.5,"scoreLead":1}}')).not.toBeNull();
+    });
+
+    it('drops candidate rows with infinite or out-of-range fields', () => {
+      const result = convert(
+        '{"root":{"winrate":0.5,"scoreLead":1},"moves":{' +
+          '"a":{"move":"D4","order":0,"scoreLead":1e999},' +
+          '"b":{"move":"D5","order":1,"winrate":7},' +
+          '"c":{"move":"D6","order":2,"visits":-1e999},' +
+          '"d":{"move":"D7","order":1e999},' +
+          '"e":{"move":"D8","order":3,"prior":1e999},' +
+          '"f":{"move":"D9","order":4,"scoreStdev":1e999},' +
+          '"g":{"move":"Q16","order":5,"visits":3,"winrate":0.6,"scoreLead":2}' +
+          '}}'
+      );
+      expect(result!.moves.map((m) => `${m.x},${m.y}`)).toEqual(['15,3']);
+      expect(Number.isFinite(result!.moves[0]!.pointsLost)).toBe(true);
+    });
+
+    it('replaces NaN and infinite float16 tensor entries', () => {
+      const ownership = new Uint8Array(361 * 2);
+      ownership[0] = 0x00;
+      ownership[1] = 0x7c; // +Inf
+      ownership[2] = 0x00;
+      ownership[3] = 0x7e; // NaN
+      const policy = new Uint8Array(362 * 2);
+      policy[1] = 0xfc; // -Inf
+      const [, , main] = encodeKaTrainKtFromAnalysis({ analysis: makeAnalysis(), boardSize: 19 });
+      const decoded = decodeKaTrainKt({ kt: [gz(ownership), gz(policy), main!], boardSize: 19 });
+      expect(decoded!.ownership!.every(Number.isFinite)).toBe(true);
+      expect(decoded!.ownership![0]).toBe(0);
+      expect(decoded!.policy!.every(Number.isFinite)).toBe(true);
+      expect(decoded!.policy![0]).toBe(-1);
+    });
+  });
 });
+

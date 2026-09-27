@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../src/store/gameStore';
 import { parseSgf } from '../src/utils/sgf';
 import { countRootHandicapStones } from '../src/utils/handicapAi';
+import { komiWithHandicapBonus } from '../src/utils/handicap';
 
 const load = (sgf: string) => {
   useGameStore.getState().loadGame(parseSgf(sgf));
@@ -54,4 +55,18 @@ describe('loading handicap records', () => {
     const state = load('(;GM[1]SZ[19]HA[1]RU[Chinese]KM[0.5];B[pd])');
     expect(countRootHandicapStones(state.rootNode)).toBe(0);
   });
+
+  it('gives the engine and the scorer the same handicap for HA[0] with black setup stones', () => {
+    const state = load('(;GM[1]SZ[19]HA[0]RU[Chinese]KM[7.5]AB[dd][pp];W[pd])');
+    expect(stones(state.rootNode.gameState.board, 'black')).toBe(2);
+    expect(countRootHandicapStones(state.rootNode)).toBe(0);
+    expect(komiWithHandicapBonus(state.rootNode, 'chinese', 7.5)).toBe(7.5);
+  });
+
+  it('gives the engine the declared handicap when the first node places the stones', () => {
+    const state = load('(;GM[1]SZ[19]HA[2]RU[Chinese]KM[0.5];AB[dd][pp];W[pd])');
+    expect(countRootHandicapStones(state.rootNode)).toBe(2);
+    expect(komiWithHandicapBonus(state.rootNode, 'chinese', 0.5)).toBe(2.5);
+  });
 });
+

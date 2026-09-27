@@ -72,6 +72,7 @@ import {
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
 import { countRootHandicapStones } from '../utils/handicapAi';
+import { countSgfGames } from '../utils/sgfScan';
 import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
@@ -2131,10 +2132,15 @@ export const Layout: React.FC = () => {
     setLoadedExternalFile({ kind: 'file', name: sourceName || getImportedSgfNameFromProperties(parsed.tree?.props, 'Loaded SGF') });
     markCurrentGameCleanAndClearAutoSave();
     const sizeNotice = boardSizeCoercionNotice(text);
+    // loadGame keeps the other games on the root and export writes them back,
+    // but nothing on screen reaches them, so say they are there.
+    const games = countSgfGames(text);
+    const collectionNotice = games > 1 ? `It holds ${games} games; the first is open, and saving keeps the others.` : '';
+    const notices = [sizeNotice, collectionNotice].filter(Boolean).join(' ');
     toast(
       appendRestoredAnalysisSummary(`Loaded "${sourceName || 'SGF'}".`, restoredAnalysisCount)
-        + (sizeNotice ? ` ${sizeNotice}` : ''),
-      sizeNotice ? 'info' : 'success'
+        + (notices ? ` ${notices}` : ''),
+      notices ? 'info' : 'success'
     );
     return true;
   };
@@ -2251,10 +2257,12 @@ export const Layout: React.FC = () => {
 
   const handleCopyShareLink = async () => {
     // The game, not its analysis: saved KT/KA blobs made a 200-move reviewed
-    // game a 385,000-character link, past what an opening app will read.
+    // game a 385,000-character link, past what an opening app will read. Nor
+    // the rest of the collection it came from: the link shares this game.
     const sgf = generateSgfFromTree(rootNode, {
       ...sgfExportOptions,
       trainer: { ...sgfExportOptions.trainer, saveAnalysis: false },
+      includeTrailingGames: false,
     });
     const url = buildShareUrl(sgf, window.location);
     if (url.length - url.indexOf('#sgf=') - '#sgf='.length > MAX_SHARE_FRAGMENT_LENGTH) {
