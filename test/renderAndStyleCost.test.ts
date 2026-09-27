@@ -32,6 +32,6 @@ describe('library writes', () => {
     // Opening the Library cleared and re-put every record: 2.6s to rows at 3,000 games.
     const library = read('src/utils/library.ts');
     expect(library).toContain("const unchanged = mutation.items === loaded.items && loaded.source === 'idb';");
-    expect(library).toContain("await saveToIndexedDb(normalized, base?.source === 'idb' ? base.token : null);");
+    expect(library).toContain("await saveToIndexedDb(normalized, base?.source === 'idb' ? base.token : null, changes);");
   });
 });

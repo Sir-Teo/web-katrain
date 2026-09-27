@@ -464,7 +464,9 @@ const normalizeParentId = (value: unknown): string | null => (typeof value === '
  * back, so a folder keeps its contents and only loses a parent it could never
  * legitimately have had.
  */
-const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
+type LibraryTreeNode = Pick<LibraryItem, 'id' | 'parentId' | 'type'>;
+
+const rerootUnreachableItems = <T extends LibraryTreeNode>(items: T[]): T[] => {
   const byId = new Map(items.map((item) => [item.id, item]));
   const folderIds = new Set(items.filter((item) => item.type === 'folder').map((item) => item.id));
 
@@ -477,9 +479,9 @@ const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
   const reachesRoot = new Set<string>();
   for (const item of items) {
     if (reachesRoot.has(item.id)) continue;
-    const walked: LibraryItem[] = [];
+    const walked: T[] = [];
     const onPath = new Set<string>();
-    let current: LibraryItem | undefined = item;
+    let current: T | undefined = item;
     while (current) {
       if (reachesRoot.has(current.id)) break;
       if (onPath.has(current.id)) {
@@ -502,6 +504,69 @@ const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
   return items;
 };
 
+/**
+ * One stored or incoming record as a library item, under the id given.
+ *
+ * `prior` is the same record as last normalized. When its SGF is unchanged,
+ * what was read from that SGF is reused: starring a game or renaming it need
+ * not parse the game again.
+ */
+const normalizeLibraryRecord = (
+  raw: Record<string, unknown>,
+  id: string,
+  now: number,
+  prior?: LibraryItem
+): LibraryItem => {
+  const parentId = normalizeParentId(raw.parentId);
+  const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : now;
+  const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
+  const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Untitled';
+  const isFolder = raw.type === 'folder' || typeof raw.sgf !== 'string';
+  if (isFolder) {
+    return {
+      id,
+      name,
+      createdAt,
+      updatedAt,
+      parentId,
+      type: 'folder',
+    } as LibraryFolder;
+  }
+  const sgf = typeof raw.sgf === 'string' ? raw.sgf : '';
+  const unchangedSgf = prior?.type === 'file' && prior.sgf === sgf ? prior : null;
+  // Everything here is read from the SGF, and read afresh: a stored copy
+  // took precedence, so each fix to that reading -- a player name after
+  // "( ;", an AB[aa:cc] rectangle, a comment before the first move --
+  // never reached games already in the library.
+  const metadata: LibraryFileMetadata = unchangedSgf ? unchangedSgf.metadata : extractLibraryMetadata(sgf);
+  const tags = Array.isArray(raw.tags)
+    ? Array.from(
+        new Set(
+          raw.tags
+            .filter((tag): tag is string => typeof tag === 'string')
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+        )
+      )
+    : [];
+  // Only attach favorite/tags when meaningful so untagged items keep their
+  // original shape (no forced defaults), which keeps round-trips stable.
+  return {
+    id,
+    name,
+    createdAt,
+    updatedAt,
+    parentId,
+    type: 'file',
+    sgf,
+    moveCount: unchangedSgf ? unchangedSgf.moveCount : countMoves(sgf),
+    size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
+    metadata,
+    ...(raw.favorite === true ? { favorite: true } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+  } as LibraryFile;
+};
+
 export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
   if (!Array.isArray(rawItems)) return [];
   const now = Date.now();
@@ -514,58 +579,63 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
     .filter((item) => item && typeof item === 'object')
     .map((item) => {
       const raw = item as Record<string, unknown>;
-      const parentId = normalizeParentId(raw.parentId);
-      const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : now;
-      const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
-      const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Untitled';
       const storedId = typeof raw.id === 'string' && raw.id ? raw.id : null;
       const id = storedId && !seenIds.has(storedId) ? storedId : createId();
       seenIds.add(id);
-      const isFolder = raw.type === 'folder' || typeof raw.sgf !== 'string';
-      if (isFolder) {
-        return {
-          id,
-          name,
-          createdAt,
-          updatedAt,
-          parentId,
-          type: 'folder',
-        } as LibraryFolder;
-      }
-      const sgf = typeof raw.sgf === 'string' ? raw.sgf : '';
-      // Everything here is read from the SGF, and read afresh: a stored copy
-      // took precedence, so each fix to that reading -- a player name after
-      // "( ;", an AB[aa:cc] rectangle, a comment before the first move --
-      // never reached games already in the library.
-      const metadata: LibraryFileMetadata = extractLibraryMetadata(sgf);
-      const tags = Array.isArray(raw.tags)
-        ? Array.from(
-            new Set(
-              raw.tags
-                .filter((tag): tag is string => typeof tag === 'string')
-                .map((tag) => tag.trim())
-                .filter(Boolean)
-            )
-          )
-        : [];
-      // Only attach favorite/tags when meaningful so untagged items keep their
-      // original shape (no forced defaults), which keeps round-trips stable.
-      return {
-        id,
-        name,
-        createdAt,
-        updatedAt,
-        parentId,
-        type: 'file',
-        sgf,
-        moveCount: countMoves(sgf),
-        size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
-        metadata,
-        ...(raw.favorite === true ? { favorite: true } : {}),
-        ...(tags.length > 0 ? { tags } : {}),
-      } as LibraryFile;
+      return normalizeLibraryRecord(raw, id, now);
     });
   return rerootUnreachableItems(normalized);
+};
+
+/** The records one change has to write, and the whole library it leaves. */
+type LibraryWritePlan = { items: LibraryItem[]; put: LibraryItem[]; remove: string[] };
+
+/**
+ * What changed between the library as read and the library a change produced.
+ *
+ * Every change used to normalize every record -- re-reading each game's SGF --
+ * and then clear the store and put all of them back, so starring one game
+ * rewrote 3,000. Records the change did not replace are the very objects that
+ * were read, already normalized, so only replaced and new ones are looked at,
+ * and only those and the removed ids are written. The tree is still checked
+ * whole; that is cheap and never parses a game.
+ *
+ * Null when the change repeats an id, which only a full normalization can
+ * untangle.
+ */
+const planLibraryWrite = (base: readonly LibraryItem[], next: readonly LibraryItem[]): LibraryWritePlan | null => {
+  const baseById = new Map(base.map((item) => [item.id, item]));
+  const now = Date.now();
+  const seen = new Set<string>();
+  const changed = new Set<string>();
+  const items: LibraryItem[] = [];
+  for (const candidate of next) {
+    if (!candidate || typeof candidate !== 'object') continue;
+    const id = (candidate as { id?: unknown }).id;
+    if (typeof id !== 'string' || !id || seen.has(id)) return null;
+    seen.add(id);
+    const prior = baseById.get(id);
+    if (prior === candidate) {
+      items.push(candidate);
+      continue;
+    }
+    items.push(normalizeLibraryRecord(candidate as unknown as Record<string, unknown>, id, now, prior));
+    changed.add(id);
+  }
+  // Checked on stand-ins: the records read are shared with whoever read them.
+  const nodes = items.map(({ id, parentId, type }) => ({ id, parentId, type }));
+  rerootUnreachableItems(nodes);
+  nodes.forEach((node, index) => {
+    const item = items[index]!;
+    if (node.parentId === item.parentId) return;
+    items[index] = { ...item, parentId: node.parentId };
+    changed.add(item.id);
+  });
+  return {
+    items,
+    put: items.filter((item) => changed.has(item.id)),
+    remove: base.filter((item) => !seen.has(item.id)).map((item) => item.id),
+  };
 };
 
 const safeParse = (raw: string | null): LibraryItem[] => {
@@ -697,26 +767,46 @@ const readStoredRevision = async (meta: IDBObjectStore): Promise<{ revision: num
   return { revision: current, token: `${current}:${typeof updatedAt === 'number' ? updatedAt : 0}` };
 };
 
+/**
+ * The library as this tab last read or wrote it, and the revision it is at.
+ *
+ * A change read and normalized the whole store before applying itself -- every
+ * game's SGF parsed again to star one of them. While the stored revision is
+ * still this one, nothing has written since, and the copy is the library.
+ */
+let idbCache: { items: LibraryItem[]; token: string } | null = null;
+
 const loadFromIndexedDb = async (): Promise<{ items: LibraryItem[]; token: string }> => {
   const db = await openLibraryDb();
   try {
+    if (idbCache) {
+      const { token } = await readStoredRevision(db.transaction(META_STORE, 'readonly').objectStore(META_STORE));
+      if (token === idbCache.token) return idbCache;
+    }
     const tx = db.transaction([ITEM_STORE, META_STORE], 'readonly');
     const [records, { token }] = await Promise.all([
       requestToPromise(tx.objectStore(ITEM_STORE).getAll()),
       readStoredRevision(tx.objectStore(META_STORE)),
     ]);
-    return { items: normalizeLibraryItems(records), token };
+    idbCache = { items: normalizeLibraryItems(records), token };
+    return idbCache;
   } finally {
     db.close();
   }
 };
 
 /**
- * Replaces the stored library with already-normalized items. Given the token
- * the library was read at, only if nothing wrote since: the check and the write
- * share one transaction, which the database runs alone against any other tab's.
+ * Writes already-normalized items as the stored library. Given `changes`, only
+ * those records are put and deleted; otherwise the store is replaced. Given
+ * the token the library was read at, only if nothing wrote since: the check
+ * and the write share one transaction, which the database runs alone against
+ * any other tab's.
  */
-const saveToIndexedDb = async (items: LibraryItem[], expectedToken: string | null = null): Promise<string> => {
+const saveToIndexedDb = async (
+  items: LibraryItem[],
+  expectedToken: string | null = null,
+  changes?: { put: LibraryItem[]; remove: string[] }
+): Promise<string> => {
   const db = await openLibraryDb();
   try {
     const tx = db.transaction([ITEM_STORE, META_STORE], 'readwrite');
@@ -730,16 +820,23 @@ const saveToIndexedDb = async (items: LibraryItem[], expectedToken: string | nul
       throw new LibraryConflictError();
     }
     const store = tx.objectStore(ITEM_STORE);
-    store.clear();
-    for (const item of items) store.put(item);
+    if (changes) {
+      for (const id of changes.remove) store.delete(id);
+      for (const item of changes.put) store.put(item);
+    } else {
+      store.clear();
+      for (const item of items) store.put(item);
+    }
     const updatedAt = Date.now();
     const revision = stored.revision + 1;
     meta.put({ key: 'revision', value: revision });
     meta.put({ key: 'updatedAt', value: updatedAt });
     meta.put({ key: 'schemaVersion', value: DB_VERSION });
     await done;
+    const token = `${revision}:${updatedAt}`;
+    idbCache = { items, token };
     setPreloadedVersion(PRELOADED_VERSION);
-    return `${revision}:${updatedAt}`;
+    return token;
   } finally {
     db.close();
   }
@@ -1058,15 +1155,19 @@ const persistPendingFallback = (items: LibraryItem[], expectedRevision: string |
  * since, so the caller can apply its change again to what that tab wrote.
  */
 const saveLibrarySnapshot = async (items: LibraryItem[], base: LibrarySnapshot | null = null): Promise<void> => {
-  const normalized = normalizeLibraryItems(items);
+  const plan = base ? planLibraryWrite(base.items, items) : null;
+  const normalized = plan?.items ?? normalizeLibraryItems(items);
   const hasIndexedDb = !!getIndexedDB();
   if (!hasIndexedDb || idbLoadFailed) {
     persistPendingFallback(normalized, base?.source === 'fallback' ? base.token : null);
     notifyLibraryChanged();
     return;
   }
+  // Only the records that changed, when the base is the stored library.
+  const changes = plan && base?.source === 'idb' ? { put: plan.put, remove: plan.remove } : undefined;
+  if (changes && changes.put.length === 0 && changes.remove.length === 0) return;
   try {
-    await saveToIndexedDb(normalized, base?.source === 'idb' ? base.token : null);
+    await saveToIndexedDb(normalized, base?.source === 'idb' ? base.token : null, changes);
     rememberItems(normalized);
     if (hasUnflushedFallback()) setFallbackUnflushed(false);
     markMigrated();
