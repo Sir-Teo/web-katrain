@@ -1027,6 +1027,30 @@ const persistFallback = (items: LibraryItem[], expectedRevision: string | null =
 };
 
 /**
+ * A fallback write, always marked for reconciliation, and marked before it is
+ * made.
+ *
+ * Only a write that went to the fallback because an IndexedDB write *failed*
+ * used to be marked. One made while the browser offered no IndexedDB at all --
+ * for a moment, or until the next reload -- was not, so the database that came
+ * back afterwards was read over it and the game saved in between was gone.
+ * Where IndexedDB never appears the mark is simply never read.
+ *
+ * Marked first, so a write that landed is never left unmarked by a failure to
+ * write the mark; a write that did not land puts the mark back as it was.
+ */
+const persistPendingFallback = (items: LibraryItem[], expectedRevision: string | null = null): void => {
+  const wasPending = hasUnflushedFallback();
+  setFallbackUnflushed(true);
+  try {
+    persistFallback(items, expectedRevision);
+  } catch (error) {
+    if (!wasPending) setFallbackUnflushed(false);
+    throw error;
+  }
+};
+
+/**
  * @see the note above `persistFallback` for why a fallback can reject.
  *
  * `base` is the snapshot a read-modify-write started from. The write is
@@ -1037,10 +1061,7 @@ const saveLibrarySnapshot = async (items: LibraryItem[], base: LibrarySnapshot |
   const normalized = normalizeLibraryItems(items);
   const hasIndexedDb = !!getIndexedDB();
   if (!hasIndexedDb || idbLoadFailed) {
-    persistFallback(normalized, base?.source === 'fallback' ? base.token : null);
-    // Only a database that exists can come back and read over this. Where
-    // there is none, the fallback is simply the store.
-    if (hasIndexedDb) setFallbackUnflushed(true);
+    persistPendingFallback(normalized, base?.source === 'fallback' ? base.token : null);
     notifyLibraryChanged();
     return;
   }
@@ -1051,8 +1072,7 @@ const saveLibrarySnapshot = async (items: LibraryItem[], base: LibrarySnapshot |
     markMigrated();
   } catch (error) {
     if (error instanceof LibraryConflictError) throw error;
-    persistFallback(normalized);
-    setFallbackUnflushed(true);
+    persistPendingFallback(normalized);
   }
   notifyLibraryChanged();
 };
