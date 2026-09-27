@@ -57,6 +57,7 @@ import {
 } from '../utils/boardKeyboardNavigation';
 import { boardToQaString, countBoardStones } from '../utils/boardQaSnapshot';
 import { computeTerritorySwing, hasVisibleSwing, resolveSwingBaseline, swingAlpha } from '../utils/territorySwing';
+import { syncGameClockNow } from '../utils/katrainTimer';
 
 const OWNERSHIP_COLORS = {
   black: [0.0, 0.0, 0.1, 0.75],
@@ -1765,6 +1766,9 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     (pt: { x: number; y: number }): boolean => {
       // KaTrain minimal_time_use enforcement in byo-yomi (Play mode only).
       const isAiTurn = isAiPlaying && aiColor === currentPlayer;
+      // The clock only writes time used when its shown second turns; bring
+      // it up to date so the check does not run up to a second behind.
+      syncGameClockNow();
       const { timerPaused: isTimerPaused, timerMainTimeUsedSeconds } = useGameStore.getState();
       if (uiMode === 'play' && !isAiTurn && !isTimerPaused && currentNode.children.length === 0) {
         const mainSeconds = Math.max(0, Math.floor((settings.timerMainTimeMinutes ?? 0) * 60));
