@@ -1,27 +1,34 @@
 import React from 'react';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { formatLibraryTimestamp } from '../utils/library';
-import type { AutoSavedGame } from '../utils/autoSave';
+import type { RecoverableAutoSave } from '../utils/autoSave';
 
 type AutoSaveRecoveryModalProps = {
-  snapshot: AutoSavedGame;
-  onRestore: () => void;
-  onDiscard: () => void;
+  /** Newest first. More than one when several tabs left unsaved games behind. */
+  snapshots: RecoverableAutoSave[];
+  onRestore: (id: string) => void;
+  onDiscard: (id: string) => void;
 };
 
+// Shared minute-precision format: a recovery prompt needs the date, but not
+// the seconds a bare toLocaleString() was printing.
+const formatSavedAt = (savedAt: number): string => formatLibraryTimestamp(savedAt) || 'an earlier session';
+
 export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
-  snapshot,
+  snapshots,
   onRestore,
   onDiscard,
 }) => {
-  // Shared minute-precision format: a recovery prompt needs the date, but not
-  // the seconds a bare toLocaleString() was printing.
-  const savedAtLabel = formatLibraryTimestamp(snapshot.savedAt) || 'an earlier session';
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const selected = snapshots.find((snapshot) => snapshot.id === selectedId) ?? snapshots[0];
+  const multiple = snapshots.length > 1;
   const restoreButtonRef = React.useRef<HTMLButtonElement>(null);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
     focusContainer: false,
     initialFocusRef: restoreButtonRef,
   });
+
+  if (!selected) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -32,22 +39,49 @@ export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
         aria-modal="true"
         aria-labelledby="auto-save-recovery-title"
         aria-describedby="auto-save-recovery-description"
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-md overflow-hidden"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-md max-h-[90dvh] overflow-hidden flex flex-col"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="auto-save-recovery-title" className="text-base font-semibold text-[var(--ui-text)]">
             Restore Auto-Saved Game
           </h2>
         </div>
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 overflow-y-auto">
           <p id="auto-save-recovery-description" className="text-sm text-[var(--ui-text-muted)]">
-            An unsaved game from {savedAtLabel} is available. Restore it, or discard the auto-save and keep the game currently on the board.
+            {multiple
+              ? `${snapshots.length} unsaved games from earlier sessions are available. Choose one to restore, or discard the ones you do not need and keep the game currently on the board.`
+              : `An unsaved game from ${formatSavedAt(selected.savedAt)} is available. Restore it, or discard the auto-save and keep the game currently on the board.`}
           </p>
+          {multiple && (
+            <fieldset className="space-y-1">
+              <legend className="sr-only">Auto-saved games</legend>
+              {snapshots.map((snapshot) => (
+                <label
+                  key={snapshot.id}
+                  className={[
+                    'flex min-h-11 cursor-pointer items-center gap-2 rounded border px-3 py-2 text-sm',
+                    snapshot.id === selected.id
+                      ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] text-[var(--ui-text)]'
+                      : 'border-[var(--ui-border)] text-[var(--ui-text-muted)]',
+                  ].join(' ')}
+                >
+                  <input
+                    type="radio"
+                    name="auto-save-recovery-choice"
+                    value={snapshot.id}
+                    checked={snapshot.id === selected.id}
+                    onChange={() => setSelectedId(snapshot.id)}
+                  />
+                  <span>{formatSavedAt(snapshot.savedAt)}</span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" className="panel-action-button danger" onClick={onDiscard}>
+            <button type="button" className="panel-action-button danger" onClick={() => onDiscard(selected.id)}>
               Discard Auto-Save
             </button>
-            <button ref={restoreButtonRef} type="button" className="panel-action-button active" onClick={onRestore} autoFocus>
+            <button ref={restoreButtonRef} type="button" className="panel-action-button active" onClick={() => onRestore(selected.id)} autoFocus>
               Restore Game
             </button>
           </div>

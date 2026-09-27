@@ -9,7 +9,7 @@ describe('AutoSaveRecoveryModal', () => {
   it('labels the recovery prompt and focuses the safer current-game action', () => {
     const html = renderToStaticMarkup(
       <AutoSaveRecoveryModal
-        snapshot={{ version: 1, savedAt: Date.UTC(2026, 5, 4, 12), sgf: '(;GM[1]SZ[19])' }}
+        snapshots={[{ id: 'tab-a', version: 1, savedAt: Date.UTC(2026, 5, 4, 12), sgf: '(;GM[1]SZ[19])' }]}
         onRestore={noop}
         onDiscard={noop}
       />
@@ -28,5 +28,24 @@ describe('AutoSaveRecoveryModal', () => {
     expect(readFileSync('src/components/AutoSaveRecoveryModal.tsx', 'utf8')).toContain('focusContainer: false');
     expect(html).toMatch(/<button[^>]*autofocus=""[^>]*>Restore Game<\/button>/);
     expect(html).toContain('autofocus=""');
+  });
+
+  it('offers a choice when several tabs left games behind', () => {
+    const html = renderToStaticMarkup(
+      <AutoSaveRecoveryModal
+        snapshots={[
+          { id: 'tab-b', version: 1, savedAt: Date.UTC(2026, 5, 4, 13), sgf: '(;GM[1]SZ[19];B[pd])' },
+          { id: 'tab-a', version: 1, savedAt: Date.UTC(2026, 5, 4, 12), sgf: '(;GM[1]SZ[19])' },
+        ]}
+        onRestore={noop}
+        onDiscard={noop}
+      />
+    );
+
+    expect(html).toContain('2 unsaved games from earlier sessions are available');
+    expect(html.match(/type="radio"/g)).toHaveLength(2);
+    // The newest is preselected.
+    expect(html).toMatch(/<input type="radio"[^>]*checked=""[^>]*value="tab-b"/);
+    expect(html).not.toMatch(/<input type="radio"[^>]*checked=""[^>]*value="tab-a"/);
   });
 });
