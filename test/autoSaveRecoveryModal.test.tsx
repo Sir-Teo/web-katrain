@@ -48,4 +48,41 @@ describe('AutoSaveRecoveryModal', () => {
     expect(html).toMatch(/<input type="radio"[^>]*checked=""[^>]*value="tab-b"/);
     expect(html).not.toMatch(/<input type="radio"[^>]*checked=""[^>]*value="tab-a"/);
   });
+
+  it('shows the game it would restore: players, length, board size and final position', () => {
+    const html = renderToStaticMarkup(
+      <AutoSaveRecoveryModal
+        snapshots={[{
+          id: 'tab-a',
+          version: 1,
+          savedAt: Date.UTC(2026, 5, 4, 12),
+          sgf: '(;GM[1]SZ[9]PB[Honinbo Shusaku]BR[7d]PW[Gennan Inseki];B[ee];W[cc];B[gg])',
+        }]}
+        onRestore={noop}
+        onDiscard={noop}
+      />
+    );
+
+    expect(html).toContain('Honinbo Shusaku (7d) vs Gennan Inseki');
+    expect(html).toContain('3 moves · 9×9');
+    expect(html).toContain('aria-label="Final position of the auto-saved game"');
+    expect(html.match(/<circle[^>]*url\(#sb-(black|white)\)/g)).toHaveLength(3);
+    // A way to keep it without restoring it, offered before Discard is final.
+    expect(html).toContain('Download SGF');
+  });
+
+  it('still offers an unreadable copy for download', () => {
+    const html = renderToStaticMarkup(
+      <AutoSaveRecoveryModal
+        snapshots={[{ id: 'tab-a', version: 1, savedAt: 1, sgf: 'not an sgf' }]}
+        onRestore={noop}
+        onDiscard={noop}
+      />
+    );
+
+    expect(html).toContain('Unreadable game record');
+    expect(html).not.toContain('Final position of the auto-saved game');
+    expect(html).toContain('Download SGF');
+  });
 });
+
