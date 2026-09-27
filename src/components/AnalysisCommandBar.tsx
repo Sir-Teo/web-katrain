@@ -247,7 +247,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     const ok = await copyTextToClipboard(formatEngineErrorReport({
       status: engineStatus,
       requestedBackend,
-      activeBackend: engineBackend ?? requestedBackend,
+      activeBackend: engineBackend ?? 'Not loaded',
       modelLabel: engineModelLabel,
       modelUrl,
       error: engineError,
@@ -531,7 +531,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
         <span className="analysis-command-bar__status-text">
           <span className="analysis-command-bar__status-state">{engineSummary.stateLabel}</span>
           <span className="analysis-command-bar__status-detail" aria-hidden="true">
-            {engineSummary.isFallback ? ' fallback' : ''}{' · '}{engineSummary.activeBackendLabel}
+            {engineSummary.isFallback ? ' fallback' : ''}{' · '}{engineSummary.backendDisplayLabel}
           </span>
         </span>
         {engineError && (

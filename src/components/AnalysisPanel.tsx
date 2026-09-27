@@ -278,7 +278,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     modelLabel: engineModelLabel,
     modelUrl,
   }), [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
-  const activeBackend = engineBackend ?? requestedBackend;
+  const activeBackend = engineBackend ?? 'Not loaded';
   const qualityLegendItems = React.useMemo(() => {
     const colors = getKaTrainEvalColors(trainerTheme);
     const thresholds = trainerEvalThresholds.length > 0

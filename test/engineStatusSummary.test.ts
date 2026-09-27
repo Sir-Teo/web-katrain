@@ -14,6 +14,7 @@ describe('getEngineActivityPresentation', () => {
     isGameAnalysisRunning: false,
     isContinuousAnalysis: false,
     isAnalysisMode: false,
+    activeBackend: 'webgpu',
   };
 
   it('does not claim the engine is running when only analysis mode is visible', () => {
@@ -35,6 +36,20 @@ describe('getEngineActivityPresentation', () => {
     expect(getEngineActivityPresentation({ ...ready, status: 'loading', isAiThinking: true })).toEqual({
       state: 'loading',
       label: 'Loading model',
+    });
+  });
+
+  it('does not call the engine ready before the worker has loaded a model', () => {
+    const cold = { ...ready, status: 'idle' as const, activeBackend: null };
+    expect(getEngineActivityPresentation(cold)).toEqual({ state: 'configured', label: 'Model not loaded' });
+    expect(getEngineActivityPresentation({ ...cold, isAnalysisMode: true })).toEqual({
+      state: 'configured',
+      label: 'Analysis mode',
+    });
+    // Loaded and between searches is ready.
+    expect(getEngineActivityPresentation({ ...ready, status: 'idle' })).toEqual({
+      state: 'ready',
+      label: 'KataGo ready',
     });
   });
 });
@@ -92,7 +107,7 @@ describe('engine status summary', () => {
     expect(summary.dotClass).toBe('bg-green-400');
   });
 
-  it('shows a configured model as ready before the active backend is reported', () => {
+  it('shows a configured model as configured, not ready, until the worker reports a backend', () => {
     const summary = getEngineStatusSummary({
       status: 'idle',
       requestedBackend: 'webgpu',
@@ -100,10 +115,46 @@ describe('engine status summary', () => {
       modelUrl: '/models/kata1-b18.bin.gz',
     });
 
-    expect(summary.compactLabel).toBe('Ready · WebGPU');
-    expect(summary.title).toContain('State: Ready');
-    expect(summary.title).toContain('Activity: Idle');
-    expect(summary.dotClass).toBe('bg-green-400');
+    expect(summary.stateLabel).toBe('Configured');
+    expect(summary.compactLabel).toBe('Configured · WebGPU requested');
+    expect(summary.title).toContain('State: Configured');
+    expect(summary.title).not.toContain('Activity: Idle');
+    // The requested backend is not presented as the one running.
+    expect(summary.activeBackendLabel).toBe('Not loaded');
+    expect(summary.title).toContain('Backend: Not loaded');
+    expect(summary.title).toContain('Requested: WebGPU');
+    expect(summary.isFallback).toBe(false);
+    expect(summary.reasonLabel).toBe('The model loads on WebGPU when analysis first runs.');
+    expect(summary.dotClass).toBe('bg-slate-500');
+  });
+
+  it('names the requested backend, not an active one, while the first load runs', () => {
+    const summary = getEngineStatusSummary({
+      status: 'loading',
+      requestedBackend: 'webgpu',
+      modelLabel: 'kata1-b18',
+    });
+
+    expect(summary.stateLabel).toBe('Loading');
+    expect(summary.compactLabel).toBe('Loading · WebGPU requested');
+    expect(summary.activeBackendLabel).toBe('Not loaded');
+    expect(summary.reasonLabel).toBe('Loading WebGPU analysis.');
+    expect(summary.dotClass).toBe('bg-yellow-400');
+  });
+
+  it('reports a failed first load as an error on the requested backend', () => {
+    const summary = getEngineStatusSummary({
+      status: 'error',
+      error: 'Failed to fetch model: 404 Not Found',
+      requestedBackend: 'wasm',
+      modelLabel: 'kata1-b18',
+    });
+
+    expect(summary.stateLabel).toBe('Error');
+    expect(summary.compactLabel).toBe('Error · CPU (WASM) requested');
+    expect(summary.isFallback).toBe(false);
+    expect(summary.reasonLabel).toBe('CPU (WASM) failed to start.');
+    expect(summary.dotClass).toBe('bg-red-500');
   });
 
   it('keeps an idle engine without a loaded backend or model distinct from ready', () => {
@@ -112,7 +163,7 @@ describe('engine status summary', () => {
       requestedBackend: 'webgpu',
     });
 
-    expect(summary.compactLabel).toBe('Idle · WebGPU');
+    expect(summary.compactLabel).toBe('Idle · WebGPU requested');
     expect(summary.title).toContain('State: Idle');
     expect(summary.title).not.toContain('Activity: Idle');
     expect(summary.reasonLabel).toBe('Analysis engine will start when analysis runs.');

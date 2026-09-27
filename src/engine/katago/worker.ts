@@ -9,6 +9,7 @@ import pako from 'pako';
 
 import type { KataGoAnalyzeRequest, KataGoWorkerRequest, KataGoWorkerResponse } from './types';
 import { looksLikeMarkup, modelResponseError } from './modelResponse';
+import { downloadModelBytes, isModelDownloadCanceledError, ModelDownloadCanceledError } from './modelDownload';
 import { collectAnalysisTransferables } from './analysisTransfer';
 import type { GameRules, KataGoBackendPreference, Player, RegionOfInterest } from '../../types';
 import { publicUrl } from '../../utils/publicUrl';
@@ -38,6 +39,44 @@ let backendPromise: Promise<void> | null = null;
 let backendPreference: KataGoBackendPreference | null = null;
 let prodModeEnabled = false;
 let queue: Promise<void> = Promise.resolve();
+
+/**
+ * The model each kind of network was most recently asked for, noted as
+ * messages arrive rather than when the queue reaches them. A download for any
+ * other URL is superseded: it is aborted mid-flight, and a queued request that
+ * still names an old model fails fast instead of fetching a net nobody wants.
+ */
+type ModelKind = 'main' | 'human';
+const latestRequestedModelUrl: Record<ModelKind, string | null> = { main: null, human: null };
+const activeDownloads: Record<ModelKind, { url: string; controller: AbortController } | null> = { main: null, human: null };
+
+function noteRequestedModel(kind: ModelKind, url: string | undefined): void {
+  if (!url) return;
+  latestRequestedModelUrl[kind] = url;
+  const active = activeDownloads[kind];
+  if (active && active.url !== url) active.controller.abort();
+}
+
+function throwIfModelSuperseded(kind: ModelKind, url: string): void {
+  const latest = latestRequestedModelUrl[kind];
+  if (latest !== null && latest !== url) {
+    throw new ModelDownloadCanceledError('A newer model was requested before this one finished loading');
+  }
+}
+
+async function fetchModelBytes(kind: ModelKind, url: string): Promise<Uint8Array> {
+  throwIfModelSuperseded(kind, url);
+  const controller = new AbortController();
+  activeDownloads[kind] = { url, controller };
+  try {
+    return await downloadModelBytes(url, {
+      label: kind === 'human' ? 'human model' : 'model',
+      signal: controller.signal,
+    });
+  } finally {
+    if (activeDownloads[kind]?.controller === controller) activeDownloads[kind] = null;
+  }
+}
 
 let V7_SPATIAL_STRIDE = BOARD_AREA * 22;
 const V7_GLOBAL_STRIDE = 19;
@@ -200,10 +239,15 @@ async function ensureBackend(backend?: KataGoBackendPreference): Promise<void> {
     return;
   }
 
+  // Both networks hold tensors on the backend they were built for, so both go
+  // when the backend changes; each is rebuilt on the new backend the next time
+  // a request needs it. The worker handles one message at a time, so no search
+  // or human-policy pass can be using either model here.
   model?.dispose();
   model = null;
   loadedModelName = undefined;
   loadedModelUrl = null;
+  disposeHumanModel();
   search = null;
   searchKey = null;
 
@@ -279,9 +323,7 @@ async function ensureModel(modelUrl: string, backend?: KataGoBackendPreference):
   await ensureBackend(requestedBackend);
   if (model && loadedModelUrl === modelUrl) return;
 
-  const res = await fetch(modelUrl);
-  if (!res.ok) throw new Error(`Failed to fetch model: ${res.status} ${res.statusText}`);
-  const buf = new Uint8Array(await res.arrayBuffer());
+  const buf = await fetchModelBytes('main', modelUrl);
   if (looksLikeMarkup(buf)) throw modelResponseError(modelUrl);
   const data = maybeUngzip(buf);
 
@@ -322,17 +364,24 @@ async function ensureModel(modelUrl: string, backend?: KataGoBackendPreference):
 async function ensureHumanModel(modelUrl: string): Promise<KataGoModelV8Tf> {
   if (humanModel && loadedHumanModelUrl === modelUrl) return humanModel;
 
-  const res = await fetch(modelUrl);
-  if (!res.ok) throw new Error(`Failed to fetch human model: ${res.status} ${res.statusText}`);
-  const buf = new Uint8Array(await res.arrayBuffer());
+  const buf = await fetchModelBytes('human', modelUrl);
   if (looksLikeMarkup(buf)) throw modelResponseError(modelUrl);
   const parsed = parseKataGoModelV8(maybeUngzip(buf));
   if (parsed.metaEncoderVersion !== 1) {
     throw new Error('That model is not a human SL net (it has no metadata encoder)');
   }
+  // Release the previous net's weights before uploading the new one; the old
+  // reference used to be dropped with its tensors still allocated.
+  disposeHumanModel();
   humanModel = new KataGoModelV8Tf(parsed);
   loadedHumanModelUrl = modelUrl;
   return humanModel;
+}
+
+function disposeHumanModel(): void {
+  humanModel?.dispose();
+  humanModel = null;
+  loadedHumanModelUrl = null;
 }
 
 /** Softmax over the board points of a logit array, ignoring the pass at the end. */
@@ -727,8 +776,9 @@ async function handleMessage(msg: KataGoWorkerRequest): Promise<void> {
           conservativePass,
         });
       } catch (err) {
-        // A missing or broken human net must not take the real analysis down with it.
-        humanPolicyError = err instanceof Error ? err.message : String(err);
+        // A missing or broken human net must not take the real analysis down
+        // with it. One replaced mid-download is not a problem worth reporting.
+        if (!isModelDownloadCanceledError(err)) humanPolicyError = err instanceof Error ? err.message : String(err);
       }
     }
     const humanMovePriors = humanLogits ? softmaxOverBoard(humanLogits) : null;
@@ -1005,7 +1055,9 @@ self.onmessage = (ev: MessageEvent<KataGoWorkerRequest>) => {
     }
     return;
   }
+  noteRequestedModel('main', msg.modelUrl);
   if (msg.type === 'katago:analyze') {
+    noteRequestedModel('human', msg.humanModelUrl);
     const analysisGroup = msg.analysisGroup ?? 'background';
     latestAnalyzeByGroup.set(analysisGroup, msg.id);
     if (analysisGroup === 'interactive') interactiveToken++;
@@ -1041,6 +1093,11 @@ self.onmessage = (ev: MessageEvent<KataGoWorkerRequest>) => {
         return;
       }
       if (msg.type === 'katago:analyze') {
+        // A request whose model was replaced mid-download is stale, not broken.
+        if (isModelDownloadCanceledError(err)) {
+          post({ type: 'katago:analyze_result', id: msg.id, ok: false, canceled: true, error: 'canceled' });
+          return;
+        }
         post({
           type: 'katago:analyze_result',
           id: msg.id,
