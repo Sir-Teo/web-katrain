@@ -89,8 +89,15 @@ const DB_NAME = 'web-katrain-library';
 const DB_VERSION = 1;
 const ITEM_STORE = 'items';
 const META_STORE = 'meta';
+/** Bumped by each localStorage fallback write; see `readFallbackRevision`. */
+const FALLBACK_REVISION_KEY = 'web-katrain:library_fallback_revision:v1';
+/** Web Locks name and BroadcastChannel name shared by every tab of the app. */
+const LIBRARY_LOCK_NAME = 'web-katrain:library';
+const LIBRARY_CHANNEL_NAME = 'web-katrain:library';
 
 let memoryItems: LibraryItem[] | null = null;
+/** The fallback revision `memoryItems` was last read or written at. */
+let memoryRevision: string | null = null;
 
 const createId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -457,7 +464,9 @@ const normalizeParentId = (value: unknown): string | null => (typeof value === '
  * back, so a folder keeps its contents and only loses a parent it could never
  * legitimately have had.
  */
-const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
+type LibraryTreeNode = Pick<LibraryItem, 'id' | 'parentId' | 'type'>;
+
+const rerootUnreachableItems = <T extends LibraryTreeNode>(items: T[]): T[] => {
   const byId = new Map(items.map((item) => [item.id, item]));
   const folderIds = new Set(items.filter((item) => item.type === 'folder').map((item) => item.id));
 
@@ -470,9 +479,9 @@ const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
   const reachesRoot = new Set<string>();
   for (const item of items) {
     if (reachesRoot.has(item.id)) continue;
-    const walked: LibraryItem[] = [];
+    const walked: T[] = [];
     const onPath = new Set<string>();
-    let current: LibraryItem | undefined = item;
+    let current: T | undefined = item;
     while (current) {
       if (reachesRoot.has(current.id)) break;
       if (onPath.has(current.id)) {
@@ -495,6 +504,69 @@ const rerootUnreachableItems = (items: LibraryItem[]): LibraryItem[] => {
   return items;
 };
 
+/**
+ * One stored or incoming record as a library item, under the id given.
+ *
+ * `prior` is the same record as last normalized. When its SGF is unchanged,
+ * what was read from that SGF is reused: starring a game or renaming it need
+ * not parse the game again.
+ */
+const normalizeLibraryRecord = (
+  raw: Record<string, unknown>,
+  id: string,
+  now: number,
+  prior?: LibraryItem
+): LibraryItem => {
+  const parentId = normalizeParentId(raw.parentId);
+  const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : now;
+  const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
+  const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Untitled';
+  const isFolder = raw.type === 'folder' || typeof raw.sgf !== 'string';
+  if (isFolder) {
+    return {
+      id,
+      name,
+      createdAt,
+      updatedAt,
+      parentId,
+      type: 'folder',
+    } as LibraryFolder;
+  }
+  const sgf = typeof raw.sgf === 'string' ? raw.sgf : '';
+  const unchangedSgf = prior?.type === 'file' && prior.sgf === sgf ? prior : null;
+  // Everything here is read from the SGF, and read afresh: a stored copy
+  // took precedence, so each fix to that reading -- a player name after
+  // "( ;", an AB[aa:cc] rectangle, a comment before the first move --
+  // never reached games already in the library.
+  const metadata: LibraryFileMetadata = unchangedSgf ? unchangedSgf.metadata : extractLibraryMetadata(sgf);
+  const tags = Array.isArray(raw.tags)
+    ? Array.from(
+        new Set(
+          raw.tags
+            .filter((tag): tag is string => typeof tag === 'string')
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+        )
+      )
+    : [];
+  // Only attach favorite/tags when meaningful so untagged items keep their
+  // original shape (no forced defaults), which keeps round-trips stable.
+  return {
+    id,
+    name,
+    createdAt,
+    updatedAt,
+    parentId,
+    type: 'file',
+    sgf,
+    moveCount: unchangedSgf ? unchangedSgf.moveCount : countMoves(sgf),
+    size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
+    metadata,
+    ...(raw.favorite === true ? { favorite: true } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+  } as LibraryFile;
+};
+
 export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
   if (!Array.isArray(rawItems)) return [];
   const now = Date.now();
@@ -507,58 +579,63 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
     .filter((item) => item && typeof item === 'object')
     .map((item) => {
       const raw = item as Record<string, unknown>;
-      const parentId = normalizeParentId(raw.parentId);
-      const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : now;
-      const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
-      const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Untitled';
       const storedId = typeof raw.id === 'string' && raw.id ? raw.id : null;
       const id = storedId && !seenIds.has(storedId) ? storedId : createId();
       seenIds.add(id);
-      const isFolder = raw.type === 'folder' || typeof raw.sgf !== 'string';
-      if (isFolder) {
-        return {
-          id,
-          name,
-          createdAt,
-          updatedAt,
-          parentId,
-          type: 'folder',
-        } as LibraryFolder;
-      }
-      const sgf = typeof raw.sgf === 'string' ? raw.sgf : '';
-      // Everything here is read from the SGF, and read afresh: a stored copy
-      // took precedence, so each fix to that reading -- a player name after
-      // "( ;", an AB[aa:cc] rectangle, a comment before the first move --
-      // never reached games already in the library.
-      const metadata: LibraryFileMetadata = extractLibraryMetadata(sgf);
-      const tags = Array.isArray(raw.tags)
-        ? Array.from(
-            new Set(
-              raw.tags
-                .filter((tag): tag is string => typeof tag === 'string')
-                .map((tag) => tag.trim())
-                .filter(Boolean)
-            )
-          )
-        : [];
-      // Only attach favorite/tags when meaningful so untagged items keep their
-      // original shape (no forced defaults), which keeps round-trips stable.
-      return {
-        id,
-        name,
-        createdAt,
-        updatedAt,
-        parentId,
-        type: 'file',
-        sgf,
-        moveCount: countMoves(sgf),
-        size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
-        metadata,
-        ...(raw.favorite === true ? { favorite: true } : {}),
-        ...(tags.length > 0 ? { tags } : {}),
-      } as LibraryFile;
+      return normalizeLibraryRecord(raw, id, now);
     });
   return rerootUnreachableItems(normalized);
+};
+
+/** The records one change has to write, and the whole library it leaves. */
+type LibraryWritePlan = { items: LibraryItem[]; put: LibraryItem[]; remove: string[] };
+
+/**
+ * What changed between the library as read and the library a change produced.
+ *
+ * Every change used to normalize every record -- re-reading each game's SGF --
+ * and then clear the store and put all of them back, so starring one game
+ * rewrote 3,000. Records the change did not replace are the very objects that
+ * were read, already normalized, so only replaced and new ones are looked at,
+ * and only those and the removed ids are written. The tree is still checked
+ * whole; that is cheap and never parses a game.
+ *
+ * Null when the change repeats an id, which only a full normalization can
+ * untangle.
+ */
+const planLibraryWrite = (base: readonly LibraryItem[], next: readonly LibraryItem[]): LibraryWritePlan | null => {
+  const baseById = new Map(base.map((item) => [item.id, item]));
+  const now = Date.now();
+  const seen = new Set<string>();
+  const changed = new Set<string>();
+  const items: LibraryItem[] = [];
+  for (const candidate of next) {
+    if (!candidate || typeof candidate !== 'object') continue;
+    const id = (candidate as { id?: unknown }).id;
+    if (typeof id !== 'string' || !id || seen.has(id)) return null;
+    seen.add(id);
+    const prior = baseById.get(id);
+    if (prior === candidate) {
+      items.push(candidate);
+      continue;
+    }
+    items.push(normalizeLibraryRecord(candidate as unknown as Record<string, unknown>, id, now, prior));
+    changed.add(id);
+  }
+  // Checked on stand-ins: the records read are shared with whoever read them.
+  const nodes = items.map(({ id, parentId, type }) => ({ id, parentId, type }));
+  rerootUnreachableItems(nodes);
+  nodes.forEach((node, index) => {
+    const item = items[index]!;
+    if (node.parentId === item.parentId) return;
+    items[index] = { ...item, parentId: node.parentId };
+    changed.add(item.id);
+  });
+  return {
+    items,
+    put: items.filter((item) => changed.has(item.id)),
+    remove: base.filter((item) => !seen.has(item.id)).map((item) => item.id),
+  };
 };
 
 const safeParse = (raw: string | null): LibraryItem[] => {
@@ -657,39 +734,139 @@ const openLibraryDb = (): Promise<IDBDatabase> =>
     request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB'));
   });
 
-const loadFromIndexedDb = async (): Promise<LibraryItem[]> => {
+/**
+ * A write that found the stored library changed since it was read.
+ *
+ * Every tab has its own task queue, so two tabs could each read the library,
+ * each add a game, and each write back what they had read plus their own game:
+ * the second write replaced the first. Reproduced with two tabs saving at once
+ * -- two "Saved to Library." toasts, one game after a reload. Web Locks keep
+ * tabs from interleaving where the browser has them; this catches the rest, and
+ * the operation runs again against what the other tab wrote.
+ */
+class LibraryConflictError extends Error {
+  constructor() {
+    super('The library was changed in another tab. Try again.');
+    this.name = 'LibraryConflictError';
+  }
+}
+
+/** A library as read, with where it came from and the revision it was read at. */
+type LibrarySnapshot = { items: LibraryItem[]; source: 'idb' | 'fallback'; token: string };
+
+const readMetaValue = (meta: IDBObjectStore, key: string): Promise<unknown> =>
+  requestToPromise(meta.get(key)).then((record) => (record as { value?: unknown } | undefined)?.value);
+
+/**
+ * The stored library's revision. `updatedAt` is part of the token because a
+ * tab still running an older build writes that and nothing else.
+ */
+const readStoredRevision = async (meta: IDBObjectStore): Promise<{ revision: number; token: string }> => {
+  const [revision, updatedAt] = await Promise.all([readMetaValue(meta, 'revision'), readMetaValue(meta, 'updatedAt')]);
+  const current = typeof revision === 'number' && Number.isFinite(revision) ? revision : 0;
+  return { revision: current, token: `${current}:${typeof updatedAt === 'number' ? updatedAt : 0}` };
+};
+
+/**
+ * The library as this tab last read or wrote it, and the revision it is at.
+ *
+ * A change read and normalized the whole store before applying itself -- every
+ * game's SGF parsed again to star one of them. While the stored revision is
+ * still this one, nothing has written since, and the copy is the library.
+ */
+let idbCache: { items: LibraryItem[]; token: string } | null = null;
+
+const loadFromIndexedDb = async (): Promise<{ items: LibraryItem[]; token: string }> => {
   const db = await openLibraryDb();
   try {
-    const tx = db.transaction(ITEM_STORE, 'readonly');
-    const result = await requestToPromise(tx.objectStore(ITEM_STORE).getAll());
-    return normalizeLibraryItems(result);
+    if (idbCache) {
+      const { token } = await readStoredRevision(db.transaction(META_STORE, 'readonly').objectStore(META_STORE));
+      if (token === idbCache.token) return idbCache;
+    }
+    const tx = db.transaction([ITEM_STORE, META_STORE], 'readonly');
+    const [records, { token }] = await Promise.all([
+      requestToPromise(tx.objectStore(ITEM_STORE).getAll()),
+      readStoredRevision(tx.objectStore(META_STORE)),
+    ]);
+    idbCache = { items: normalizeLibraryItems(records), token };
+    return idbCache;
   } finally {
     db.close();
   }
 };
 
-const saveToIndexedDb = async (items: LibraryItem[], alreadyNormalized = false): Promise<void> => {
+/**
+ * Writes already-normalized items as the stored library. Given `changes`, only
+ * those records are put and deleted; otherwise the store is replaced. Given
+ * the token the library was read at, only if nothing wrote since: the check
+ * and the write share one transaction, which the database runs alone against
+ * any other tab's.
+ */
+const saveToIndexedDb = async (
+  items: LibraryItem[],
+  expectedToken: string | null = null,
+  changes?: { put: LibraryItem[]; remove: string[] }
+): Promise<string> => {
   const db = await openLibraryDb();
   try {
     const tx = db.transaction([ITEM_STORE, META_STORE], 'readwrite');
+    const done = transactionDone(tx);
+    // Handled here as well, so an abort before the final await is not unhandled.
+    done.catch(() => undefined);
+    const meta = tx.objectStore(META_STORE);
+    const stored = await readStoredRevision(meta);
+    if (expectedToken !== null && stored.token !== expectedToken) {
+      tx.abort();
+      throw new LibraryConflictError();
+    }
     const store = tx.objectStore(ITEM_STORE);
-    store.clear();
-    for (const item of alreadyNormalized ? items : normalizeLibraryItems(items)) store.put(item);
-    tx.objectStore(META_STORE).put({ key: 'updatedAt', value: Date.now() });
-    tx.objectStore(META_STORE).put({ key: 'schemaVersion', value: DB_VERSION });
-    await transactionDone(tx);
+    if (changes) {
+      for (const id of changes.remove) store.delete(id);
+      for (const item of changes.put) store.put(item);
+    } else {
+      store.clear();
+      for (const item of items) store.put(item);
+    }
+    const updatedAt = Date.now();
+    const revision = stored.revision + 1;
+    meta.put({ key: 'revision', value: revision });
+    meta.put({ key: 'updatedAt', value: updatedAt });
+    meta.put({ key: 'schemaVersion', value: DB_VERSION });
+    await done;
+    const token = `${revision}:${updatedAt}`;
+    idbCache = { items, token };
     setPreloadedVersion(PRELOADED_VERSION);
+    return token;
   } finally {
     db.close();
   }
 };
 
+/**
+ * Bumped by every fallback write, so a tab can tell that its memory copy is
+ * out of date and a write can tell that another tab wrote first.
+ */
+const readFallbackRevision = (): string => readLocalStorage(FALLBACK_REVISION_KEY) ?? '';
+
+const rememberItems = (items: LibraryItem[]): void => {
+  memoryItems = items;
+  memoryRevision = readFallbackRevision();
+};
+
 const loadFallbackLibrary = (): LibraryItem[] => {
-  if (memoryItems) return memoryItems;
+  const revision = readFallbackRevision();
+  // Another tab may have written the fallback since this one read it. With no
+  // stored copy there is nothing newer to read, and memory stays: where storage
+  // is off, memory is the whole library.
+  if (memoryItems && (memoryRevision === revision || readLocalStorage(LEGACY_STORAGE_KEY) === null)) {
+    memoryRevision = revision;
+    return memoryItems;
+  }
   // Use the same version check as IndexedDB, including on the first load.
   // Saving records initialization only after the library is persisted.
   const ensured = ensurePreloadedLibrary(safeParse(readLocalStorage(LEGACY_STORAGE_KEY)));
   memoryItems = ensured.items;
+  memoryRevision = revision;
   return memoryItems;
 };
 
@@ -703,11 +880,21 @@ const loadFallbackLibrary = (): LibraryItem[] => {
  * right answer there. A store that exists and *refuses* the write is out of
  * room. Inside a browser, absent means site data is switched off, and the
  * caller treats that as the failure it is; see `saveLibrarySnapshot`.
+ *
+ * Given the revision the library was read at, a write that another tab has
+ * overtaken is refused rather than written over it.
  */
-const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-storage' => {
-  memoryItems = normalizeLibraryItems(items);
+const saveFallbackLibrary = (
+  items: LibraryItem[],
+  expectedRevision: string | null = null
+): 'saved' | 'rejected' | 'no-storage' => {
+  if (expectedRevision !== null && readFallbackRevision() !== expectedRevision) throw new LibraryConflictError();
+  // A refused write still leaves memory as the newest copy this tab has.
+  rememberItems(items);
   if (!getLocalStorage()) return 'no-storage';
-  if (!writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems))) return 'rejected';
+  if (!writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(items))) return 'rejected';
+  writeLocalStorage(FALLBACK_REVISION_KEY, String((Number.parseInt(memoryRevision ?? '', 10) || 0) + 1));
+  memoryRevision = readFallbackRevision();
   setPreloadedVersion(PRELOADED_VERSION);
   return 'saved';
 };
@@ -778,13 +965,66 @@ export const mergeLibrariesByNewest = (stored: LibraryItem[], fallback: LibraryI
   return normalizeLibraryItems([...byId.values()]);
 };
 
-const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
+type LibraryChangeListener = () => void;
+const changeListeners = new Set<LibraryChangeListener>();
+let changeChannel: BroadcastChannel | null = null;
+
+/**
+ * One channel per tab, for sending and hearing alike: a channel never hears
+ * its own messages, so a tab is told only about other tabs' writes.
+ */
+const getChangeChannel = (): BroadcastChannel | null => {
+  if (changeChannel) return changeChannel;
+  try {
+    if (typeof BroadcastChannel !== 'function') return null;
+    const channel = new BroadcastChannel(LIBRARY_CHANNEL_NAME);
+    channel.onmessage = () => {
+      for (const listener of [...changeListeners]) listener();
+    };
+    // Node keeps a process alive while a channel is open; browsers have no unref.
+    (channel as unknown as { unref?: () => void }).unref?.();
+    changeChannel = channel;
+    return channel;
+  } catch {
+    return null;
+  }
+};
+
+/** Tells other tabs to read the library again. */
+const notifyLibraryChanged = (): void => {
+  try {
+    getChangeChannel()?.postMessage({ type: 'library-changed' });
+  } catch {
+    // Other tabs only miss a refresh; their next write still reads fresh.
+  }
+};
+
+/**
+ * Calls `listener` whenever another tab of the app writes the library. Returns
+ * the unsubscribe. Where BroadcastChannel is missing it never fires, and each
+ * tab still reads the stored library before its own next change.
+ */
+export const subscribeToLibraryChanges = (listener: LibraryChangeListener): (() => void) => {
+  changeListeners.add(listener);
+  getChangeChannel();
+  return () => {
+    changeListeners.delete(listener);
+  };
+};
+
+const fallbackSnapshot = (): LibrarySnapshot => {
+  const items = loadFallbackLibrary();
+  return { items, source: 'fallback', token: readFallbackRevision() };
+};
+
+const loadLibrarySnapshot = async (): Promise<LibrarySnapshot> => {
   if (!getIndexedDB()) {
-    return loadFallbackLibrary();
+    return fallbackSnapshot();
   }
 
   try {
-    let items = await loadFromIndexedDb();
+    const loaded = await loadFromIndexedDb();
+    let items = loaded.items;
     idbLoadFailed = false;
     // The database is back, and the fallback holds work it never saw. Merge
     // rather than replace: during an outage the fallback is whatever could be
@@ -794,11 +1034,12 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // failure worth having when the alternative is losing one for good.
     if (hasUnflushedFallback()) {
       const merged = mergeLibrariesByNewest(items, loadFallbackLibrary());
-      await saveToIndexedDb(merged);
-      memoryItems = merged;
+      const token = await saveToIndexedDb(merged, loaded.token);
+      rememberItems(merged);
       setFallbackUnflushed(false);
       markMigrated();
-      return merged;
+      notifyLibraryChanged();
+      return { items: merged, source: 'idb', token };
     }
     const legacyRaw = readLocalStorage(LEGACY_STORAGE_KEY);
     const hasMigrated = readLocalStorage(MIGRATION_FLAG_KEY) === 'true';
@@ -807,9 +1048,10 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
       items = safeParse(legacyRaw);
       const ensured = ensurePreloadedLibrary(items);
       items = ensured.items;
-      await saveToIndexedDb(items);
+      const token = await saveToIndexedDb(items, loaded.token);
       writeLocalStorage(MIGRATION_FLAG_KEY, 'true');
-      return items;
+      notifyLibraryChanged();
+      return { items, source: 'idb', token };
     }
 
     // Empty is also a valid saved library. Let the version check distinguish
@@ -817,10 +1059,14 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     const ensured = ensurePreloadedLibrary(items);
     if (ensured.changed) {
       items = ensured.items;
-      await saveToIndexedDb(items);
+      const token = await saveToIndexedDb(items, loaded.token);
+      notifyLibraryChanged();
+      return { items, source: 'idb', token };
     }
-    return items;
+    return { items, source: 'idb', token: loaded.token };
   } catch (error) {
+    // Another tab wrote first; the caller reads again. Not a failed read.
+    if (error instanceof LibraryConflictError) throw error;
     idbLoadFailed = true;
     // A read that failed is not an empty library. Falling back silently put
     // "Library is empty" on screen over games that were still in the database
@@ -831,8 +1077,8 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // showing. An empty one says nothing, so say that instead of inventing an
     // answer: every caller already handles this rejection, and the panel has a
     // storage-error state waiting for it.
-    const fallback = loadFallbackLibrary();
-    if (fallback.length > 0) return fallback;
+    const fallback = fallbackSnapshot();
+    if (fallback.items.length > 0) return fallback;
     const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
     throw new Error(`${LIBRARY_READ_FAILED_MESSAGE}${reason}`);
   }
@@ -869,72 +1115,154 @@ export const LIBRARY_READ_FAILED_MESSAGE =
  * browser there is nobody to tell and memory-only is the intended mode, so the
  * distinction is `window`, not the store.
  */
-const persistFallback = (items: LibraryItem[]): void => {
-  const outcome = saveFallbackLibrary(items);
+const persistFallback = (items: LibraryItem[], expectedRevision: string | null = null): void => {
+  const outcome = saveFallbackLibrary(items, expectedRevision);
   const inBrowser = typeof window !== 'undefined';
   if (outcome === 'rejected' || (outcome === 'no-storage' && inBrowser)) {
     throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
   }
 };
 
-/** @see the note above `persistFallback` for why a fallback can reject. */
-const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
-  const normalized = normalizeLibraryItems(items);
+/**
+ * A fallback write, always marked for reconciliation, and marked before it is
+ * made.
+ *
+ * Only a write that went to the fallback because an IndexedDB write *failed*
+ * used to be marked. One made while the browser offered no IndexedDB at all --
+ * for a moment, or until the next reload -- was not, so the database that came
+ * back afterwards was read over it and the game saved in between was gone.
+ * Where IndexedDB never appears the mark is simply never read.
+ *
+ * Marked first, so a write that landed is never left unmarked by a failure to
+ * write the mark; a write that did not land puts the mark back as it was.
+ */
+const persistPendingFallback = (items: LibraryItem[], expectedRevision: string | null = null): void => {
+  const wasPending = hasUnflushedFallback();
+  setFallbackUnflushed(true);
+  try {
+    persistFallback(items, expectedRevision);
+  } catch (error) {
+    if (!wasPending) setFallbackUnflushed(false);
+    throw error;
+  }
+};
+
+/**
+ * @see the note above `persistFallback` for why a fallback can reject.
+ *
+ * `base` is the snapshot a read-modify-write started from. The write is
+ * refused with a `LibraryConflictError` if another tab changed the library
+ * since, so the caller can apply its change again to what that tab wrote.
+ */
+const saveLibrarySnapshot = async (items: LibraryItem[], base: LibrarySnapshot | null = null): Promise<void> => {
+  const plan = base ? planLibraryWrite(base.items, items) : null;
+  const normalized = plan?.items ?? normalizeLibraryItems(items);
   const hasIndexedDb = !!getIndexedDB();
   if (!hasIndexedDb || idbLoadFailed) {
-    persistFallback(normalized);
-    // Only a database that exists can come back and read over this. Where
-    // there is none, the fallback is simply the store.
-    if (hasIndexedDb) setFallbackUnflushed(true);
+    persistPendingFallback(normalized, base?.source === 'fallback' ? base.token : null);
+    notifyLibraryChanged();
     return;
   }
+  // Only the records that changed, when the base is the stored library.
+  const changes = plan && base?.source === 'idb' ? { put: plan.put, remove: plan.remove } : undefined;
+  if (changes && changes.put.length === 0 && changes.remove.length === 0) return;
   try {
-    // Normalised just above; a second pass re-read every game's metadata.
-    await saveToIndexedDb(normalized, true);
-    memoryItems = normalized;
+    await saveToIndexedDb(normalized, base?.source === 'idb' ? base.token : null, changes);
+    rememberItems(normalized);
     if (hasUnflushedFallback()) setFallbackUnflushed(false);
     markMigrated();
+  } catch (error) {
+    if (error instanceof LibraryConflictError) throw error;
+    persistPendingFallback(normalized);
+  }
+  notifyLibraryChanged();
+};
+
+const getLockManager = (): LockManager | null => {
+  try {
+    const locks = (globalThis.navigator as Navigator | undefined)?.locks;
+    return locks && typeof locks.request === 'function' ? locks : null;
   } catch {
-    persistFallback(normalized);
-    setFallbackUnflushed(true);
+    return null;
+  }
+};
+
+/**
+ * Holds the library across every tab of the app for one task, where the
+ * browser has Web Locks. A browser without them, or one that refuses the
+ * request, still has the revision check in each write to fall back on.
+ */
+const withLibraryLock = async <T>(task: () => Promise<T>): Promise<T> => {
+  const locks = getLockManager();
+  if (!locks) return task();
+  let started = false;
+  try {
+    return (await locks.request(LIBRARY_LOCK_NAME, () => {
+      started = true;
+      return task();
+    })) as T;
+  } catch (error) {
+    if (started) throw error;
+    return task();
+  }
+};
+
+/** A task that lost a race with another tab starts again from a fresh read. */
+const MAX_CONFLICT_RETRIES = 8;
+const retryOnConflict = async <T>(task: () => Promise<T>): Promise<T> => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await task();
+    } catch (error) {
+      if (!(error instanceof LibraryConflictError) || attempt >= MAX_CONFLICT_RETRIES) throw error;
+    }
   }
 };
 
 const runLibraryTask = createSerialTaskQueue();
+/** In request order within this tab, one tab at a time across tabs. */
+const runExclusiveLibraryTask = <T>(task: () => Promise<T>): Promise<T> =>
+  runLibraryTask(() => withLibraryLock(() => retryOnConflict(task)));
 
 let gameSaveRequestId = 0;
 /** Order game-save UI notifications by request, independent of storage latency. */
 export const nextLibraryGameSaveRequestId = (): number => ++gameSaveRequestId;
 
-export const loadLibrary = (): Promise<LibraryItem[]> => runLibraryTask(loadLibrarySnapshot);
+export const loadLibrary = (): Promise<LibraryItem[]> =>
+  runExclusiveLibraryTask(async () => (await loadLibrarySnapshot()).items);
 
 export const saveLibrary = (items: LibraryItem[]): Promise<void> =>
-  runLibraryTask(() => saveLibrarySnapshot(items));
+  runExclusiveLibraryTask(() => saveLibrarySnapshot(items));
 
-/** Keep a read/modify/write operation together, in the order it was requested. */
+/**
+ * Keep a read/modify/write operation together, in the order it was requested.
+ * `update` may run more than once if another tab writes in between, so it must
+ * not have side effects beyond its result.
+ */
 export const updateStoredLibrary = <T>(
   update: (items: LibraryItem[]) => { items: LibraryItem[]; result: T }
-): Promise<T> => runLibraryTask(async () => {
+): Promise<T> => runExclusiveLibraryTask(async () => {
   const loaded = await loadLibrarySnapshot();
-  const mutation = update(loaded);
+  const mutation = update(loaded.items);
   // An update that changed nothing need not rewrite every record. Opening the
   // Library is one: it cleared and re-put the whole store each time -- 2.6s
   // to rows at 3,000 games. A fallback-only library still writes, since that
   // write is what keeps the fallback current.
-  const unchanged = mutation.items === loaded && !!getIndexedDB() && !idbLoadFailed;
-  if (!unchanged) await saveLibrarySnapshot(mutation.items);
+  const unchanged = mutation.items === loaded.items && loaded.source === 'idb';
+  if (!unchanged) await saveLibrarySnapshot(mutation.items, loaded);
   return mutation.result;
 });
 
 /** One panel's pending edits, acknowledged only after their write succeeds. */
 export const createLibraryEditSaver = () => {
   let savedRevision = 0;
-  return (batches: LibraryEditBatch[]): Promise<{ items: LibraryItem[]; revision: number }> => runLibraryTask(async () => {
-    let items = await loadLibrarySnapshot();
+  return (batches: LibraryEditBatch[]): Promise<{ items: LibraryItem[]; revision: number }> => runExclusiveLibraryTask(async () => {
+    const loaded = await loadLibrarySnapshot();
+    let items = loaded.items;
     const pending = batches.filter(batch => batch.revision > savedRevision);
     for (const batch of pending) items = applyLibraryChanges(items, batch.changes);
     if (pending.length) {
-      await saveLibrarySnapshot(items);
+      await saveLibrarySnapshot(items, loaded);
       // A later batch can contain earlier in-flight edits. Do not replay those
       // over another caller's intervening save once they have succeeded.
       savedRevision = pending[pending.length - 1].revision;
@@ -1109,73 +1437,87 @@ const libraryChildrenByParent = (items: readonly LibraryItem[]): Map<string, Lib
   return children;
 };
 
+/**
+ * Shared work for duplicating one or many items: the child index and each
+ * folder's taken names are built once per call, not once per selected item.
+ * Bulk Duplicate ran a whole single duplication per selection against an
+ * array that grew with every copy -- scanning, filtering and re-indexing the
+ * collection each time.
+ */
+const createLibraryDuplicator = (items: readonly LibraryItem[], timestamp: number) => {
+  const children = libraryChildrenByParent(items);
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      const siblings = parentId === null ? items.filter((entry) => !entry.parentId) : children.get(parentId) ?? [];
+      for (const item of siblings) pool.names.add(item.name.toLowerCase());
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+
+  /** Copies of `source` and everything inside it, the copy of `source` first. */
+  return (source: LibraryItem): { copies: LibraryItem[]; ids: string[] } => {
+    const copies: LibraryItem[] = [];
+    const ids: string[] = [];
+    const idMap = new Map<string, string>();
+
+    const copyOne = (item: LibraryItem, parentId: string | null, name: string): LibraryItem => {
+      const newId = createId();
+      idMap.set(item.id, newId);
+      ids.push(newId);
+      if (isLibraryFile(item)) {
+        // A saved record also contains tags, favorites, and metadata that may
+        // not be present in its SGF. Preserve it without reparsing unchanged SGF.
+        return {
+          ...item,
+          id: newId,
+          name,
+          parentId,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          metadata: { ...item.metadata },
+          ...(item.tags ? { tags: [...item.tags] } : {}),
+        };
+      }
+      return {
+        id: newId,
+        name,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        parentId,
+        type: 'folder',
+      };
+    };
+
+    const parentId = source.parentId ?? null;
+    copies.push(copyOne(source, parentId, reserveLibraryName(createCopyName(source.name), poolFor(parentId))));
+
+    if (source.type === 'folder') {
+      const pending = [...(children.get(source.id) ?? [])].reverse();
+      while (pending.length > 0) {
+        const item = pending.pop()!;
+        if (idMap.has(item.id)) continue;
+        const copiedParentId = item.parentId ? idMap.get(item.parentId) : undefined;
+        if (!copiedParentId) continue;
+        copies.push(copyOne(item, copiedParentId, item.name));
+        const descendants = children.get(item.id) ?? [];
+        for (let i = descendants.length - 1; i >= 0; i--) {
+          pending.push(descendants[i]!);
+        }
+      }
+    }
+    return { copies, ids };
+  };
+};
+
 export const duplicateLibraryItem = (
   items: LibraryItem[],
   id: string,
   timestamp = Date.now()
-): DuplicateLibraryItemResult => {
-  const source = items.find((item) => item.id === id);
-  if (!source) return { items, duplicated: null, duplicatedIds: [] };
-
-  const copies: LibraryItem[] = [];
-  const duplicatedIds: string[] = [];
-  const idMap = new Map<string, string>();
-  const siblings = items.filter((item) => (item.parentId ?? null) === (source.parentId ?? null) && item.id !== source.id);
-  const rootCopyName = uniqueLibraryName(createCopyName(source.name), siblings);
-
-  const copyOne = (item: LibraryItem, parentId: string | null, name: string): LibraryItem => {
-    const newId = createId();
-    idMap.set(item.id, newId);
-    duplicatedIds.push(newId);
-    if (isLibraryFile(item)) {
-      // A saved record also contains tags, favorites, and metadata that may
-      // not be present in its SGF. Preserve it without reparsing unchanged SGF.
-      return {
-        ...item,
-        id: newId,
-        name,
-        parentId,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        metadata: { ...item.metadata },
-        ...(item.tags ? { tags: [...item.tags] } : {}),
-      };
-    }
-    return {
-      id: newId,
-      name,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      parentId,
-      type: 'folder',
-    };
-  };
-
-  const rootCopy = copyOne(source, source.parentId ?? null, rootCopyName);
-  copies.push(rootCopy);
-
-  if (source.type === 'folder') {
-    const children = libraryChildrenByParent(items);
-    const pending = [...(children.get(source.id) ?? [])].reverse();
-    while (pending.length > 0) {
-      const item = pending.pop()!;
-      if (idMap.has(item.id)) continue;
-      const copiedParentId = item.parentId ? idMap.get(item.parentId) : undefined;
-      if (!copiedParentId) continue;
-      copies.push(copyOne(item, copiedParentId, item.name));
-      const descendants = children.get(item.id) ?? [];
-      for (let i = descendants.length - 1; i >= 0; i--) {
-        pending.push(descendants[i]!);
-      }
-    }
-  }
-
-  return {
-    items: [...copies, ...items],
-    duplicated: rootCopy,
-    duplicatedIds,
-  };
-};
+): DuplicateLibraryItemResult => duplicateLibraryItems(items, [id], timestamp);
 
 export const duplicateLibraryItems = (
   items: LibraryItem[],
@@ -1184,26 +1526,40 @@ export const duplicateLibraryItems = (
 ): DuplicateLibraryItemResult => {
   const selectedIds = Array.from(ids);
   const selectedIdSet = new Set(selectedIds);
-  const parentById = new Map(items.map((item) => [item.id, item.parentId ?? null]));
+  const byId = new Map(items.map((item) => [item.id, item]));
   const rootSelectedIds = selectedIds.filter((id) => {
-    let parentId = parentById.get(id) ?? null;
-    while (parentId) {
+    let parentId = byId.get(id)?.parentId ?? null;
+    // Bounded, so a corrupt parent cycle cannot hang the duplicate.
+    // A cycle back to the item itself is not a selected ancestor.
+    for (let steps = 0; parentId && parentId !== id && steps < items.length; steps++) {
       if (selectedIdSet.has(parentId)) return false;
-      parentId = parentById.get(parentId) ?? null;
+      parentId = byId.get(parentId)?.parentId ?? null;
     }
     return true;
   });
 
-  let nextItems = items;
+  const duplicate = createLibraryDuplicator(items, timestamp);
+  const groups: LibraryItem[][] = [];
   const duplicatedIds: string[] = [];
-  let firstDuplicated: LibraryItem | null = null;
+  const copiedIds = new Set<string>();
   for (const id of rootSelectedIds) {
-    const result = duplicateLibraryItem(nextItems, id, timestamp);
-    nextItems = result.items;
-    if (!firstDuplicated) firstDuplicated = result.duplicated;
-    duplicatedIds.push(...result.duplicatedIds);
+    const source = byId.get(id);
+    if (!source || copiedIds.has(id)) continue;
+    copiedIds.add(id);
+    const { copies, ids: copyIds } = duplicate(source);
+    groups.push(copies);
+    duplicatedIds.push(...copyIds);
   }
-  return { items: nextItems, duplicated: firstDuplicated, duplicatedIds };
+  if (groups.length === 0) return { items, duplicated: null, duplicatedIds: [] };
+  // Each selection's copies ahead of the previous one's, as when they were
+  // duplicated one at a time, and all of them ahead of the library.
+  const copies: LibraryItem[] = [];
+  for (let i = groups.length - 1; i >= 0; i--) copies.push(...groups[i]!);
+  return {
+    items: [...copies, ...items],
+    duplicated: groups[0]![0]!,
+    duplicatedIds,
+  };
 };
 
 const isLibraryFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
@@ -1368,17 +1724,257 @@ export const createLibraryBackup = (items: LibraryItem[]): string => {
   return JSON.stringify(backup, null, 2);
 };
 
-export const parseLibraryBackup = (raw: string): LibraryItem[] => {
-  const parsed = JSON.parse(raw) as unknown;
-  if (Array.isArray(parsed)) return normalizeLibraryItems(parsed);
-  if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
-    return normalizeLibraryItems((parsed as { items: unknown }).items);
-  }
-  throw new Error('Invalid library backup');
+/**
+ * The largest backup file read. The app's own backup is indented JSON of every
+ * game, a few KB each, so this holds tens of thousands of games; the item cap
+ * below is what bounds the work after parsing.
+ */
+export const MAX_LIBRARY_BACKUP_BYTES = 100 * 1024 * 1024;
+export const MAX_LIBRARY_BACKUP_LABEL = '100 MB';
+export const MAX_LIBRARY_BACKUP_ITEMS = 50_000;
+const MAX_LIBRARY_BACKUP_NAME_LENGTH = 256;
+/** Backup format versions this build can read. `createLibraryBackup` writes the last. */
+const LIBRARY_BACKUP_VERSIONS: ReadonlySet<unknown> = new Set([1, 2]);
+
+export const LIBRARY_BACKUP_NOT_RECOGNIZED_MESSAGE = 'This file is not a Web KaTrain library backup.';
+
+export type LibraryBackupReport = {
+  items: LibraryItem[];
+  /** Records left out because they could not be used: not a game or folder, or a game without its SGF. */
+  rejected: number;
+  /** Records kept with a fix: a new id, a missing name or date, a name cut short, or a missing parent. */
+  repaired: number;
 };
+
+/**
+ * The records inside a backup, if it is one.
+ *
+ * Any array, and any object with an `items` array, used to be taken as a
+ * backup, so a stray JSON file replaced the library with whatever objects it
+ * held -- each one read as an empty folder. Accepted now: the app's own backup
+ * (`app: 'web-katrain'` and a known version), and a bare array of records, which
+ * is how the library itself is kept in localStorage and what a copy of it holds.
+ */
+const libraryBackupRecords = (parsed: unknown): unknown[] => {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === 'object') {
+    const backup = parsed as { app?: unknown; version?: unknown; items?: unknown };
+    if (backup.app === 'web-katrain' && Array.isArray(backup.items)) {
+      if (LIBRARY_BACKUP_VERSIONS.has(backup.version)) return backup.items;
+      if (typeof backup.version === 'number' && backup.version > 2) {
+        throw new Error('This backup was made by a newer version of Web KaTrain.');
+      }
+    }
+  }
+  throw new Error(LIBRARY_BACKUP_NOT_RECOGNIZED_MESSAGE);
+};
+
+/**
+ * A record worth keeping: a folder, or a game with its SGF as text. Game size
+ * is not held to the import limit: a game edited in the app can outgrow it,
+ * and the backup as a whole is already bounded.
+ */
+const isUsableBackupRecord = (record: unknown): record is Record<string, unknown> => {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+  const raw = record as Record<string, unknown>;
+  if (raw.type === 'folder') return true;
+  if (raw.type !== 'file' && raw.type !== undefined) return false;
+  return typeof raw.sgf === 'string';
+};
+
+const backupRecordWasRepaired = (raw: Record<string, unknown>, item: LibraryItem): boolean =>
+  raw.id !== item.id
+  || raw.type !== item.type
+  || normalizeParentId(raw.parentId) !== item.parentId
+  || raw.createdAt !== item.createdAt
+  || raw.updatedAt !== item.updatedAt
+  || typeof raw.name !== 'string'
+  || raw.name.trim() !== item.name;
+
+/**
+ * Reads a backup file's text, and says what had to be left out or fixed, so
+ * that can be put to the reader before anything is replaced.
+ */
+export const readLibraryBackup = (raw: string): LibraryBackupReport => {
+  if (raw.length > MAX_LIBRARY_BACKUP_BYTES) {
+    throw new Error(`Library backups are limited to ${MAX_LIBRARY_BACKUP_LABEL}.`);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(LIBRARY_BACKUP_NOT_RECOGNIZED_MESSAGE);
+  }
+  const records = libraryBackupRecords(parsed);
+  if (records.length > MAX_LIBRARY_BACKUP_ITEMS) {
+    throw new Error(`Library backups are limited to ${MAX_LIBRARY_BACKUP_ITEMS.toLocaleString('en-US')} items.`);
+  }
+  const originals: Record<string, unknown>[] = [];
+  const accepted: Record<string, unknown>[] = [];
+  for (const record of records) {
+    if (!isUsableBackupRecord(record)) continue;
+    originals.push(record);
+    const name = typeof record.name === 'string' ? Array.from(record.name) : null;
+    accepted.push(name && name.length > MAX_LIBRARY_BACKUP_NAME_LENGTH
+      ? { ...record, name: name.slice(0, MAX_LIBRARY_BACKUP_NAME_LENGTH).join('') }
+      : record);
+  }
+  if (records.length > 0 && accepted.length === 0) {
+    throw new Error('None of the items in this backup could be read.');
+  }
+  // One normalized item per accepted record, in order.
+  const items = normalizeLibraryItems(accepted);
+  let repaired = 0;
+  for (let i = 0; i < items.length; i++) {
+    if (backupRecordWasRepaired(originals[i]!, items[i]!)) repaired++;
+  }
+  return { items, rejected: records.length - accepted.length, repaired };
+};
+
+export const parseLibraryBackup = (raw: string): LibraryItem[] => readLibraryBackup(raw).items;
 
 export const restoreLibrary = async (raw: string): Promise<LibraryItem[]> => {
   const items = parseLibraryBackup(raw);
   await saveLibrary(items);
   return items;
+};
+
+export type LibraryBackupMergeResult = {
+  items: LibraryItem[];
+  /** Items the backup added, including any kept alongside a changed game. */
+  added: number;
+  /** Items skipped because the Library already has them. */
+  alreadyPresent: number;
+  /** Games whose id the Library already uses for different content, added under a new id. */
+  keptBoth: number;
+};
+
+/**
+ * Adds to the Library what a backup has and the Library does not.
+ *
+ * Restore could only replace, so bringing back one lost folder from last
+ * month's backup cost everything added since. Items are matched by id. A
+ * folder the Library already has takes in the backup's contents for it. A game
+ * the Library already has is skipped when its moves are the same; when they
+ * differ, both are kept and the backup's copy gets a new id and, beside the
+ * original, a numbered name.
+ */
+export const mergeLibraryBackup = (
+  current: readonly LibraryItem[],
+  incoming: readonly LibraryItem[]
+): LibraryBackupMergeResult => {
+  const currentById = new Map(current.map((item) => [item.id, item]));
+  const newIds = new Map<string, string>();
+  const additions: LibraryItem[] = [];
+  let alreadyPresent = 0;
+  let keptBoth = 0;
+  for (const item of incoming) {
+    const existing = currentById.get(item.id);
+    if (!existing) {
+      additions.push(item);
+      continue;
+    }
+    const sameItem = existing.type === item.type
+      && (item.type === 'folder' || (existing.type === 'file' && existing.sgf === item.sgf));
+    if (sameItem) {
+      alreadyPresent++;
+      continue;
+    }
+    const id = createId();
+    newIds.set(item.id, id);
+    additions.push({ ...item, id });
+    keptBoth++;
+  }
+
+  // Contents follow a folder that was given a new id. Names are kept unique
+  // among what is already in the folder an addition lands in.
+  const addedFolderIds = new Set(additions.filter((item) => item.type === 'folder').map((item) => item.id));
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      for (const item of current) {
+        if ((item.parentId ?? null) === parentId) pool.names.add(item.name.toLowerCase());
+      }
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+  const currentFolderIds = new Set(current.filter((item) => item.type === 'folder').map((item) => item.id));
+  const added = additions.map((item) => {
+    const renamedParent = item.parentId ? newIds.get(item.parentId) ?? item.parentId : null;
+    // A parent that is a folder in neither is no parent; the backup was already
+    // repaired on reading, and nothing in the Library points into the backup,
+    // so no cycle can form here.
+    const parentId = renamedParent && (addedFolderIds.has(renamedParent) || currentFolderIds.has(renamedParent))
+      ? renamedParent
+      : null;
+    const landsInLibrary = parentId === null || !addedFolderIds.has(parentId);
+    const name = landsInLibrary ? reserveLibraryName(item.name, poolFor(parentId)) : item.name;
+    return parentId === item.parentId && name === item.name ? item : { ...item, parentId, name };
+  });
+  return {
+    // The Library's own records stay the same objects, so saving writes only the additions.
+    items: [...added, ...current],
+    added: added.length,
+    alreadyPresent,
+    keptBoth,
+  };
+};
+
+/** Items a delete removed, each with the position it had, for Undo. */
+export type LibraryDeletion = { removed: Array<{ item: LibraryItem; index: number }> };
+
+/** What deleting `ids` removes -- each item and, for a folder, all it holds. */
+export const captureLibraryDeletion = (items: readonly LibraryItem[], ids: Iterable<string>): LibraryDeletion => {
+  const removedIds = getLibrarySelectionIds(items, ids);
+  const removed: LibraryDeletion['removed'] = [];
+  items.forEach((item, index) => {
+    if (removedIds.has(item.id)) removed.push({ item, index });
+  });
+  return { removed };
+};
+
+/**
+ * Puts deleted items back as they were, where they were. Anything already back
+ * is left alone, so undoing twice is harmless. An item whose folder has gone
+ * since returns to Root, and one whose name was taken since in its folder gets
+ * a numbered name; contents restored with their folder keep theirs.
+ */
+export const restoreLibraryDeletion = (items: LibraryItem[], deletion: LibraryDeletion): LibraryItem[] => {
+  const present = new Set(items.map((item) => item.id));
+  const back = deletion.removed.filter(({ item }) => !present.has(item.id)).sort((a, b) => a.index - b.index);
+  if (back.length === 0) return items;
+  const backIds = new Set(back.map(({ item }) => item.id));
+  const folderIds = new Set(
+    [...items, ...back.map(({ item }) => item)].filter((item) => item.type === 'folder').map((item) => item.id)
+  );
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      for (const item of items) {
+        if ((item.parentId ?? null) === parentId) pool.names.add(item.name.toLowerCase());
+      }
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+  const restored = back.map(({ item, index }) => {
+    const parentId = item.parentId && folderIds.has(item.parentId) ? item.parentId : null;
+    const name = parentId !== null && backIds.has(parentId) ? item.name : reserveLibraryName(item.name, poolFor(parentId));
+    return { item: parentId === item.parentId && name === item.name ? item : { ...item, parentId, name }, index };
+  });
+  // Each at its old index, as if the delete had never happened, when nothing
+  // else changed in between.
+  const result: LibraryItem[] = [];
+  let next = 0;
+  for (const item of items) {
+    while (next < restored.length && restored[next]!.index <= result.length) result.push(restored[next++]!.item);
+    result.push(item);
+  }
+  while (next < restored.length) result.push(restored[next++]!.item);
+  return result;
 };

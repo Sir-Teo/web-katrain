@@ -31,8 +31,11 @@ import {
   createLibraryEditSaver,
   createLibraryFolder,
   createLibraryItem,
+  captureLibraryDeletion,
   deleteLibraryItem,
   deleteLibraryItems,
+  restoreLibraryDeletion,
+  type LibraryDeletion,
   duplicateLibraryItem,
   duplicateLibraryItems,
   formatLibrarySize,
@@ -46,11 +49,17 @@ import {
   getUniqueLibraryItemName,
   libraryItemMatchesQuery,
   librarySgfDownloadFilename,
+  loadLibrary,
+  subscribeToLibraryChanges,
   updateStoredLibrary,
   nextLibraryGameSaveRequestId,
   moveLibraryItems,
   prependLibraryImports,
-  parseLibraryBackup,
+  readLibraryBackup,
+  mergeLibraryBackup,
+  MAX_LIBRARY_BACKUP_BYTES,
+  MAX_LIBRARY_BACKUP_LABEL,
+  type LibraryBackupReport,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
@@ -65,6 +74,13 @@ import {
   compareLibraryNames,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
+import {
+  LIBRARY_TREE_INDENT_LEVELS,
+  LIBRARY_TREE_MAX_DEPTH,
+  flattenLibraryTreeRows,
+  libraryTreeIndent,
+  type LibraryTreeRow,
+} from '../utils/libraryTreeRows';
 import { tagsFromResult } from '../utils/narrativeTags';
 
 /**
@@ -75,7 +91,14 @@ const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
 import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
-import { describeLibraryClear, describeLibraryReplacement } from '../utils/libraryPrompts';
+import {
+  describeLibraryBackupRepairs,
+  describeLibraryClear,
+  describeLibraryMerge,
+  describeLibraryReplacement,
+  describeLibraryRestoreChoice,
+  summarizeLibraryBackupRepairs,
+} from '../utils/libraryPrompts';
 import { countSgfGames } from '../utils/sgfScan';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
@@ -107,14 +130,24 @@ import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRe
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
+/** How long a delete can be undone. */
+const LIBRARY_UNDO_DELETE_MS = 10_000;
+const LIBRARY_UNDO_DELETE_NOTE = 'You can undo this for a few seconds.';
 
 type LibraryItemsState = { items: LibraryItem[]; revision: number; edits: LibraryEditBatch[] };
 type LibraryItemsAction =
   | { type: 'edit' | 'sync'; update: React.SetStateAction<LibraryItem[]> }
   | { type: 'saved'; items: LibraryItem[]; revision: number }
-  | { type: 'restore'; items: LibraryItem[] };
+  | { type: 'restore'; items: LibraryItem[] }
+  | { type: 'remote'; items: LibraryItem[] };
 const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction): LibraryItemsState => {
   if (action.type === 'restore') return { ...state, items: action.items, edits: [] };
+  // Another tab's write, read back. Edits still waiting for their own save stay
+  // on top of it, as they do when a save is acknowledged.
+  if (action.type === 'remote') {
+    const items = state.edits.reduce((current, batch) => applyLibraryChanges(current, batch.changes), action.items);
+    return { ...state, items };
+  }
   if (action.type === 'saved') {
     const edits = state.edits.filter(batch => batch.revision > action.revision);
     const items = edits.reduce((current, batch) => applyLibraryChanges(current, batch.changes), action.items);
@@ -167,6 +200,8 @@ type LibraryConfirmDialogState = {
   confirmLabel: string;
   danger?: boolean;
   onConfirm: () => void;
+  /** A second, non-destructive answer, shown between Cancel and the confirm button. */
+  secondary?: { label: string; onConfirm: () => void };
 };
 
 type LibraryContextMenuState = {
@@ -301,6 +336,10 @@ const LibraryConfirmDialog: React.FC<{
     dialog.onConfirm();
     onClose();
   };
+  const confirmSecondary = () => {
+    dialog.secondary?.onConfirm();
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -331,6 +370,11 @@ const LibraryConfirmDialog: React.FC<{
             <button type="button" className="panel-action-button" onClick={onClose} ref={cancelRef}>
               Cancel
             </button>
+            {dialog.secondary && (
+              <button type="button" className="panel-action-button active" onClick={confirmSecondary}>
+                {dialog.secondary.label}
+              </button>
+            )}
             <button
               type="button"
               className={['panel-action-button', dialog.danger ? 'danger' : 'active'].join(' ')}
@@ -568,6 +612,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     // Only local edits and Retry enqueue writes. Mirrors and callback changes
     // must not save old snapshots or cancel a pending acknowledgement.
   }, [itemsRevision, saveRetry, saveEdits]);
+
+  // Another tab saved. Read the library again, behind any write of this tab's
+  // already queued, so the panel does not keep showing -- and later build its
+  // edits on -- a library that no longer exists.
+  const [remoteChange, setRemoteChange] = useState(0);
+  useEffect(() => subscribeToLibraryChanges(() => setRemoteChange((count) => count + 1)), []);
+  useEffect(() => {
+    if (remoteChange === 0 || !didLoadLibraryRef.current) return;
+    let cancelled = false;
+    void loadLibrary()
+      .then((loaded) => {
+        if (cancelled) return;
+        dispatchItems({ type: 'remote', items: loaded });
+        saveCallbacksRef.current.onLibraryUpdated?.();
+      })
+      .catch(() => {
+        // A failed read here changes nothing; the next save reads again.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [remoteChange]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalFileUpdate) return;
@@ -817,26 +883,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const breadcrumbs = useMemo(() => {
     if (!activeFolderId) return [];
+    // By id, not a scan of the library per level: the trail can be deep.
     const trail: LibraryFolder[] = [];
-    let current: LibraryItem | undefined = items.find((item) => item.id === activeFolderId);
-    while (current && isFolder(current)) {
+    const seen = new Set<string>();
+    let current: LibraryItem | undefined = itemById.get(activeFolderId);
+    while (current && isFolder(current) && !seen.has(current.id)) {
+      seen.add(current.id);
       trail.push(current);
-      const parentId = current.parentId ?? null;
-      current = parentId ? items.find((item) => item.id === parentId) : undefined;
+      current = current.parentId ? itemById.get(current.parentId) : undefined;
     }
     return trail.reverse();
-  }, [activeFolderId, items]);
+  }, [activeFolderId, itemById]);
 
   const activeAncestorIds = useMemo(() => {
     if (!loadedFileId) return new Set<string>();
     const ancestors = new Set<string>();
-    let current = items.find((item) => item.id === loadedFileId);
-    while (current?.parentId) {
+    let current = itemById.get(loadedFileId);
+    while (current?.parentId && !ancestors.has(current.parentId)) {
       ancestors.add(current.parentId);
-      current = items.find((item) => item.id === current?.parentId);
+      current = itemById.get(current.parentId);
     }
     return ancestors;
-  }, [loadedFileId, items]);
+  }, [loadedFileId, itemById]);
 
   const childrenMap = useMemo(() => {
     const map = new Map<string | null, LibraryItem[]>();
@@ -1129,6 +1197,46 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast(`Synced ${games.length} OGS game${games.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
   };
 
+  /**
+   * A delete stays undoable for a few seconds. Deleting a folder takes
+   * everything in it, one tap after a confirmation that is easy to accept
+   * without reading, and there was no way back short of an old backup.
+   */
+  const [undoDeletion, setUndoDeletion] = useState<{
+    id: number;
+    message: string;
+    deletion: LibraryDeletion;
+    loadedFileId: string | null;
+  } | null>(null);
+  const undoDeletionIdRef = useRef(0);
+  useEffect(() => {
+    if (!undoDeletion) return;
+    const timer = window.setTimeout(() => {
+      setUndoDeletion((current) => (current?.id === undoDeletion.id ? null : current));
+    }, LIBRARY_UNDO_DELETE_MS);
+    return () => window.clearTimeout(timer);
+  }, [undoDeletion]);
+
+  const offerUndoDeletion = (deletion: LibraryDeletion, message: string, deletedLoadedFileId: string | null) => {
+    if (deletion.removed.length === 0) return;
+    undoDeletionIdRef.current += 1;
+    setUndoDeletion({ id: undoDeletionIdRef.current, message, deletion, loadedFileId: deletedLoadedFileId });
+  };
+
+  const handleUndoDeletion = () => {
+    if (!undoDeletion) return;
+    const { deletion, loadedFileId: deletedLoadedFileId } = undoDeletion;
+    setUndoDeletion(null);
+    setItems((prev) => restoreLibraryDeletion(prev, deletion));
+    // Reconnect the board to its game if nothing else was opened since.
+    if (deletedLoadedFileId && !loadedFileId) {
+      const restoredFile = deletion.removed.find(({ item }) => item.id === deletedLoadedFileId)?.item;
+      if (restoredFile) onLoadedFileChange?.(restoredFile.id, restoredFile.name);
+    }
+    const count = deletion.removed.length;
+    onToast(`Restored ${count} library item${count === 1 ? '' : 's'}.`, 'success');
+  };
+
   const handleClearLibrary = () => {
     setConfirmDialog({
       title: 'Clear Library',
@@ -1137,6 +1245,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       danger: true,
       onConfirm: () => {
         setItems([]);
+        setUndoDeletion(null);
         setSelectedIds(new Set());
         onLoadedFileChange?.(null);
         setCurrentFolderId(null);
@@ -1159,14 +1268,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       ? ` and its ${descendantCount} item${descendantCount === 1 ? '' : 's'}`
       : '';
     const message = isFolderItem
-      ? `Delete folder "${item.name}"${contentsLabel}? This cannot be undone.`
-      : `Delete "${item.name}" from Library? This cannot be undone.`;
+      ? `Delete folder "${item.name}"${contentsLabel}? ${LIBRARY_UNDO_DELETE_NOTE}`
+      : `Delete "${item.name}" from Library? ${LIBRARY_UNDO_DELETE_NOTE}`;
     setConfirmDialog({
       title: isFolderItem ? 'Delete Folder' : 'Delete Game',
       message,
       confirmLabel: 'Delete',
       danger: true,
       onConfirm: () => {
+        offerUndoDeletion(
+          captureLibraryDeletion(saveStateRef.current.items, [item.id]),
+          isFolderItem ? `Deleted folder "${item.name}"${contentsLabel}.` : `Deleted "${item.name}".`,
+          loadedFileId && affectedIds.has(loadedFileId) ? loadedFileId : null
+        );
         setItems((prev) => deleteLibraryItem(prev, item.id));
         if (loadedFileId && affectedIds.has(loadedFileId)) {
           onLoadedFileChange?.(null);
@@ -1247,7 +1361,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   /**
-   * Restoring a backup replaces the library; it does not merge into it.
+   * Restoring a backup either merges it into the library or replaces the
+   * library with it; the reader chooses.
    *
    * Clear Library asks first -- "Clear all 8 library items? This cannot be
    * undone." -- and restore, which destroys exactly as much, asked nothing.
@@ -1258,25 +1373,39 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    *
    * The file is read and parsed before asking, so the question can name both
    * numbers. Nothing is written until the answer is yes.
+   *
+   * Replace was the only answer, so bringing back one lost folder from an old
+   * backup cost everything added since. Merge adds only what the library does
+   * not already have, through the same edit path as any other change.
    */
   const handleRestoreBackup = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
-    let restored: LibraryItem[];
-    try {
-      restored = parseLibraryBackup(await file.text());
-    } catch {
-      onToast('Failed to restore library backup.', 'error');
-      if (backupInputRef.current) backupInputRef.current.value = '';
+    if (backupInputRef.current) backupInputRef.current.value = '';
+    // Checked before reading: text() holds the whole file in memory, and
+    // parsing holds it again.
+    if (file.size > MAX_LIBRARY_BACKUP_BYTES) {
+      onToast(`Failed to restore library backup. Library backups are limited to ${MAX_LIBRARY_BACKUP_LABEL}.`, 'error');
       return;
     }
-    if (backupInputRef.current) backupInputRef.current.value = '';
+    let report: LibraryBackupReport;
+    try {
+      report = readLibraryBackup(await file.text());
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? ` ${error.message}` : '';
+      onToast(`Failed to restore library backup.${reason}`, 'error');
+      return;
+    }
+    const restored = report.items;
+    const repairs = summarizeLibraryBackupRepairs(report);
 
     const applyRestore = async () => {
       try {
         await saveLibrary(restored);
         didLoadLibraryRef.current = true;
         dispatchItems({ type: 'restore', items: restored });
+        // An earlier delete's Undo would put its items into the restored library.
+        setUndoDeletion(null);
         pendingGameSaveRef.current = null;
         setLibraryStatus('ready');
         setLibraryError(null);
@@ -1284,10 +1413,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         setSelectedIds(new Set());
         onLoadedFileChange?.(null);
         setCurrentFolderId(null);
-        onToast(`Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.`, 'success');
+        onToast(
+          `Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.${repairs ? ` ${repairs}` : ''}`,
+          'success'
+        );
       } catch {
         onToast('Failed to restore library backup.', 'error');
       }
+    };
+
+    const applyMerge = () => {
+      // Against the latest items, not the ones this dialog opened over.
+      const merged = mergeLibraryBackup(saveStateRef.current.items, restored);
+      if (merged.added > 0) setItems(merged.items);
+      onToast(`${describeLibraryMerge(merged)}${repairs ? ` ${repairs}` : ''}`, merged.added > 0 ? 'success' : 'info');
     };
 
     // Nothing to lose, so nothing to ask about.
@@ -1295,12 +1434,22 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       await applyRestore();
       return;
     }
-    setConfirmDialog({
+    const repairsQuestion = describeLibraryBackupRepairs(report);
+    // An empty backup has nothing to merge; replacing with it is the only
+    // thing it can do.
+    setConfirmDialog(restored.length === 0 ? {
       title: 'Restore Backup',
-      message: describeLibraryReplacement(items.length, restored.length),
+      message: [describeLibraryReplacement(items.length, 0), repairsQuestion].filter(Boolean).join(' '),
       confirmLabel: 'Replace',
       danger: true,
       onConfirm: () => void applyRestore(),
+    } : {
+      title: 'Restore Backup',
+      message: [describeLibraryRestoreChoice(items.length, restored.length), repairsQuestion].filter(Boolean).join(' '),
+      confirmLabel: 'Replace',
+      danger: true,
+      onConfirm: () => void applyRestore(),
+      secondary: { label: 'Merge', onConfirm: applyMerge },
     });
   };
 
@@ -1328,10 +1477,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const affectedCount = affectedIds.size;
     setConfirmDialog({
       title: 'Delete Selected',
-      message: `Delete ${affectedCount} library item${affectedCount === 1 ? '' : 's'}? This cannot be undone.`,
+      message: `Delete ${affectedCount} library item${affectedCount === 1 ? '' : 's'}? ${LIBRARY_UNDO_DELETE_NOTE}`,
       confirmLabel: 'Delete',
       danger: true,
       onConfirm: () => {
+        offerUndoDeletion(
+          captureLibraryDeletion(saveStateRef.current.items, visibleSelectedIds),
+          `Deleted ${affectedCount} library item${affectedCount === 1 ? '' : 's'}.`,
+          loadedFileId && affectedIds.has(loadedFileId) ? loadedFileId : null
+        );
         setItems((prev) => deleteLibraryItems(prev, visibleSelectedIds));
         if (loadedFileId && affectedIds.has(loadedFileId)) {
           onLoadedFileChange?.(null);
@@ -1648,6 +1802,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const limitFor = (key: string) => visibleLimits[key] ?? LIBRARY_PAGE_SIZE;
 
+  // Flat, whatever the depth: see `flattenLibraryTreeRows`.
+  const treeRows = useMemo(() => flattenLibraryTreeRows({
+    roots: childrenMap.get(null) ?? [],
+    childrenOf: (folderId) => childrenMap.get(folderId) ?? [],
+    isExpanded: (folderId) => visibleExpandedFolderIds.has(folderId),
+    limitFor: (key) => visibleLimits[key] ?? LIBRARY_PAGE_SIZE,
+  }), [childrenMap, visibleExpandedFolderIds, visibleLimits]);
+  const deepLevelLabel = (depth: number) => (depth >= LIBRARY_TREE_INDENT_LEVELS ? `Level ${depth + 1}` : '');
+
   /**
    * Reveals another page of one list. Selection deliberately still spans every
    * match rather than only the mounted rows, which is what it did before paging
@@ -1660,7 +1823,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       <button
         type="button"
         className="library-show-more"
-        style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
+        style={depth > 0 ? { marginLeft: libraryTreeIndent(depth) } : undefined}
         onClick={() =>
           setVisibleLimits((limits) => ({
             ...limits,
@@ -1685,6 +1848,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const moreFileActionsLabel = `More actions for ${item.name}`;
     const moveSummary = getLibraryFileMoveSummary(item);
     const metaText = [
+      deepLevelLabel(depth),
       (item.metadata.black || item.metadata.white) &&
       !libraryNameRepeatsPlayers(item.name, item.metadata.black, item.metadata.white)
         ? `${item.metadata.black ?? 'Black'} vs ${item.metadata.white ?? 'White'}`
@@ -1704,8 +1868,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
           isLoadedDirty ? 'dirty' : '',
         ].join(' ')}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
         role="treeitem"
+        aria-level={depth + 1}
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
@@ -1885,148 +2050,165 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const deleteFolderLabel = `Delete ${item.name}`;
     const moreFolderActionsLabel = `More actions for ${item.name}`;
     return (
-      <div key={item.id}>
-        <div
-          className={[
-            'library-tree-node',
-            isSelected ? 'selected' : '',
-            activeFolderId === item.id ? 'selected' : '',
-            hasLoaded ? 'has-loaded' : '',
-            hasDirtyLoaded ? 'has-loaded-dirty' : '',
-            dragOverId === item.id ? 'drop-target' : '',
-          ].join(' ')}
-          style={{ paddingLeft: 12 + depth * 16 }}
-          role="treeitem"
-          tabIndex={0}
-          aria-selected={isSelected || activeFolderId === item.id}
-          aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
-          aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
-          data-library-row="folder"
-          data-library-row-name={item.name}
-          data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
-          onClick={() => activateFolderRow(item)}
-          onKeyDown={handleFolderRowKeyDown(item, isExpanded, children.length > 0, allowChildren)}
-          onContextMenu={(event) => openContextMenu(event, item)}
-          draggable
-          onDragStart={handleItemDragStart(item.id)}
-          onDragEnd={handleItemDragEnd}
-          onDragOver={(e) => {
-            if (e.dataTransfer.types.includes('Files')) return;
-            e.preventDefault();
-            setDragOverId(item.id);
+      <div
+        key={item.id}
+        className={[
+          'library-tree-node',
+          isSelected ? 'selected' : '',
+          activeFolderId === item.id ? 'selected' : '',
+          hasLoaded ? 'has-loaded' : '',
+          hasDirtyLoaded ? 'has-loaded-dirty' : '',
+          dragOverId === item.id ? 'drop-target' : '',
+        ].join(' ')}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
+        role="treeitem"
+        aria-level={depth + 1}
+        tabIndex={0}
+        aria-selected={isSelected || activeFolderId === item.id}
+        aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
+        aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
+        data-library-row="folder"
+        data-library-row-name={item.name}
+        data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
+        onClick={() => activateFolderRow(item)}
+        onKeyDown={handleFolderRowKeyDown(item, isExpanded, children.length > 0, allowChildren)}
+        onContextMenu={(event) => openContextMenu(event, item)}
+        draggable
+        onDragStart={handleItemDragStart(item.id)}
+        onDragEnd={handleItemDragEnd}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) return;
+          e.preventDefault();
+          setDragOverId(item.id);
+        }}
+        onDragLeave={() => setDragOverId(null)}
+        onDrop={handleDropOnFolder(item.id)}
+      >
+        <button
+          type="button"
+          className={['library-tree-node-arrow', isExpanded ? 'expanded' : ''].join(' ')}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpandedFolderIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(item.id)) next.delete(item.id);
+              else next.add(item.id);
+              return next;
+            });
           }}
-          onDragLeave={() => setDragOverId(null)}
-          onDrop={handleDropOnFolder(item.id)}
+          title={toggleFolderLabel}
+          aria-label={toggleFolderLabel}
         >
+          <FaChevronRight size={12} />
+        </button>
+        <button
+          type="button"
+          className={[
+            'library-tree-node-select',
+            isSelected ? 'is-visible' : '',
+          ].join(' ')}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleSelect(item.id);
+          }}
+          title={selectFolderLabel}
+          aria-label={selectFolderLabel}
+        >
+          {isSelected ? <FaCheckSquare size={12} /> : <FaRegSquare size={12} />}
+        </button>
+        <span className="library-tree-node-icon">
+          <FaFolderOpen size={12} />
+        </span>
+        <div className="library-tree-node-name" title={item.name}>{item.name}</div>
+        <div className="library-tree-node-meta">
+          {[deepLevelLabel(depth), String(children.length)].filter(Boolean).join(' · ')}
+        </div>
+        <div className="library-tree-node-actions">
           <button
             type="button"
-            className={['library-tree-node-arrow', isExpanded ? 'expanded' : ''].join(' ')}
+            className="library-tree-node-action"
             onClick={(e) => {
               e.stopPropagation();
-              setExpandedFolderIds((prev) => {
-                const next = new Set(prev);
-                if (next.has(item.id)) next.delete(item.id);
-                else next.add(item.id);
-                return next;
-              });
+              handleDuplicate(item);
             }}
-            title={toggleFolderLabel}
-            aria-label={toggleFolderLabel}
+            title={duplicateFolderLabel}
+            aria-label={duplicateFolderLabel}
           >
-            <FaChevronRight size={12} />
+            <FaCopy size={12} />
           </button>
           <button
             type="button"
-            className={[
-              'library-tree-node-select',
-              isSelected ? 'is-visible' : '',
-            ].join(' ')}
+            className="library-tree-node-action"
             onClick={(e) => {
               e.stopPropagation();
-              handleToggleSelect(item.id);
+              void handleExportFolderZip(item);
             }}
-            title={selectFolderLabel}
-            aria-label={selectFolderLabel}
+            title={exportFolderLabel}
+            aria-label={exportFolderLabel}
           >
-            {isSelected ? <FaCheckSquare size={12} /> : <FaRegSquare size={12} />}
+            <FaDownload size={12} />
           </button>
-          <span className="library-tree-node-icon">
-            <FaFolderOpen size={12} />
-          </span>
-          <div className="library-tree-node-name" title={item.name}>{item.name}</div>
-          <div className="library-tree-node-meta">{children.length}</div>
-          <div className="library-tree-node-actions">
-            <button
-              type="button"
-              className="library-tree-node-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDuplicate(item);
-              }}
-              title={duplicateFolderLabel}
-              aria-label={duplicateFolderLabel}
-            >
-              <FaCopy size={12} />
-            </button>
-            <button
-              type="button"
-              className="library-tree-node-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleExportFolderZip(item);
-              }}
-              title={exportFolderLabel}
-              aria-label={exportFolderLabel}
-            >
-              <FaDownload size={12} />
-            </button>
-            <button
-              type="button"
-              className="library-tree-node-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRename(item);
-              }}
-              title={renameFolderLabel}
-              aria-label={renameFolderLabel}
-            >
-              <FaPen size={12} />
-            </button>
-            <button
-              type="button"
-              className="library-tree-node-action danger"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(item);
-              }}
-              title={deleteFolderLabel}
-              aria-label={deleteFolderLabel}
-            >
-              <FaTrash size={12} />
-            </button>
-          </div>
           <button
             type="button"
-            className="library-tree-node-more"
-            onClick={(event) => openButtonContextMenu(event, item)}
-            title={moreFolderActionsLabel}
-            aria-label={moreFolderActionsLabel}
-            aria-haspopup="menu"
-            aria-expanded={contextMenu?.itemId === item.id}
+            className="library-tree-node-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRename(item);
+            }}
+            title={renameFolderLabel}
+            aria-label={renameFolderLabel}
           >
-            <FaEllipsisH size={14} />
+            <FaPen size={12} />
+          </button>
+          <button
+            type="button"
+            className="library-tree-node-action danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(item);
+            }}
+            title={deleteFolderLabel}
+            aria-label={deleteFolderLabel}
+          >
+            <FaTrash size={12} />
           </button>
         </div>
-        {allowChildren && isExpanded && children.length > 0 && (
-          <div>
-            {children.slice(0, limitFor(item.id)).map((child) =>
-              isFolder(child) ? renderFolderRow(child, depth + 1, allowChildren) : renderFileRow(child, depth + 1)
-            )}
-            {renderShowMore(item.id, children.length, depth + 1)}
-          </div>
-        )}
+        <button
+          type="button"
+          className="library-tree-node-more"
+          onClick={(event) => openButtonContextMenu(event, item)}
+          title={moreFolderActionsLabel}
+          aria-label={moreFolderActionsLabel}
+          aria-haspopup="menu"
+          aria-expanded={contextMenu?.itemId === item.id}
+        >
+          <FaEllipsisH size={14} />
+        </button>
       </div>
     );
+  };
+
+  /**
+   * In place of contents nested deeper than the tree shows inline. Moving the
+   * folder to Root brings them within reach, and can be moved back.
+   */
+  const renderTooDeepRow = (folder: LibraryItem, depth: number) => (
+    <button
+      key={`deep:${folder.id}`}
+      type="button"
+      className="library-show-more"
+      style={{ marginLeft: libraryTreeIndent(depth) }}
+      onClick={() => handleMoveToRoot(folder)}
+      data-library-too-deep="true"
+    >
+      Folders nested over {LIBRARY_TREE_MAX_DEPTH} levels deep are not shown here. Move "{folder.name}" to Root to open it.
+    </button>
+  );
+
+  const renderTreeRow = (row: LibraryTreeRow) => {
+    if (row.kind === 'item') return isFolder(row.item) ? renderFolderRow(row.item, row.depth) : renderFileRow(row.item, row.depth);
+    if (row.kind === 'more') return <React.Fragment key={row.key}>{renderShowMore(row.listKey, row.total, row.depth)}</React.Fragment>;
+    return renderTooDeepRow(row.folder, row.depth);
   };
 
   const renderContextMenu = () => {
@@ -2663,6 +2845,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </button>
                 </div>
               )}
+              {undoDeletion && (
+                <div
+                  className="panel-toolbar border-b border-[var(--ui-border)]"
+                  role="status"
+                  data-library-undo-delete="true"
+                >
+                  <span className="min-w-0 flex-1 truncate text-xs text-[var(--ui-text-muted)]" title={undoDeletion.message}>
+                    {undoDeletion.message}
+                  </span>
+                  <button type="button" className="panel-action-button" onClick={handleUndoDeletion}>
+                    Undo
+                  </button>
+                </div>
+              )}
               <div
                 className={[
                   'library-tree panel-scroll-region',
@@ -2731,12 +2927,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div>
-                    {(childrenMap.get(null) ?? []).slice(0, limitFor('')).map((item) =>
-                      isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
-                    )}
-                    {renderShowMore('', (childrenMap.get(null) ?? []).length)}
-                  </div>
+                  <div>{treeRows.map(renderTreeRow)}</div>
                 )}
               </div>
               {items.length > 0 && (
