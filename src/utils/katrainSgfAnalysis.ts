@@ -205,6 +205,68 @@ export function encodeKaTrainKtFromAnalysis(args: { analysis: AnalysisResult; bo
   return [ownershipPacked, policyPacked, mainBytes].map((b) => encodeBase64(pako.gzip(b)));
 }
 
+/**
+ * Room for one candidate row of the JSON part: KaTrain writes a dozen numeric
+ * fields plus the principal variation, which comes to a few hundred bytes. A
+ * generous 4 KiB per legal point (and pass) still keeps a 19x19 node under
+ * 1.5 MB.
+ */
+const KT_MAIN_BYTES_PER_CANDIDATE = 4096;
+const KT_MAIN_BYTES_BASE = 64 * 1024;
+const KT_INFLATE_CHUNK_BYTES = 16 * 1024;
+
+/**
+ * The most bytes each of the three KT fields can legitimately inflate to on
+ * this board: float16 ownership for every point, float16 policy for every
+ * point plus pass, and the JSON candidate table.
+ */
+export function kaTrainKtByteLimits(boardSize: number): { ownership: number; policy: number; main: number } {
+  const boardSquares = boardSize * boardSize;
+  return {
+    ownership: boardSquares * 2,
+    policy: (boardSquares + 1) * 2,
+    main: KT_MAIN_BYTES_BASE + (boardSquares + 1) * KT_MAIN_BYTES_PER_CANDIDATE,
+  };
+}
+
+/**
+ * Gunzips `data`, giving up as soon as the output passes `maxBytes`. gzip
+ * compresses runs of zeros about a thousandfold, so a KT field of a few
+ * kilobytes could inflate to megabytes before anything looked at its size;
+ * counting chunks as they arrive stops a bomb after at most one chunk.
+ */
+function inflateCapped(data: Uint8Array, maxBytes: number): Uint8Array {
+  const inflator = new pako.Inflate({ chunkSize: KT_INFLATE_CHUNK_BYTES });
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const end: { status: number | null } = { status: null };
+  inflator.onData = (chunk) => {
+    const bytes = chunk as Uint8Array;
+    total += bytes.length;
+    if (total > maxBytes) throw new Error(`KT field inflates past ${maxBytes} bytes`);
+    chunks.push(bytes);
+  };
+  inflator.onEnd = (status) => {
+    end.status = status;
+  };
+  inflator.push(data);
+  if (end.status !== 0) throw new Error('KT field is not a complete gzip stream');
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+}
+
+/** An empty tensor means "not stored"; anything else must match the board exactly. */
+function unpackTensor(bytes: Uint8Array, count: number): number[] | null {
+  if (bytes.length === 0) return null;
+  if (bytes.length !== count * 2) throw new Error(`KT tensor has ${bytes.length} bytes, expected ${count * 2}`);
+  return unpackFloat16(bytes, count);
+}
+
 export function decodeKaTrainKt(args: { kt: string[]; boardSize?: number }): KaTrainSgfAnalysis | null {
   const boardSize = args.boardSize ?? DEFAULT_BOARD_SIZE;
   const boardSquares = boardSize * boardSize;
@@ -212,12 +274,13 @@ export function decodeKaTrainKt(args: { kt: string[]; boardSize?: number }): KaT
   if (!kt || kt.length < 3) return null;
 
   try {
-    const ownershipBytes = pako.ungzip(decodeBase64(kt[0]!));
-    const policyBytes = pako.ungzip(decodeBase64(kt[1]!));
-    const mainBytes = pako.ungzip(decodeBase64(kt[2]!));
+    const limits = kaTrainKtByteLimits(boardSize);
+    const ownershipBytes = inflateCapped(decodeBase64(kt[0]!), limits.ownership);
+    const policyBytes = inflateCapped(decodeBase64(kt[1]!), limits.policy);
+    const mainBytes = inflateCapped(decodeBase64(kt[2]!), limits.main);
 
-    const ownership = unpackFloat16(ownershipBytes, boardSquares);
-    const policy = unpackFloat16(policyBytes, boardSquares + 1);
+    const ownership = unpackTensor(ownershipBytes, boardSquares);
+    const policy = unpackTensor(policyBytes, boardSquares + 1);
 
     const mainJson = new TextDecoder().decode(mainBytes);
     const main = JSON.parse(mainJson) as KaTrainSgfAnalysisMain;
