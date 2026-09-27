@@ -38,6 +38,25 @@ export function getAppLocaleHtmlLang(value: AppLocaleId): string {
   return getAppLocaleOption(value).htmlLang;
 }
 
+/**
+ * Locales the interface is actually translated into. Only English so far;
+ * add a locale here when its translation ships.
+ */
+export const TRANSLATED_APP_LOCALES: ReadonlySet<AppLocaleId> = new Set<AppLocaleId>(['en']);
+
+/**
+ * The `lang` for the page: the language its text is really in.
+ *
+ * Choosing French set <html lang="fr"> over an interface that stayed in
+ * English, so screen readers read English with French pronunciation, and
+ * browsers offered to translate "from French" and picked French hyphenation
+ * and spell-check. The choice is kept as a preference for when a translation
+ * exists; until then the page stays marked as English.
+ */
+export function getDocumentHtmlLang(value: AppLocaleId): string {
+  return TRANSLATED_APP_LOCALES.has(value) ? getAppLocaleHtmlLang(value) : 'en';
+}
+
 export function getAppLocaleShortLabel(value: AppLocaleId): string {
   const option = getAppLocaleOption(value);
   return option.shortLabel ?? option.value.toUpperCase();

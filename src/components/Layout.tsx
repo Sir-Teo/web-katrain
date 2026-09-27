@@ -72,7 +72,7 @@ import {
   validateModelUploadFile,
 } from '../utils/modelUpload';
 import { cancelAnimationFrameSafe, getAnimationNow, requestAnimationFrameSafe, type AnimationFrameHandle } from '../utils/animationFrame';
-import { getAppLocaleHtmlLang } from '../utils/locales';
+import { getDocumentHtmlLang } from '../utils/locales';
 
 // Layout components
 import { MenuDrawer } from './layout/MenuDrawer';
@@ -567,7 +567,8 @@ export const Layout: React.FC = () => {
     document.documentElement.dataset.uiTheme = getResolvedUiTheme(settings.uiTheme);
     document.documentElement.dataset.uiDensity = settings.uiDensity;
     document.documentElement.dataset.locale = settings.appLocale;
-    document.documentElement.lang = getAppLocaleHtmlLang(settings.appLocale);
+    // The language the interface is really in, not just the one chosen.
+    document.documentElement.lang = getDocumentHtmlLang(settings.appLocale);
     syncThemeColorMeta();
     if (settings.uiTheme !== 'system') return;
     const mediaQueryList = getMediaQueryList(PREFERS_DARK_MEDIA_QUERY);

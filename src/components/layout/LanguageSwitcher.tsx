@@ -161,8 +161,9 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ appLocale, o
                   {/* Each part carries its own language: these options have no
                       aria-label, so their accessible name is this visible text
                       and a screen reader would otherwise read the native names
-                      with the page language's phonetics. The select in
-                      SettingsModal already marks its options this way. */}
+                      with the page language's phonetics. Only the parts
+                      really in that language are marked; the English name
+                      below stays English. */}
                   <span lang={locale.htmlLang} className="block truncate text-sm font-medium">{locale.nativeLabel}</span>
                   {/* The English name only earns a line when it differs from the
                       native one — for English itself the two are identical. */}
