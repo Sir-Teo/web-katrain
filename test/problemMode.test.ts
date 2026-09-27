@@ -230,3 +230,65 @@ describe('grading against the solver', () => {
     expect(findSolutionPath(start, 'black').map((node) => node.move?.x ?? null)).toEqual([null, 3, 4]);
   });
 });
+
+describe('reading verdicts the way problem files write them', () => {
+  const mv = (x: number, y: number, player: Player): Move => ({ x, y, player });
+  const verdict = (note: string, solver?: Player) => classifyProblemNode(build({ note }), solver);
+
+  it('does not read a negated positive as correct', () => {
+    // Reproduced: "This is not the correct solution" was graded Correct.
+    for (const note of [
+      'This is not the correct solution',
+      "That isn't right.",
+      'Not correct: white lives.',
+      'No success here.',
+      'This never leads to the right answer',
+      '不正解',
+      '정답이 아닙니다',
+    ]) {
+      expect(verdict(note), note).toBe('wrong');
+    }
+  });
+
+  it('lets the verdict a comment opens with decide', () => {
+    // Reproduced: "Correct! The other move is a mistake" was graded Wrong.
+    expect(verdict('Correct! The other move is a mistake.')).toBe('correct');
+    expect(verdict('RIGHT - the alternative fails')).toBe('correct');
+    expect(verdict('"Right." Playing elsewhere is wrong.')).toBe('correct');
+    expect(verdict('正解。其他的手是错误')).toBe('correct');
+    expect(verdict('Wrong. The correct move is at C3.')).toBe('wrong');
+    expect(verdict('Incorrect -- the right answer is the hane.')).toBe('wrong');
+    expect(verdict('Fails: the correct move was the throw-in.')).toBe('wrong');
+  });
+
+  it('keeps a negation word in another clause from negating what follows', () => {
+    expect(verdict('No, this is correct.')).toBe('correct');
+  });
+
+  it('says nothing for a negated wrong word, or a mixed prose signal', () => {
+    expect(verdict('This is not a mistake.')).toBe('unknown');
+    expect(verdict('Not the only correct answer, but correct.')).toBe('unknown');
+  });
+
+  it('does not read "the solution is ..." in passing as a verdict', () => {
+    expect(verdict('Black dies. The solution is at B2.')).toBe('unknown');
+  });
+
+  it('takes the node name as well as the comment', () => {
+    expect(classifyProblemNode(build({ properties: { N: ['Wrong'], C: ['Correct shape, but too slow.'] } }))).toBe('wrong');
+    expect(classifyProblemNode(build({ properties: { N: ['Correct'] } }))).toBe('correct');
+  });
+
+  it('reads SGF move annotations on the solver move before any prose', () => {
+    expect(classifyProblemNode(build({ move: mv(1, 1, 'black'), properties: { BM: ['1'] }, note: 'Looks correct.' }), 'black')).toBe('wrong');
+    expect(classifyProblemNode(build({ move: mv(1, 1, 'black'), properties: { DO: [''] } }), 'black')).toBe('wrong');
+    expect(classifyProblemNode(build({ move: mv(1, 1, 'black'), properties: { TE: ['1'] } }), 'black')).toBe('correct');
+    expect(classifyProblemNode(build({ move: mv(1, 1, 'black'), properties: { IT: [''] } }), 'black')).toBe('unknown');
+  });
+
+  it('leaves the opponent move annotations to the other signals', () => {
+    // A tesuji by the opponent is no success for the solver.
+    expect(classifyProblemNode(build({ move: mv(1, 1, 'white'), properties: { TE: ['1'] } }), 'black')).toBe('unknown');
+    expect(classifyProblemNode(build({ move: mv(1, 1, 'white'), properties: { BM: ['1'] }, note: 'Correct' }), 'black')).toBe('correct');
+  });
+});
