@@ -97,3 +97,24 @@ describe('move history storage', () => {
     expect(JSON.parse(JSON.stringify(sideBranch!.gameState)).moveHistory).toHaveLength(3);
   });
 });
+
+describe('jumping to the end of a long game', () => {
+  beforeEach(() => state().resetGame());
+
+  it('lands on the last move and remembers the whole path, in linear time', () => {
+    state().loadGame({ moves: longGame(4000), initialBoard: emptyBoard(), komi: 6.5 });
+    const nodes = mainLine(state().rootNode);
+    state().jumpToNode(nodes[0]!);
+
+    const started = performance.now();
+    state().navigateEnd();
+    const elapsed = performance.now() - started;
+
+    expect(state().currentNode).toBe(nodes[4000]);
+    const remembered = state().activeBranchChildIds;
+    for (let i = 1; i < nodes.length; i++) expect(remembered[nodes[i - 1]!.id]).toBe(nodes[i]!.id);
+    // Recording the path at every step took ~2.6 s here; once is a few ms.
+    // Generous, so a loaded machine does not fail it.
+    expect(elapsed).toBeLessThan(750);
+  }, 30_000);
+});

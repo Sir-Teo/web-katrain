@@ -5605,13 +5605,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   navigateEnd: () => set((state) => {
       let node = state.currentNode;
-      let activeBranchChildIds = state.activeBranchChildIds;
+      // Walking down only follows the choices already remembered (or the first
+      // child), so recording the path once from the end is the same map.
+      // Recording it at every step walked back to the root each time: O(n^2),
+      // about 2.6 s to jump to the end of a 4,000-move game.
       while (node.children.length > 0) {
-          const child = getActiveChild(node, activeBranchChildIds);
+          const child = getActiveChild(node, state.activeBranchChildIds);
           if (!child) break;
-          activeBranchChildIds = rememberActiveBranchPath(activeBranchChildIds, child);
           node = child;
       }
+      const activeBranchChildIds = rememberActiveBranchPath(state.activeBranchChildIds, node);
       return {
           currentNode: node,
           board: node.gameState.board,
