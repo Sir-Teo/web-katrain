@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BoardSize } from '../src/types';
 import {
   DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY,
   getPhotoBoardRecognitionOptionsForSensitivity,
+  getPhotoBoardRecognitionSize,
+  PHOTO_BOARD_RECOGNITION_MAX_SIDE,
+  recognizePhotoBoardFromImageUrl,
   recognizePhotoBoardFromPixels,
+  scalePhotoBoardCorners,
 } from '../src/utils/photoBoardRecognition';
 
 const MARGIN_FRACTION = 0.06;
@@ -325,5 +329,118 @@ describe('reading a board that is not square to the frame', () => {
     ] as unknown as readonly [Point, Point, Point, Point];
 
     expect(recognizePhotoBoardFromPixels(image, 9, { corners: broken }).stones).toEqual(plain);
+  });
+});
+
+describe('reading a large photo at a bounded size', () => {
+  /**
+   * The recognizer used to draw the photo onto a canvas at its natural size and
+   * read every pixel back: a 48-megapixel phone photo was a full-size canvas
+   * plus a 192 MB RGBA buffer on the main thread, for a sampler that averages
+   * patches a quarter of a grid cell across.
+   */
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shrinks only images past the limit, keeping their shape', () => {
+    expect(getPhotoBoardRecognitionSize(8000, 6000)).toEqual({ width: 2048, height: 1536 });
+    expect(getPhotoBoardRecognitionSize(3000, 12000)).toEqual({ width: 512, height: 2048 });
+    expect(getPhotoBoardRecognitionSize(1200, 900)).toEqual({ width: 1200, height: 900 });
+    expect(getPhotoBoardRecognitionSize(PHOTO_BOARD_RECOGNITION_MAX_SIDE, 10)).toEqual({
+      width: PHOTO_BOARD_RECOGNITION_MAX_SIDE,
+      height: 10,
+    });
+    expect(getPhotoBoardRecognitionSize(100000, 10).height).toBe(1);
+  });
+
+  it('reads the same stones from a downscaled copy with its corners moved to match', () => {
+    type Point = { x: number; y: number };
+    const full = boardImage(19, [[0, 0, 'black'], [3, 15, 'white'], [9, 9, 'black'], [18, 18, 'white']], { size: 1200 });
+    const size = getPhotoBoardRecognitionSize(full.width, full.height, 300);
+    // Box-average down by four, the way a high-quality canvas downscale would.
+    const factor = full.width / size.width;
+    const small = new Uint8ClampedArray(size.width * size.height * 4);
+    for (let y = 0; y < size.height; y += 1) {
+      for (let x = 0; x < size.width; x += 1) {
+        for (let c = 0; c < 4; c += 1) {
+          let sum = 0;
+          for (let dy = 0; dy < factor; dy += 1) {
+            for (let dx = 0; dx < factor; dx += 1) {
+              sum += full.data[((y * factor + dy) * full.width + x * factor + dx) * 4 + c]!;
+            }
+          }
+          small[(y * size.width + x) * 4 + c] = sum / (factor * factor);
+        }
+      }
+    }
+    const margin = full.width * MARGIN_FRACTION;
+    const span = full.width - 1 - margin * 2;
+    const corners: readonly [Point, Point, Point, Point] = [
+      { x: margin, y: margin },
+      { x: margin + span, y: margin },
+      { x: margin + span, y: margin + span },
+      { x: margin, y: margin + span },
+    ];
+
+    const expected = recognizePhotoBoardFromPixels(full, 19, { corners });
+    const scaled = scalePhotoBoardCorners(corners, size.width / full.width, size.height / full.height);
+    const actual = recognizePhotoBoardFromPixels({ ...size, data: small }, 19, { corners: scaled });
+    expect(expected.total).toBe(4);
+    expect(actual.stones).toEqual(expected.stones);
+  });
+
+  it('never reads more than the working size off the canvas, and scales the corners to it', async () => {
+    const natural = { width: 8000, height: 6000 };
+    const drawn: number[][] = [];
+    const read: number[][] = [];
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        imageSmoothingEnabled: false,
+        imageSmoothingQuality: 'low',
+        drawImage: (_image: unknown, ...args: number[]) => drawn.push(args),
+        getImageData: (x: number, y: number, w: number, h: number) => {
+          read.push([x, y, w, h]);
+          const data = new Uint8ClampedArray(w * h * 4).fill(150);
+          // A black stone on the top-left intersection, where it lands once
+          // the corner placed at (800, 600) is scaled onto the working copy.
+          for (let py = 114; py <= 194; py += 1) {
+            for (let px = 165; px <= 245; px += 1) data.fill(10, (py * w + px) * 4, (py * w + px) * 4 + 3);
+          }
+          return { width: w, height: h, data };
+        },
+      }),
+    };
+    vi.stubGlobal('document', { createElement: () => canvas });
+    vi.stubGlobal(
+      'Image',
+      class {
+        naturalWidth = natural.width;
+        naturalHeight = natural.height;
+        width = natural.width;
+        height = natural.height;
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        set src(_value: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      }
+    );
+
+    const corners = [
+      { x: 800, y: 600 },
+      { x: 7200, y: 600 },
+      { x: 7200, y: 5400 },
+      { x: 800, y: 5400 },
+    ] as const;
+    const result = await recognizePhotoBoardFromImageUrl('blob:photo', 9, { corners });
+
+    expect(drawn).toEqual([[0, 0, 2048, 1536]]);
+    expect(read).toEqual([[0, 0, 2048, 1536]]);
+    expect(result.stones).toHaveLength(81);
+    expect(result.stones[0]).toBe('black');
+    expect(result.total).toBe(1);
   });
 });

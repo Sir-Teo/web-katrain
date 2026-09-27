@@ -250,6 +250,37 @@ export function recognizePhotoBoardFromPixels(
   };
 }
 
+/**
+ * Longest side, in pixels, of the image the recognizer actually reads.
+ *
+ * It averages a patch a quarter of a grid cell across at each intersection, so
+ * it needs a cell of a dozen pixels or so and gains nothing past that. At 2048
+ * a 19x19 board filling a third of the frame still gets 38px cells, while a
+ * 48-megapixel phone photo no longer means a full-size canvas plus a 192 MB
+ * RGBA copy on the main thread -- the working copy tops out near 17 MB.
+ */
+export const PHOTO_BOARD_RECOGNITION_MAX_SIDE = 2048;
+
+/** The size to read an image at: never larger than it is, never past `maxSide`. */
+export function getPhotoBoardRecognitionSize(
+  width: number,
+  height: number,
+  maxSide = PHOTO_BOARD_RECOGNITION_MAX_SIDE
+): { width: number; height: number } {
+  const longest = Math.max(width, height);
+  if (!(longest > maxSide)) return { width, height };
+  const scale = maxSide / longest;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+/** Corners picked on the full-size photo, moved onto a resized copy of it. */
+export function scalePhotoBoardCorners(corners: PhotoBoardCorners, scaleX: number, scaleY: number): PhotoBoardCorners {
+  return corners.map((corner) => ({ x: corner.x * scaleX, y: corner.y * scaleY })) as unknown as PhotoBoardCorners;
+}
+
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -268,11 +299,27 @@ export async function recognizePhotoBoardFromImageUrl(
     throw new Error('Photo board recognition needs a browser canvas.');
   }
   const image = await loadImage(url);
+  const naturalWidth = image.naturalWidth || image.width;
+  const naturalHeight = image.naturalHeight || image.height;
+  const size = getPhotoBoardRecognitionSize(naturalWidth, naturalHeight);
   const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth || image.width;
-  canvas.height = image.naturalHeight || image.height;
+  canvas.width = size.width;
+  canvas.height = size.height;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Photo board recognition needs a browser canvas.');
+  // Downscaling by several times with the default filter skips pixels; the
+  // high-quality one averages them, which is what the patch sampler wants.
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return recognizePhotoBoardFromPixels(context.getImageData(0, 0, canvas.width, canvas.height), boardSize, options);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  // Release the canvas's backing store now rather than whenever it is collected.
+  canvas.width = 0;
+  canvas.height = 0;
+
+  // The corners were placed on the photo at its natural size.
+  const corners = options?.corners && naturalWidth > 0 && naturalHeight > 0
+    ? scalePhotoBoardCorners(options.corners, size.width / naturalWidth, size.height / naturalHeight)
+    : options?.corners;
+  return recognizePhotoBoardFromPixels(pixels, boardSize, { ...options, ...(corners ? { corners } : {}) });
 }
