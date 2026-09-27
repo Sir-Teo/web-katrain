@@ -25,8 +25,20 @@ describe('getSaveStatusDisplay', () => {
 
     expect(display?.state).toBe('saved');
     expect(display?.label).toBe('Recovery saved');
+    // The compact badge used to read "Saved", which overstated it: only a
+    // local recovery copy exists.
+    expect(display?.compactLabel).toBe('Recovery');
     expect(display?.title).toContain('still unsaved until you save to Library or download SGF');
     expect(display?.tone).toBe('success');
+  });
+
+  it('never labels a recovery copy as the game being saved', () => {
+    for (const state of ['pending', 'saved'] as const) {
+      const display = getSaveStatusDisplay(true, { state, savedAt: 1 });
+      expect(display?.compactLabel).not.toMatch(/^sav/i);
+      expect(display?.label).toMatch(/^Recovery/);
+      expect(display?.title).toMatch(/recovery copy/i);
+    }
   });
 
   it('uses assertive alerts for failed or oversized recovery saves', () => {

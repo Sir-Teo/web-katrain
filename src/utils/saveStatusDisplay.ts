@@ -54,7 +54,9 @@ export function getSaveStatusDisplay(
     return {
       state: 'pending',
       label: 'Recovery saving',
-      compactLabel: 'Saving',
+      // Same word as the saved state, so the badge does not change width on
+      // every edit; the spinner and the title say it is in progress.
+      compactLabel: 'Recovery',
       title: 'Unsaved changes. Updating the recovery copy; save to Library or download SGF for a permanent copy.',
       tone: 'accent',
       role: 'status',
@@ -67,9 +69,11 @@ export function getSaveStatusDisplay(
     return {
       state: 'saved',
       label: 'Recovery saved',
-      // Keep the compact badge short and fixed-width; the save time stays in
-      // the detail/title so narrow bottom bars never clip it mid-string.
-      compactLabel: 'Saved',
+      // Not "Saved": beside an unsaved game that read as the game being kept,
+      // while all that exists is a local recovery copy in this browser. Keep
+      // it short and fixed-width; the save time stays in the detail/title so
+      // narrow bottom bars never clip it mid-string.
+      compactLabel: 'Recovery',
       detail,
       title: detail
         ? `Recovery copy saved at ${detail}. This game is still unsaved until you save to Library or download SGF.`
