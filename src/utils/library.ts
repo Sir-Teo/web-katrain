@@ -1922,3 +1922,59 @@ export const mergeLibraryBackup = (
     keptBoth,
   };
 };
+
+/** Items a delete removed, each with the position it had, for Undo. */
+export type LibraryDeletion = { removed: Array<{ item: LibraryItem; index: number }> };
+
+/** What deleting `ids` removes -- each item and, for a folder, all it holds. */
+export const captureLibraryDeletion = (items: readonly LibraryItem[], ids: Iterable<string>): LibraryDeletion => {
+  const removedIds = getLibrarySelectionIds(items, ids);
+  const removed: LibraryDeletion['removed'] = [];
+  items.forEach((item, index) => {
+    if (removedIds.has(item.id)) removed.push({ item, index });
+  });
+  return { removed };
+};
+
+/**
+ * Puts deleted items back as they were, where they were. Anything already back
+ * is left alone, so undoing twice is harmless. An item whose folder has gone
+ * since returns to Root, and one whose name was taken since in its folder gets
+ * a numbered name; contents restored with their folder keep theirs.
+ */
+export const restoreLibraryDeletion = (items: LibraryItem[], deletion: LibraryDeletion): LibraryItem[] => {
+  const present = new Set(items.map((item) => item.id));
+  const back = deletion.removed.filter(({ item }) => !present.has(item.id)).sort((a, b) => a.index - b.index);
+  if (back.length === 0) return items;
+  const backIds = new Set(back.map(({ item }) => item.id));
+  const folderIds = new Set(
+    [...items, ...back.map(({ item }) => item)].filter((item) => item.type === 'folder').map((item) => item.id)
+  );
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      for (const item of items) {
+        if ((item.parentId ?? null) === parentId) pool.names.add(item.name.toLowerCase());
+      }
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+  const restored = back.map(({ item, index }) => {
+    const parentId = item.parentId && folderIds.has(item.parentId) ? item.parentId : null;
+    const name = parentId !== null && backIds.has(parentId) ? item.name : reserveLibraryName(item.name, poolFor(parentId));
+    return { item: parentId === item.parentId && name === item.name ? item : { ...item, parentId, name }, index };
+  });
+  // Each at its old index, as if the delete had never happened, when nothing
+  // else changed in between.
+  const result: LibraryItem[] = [];
+  let next = 0;
+  for (const item of items) {
+    while (next < restored.length && restored[next]!.index <= result.length) result.push(restored[next++]!.item);
+    result.push(item);
+  }
+  while (next < restored.length) result.push(restored[next++]!.item);
+  return result;
+};

@@ -250,12 +250,15 @@ describe('LibraryPanel accessibility', () => {
     );
   });
 
-  it('warns about irreversible Library deletion and initially focuses Cancel', () => {
+  it('says how long a Library deletion can be undone and initially focuses Cancel', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
 
     // Selection scope is covered by hierarchy data tests and native browser
     // confirmation checks, independently of the traversal implementation.
-    expect(source).toContain('This cannot be undone.');
+    // A delete is undoable for a few seconds now, and the question says so
+    // rather than calling it irreversible.
+    expect(source).toContain("const LIBRARY_UNDO_DELETE_NOTE = 'You can undo this for a few seconds.';");
+    expect(source).not.toMatch(/`Delete [^`]*This cannot be undone\.`/);
     expect(source).not.toContain('Delete ${visibleSelectedIds.size} item(s) from Library?');
     // Cancel takes the focus, not the destructive action. Asserted by intent
     // rather than by its spelling: this used to read `autoFocus`, which is

@@ -31,8 +31,11 @@ import {
   createLibraryEditSaver,
   createLibraryFolder,
   createLibraryItem,
+  captureLibraryDeletion,
   deleteLibraryItem,
   deleteLibraryItems,
+  restoreLibraryDeletion,
+  type LibraryDeletion,
   duplicateLibraryItem,
   duplicateLibraryItems,
   formatLibrarySize,
@@ -127,6 +130,9 @@ import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRe
 
 /** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
 const LIBRARY_PAGE_SIZE = 100;
+/** How long a delete can be undone. */
+const LIBRARY_UNDO_DELETE_MS = 10_000;
+const LIBRARY_UNDO_DELETE_NOTE = 'You can undo this for a few seconds.';
 
 type LibraryItemsState = { items: LibraryItem[]; revision: number; edits: LibraryEditBatch[] };
 type LibraryItemsAction =
@@ -1191,6 +1197,46 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast(`Synced ${games.length} OGS game${games.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
   };
 
+  /**
+   * A delete stays undoable for a few seconds. Deleting a folder takes
+   * everything in it, one tap after a confirmation that is easy to accept
+   * without reading, and there was no way back short of an old backup.
+   */
+  const [undoDeletion, setUndoDeletion] = useState<{
+    id: number;
+    message: string;
+    deletion: LibraryDeletion;
+    loadedFileId: string | null;
+  } | null>(null);
+  const undoDeletionIdRef = useRef(0);
+  useEffect(() => {
+    if (!undoDeletion) return;
+    const timer = window.setTimeout(() => {
+      setUndoDeletion((current) => (current?.id === undoDeletion.id ? null : current));
+    }, LIBRARY_UNDO_DELETE_MS);
+    return () => window.clearTimeout(timer);
+  }, [undoDeletion]);
+
+  const offerUndoDeletion = (deletion: LibraryDeletion, message: string, deletedLoadedFileId: string | null) => {
+    if (deletion.removed.length === 0) return;
+    undoDeletionIdRef.current += 1;
+    setUndoDeletion({ id: undoDeletionIdRef.current, message, deletion, loadedFileId: deletedLoadedFileId });
+  };
+
+  const handleUndoDeletion = () => {
+    if (!undoDeletion) return;
+    const { deletion, loadedFileId: deletedLoadedFileId } = undoDeletion;
+    setUndoDeletion(null);
+    setItems((prev) => restoreLibraryDeletion(prev, deletion));
+    // Reconnect the board to its game if nothing else was opened since.
+    if (deletedLoadedFileId && !loadedFileId) {
+      const restoredFile = deletion.removed.find(({ item }) => item.id === deletedLoadedFileId)?.item;
+      if (restoredFile) onLoadedFileChange?.(restoredFile.id, restoredFile.name);
+    }
+    const count = deletion.removed.length;
+    onToast(`Restored ${count} library item${count === 1 ? '' : 's'}.`, 'success');
+  };
+
   const handleClearLibrary = () => {
     setConfirmDialog({
       title: 'Clear Library',
@@ -1199,6 +1245,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       danger: true,
       onConfirm: () => {
         setItems([]);
+        setUndoDeletion(null);
         setSelectedIds(new Set());
         onLoadedFileChange?.(null);
         setCurrentFolderId(null);
@@ -1221,14 +1268,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       ? ` and its ${descendantCount} item${descendantCount === 1 ? '' : 's'}`
       : '';
     const message = isFolderItem
-      ? `Delete folder "${item.name}"${contentsLabel}? This cannot be undone.`
-      : `Delete "${item.name}" from Library? This cannot be undone.`;
+      ? `Delete folder "${item.name}"${contentsLabel}? ${LIBRARY_UNDO_DELETE_NOTE}`
+      : `Delete "${item.name}" from Library? ${LIBRARY_UNDO_DELETE_NOTE}`;
     setConfirmDialog({
       title: isFolderItem ? 'Delete Folder' : 'Delete Game',
       message,
       confirmLabel: 'Delete',
       danger: true,
       onConfirm: () => {
+        offerUndoDeletion(
+          captureLibraryDeletion(saveStateRef.current.items, [item.id]),
+          isFolderItem ? `Deleted folder "${item.name}"${contentsLabel}.` : `Deleted "${item.name}".`,
+          loadedFileId && affectedIds.has(loadedFileId) ? loadedFileId : null
+        );
         setItems((prev) => deleteLibraryItem(prev, item.id));
         if (loadedFileId && affectedIds.has(loadedFileId)) {
           onLoadedFileChange?.(null);
@@ -1352,6 +1404,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         await saveLibrary(restored);
         didLoadLibraryRef.current = true;
         dispatchItems({ type: 'restore', items: restored });
+        // An earlier delete's Undo would put its items into the restored library.
+        setUndoDeletion(null);
         pendingGameSaveRef.current = null;
         setLibraryStatus('ready');
         setLibraryError(null);
@@ -1423,10 +1477,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const affectedCount = affectedIds.size;
     setConfirmDialog({
       title: 'Delete Selected',
-      message: `Delete ${affectedCount} library item${affectedCount === 1 ? '' : 's'}? This cannot be undone.`,
+      message: `Delete ${affectedCount} library item${affectedCount === 1 ? '' : 's'}? ${LIBRARY_UNDO_DELETE_NOTE}`,
       confirmLabel: 'Delete',
       danger: true,
       onConfirm: () => {
+        offerUndoDeletion(
+          captureLibraryDeletion(saveStateRef.current.items, visibleSelectedIds),
+          `Deleted ${affectedCount} library item${affectedCount === 1 ? '' : 's'}.`,
+          loadedFileId && affectedIds.has(loadedFileId) ? loadedFileId : null
+        );
         setItems((prev) => deleteLibraryItems(prev, visibleSelectedIds));
         if (loadedFileId && affectedIds.has(loadedFileId)) {
           onLoadedFileChange?.(null);
@@ -2783,6 +2842,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     aria-label="Move selected items"
                   >
                     Move
+                  </button>
+                </div>
+              )}
+              {undoDeletion && (
+                <div
+                  className="panel-toolbar border-b border-[var(--ui-border)]"
+                  role="status"
+                  data-library-undo-delete="true"
+                >
+                  <span className="min-w-0 flex-1 truncate text-xs text-[var(--ui-text-muted)]" title={undoDeletion.message}>
+                    {undoDeletion.message}
+                  </span>
+                  <button type="button" className="panel-action-button" onClick={handleUndoDeletion}>
+                    Undo
                   </button>
                 </div>
               )}
