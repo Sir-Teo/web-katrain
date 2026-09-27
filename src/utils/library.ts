@@ -1336,73 +1336,87 @@ const libraryChildrenByParent = (items: readonly LibraryItem[]): Map<string, Lib
   return children;
 };
 
+/**
+ * Shared work for duplicating one or many items: the child index and each
+ * folder's taken names are built once per call, not once per selected item.
+ * Bulk Duplicate ran a whole single duplication per selection against an
+ * array that grew with every copy -- scanning, filtering and re-indexing the
+ * collection each time.
+ */
+const createLibraryDuplicator = (items: readonly LibraryItem[], timestamp: number) => {
+  const children = libraryChildrenByParent(items);
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      const siblings = parentId === null ? items.filter((entry) => !entry.parentId) : children.get(parentId) ?? [];
+      for (const item of siblings) pool.names.add(item.name.toLowerCase());
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+
+  /** Copies of `source` and everything inside it, the copy of `source` first. */
+  return (source: LibraryItem): { copies: LibraryItem[]; ids: string[] } => {
+    const copies: LibraryItem[] = [];
+    const ids: string[] = [];
+    const idMap = new Map<string, string>();
+
+    const copyOne = (item: LibraryItem, parentId: string | null, name: string): LibraryItem => {
+      const newId = createId();
+      idMap.set(item.id, newId);
+      ids.push(newId);
+      if (isLibraryFile(item)) {
+        // A saved record also contains tags, favorites, and metadata that may
+        // not be present in its SGF. Preserve it without reparsing unchanged SGF.
+        return {
+          ...item,
+          id: newId,
+          name,
+          parentId,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          metadata: { ...item.metadata },
+          ...(item.tags ? { tags: [...item.tags] } : {}),
+        };
+      }
+      return {
+        id: newId,
+        name,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        parentId,
+        type: 'folder',
+      };
+    };
+
+    const parentId = source.parentId ?? null;
+    copies.push(copyOne(source, parentId, reserveLibraryName(createCopyName(source.name), poolFor(parentId))));
+
+    if (source.type === 'folder') {
+      const pending = [...(children.get(source.id) ?? [])].reverse();
+      while (pending.length > 0) {
+        const item = pending.pop()!;
+        if (idMap.has(item.id)) continue;
+        const copiedParentId = item.parentId ? idMap.get(item.parentId) : undefined;
+        if (!copiedParentId) continue;
+        copies.push(copyOne(item, copiedParentId, item.name));
+        const descendants = children.get(item.id) ?? [];
+        for (let i = descendants.length - 1; i >= 0; i--) {
+          pending.push(descendants[i]!);
+        }
+      }
+    }
+    return { copies, ids };
+  };
+};
+
 export const duplicateLibraryItem = (
   items: LibraryItem[],
   id: string,
   timestamp = Date.now()
-): DuplicateLibraryItemResult => {
-  const source = items.find((item) => item.id === id);
-  if (!source) return { items, duplicated: null, duplicatedIds: [] };
-
-  const copies: LibraryItem[] = [];
-  const duplicatedIds: string[] = [];
-  const idMap = new Map<string, string>();
-  const siblings = items.filter((item) => (item.parentId ?? null) === (source.parentId ?? null) && item.id !== source.id);
-  const rootCopyName = uniqueLibraryName(createCopyName(source.name), siblings);
-
-  const copyOne = (item: LibraryItem, parentId: string | null, name: string): LibraryItem => {
-    const newId = createId();
-    idMap.set(item.id, newId);
-    duplicatedIds.push(newId);
-    if (isLibraryFile(item)) {
-      // A saved record also contains tags, favorites, and metadata that may
-      // not be present in its SGF. Preserve it without reparsing unchanged SGF.
-      return {
-        ...item,
-        id: newId,
-        name,
-        parentId,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        metadata: { ...item.metadata },
-        ...(item.tags ? { tags: [...item.tags] } : {}),
-      };
-    }
-    return {
-      id: newId,
-      name,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      parentId,
-      type: 'folder',
-    };
-  };
-
-  const rootCopy = copyOne(source, source.parentId ?? null, rootCopyName);
-  copies.push(rootCopy);
-
-  if (source.type === 'folder') {
-    const children = libraryChildrenByParent(items);
-    const pending = [...(children.get(source.id) ?? [])].reverse();
-    while (pending.length > 0) {
-      const item = pending.pop()!;
-      if (idMap.has(item.id)) continue;
-      const copiedParentId = item.parentId ? idMap.get(item.parentId) : undefined;
-      if (!copiedParentId) continue;
-      copies.push(copyOne(item, copiedParentId, item.name));
-      const descendants = children.get(item.id) ?? [];
-      for (let i = descendants.length - 1; i >= 0; i--) {
-        pending.push(descendants[i]!);
-      }
-    }
-  }
-
-  return {
-    items: [...copies, ...items],
-    duplicated: rootCopy,
-    duplicatedIds,
-  };
-};
+): DuplicateLibraryItemResult => duplicateLibraryItems(items, [id], timestamp);
 
 export const duplicateLibraryItems = (
   items: LibraryItem[],
@@ -1411,26 +1425,40 @@ export const duplicateLibraryItems = (
 ): DuplicateLibraryItemResult => {
   const selectedIds = Array.from(ids);
   const selectedIdSet = new Set(selectedIds);
-  const parentById = new Map(items.map((item) => [item.id, item.parentId ?? null]));
+  const byId = new Map(items.map((item) => [item.id, item]));
   const rootSelectedIds = selectedIds.filter((id) => {
-    let parentId = parentById.get(id) ?? null;
-    while (parentId) {
+    let parentId = byId.get(id)?.parentId ?? null;
+    // Bounded, so a corrupt parent cycle cannot hang the duplicate.
+    // A cycle back to the item itself is not a selected ancestor.
+    for (let steps = 0; parentId && parentId !== id && steps < items.length; steps++) {
       if (selectedIdSet.has(parentId)) return false;
-      parentId = parentById.get(parentId) ?? null;
+      parentId = byId.get(parentId)?.parentId ?? null;
     }
     return true;
   });
 
-  let nextItems = items;
+  const duplicate = createLibraryDuplicator(items, timestamp);
+  const groups: LibraryItem[][] = [];
   const duplicatedIds: string[] = [];
-  let firstDuplicated: LibraryItem | null = null;
+  const copiedIds = new Set<string>();
   for (const id of rootSelectedIds) {
-    const result = duplicateLibraryItem(nextItems, id, timestamp);
-    nextItems = result.items;
-    if (!firstDuplicated) firstDuplicated = result.duplicated;
-    duplicatedIds.push(...result.duplicatedIds);
+    const source = byId.get(id);
+    if (!source || copiedIds.has(id)) continue;
+    copiedIds.add(id);
+    const { copies, ids: copyIds } = duplicate(source);
+    groups.push(copies);
+    duplicatedIds.push(...copyIds);
   }
-  return { items: nextItems, duplicated: firstDuplicated, duplicatedIds };
+  if (groups.length === 0) return { items, duplicated: null, duplicatedIds: [] };
+  // Each selection's copies ahead of the previous one's, as when they were
+  // duplicated one at a time, and all of them ahead of the library.
+  const copies: LibraryItem[] = [];
+  for (let i = groups.length - 1; i >= 0; i--) copies.push(...groups[i]!);
+  return {
+    items: [...copies, ...items],
+    duplicated: groups[0]![0]!,
+    duplicatedIds,
+  };
 };
 
 const isLibraryFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
