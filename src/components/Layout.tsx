@@ -14,8 +14,18 @@ import { readLibraryPosition, writeLibraryPosition } from '../utils/libraryPosit
 import { NOTHING_TO_TAKE_BACK_MESSAGE, getPlayerUndoSteps } from '../utils/playerUndo';
 import { getNodePath, resolveNodePath } from '../utils/pinnedVariations';
 import { pickSharedImportText, readSharedFromQuery } from '../utils/pwaOpen';
-import { AUTO_SAVE_MAX_LABEL, clearAutoSavedGame, readAutoSavedGame, writeAutoSavedGame, type AutoSavedGame } from '../utils/autoSave';
-import type { AutoSaveStatus } from '../utils/saveStatusDisplay';
+import {
+  AUTO_SAVE_MAX_LABEL,
+  claimAutoSavedGame,
+  clearAutoSavedGame,
+  discardAutoSavedGame,
+  getAutoSavedAt,
+  listRecoverableAutoSaves,
+  startAutoSaveHeartbeat,
+  writeAutoSavedGame,
+  type RecoverableAutoSave,
+} from '../utils/autoSave';
+import { describeRetainedRecovery, type AutoSaveStatus } from '../utils/saveStatusDisplay';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
   createLibraryItem,
@@ -626,7 +636,8 @@ export const Layout: React.FC = () => {
   const autoSaveFailedToastShownRef = useRef(false);
   const uploadedModelRestorePromiseRef = useRef<ReturnType<typeof restorePersistedUploadedModelUrl> | null>(null);
   const uploadedModelRestoreHandledRef = useRef(false);
-  const [autoSaveRecovery, setAutoSaveRecovery] = useState<AutoSavedGame | null>(null);
+  /** Recovery copies to offer at startup, newest first; null when there are none. */
+  const [autoSaveRecovery, setAutoSaveRecovery] = useState<RecoverableAutoSave[] | null>(null);
   const [autoSaveRecoveryChecked, setAutoSaveRecoveryChecked] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() => {
@@ -1158,26 +1169,32 @@ export const Layout: React.FC = () => {
 
     // The shared/opened content is the intended state, so skip the recovery
     // prompt (auto-save itself stays active for subsequent edits). Skipping the
-    // question must not drop the answer, though: the snapshot is the only copy
-    // of last session's unsaved game, and the load that follows overwrites or
-    // clears it. Keep it in the Library first and say where it went.
+    // question must not drop the answer, though: the snapshots are the only
+    // copies of earlier sessions' unsaved games. Keep them in the Library, and
+    // only then let the recovery copies go, so they are not offered again.
     const suppressRecoveryPrompt = () => {
       if (autoSaveRecoveryCheckedRef.current) return;
       autoSaveRecoveryCheckedRef.current = true;
       setAutoSaveRecoveryChecked(true);
-      const snapshot = readAutoSavedGame();
-      if (!snapshot) return;
-      void updateStoredLibrary((items) => {
-        const name = getUniqueLibraryItemName('Recovered unsaved game', items, null);
-        const item = createLibraryItem(name, snapshot.sgf, null);
-        return { items: [item, ...items], result: item };
-      }).then((item) => {
-        setExternalLibraryItemCreate({ item, updatedAt: item.updatedAt });
-        setLibraryVersion((prev) => prev + 1);
-        toast(`Your unsaved game from last time is in the Library as "${item.name}".`, 'info');
-      }).catch((error) => {
-        toast(withFailureReason('Could not keep your unsaved game from last time.', error), 'error');
-      });
+      const snapshots = listRecoverableAutoSaves();
+      if (snapshots.length === 0) return;
+      void (async () => {
+        for (const snapshot of snapshots) {
+          try {
+            const item = await updateStoredLibrary((items) => {
+              const name = getUniqueLibraryItemName('Recovered unsaved game', items, null);
+              const created = createLibraryItem(name, snapshot.sgf, null);
+              return { items: [created, ...items], result: created };
+            });
+            discardAutoSavedGame(snapshot.id);
+            setExternalLibraryItemCreate({ item, updatedAt: item.updatedAt });
+            setLibraryVersion((prev) => prev + 1);
+            toast(`Your unsaved game from last time is in the Library as "${item.name}".`, 'info');
+          } catch (error) {
+            toast(withFailureReason('Could not keep your unsaved game from last time.', error), 'error');
+          }
+        }
+      })();
     };
 
     // 1) Share link — full SGF compressed into the URL fragment (#sgf=...).
@@ -1252,12 +1269,15 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (autoSaveRecoveryCheckedRef.current) return;
     autoSaveRecoveryCheckedRef.current = true;
-    const snapshot = readAutoSavedGame();
-    if (snapshot && snapshot.sgf !== generateCurrentSgf()) {
-      setAutoSaveRecovery(snapshot);
-    }
+    const currentSgf = generateCurrentSgf();
+    const snapshots = listRecoverableAutoSaves().filter((snapshot) => snapshot.sgf !== currentSgf);
+    if (snapshots.length > 0) setAutoSaveRecovery(snapshots);
     setAutoSaveRecoveryChecked(true);
   }, [generateCurrentSgf]);
+
+  // Marks this tab as open, so another tab never offers this tab's live
+  // recovery copy as a lost game.
+  useEffect(() => startAutoSaveHeartbeat(), []);
 
   // Whether there is anything to write is decided when the write is due, not
   // on every tree change: asking serializes the tree, and during analysis the
@@ -1285,16 +1305,21 @@ export const Layout: React.FC = () => {
         autoSaveFailedToastShownRef.current = false;
         setAutoSaveStatus({ state: 'saved', savedAt });
       } else if (result === 'too-large') {
-        setAutoSaveStatus({ state: 'too-large' });
+        // The last copy that fit is still there; say how old it is.
+        const retainedAt = getAutoSavedAt();
+        setAutoSaveStatus({ state: 'too-large', savedAt: retainedAt });
         if (!autoSaveTooLargeToastShownRef.current) {
           autoSaveTooLargeToastShownRef.current = true;
-          toast(`Game is too large for recovery auto-save (${AUTO_SAVE_MAX_LABEL}). Save to Library or download SGF to keep changes.`, 'info');
+          toast(`Game is too large for recovery auto-save (${AUTO_SAVE_MAX_LABEL}).${describeRetainedRecovery(retainedAt)} Save to Library or download SGF to keep changes.`, 'info');
         }
       } else {
-        setAutoSaveStatus({ state: 'failed' });
+        const retainedAt = getAutoSavedAt();
+        setAutoSaveStatus({ state: 'failed', savedAt: retainedAt });
         if (!autoSaveFailedToastShownRef.current) {
           autoSaveFailedToastShownRef.current = true;
-          toast('Recovery auto-save failed, so this game will not come back after a reload. Save to Library or download SGF to keep changes.', 'error');
+          toast(retainedAt
+            ? `Recovery auto-save failed.${describeRetainedRecovery(retainedAt)} Save to Library or download SGF to keep changes.`
+            : 'Recovery auto-save failed, so this game will not come back after a reload. Save to Library or download SGF to keep changes.', 'error');
         }
       }
     };
@@ -1314,23 +1339,29 @@ export const Layout: React.FC = () => {
     };
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);
 
-  const discardAutoSaveRecovery = useCallback(() => {
-    clearAutoSavedGame();
-    setAutoSaveRecovery(null);
+  // Only the copy the player chose is deleted; any others stay on offer.
+  const discardAutoSaveRecovery = useCallback((id: string) => {
+    discardAutoSavedGame(id);
+    setAutoSaveRecovery((current) => {
+      const rest = current?.filter((snapshot) => snapshot.id !== id) ?? [];
+      return rest.length > 0 ? rest : null;
+    });
   }, []);
 
-  const restoreAutoSavedGame = useCallback(() => {
-    const snapshot = autoSaveRecovery;
+  const restoreAutoSavedGame = useCallback((id: string) => {
+    const snapshot = autoSaveRecovery?.find((candidate) => candidate.id === id);
     if (!snapshot) return;
     try {
       const parsed = parseSgf(snapshot.sgf);
       loadGame(parsed);
       setLoadedLibraryFile(null);
       navigateEnd();
+      // The restored copy becomes this tab's own; others wait for a later start.
+      claimAutoSavedGame(id);
       setAutoSaveRecovery(null);
       toast('Restored auto-saved game.', 'success');
     } catch {
-      clearAutoSavedGame();
+      discardAutoSavedGame(id);
       setAutoSaveRecovery(null);
       toast('Failed to restore auto-saved game.', 'error');
     }
@@ -3803,7 +3834,7 @@ export const Layout: React.FC = () => {
         )}
         {autoSaveRecovery && (
           <AutoSaveRecoveryModal
-            snapshot={autoSaveRecovery}
+            snapshots={autoSaveRecovery}
             onRestore={restoreAutoSavedGame}
             onDiscard={discardAutoSaveRecovery}
           />
