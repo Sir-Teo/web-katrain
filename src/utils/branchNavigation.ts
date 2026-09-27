@@ -1,4 +1,5 @@
 import type { GameNode } from '../types';
+import { moveCountOf } from './moveHistory';
 
 export type ActiveBranchMap = Record<string, string>;
 
@@ -216,7 +217,7 @@ export function findCurrentLineNodeByPlayedMoves(
   let best: GameNode | null = null;
 
   for (const node of getCurrentLineNodes(currentNode, activeBranches)) {
-    const count = node.gameState.moveHistory.length;
+    const count = moveCountOf(node.gameState);
     if (count === playedMoves) return node;
     if (count > playedMoves) break;
     best = node;

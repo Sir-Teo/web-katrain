@@ -2,6 +2,7 @@ import type { CandidateMove, GameNode, Player } from '../types';
 import { getActiveChild, type ActiveBranchMap } from './branchNavigation';
 import { computeNodePointsLost } from './nodeAnalysis';
 import { formatBoardMoveLabel } from '../lib/gtp';
+import { moveCountOf } from './moveHistory';
 
 /**
  * Walking your own mistakes and being asked to find the better move.
@@ -103,7 +104,7 @@ export function collectDrillMistakes(args: {
         mistakes.push({
           nodeId: child.id,
           parentNodeId: node.id,
-          moveNumber: child.gameState.moveHistory.length,
+          moveNumber: moveCountOf(child.gameState),
           player: move.player,
           pointsLost,
           played: { x: move.x, y: move.y },

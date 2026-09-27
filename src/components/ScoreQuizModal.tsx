@@ -6,6 +6,7 @@ import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { evaluateNode } from '../utils/positionEval';
 import { collectQuizPositions, selectQuizJumpCandidates } from '../utils/scoreQuizPositions';
+import { moveCountOf } from '../utils/moveHistory';
 
 interface ScoreQuizModalProps {
   onClose: () => void;
@@ -48,7 +49,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   const scoredNodeIds = useRef(new Set<string>());
   useEffect(() => () => { pendingReveal.current = null; }, [nodeId]);
   const board = currentNode.gameState.board;
-  const moveNumber = currentNode.gameState.moveHistory.length;
+  const moveNumber = moveCountOf(currentNode.gameState);
   const lastMove = currentNode.move && currentNode.move.x >= 0
     ? { x: currentNode.move.x, y: currentNode.move.y }
     : null;

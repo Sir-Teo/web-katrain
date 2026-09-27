@@ -1,4 +1,5 @@
 import type { BoardState, GameNode, Move, Player } from '../types';
+import { moveCountOf } from './moveHistory';
 
 export type GuessPlayerFilter = 'both' | 'black' | 'white';
 
@@ -31,7 +32,7 @@ export const buildGuessPositions = (
     const move = child.move;
     if (isRealMove(move) && (filter === 'both' || move.player === filter)) {
       positions.push({
-        moveNumber: child.gameState.moveHistory.length,
+        moveNumber: moveCountOf(child.gameState),
         board: node.gameState.board,
         expected: move,
         lastMove: isRealMove(node.move) ? { x: node.move.x, y: node.move.y } : null,
