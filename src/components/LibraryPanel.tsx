@@ -71,6 +71,13 @@ import {
   compareLibraryNames,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
+import {
+  LIBRARY_TREE_INDENT_LEVELS,
+  LIBRARY_TREE_MAX_DEPTH,
+  flattenLibraryTreeRows,
+  libraryTreeIndent,
+  type LibraryTreeRow,
+} from '../utils/libraryTreeRows';
 import { tagsFromResult } from '../utils/narrativeTags';
 
 /**
@@ -870,26 +877,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const breadcrumbs = useMemo(() => {
     if (!activeFolderId) return [];
+    // By id, not a scan of the library per level: the trail can be deep.
     const trail: LibraryFolder[] = [];
-    let current: LibraryItem | undefined = items.find((item) => item.id === activeFolderId);
-    while (current && isFolder(current)) {
+    const seen = new Set<string>();
+    let current: LibraryItem | undefined = itemById.get(activeFolderId);
+    while (current && isFolder(current) && !seen.has(current.id)) {
+      seen.add(current.id);
       trail.push(current);
-      const parentId = current.parentId ?? null;
-      current = parentId ? items.find((item) => item.id === parentId) : undefined;
+      current = current.parentId ? itemById.get(current.parentId) : undefined;
     }
     return trail.reverse();
-  }, [activeFolderId, items]);
+  }, [activeFolderId, itemById]);
 
   const activeAncestorIds = useMemo(() => {
     if (!loadedFileId) return new Set<string>();
     const ancestors = new Set<string>();
-    let current = items.find((item) => item.id === loadedFileId);
-    while (current?.parentId) {
+    let current = itemById.get(loadedFileId);
+    while (current?.parentId && !ancestors.has(current.parentId)) {
       ancestors.add(current.parentId);
-      current = items.find((item) => item.id === current?.parentId);
+      current = itemById.get(current.parentId);
     }
     return ancestors;
-  }, [loadedFileId, items]);
+  }, [loadedFileId, itemById]);
 
   const childrenMap = useMemo(() => {
     const map = new Map<string | null, LibraryItem[]>();
@@ -1734,6 +1743,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const limitFor = (key: string) => visibleLimits[key] ?? LIBRARY_PAGE_SIZE;
 
+  // Flat, whatever the depth: see `flattenLibraryTreeRows`.
+  const treeRows = useMemo(() => flattenLibraryTreeRows({
+    roots: childrenMap.get(null) ?? [],
+    childrenOf: (folderId) => childrenMap.get(folderId) ?? [],
+    isExpanded: (folderId) => visibleExpandedFolderIds.has(folderId),
+    limitFor: (key) => visibleLimits[key] ?? LIBRARY_PAGE_SIZE,
+  }), [childrenMap, visibleExpandedFolderIds, visibleLimits]);
+  const deepLevelLabel = (depth: number) => (depth >= LIBRARY_TREE_INDENT_LEVELS ? `Level ${depth + 1}` : '');
+
   /**
    * Reveals another page of one list. Selection deliberately still spans every
    * match rather than only the mounted rows, which is what it did before paging
@@ -1746,7 +1764,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       <button
         type="button"
         className="library-show-more"
-        style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
+        style={depth > 0 ? { marginLeft: libraryTreeIndent(depth) } : undefined}
         onClick={() =>
           setVisibleLimits((limits) => ({
             ...limits,
@@ -1771,6 +1789,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const moreFileActionsLabel = `More actions for ${item.name}`;
     const moveSummary = getLibraryFileMoveSummary(item);
     const metaText = [
+      deepLevelLabel(depth),
       (item.metadata.black || item.metadata.white) &&
       !libraryNameRepeatsPlayers(item.name, item.metadata.black, item.metadata.white)
         ? `${item.metadata.black ?? 'Black'} vs ${item.metadata.white ?? 'White'}`
@@ -1790,8 +1809,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
           isLoadedDirty ? 'dirty' : '',
         ].join(' ')}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
         role="treeitem"
+        aria-level={depth + 1}
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
@@ -1971,148 +1991,165 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const deleteFolderLabel = `Delete ${item.name}`;
     const moreFolderActionsLabel = `More actions for ${item.name}`;
     return (
-      <div key={item.id}>
-        <div
-          className={[
-            'library-tree-node',
-            isSelected ? 'selected' : '',
-            activeFolderId === item.id ? 'selected' : '',
-            hasLoaded ? 'has-loaded' : '',
-            hasDirtyLoaded ? 'has-loaded-dirty' : '',
-            dragOverId === item.id ? 'drop-target' : '',
-          ].join(' ')}
-          style={{ paddingLeft: 12 + depth * 16 }}
-          role="treeitem"
-          tabIndex={0}
-          aria-selected={isSelected || activeFolderId === item.id}
-          aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
-          aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
-          data-library-row="folder"
-          data-library-row-name={item.name}
-          data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
-          onClick={() => activateFolderRow(item)}
-          onKeyDown={handleFolderRowKeyDown(item, isExpanded, children.length > 0, allowChildren)}
-          onContextMenu={(event) => openContextMenu(event, item)}
-          draggable
-          onDragStart={handleItemDragStart(item.id)}
-          onDragEnd={handleItemDragEnd}
-          onDragOver={(e) => {
-            if (e.dataTransfer.types.includes('Files')) return;
-            e.preventDefault();
-            setDragOverId(item.id);
+      <div
+        key={item.id}
+        className={[
+          'library-tree-node',
+          isSelected ? 'selected' : '',
+          activeFolderId === item.id ? 'selected' : '',
+          hasLoaded ? 'has-loaded' : '',
+          hasDirtyLoaded ? 'has-loaded-dirty' : '',
+          dragOverId === item.id ? 'drop-target' : '',
+        ].join(' ')}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
+        role="treeitem"
+        aria-level={depth + 1}
+        tabIndex={0}
+        aria-selected={isSelected || activeFolderId === item.id}
+        aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
+        aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
+        data-library-row="folder"
+        data-library-row-name={item.name}
+        data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
+        onClick={() => activateFolderRow(item)}
+        onKeyDown={handleFolderRowKeyDown(item, isExpanded, children.length > 0, allowChildren)}
+        onContextMenu={(event) => openContextMenu(event, item)}
+        draggable
+        onDragStart={handleItemDragStart(item.id)}
+        onDragEnd={handleItemDragEnd}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) return;
+          e.preventDefault();
+          setDragOverId(item.id);
+        }}
+        onDragLeave={() => setDragOverId(null)}
+        onDrop={handleDropOnFolder(item.id)}
+      >
+        <button
+          type="button"
+          className={['library-tree-node-arrow', isExpanded ? 'expanded' : ''].join(' ')}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpandedFolderIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(item.id)) next.delete(item.id);
+              else next.add(item.id);
+              return next;
+            });
           }}
-          onDragLeave={() => setDragOverId(null)}
-          onDrop={handleDropOnFolder(item.id)}
+          title={toggleFolderLabel}
+          aria-label={toggleFolderLabel}
         >
+          <FaChevronRight size={12} />
+        </button>
+        <button
+          type="button"
+          className={[
+            'library-tree-node-select',
+            isSelected ? 'is-visible' : '',
+          ].join(' ')}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleSelect(item.id);
+          }}
+          title={selectFolderLabel}
+          aria-label={selectFolderLabel}
+        >
+          {isSelected ? <FaCheckSquare size={12} /> : <FaRegSquare size={12} />}
+        </button>
+        <span className="library-tree-node-icon">
+          <FaFolderOpen size={12} />
+        </span>
+        <div className="library-tree-node-name" title={item.name}>{item.name}</div>
+        <div className="library-tree-node-meta">
+          {[deepLevelLabel(depth), String(children.length)].filter(Boolean).join(' · ')}
+        </div>
+        <div className="library-tree-node-actions">
           <button
             type="button"
-            className={['library-tree-node-arrow', isExpanded ? 'expanded' : ''].join(' ')}
+            className="library-tree-node-action"
             onClick={(e) => {
               e.stopPropagation();
-              setExpandedFolderIds((prev) => {
-                const next = new Set(prev);
-                if (next.has(item.id)) next.delete(item.id);
-                else next.add(item.id);
-                return next;
-              });
+              handleDuplicate(item);
             }}
-            title={toggleFolderLabel}
-            aria-label={toggleFolderLabel}
+            title={duplicateFolderLabel}
+            aria-label={duplicateFolderLabel}
           >
-            <FaChevronRight size={12} />
+            <FaCopy size={12} />
           </button>
           <button
             type="button"
-            className={[
-              'library-tree-node-select',
-              isSelected ? 'is-visible' : '',
-            ].join(' ')}
+            className="library-tree-node-action"
             onClick={(e) => {
               e.stopPropagation();
-              handleToggleSelect(item.id);
+              void handleExportFolderZip(item);
             }}
-            title={selectFolderLabel}
-            aria-label={selectFolderLabel}
+            title={exportFolderLabel}
+            aria-label={exportFolderLabel}
           >
-            {isSelected ? <FaCheckSquare size={12} /> : <FaRegSquare size={12} />}
+            <FaDownload size={12} />
           </button>
-          <span className="library-tree-node-icon">
-            <FaFolderOpen size={12} />
-          </span>
-          <div className="library-tree-node-name" title={item.name}>{item.name}</div>
-          <div className="library-tree-node-meta">{children.length}</div>
-          <div className="library-tree-node-actions">
-            <button
-              type="button"
-              className="library-tree-node-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDuplicate(item);
-              }}
-              title={duplicateFolderLabel}
-              aria-label={duplicateFolderLabel}
-            >
-              <FaCopy size={12} />
-            </button>
-            <button
-              type="button"
-              className="library-tree-node-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleExportFolderZip(item);
-              }}
-              title={exportFolderLabel}
-              aria-label={exportFolderLabel}
-            >
-              <FaDownload size={12} />
-            </button>
-            <button
-              type="button"
-              className="library-tree-node-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRename(item);
-              }}
-              title={renameFolderLabel}
-              aria-label={renameFolderLabel}
-            >
-              <FaPen size={12} />
-            </button>
-            <button
-              type="button"
-              className="library-tree-node-action danger"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(item);
-              }}
-              title={deleteFolderLabel}
-              aria-label={deleteFolderLabel}
-            >
-              <FaTrash size={12} />
-            </button>
-          </div>
           <button
             type="button"
-            className="library-tree-node-more"
-            onClick={(event) => openButtonContextMenu(event, item)}
-            title={moreFolderActionsLabel}
-            aria-label={moreFolderActionsLabel}
-            aria-haspopup="menu"
-            aria-expanded={contextMenu?.itemId === item.id}
+            className="library-tree-node-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRename(item);
+            }}
+            title={renameFolderLabel}
+            aria-label={renameFolderLabel}
           >
-            <FaEllipsisH size={14} />
+            <FaPen size={12} />
+          </button>
+          <button
+            type="button"
+            className="library-tree-node-action danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(item);
+            }}
+            title={deleteFolderLabel}
+            aria-label={deleteFolderLabel}
+          >
+            <FaTrash size={12} />
           </button>
         </div>
-        {allowChildren && isExpanded && children.length > 0 && (
-          <div>
-            {children.slice(0, limitFor(item.id)).map((child) =>
-              isFolder(child) ? renderFolderRow(child, depth + 1, allowChildren) : renderFileRow(child, depth + 1)
-            )}
-            {renderShowMore(item.id, children.length, depth + 1)}
-          </div>
-        )}
+        <button
+          type="button"
+          className="library-tree-node-more"
+          onClick={(event) => openButtonContextMenu(event, item)}
+          title={moreFolderActionsLabel}
+          aria-label={moreFolderActionsLabel}
+          aria-haspopup="menu"
+          aria-expanded={contextMenu?.itemId === item.id}
+        >
+          <FaEllipsisH size={14} />
+        </button>
       </div>
     );
+  };
+
+  /**
+   * In place of contents nested deeper than the tree shows inline. Moving the
+   * folder to Root brings them within reach, and can be moved back.
+   */
+  const renderTooDeepRow = (folder: LibraryItem, depth: number) => (
+    <button
+      key={`deep:${folder.id}`}
+      type="button"
+      className="library-show-more"
+      style={{ marginLeft: libraryTreeIndent(depth) }}
+      onClick={() => handleMoveToRoot(folder)}
+      data-library-too-deep="true"
+    >
+      Folders nested over {LIBRARY_TREE_MAX_DEPTH} levels deep are not shown here. Move "{folder.name}" to Root to open it.
+    </button>
+  );
+
+  const renderTreeRow = (row: LibraryTreeRow) => {
+    if (row.kind === 'item') return isFolder(row.item) ? renderFolderRow(row.item, row.depth) : renderFileRow(row.item, row.depth);
+    if (row.kind === 'more') return <React.Fragment key={row.key}>{renderShowMore(row.listKey, row.total, row.depth)}</React.Fragment>;
+    return renderTooDeepRow(row.folder, row.depth);
   };
 
   const renderContextMenu = () => {
@@ -2817,12 +2854,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div>
-                    {(childrenMap.get(null) ?? []).slice(0, limitFor('')).map((item) =>
-                      isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
-                    )}
-                    {renderShowMore('', (childrenMap.get(null) ?? []).length)}
-                  </div>
+                  <div>{treeRows.map(renderTreeRow)}</div>
                 )}
               </div>
               {items.length > 0 && (
