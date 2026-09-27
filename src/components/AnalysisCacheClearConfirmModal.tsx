@@ -17,14 +17,25 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
   onCancel,
   onConfirm,
 }) => {
+  const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
+    focusContainer: false,
+    initialFocusRef: cancelButtonRef,
+  });
   // Capture phase on purpose, and it swallows *every* key: this dialog is
   // modal over a board whose single-letter shortcuts would otherwise keep
   // firing behind it. That rules out `useEscapeToClose`, whose bubble listener
   // would run after Layout's own Escape handlers -- and the back gesture it
   // also provides was lost with it, so an Android back press left the app
   // rather than cancelling.
+  //
+  // Except Tab from inside the dialog. Swallowed here, it never reached the
+  // focus trap's listener on the dialog, so Tab walked out into the page
+  // behind. The board's shortcut handler already ignores keys aimed at a
+  // dialog, so letting it through does not toggle analysis.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Tab' && dialogRef.current?.contains(event.target as Node)) return;
       event.stopPropagation();
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -33,14 +44,9 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
     };
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [onCancel]);
+  }, [dialogRef, onCancel]);
   useBackGestureToClose(onCancel);
 
-  const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
-    focusContainer: false,
-    initialFocusRef: cancelButtonRef,
-  });
   const label = formatAnalysisCount(count);
 
   return (
