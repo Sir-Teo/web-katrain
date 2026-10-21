@@ -544,6 +544,8 @@ export const Layout: React.FC = () => {
   const layoutShortcutLabels = useShortcutLabels(LAYOUT_SHORTCUT_IDS);
   const [mobileHomeOpen, setMobileHomeOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
+    // Embedded studies should open on the board, with the menu still available.
+    if (window.self !== window.top) return false;
     return isMobileLayoutViewport() && readLocalStorage(MOBILE_HOME_DISMISSED_KEY) !== 'true';
   });
 
