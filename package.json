@@ -55,6 +55,9 @@
     "vitest": "^4.1.11"
   },
   "overrides": {
-    "js-yaml": "^4.3.2"
+    "js-yaml": "^4.3.2",
+    "@tensorflow/tfjs": {
+      "argparse": "^2.0.1"
+    }
   }
 }
