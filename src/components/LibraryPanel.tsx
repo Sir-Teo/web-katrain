@@ -1242,7 +1242,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       setQuery('');
       setFavoritesOnly(false);
       setActiveTag(null);
-      requestAnimationFrame(() => searchInputRef.current?.focus());
+      searchInputRef.current?.focus();
       onToast(`Created ${result.files.length} games in "${result.folder.name}".`, 'success');
     } catch (error) {
       onToast(error instanceof Error ? error.message : 'Could not split this collection.', 'error');
