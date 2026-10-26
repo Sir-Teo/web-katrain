@@ -14,6 +14,21 @@ import { assertValidLibrarySgfImport } from './libraryImportValidation';
 
 const ZIP_SGF_EXT_RE = /\.sgf$/i;
 
+export const LIBRARY_ZIP_PATH_TOO_LONG_MESSAGE =
+  'Some paths are too long for ZIP. Download a JSON library backup to preserve the full structure.';
+
+export class LibraryZipPathError extends Error {
+  constructor() { super(LIBRARY_ZIP_PATH_TOO_LONG_MESSAGE); }
+}
+
+function assertZipEntryPath(path: string): void {
+  const bytes = new TextEncoder().encode(path).byteLength;
+  // ZIP name and extra-field lengths are unsigned 16-bit values. JSZip adds
+  // a Unicode Path extra field (name bytes + 9) for non-ASCII names; overflowing
+  // either field silently dropped the SGF from a generated deep-folder ZIP.
+  if (bytes > 0xffff || (bytes !== path.length && bytes + 9 > 0xffff)) throw new LibraryZipPathError();
+}
+
 function sanitizeZipPart(part: string): string {
   const sanitized = (
     stripUnsafeFilenameControls(part)
@@ -109,6 +124,7 @@ export async function createLibraryZipBlob(
       const folder = pending.pop()!;
       const name = sanitizeZipPart(folder.name);
       parentPath = uniqueZipPath(parentPath ? `${parentPath}/${name}` : name, usedPaths, nextSuffix);
+      assertZipEntryPath(`${parentPath}/`);
       folderPaths.set(folder.id, parentPath);
     }
     return parentPath;
@@ -129,6 +145,7 @@ export async function createLibraryZipBlob(
     const rawName = sanitizeZipPart(item.name).replace(ZIP_SGF_EXT_RE, '') || 'game';
     const name = `${rawName}.sgf`;
     const path = uniqueZipPath(parentPath ? `${parentPath}/${name}` : name, usedPaths, nextSuffix);
+    assertZipEntryPath(path);
     zip.file(path, normalizeSgfUtf8(item.sgf));
     fileCount++;
   }

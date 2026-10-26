@@ -74,7 +74,7 @@ import { tagsFromResult } from '../utils/narrativeTags';
  * `W+R` is a resignation, `W+T` a timeout, and a draw prints as such.
  */
 const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
-import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
+import { createLibraryZipBlob, importLibraryItemsFromZip, LibraryZipPathError } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
 import { describeLibraryClear, describeLibraryReplacement } from '../utils/libraryPrompts';
@@ -1251,8 +1251,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       onToast(fileCount > 0
         ? `Exported ${fileCount} SGF file${fileCount === 1 ? '' : 's'} as ZIP.`
         : `Exported ${folderCount} folder${folderCount === 1 ? '' : 's'} as ZIP.`, 'success');
-    } catch {
-      onToast('Failed to create library ZIP.', 'error');
+    } catch (error) {
+      onToast(error instanceof LibraryZipPathError ? error.message : 'Failed to create library ZIP.', 'error');
     }
   };
 
@@ -1263,8 +1263,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       onToast(fileCount > 0
         ? `Exported "${item.name}" with ${fileCount} SGF file${fileCount === 1 ? '' : 's'}.`
         : `Exported "${item.name}" with its folder structure.`, 'success');
-    } catch {
-      onToast('Failed to export folder ZIP.', 'error');
+    } catch (error) {
+      onToast(error instanceof LibraryZipPathError ? error.message : 'Failed to export folder ZIP.', 'error');
     }
   };
 
@@ -1388,8 +1388,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       onToast(fileCount > 0
         ? `Exported ${fileCount} selected SGF file${fileCount === 1 ? '' : 's'} as ZIP.`
         : `Exported ${folderCount} folder${folderCount === 1 ? '' : 's'} as ZIP.`, 'success');
-    } catch {
-      onToast('Failed to export selected items.', 'error');
+    } catch (error) {
+      onToast(error instanceof LibraryZipPathError ? error.message : 'Failed to export selected items.', 'error');
       return;
     }
   };

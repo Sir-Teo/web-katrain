@@ -10,6 +10,16 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **ZIP path limits:** a supported hierarchy of 180 folders, each with a
+  96-character Unicode name, produced a ZIP reporting one game while reopening
+  the archive yielded zero games. ZIP filename and extra-field lengths are
+  16-bit values; JSZip silently overflowed those fields. Export now validates
+  UTF-8 path lengths, including directory slashes and Unicode path fields,
+  before generation. Library, folder, and selection exports explain the limit
+  and recommend a JSON backup. Boundary tests round-trip valid ASCII and
+  Unicode names and reject the first invalid lengths. Native desktop and phone
+  checks verify that all three controls offer no corrupt download, while the
+  JSON backup retains all 180 folders and the exact SGF.
 - **Lesson progress:** the lesson list now shows completion and resumes an
   unfinished lesson at its furthest reached step. Completed lessons replay
   from the beginning. Returning to the list focuses and reveals the selected
