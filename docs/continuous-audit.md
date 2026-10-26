@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Problem Practice keyboard flow:** a correct keyboard answer left focus
+  on a board that no longer accepted answers. Success now focuses the next
+  problem when available; a failed line or final problem focuses Retry.
+  Advancing, retrying and a completed opponent reply return to the interactive
+  board. Retry creates a fresh keyboard cursor. Native desktop/phone checks
+  import two recorded problems, solve by keyboard, follow the real opponent
+  reply, retry the last problem, show its solution, try a wrong variation and
+  verify the loaded game's position never changes. Thirty-six focused problem,
+  study rendering, board and dialog tests pass.
 - **Finishing note edits:** Escape from the note editor left focus on the
   page body; the next Tab could toggle analysis instead of navigating controls.
   Explicit Save/Cancel now restore focus after the replacement UI mounts: Edit

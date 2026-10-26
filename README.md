@@ -73,6 +73,8 @@ PWA. There is no analysis server to run.
   to resume, and mark completed lessons for review.
 - Guess the next move in a loaded game, with keyboard answers and a player
   filter. Start again after the final answer to repeat the drill with a fresh score.
+- Practice recorded tsumego branches with automatic opponent replies and
+  keyboard controls for answering, retrying and moving between problems.
 
 **Load and save**
 

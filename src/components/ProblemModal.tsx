@@ -50,6 +50,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   const [cursor, setCursor] = useState<GameNode | null>(start);
   const [status, setStatus] = useState<Status>('solving');
   const [message, setMessage] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearReplyTimer = () => {
@@ -78,6 +79,16 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   const sideToMove = node ? problemSideToMove(node) : 'black';
   // Whose problem it is: the side to move at the start, not at the cursor.
   const solver = start ? problemSideToMove(start) : undefined;
+
+  useEffect(() => {
+    if (status === 'replying') return;
+    const selector = status === 'solving'
+      ? '[data-static-board-interactive="true"]'
+      : status !== 'wrong' && safeIndex < problems.length - 1
+        ? '[aria-label="Next problem"]'
+        : '[data-problem-retry]';
+    dialogRef.current?.querySelector<SVGSVGElement | HTMLButtonElement>(selector)?.focus({ preventScroll: true });
+  }, [status, start?.id, safeIndex, problems.length, attempt, dialogRef]);
 
   // Resolves the position if it carries an explicit verdict or ends a line.
   // Returns true when the round is decided, false when play should continue.
@@ -128,6 +139,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
 
   const handleRetry = () => {
     clearReplyTimer();
+    setAttempt(value => value + 1);
     setCursor(start);
     setStatus('solving');
     setMessage(null);
@@ -220,6 +232,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
 
               <div className="problem-board mx-auto w-full max-w-[340px]">
                 <StaticBoard
+                  key={`${start?.id}:${attempt}`}
                   board={node.gameState.board}
                   lastMove={lastMove}
                   markers={markers}
