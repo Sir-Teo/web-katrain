@@ -83,6 +83,20 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Free handicap placement:** a record with `HA[2];B[pd];B[dp]` acquired
+  two invented setup stones before replay. The import regression failed;
+  authored placement now loads without extra stones or an invented White turn,
+  including a move in the SGF root and isolated White passes. Analysis also
+  omitted compensation when the initial board was empty: 16 Chinese/AGA
+  workflow cases reproduced it. Requests now carry starting move history into
+  the count, following the pinned native `computeNumHandicapStones` logic;
+  manual counting uses the same calculation. Japanese and other zero-bonus
+  rules skip unnecessary counting. Eight workflows across three rulesets,
+  native prefix fixtures, loader/rules tests and both real-model compensation
+  checks pass (89 cases). App/test TypeScript and lint pass. Native scoring at
+  1280/390/320 verifies all existing rules plus Chinese/AGA free placement;
+  downloaded SGFs preserve every authored move and pass without setup stones.
+  Another 76 import, export round-trip, startup-rules and tree-invariant cases pass.
 - **Paste import focus:** starting a held OGS import reproduced focus on `body`
   after Open became disabled. The pending dialog now retains focus and its Tab
   handler; an unsuccessful import returns to the text editor unless the user

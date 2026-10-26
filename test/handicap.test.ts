@@ -3,6 +3,7 @@ import { countHandicapStones, komiWithHandicapBonus, whiteHandicapBonus } from '
 import { MctsSearch } from '../src/engine/katago/analyzeMcts';
 import { setBoardSize } from '../src/engine/katago/fastBoard';
 import { boardFromDiagram, emptyBoard, loadHarnessModel, runsEngineSuites } from './helpers/engineHarness';
+import type { Move } from '../src/types';
 
 // ---------------------------------------------------------------------------
 // Handicap compensation (cpp/game/boardhistory.cpp computeWhiteHandicapBonus, and
@@ -90,14 +91,14 @@ describe.skipIf(!runsEngineSuites())('what the compensation is worth', () => {
   // The network's own read of the position, before any search: the point is what
   // komi reaches it, and a search on a handicap board saturates and hides that.
   // Rules are held fixed so the only thing varying is the komi.
-  const rawLeadWithKomi = async (komi: number) => {
+  const rawLeadWithKomi = async (komi: number, moveHistory: Move[] = []) => {
     setBoardSize(9);
     const model = await loadHarnessModel();
     const search = await MctsSearch.create({
       model,
       board: boardFromDiagram(TWO_STONES),
       currentPlayer: 'white',
-      moveHistory: [],
+      moveHistory,
       komi,
       rules: 'chinese',
       nnRandomize: false,
@@ -121,6 +122,17 @@ describe.skipIf(!runsEngineSuites())('what the compensation is worth', () => {
     // Black's lead is smaller once white is paid for the stones black began with.
     // Leaving it out misreports every Chinese handicap game, and by a whole stone
     // per stone of handicap.
+    expect(uncompensated - compensated).toBeGreaterThan(1);
+  }, 120000);
+
+  it('compensates free placement when the initial board was empty', async () => {
+    const history: Move[] = [
+      { x: 2, y: 2, player: 'black' }, { x: 6, y: 2, player: 'black' },
+    ];
+    const effectiveKomi = komiWithHandicapBonus(emptyBoard(9), 'chinese', 0.5, history);
+    expect(effectiveKomi).toBe(2.5);
+    const uncompensated = await rawLeadWithKomi(0.5, history);
+    const compensated = await rawLeadWithKomi(effectiveKomi, history);
     expect(uncompensated - compensated).toBeGreaterThan(1);
   }, 120000);
 });

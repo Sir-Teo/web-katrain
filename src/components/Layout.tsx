@@ -63,6 +63,7 @@ import {
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
 import { countRootHandicapStones } from '../utils/handicapAi';
+import { countHandicapStones } from '../utils/handicap';
 import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
@@ -740,6 +741,9 @@ export const Layout: React.FC = () => {
   // reads the result while scoring is off: the panel renders only its launcher
   // and the board ignores `scoreTerritory`. Computing it on every navigation
   // anyway was the second-largest cost of stepping through a game.
+  const scoringHandicap = scoringMode
+    ? countHandicapStones(rootNode.gameState.board, currentNode.gameState.moveHistory)
+    : 0;
   const manualScoreEstimate = useMemo(
     () =>
       scoringMode
@@ -750,10 +754,10 @@ export const Layout: React.FC = () => {
             capturedWhite,
             deadStones: manualDeadStones,
             rules: settings.gameRules,
-            handicapStones: handicap,
+            handicapStones: scoringHandicap,
           })
         : NO_MANUAL_SCORE_ESTIMATE,
-    [board, capturedBlack, capturedWhite, handicap, komi, manualDeadStones, scoringMode, settings.gameRules]
+    [board, capturedBlack, capturedWhite, scoringHandicap, komi, manualDeadStones, scoringMode, settings.gameRules]
   );
   const manualScoreOwnership = useMemo(() => {
     if (!currentNode.analysis || (currentNode.analysis.ownershipMode ?? 'root') === 'none') return null;
