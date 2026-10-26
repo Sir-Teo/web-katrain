@@ -24,6 +24,7 @@ import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
 import { assertLibraryCollectionSplit } from './lib/library-collection-check.mjs';
 import { assertBoardComposition } from './lib/board-composition-check.mjs';
+import { assertMoveTreeComposition } from './lib/move-tree-composition-check.mjs';
 import { assertPhotoTraceKeyboard } from './lib/photo-trace-keyboard-check.mjs';
 import { assertGuessMoveKeyboard } from './lib/guess-move-keyboard-check.mjs';
 import { assertNoteLibrarySemantics } from './lib/note-library-semantics-check.mjs';
@@ -4250,6 +4251,7 @@ async function main() {
     await assertLibraryImportDestination(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryRepeatImport(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryShowMoreFocus(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertMoveTreeComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

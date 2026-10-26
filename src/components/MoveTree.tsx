@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import { shallow } from 'zustand/shallow';
 import { FaArrowsAltH, FaArrowsAltV, FaCompressArrowsAlt, FaCrosshairs, FaExpandArrowsAlt, FaMapMarkedAlt, FaProjectDiagram } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
@@ -495,6 +496,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
     });
   };
   const handleMinimapKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
+    if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
     const container = containerRef.current;
     if (!container || !layout) return;
 
@@ -649,6 +651,7 @@ export const MoveTree: React.FC<{ onSelectNode?: (node: GameNode) => void }> = (
           ].filter(Boolean).join(', ');
 
           const handleKeyDown = (event: React.KeyboardEvent<SVGGElement>) => {
+            if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
             if (!selectableNode) return;
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();

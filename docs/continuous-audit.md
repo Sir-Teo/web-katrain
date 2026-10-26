@@ -10,6 +10,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Move-tree composition:** composition ArrowRight on a tree node advanced
+  the loaded game from the root to move 1. Nodes and the minimap now ignore
+  composition, legacy key-code 229 and Ctrl/Alt/Meta chords. Native desktop/phone
+  checks mount the actual component on a 120-move game, retain game/scroll/focus
+  during ignored keys, and verify ordinary node navigation, focus return,
+  minimap arrows/Home/End and centering. Twelve existing tree/layout cases,
+  TypeScript and lint pass.
 - **Library page continuity:** keyboard Show more left the first new row
   offscreen and unfocused; on the final page its button disappeared. The
   action now records the next item and focuses it after those rows mount.
