@@ -118,6 +118,19 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **A selected game survives earlier clipboard work:** a held clipboard OGS
+  download reproduced replacing a subsequently chosen 19×19 Library game
+  with its older 13×13 result. Clipboard commands now retain their starting
+  game identity and ignore reads, downloads and failures after a different
+  game loads. The import checks identity both before and after replacement
+  confirmation; its own committed load is excluded from that waiting guard.
+  Native checks restore two actual Library records, alternate selection,
+  and preserve the exact root/name/board at 1440/390/320 pixels across late
+  text, empty results, denied reads, OGS responses and OGS failures. A fresh
+  clipboard import still succeeds afterward. Existing command-ordering,
+  draft-preservation and all five cancellation paths pass together. The 53
+  related unit cases, app/test TypeScript and lint pass. This guard applies
+  to clipboard commands; other import entry points remain separate audit work.
 - **Newest clipboard command wins:** two overlapping Paste SGF commands
   reproduced an older 268 ms clipboard read replacing the newer loaded
   9×9 game with a 13×13 game. A new command now cancels its predecessor,
@@ -130,6 +143,7 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   All 53 cases in seven related unit files, app/test TypeScript and lint pass.
   The new browser check joins future full sweeps. This change coordinates
   overlapping clipboard commands; other game-opening paths remain separate.
+  Its production build passed in 16.8 s.
 - **Jump to Library names:** typing the start of a name now focuses a
   matching visible row; repeating a letter cycles through matches and wraps.
   Longer prefixes retain the current match when appropriate. Matching shares

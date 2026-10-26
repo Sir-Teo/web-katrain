@@ -2389,15 +2389,22 @@ export const Layout: React.FC = () => {
 
   const handleOpenSgfFromText = useCallback(async (
     text: string,
-    options: { notifyFailure?: boolean; signal?: AbortSignal } = {}
+    options: { notifyFailure?: boolean; signal?: AbortSignal; expectedRootId?: string } = {}
   ): Promise<PasteSgfSubmitResult> => {
+    // Our own load changes the root; the identity guard applies while waiting.
+    let replacementStarted = false;
+    const isCancelled = () => options.signal?.aborted || (
+      !replacementStarted && options.expectedRootId !== undefined
+      && useGameStore.getState().rootNode.id !== options.expectedRootId
+    );
     try {
       const result = await loadSgfOrOgs(text, { signal: options.signal });
-      if (options.signal?.aborted) return 'cancelled';
+      if (isCancelled()) return 'cancelled';
       if (!result.sgf.trim()) return 'failed';
       const parsed = parseSgf(result.sgf);
       if (!(await prepareForGameReplacement())) return 'cancelled';
-      if (options.signal?.aborted) return 'cancelled';
+      if (isCancelled()) return 'cancelled';
+      replacementStarted = true;
       loadGame(parsed);
       const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
       setLoadedLibraryFile(null);
@@ -2427,7 +2434,7 @@ export const Layout: React.FC = () => {
       );
       return 'loaded';
     } catch (error) {
-      if (options.signal?.aborted) return 'cancelled';
+      if (isCancelled()) return 'cancelled';
       if (options.notifyFailure !== false) {
         toast(withFailureReason('Could not load that SGF or OGS link.', error), 'error');
       }
@@ -2499,15 +2506,16 @@ export const Layout: React.FC = () => {
     pendingClipboardImportRef.current?.abort();
     const controller = new AbortController();
     pendingClipboardImportRef.current = controller;
+    const expectedRootId = useGameStore.getState().rootNode.id;
     setViewMenuOpen(false);
     setMenuOpen(false);
 
     try {
       const clipboardText = await readClipboardText();
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || useGameStore.getState().rootNode.id !== expectedRootId) return;
       const importText = getDirectGameImportText(clipboardText);
       if (importText) {
-        await handleOpenSgfFromText(importText, { signal: controller.signal });
+        await handleOpenSgfFromText(importText, { signal: controller.signal, expectedRootId });
         return;
       }
 
