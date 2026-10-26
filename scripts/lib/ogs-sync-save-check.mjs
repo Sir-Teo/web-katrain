@@ -154,11 +154,17 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   assert.equal(await evaluate(cdp,'location.href'),sourceLocation);
   const ordinary=baseline.find(item=>item.type==='file'&&!item.ogsGameId&&!/\(ogs-\d+\)/.test(item.name));
   for(const id of [ordinary.id,firstFile.parentId]){
+   const item=firstStored.find(item=>item.id===id);
+   await click('[data-library-search]');
+   for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2});
+   await cdp.send('Input.insertText',{text:item.name});
+   await wait(`!!document.querySelector('[data-library-row-id="${id}"]')`);
    await click(`[data-library-row-id="${id}"] .library-tree-node-more`);
    await wait(`!!document.querySelector('[role=menu]')`);
    assert.equal(await evaluate(cdp,`!!document.querySelector('[data-library-ogs-source]')`),false);
    await sourceKey('Escape','Escape',27);await wait(`!document.querySelector('[role=menu]')`);
   }
+  await click('.library-search-clear');await wait(`document.querySelector('[data-library-search]').value===''`);
   // Download succeeds, but its storage read is held while both panels close.
   await evaluate(cdp,'ogsSaveAudit.id++;void 0');await open();
   await evaluate(cdp,"librarySaveAudit.mode='delay'");await click('.ogs-sync-footer button','Sync');

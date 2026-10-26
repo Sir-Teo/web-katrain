@@ -49,6 +49,14 @@ reproduced failures separate from candidates that still need investigation.
   timing bugs described below. All 20 remaining native suites subsequently
   passed together against the updated Library, including the new sibling
   metadata checks. This follow-up is recorded separately from a complete sweep.
+- The sweep at `01c1af7` passed all 11 sizes and the completed native
+  checks through OGS cancellation, including both cross-tab storage modes.
+  It exited when the OGS save helper picked a normal game inside the earlier
+  ZIP fixture’s collapsed 180-folder hierarchy and tried to click its hidden
+  row. The helper now reveals its target through Search. A focused run of
+  the ZIP fixture followed by all OGS save cases passed at 1440, 390 and
+  320 pixels, including IndexedDB and fallback storage, retries and reload.
+  This fixture repair and focused pass do not constitute a complete sweep.
 - The later sweep at `2262300` stopped during the 390-pixel Save Copy setup:
   its opening touch stayed a preview and no stone was placed. The unchanged
   isolated scenario passed, including delayed persistence, newer recovery and
