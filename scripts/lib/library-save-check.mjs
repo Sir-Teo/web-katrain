@@ -127,7 +127,10 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         assert.ok(await evaluate(cdp, `document.querySelector('[data-board-snapshot=true]').contains(document.elementFromPoint(${p.x},${p.y}))`));
         await dispatch(p);
         // The phone board previews the first tap and confirms the second.
-        if (mobile) { await sleep(100); await dispatch(p); }
+        if (mobile) {
+          await wait('!!document.querySelector("[data-tap-confirm=true]")');
+          await dispatch(p);
+        }
         await wait(`(() => {
           const board = document.querySelector('[data-board-snapshot=true]');
           return !!board && board.dataset.boardStones !== ${JSON.stringify(before.boardStones)};
@@ -409,6 +412,16 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         console.log(`Library ${action} at ${width}x${height} (${mode}${entry ? `, ${entry}` : ''}): ${report.stages.join('; ')}.`);
       } catch (error) {
         report.error = error.message;
+        try {
+          report.failureState = await evaluate(cdp, `({
+            board: {...document.querySelector('[data-board-snapshot=true]')?.dataset},
+            pendingTapVisible: !!document.querySelector('[data-tap-confirm=true]'),
+            focus: document.activeElement?.outerHTML.slice(0, 500),
+            dialog: document.querySelector('[role=dialog]')?.getAttribute('aria-labelledby'),
+            toast: document.querySelector('.notification-toast-message')?.title,
+            storage: document.querySelector('[data-library-storage-badge=true]')?.textContent
+          })`);
+        } catch (diagnosticError) { report.diagnosticError = diagnosticError.message; }
         failures.push(`${stem}: ${error.message}`);
       } finally {
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });

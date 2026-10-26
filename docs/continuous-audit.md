@@ -8,13 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
-- Full verification at `ed010b9` with one test worker: app/test TypeScript,
-  lint, 492 test files and 3,314 tests passed; 77 engine cases are skipped in
+- Full verification at `9987434` with one test worker: app/test TypeScript,
+  lint, 493 test files and 3,317 tests passed; 77 engine cases are skipped in
   CI. Production build passed. The preceding four-worker run had seven timing
   failures; the four affected files passed all 38 cases in isolation before
   the full one-worker run. Timing limits were unchanged.
 - The complete 11-size browser sweep passed at `15ff520`, including the
   parent/child, page-continuity and move-tree composition changes.
+- The later sweep at `2262300` stopped during the 390-pixel Save Copy setup:
+  its opening touch stayed a preview and no stone was placed. The unchanged
+  isolated scenario passed, including delayed persistence, newer recovery and
+  reload. Retain the failed screenshot and timing sample. The helper now waits
+  for the visible tap-confirm marker before its confirmation tap and records
+  board, focus, dialog and storage state on failure; no gameplay code changed.
 - Production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
   89.5 ms, p98 input latency 56 ms and longest task 72 ms passed their budgets.
   Offline checks completed fresh WASM analysis with 25 visits, a visible win-rate
