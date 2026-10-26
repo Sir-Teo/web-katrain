@@ -2608,8 +2608,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   )}
                 </div>
                 <div className="ml-auto flex items-center gap-2 text-[0.6875rem] ui-text-faint">
-                  <div>
-                    {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
+                  <div role="status" aria-live="polite" aria-atomic="true" data-library-result-count="true">
+                    {sortedItems.length} item{sortedItems.length === 1 ? '' : 's'}{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
                   </div>
                   {visibleSelectedIds.size > 0 ? (
                     <button

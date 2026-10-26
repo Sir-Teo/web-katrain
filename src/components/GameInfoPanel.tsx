@@ -27,9 +27,9 @@ type GameInfoField = {
 
 const playerFields: GameInfoField[] = [
   { key: 'PB', label: 'Black', placeholder: 'Black player' },
-  { key: 'BR', label: 'Rank', placeholder: 'Rank' },
+  { key: 'BR', label: 'Black rank', placeholder: 'Rank' },
   { key: 'PW', label: 'White', placeholder: 'White player' },
-  { key: 'WR', label: 'Rank', placeholder: 'Rank' },
+  { key: 'WR', label: 'White rank', placeholder: 'Rank' },
 ];
 
 const detailFields: GameInfoField[] = [

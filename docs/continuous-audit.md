@@ -129,6 +129,11 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   key-code-229 event. Trusted browser edits verify unchanged position/depth
   and retained focus during composition, followed by ordinary Enter committing
   and ordinary Escape dismissing the relevant controls.
+- **Accessible field/count details:** Game Info now labels each rank with its
+  player color. The library result/selection count exposes a polite, atomic
+  status region and uses the singular item when appropriate. Chrome's actual
+  accessibility tree reports Black rank, White rank, and the count's live/
+  atomic properties; the existing field and toolbar checks also pass.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
