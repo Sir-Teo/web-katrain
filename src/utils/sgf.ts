@@ -746,7 +746,12 @@ export const parseSgf = (sgfContent: string): ParsedSgf => {
             // game it belongs to.
             if (!key) continue;
             if (values.length > 0) {
-                props[key] = props[key] ? props[key]!.concat(values) : values;
+                const existing = props[key];
+                // Repeated properties append to this node's own array. Copying
+                // it for every occurrence made large setup lists quadratic.
+                if (existing) {
+                    for (const value of values) existing.push(value);
+                } else props[key] = values;
             } else if (!props[key]) {
                 props[key] = [];
             }

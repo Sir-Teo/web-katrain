@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Linear repeated-property imports:** a full verification run exceeded the
+  unchanged 5-second import fuzz budget at 8.8 seconds for 20,000 repeated
+  setup properties. Both SGF readers used `concat` on every occurrence,
+  recopying the growing property list. They now append to their own arrays
+  without spreading function arguments. Chrome’s 20,000-property example
+  changed from 273 to 23 ms for full parsing and 566 to 14 ms for root reading.
+  Ninety parser/fuzz cases pass, including ordered comments/setup stones,
+  variation isolation and a 160,000-value group. The full study gate also passes
+  with all budgets unchanged. Broad verification will be rerun.
 - **Library row browsing:** Up/Down and Home/End now move focus through
   mounted games/folders without loading them, stopping at either end and
   skipping collapsed descendants and nonmatching search results. Rows expose

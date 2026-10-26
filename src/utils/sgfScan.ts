@@ -68,7 +68,13 @@ export function readRootSgfProperties(sgf: string): Record<string, string[]> {
       skipSpace();
     }
     // FF[3] lowercase filler is dropped, including wholly lowercase keys.
-    if (key && values.length) props[key] = props[key] ? props[key]!.concat(values) : values;
+    // Repeated keys share this root’s own array instead of copying its prefix.
+    if (key && values.length) {
+      const existing = props[key];
+      if (existing) {
+        for (const value of values) existing.push(value);
+      } else props[key] = values;
+    }
     skipSpace();
   }
   return props;

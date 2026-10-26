@@ -4,6 +4,31 @@ import { parseSgf, type ParsedSgfNode } from '../src/utils/sgf';
 import { PRELOADED_GAMES } from '../src/data/preloadedGames';
 
 describe('readRootSgfProperties', () => {
+  it('preserves the ordered values of large repeated properties without sharing them with variations', () => {
+    const comments = Array.from({ length: 20_000 }, (_, i) => `Comment ${i}`);
+    const sgf = `(;GM[1]SZ[9]${comments.map(comment => `C[${comment}]`).join('')}AB[aa]AB[bb]AB[cc](;B[dd]C[Branch first]C[Branch second]))`;
+    const root = readRootSgfProperties(sgf);
+    const parsed = parseSgf(sgf);
+    expect(root.C).toEqual(comments);
+    expect(parsed.tree!.props.C).toEqual(comments);
+    expect(root.AB).toEqual(['aa', 'bb', 'cc']);
+    expect(parsed.tree!.children[0]!.props.C).toEqual(['Branch first', 'Branch second']);
+    expect(parsed.initialBoard[0]![0]).toBe('black');
+    expect(parsed.initialBoard[1]![1]).toBe('black');
+    expect(parsed.initialBoard[2]![2]).toBe('black');
+  });
+
+  it('appends a single large value list without exceeding function argument limits', () => {
+    const count = 160_000;
+    const sgf = `(;GM[1]C[first]C${'[x]'.repeat(count)}C[last])`;
+    for (const props of [readRootSgfProperties(sgf), parseSgf(sgf).tree!.props]) {
+      expect(props.C).toHaveLength(count + 2);
+      expect(props.C![0]).toBe('first');
+      expect(props.C![count]).toBe('x');
+      expect(props.C![count + 1]).toBe('last');
+    }
+  });
+
   it('keeps comment contents, child nodes, and later games out of the root properties', () => {
     const sgf = '(;C[Example SZ[5\\] and PB[Fake\\]; (;SZ[7\\])]SZ[19]PB[Real];PW[Child])(;PW[Other])';
     expect(readRootSgfProperties(sgf)).toEqual({
