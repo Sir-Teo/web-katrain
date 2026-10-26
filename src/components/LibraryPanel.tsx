@@ -65,6 +65,7 @@ import {
   type LibraryFolder,
   nextUntitledGameName,
   compareLibraryNames,
+  compareLibraryRecency,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
 import { tagsFromResult } from '../utils/narrativeTags';
@@ -758,7 +759,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         break;
       case 'recent':
       default:
-        arr.sort((a, b) => b.updatedAt - a.updatedAt);
+        arr.sort(compareLibraryRecency);
         break;
     }
     return arr;
@@ -893,7 +894,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             return (isFile(b) ? b.size : 0) - (isFile(a) ? a.size : 0);
           case 'recent':
           default:
-            return b.updatedAt - a.updatedAt;
+            return compareLibraryRecency(a, b);
         }
       });
       map.set(parent, list);

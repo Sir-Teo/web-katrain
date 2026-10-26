@@ -256,6 +256,10 @@ const libraryNameCollator = new Intl.Collator(undefined, { numeric: true });
 export const compareLibraryNames = (a: string, b: string): number =>
   libraryNameCollator.compare(a, b);
 
+/** Stable across IndexedDB key order, including batches saved in one millisecond. */
+export const compareLibraryRecency = (a: LibraryItem, b: LibraryItem): number =>
+  b.updatedAt - a.updatedAt || compareLibraryNames(a.name, b.name) || a.id.localeCompare(b.id);
+
 export const formatLibrarySize = (bytes: number): string => {
   const normalized = Math.max(0, Number.isFinite(bytes) ? bytes : 0);
   if (normalized < 1024) return `${normalized} B`;
@@ -310,7 +314,7 @@ export const selectRecentLibraryFiles = (
   const preloadedNames = new Set(PRELOADED_GAMES.map((game) => game.name));
   const files = items
     .filter((item): item is LibraryFile => item.type === 'file')
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort(compareLibraryRecency);
   const isUntouchedSeed = (file: LibraryFile) =>
     file.parentId !== null
     && preloadedFolderIds.has(file.parentId)

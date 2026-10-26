@@ -10,6 +10,16 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Stable Recent ordering:** equal-time games appeared in backup order before
+  reload and IndexedDB key order afterward. A controlled archive changed
+  “1, 2, 10” to “10, 2, 1”. Recent sorting now breaks timestamp ties with natural
+  names and then stable IDs, shared by folder rows, search results and Recent
+  cards. Truly newer changes still come first. Native desktop/phone checks
+  restore the controlled archive, reload it, search it and verify Name/Move
+  sorting too; collection extraction now also checks its visible order after
+  reload. Sixty-three focused library cases pass, including two new Recent-card
+  cases for shuffled/key order and matching titles across folders. The study
+  benchmark now measures 10,000 equal-time records as well as name sorting.
 - **Visible command selection and reliable filtering:** arrowing down a long
   palette list selected a row at y=1456 while its visible list ended at y=760;
   `aria-activedescendant` did not scroll it. Selection and query changes now

@@ -71,6 +71,7 @@ export async function assertLibraryCollectionSplit(cdp, appUrl, runDir, screensh
         localStorage.setItem('web-katrain:mobile_home_dismissed:v1', 'true');
         localStorage.setItem('web-katrain:pwa-install-dismissed:v1', 'true');
         localStorage.setItem('web-katrain:library_open:v1', 'true');
+        localStorage.setItem('web-katrain:library_sort:v1', 'recent');
         localStorage.setItem('web-katrain:settings:v3', JSON.stringify({ soundEnabled: false, loadSgfFastAnalysis: false }));
       ` });
       try {
@@ -135,6 +136,9 @@ export async function assertLibraryCollectionSplit(cdp, appUrl, runDir, screensh
           [...document.querySelectorAll('[data-library-row=file]')].some(e => e.dataset.libraryRowName===name))`);
       await attachLibrary();
       assert.deepEqual((await read()).filter(item => item.parentId === folder.id).map(item => item.id).sort(), files.map(item => item.id).sort());
+      assert.deepEqual(await evaluate(cdp, `[...document.querySelectorAll('[data-library-row=file]')]
+        .map(e => e.dataset.libraryRowName).filter(name => ${JSON.stringify(files.map(file => file.name))}.includes(name))`),
+      files.map(file => file.name), 'The numbered collection must retain its visible order after reload');
       await click('.library-breadcrumb-button', 'Reviews');
       await context('Incomplete');
       const menuScroll = await evaluate(cdp, `(async () => {

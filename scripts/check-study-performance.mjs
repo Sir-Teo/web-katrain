@@ -38,7 +38,7 @@ async function main() {
       const { findSolutionPath } = await import('/src/utils/problemMode.ts');
       const { createLibraryItem, prependLibraryImports, getLibraryFolderOptions, formatLibraryFolderOptionLabel,
         duplicateLibraryItem, duplicateLibraryItems, deleteLibraryItems, getLibrarySelectionIds, libraryItemMatchesSearchTerms,
-        compareLibraryNames } = await import('/src/utils/library.ts');
+        compareLibraryNames, compareLibraryRecency } = await import('/src/utils/library.ts');
       const { toSearchTerms } = await import('/src/utils/searchTerms.ts');
       const state = () => useGameStore.getState();
       state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
@@ -138,6 +138,11 @@ async function main() {
       const sortedNames=[...shuffledNames].sort(compareLibraryNames);
       const libraryNameSortMs=performance.now()-operationStart;
       if(sortedNames.some((name,i)=>name!=='Game '+(i+1))) throw Error('Library numeric sorting reordered games');
+      const sameTimeGames=shuffledNames.map((name,i)=>({...template,id:'recent-'+i,name,updatedAt:1}));
+      operationStart=performance.now();
+      const sortedRecent=[...sameTimeGames].sort(compareLibraryRecency);
+      const libraryRecentSortMs=performance.now()-operationStart;
+      if(sortedRecent.some((file,i)=>file.name!=='Game '+(i+1))) throw Error('Recent sorting reordered timestamp ties');
       const wideFolders=shuffledNames.map((name,i)=>({id:'wide-'+i,name,type:'folder',parentId:null,createdAt:i,updatedAt:i}));
       operationStart=performance.now();
       const wideDestinations=getLibraryFolderOptions(wideFolders);
@@ -232,7 +237,7 @@ async function main() {
         }
         superkoChecks.push({distinct, positions:400, candidates:361, coldMs, candidatesMs:performance.now() - operationStart});
       }
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, librarySearchMs, libraryNameSortMs, libraryWideFolderOptionsMs, libraryBulkCopyMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, libraryHierarchy, superkoChecks };
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, librarySearchMs, libraryNameSortMs, libraryRecentSortMs, libraryWideFolderOptionsMs, libraryBulkCopyMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, libraryHierarchy, superkoChecks };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -241,7 +246,7 @@ async function main() {
     assert.equal(result.comments, 12000);
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
     assert.ok(result.librarySearchMs < 100, `5,000-game search took ${result.librarySearchMs}ms; budget is 100ms`);
-    for(const operation of ['libraryNameSortMs','libraryWideFolderOptionsMs']) {
+    for(const operation of ['libraryNameSortMs','libraryRecentSortMs','libraryWideFolderOptionsMs']) {
       assert.ok(result[operation]<250, `${operation} took ${result[operation]}ms; budget is 250ms`);
     }
     for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs', 'libraryBulkCopyMs', 'libraryFolderOptionsMs']) {
