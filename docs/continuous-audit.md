@@ -171,6 +171,13 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   and ranks in search, absent root fields, and an uncurated game named
   constructor receiving no inherited editorial function. All seven related
   suites pass.
+- **Accurate pro-game final positions:** the preview replayed only a flat move
+  list, losing setup/clear nodes and retaining legal New Zealand self-captures.
+  It now walks the first variation's nodes, applies AB/AW/AE edits (including
+  ranges and pass-node edits), and removes legal multi-stone self-captures
+  according to the record's rules. Reproduced setup/pass/suicide cases pass,
+  and real preview SVGs match the boards opened by Load & study for both an
+  edited position and a New Zealand record.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

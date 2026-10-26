@@ -1,9 +1,10 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
-import { parseSgf } from './sgf';
-import { applyCapturesInPlace } from './gameLogic';
+import { expandSgfPointList, parseSgf, sgfCoordToXy } from './sgf';
+import { applyCapturesInPlace, applySelfCaptureInPlace, getLiberties } from './gameLogic';
 import type { BoardState } from '../types';
 import { toSearchTerms } from './searchTerms';
 import { readRootSgfProperties } from './sgfScan';
+import { isSuicideLegal, rulesFromSgf } from './goRules';
 
 export interface ProGameMeta {
   id: string;
@@ -85,14 +86,38 @@ export const filterProGames = (games: ProGameMeta[], query: string): ProGameMeta
   });
 };
 
-/** Replay every move to produce the final board position (for previews). */
+/** Replay the first variation, including position edits, for its preview. */
 export const buildFinalBoard = (sgf: string): { board: BoardState; moveCount: number } => {
   const parsed = parseSgf(sgf);
   const board = parsed.initialBoard.map((row) => [...row]);
-  for (const mv of parsed.moves) {
-    if (mv.x < 0 || mv.y < 0) continue; // pass
-    board[mv.y]![mv.x] = mv.player;
-    applyCapturesInPlace(board, mv.x, mv.y, mv.player);
+  const suicideLegal = isSuicideLegal(rulesFromSgf(parsed.tree?.props.RU?.[0]) ?? 'japanese');
+  let node = parsed.tree;
+  while (node) {
+    const black = node.props.B?.[0];
+    const white = node.props.W?.[0];
+    const coord = typeof black === 'string' ? black : white;
+    if (typeof coord === 'string') {
+      const {x,y} = sgfCoordToXy(coord);
+      if (x >= 0 && y >= 0) {
+        const player = typeof black === 'string' ? 'black' : 'white';
+        board[y]![x] = player;
+        const captured = applyCapturesInPlace(board, x, y, player);
+        if (suicideLegal && captured.length === 0) {
+          const {liberties,group} = getLiberties(board,x,y);
+          if (liberties === 0 && group.length > 1) applySelfCaptureInPlace(board,x,y);
+        }
+      }
+    }
+    // A setup or clear node is part of the position, even when it carries a
+    // pass or no move at all. The flattened moves list loses those changes.
+    for (const key of ['AB','AW','AE'] as const) {
+      for (const value of node.props[key] ?? []) {
+        for (const {x,y} of expandSgfPointList(value,board.length)) {
+          board[y]![x] = key === 'AB' ? 'black' : key === 'AW' ? 'white' : null;
+        }
+      }
+    }
+    node = node.children[0];
   }
   return { board, moveCount: parsed.moves.length };
 };
