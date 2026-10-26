@@ -203,7 +203,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               <button
                 type="button"
                 className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  inputRef.current?.focus();
+                }}
                 aria-label="Clear command search"
               >
                 <FaTimes aria-hidden="true" size={11} />

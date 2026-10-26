@@ -204,6 +204,10 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   Input uses the existing 200-character search limit; long unmatched words
   wrap within the empty state. Native checks pass at 1440×900, 320×568, and
   568×320, including list restoration, focus, and horizontal overflow.
+- **Keep typing after clearing a search:** the command palette and keyboard
+  reference dropped focus to the page body when their clear button disappeared.
+  Both now focus their search input explicitly. Native desktop/phone checks
+  reproduce the original focus loss and verify immediate typing after clearing.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
