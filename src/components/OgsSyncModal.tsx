@@ -21,7 +21,7 @@ import { isComposingKeyEvent } from '../utils/compositionKey';
 interface OgsSyncModalProps {
   items: LibraryItem[];
   onClose: () => void;
-  onImport: (username: string, games: OgsSyncedGame[]) => void | Promise<void>;
+  onImport: (username: string, games: OgsSyncedGame[]) => number | Promise<number>;
 }
 
 type SyncSummary = OgsSyncOutcome;
@@ -104,14 +104,15 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
         request.signal
       );
       if (!isCurrent()) return;
+      let added = 0;
       if (synced.length > 0) {
         setIsSaving(true);
-        await onImport(player.username, synced);
+        added = await onImport(player.username, synced);
         if (!isCurrent()) return;
       }
       setSummary({
-        added: synced.length,
-        skipped,
+        added,
+        skipped: skipped + synced.length - added,
         failed: failed.length,
         username: player.username,
       });

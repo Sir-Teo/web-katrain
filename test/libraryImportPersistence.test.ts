@@ -143,4 +143,20 @@ describe('durable Library import completion', () => {
     expect(updateStoredLibrary).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('returns no added games when the same OGS game arrives before the queued commit', async () => {
+    let release!: () => void;
+    storage.gate = new Promise<void>(resolve => { release = resolve; });
+    const folder = createLibraryFolder('OGS - Player');
+    const incoming = createLibraryItem('Downloaded (ogs-123)', '(;SZ[9])', folder.id);
+    const saving = persistOgsLibraryImports(folder, [incoming]);
+    const arrived = { ...createLibraryItem('Other tab (ogs-123)', '(;SZ[9]C[Preserve other tab notes])'), favorite: true };
+    storage.items = [arrived];
+    const listener = vi.fn();
+    subscribe(listener);
+    release();
+    expect(await saving).toEqual([]);
+    expect(storage.items).toEqual([arrived]);
+    expect(listener).toHaveBeenCalledExactlyOnceWith([arrived]);
+  });
 });

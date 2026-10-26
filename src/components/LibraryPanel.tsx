@@ -1255,7 +1255,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleOgsSyncImport = async (username: string, games: OgsSyncedGame[]) => {
-    if (games.length === 0) return;
+    if (games.length === 0) return 0;
     const folderName = ogsSyncFolderName(username);
     const folder = createLibraryFolder(folderName, null);
     const files = games.map((game) => createLibraryItem(ogsSyncFileName(game.summary), game.sgf, folder.id));
@@ -1264,7 +1264,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       const imported = await persistOgsLibraryImports(folder, files);
       setPendingOgsFileId(imported[0]?.id ?? null);
       onLibraryUpdated?.();
-      onToast(`Synced ${imported.length} OGS game${imported.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
+      if (imported.length) {
+        onToast(`Synced ${imported.length} OGS game${imported.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
+      } else {
+        onToast('Downloaded OGS games are already in your library.', 'info');
+      }
+      return imported.length;
     } catch (error) {
       const message = withFailureReason('Could not save synced games. Try syncing again when browser storage is available.', error);
       onToast(message, 'error');

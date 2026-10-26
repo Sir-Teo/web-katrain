@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {evaluate,navigate,setViewport,waitForExpression} from './browser.mjs';
+import {evaluate,loadedModuleUrl,navigate,setViewport,waitForExpression} from './browser.mjs';
 import {installStorageControls} from './library-save-check.mjs';
 
 /** Exercise completed downloads against real failed and delayed browser storage. */
@@ -41,6 +41,10 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
     const url=String(input);if(!url.includes('online-go.com/'))return original(input,init);
     ogsSaveAudit.requests.push(url);
     const payload=url.includes('/sgf')?${JSON.stringify(sgf)}:url.includes('/games/')?JSON.stringify({results:[{id:ogsSaveAudit.id,name:'OGS storage study',width:9,height:9,ended:'2026-10-25',players:{black:{username:'Alice'},white:{username:'Bob'}}}],next:null}):JSON.stringify({results:[{id:42,username:'Alice'}]});
+    if(url.includes('/sgf')&&ogsSaveAudit.holdNext){
+     ogsSaveAudit.holdNext=false;
+     return new Promise(resolve=>window.releaseConcurrentOgsDownload=()=>resolve(new Response(payload)));
+    }
     return Promise.resolve(new Response(payload));
    };return true;
   })()`);
@@ -81,10 +85,36 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   assert.equal(saved.filter(item=>item.type==='folder'&&item.name==='OGS - Alice').length,1,'Completed syncs reuse the current destination');
   assert.equal(saved.filter(item=>item.type==='file'&&item.name.includes(`(ogs-${secondId})`)).length,1);
   for(const original of baseline)assert.deepEqual(saved.find(item=>item.id===original.id),original);
+  // Another import arrives after the download's initial existing-ID check.
+  await evaluate(cdp,'ogsSaveAudit.id++;ogsSaveAudit.holdNext=true;void 0');
+  await open();await click('.ogs-sync-footer button','Sync');
+  await wait('!!window.releaseConcurrentOgsDownload');
+  const thirdId=secondId+1;
+  const annotatedSgf='(;GM[1]SZ[9]C[Preserve other tab notes];B[ee])';
+  const arrived=await evaluate(cdp,`(async()=>{
+   const url=${loadedModuleUrl.toString()},lib=await import(url('/src/utils/library.ts'));
+   return lib.updateStoredLibrary(current=>{
+    const existing=current.find(item=>item.type==='folder'&&item.parentId===null&&item.name==='Other tab studies');
+    const folder=existing??lib.createLibraryFolder('Other tab studies');
+    const file={...lib.createLibraryItem('Annotated game (ogs-${thirdId})',${JSON.stringify(annotatedSgf)},folder.id),favorite:true,tags:['review']};
+    return {items:[file,...(existing?current:[folder,...current])],result:file};
+   });
+  })()`);
+  await evaluate(cdp,'releaseConcurrentOgsDownload();delete window.releaseConcurrentOgsDownload');
+  await wait(`document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent.includes('already in your library')`);
+  assert.equal(await evaluate(cdp,`document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent.includes('Added')`),false);
+  const afterRace=await readStored();
+  const copies=afterRace.filter(item=>item.type==='file'&&item.name.includes(`(ogs-${thirdId})`));
+  assert.deepEqual(copies,[arrived],'A completed sync must keep the game and annotations that arrived in another folder');
+  await click('.ogs-sync-footer button','Done');
+  await wait('!document.querySelector("#ogs-sync-username")&&!history.state?.webKatrainOverlay');
+  if(await evaluate(cdp,`document.querySelector('[data-library-row-name="Other tab studies"]')?.getAttribute('aria-expanded')!=='true'`))await click('[data-library-row-name="Other tab studies"] .library-tree-node-arrow');
+  await wait(`!!document.querySelector('[data-library-row-id="${arrived.id}"]')&&localStorage.getItem('web-katrain:library_folders_expanded:v1')?.includes(${JSON.stringify(arrived.parentId)})`);
   await navigate(cdp,appUrl,15000);await wait('!!document.querySelector("[data-board-snapshot]")');if(width===390)await click('#mobile-tab-library');
   await wait(`!![...document.querySelectorAll('[data-library-row]')].find(e=>e.dataset.libraryRowName?.includes('(ogs-${secondId})'))`);
-  reports.push({width,rejectedWriteHasNoSuccess:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,reloadPreserved:true});
+  await wait(`!!document.querySelector('[data-library-row-id="${arrived.id}"]')`);
+  reports.push({width,rejectedWriteHasNoSuccess:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,duplicateOgsIdSkippedAtCommit:true,otherFolderAnnotationsPreserved:true,skippedCountAccurate:true,reloadPreserved:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'ogs-sync-save.json'),JSON.stringify(reports,null,2));
- console.log('OGS sync storage: desktop/phone reject false success, retry once, show pending saving, survive closing both panels and preserve original records across reload.');
+ console.log('OGS sync storage: desktop/phone reject false success, retry once, survive closing both panels, skip games arriving during download and preserve annotations across reload.');
 }

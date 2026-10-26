@@ -8,9 +8,9 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
-- Full verification at `9987434` with one test worker: app/test TypeScript,
-  lint, 493 test files and 3,317 tests passed; 77 engine cases are skipped in
-  CI. Production build passed. The preceding four-worker run had seven timing
+- Full verification at `85db473` with one test worker: app/test TypeScript,
+  lint, 493 test files and 3,320 tests passed; 77 engine cases are skipped in
+  CI. Production build passed. An earlier four-worker run at `ed010b9` had seven timing
   failures; the four affected files passed all 38 cases in isolation before
   the full one-worker run. Timing limits were unchanged.
 - The complete 11-size browser sweep passed at `15ff520`, including the
@@ -21,6 +21,11 @@ reproduced failures separate from candidates that still need investigation.
   reload. Retain the failed screenshot and timing sample. The helper now waits
   for the visible tap-confirm marker before its confirmation tap and records
   board, focus, dialog and storage state on failure; no gameplay code changed.
+- The sweep at `85db473` passed that phone Save Copy scenario, then recorded
+  a 15-second navigation timeout in the 320-pixel overlapping-save setup.
+  Diagnostics show a new document with an empty app root. Other CPU-heavy
+  verification ran concurrently; keep this sample separate from product
+  failures until its isolated scenario and an idle full sweep are checked.
 - Production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
   89.5 ms, p98 input latency 56 ms and longest task 72 ms passed their budgets.
   Offline checks completed fresh WASM analysis with 25 visits, a visible win-rate
@@ -35,6 +40,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **OGS deduplication at commit:** a held sync downloaded a game after another
+  import had already stored it. The old completion path stored a second copy
+  and reported it as added. Commit now checks current game IDs across all
+  folders and within the batch, retaining existing annotations and creating no
+  empty destination when everything is skipped. The modal counts actual
+  committed additions and includes concurrent arrivals in its skipped count.
+  Thirty-three focused cases, app/test TypeScript and lint pass; native
+  desktop/phone cases preserve another folder's SGF, favorite and tags,
+  report the game as already present and retain it through reload.
 - **Recovery remains usable during search:** after an initial read failure,
   entering a search replaced the storage error and Retry with “No matches”.
   Loading and errors now take precedence over search results, and storage
