@@ -59,6 +59,14 @@ export async function assertLocalFileOrder(cdp, appUrl, runDir, screenshotDir) {
     await wait(`fileOrderStore.getState().rootNode.id!==${JSON.stringify(previous)}`);
     const selected=await record();assert.equal(selected.name,`File selected ${size}`);return selected;
   };
+  const startHandle=async()=>{
+    const index=await evaluate(cdp,'fileOrderHandles.length');
+    await evaluate(cdp,`fileOrderLaunchConsumer({files:[{getFile:()=>new Promise((resolve,reject)=>fileOrderHandles.push({resolve:()=>resolve(new File([${JSON.stringify(older)}],'file-order-held.sgf',{type:'application/x-go-sgf'})),reject}))},{getFile:async()=>{fileOrderBatchTails++;return new File([${JSON.stringify(newer)}],'file-order-tail.sgf',{type:'application/x-go-sgf'})}}]});void 0`);
+    await wait(`fileOrderHandles.length===${index+1}`);return index;
+  };
+  const finishHandle=async(index,reject=false)=>{
+    await evaluate(cdp,`fileOrderHandles[${index}].${reject?'reject(new Error("Old file handle failed"))':'resolve()'};void 0`);await settle();
+  };
   const results=[];
   await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:true});
   await cdp.send('Browser.grantPermissions',{origin:new URL(appUrl).origin,permissions:['clipboardReadWrite','clipboardSanitizedWrite']});
@@ -81,7 +89,7 @@ export async function assertLocalFileOrder(cdp, appUrl, runDir, screenshotDir) {
     await wait('!document.querySelector("[role=dialog]") && !!document.querySelector("[data-library-row-id=file-selected-19]")');
     await evaluate(cdp,`(async()=>{
       const url=${loadedModuleUrl.toString()};window.fileOrderStore=(await import(url('/src/store/gameStore.ts'))).useGameStore;
-      window.fileOrderReads=[];window.fileOrderEvents=[];window.fileOrderDownloads=[];
+      window.fileOrderReads=[];window.fileOrderEvents=[];window.fileOrderDownloads=[];window.fileOrderHandles=[];window.fileOrderBatchTails=0;
       const fetchOriginal=window.fetch;window.fetch=(url,init)=>String(url).includes('online-go.com/api/v1/games/')
         ?new Promise(resolve=>fileOrderDownloads.push({resolve,signal:init?.signal})):fetchOriginal(url,init);
       const original=File.prototype.arrayBuffer;File.prototype.arrayBuffer=function(...args){
@@ -108,6 +116,28 @@ export async function assertLocalFileOrder(cdp, appUrl, runDir, screenshotDir) {
     const beforeFile=(await record()).root;await start('picker',fresh);await wait('fileOrderDownloads[0].signal.aborted');
     await wait(`fileOrderStore.getState().rootNode.id!==${JSON.stringify(beforeFile)}`);selected=await record();
     await evaluate(cdp,`fileOrderDownloads[0].resolve(new Response(${JSON.stringify(older)}));void 0`);await settle();assert.deepEqual(await record(),selected);cases.push('paste-then-file');
+    // The OS may still be acquiring the File, before arrayBuffer is called.
+    for(const reject of [false,true]){
+      const handle=await startHandle();selected=await select(reject?9:19);
+      const reads=await evaluate(cdp,'fileOrderReads.length');await finishHandle(handle,reject);
+      assert.deepEqual(await record(),selected);assert.equal(await evaluate(cdp,'fileOrderReads.length'),reads);
+      assert.equal(await evaluate(cdp,'fileOrderBatchTails'),0,'Canceled launches must stop their remaining batch');
+      assert.equal(await evaluate(cdp,'!!document.querySelector("[data-notification-type=error]")'),false);
+      cases.push(reject?'handle-stale-failure':'handle-selection');
+    }
+    for(const kind of ['picker','launch']){
+      const handle=await startHandle(),previousRoot=(await record()).root;await start(kind,fresh);
+      await wait(`fileOrderStore.getState().rootNode.id!==${JSON.stringify(previousRoot)}`);await wait('fileOrderStore.getState().rootNode.properties.GN?.[0]==="Newer local file"');selected=await record();
+      const reads=await evaluate(cdp,'fileOrderReads.length');await finishHandle(handle);
+      assert.deepEqual(await record(),selected);assert.equal(await evaluate(cdp,'fileOrderReads.length'),reads);assert.equal(await evaluate(cdp,'fileOrderBatchTails'),0);cases.push(`handle-then-${kind}`);
+    }
+    const downloads=await evaluate(cdp,'fileOrderDownloads.length');await paste('https://online-go.com/game/12346');await wait(`fileOrderDownloads.length===${downloads+1}`);
+    const handle=await startHandle();await wait(`fileOrderDownloads[${downloads}].signal.aborted`);selected=await record();
+    await evaluate(cdp,`fileOrderDownloads[${downloads}].resolve(new Response(${JSON.stringify(newer)}));void 0`);await settle();assert.deepEqual(await record(),selected);
+    // Cancel acquisition by choosing a Library game, then allow an ordinary batch.
+    selected=await select(9);await finishHandle(handle);assert.deepEqual(await record(),selected);assert.equal(await evaluate(cdp,'fileOrderBatchTails'),0);cases.push('paste-then-handle');
+    await evaluate(cdp,`fileOrderLaunchConsumer({files:[{getFile:async()=>new File([${JSON.stringify(newer)}],'batch-first.sgf')},{getFile:async()=>{fileOrderBatchTails++;return new File(['(;GM[1]SZ[13]GN[Batch second];B[aa])'],'batch-second.sgf')}}]});void 0`);
+    await wait('fileOrderStore.getState().rootNode.properties.GN?.[0]==="Batch second"');assert.equal(await evaluate(cdp,'fileOrderBatchTails'),1);cases.push('ordinary-launch-batch');
     // Retry through every local entry path after cancellation.
     for(const kind of ['picker','drop','launch']){
       await select(19);await start(kind,fresh);await wait('fileOrderStore.getState().rootNode.properties.GN?.[0]==="Newer local file"');cases.push(`${kind}-retry`);

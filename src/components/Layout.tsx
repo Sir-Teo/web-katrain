@@ -1173,7 +1173,7 @@ export const Layout: React.FC = () => {
   // callbacks. Refreshed every render below.
   const pwaOpenHandlersRef = useRef<{
     openText: (text: string) => unknown;
-    openFile: (file: File) => unknown;
+    openFile: (getFile: () => Promise<File>) => Promise<PasteSgfSubmitResult>;
   } | null>(null);
 
   const sharedLinkCheckedRef = useRef(false);
@@ -1264,8 +1264,8 @@ export const Layout: React.FC = () => {
         void (async () => {
           for (const handle of handles) {
             try {
-              const file = await handle.getFile();
-              await pwaOpenHandlersRef.current?.openFile(file);
+              const result = await pwaOpenHandlersRef.current?.openFile(() => handle.getFile());
+              if (result === 'cancelled') return;
             } catch (error) {
               toast(withFailureReason('Could not open the file.', error), 'error');
             }
@@ -2146,23 +2146,28 @@ export const Layout: React.FC = () => {
     return `Board size ${declared} is not supported, so it opened as ${opened}×${opened}.`;
   };
 
-  const openLocalGameFile = async (file: File, failureMessage: string): Promise<boolean> => {
-    const request = textImportRequests.begin();
+  const openLocalGameFile = async (
+    file: File,
+    failureMessage: string,
+    existingRequest?: TextImportRequest,
+  ): Promise<PasteSgfSubmitResult> => {
+    const request = existingRequest ?? textImportRequests.begin();
     let replacementStarted = false;
     const isCancelled = () => !textImportRequests.isCurrent(request) || (
       !replacementStarted && useGameStore.getState().rootNode.id !== request.rootId
     );
     try {
+      if (isCancelled()) return 'cancelled';
       const sizeError = getSgfImportSizeError(file.size);
       if (sizeError) {
         toast(sizeError, 'error');
-        return false;
+        return 'failed';
       }
       const text = await readGameRecordFile(file, settings.legacyGameEncoding);
-      if (isCancelled()) return false;
+      if (isCancelled()) return 'cancelled';
       const parsed = parseSgf(text);
-      if (!(await prepareForGameReplacement())) return false;
-      if (isCancelled()) return false;
+      if (!(await prepareForGameReplacement())) return 'cancelled';
+      if (isCancelled()) return 'cancelled';
       replacementStarted = true;
       loadGame(parsed);
       const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
@@ -2175,12 +2180,13 @@ export const Layout: React.FC = () => {
           + (sizeNotice ? ` ${sizeNotice}` : ''),
         sizeNotice ? 'info' : 'success'
       );
-      return true;
+      return 'loaded';
     } catch (error) {
-      if (!isCancelled()) toast(withFailureReason(failureMessage, error), 'error');
-      return false;
+      if (isCancelled()) return 'cancelled';
+      toast(withFailureReason(failureMessage, error), 'error');
+      return 'failed';
     } finally {
-      textImportRequests.finish(request);
+      if (!existingRequest) textImportRequests.finish(request);
     }
   };
 
@@ -2463,17 +2469,30 @@ export const Layout: React.FC = () => {
 
   // Plain function (not memoised): only consumed via the handler ref assigned
   // below during render, so it never feeds an effect/callback dependency list.
-  const handleOpenLaunchFile = async (file: File) => {
-    if (isPhotoBoardImageFile(file)) {
-      openPhotoBoard(file);
-      toast('Opened photo board from shared image.', 'info');
-      return;
+  const handleOpenLaunchFile = async (getFile: () => Promise<File>): Promise<PasteSgfSubmitResult> => {
+    const request = textImportRequests.begin();
+    const isCancelled = () => !textImportRequests.isCurrent(request)
+      || useGameStore.getState().rootNode.id !== request.rootId;
+    try {
+      const file = await getFile();
+      if (isCancelled()) return 'cancelled';
+      if (isPhotoBoardImageFile(file)) {
+        openPhotoBoard(file);
+        toast('Opened photo board from shared image.', 'info');
+        return 'loaded';
+      }
+      if (isGameRecordFile(file)) {
+        return await openLocalGameFile(file, 'Failed to open the game file.', request);
+      }
+      toast('Unsupported file type. Open an SGF, GIB, or NGF game or board image.', 'error');
+      return 'failed';
+    } catch (error) {
+      if (isCancelled()) return 'cancelled';
+      toast(withFailureReason('Could not open the file.', error), 'error');
+      return 'failed';
+    } finally {
+      textImportRequests.finish(request);
     }
-    if (isGameRecordFile(file)) {
-      await openLocalGameFile(file, 'Failed to open the game file.');
-      return;
-    }
-    toast('Unsupported file type. Open an SGF, GIB, or NGF game or board image.', 'error');
   };
 
   // Keep the startup-effect handler ref pointed at the current callbacks.

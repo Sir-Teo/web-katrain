@@ -196,6 +196,19 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **OS file acquisition respects later choices:** the launch consumer also
+  awaited `handle.getFile()` before import ownership began. Holding that
+  acquisition reproduced the same later-selected 19×19 game being replaced
+  by its older 13×13 file. The launch handler now owns the request before
+  acquisition, rejects stale handles before reading bytes, ignores stale
+  acquisition failures and stops the remaining batch after cancellation.
+  Successful two-file batches still open in order. The original reproduction
+  now preserves the exact selected root and never reads the stale file.
+  All 54 expanded native cases pass at 1440/390/320 pixels, including the
+  prior 36 file cases and acquisition ordering, canceled batches and retry.
+  The launch checks invoke the registered OS consumer; actual OS integration
+  on installed desktop/mobile apps remains outside this Chrome harness.
+  All 90 focused cases, app TypeScript and targeted lint pass.
 - **File imports respect later game choices:** a trusted file-picker
   reproduction held a 13×13 file read, selected a 19×19 Library game, then
   released the older read; the file replaced the selected game. Picker,
@@ -207,8 +220,8 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   suppresses old failures and permits retry; newer files and paste/file
   ordering retain the exact chosen game. Picker, drop and paste events are
   trusted browser events; launch cases invoke the registered launch-queue
-  consumer. File-handle acquisition before the byte read is a separate
-  untested phase. All 77 focused cases, app TypeScript and targeted lint pass.
+  consumer. The separate acquisition follow-up is described above. All 77
+  focused cases, app TypeScript and targeted lint pass.
   Existing clipboard command/draft/cancellation/Library-selection browser
   suites also pass together against the extension.
 - **Fallback saves survive renderer storage caches:** two acknowledged saves
