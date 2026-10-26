@@ -67,6 +67,16 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Paste import focus:** starting a held OGS import reproduced focus on `body`
+  after Open became disabled. The pending dialog now retains focus and its Tab
+  handler; an unsuccessful import returns to the text editor unless the user
+  chose another control. Native checks cover Tab/Shift+Tab, every dismissal,
+  late responses, successful retry, failed-download focus and an unchanged
+  board. A new QA assertion requiring no history marker after reload was removed:
+  `overlayBackStack` deliberately leaves markers restored by another document,
+  to avoid navigating away. The diagnostic remains in the native report; no
+  navigation code changed. The same 67 focused cases, both TypeScript checks
+  and lint pass.
 - **Copy a saved record:** single-game Library menus now offer Copy SGF without
   loading the record onto the board. The action keeps complete collections and
   uses the same UTF-8 declaration handling as Download SGF. It supports the

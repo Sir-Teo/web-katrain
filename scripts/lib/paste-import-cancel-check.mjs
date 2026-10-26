@@ -70,6 +70,13 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
       })()`);
       const before = await board();
       await openImport();
+      const pendingFocus = await evaluate(cdp, `({inside:document.querySelector('[aria-labelledby=paste-sgf-title]').contains(document.activeElement),tag:document.activeElement?.tagName})`);
+      console.log('Paste import pending focus', JSON.stringify({ dismissal, ...pendingFocus }));
+      assert.equal(pendingFocus.inside, true, 'A pending pasted import must keep focus in its dialog when Open becomes disabled');
+      for (const modifiers of [0, 8, 0, 8]) {
+        await key('Tab', 'Tab', 9, modifiers);
+        assert.equal(await evaluate(cdp, `document.querySelector('[aria-labelledby=paste-sgf-title]').contains(document.activeElement)`), true, 'Tab and Shift+Tab must remain inside the pending pasted import');
+      }
       if (dismissal === 'close') await click('[aria-label="Close paste SGF"]');
       if (dismissal === 'escape') await key('Escape','Escape',27);
       if (dismissal === 'cancel') await click('.paste-sgf-modal-footer > div:last-child > button:first-child');
@@ -92,6 +99,22 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
         results.push({retryLoaded:true});
       }
     }
+    // A failed download leaves the editor ready for a correction or retry.
+    await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
+    await wait('!!document.querySelector("[data-board-snapshot=true]")');
+    const beforeFailure = await board();
+    await evaluate(cdp, `(()=>{const original=window.fetch;window.fetch=(url,init)=>String(url).includes('online-go.com/api/v1/games/')?new Promise(resolve=>window.releaseHeldImport=()=>resolve(new Response('not an SGF game'))):original(url,init)})()`);
+    await openImport();
+    await evaluate(cdp, 'releaseHeldImport();void 0');
+    await wait(`!!document.querySelector('[aria-labelledby=paste-sgf-title] [role=alert]')&&!document.querySelector('[aria-label="Open pasted SGF or OGS URL"]').disabled`);
+    assert.equal(await evaluate(cdp, 'document.activeElement===document.querySelector(".paste-sgf-modal-textarea")'), true, 'An unsuccessful import must restore the text editor');
+    assert.deepEqual(await board(), beforeFailure);
+    results.push({ failedImportRestoresEditor: true, failedImportPreservesBoard: true });
+    await click('[aria-label="Close paste SGF"]');
+    await wait('!document.querySelector(".paste-sgf-modal-textarea")');
+    // A history marker restored by reload is not popped by this document:
+    // overlayBackStack deliberately avoids navigating away over a stale marker.
+    results.push({ afterFailedImportClose: await evaluate(cdp, '({history:history.state,dialogs:[...document.querySelectorAll("[role=dialog]")].map(e=>e.getAttribute("aria-labelledby"))})') });
     // A composition-confirming Enter belongs to the username editor, too.
     await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
     await wait('!!document.querySelector("#mobile-tab-library")');
@@ -119,5 +142,5 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
     await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier:setup.result.identifier});
   }
   fs.writeFileSync(path.join(screenshotDir,'paste-import-cancellation.json'),JSON.stringify(results,null,2));
-  console.log('SGF import cancellation: Close, Escape, Cancel, mobile Back, Photo Board, fresh retry, and OGS username composition passed.');
+  console.log('SGF import: pending Tab containment, failed-import editor focus, Close, Escape, Cancel, mobile Back, Photo Board, fresh retry and OGS username composition passed.');
 }

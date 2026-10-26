@@ -43,6 +43,19 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
     returnFocus,
   });
 
+  React.useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    if (isSubmitting) {
+      if (active === document.body || (active instanceof HTMLElement && active.matches(':disabled'))) {
+        dialog.focus({ preventScroll: true });
+      }
+    } else if (active === dialog || active === document.body) {
+      textareaRef.current?.focus({ preventScroll: true });
+    }
+  }, [dialogRef, isSubmitting]);
+
   React.useEffect(() => {
     if (!status) return;
     const frame = window.requestAnimationFrame(() => {
