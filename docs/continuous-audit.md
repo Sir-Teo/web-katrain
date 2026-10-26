@@ -8,6 +8,13 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The complete browser sweep at `8fa9aad` passes all 11 viewport sizes and
+  every native interaction suite, including both cross-tab storage modes,
+  queued fallback saves with reload, all 24 trusted paste events, OGS actions,
+  1,500 expanded folders, Library name navigation and import/read recovery.
+  This sweep includes the coherent fallback fix and precedes the local-file
+  ownership extension currently under verification.
+
 - Full unit verification at `2943bb8` passes 501 files and 3,425 cases,
   with 78 engine cases skipped in CI. App/test TypeScript and lint pass.
   The production build passes in 16.2 s. Production responsiveness passes at
@@ -15,8 +22,8 @@ reproduced failures separate from candidates that still need investigation.
   longest task. The real offline check passes: activation preserves both
   seeded Library data namespaces while removing an obsolete app cache, then
   shell, board, dialogs and fresh WASM analysis work without network access.
-  Its negative control still fails navigation after cache deletion. A complete
-  browser sweep is next.
+  Its negative control still fails navigation after cache deletion. The
+  completed browser result is recorded above.
 
 - The fallback cross-tab failure is now reproduced as durable data loss:
   a predefined 12-run Chrome series queued two saves behind a held Web Lock,
