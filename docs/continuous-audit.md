@@ -227,6 +227,11 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   the palette open the comment section, and C leaves focus mode to reveal the
   editor. On phone, avoiding a redundant editor reset prevents development
   effect replay from canceling a first-mount edit request.
+- **Keep notes across phone tabs and shell changes:** switching from Info to
+  Board and back replaced a typed draft with its older saved text. The editor
+  now preserves its own node's live textarea before unmounting. Native checks
+  cover tab switching, cancel-before-switch, phone/desktop resizing, the text
+  shown in both arriving editors, and a later pagehide write.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

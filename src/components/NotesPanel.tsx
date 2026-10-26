@@ -369,6 +369,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const lastFocusRequestRef = React.useRef(0);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
 
+  React.useLayoutEffect(() => () => {
+    // Switching phone tabs or shells can remove the editor without changing
+    // nodes. Read it before React detaches the textarea and preserve its node.
+    const editor = noteTextareaRef.current;
+    const nodeId = editor?.dataset.noteNodeId;
+    if (editor && nodeId) setNodeNote(nodeId, editor.value);
+  }, [setNodeNote]);
+
   const scrollNoteEditorIntoView = React.useCallback(() => {
     const editor = noteTextareaRef.current;
     if (!editor) return;

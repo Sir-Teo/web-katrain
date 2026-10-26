@@ -90,6 +90,26 @@ export async function assertNoteDraftRecovery(cdp, appUrl, screenshotDir) {
     })()`);
     assert.equal(persisted,true,'Save Copy must include a draft even after opening the palette blurs it');
 
+    if(mobile) {
+      await typeNote('Draft retained across phone tabs');
+      await click('#mobile-tab-board');await click('#mobile-tab-info');
+      assert.equal(await note(),'Draft retained across phone tabs','Closing the phone panel must preserve its draft on the same node');
+      assert.equal(await evaluate(cdp,"document.querySelector('[data-note-editor]')?.value??document.querySelector('[data-note-preview]')?.textContent"),'Draft retained across phone tabs');
+      await typeNote('Canceled before switching tabs');await key('Escape','Escape',27);
+      await click('#mobile-tab-board');await click('#mobile-tab-info');
+      assert.equal(await note(),'Draft retained across phone tabs','Closing a canceled editor must not save its discarded text');
+      await typeNote('Draft retained across shell resize');
+      await setViewport(cdp,{width:1440,height:900,mobile:false});
+      await wait('!!document.querySelector(".dashboard") || !!document.querySelector("[data-focus]")');
+      assert.equal(await note(),'Draft retained across shell resize','Switching shells must retain the phone draft');
+      await wait(`(document.querySelector('[data-note-editor]')?.value??document.querySelector('[data-note-preview]')?.textContent)==='Draft retained across shell resize'`);
+      await setViewport(cdp,{width,height:844,mobile:true});
+      await wait('!!document.querySelector("#mobile-tab-info")');
+      await wait(`(document.querySelector('[data-note-editor]')?.value??document.querySelector('[data-note-preview]')?.textContent)==='Draft retained across shell resize'`);
+      await evaluate(cdp,"window.dispatchEvent(new PageTransitionEvent('pagehide'))");
+      assert.equal(await note(),'Draft retained across shell resize');
+    }
+
     if(!mobile) {
       await fresh();await typeNote('Old game draft');
       const original=await evaluate(cdp,'noteRecoveryStore.getState().rootNode.id');
@@ -107,7 +127,7 @@ export async function assertNoteDraftRecovery(cdp, appUrl, screenshotDir) {
       await wait(`noteRecoveryStore.getState().rootNode.id!==${JSON.stringify(original)}`);
       assert.equal(await note(),'','The old note must never overwrite the imported game');
     }
-    reports.push({width,editRequestWorks:true,unchangedDraftStaysClean:true,reloadProtected:true,restored:true,pagehideSaved:true,escapeCancels:true,savedCopyIncludesDraft:true,trustedDropChecked:!mobile});
+    reports.push({width,editRequestWorks:true,unchangedDraftStaysClean:true,reloadProtected:true,restored:true,pagehideSaved:true,escapeCancels:true,savedCopyIncludesDraft:true,phoneTabsChecked:mobile,trustedDropChecked:!mobile});
   }
   fs.writeFileSync(path.join(screenshotDir,'note-draft-recovery.json'),JSON.stringify(reports,null,2));
   console.log('Note drafts: native reload/restore, pagehide, Escape cancellation, persisted Save Copy, and trusted replacement passed.');
