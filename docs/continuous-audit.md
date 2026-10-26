@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `204b4c7`, including file-handle acquisition
+  ownership, passes 501 files and 3,425 cases with 78 engine cases skipped in
+  CI. App/test TypeScript and targeted lint pass; all 54 expanded native file
+  cases pass. The production build passes in 15.6 s. Its standard production
+  responsiveness run passes at 6.2/1.1/107.7/72/82 ms for first move, median,
+  Settings, input latency and longest task. No performance code changed; the
+  earlier timing failures remain recorded.
+- A predefined six-run, fresh-profile Settings comparison at `204b4c7`
+  rejects deferring offscreen sections with `content-visibility`. Baseline
+  opening times are 66.1/386.2/89.8 ms; the CSS control records
+  97.6/125.2/115.3 ms. Baseline median 89.8 ms is faster than the control's
+  115.3 ms. The slow baseline also records a 326 ms long task. Retain every
+  result, including both failed arms; no CSS change or budget increase is
+  applied. Intermittent Settings latency remains unresolved.
+
 - The complete browser sweep at `9a1febd` passes all 11 sizes and every
   native suite, including all 36 local-file cases, 24 trusted paste events,
   both cross-tab storage modes and queued fallback saves with reload. Deep
