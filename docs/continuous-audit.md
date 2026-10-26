@@ -147,6 +147,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   Curated titles remain authoritative, and filenames matching inherited
   object keys cannot be mistaken for curated records. The reproduced header
   failures and all six pro-game suites pass.
+- **Focused metadata on reload/hide:** a native reload while a player name
+  was being typed left without warning or recovery. Navigation checks now
+  finish the active metadata edit before testing for unsaved changes, and
+  pagehide/hidden-page writes do the same. Recovery tracks the written tree
+  version, so an earlier debounce cannot suppress a later focused draft.
+  Browser checks cancel and accept the native reload, restore the typed
+  player, then verify synchronous komi/handicap snapshots after the previous
+  auto-save debounce has already run.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

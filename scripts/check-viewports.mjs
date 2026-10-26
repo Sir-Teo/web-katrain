@@ -14,6 +14,7 @@ import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
 import { assertPasteImportCancellation } from './lib/paste-import-cancel-check.mjs';
 import { assertGameInfoNumericEdits } from './lib/game-info-fields-check.mjs';
 import { assertNumericEditorComposition } from './lib/numeric-editor-check.mjs';
+import { assertMetadataRecovery } from './lib/metadata-recovery-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
@@ -4191,6 +4192,7 @@ async function main() {
     await assertPasteImportCancellation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertGameInfoNumericEdits(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNumericEditorComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertMetadataRecovery(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

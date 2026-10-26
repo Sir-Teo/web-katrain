@@ -283,6 +283,11 @@ const UNREADABLE_SHARE_LINK_MESSAGE =
 /** How often, at most, a streaming tree change re-checks for unsaved changes. */
 const DIRTY_CHECK_INTERVAL_MS = 1500;
 
+function finishFocusedMetadataEdit(): void {
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && focused.closest('[data-game-info-edit-form]')) focused.blur();
+}
+
 export const Layout: React.FC = () => {
   const {
     startNewGame,
@@ -1136,6 +1141,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      finishFocusedMetadataEdit();
       if (!hasUnsavedChanges()) return;
       event.preventDefault();
       event.returnValue = '';
@@ -1269,10 +1275,11 @@ export const Layout: React.FC = () => {
     if (currentGameDirtyRef.current) {
       setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
     }
-    let written = false;
+    let writtenVersion: number | null = null;
     const writeNow = () => {
-      if (written) return;
-      written = true;
+      const version = useGameStore.getState().treeVersion;
+      if (writtenVersion === version) return;
+      writtenVersion = version;
       if (!hasUnsavedChanges()) {
         clearAutoSavedGame();
         setAutoSaveStatus(null);
@@ -1304,14 +1311,18 @@ export const Layout: React.FC = () => {
     // A phone or installed app can be put away, and then killed, inside that
     // half second; the edit made just before would never reach recovery.
     // Leaving the page writes it at once.
-    const writeOnHide = () => {
-      if (document.visibilityState === 'hidden') writeNow();
+    const writeBeforeLeaving = () => {
+      finishFocusedMetadataEdit();
+      writeNow();
     };
-    window.addEventListener('pagehide', writeNow);
+    const writeOnHide = () => {
+      if (document.visibilityState === 'hidden') writeBeforeLeaving();
+    };
+    window.addEventListener('pagehide', writeBeforeLeaving);
     document.addEventListener('visibilitychange', writeOnHide);
     return () => {
       window.clearTimeout(timeout);
-      window.removeEventListener('pagehide', writeNow);
+      window.removeEventListener('pagehide', writeBeforeLeaving);
       document.removeEventListener('visibilitychange', writeOnHide);
     };
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);
@@ -1413,13 +1424,9 @@ export const Layout: React.FC = () => {
   }, [hasUnsavedChanges]);
 
   const prepareForGameReplacement = useCallback(async () => {
-    const finishMetadataEdit = () => {
-      const focused = document.activeElement;
-      if (focused instanceof HTMLElement && focused.closest('[data-game-info-edit-form]')) focused.blur();
-    };
     // A drop or delayed download need not blur the editor. Commit its draft
     // to the current game before deciding whether that game is safe to leave.
-    finishMetadataEdit();
+    finishFocusedMetadataEdit();
     const gameId = useGameStore.getState().rootNode.id;
     const choice = await confirmReplaceCurrentGame();
     if (choice === 'cancel') return false;
@@ -1431,7 +1438,7 @@ export const Layout: React.FC = () => {
     if (choice === 'save' && !(await handleSaveCurrentSgf())) return false;
     // Another metadata edit can begin while IndexedDB is saving, just as a
     // board move can. Include it in the newer-changes guard below.
-    finishMetadataEdit();
+    finishFocusedMetadataEdit();
     // Saving to IndexedDB can take long enough for another move or edit.
     // The save acknowledgement deliberately keeps those newer edits dirty;
     // do not replace them on the strength of the earlier Save choice.
