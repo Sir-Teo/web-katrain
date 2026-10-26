@@ -32,6 +32,6 @@ describe('a long press does not select what it is acting on', () => {
     // Neither pointer could have selected this text: a drag reorders the row
     // and a right-click opens the app's menu.
     expect(panel).toContain('draggable');
-    expect(panel).toContain('const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {');
+    expect(panel).toContain('const openContextMenu = (event: React.MouseEvent<HTMLDivElement>, item: LibraryItem | null) => {');
   });
 });
