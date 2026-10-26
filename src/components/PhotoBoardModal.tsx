@@ -46,6 +46,8 @@ import { createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { isTextEntryTarget } from '../utils/keyboardTarget';
+import { isComposingKeyEvent } from '../utils/compositionKey';
+import { getInitialBoardKeyboardCursor, moveBoardKeyboardCursor } from '../utils/boardKeyboardNavigation';
 import { detectCameraAvailability, type CameraAvailability } from '../utils/cameraAvailability';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import {
@@ -117,6 +119,10 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const initialTraceTool = currentPlayer ?? 'black';
   const toolRef = React.useRef<TraceTool>(initialTraceTool);
   const [boardSize, setBoardSize] = React.useState<BoardSize>(defaultBoardSize);
+  const [traceFocusPoint, setTraceFocusPoint] = React.useState(() => getInitialBoardKeyboardCursor(null, defaultBoardSize));
+  const traceFocus = getInitialBoardKeyboardCursor(traceFocusPoint, boardSize);
+  const traceFocusIndex = traceFocus.y * boardSize + traceFocus.x;
+  const traceKeyboardHelpId = React.useId();
   // Held as typed, for the same reason as New Game: Number('') is 0.
   const [komiText, setKomiText] = React.useState(() => String(defaultKomi));
   const komi = parseKomiInput(komiText);
@@ -420,7 +426,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     if (cameraCaptureOpen) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isTextEntryTarget(event.target)) return;
+      if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey || isTextEntryTarget(event.target)) return;
       const key = event.key.toLowerCase();
       const nextTool =
         key === '1' || key === 'b'
@@ -439,6 +445,23 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [cameraCaptureOpen, setTraceTool]);
+
+  const handleTraceKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (isComposingKeyEvent(event) || event.altKey || event.metaKey) return;
+    const point = { x: index % boardSize, y: Math.floor(index / boardSize) };
+    const deltas: Record<string, readonly [number, number]> = {
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+    };
+    const delta = deltas[event.key];
+    let next: typeof point;
+    if (event.key === 'Home') next = { x: 0, y: event.ctrlKey ? 0 : point.y };
+    else if (event.key === 'End') next = { x: boardSize - 1, y: event.ctrlKey ? boardSize - 1 : point.y };
+    else if (delta && !event.ctrlKey) next = moveBoardKeyboardCursor(point, boardSize, ...delta);
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    traceBoardRef.current?.querySelector<HTMLButtonElement>(`[data-photo-board-index="${next.y * boardSize + next.x}"]`)?.focus();
+  };
 
   const clearBoard = () => {
     invalidateAutoTrace();
@@ -834,6 +857,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                             }}
                             onPointerCancel={() => setDraggingCorner(null)}
                             onKeyDown={(event) => {
+                              if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
                               const step = event.shiftKey ? 0.05 : 0.005;
                               const deltas: Record<string, [number, number]> = {
                                 ArrowLeft: [-step, 0],
@@ -1363,7 +1387,6 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
             <div className="mx-auto w-full max-w-[min(78vh,640px)] rounded-lg border border-[var(--ui-border)] bg-[#c89a55] p-2 shadow-inner">
               <div
                 className="relative overflow-hidden rounded border border-black/35 bg-[#d7ad68]"
-                aria-label={`${boardSize} by ${boardSize} trace board`}
               >
                 {photoUrl && photoUnderlay && (
                   <img
@@ -1389,6 +1412,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                   onPointerCancel={endTracePaint}
                   onPointerLeave={endTracePaint}
                   data-photo-board-trace-grid="true"
+                  role="group"
+                  aria-label={`${boardSize} by ${boardSize} trace board`}
+                  aria-describedby={traceKeyboardHelpId}
                 >
                   {stones.map((stone, index) => {
                     const deltaOverlay = traceDeltaByIndex.get(index) ?? [];
@@ -1398,6 +1424,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                         type="button"
                         data-photo-board-point="true"
                         data-photo-board-index={index}
+                        tabIndex={index === traceFocusIndex ? 0 : -1}
+                        onFocus={() => setTraceFocusPoint({ x: index % boardSize, y: Math.floor(index / boardSize) })}
+                        onKeyDown={(event) => handleTraceKeyDown(event, index)}
                         className={[
                           'relative aspect-square touch-none select-none border border-black/25 focus:z-10 focus:outline-none focus:ring-2 focus:ring-[var(--ui-accent)]',
                           photoUrl && photoUnderlay
@@ -1460,6 +1489,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 </div>
               </div>
             </div>
+
+            <p id={traceKeyboardHelpId} className="sr-only">
+              Arrow keys move between intersections. Enter or Space applies the selected tool.
+              Home and End move to the row edges; Control Home and Control End move to the board corners.
+            </p>
 
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-lg bg-[var(--ui-surface)] px-2 py-2">

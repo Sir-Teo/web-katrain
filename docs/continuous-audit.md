@@ -10,6 +10,18 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Photo trace keyboard navigation:** a 19×19 trace exposed 361 Tab stops.
+  It now has one entry point, starting at the centre, with arrow navigation,
+  edge wrapping, row Home/End, and Control Home/End for board corners. Enter
+  and Space still apply the selected tool. Pointer selection updates the Tab
+  entry; a point outside a smaller board falls back to its centre. The group
+  describes its keyboard controls for assistive technology. Tool shortcuts
+  and alignment arrows ignore composition and browser modifier chords. Native
+  desktop/phone checks cover navigation, activation, Tab exit/re-entry, pointer
+  selection, all board sizes, and retained size-editor focus. The recognition
+  race checks still cover trusted taps, retries, source changes and failed
+  selections; alignment comparisons now wait for visible image geometry after
+  a phone tab switch, rather than snapshotting hidden zero-size corners.
 - **Board input-method keys:** composition Enter placed a real stone on the
   main board and submitted an answer on the shared study board. Yielding from
   the main board also exposed the global AI-move shortcut, which still matched

@@ -34,6 +34,12 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
   const panel = async (name) => {
     if (mobile) await click(`[data-photo-board-mobile-tab=${name}]`);
   };
+  const waitForPhotoAlignment = () => wait(`(() => {
+    const image = document.querySelector('[data-photo-board-aligner] img');
+    const corner = document.querySelector('[data-photo-board-corner="2"]');
+    return image?.getBoundingClientRect().width > 0 && corner
+      && parseFloat(corner.style.left) > 0 && parseFloat(corner.style.top) > 0;
+  })()`);
   const traceState = () => evaluate(cdp, `({
     points: document.querySelectorAll('[data-photo-board-point]').length,
     stones: [...document.querySelectorAll('[data-photo-board-point]')].filter(e => !e.getAttribute('aria-label').endsWith('empty')).map(e => e.getAttribute('aria-label')),
@@ -85,6 +91,21 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
     fs.writeFileSync(unsupported, '<svg xmlns="http://www.w3.org/2000/svg"/>');
     await choose(photos[0]);
     await wait('!!document.querySelector("[data-photo-board-corner]")');
+    await waitForPhotoAlignment();
+    const originalCorner = await evaluate(cdp, `document.querySelector('[data-photo-board-corner="0"]').getAttribute('style')`);
+    for (const init of [
+      { key: 'ArrowRight', isComposing: true }, { key: 'ArrowRight', keyCode: 229 },
+      { key: 'ArrowRight', ctrlKey: true }, { key: 'ArrowRight', altKey: true }, { key: 'ArrowRight', metaKey: true },
+    ]) {
+      const corner = await evaluate(cdp, `(async () => {
+        const button = document.querySelector('[data-photo-board-corner="0"]');
+        const event = new KeyboardEvent('keydown', { ...${JSON.stringify(init)}, bubbles: true, cancelable: true });
+        button.dispatchEvent(event);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return { style: button.getAttribute('style'), prevented: event.defaultPrevented };
+      })()`);
+      assert.deepEqual(corner, { style: originalCorner, prevented: false }, `Alignment changed for ${JSON.stringify(init)}`);
+    }
     await evaluate(cdp, `(() => {
       window.photoTraceOriginalImage = window.Image;
       window.photoTraceHeld = [];
@@ -158,6 +179,7 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
       await release();
       assert.deepEqual(await traceState(), { points: 81, stones: [] });
       await panel('photo');
+      await waitForPhotoAlignment();
       const photoState = () => evaluate(cdp, `({
         source: document.querySelector('[data-photo-board-aligner] img').src,
         name: document.querySelector('[data-photo-board-source-name]').textContent,
