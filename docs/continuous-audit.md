@@ -102,6 +102,21 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Pasted drafts survive delayed clipboard reads:** a native reproduction
+  replaced newly typed SGF with an older clipboard result after a 19 ms held
+  read. A revision guard now ignores results superseded by edits, a newer
+  read, import, dismissal or switching to Photo Board. Stale denial/empty
+  results cannot replace newer feedback. Read Clipboard is disabled while
+  import is pending. The new regular browser check passes with native mouse
+  and touch input at 1280/390/320 pixels: typed drafts, out-of-order successes
+  and failures, ordinary empty/denied reads, import feedback and dismissal.
+  Existing pending-import focus, Tab containment, all five cancellation paths,
+  retry and OGS username composition also pass. The three related unit files
+  pass all 31 cases. A first fixture reused identical text (no change event),
+  and another resolved after the clipboard timeout; both fixture issues were
+  corrected without changing the 1200 ms clipboard deadline. An early phone
+  shortcut setup timed out; setup now waits two frames after the board mounts.
+  Earlier failed logs remain retained. Both TypeScript checks and lint pass.
 - **Stable Library menus:** Escape from a menu opener reproduced closing the
   whole Library. Menu Escape now runs before workspace shortcuts and yields to
   open dialogs. A held-frame regression also showed autofocus resetting a

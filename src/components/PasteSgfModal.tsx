@@ -26,13 +26,18 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   const [status, setStatus] = React.useState<PasteSgfStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const pendingImportRef = React.useRef<AbortController | null>(null);
+  const clipboardRevisionRef = React.useRef(0);
   const inputInfo = React.useMemo(() => getPasteSgfInputInfo(text), [text]);
   const close = () => {
+    clipboardRevisionRef.current++;
     pendingImportRef.current?.abort();
     onClose();
   };
   useEscapeToClose(close);
-  React.useEffect(() => () => pendingImportRef.current?.abort(), []);
+  React.useEffect(() => () => {
+    clipboardRevisionRef.current++;
+    pendingImportRef.current?.abort();
+  }, []);
   // The only dialog here that used to place its own initial focus, with a bare
   // `setTimeout(..., 0)` and no cleanup. The hook has `initialFocusRef` for
   // exactly this, and it defers by an animation frame rather than a task turn
@@ -65,13 +70,18 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   }, [status]);
 
   const updateText = (nextText: string) => {
+    clipboardRevisionRef.current++;
     setText(nextText);
     setStatus(null);
   };
 
   const readClipboard = async () => {
+    if (pendingImportRef.current) return;
+    const revision = ++clipboardRevisionRef.current;
     setStatus(null);
     const clipboardText = await readClipboardText();
+    // Edits, another read, import, and dismissal all supersede this result.
+    if (revision !== clipboardRevisionRef.current) return;
     if (clipboardText === null) {
       setStatus({ text: 'Clipboard unavailable.', tone: 'error' });
       return;
@@ -83,6 +93,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   const submit = async () => {
     const trimmed = text.trim();
     if (!trimmed || pendingImportRef.current) return;
+    clipboardRevisionRef.current++;
     const controller = new AbortController();
     pendingImportRef.current = controller;
     setStatus({ text: inputInfo.submitStatus, tone: 'info' });
@@ -166,7 +177,8 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
             <button
               type="button"
               onClick={readClipboard}
-              className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+              disabled={isSubmitting}
+              className="disabled:cursor-not-allowed disabled:opacity-50 min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
             >
               <span className="inline-flex items-center gap-2"><FaClipboard /> Read Clipboard</span>
             </button>
@@ -174,6 +186,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
               <button
                 type="button"
                 onClick={() => {
+                  clipboardRevisionRef.current++;
                   pendingImportRef.current?.abort();
                   onOpenPhotoBoard();
                 }}
