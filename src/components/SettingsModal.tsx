@@ -424,6 +424,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         event: React.KeyboardEvent<HTMLButtonElement>,
         value: GameSettings['katagoBackend']
     ) => {
+        if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             if (isKataGoBackendAvailable(value, webGpuAvailability)) {
@@ -465,6 +466,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         event: React.KeyboardEvent<HTMLButtonElement>,
         value: GameSettings['boardTheme']
     ) => {
+        if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
         const currentIndex = boardThemeChoices.findIndex((theme) => theme.value === value);
         let nextIndex = currentIndex;
         if (event.key === 'Home') nextIndex = 0;
@@ -741,6 +743,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                     tabIndex={isActive ? 0 : -1}
                                     onClick={() => setActiveTab(tab.id)}
                                     onKeyDown={(e) => {
+                                        if (isComposingKeyEvent(e) || e.ctrlKey || e.altKey || e.metaKey) return;
                                         const nextTabId = getNextSettingsTabId(tab.id, e.key);
                                         if (!nextTabId) return;
                                         e.preventDefault();

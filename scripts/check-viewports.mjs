@@ -40,6 +40,7 @@ import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
 import { assertModelStorageOrdering } from './lib/model-storage-check.mjs';
 import { assertModelReplacement } from './lib/model-replacement-check.mjs';
 import { assertShortcutRecording } from './lib/shortcut-recording-check.mjs';
+import { assertSettingsChoiceKeyboard } from './lib/settings-choice-keyboard-check.mjs';
 import { assertZipPathLimits } from './lib/zip-path-limit-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
@@ -4229,6 +4230,7 @@ async function main() {
     await assertLatestLibraryLoads(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertZipPathLimits(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertShortcutRecording(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertSettingsChoiceKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertModelReplacement(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertModelStorageOrdering(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertPhotoTraceRaces(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);

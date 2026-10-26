@@ -10,6 +10,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Settings choice composition:** composition ArrowDown changed the selected
+  engine backend from WASM to CPU. Backend/theme radio groups and Settings tabs
+  now ignore composition, legacy key-code 229 and Ctrl/Alt/Meta chords. Native
+  desktop/phone checks retain complete preferences and focus during ignored
+  keys, then verify ordinary backend arrows, theme Home/End/wrap, tab navigation
+  and dismissal. Twenty-nine Settings/theme/backend cases, TypeScript and lint
+  pass.
 - **Repeat file imports:** choosing the same Library file twice produced only
   one native change event. The chooser now resets immediately after capturing
   a file snapshot, before awaiting initial storage or reading the batch. Native
