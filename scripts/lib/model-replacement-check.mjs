@@ -49,10 +49,11 @@ export async function assertModelReplacement(cdp, appUrl, runDir, screenshotDir)
       const file = new File(['previous weights fixture'], 'previous.bin.gz');
       const previousUrl = modelReplacementApi.createUploadedModelUrl(file, useGameStore.getState().settings.katagoModelUrl);
       useGameStore.getState().updateSettings({ katagoModelUrl: previousUrl });
-      await modelReplacementApi.savePersistedUploadedModel(file);
+      const saved = await modelReplacementApi.savePersistedUploadedModel(file);
       window.modelReplacementPrevious = previousUrl;
-      return { url: previousUrl, info: modelReplacementApi.getUploadedModelInfo() };
+      return { url: previousUrl, info: modelReplacementApi.getUploadedModelInfo(), saved };
     })()`);
+    assert.equal(previous.saved, true, 'The baseline model must be persisted before replacement checks');
     await click('button', 'Official model downloads');
     for (const failure of ['http', 'cors']) {
       await evaluate(cdp, `(() => {
@@ -109,6 +110,9 @@ export async function assertModelReplacement(cdp, appUrl, runDir, screenshotDir)
     const input = (await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#model-replacement-input' })).result.nodeId;
     await cdp.send('DOM.setFileInputFiles', { nodeId: input, files: [fixture] });
     await wait("document.querySelector('[data-katago-uploaded-model-summary]')?.textContent.includes('replacement.bin.gz')");
+    // The filename appears while storage is pending. Wait for the UI's actual
+    // save acknowledgement before inspecting the persisted replacement.
+    await wait('document.querySelector("[data-model-upload-persistence]")?.dataset.modelUploadPersistence==="saved"');
     const result = await evaluate(cdp, `(async () => ({
       oldAvailable: await modelReplacementFetch(modelReplacementPrevious).then(() => true).catch(() => false),
       newText: await (await modelReplacementFetch(modelReplacementStore.getState().settings.katagoModelUrl)).text(),
