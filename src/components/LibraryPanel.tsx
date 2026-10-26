@@ -50,7 +50,6 @@ import {
   updateStoredLibrary,
   nextLibraryGameSaveRequestId,
   moveLibraryItems,
-  prependLibraryImports,
   parseLibraryBackup,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
@@ -68,6 +67,8 @@ import {
   compareLibraryRecency,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
+import { persistLibraryImports, subscribeLibraryImports } from '../utils/libraryImports';
+import { withFailureReason } from '../utils/importSummary';
 import { tagsFromResult } from '../utils/narrativeTags';
 
 /**
@@ -479,6 +480,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    * this panel fail intermittently on CI and never on a fast machine.
    */
   const initialLoadRef = useRef<Promise<unknown> | null>(null);
+  useEffect(() => subscribeLibraryImports((saved) => {
+    // Rebase pending panel edits without acknowledging any of their revisions.
+    dispatchItems({ type: 'saved', items: saved, revision: 0 });
+    if (!saveStateRef.current.edits.length) {
+      didLoadLibraryRef.current = true;
+      setLibraryStatus('ready');
+      setLibraryError(null);
+    }
+  }), []);
   const lastExternalFileUpdateRef = useRef<string | null>(null);
   const lastExternalItemCreateRef = useRef<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -1614,9 +1624,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       onToast(report.message, report.tone);
       return;
     }
-    // Reading files can outlive another import or edit. Reserve names against
-    // the state at completion, without rescanning every sibling for each file.
-    setItems((prev) => prependLibraryImports(prev, imported));
+    try {
+      await persistLibraryImports(imported);
+      onLibraryUpdated?.();
+    } catch (error) {
+      onToast(withFailureReason('Could not save imported files. Keep the original files and try again.', error), 'error');
+      return;
+    }
     const report = describeLibraryImport({
       importedEntries: imported.length,
       importedFiles: imported.filter(isFile).length,
@@ -1663,9 +1677,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         folderId,
         nextUntitledGameName(items)
       );
-      const uniqueName = getUniqueLibraryItemName(result.item.name, items, result.item.parentId ?? null);
-      const item = uniqueName === result.item.name ? result.item : { ...result.item, name: uniqueName };
-      setItems((prev) => [item, ...prev]);
+      const [item] = await persistLibraryImports([result.item]);
+      if (!item) return true;
+      onLibraryUpdated?.();
       // A pasted or dropped collection opens at its first game like an
       // imported one does, so it says so here too -- with the count, which
       // this path knows because it made exactly one item.

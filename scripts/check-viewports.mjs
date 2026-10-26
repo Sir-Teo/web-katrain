@@ -35,6 +35,7 @@ import { assertLibraryRecency } from './lib/library-recency-check.mjs';
 import { assertLibraryRowKeyboard } from './lib/library-row-keyboard-check.mjs';
 import { assertLibrarySaveComposition } from './lib/library-save-composition-check.mjs';
 import { assertLibraryImportDestination } from './lib/library-import-destination-check.mjs';
+import { assertLibraryImportAfterClose } from './lib/library-import-after-close-check.mjs';
 import { assertLibraryRepeatImport } from './lib/library-repeat-import-check.mjs';
 import { assertLibraryShowMoreFocus } from './lib/library-show-more-focus-check.mjs';
 import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
@@ -4254,6 +4255,7 @@ async function main() {
     await assertLibraryShowMoreFocus(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertMoveTreeComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertReportGuideKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryImportAfterClose(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

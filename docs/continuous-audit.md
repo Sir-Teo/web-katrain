@@ -8,10 +8,10 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
-- Full verification at `064d0c0`: app/test TypeScript, lint, 491 test files and
+- Full verification at `e56625f`: app/test TypeScript, lint, 491 test files and
   3,309 tests passed; 77 engine cases are skipped in CI. Production build passed.
-- The complete 11-size browser sweep passed at `5017246`. The newer `15ff520`
-  sweep is running, including the parent/child and page-continuity changes.
+- The complete 11-size browser sweep passed at `15ff520`, including the
+  parent/child, page-continuity and move-tree composition changes.
 - Production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
   89.5 ms, p98 input latency 56 ms and longest task 72 ms passed their budgets.
   Offline checks completed fresh WASM analysis with 25 visits, a visible win-rate
@@ -26,6 +26,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Durable imports after closing Library:** a held file read completed after
+  the panel unmounted, showed “Imported”, and stored no game. File and dropped
+  text/OGS imports now commit through the shared storage queue, reserve names
+  against current records and publish only after saving. A reopened panel
+  receives the result while retaining its pending edits. Successful committed
+  data also clears an initial read error when no local edits remain. Native
+  desktop/phone checks cover closed/reopened panels, an in-flight rename,
+  failed storage and same-file retry without duplicates, held OGS responses,
+  initial-read recovery, original SGF and destination preservation, and reload.
+  Thirty-seven focused cases pass, including five new service cases; app/test
+  TypeScript and lint pass.
 - **Report guide keyboard and Back:** Tab escaped the guide to New Game
   behind it. The guide now owns a shared focus trap and Escape/Back lifecycle,
   with explicit return to Guide. Composition Escape stays with the input

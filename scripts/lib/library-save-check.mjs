@@ -10,7 +10,7 @@ const recoveryDialog = '[aria-labelledby="auto-save-recovery-title"]';
 // Inject failures only after the fixture has loaded. Other localStorage keys,
 // including recovery data, remain writable. Delayed opens let a real board
 // edit overtake a pending save without mocking the app's callbacks.
-const installStorageControls = `(()=>{
+export const installStorageControls = `(()=>{
   const open=indexedDB.open.bind(indexedDB),setItem=Storage.prototype.setItem;
   window.librarySaveAudit={mode:'normal',failed:0,held:[],open,skipDelayedOpens:0};
   indexedDB.open=(...args)=>{
