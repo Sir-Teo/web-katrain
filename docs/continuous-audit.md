@@ -8,6 +8,12 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The complete browser sweep at `9a1febd` passes all 11 sizes and every
+  native suite, including all 36 local-file cases, 24 trusted paste events,
+  both cross-tab storage modes and queued fallback saves with reload. Deep
+  folders, OGS actions, Copy SGF and final import/read recovery pass as well.
+  This result precedes the file-handle acquisition extension under verification.
+
 - Full unit verification at `9a1febd`, including the local-file ownership
   extension, passes 501 files and 3,425 cases with 78 engine cases skipped in
   CI. App/test TypeScript and targeted lint pass. All 36 new native file cases
@@ -19,7 +25,7 @@ reproduced failures separate from candidates that still need investigation.
   records 113.2 ms with no loading fallback and about 52 ms of style/layout
   work. No performance code changed; retain the uninstrumented failure as
   unresolved rather than replacing it with the instrumented passing result.
-  The complete integrated browser sweep is next.
+  The complete integrated browser sweep passes as recorded above.
 
 - The complete browser sweep at `8fa9aad` passes all 11 viewport sizes and
   every native interaction suite, including both cross-tab storage modes,
