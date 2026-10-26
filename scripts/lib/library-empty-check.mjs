@@ -61,7 +61,13 @@ export async function assertEmptyLibraryPersists(devtoolsPort, appUrl, runDir, s
           if (mobile) await click('#mobile-tab-library');
           await wait('!!document.querySelector("input[type=file][multiple]")');
         };
-        const emptyUi = () => wait(`document.body.innerText.includes('Library is empty')&&!document.querySelector('[data-library-row]')`);
+        const emptyUi = async () => {
+          await wait(`document.body.innerText.includes('Library is empty')&&!document.querySelector('[data-library-row]')`);
+          assert.deepEqual(await evaluate(cdp, `(() => {
+            const list = document.querySelector('.library-tree');
+            return { role:list.getAttribute('role'), busy:list.getAttribute('aria-busy') };
+          })()`), { role:'group', busy:'false' }, 'An empty library must not expose an empty ARIA tree');
+        };
         const upload = async (selector, filename, content) => {
           const file = path.join(runDir, `${stem}-${filename}`);
           fs.writeFileSync(file, content);

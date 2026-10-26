@@ -9,6 +9,7 @@ import { mediaQueryMatches } from '../utils/mediaQuery';
 import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import { getNoteDraftRescue, getNoteEditorSyncDecision } from '../utils/noteEditorState';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
@@ -354,7 +355,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const shortcutLabels = useShortcutLabels(NOTE_SHORTCUT_IDS);
   const currentNote = currentNode.note ?? '';
   const noteHasContent = currentNote.trim().length > 0;
-  const noteActionLabel = noteHasContent ? 'Edit note' : 'Add note';
+  const noteActionLabel = noteHasContent ? 'Edit note' : 'Add a note';
   const noteShortcutLabel = shortcutLabels['edit-note'];
   const noteActionTitle = noteShortcutLabel === 'Disabled' ? noteActionLabel : `${noteActionLabel} (${noteShortcutLabel})`;
   const [isEditingNote, setIsEditingNote] = React.useState(false);
@@ -814,8 +815,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               onClick={startNoteEdit}
               role={noteHasContent ? undefined : 'button'}
               tabIndex={noteHasContent ? undefined : 0}
-              aria-label={noteHasContent ? undefined : noteActionTitle}
               onKeyDown={noteHasContent ? undefined : (event) => {
+                if (isComposingKeyEvent(event)) return;
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
                 startNoteEdit();

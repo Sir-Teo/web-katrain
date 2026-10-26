@@ -10,6 +10,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Accessible empty states:** rendered checks found that the empty note's
+  visible “Add a note” prompt was replaced by a different accessible label,
+  hiding its instructions. Its button name now comes from the visible text.
+  Its custom Enter/Space handler also ignores composition and Safari key 229;
+  a browser reproduction previously opened the editor and consumed the key.
+  Loading, empty and no-match Library views now use a group rather than an
+  ARIA tree without tree items; loading is marked busy. Native desktop/phone
+  checks inspect Chrome's actual accessible note name, keyboard activation,
+  loading, no matches and restored trees. Four IndexedDB/fallback cases also
+  retain the correct empty semantics after delete, import, backup restore and
+  reload. Twenty-nine focused existing accessibility/editor tests pass.
 - **Proven offline inference:** the offline gate previously checked engine
   analysis only online. It now requires a successful fresh-position worker
   result and rendered win rate after the offline reload. A fresh Chrome

@@ -2748,8 +2748,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list',
                   dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
                 ].join(' ')}
-                role="tree"
+                role={sortedItems.length > 0 ? 'tree' : 'group'}
                 aria-label="Library games"
+                aria-busy={libraryStatus === 'loading'}
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
