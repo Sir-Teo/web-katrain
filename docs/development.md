@@ -35,6 +35,7 @@ The Vite dev server sends the COOP/COEP headers required for threaded WASM.
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run test:study` | Reproduce large-study regressions in Chrome: marker edits, 12,000-node export and nested import, solution lookup, branch copy/paste, setup replay, and 10,000-entry library import naming. Uses an isolated profile and the dev store; reports operation timings separately from production INP. Not in `verify` or CI. |
 | `npm run test:offline` | Install the production service worker, put **every** target offline -- the worker's own included, since a page-level emulation leaves its fetches online -- and require the app to boot from cache with no failed request. Serves `dist/` without COOP/COEP so the deployed configuration is what is tested. Validated by its own negative control: with the caches deleted first, the offline navigation fails outright. Offline *analysis* is exercised online only; see the comment in the script. Not in `verify` or CI. |
+| `npm run test:report` | Print a report with ten known mistakes from desktop and phone layouts. Checks actual PDF page counts and that each board and all 24 correction moves fit their page; writes PDFs and a JSON result to `/tmp/web-katrain-report-print` (or `REPORT_PRINT_OUTPUT_DIR`). Uses an isolated profile and dev fixtures; not in `verify` or CI. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Run `tsc -b` and build Vite output into `dist/`. |
 | `npm run preview` | Serve `dist/` locally with preview headers. |
@@ -98,6 +99,7 @@ npm run test:responsiveness   # click-to-response budgets
 npm run test:analysis         # evaluation catches up after a move during search
 npm run test:study            # deep branch correctness and operation timings
 npm run test:offline          # the app boots from cache with the network down
+npm run test:report           # real report PDFs and complete correction pages
 ```
 
 Reach for `test:viewport` after a layout, breakpoint or board-sizing change, and

@@ -1,14 +1,14 @@
-import { parseGtpMove } from '../lib/gtp';
+import { formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { getHoshiPoints, normalizeBoardSize } from './boardSize';
 import { DEFAULT_BOARD_SIZE, type BoardState, type Move } from '../types';
 
 const BOARD_IMAGE_SIZE = 640;
 const BOARD_PADDING = 42;
 
-function boardPoint(x: number, y: number, cell: number): { px: number; py: number } {
+function boardPoint(x: number, y: number, cell: number, padding: number): { px: number; py: number } {
   return {
-    px: BOARD_PADDING + x * cell,
-    py: BOARD_PADDING + y * cell,
+    px: padding + x * cell,
+    py: padding + y * cell,
   };
 }
 
@@ -67,9 +67,12 @@ export function captureReportBoardSnapshot(args: {
     if (!ctx) return null;
     ctx.scale(scale, scale);
 
-    const cell = (BOARD_IMAGE_SIZE - BOARD_PADDING * 2) / (boardSize - 1);
-    const lineStart = BOARD_PADDING;
-    const lineEnd = BOARD_IMAGE_SIZE - BOARD_PADDING;
+    // Smaller boards have larger edge stones. Leave their coordinate labels
+    // outside the stones rather than putting numbers underneath them.
+    const padding = Math.max(BOARD_PADDING, Math.ceil(BOARD_IMAGE_SIZE / (boardSize + 1)));
+    const cell = (BOARD_IMAGE_SIZE - padding * 2) / (boardSize - 1);
+    const lineStart = padding;
+    const lineEnd = BOARD_IMAGE_SIZE - padding;
 
     ctx.fillStyle = '#d7a85f';
     ctx.fillRect(0, 0, BOARD_IMAGE_SIZE, BOARD_IMAGE_SIZE);
@@ -79,7 +82,7 @@ export function captureReportBoardSnapshot(args: {
     ctx.strokeStyle = 'rgba(44, 24, 16, 0.78)';
     ctx.lineWidth = 1.5;
     for (let i = 0; i < boardSize; i++) {
-      const p = BOARD_PADDING + i * cell;
+      const p = padding + i * cell;
       ctx.beginPath();
       ctx.moveTo(lineStart, p);
       ctx.lineTo(lineEnd, p);
@@ -91,8 +94,16 @@ export function captureReportBoardSnapshot(args: {
     }
 
     ctx.fillStyle = 'rgba(44, 24, 16, 0.78)';
+    ctx.font = `600 ${Math.min(18, cell * 0.5)}px Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < boardSize; i++) {
+      const p = padding + i * cell;
+      ctx.fillText(formatGtpMove(i, boardSize - 1, boardSize).slice(0, -1), p, BOARD_IMAGE_SIZE - 14);
+      ctx.fillText(String(boardSize - i), 14, p);
+    }
     for (const [x, y] of getHoshiPoints(boardSize)) {
-      const { px, py } = boardPoint(x, y, cell);
+      const { px, py } = boardPoint(x, y, cell, padding);
       ctx.beginPath();
       ctx.arc(px, py, 4.2, 0, Math.PI * 2);
       ctx.fill();
@@ -103,20 +114,20 @@ export function captureReportBoardSnapshot(args: {
       for (let x = 0; x < boardSize; x++) {
         const stone = args.board[y]?.[x];
         if (!stone) continue;
-        const { px, py } = boardPoint(x, y, cell);
+        const { px, py } = boardPoint(x, y, cell, padding);
         drawStone(ctx, px, py, stoneRadius, stone);
       }
     }
 
     if (args.playedMove && args.playedMove.x >= 0 && args.playedMove.y >= 0) {
-      const { px, py } = boardPoint(args.playedMove.x, args.playedMove.y, cell);
+      const { px, py } = boardPoint(args.playedMove.x, args.playedMove.y, cell, padding);
       drawRing(ctx, px, py, stoneRadius * 0.72, '#ef4444');
     }
 
     if (args.bestMove) {
       const best = parseGtpMove(args.bestMove, boardSize);
       if (best?.kind === 'move') {
-        const { px, py } = boardPoint(best.x, best.y, cell);
+        const { px, py } = boardPoint(best.x, best.y, cell, padding);
         drawSquare(ctx, px, py, stoneRadius * 0.72, '#16a34a');
       }
     }

@@ -47,6 +47,17 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   and clamps that fallback vertically. Browser checks cover both margins,
   compact and short desktop layouts, all statistics/PV text, and resizing.
   The same positioning is shared by played-stone details.
+- **Report PDF pagination:** [issue #18](https://github.com/Sir-Teo/web-katrain/issues/18)
+  reproduced as 24 pages for a report containing ten mistake diagrams. The
+  large board and its 24-move correction were stacked, spilling each mistake
+  onto a second page; hidden app chrome also occupied print-layout space.
+  Correction pages now place the board and sequence side by side on one
+  landscape sheet. The screen header and hidden app layout leave the print
+  flow, and page margins no longer accumulate between sheets. Board images
+  include row/column coordinates and the report explains both move markers.
+  The same fixture now produces 12 pages (two summary pages and ten complete
+  correction pages). `test:report` exports actual PDFs from desktop and phone
+  layouts and checks both page counts and every diagram/24-move sequence.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

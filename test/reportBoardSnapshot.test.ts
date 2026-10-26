@@ -16,6 +16,7 @@ function makeCanvasContext() {
     createRadialGradient: vi.fn(() => gradient),
     fill: vi.fn(),
     fillRect: vi.fn(),
+    fillText: vi.fn(),
     lineTo: vi.fn(),
     moveTo: vi.fn(),
     restore: vi.fn(),
@@ -66,5 +67,18 @@ describe('report board snapshots', () => {
       }),
     });
     expect(captureReportBoardSnapshot({ board: makeBoard() })).toBeNull();
+  });
+
+  it('labels every row and column with the same coordinates as the correction sequence', () => {
+    const { context } = stubCanvas();
+    const board: BoardState = Array.from({ length: 19 }, () => Array(19).fill(null));
+    captureReportBoardSnapshot({ board });
+    const labels = vi.mocked(context.fillText).mock.calls.map(([text]) => text);
+    expect(labels).toHaveLength(38);
+    expect(labels).toContain('A');
+    expect(labels).toContain('T');
+    expect(labels).toContain('19');
+    expect(labels).toContain('1');
+    expect(labels).not.toContain('I');
   });
 });
