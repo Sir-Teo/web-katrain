@@ -10,6 +10,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Library page continuity:** keyboard Show more left the first new row
+  offscreen and unfocused; on the final page its button disappeared. The
+  action now records the next item and focuses it after those rows mount.
+  Native desktop/phone checks reveal every page at Root, within a folder and
+  in search, using keyboard and pointer activation, and verify focus, visible
+  rows, final-page behavior and an unchanged game. Seventeen keyboard/focus
+  cases, TypeScript and lint pass.
 - **Library parent/child navigation:** Right enters the first shown child of
   an expanded folder; Left returns to the visible parent, with existing
   expand/collapse actions taking precedence. Root and flat search rows stay

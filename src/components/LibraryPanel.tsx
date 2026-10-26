@@ -787,6 +787,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   // single shared limit would make expanding one folder reveal more rows in
   // every other folder at once.
   const [visibleLimits, setVisibleLimits] = useState<Record<string, number>>({});
+  const revealFocusIdRef = useRef<string | null>(null);
   // Only what changes the list itself. The current folder drives breadcrumbs
   // and where a save lands, not which rows are rendered, so moving between
   // folders must not collapse an expanded list back to one page.
@@ -803,6 +804,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     // position hid the first matches even when only fifteen results remained.
     if (libraryTreeRef.current) libraryTreeRef.current.scrollTop = 0;
   }, [viewKey]);
+  useLayoutEffect(() => {
+    const id = revealFocusIdRef.current;
+    if (!id) return;
+    revealFocusIdRef.current = null;
+    const rows = libraryTreeRef.current?.querySelectorAll<HTMLElement>('[data-library-row-id]') ?? [];
+    Array.from(rows).find(row => row.dataset.libraryRowId === id)?.focus();
+  }, [visibleLimits]);
 
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
   const folderOptions = useMemo(() => getLibraryFolderOptions(items), [items]);
@@ -1776,12 +1784,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         type="button"
         className="library-show-more"
         style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
-        onClick={() =>
+        onClick={() => {
+          const siblings = isSearching ? sortedItems : childrenMap.get(key || null) ?? [];
+          revealFocusIdRef.current = siblings[limitFor(key)]?.id ?? null;
           setVisibleLimits((limits) => ({
             ...limits,
             [key]: limitFor(key) + pageSize,
-          }))
-        }
+          }));
+        }}
       >
         Show {Math.min(hidden, pageSize)} more of {total}
       </button>
@@ -1827,6 +1837,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         aria-current={isLoaded ? 'true' : undefined}
         aria-label={`${item.name}, game file, ${moveSummary}${isLoadedDirty ? ', unsaved changes' : ''}`}
         data-library-row="file"
+        data-library-row-id={item.id}
         data-library-row-name={item.name}
         data-library-loaded-dirty={isLoadedDirty ? 'true' : undefined}
         onClick={() => void handleLoad(item)}
@@ -2019,6 +2030,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
           aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
           data-library-row="folder"
+          data-library-row-id={item.id}
           data-library-row-name={item.name}
           data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
           onClick={() => activateFolderRow(item)}
@@ -2807,7 +2819,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 </div>
               )}
               <span id={libraryKeyboardHelpId} className="sr-only">
-                Use Up and Down arrows to browse games and folders, Home or End to reach either end,
+                Use Up and Down arrows to browse games and folders, Home or End to reach either end of the shown rows,
                 and Enter to open. Use the row buttons for selection and other actions.
                 Right expands or enters a folder; Left collapses or returns to its parent.
               </span>
