@@ -84,7 +84,8 @@ PWA. There is no analysis server to run.
   numbered kifu as PDF, or the position as a text diagram. Every one is in the
   command palette, and all but the file save sit together under File.
 - Store games in an IndexedDB library with folders, bundled famous games, and
-  zip backup/restore.
+  zip backup/restore. Search titles, players, dates, results, and tags;
+  `joseki` and `eloise` also find “Jōseki” and “Éloïse”.
 - Auto-save the current session and recover after a crash or reload.
 
 **Use it anywhere**
@@ -120,9 +121,9 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | `npm test` | Run the Vitest suite. Typechecks nothing on its own — Vitest transpiles without checking, so a test can pass while failing to compile. |
 | `npm run typecheck` | Type-check the app. Runs `tsc -b`; a bare `tsc --noEmit` checks nothing here, because the root config is a solution file with `"files": []`. |
 | `npm run test:typecheck` | Type-check the tests. Needed separately: `tsc -b` builds the app and node projects, and neither includes `test/`. |
-| `npm run test:viewport` | Chrome interaction and layout checks at 11 desktop/mobile sizes. Uses a fresh Vite cache and Chrome profile; runs in CI and separately from `verify`. About 3 minutes locally. |
+| `npm run test:viewport` | Chrome interaction and layout checks at 11 desktop/mobile sizes. Uses a fresh Vite cache and Chrome profile; runs in CI and separately from `verify`. Runtime varies with the browser and storage fixtures. |
 | `npm run test:responsiveness` | Click-to-response budgets — first board move, dialog open, INP p98, long tasks. ~15s against `dist/`, so run `npm run build` first; not in `verify` or CI. |
-| `npm run test:study` | Chrome benchmarks for marker edits and 12,000-node export, nested import, solution lookup, copy/paste, and setup replay. Measures dev-store operations separately from production INP; not in `verify` or CI. |
+| `npm run test:study` | Chrome benchmarks for deep study operations, 10,000-game library import/copy, and 5,000-game accent matching. Measures dev-store operations separately from production INP; not in `verify` or CI. |
 | `npm run test:report` | Export real desktop and phone report PDFs; check page counts, complete diagrams, and all 24 correction moves per mistake. Writes PDFs to `/tmp/web-katrain-report-print`; not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |

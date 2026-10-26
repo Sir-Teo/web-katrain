@@ -45,7 +45,7 @@ import {
   getLibraryStats,
   getLibrarySelectionIds,
   getUniqueLibraryItemName,
-  libraryItemMatchesQuery,
+  libraryItemMatchesSearchTerms,
   librarySgfDownloadFilename,
   updateStoredLibrary,
   nextLibraryGameSaveRequestId,
@@ -101,13 +101,14 @@ import {
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
-import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
+import { MAX_SEARCH_QUERY_LENGTH, toSearchTerms } from '../utils/searchTerms';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { normalizeSgfUtf8 } from '../utils/sgfEncoding';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile, type LegacyGameEncoding } from '../utils/gameRecordImport';
 
-/** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
+/** Rows mounted before "Show more"; phones use fewer to keep search responsive. */
 const LIBRARY_PAGE_SIZE = 100;
+const MOBILE_LIBRARY_PAGE_SIZE = 30;
 
 type LibraryItemsState = { items: LibraryItem[]; revision: number; edits: LibraryEditBatch[] };
 type LibraryItemsAction =
@@ -452,6 +453,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const backupInputRef = useRef<HTMLInputElement>(null);
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const libraryTreeRef = useRef<HTMLDivElement>(null);
   const didLoadLibraryRef = useRef(false);
   /**
    * Settles when the library's own first read has published its snapshot.
@@ -716,15 +718,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [activeTag, availableTags]);
 
   const filteredItems = useMemo(() => {
-    const q = query.trim();
-    if (!q && !favoritesOnly && !activeTag) return items;
+    const terms = toSearchTerms(query);
+    if (!terms.length && !favoritesOnly && !activeTag) return items;
     return items.filter((item) => {
       if (favoritesOnly || activeTag) {
         if (!isFile(item)) return false;
         if (favoritesOnly && !item.favorite) return false;
         if (activeTag && !(item.tags ?? []).includes(activeTag)) return false;
       }
-      if (q && !libraryItemMatchesQuery(item, query)) return false;
+      if (terms.length && !libraryItemMatchesSearchTerms(item, terms)) return false;
       return true;
     });
   }, [items, query, favoritesOnly, activeTag]);
@@ -759,8 +761,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    * Rows mounted before "Show more". A library has no size cap and imports SGFs
    * in bulk from a ZIP, so "everything" is not a small number: a seeded library
    * of 1,200 games mounted 1,208 rows and about 35,000 DOM nodes at once, in
-   * both the folder view and the search results. Both siblings already page
-   * their libraries at 100.
+   * both the folder view and the search results. Smaller phone batches also
+   * avoid mounting 100 rows on a search that displays only a few at a time.
    */
   // Keyed by folder id, with '' for the top level and for search results. A
   // single shared limit would make expanding one folder reveal more rows in
@@ -777,6 +779,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setLimitViewKey(viewKey);
     setVisibleLimits({});
   }
+  useLayoutEffect(() => {
+    // A new result set starts at its first row; retaining a deep old scroll
+    // position hid the first matches even when only fifteen results remained.
+    if (libraryTreeRef.current) libraryTreeRef.current.scrollTop = 0;
+  }, [viewKey]);
 
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
   const folderOptions = useMemo(() => getLibraryFolderOptions(items), [items]);
@@ -1662,7 +1669,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setDragOverRoot(false);
   };
 
-  const limitFor = (key: string) => visibleLimits[key] ?? LIBRARY_PAGE_SIZE;
+  const pageSize = isMobile ? MOBILE_LIBRARY_PAGE_SIZE : LIBRARY_PAGE_SIZE;
+  const limitFor = (key: string) => Math.max(visibleLimits[key] ?? pageSize, pageSize);
 
   /**
    * Reveals another page of one list. Selection deliberately still spans every
@@ -1680,11 +1688,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         onClick={() =>
           setVisibleLimits((limits) => ({
             ...limits,
-            [key]: limitFor(key) + LIBRARY_PAGE_SIZE,
+            [key]: limitFor(key) + pageSize,
           }))
         }
       >
-        Show {Math.min(hidden, LIBRARY_PAGE_SIZE)} more of {total}
+        Show {Math.min(hidden, pageSize)} more of {total}
       </button>
     );
   };
@@ -2690,6 +2698,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 </div>
               )}
               <div
+                ref={libraryTreeRef}
                 className={[
                   'library-tree panel-scroll-region',
                   isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list',

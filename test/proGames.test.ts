@@ -54,6 +54,11 @@ describe('searching the pro games', () => {
   it('finds nothing for a query that matches nothing', () => {
     expect(count('zzzznotaplayer')).toBe(0);
   });
+
+  it('finds accented player names and event titles from an ordinary keyboard query', () => {
+    const game={...PRO_GAMES[0]!,black:'Ō Rissei',white:'Éloïse',event:'Jōseki workshop'};
+    expect(filterProGames([game],'o rissei eloise joseki')).toEqual([game]);
+  });
 });
 
 describe('replaying a game for its preview', () => {

@@ -3,6 +3,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { SETTINGS_SEARCH_INDEX, searchAvailableSettings, searchSettings } from '../src/utils/settingsSearch';
 
+it('finds an accented setting label from an unaccented query', () => {
+  const entry={id:'custom-joseki',tab:'general' as const,label:'Jōseki hints'};
+  expect(searchSettings('joseki',[entry])).toEqual([entry]);
+});
+
 /**
  * Re-derives the index from the modal's markup. The index exists because only
  * the active tab is mounted, so nothing at runtime can catch it going stale —

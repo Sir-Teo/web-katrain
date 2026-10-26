@@ -110,6 +110,14 @@ describe('library storage helpers', () => {
     expect(libraryItemMatchesQuery(folder, 'lee')).toBe(false);
   });
 
+  it('searches accented collection titles and player names while retaining their spelling', () => {
+    const item=createLibraryItem('Jōseki notebook','(;SZ[9]PB[Éloïse]PW[Ō Rissei])');
+    expect(libraryItemMatchesQuery(item,'joseki eloise rissei')).toBe(true);
+    expect(libraryItemMatchesQuery(item,'JŌSEKI ÉLOÏSE')).toBe(true);
+    expect(item.name).toBe('Jōseki notebook');
+    expect(item.metadata.black).toBe('Éloïse');
+  });
+
   it('updates a saved file in place with fresh SGF metadata', () => {
     const item = createLibraryItem('Game', sgf, 'folder-a', 123);
     const updatedSgf = '(;GM[1]FF[4]SZ[9]GN[Updated]PB[New Black]PW[New White];B[dd];W[ee];B[cf])';

@@ -19,16 +19,24 @@
  */
 export const MAX_SEARCH_QUERY_LENGTH = 200;
 
+/** Match Latin accents without changing marks that distinguish other scripts. */
+export const normalizeSearchText = (text: string): string => text
+  .normalize('NFD')
+  .replace(/(\p{Script=Latin})\p{M}+/gu, '$1')
+  .normalize('NFC')
+  .toLowerCase();
+
 export const toSearchTerms = (query: string | null | undefined): string[] =>
-  String(query ?? '')
-    .slice(0, MAX_SEARCH_QUERY_LENGTH)
+  normalizeSearchText(String(query ?? '').slice(0, MAX_SEARCH_QUERY_LENGTH))
     .trim()
-    .toLowerCase()
     .split(/\s+/)
     .filter(Boolean);
 
-export const matchesSearchTerms = (haystack: string, terms: string[]): boolean =>
-  terms.every((term) => haystack.includes(term));
+export const matchesSearchTerms = (haystack: string, terms: string[]): boolean => {
+  if (!terms.length) return true;
+  const normalized = normalizeSearchText(haystack);
+  return terms.every((term) => normalized.includes(term));
+};
 
 /**
  * British spellings, rewritten to the American ones the app's copy uses.

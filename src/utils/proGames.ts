@@ -2,7 +2,7 @@ import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { expandSgfPointList, parseSgf, sgfCoordToXy } from './sgf';
 import { applyCapturesInPlace, applySelfCaptureInPlace, getLiberties } from './gameLogic';
 import type { BoardState } from '../types';
-import { toSearchTerms } from './searchTerms';
+import { normalizeSearchText, toSearchTerms } from './searchTerms';
 import { readRootSgfProperties } from './sgfScan';
 import { isSuicideLegal, rulesFromSgf } from './goRules';
 
@@ -64,10 +64,9 @@ const parseProGameMeta = (game: { name: string; source: string; sgf: string }, i
 export const PRO_GAMES: ProGameMeta[] = PRELOADED_GAMES.map(parseProGameMeta);
 
 const proGameSearchText = (game: ProGameMeta): string =>
-  [game.black, game.white, game.event, game.date, game.result, game.name, game.editorial]
+  normalizeSearchText([game.black, game.white, game.event, game.date, game.result, game.name, game.editorial]
     .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
+    .join(' '));
 
 /**
  * Free-text filter across players, event, date, result, and editorial.

@@ -5,7 +5,7 @@ import { stripUnsafeFilenameControls } from './filename';
 import { countSgfGames, countSgfMoves, readRootSgfProperties, sgfTrailingGames } from './sgfScan';
 import { expandSgfPointList } from './sgf';
 import { getIndexedDB, getLocalStorage, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
-import { toSearchTerms } from './searchTerms';
+import { normalizeSearchText, toSearchTerms } from './searchTerms';
 
 export type LibraryBase = {
   id: string;
@@ -377,11 +377,15 @@ export const getLibraryItemSearchText = (item: LibraryItem): string => {
       ...(item.tags ?? []),
     );
   }
-  return fields.filter((field): field is string => !!field).join(' ').toLowerCase();
+  return normalizeSearchText(fields.filter((field): field is string => !!field).join(' '));
 };
 
 export const libraryItemMatchesQuery = (item: LibraryItem, query: string): boolean => {
-  const tokens = librarySearchTokens(query);
+  return libraryItemMatchesSearchTerms(item, librarySearchTokens(query));
+};
+
+/** Reuse a query's terms when filtering the whole library. */
+export const libraryItemMatchesSearchTerms = (item: LibraryItem, tokens: readonly string[]): boolean => {
   if (tokens.length === 0) return true;
   const haystack = getLibraryItemSearchText(item);
   return tokens.every((token) => haystack.includes(token));

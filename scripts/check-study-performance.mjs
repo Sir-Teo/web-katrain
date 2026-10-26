@@ -37,7 +37,8 @@ async function main() {
       const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
       const { findSolutionPath } = await import('/src/utils/problemMode.ts');
       const { createLibraryItem, prependLibraryImports, getLibraryFolderOptions, formatLibraryFolderOptionLabel,
-        duplicateLibraryItem, duplicateLibraryItems, deleteLibraryItems, getLibrarySelectionIds } = await import('/src/utils/library.ts');
+        duplicateLibraryItem, duplicateLibraryItems, deleteLibraryItems, getLibrarySelectionIds, libraryItemMatchesSearchTerms } = await import('/src/utils/library.ts');
+      const { toSearchTerms } = await import('/src/utils/searchTerms.ts');
       const state = () => useGameStore.getState();
       state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
       const sgf = '(;GM[1]SZ[9]' + Array.from({ length: 2000 }, (_, i) => ';' + (i % 2 ? 'W' : 'B') + '[]').join('') + ')';
@@ -124,6 +125,13 @@ async function main() {
       if (merged.length !== 20000 || new Set(merged.map(item => item.name.toLowerCase())).size !== 20000) {
         throw Error('Library import lost games or produced duplicate names');
       }
+      const accentedGames=existing.slice(0,5000).map((item,i)=>({...item,name:'Jōseki '+i,
+        metadata:{...item.metadata,black:'Éloïse',white:'Ō Rissei'}}));
+      const searchTerms=toSearchTerms('eloise joseki');
+      operationStart=performance.now();
+      const searchMatches=accentedGames.filter(item=>libraryItemMatchesSearchTerms(item,searchTerms));
+      const librarySearchMs=performance.now()-operationStart;
+      if(searchMatches.length!==5000) throw Error('Library search lost accented names or titles');
       const sameNamedGames = existing.map(item => ({...item, name:'Study.sgf'}));
       operationStart = performance.now();
       const copiedBatch = duplicateLibraryItems(sameNamedGames, sameNamedGames.map(item => item.id));
@@ -211,7 +219,7 @@ async function main() {
         }
         superkoChecks.push({distinct, positions:400, candidates:361, coldMs, candidatesMs:performance.now() - operationStart});
       }
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, libraryBulkCopyMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, libraryHierarchy, superkoChecks };
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, librarySearchMs, libraryBulkCopyMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, libraryHierarchy, superkoChecks };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -219,6 +227,7 @@ async function main() {
     assert.ok(result.markerMedianMs < 25, `Marker edit took ${result.markerMedianMs}ms; budget is 25ms`);
     assert.equal(result.comments, 12000);
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
+    assert.ok(result.librarySearchMs < 100, `5,000-game search took ${result.librarySearchMs}ms; budget is 100ms`);
     for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs', 'libraryBulkCopyMs', 'libraryFolderOptionsMs']) {
       assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
     }

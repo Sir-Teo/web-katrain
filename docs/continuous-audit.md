@@ -178,6 +178,18 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   according to the record's rules. Reproduced setup/pass/suicide cases pass,
   and real preview SVGs match the boards opened by Load & study for both an
   edited position and a New Zealand record.
+- **Search names as typed:** Latin accent variants now match across library,
+  pro-game, command, Settings, and keyboard-reference searches without changing
+  stored/displayed names. Native phone input finds Jōseki/Éloïse from joseki/
+  eloise, while Japanese voiced marks and Korean text remain distinct.
+  Library query terms are computed once for the list. Phones mount 30 rows
+  per batch, desktops 100; Show more and Select all still cover the complete
+  result set. A 5,000-game touch fixture verifies 60 mounted rows after Show
+  more and all 5,000 selected, then a new query starting at scrollTop 0 rather
+  than the former 156 px offset. A frame-based dev probe measured 138/70/82 ms
+  for three phone queries; these are not production INP measurements.
+  `test:study` adds a 100 ms budget for 5,000-game accent matching (18 ms in the
+  recorded run). The related 106 unit cases and both type checks pass.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
