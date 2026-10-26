@@ -83,6 +83,79 @@ export async function assertShortcutRecording(cdp, appUrl, screenshotDir) {
     await wait('!document.querySelector("[data-shortcut-recording=true]")');
     assert.equal(await evaluate(cdp, '!!document.querySelector("[aria-labelledby=settings-title]")'), true);
     assert.deepEqual(await evaluate(cdp, 'JSON.parse(localStorage.getItem("web-katrain:shortcuts:v1"))'), bindings);
+    const escape = async () => {
+      for (const type of ['keyDown', 'keyUp']) {
+        await cdp.send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      }
+    };
+    const focusIsRecord = (id) => wait(`document.activeElement?.getAttribute('data-shortcut-record-id')===${JSON.stringify(id)}`);
+    const focusIsSearch = () => wait('document.activeElement?.getAttribute("data-shortcut-search")==="true"');
+    const resetAll = async (action) => {
+      await click('[data-shortcut-reset-all]');
+      await wait('!!document.querySelector("[data-shortcut-reset-confirm]")');
+      await click(`[data-shortcut-reset-confirm] button:${action === 'Cancel' ? 'last-child' : 'first-child'}`);
+      await wait('!document.querySelector("[data-shortcut-reset-confirm]")');
+    };
+    await resetAll('Cancel');
+    await wait('document.activeElement?.hasAttribute("data-shortcut-reset-all")');
+    await click('[data-shortcut-reset-all]');
+    await escape();
+    await wait('!document.querySelector("[data-shortcut-reset-confirm]")');
+    await wait('document.activeElement?.hasAttribute("data-shortcut-reset-all")');
+    await resetAll('Reset defaults');
+    await focusIsSearch();
+    await cdp.send('Input.insertText', { text: 'Previous move' });
+    assert.equal(await evaluate(cdp, 'document.querySelector("[data-shortcut-search]").value'), 'Previous move');
+    await click('[aria-label="Clear shortcut search"]');
+    const showConflict = async () => {
+      await click('[data-shortcut-record-id="new-game"]');
+      await wait('!!document.querySelector("[data-shortcut-recording=true]")');
+      for (const type of ['keyDown', 'keyUp']) {
+        await cdp.send('Input.dispatchKeyEvent', { type, key: 's', code: 'KeyS', windowsVirtualKeyCode: 83, modifiers: 2 });
+      }
+      await wait('!!document.querySelector("[data-shortcut-collision]")');
+      await wait(`document.activeElement===document.querySelector('[data-shortcut-collision] button:last-child')`);
+      await wait(`(() => {
+        const warning = document.querySelector('[data-shortcut-collision]').getBoundingClientRect();
+        const scroll = document.querySelector('.settings-modal-content').getBoundingClientRect();
+        return warning.top >= scroll.top - 1 && warning.bottom <= scroll.bottom + 1;
+      })()`);
+    };
+    await showConflict();
+    await evaluate(cdp, `document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 229, bubbles: true, cancelable: true }))`);
+    assert.equal(await evaluate(cdp, '!!document.querySelector("[data-shortcut-collision]")'), true);
+    const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(screenshotDir, `shortcut-conflict-${width}.png`), Buffer.from(screenshot.result.data, 'base64'));
+    await escape();
+    await wait('!document.querySelector("[data-shortcut-collision]")');
+    await focusIsRecord('new-game');
+    await showConflict();
+    await click('[data-shortcut-collision] button:last-child');
+    await focusIsRecord('new-game');
+    await showConflict();
+    await click('[data-shortcut-collision] button:first-child');
+    await focusIsRecord('new-game');
+    const replaced = await evaluate(cdp, 'JSON.parse(localStorage.getItem("web-katrain:shortcuts:v1"))');
+    assert.deepEqual(replaced['new-game'], [{ key: 's', ctrl: true, shift: false, alt: false }]);
+    assert.equal(replaced['save-sgf'], null);
+    await resetAll('Reset defaults');
+    await focusIsSearch();
+    await cdp.send('Input.insertText', { text: 'Previous move' });
+    await click('[data-shortcut-record-id="nav-back"] + button');
+    await focusIsRecord('nav-back');
+    await click('[aria-label="Clear shortcut search"]');
+    await cdp.send('Input.insertText', { text: 'Next move' });
+    await click('[data-shortcut-record-id="nav-forward"] + button');
+    await focusIsRecord('nav-forward');
+    await click('[data-shortcut-filter="custom"]');
+    await click('[aria-label="Clear shortcut search"]');
+    await cdp.send('Input.insertText', { text: 'Previous move' });
+    await click('[data-shortcut-record-id="nav-back"] ~ button:last-child');
+    await focusIsSearch();
+    assert.equal(await evaluate(cdp, 'document.querySelector("[data-shortcut-filter=custom]").getAttribute("aria-pressed")'), 'true');
+    assert.equal(await evaluate(cdp, '!!document.querySelector("[data-shortcut-search-empty]")'), true);
+    await resetAll('Reset defaults');
+    await focusIsSearch();
     await click('[aria-label="Close settings"]');
     await wait('!document.querySelector("[aria-labelledby=settings-title]")');
     await wait('!history.state?.webKatrainOverlay');
@@ -90,8 +163,8 @@ export async function assertShortcutRecording(cdp, appUrl, screenshotDir) {
       localStorage.removeItem('web-katrain:shortcuts:v1');
       window.dispatchEvent(new CustomEvent('web-katrain:shortcuts-updated'));
     })()`);
-    reports.push({ width, ignoredInputMethodEvents: cases.length, normalChordRecorded: true, escapeCancelsOnlyRecording: true });
+    reports.push({ width, ignoredInputMethodEvents: cases.length, normalChordRecorded: true, escapeCancelsOnlyRecording: true, resetAndConflictFocusRetained: true, filteredRowRemovalFocusesSearch: true });
   }
   fs.writeFileSync(path.join(screenshotDir, 'shortcut-recording.json'), JSON.stringify(reports, null, 2));
-  console.log('Shortcut recording: input-method keys ignored, normal chord recorded, and Escape cancels recording on desktop/phone.');
+  console.log('Shortcut editor: composition, real recording, visible conflicts, Cancel/Replace/Reset focus return, and filtered-row fallback passed on desktop/phone.');
 }

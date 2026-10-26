@@ -10,6 +10,16 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Shortcut editor focus:** Cancel and Reset Defaults left focus on the page
+  body when their inline confirmation disappeared. Cancel now returns to Reset
+  All; confirming returns to search. Conflicts are announced, scrolled into
+  view, and focus their safe Cancel action. Cancel and Replace return to the
+  edited command, while disabling or resetting a command restores its Record
+  control. If a filter removes that row, focus falls back to search. Escape
+  dismisses the inline question before Settings, while composition Escape
+  leaves it alone. Native desktop and phone checks exercise actual recording,
+  both Cancel paths, Replace, reset, immediate typing, and resetting the only
+  matching edited row while another customization keeps the filter active.
 - **Offline dialog retention:** the production offline gate reproduced missing
   Tsumego Frame and Paste SGF bundles after one online visit. Their imports
   could finish after the initial service-worker report; reporting each completed

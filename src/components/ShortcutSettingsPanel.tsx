@@ -39,9 +39,19 @@ export const ShortcutSettingsPanel: React.FC = () => {
   const [confirmResetAll, setConfirmResetAll] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const searchRef = React.useRef<HTMLInputElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const resetAllRef = React.useRef<HTMLButtonElement>(null);
+  const collisionRef = React.useRef<HTMLDivElement>(null);
+  const collisionCancelRef = React.useRef<HTMLButtonElement>(null);
   const [statusFilter, setStatusFilter] = React.useState<ShortcutStatusFilter>('all');
 
   const refresh = React.useCallback(() => setOverrides(loadShortcutOverrides()), []);
+  const focusRecordButton = React.useCallback((id: string) => {
+    requestAnimationFrame(() => {
+      const button = panelRef.current?.querySelector<HTMLButtonElement>(`[data-shortcut-record-id="${id}"]`);
+      (button ?? searchRef.current)?.focus();
+    });
+  }, []);
   const hasCustomizations = Object.keys(overrides).length > 0;
   const shortcutGroups = React.useMemo(() => getShortcutGroups(overrides), [overrides]);
   const normalizedQuery = query.trim().toLowerCase();
@@ -130,6 +140,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
     setCollision(null);
     setConfirmResetAll(false);
     refresh();
+    focusRecordButton(id);
   };
 
   const handleReset = (id: string) => {
@@ -150,6 +161,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
     setCollision(null);
     setConfirmResetAll(false);
     refresh();
+    focusRecordButton(id);
   };
 
   const requestResetAll = () => {
@@ -165,7 +177,20 @@ export const ShortcutSettingsPanel: React.FC = () => {
     setRecordingId(null);
     setConfirmResetAll(false);
     refresh();
+    searchRef.current?.focus();
   };
+
+  const cancelResetAll = React.useCallback(() => {
+    setConfirmResetAll(false);
+    resetAllRef.current?.focus();
+  }, []);
+
+  const cancelCollision = React.useCallback(() => {
+    if (!collision) return;
+    setCollision(null);
+    setRecordingId(null);
+    focusRecordButton(collision.targetId);
+  }, [collision, focusRecordButton]);
 
   const handleReplaceCollision = () => {
     if (!collision) return;
@@ -174,7 +199,27 @@ export const ShortcutSettingsPanel: React.FC = () => {
     setCollision(null);
     setConfirmResetAll(false);
     refresh();
+    focusRecordButton(collision.targetId);
   };
+
+  React.useEffect(() => {
+    if (!collision) return;
+    collisionRef.current?.scrollIntoView({ block: 'nearest' });
+    collisionCancelRef.current?.focus({ preventScroll: true });
+  }, [collision]);
+
+  React.useEffect(() => {
+    if (!collision && !confirmResetAll) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || isComposingKeyEvent(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (collision) cancelCollision();
+      else cancelResetAll();
+    };
+    window.addEventListener('keydown', handleEscape, true);
+    return () => window.removeEventListener('keydown', handleEscape, true);
+  }, [cancelCollision, cancelResetAll, collision, confirmResetAll]);
 
   const previewReplacement = React.useMemo(() => {
     if (!collision) return null;
@@ -187,7 +232,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
   }, [collision, overrides]);
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div ref={panelRef} className="space-y-3 sm:space-y-4">
       <div className="rounded-xl border ui-surface p-3 sm:p-4">
         <div className={hasCustomizations ? 'flex items-center justify-end gap-3 sm:justify-between' : 'hidden sm:flex sm:items-center sm:justify-between sm:gap-3'}>
           <div className="hidden sm:block">
@@ -196,10 +241,13 @@ export const ShortcutSettingsPanel: React.FC = () => {
           </div>
           {hasCustomizations && (
             <button
+              ref={resetAllRef}
               type="button"
               className="whitespace-nowrap px-3 py-2 rounded-lg ui-surface-2 border text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
               onClick={requestResetAll}
               data-shortcut-reset-all="true"
+              aria-expanded={confirmResetAll}
+              aria-controls={confirmResetAll ? 'shortcut-reset-all-confirm' : undefined}
               title="Reset custom shortcuts"
             >
               Reset all
@@ -208,6 +256,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
         </div>
         {confirmResetAll && (
           <div
+            id="shortcut-reset-all-confirm"
             className="mt-3 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] px-3 py-2 text-sm text-[var(--ui-warning)]"
             data-shortcut-reset-confirm="true"
           >
@@ -224,7 +273,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
               <button
                 type="button"
                 className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
-                onClick={() => setConfirmResetAll(false)}
+                onClick={cancelResetAll}
               >
                 Cancel
               </button>
@@ -233,6 +282,8 @@ export const ShortcutSettingsPanel: React.FC = () => {
         )}
         {collision && (
           <div
+            ref={collisionRef}
+            role="alert"
             className="mt-3 rounded-lg border border-[var(--ui-warning)] bg-[var(--ui-warning-soft)] px-3 py-2 text-sm text-[var(--ui-warning)]"
             data-shortcut-collision="true"
           >
@@ -251,12 +302,10 @@ export const ShortcutSettingsPanel: React.FC = () => {
                 Replace
               </button>
               <button
+                ref={collisionCancelRef}
                 type="button"
                 className="px-3 py-2 rounded-lg border ui-surface-2 text-xs font-semibold text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]"
-                onClick={() => {
-                  setCollision(null);
-                  setRecordingId(null);
-                }}
+                onClick={cancelCollision}
               >
                 Cancel
               </button>
@@ -378,6 +427,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
                       }}
                       aria-pressed={isRecording}
                       data-shortcut-recording={isRecording ? 'true' : undefined}
+                      data-shortcut-record-id={shortcut.id}
                       aria-label={isRecording ? `Press keys for ${shortcut.label}` : `Record shortcut for ${shortcut.label}`}
                     >
                       {isRecording ? 'Press keys' : 'Record'}
