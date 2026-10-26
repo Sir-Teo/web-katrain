@@ -8,8 +8,11 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
-- Full verification at `e56625f`: app/test TypeScript, lint, 491 test files and
-  3,309 tests passed; 77 engine cases are skipped in CI. Production build passed.
+- Full verification at `ed010b9` with one test worker: app/test TypeScript,
+  lint, 492 test files and 3,314 tests passed; 77 engine cases are skipped in
+  CI. Production build passed. The preceding four-worker run had seven timing
+  failures; the four affected files passed all 38 cases in isolation before
+  the full one-worker run. Timing limits were unchanged.
 - The complete 11-size browser sweep passed at `15ff520`, including the
   parent/child, page-continuity and move-tree composition changes.
 - Production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
@@ -26,15 +29,23 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Import progress and navigation protection:** Library now announces the
+  number of pending source files or dropped items, including after reopening
+  the panel. Its tree reports busy until reading and persistence finish.
+  A temporary before-unload guard protects pending imports and clears on
+  success or failure. Native desktop/phone checks dismiss a real navigation
+  warning, complete the held import, then navigate without a warning; failed
+  storage also clears the progress state. Twelve focused import cases,
+  app/test TypeScript and lint pass.
 - **Durable imports after closing Library:** a held file read completed after
   the panel unmounted, showed “Imported”, and stored no game. File and dropped
   text/OGS imports now commit through the shared storage queue, reserve names
   against current records and publish only after saving. A reopened panel
   receives the result while retaining its pending edits. Successful committed
-  data also clears an initial read error when no local edits remain. Native
+  data also clears an initial storage error when no local edits remain. Native
   desktop/phone checks cover closed/reopened panels, an in-flight rename,
   failed storage and same-file retry without duplicates, held OGS responses,
-  initial-read recovery, original SGF and destination preservation, and reload.
+  initial-storage recovery, original SGF and destination preservation, and reload.
   Thirty-seven focused cases pass, including five new service cases; app/test
   TypeScript and lint pass.
 - **Report guide keyboard and Back:** Tab escaped the guide to New Game

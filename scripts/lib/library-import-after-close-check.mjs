@@ -24,7 +24,7 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
    localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');
    localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
    localStorage.setItem('web-katrain:library_open:v1','true');
-   localStorage.setItem('web-katrain:settings:v3',JSON.stringify({soundEnabled:false,loadSgfFastAnalysis:false}));
+   localStorage.setItem('web-katrain:settings:v3',JSON.stringify({soundEnabled:false,loadSgfFastAnalysis:false,timerByoPeriods:0,timerMainTimeMinutes:0}));
    const read=Blob.prototype.arrayBuffer;
    File.prototype.arrayBuffer=async function(){if(this.name==='slow-study.sgf')await new Promise(resolve=>window.releaseHeldImport=resolve);return read.call(this)};
   `});
@@ -39,9 +39,11 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
   await click('[data-library-row-name="Import destination"]');
   await wait('document.querySelector(".library-breadcrumbs")?.innerText.includes("Import destination")');
   await upload('input[type=file][multiple]',gamePath);await wait('!!window.releaseHeldImport');
+  await wait(`document.querySelector('[data-library-importing=true]')?.textContent.includes('Importing 1 item')&&document.querySelector('.library-tree')?.getAttribute('aria-busy')==='true'`);
   if(width===390)await click('[aria-label="Back to board"]');
   else await click('button[title="Hide library"]');
   await wait('!document.querySelector("[data-library-storage-badge]")');
+  await assert.rejects(()=>navigate(cdp,appUrl,5000),/beforeunload/,'A pending background import must protect leaving the page');
   await evaluate(cdp,'releaseHeldImport();delete window.releaseHeldImport');
   await wait('document.querySelector(".notification-toast-message")?.title.includes("Imported")');
   const items=await evaluate(cdp,'importDestinationLibrary.loadLibrary()');
@@ -55,7 +57,8 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
   await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');
   await click('[data-library-row-name="Import destination"]');
   await wait(`!!document.querySelector('[data-library-row-id="${imported.id}"]')`);
-  await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});await wait('!!document.querySelector("[data-board-snapshot]")');if(width===390)await click('#mobile-tab-library');
+  await wait(`!document.querySelector('[data-library-importing=true]')&&document.querySelector('.library-tree')?.getAttribute('aria-busy')==='false'`);
+  await navigate(cdp,appUrl,15000);await wait('!!document.querySelector("[data-board-snapshot]")');if(width===390)await click('#mobile-tab-library');
   await wait(`document.querySelector('[data-library-storage-badge]')?.textContent==='IndexedDB'&&!!document.querySelector('[data-library-row-id="${imported.id}"]')`);
   // Reopen before a second read completes: the replacement panel must subscribe.
   await evaluate(cdp,`(()=>{const read=File.prototype.arrayBuffer;File.prototype.arrayBuffer=async function(){if(this.name==='slow-study.sgf')await new Promise(resolve=>window.releaseHeldImport=resolve);return read.call(this)}})()`);
@@ -65,6 +68,7 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
   await wait('!document.querySelector("[data-library-storage-badge]")');
   if(width===390)await click('#mobile-tab-library');else await click('button[title="Show library"]');
   await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');
+  await wait(`document.querySelector('[data-library-importing=true]')?.textContent.includes('Importing 1 item')`);
   await evaluate(cdp,'releaseHeldImport();delete window.releaseHeldImport');
   await wait(`!!document.querySelector('[data-library-row-name="slow-study 2"]')`);
   // A local rename may still be queued when the imported snapshot arrives.
@@ -90,6 +94,7 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
   await evaluate(cdp,"librarySaveAudit.mode='fail';releaseHeldImport();delete window.releaseHeldImport");
   await wait(`document.querySelector('.notification-toast-message')?.title.includes('Could not save imported files')`);
   assert.equal(await evaluate(cdp,`!!document.querySelector('[data-library-row-name="slow-study 4"]')`),false);
+  await wait(`!document.querySelector('[data-library-importing=true]')&&document.querySelector('.library-tree')?.getAttribute('aria-busy')==='false'`);
   await evaluate(cdp,"librarySaveAudit.mode='normal'");
   await upload('input[type=file][multiple]',gamePath);await wait('!!window.releaseHeldImport');
   await evaluate(cdp,'releaseHeldImport();delete window.releaseHeldImport');
@@ -131,7 +136,7 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
   assert.equal(persisted.find(item=>item.id==='root-name').name,'Pending root rename');
   assert.equal(persisted.filter(item=>item.type==='file'&&item.name.startsWith('slow-study')).length,4,'A failed import retry must not duplicate a saved game');
   assert.equal(persisted.find(item=>item.name==='Delayed OGS import').parentId,'import-target');
-  reports.push({width,closedPanelImportPersists:true,reopenedPanelReceivesCompletion:true,pendingRenamePreserved:true,failedWriteDoesNotReportSuccess:true,sameFileRetryWorks:true,droppedOgsImportSurvivesClose:true,initialStorageErrorRecovered:true,completedImportVisible:true,existingRootGamePreserved:true,chosenFolderRetained:true,reloadPreserved:true});
+  reports.push({width,closedPanelImportPersists:true,reopenedPanelReceivesCompletion:true,pendingRenamePreserved:true,failedWriteDoesNotReportSuccess:true,sameFileRetryWorks:true,droppedOgsImportSurvivesClose:true,initialStorageErrorRecovered:true,pendingImportStatusVisible:true,pendingImportBlocksNavigation:true,completedImportReleasesNavigation:true,completedImportVisible:true,existingRootGamePreserved:true,chosenFolderRetained:true,reloadPreserved:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'library-import-after-close.json'),JSON.stringify(reports,null,2));
  console.log('Library import persistence: desktop/phone close/reopen, pending rename, failed-write retry without duplicates, delayed OGS drops, initial-error recovery and stored SGF preservation passed.');

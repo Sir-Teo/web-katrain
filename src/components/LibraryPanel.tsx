@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { isComposingKeyEvent } from '../utils/compositionKey';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
 import {
@@ -67,7 +67,13 @@ import {
   compareLibraryRecency,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
-import { persistLibraryImports, subscribeLibraryImports } from '../utils/libraryImports';
+import {
+  beginLibraryImport,
+  getLibraryImportCount,
+  persistLibraryImports,
+  subscribeLibraryImportActivity,
+  subscribeLibraryImports,
+} from '../utils/libraryImports';
 import { withFailureReason } from '../utils/importSummary';
 import { tagsFromResult } from '../utils/narrativeTags';
 
@@ -398,6 +404,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [{ items, revision: itemsRevision, edits }, dispatchItems] = useReducer(reduceLibraryItems, { items: [], revision: 0, edits: [] });
   const setItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'edit', update }), []);
   const syncItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'sync', update }), []);
+  const importingCount = useSyncExternalStore(subscribeLibraryImportActivity, getLibraryImportCount, () => 0);
   const saveStateRef = useRef({ items, edits });
   useLayoutEffect(() => { saveStateRef.current = { items, edits }; }, [items, edits]);
   const saveEdits = useMemo(createLibraryEditSaver, []);
@@ -1549,70 +1556,96 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     // the chooser resets or an asynchronous initial Library read yields.
     const selectedFiles = files ? Array.from(files) : [];
     if (selectedFiles.length === 0) return;
-    // Before the first read publishes, `setItems` here would be overwritten by
-    // it and never saved. Reading the files is asynchronous anyway.
-    await waitForInitialLibraryLoad();
-    const imported: LibraryItem[] = [];
-    let openedPhotoBoard = false;
-    let skippedUnsupportedPhotoImages = 0;
-    let skippedInvalidSgfFiles = 0;
-    let skippedOversizedSgfFiles = 0;
-    let unreadableFiles = 0;
-    let skippedArchiveGames = 0;
-    let firstFailure: string | undefined;
-    const rememberFailure = (name: string, error: unknown) => {
-      firstFailure ??= describeLibraryImportFailure(name, error);
-    };
-    for (const file of selectedFiles) {
-      const name = file.name.toLowerCase();
-      try {
-        if (isPhotoBoardImageFile(file)) {
-          if (!openedPhotoBoard && onOpenPhotoBoard) {
-            onOpenPhotoBoard(file);
-            openedPhotoBoard = true;
-          }
-          continue;
-        }
-        if (isUnsupportedPhotoBoardImageFile(file)) {
-          skippedUnsupportedPhotoImages += 1;
-          continue;
-        }
-        if (name.endsWith('.zip')) {
-          const archiveItems = await importLibraryItemsFromZip(file, folderId, legacyGameEncoding, (name, error) => {
-            skippedArchiveGames++;
-            rememberFailure(`${file.name}/${name}`, error);
-          });
-          for (const item of archiveItems) imported.push(item);
-          continue;
-        }
-        if (!isGameRecordFile(file)) continue;
-        const sizeError = getSgfImportSizeError(file.size);
-        if (sizeError) {
-          rememberFailure(file.name, new Error(sizeError));
-          skippedOversizedSgfFiles += 1;
-          continue;
-        }
-        const text = await readGameRecordFile(file, legacyGameEncoding);
+    const finishImport = beginLibraryImport(selectedFiles.length);
+    try {
+      // Let the initial snapshot publish before imports notify this panel;
+      // an older first read must not replace their committed result.
+      await waitForInitialLibraryLoad();
+      const imported: LibraryItem[] = [];
+      let openedPhotoBoard = false;
+      let skippedUnsupportedPhotoImages = 0;
+      let skippedInvalidSgfFiles = 0;
+      let skippedOversizedSgfFiles = 0;
+      let unreadableFiles = 0;
+      let skippedArchiveGames = 0;
+      let firstFailure: string | undefined;
+      const rememberFailure = (name: string, error: unknown) => {
+        firstFailure ??= describeLibraryImportFailure(name, error);
+      };
+      for (const file of selectedFiles) {
+        const name = file.name.toLowerCase();
         try {
-          assertValidLibrarySgfImport(text);
+          if (isPhotoBoardImageFile(file)) {
+            if (!openedPhotoBoard && onOpenPhotoBoard) {
+              onOpenPhotoBoard(file);
+              openedPhotoBoard = true;
+            }
+            continue;
+          }
+          if (isUnsupportedPhotoBoardImageFile(file)) {
+            skippedUnsupportedPhotoImages += 1;
+            continue;
+          }
+          if (name.endsWith('.zip')) {
+            const archiveItems = await importLibraryItemsFromZip(file, folderId, legacyGameEncoding, (name, error) => {
+              skippedArchiveGames++;
+              rememberFailure(`${file.name}/${name}`, error);
+            });
+            for (const item of archiveItems) imported.push(item);
+            continue;
+          }
+          if (!isGameRecordFile(file)) continue;
+          const sizeError = getSgfImportSizeError(file.size);
+          if (sizeError) {
+            rememberFailure(file.name, new Error(sizeError));
+            skippedOversizedSgfFiles += 1;
+            continue;
+          }
+          const text = await readGameRecordFile(file, legacyGameEncoding);
+          try {
+            assertValidLibrarySgfImport(text);
+          } catch (error) {
+            rememberFailure(file.name, error);
+            skippedInvalidSgfFiles += 1;
+            continue;
+          }
+          imported.push(createLibraryItem(file.name.replace(GAME_RECORD_EXTENSION, ''), text, folderId));
         } catch (error) {
           rememberFailure(file.name, error);
-          skippedInvalidSgfFiles += 1;
-          continue;
+          // A file that throws here -- unreadable, or a ZIP that will not open --
+          // used to vanish without a counter, so the summary reported only what
+          // survived.
+          unreadableFiles += 1;
         }
-        imported.push(createLibraryItem(file.name.replace(GAME_RECORD_EXTENSION, ''), text, folderId));
-      } catch (error) {
-        rememberFailure(file.name, error);
-        // A file that throws here -- unreadable, or a ZIP that will not open --
-        // used to vanish without a counter, so the summary reported only what
-        // survived.
-        unreadableFiles += 1;
       }
-    }
-    if (imported.length === 0) {
+      if (imported.length === 0) {
+        const report = describeLibraryImport({
+          importedEntries: 0,
+          importedFiles: 0,
+          openedPhotoBoard,
+          skippedUnsupportedPhotoImages,
+          skippedOversizedSgfFiles,
+          skippedInvalidSgfFiles,
+          unreadableFiles,
+          skippedArchiveGames,
+          firstFailure,
+        });
+        onToast(report.message, report.tone);
+        return;
+      }
+      try {
+        await persistLibraryImports(imported);
+        onLibraryUpdated?.();
+      } catch (error) {
+        onToast(withFailureReason('Could not save imported files. Keep the original files and try again.', error), 'error');
+        return;
+      }
       const report = describeLibraryImport({
-        importedEntries: 0,
-        importedFiles: 0,
+        importedEntries: imported.length,
+        importedFiles: imported.filter(isFile).length,
+        // A collection keeps every game in the stored text, but only the first
+        // one opens, so say so rather than let the others be present and unseen.
+        collectionFiles: imported.filter(isFile).filter((item) => countSgfGames(item.sgf) > 1).length,
         openedPhotoBoard,
         skippedUnsupportedPhotoImages,
         skippedOversizedSgfFiles,
@@ -1622,30 +1655,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         firstFailure,
       });
       onToast(report.message, report.tone);
-      return;
+    } finally {
+      finishImport();
     }
-    try {
-      await persistLibraryImports(imported);
-      onLibraryUpdated?.();
-    } catch (error) {
-      onToast(withFailureReason('Could not save imported files. Keep the original files and try again.', error), 'error');
-      return;
-    }
-    const report = describeLibraryImport({
-      importedEntries: imported.length,
-      importedFiles: imported.filter(isFile).length,
-      // A collection keeps every game in the stored text, but only the first
-      // one opens, so say so rather than let the others be present and unseen.
-      collectionFiles: imported.filter(isFile).filter((item) => countSgfGames(item.sgf) > 1).length,
-      openedPhotoBoard,
-      skippedUnsupportedPhotoImages,
-      skippedOversizedSgfFiles,
-      skippedInvalidSgfFiles,
-      unreadableFiles,
-      skippedArchiveGames,
-      firstFailure,
-    });
-    onToast(report.message, report.tone);
   };
 
   const handleImportFiles = async (files: FileList | null) =>
@@ -1668,10 +1680,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   ): Promise<boolean> => {
     const droppedText = getDroppedSgfOrOgsText(dataTransfer);
     if (!droppedText) return false;
-    // Same window as the file input: the drop zone is live before the first
-    // read publishes, and `items` below must already hold the snapshot.
-    await waitForInitialLibraryLoad();
+    // The drop zone is live before the first read publishes. Wait for it so
+    // an older snapshot cannot replace the committed import in this panel.
+    const finishImport = beginLibraryImport(1);
     try {
+      await waitForInitialLibraryLoad();
       const result = await createLibraryItemFromSgfOrOgsText(
         droppedText,
         folderId,
@@ -1693,6 +1706,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       );
     } catch {
       onToast('Failed to import dropped SGF or OGS URL.', 'error');
+    } finally {
+      finishImport();
     }
     return true;
   };
@@ -2847,7 +2862,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 role={sortedItems.length > 0 ? 'tree' : 'group'}
                 aria-label="Library games"
                 aria-describedby={sortedItems.length > 0 ? libraryKeyboardHelpId : undefined}
-                aria-busy={libraryStatus === 'loading'}
+                aria-busy={libraryStatus === 'loading' || importingCount > 0}
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
@@ -2933,9 +2948,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 )}
               </div>
-              {items.length > 0 && (
-                <div className="library-stats" aria-label="Library totals">
-                  {libraryStatsText}
+              {(items.length > 0 || importingCount > 0) && (
+                <div
+                  className="library-stats"
+                  aria-label="Library status"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  data-library-importing={importingCount > 0 ? 'true' : undefined}
+                >
+                  {importingCount > 0 ? `Importing ${importingCount} item${importingCount === 1 ? '' : 's'}…${items.length > 0 ? ' · ' : ''}` : ''}
+                  {items.length > 0 ? libraryStatsText : ''}
                 </div>
               )}
                 </>

@@ -90,6 +90,8 @@ PWA. There is no analysis server to run.
 - Store games in an IndexedDB library with folders, bundled famous games, and
   zip backup/restore. Search titles, players, dates, results, and tags;
   `joseki` and `eloise` also find “Jōseki” and “Éloïse”.
+- Library imports keep saving after the panel closes. Reopening it shows the
+  ongoing import; leaving the page asks for confirmation while work is pending.
 - Browse Library games and folders with Up/Down and Home/End, then Enter to
   open. Left/Right collapse, expand or move between a folder and its children.
   Screen readers receive folder depth and navigation instructions.
