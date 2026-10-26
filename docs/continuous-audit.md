@@ -242,6 +242,11 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   the copy shortcut calls the same handler. Native desktop/phone checks
   capture the clipboard writer, verify palette and keyboard SGF copies, and
   decode the copied share link to inspect its actual comment.
+- **Library and shortcut-settings search focus:** these remaining clear buttons
+  also dropped focus to the page body. Both now return it to search. Their
+  phone padding previously cleared only the smaller desktop icons; native
+  measured bounds now show four pixels between the text area and each clear
+  control at both desktop and phone sizes, and immediate typing works.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

@@ -37,6 +37,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
   const [collision, setCollision] = React.useState<ShortcutCollisionState | null>(null);
   const [confirmResetAll, setConfirmResetAll] = React.useState(false);
   const [query, setQuery] = React.useState('');
+  const searchRef = React.useRef<HTMLInputElement>(null);
   const [statusFilter, setStatusFilter] = React.useState<ShortcutStatusFilter>('all');
 
   const refresh = React.useCallback(() => setOverrides(loadShortcutOverrides()), []);
@@ -269,6 +270,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
               size={12}
             />
             <input
+              ref={searchRef}
               type="search"
               value={query}
               autoCapitalize="none"
@@ -276,7 +278,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
               autoComplete="off"
               spellCheck={false}
               onChange={(event) => setQuery(event.currentTarget.value)}
-              className="ui-input h-10 w-full rounded-lg border py-2 pl-8 pr-9 text-sm text-[var(--ui-text)]"
+              className={`ui-input h-10 w-full rounded-lg border py-2 pl-8 text-sm text-[var(--ui-text)] ${query ? 'pr-14 desktop-shell:pr-9' : 'pr-3'}`}
               placeholder="Search shortcuts"
               aria-label="Search shortcuts"
               data-shortcut-search="true"
@@ -285,7 +287,10 @@ export const ShortcutSettingsPanel: React.FC = () => {
               <button
                 type="button"
                 className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  searchRef.current?.focus();
+                }}
                 aria-label="Clear shortcut search"
               >
                 <FaTimes aria-hidden="true" size={11} />

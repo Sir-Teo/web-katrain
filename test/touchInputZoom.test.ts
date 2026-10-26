@@ -41,7 +41,7 @@ describe('the library search field', () => {
     // 36px of right padding was held on an empty field for a button that only
     // renders with a query -- and held it from the placeholder, which is the
     // only text an empty field has.
-    expect(panel).toContain("query ? 'pr-9' : 'pr-2',");
+    expect(panel).toContain("query ? 'pr-12 desktop-shell:pr-9' : 'pr-2',");
     expect(panel).toContain('{query && (');
     expect(panel).toContain('aria-label="Clear library search"');
   });
