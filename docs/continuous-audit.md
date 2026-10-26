@@ -279,6 +279,12 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   details had been copied. Copy completions now require the current request and
   message. Native desktop/phone checks complete an old request after promotion,
   verify the new error stays uncopied, then copy its actual details normally.
+- **No background input while a dialog loads:** holding the Lessons module
+  request exposed a pass being played behind the Opening scrim. The loading
+  state now blocks app keys, focus traversal/button activation, and paste while
+  retaining existing Escape cancellation and browser shortcuts. A browser
+  regression pauses the actual module, attempts those inputs, releases it, and
+  verifies normal keyboard behavior returns after the dialog closes.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
