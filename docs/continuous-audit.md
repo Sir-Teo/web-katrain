@@ -10,6 +10,18 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Offline dialog retention:** the production offline gate reproduced missing
+  Tsumego Frame and Paste SGF bundles after one online visit. Their imports
+  could finish after the initial service-worker report; reporting each completed
+  bundle exposed a second bug, where the next boot's partial first-paint report
+  pruned previously cached dialogs before they were requested. Resource
+  observation now reports late imports, cache reports run in order, and shell
+  cleanup retains up to 100 recent script/style entries while protecting the
+  reported and entry bundles. Unit cases cover late handoff, blocked observer
+  APIs, overlapping reports, partial startup reports, and a 120-bundle backlog.
+  The strengthened production gate resolves the real recovery prompt, boots
+  with both page and worker offline, and opens both affected dialogs with zero
+  failed requests. Engine analysis remains verified online by this gate.
 - **Photo trace consistency:** holding recognition while switching from 19×19
   to 9×9 let the old result restore 361 trace points under a 9×9 selector.
   Recognition now validates its request before changing the grid, status, or

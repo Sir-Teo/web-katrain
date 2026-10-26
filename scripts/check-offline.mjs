@@ -12,6 +12,7 @@ import {
   navigate,
   setViewport,
   sleep,
+  waitForExpression,
   waitForHttp,
 } from './lib/browser.mjs';
 
@@ -224,6 +225,39 @@ async function main() {
     assert.ok(booted.board, `The board did not render offline: ${JSON.stringify(booted)}`);
     assert.deepEqual(booted.failed, [], `Requests failed offline: ${JSON.stringify(booted.failed)}`);
     console.log('Booted offline with no failed request');
+
+    // The online analysis can create recovery data. Resolve the real prompt
+    // before testing shortcuts; a recovery dialog correctly blocks them.
+    await evaluate(cdp, `(() => {
+      const recovery = document.querySelector('[aria-labelledby=auto-save-recovery-title]');
+      [...(recovery?.querySelectorAll('button') ?? [])].find(e => e.textContent.trim() === 'Restore Game')?.click();
+    })()`);
+    await waitForExpression(cdp, '!document.querySelector("[aria-labelledby=auto-save-recovery-title]")');
+    await evaluate(cdp, 'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+
+    // These were the first idle imports: their initial requests could finish
+    // outside worker control, then a partial startup report pruned their only
+    // cached copies. Open both real dialogs after the offline reload.
+    await evaluate(cdp, `(() => {
+      document.activeElement?.blur();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', bubbles: true, cancelable: true }));
+    })()`);
+    await waitForExpression(cdp, '!!document.querySelector("[aria-labelledby=tsumego-frame-title]")', {
+      label: 'Offline tsumego dialog', timeoutMs: 15000,
+      diagnose: `({ dialogs: [...document.querySelectorAll('[role=dialog]')].map(e => ({ title: e.getAttribute('aria-labelledby'), text: e.textContent.slice(0, 220) })),
+        failed: performance.getEntriesByType('resource').filter(e => e.responseStatus === 0).map(e => e.name) })`,
+    });
+    await evaluate(cdp, `document.querySelector('[aria-label="Close frame as tsumego"]').click()`);
+    await waitForExpression(cdp, '!document.querySelector("[aria-labelledby=tsumego-frame-title]")');
+    await evaluate(cdp, `document.querySelector('[aria-label="More file actions"]').click()`);
+    await waitForExpression(cdp, `[...document.querySelectorAll('.popover.menu button')].some(e => e.textContent.trim() === 'Paste SGF / OGS')`);
+    await evaluate(cdp, `[...document.querySelectorAll('.popover.menu button')].find(e => e.textContent.trim() === 'Paste SGF / OGS').click()`);
+    await waitForExpression(cdp, '!!document.querySelector("[aria-labelledby=paste-sgf-title] textarea")', { label: 'Offline paste dialog' });
+    await evaluate(cdp, `document.querySelector('[aria-label="Close paste SGF"]').click()`);
+    const failedAfterDialogs = await evaluate(cdp, `performance.getEntriesByType('resource')
+      .filter(entry => entry.responseStatus === 0).map(entry => new URL(entry.name).pathname)`);
+    assert.deepEqual(failedAfterDialogs, [], 'Offline dialogs must not request missing bundles');
+    console.log('Opened Frame as tsumego and Paste SGF offline');
 
     // Offline *analysis* is deliberately not asserted here. Driving the engine
     // online first does get its worker chunk cached -- without that step the

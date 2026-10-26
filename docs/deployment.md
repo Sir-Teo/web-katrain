@@ -111,11 +111,18 @@ The service worker precaches:
   service-worker control. The other themes are
   cached the first time they are used.
 
-Everything left out stays cache-first at runtime, so anything actually used is
-kept offline after the first time it loads.
+Navigation requests fall back to the cached app shell when offline. Board,
+model, and other static media assets are cache-first. Other same-origin GET
+requests use the network with a cached fallback; the runtime cache retains up
+to 64 entries.
 
-Navigation requests fall back to the cached app shell when offline. Static
-assets are cache-first. Other same-origin GET requests are cached at runtime.
+The page also reports loaded build assets, including imports that finish after
+the service worker takes control. The shell retains up to 100 recent script
+and style entries, protecting the current report and index assets. A startup
+report is partial: unreported dialogs remain cached instead of being removed
+before an offline page can request them. `npm run test:offline` checks a cold
+offline reload and opens Frame as Tsumego and Paste SGF; its engine control runs
+online.
 
 ## Updates
 

@@ -14,6 +14,7 @@ const APP_SHELL_CACHE = `${CACHE_VERSION}:shell`;
 const STAGING_SHELL_CACHE = `${CACHE_VERSION}:shell-next`;
 const RUNTIME_CACHE = `${CACHE_VERSION}:runtime`;
 const MAX_RUNTIME_CACHE_ENTRIES = 64;
+const MAX_SHELL_BUNDLE_ENTRIES = 100;
 
 const PRECACHE_URLS = [
   './',
@@ -286,30 +287,37 @@ const cacheReportedAssets = async (urls) => {
 };
 
 /**
- * Bundles from earlier deployments, gone from the shell cache.
+ * Bound retained bundles without treating a partial page load as a manifest.
  *
  * Every deployment's hashed bundles are new names, and this cache is never
  * trimmed -- the runtime cache is, but reported bundles were put here so they
- * would last -- so each deploy added its bundles on top of the last one's,
- * a few megabytes at a time, for as long as the worker lived. What the page
- * reports is what this deployment uses; keep that and whatever the current
- * index.html names, and let the rest go. Scripts and styles only: an image
- * that happens to live under /assets/ is not a bundle.
+ * would last. A startup report only names first-paint resources: deleting all
+ * other bundles erased cached dialogs before an offline reload requested them.
+ * Retain a bounded recent set instead, protecting reported and entry assets.
+ * Scripts and styles only: an image under /assets/ is not a bundle.
  */
 const pruneOldBundles = async (cache, reported) => {
   if (reported.size === 0) return;
   const keep = new Set(reported);
   for (const href of await entryAssetUrls(cache)) keep.add(href);
   const requests = await cache.keys();
+  const bundles = requests.filter((request) => {
+    const url = new URL(request.url);
+    return url.pathname.includes('/assets/') && /\.(?:js|css)$/.test(url.pathname);
+  });
+  const excess = bundles.length - MAX_SHELL_BUNDLE_ENTRIES;
+  if (excess <= 0) return;
   await Promise.allSettled(
-    requests
-      .filter((request) => {
-        const url = new URL(request.url);
-        return url.pathname.includes('/assets/') && /\.(?:js|css)$/.test(url.pathname) && !keep.has(url.href);
-      })
+    bundles
+      .filter((request) => !keep.has(request.url))
+      .slice(0, excess)
       .map((request) => cache.delete(request))
   );
 };
+
+// Resource reports can arrive as several imports finish. Keep pruning in
+// report order so an older snapshot cannot delete a newer report's bundles.
+let usedAssetsReports = Promise.resolve();
 
 /** The page asking for the update it just offered the reader. */
 self.addEventListener('message', (event) => {
@@ -319,7 +327,9 @@ self.addEventListener('message', (event) => {
     return;
   }
   if (event.data.type === 'CACHE_USED_ASSETS') {
-    event.waitUntil(cacheReportedAssets(event.data.urls).catch(() => undefined));
+    const urls = event.data.urls;
+    usedAssetsReports = usedAssetsReports.then(() => cacheReportedAssets(urls)).catch(() => undefined);
+    event.waitUntil(usedAssetsReports);
   }
 });
 

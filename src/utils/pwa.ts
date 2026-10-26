@@ -328,11 +328,34 @@ export function reportUsedAssetsToServiceWorker(
     const urls = performance
       .getEntriesByType('resource')
       .map((entry) => entry.name)
-      .filter((name) => name.startsWith(window.location.origin) && name.includes('/assets/'));
+      .filter(isOwnBundleAsset);
     if (urls.length === 0) return;
     controller.postMessage({ type: 'CACHE_USED_ASSETS', urls });
   } catch {
     // Never let an optimisation of the next visit disturb this one.
+  }
+}
+
+const isOwnBundleAsset = (name: string): boolean =>
+  name.startsWith(`${window.location.origin}/`) && name.includes('/assets/');
+
+/** Include imports that were still in flight when the worker claimed the page. */
+export function observeUsedAssetsForServiceWorker(container: ServiceWorkerContainer): () => void {
+  try {
+    if (typeof PerformanceObserver !== 'function') return () => {};
+    const observer = new PerformanceObserver((entries) => {
+      try {
+        if (entries.getEntries().some(entry => isOwnBundleAsset(entry.name))) {
+          reportUsedAssetsToServiceWorker(container);
+        }
+      } catch {
+        // Resource reporting must not interrupt the page.
+      }
+    });
+    observer.observe({ type: 'resource', buffered: true });
+    return () => observer.disconnect();
+  } catch {
+    return () => {};
   }
 }
 
@@ -353,6 +376,7 @@ export function registerServiceWorker(): void {
         // Once a worker is in charge, hand it the bundles this load already
         // fetched past it. `controllerchange` covers the first visit, where
         // nothing is controlling the page until `clients.claim()` runs.
+        observeUsedAssetsForServiceWorker(serviceWorker);
         reportUsedAssetsToServiceWorker(serviceWorker);
         serviceWorker.addEventListener('controllerchange', () => {
           reportUsedAssetsToServiceWorker(serviceWorker);
