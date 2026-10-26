@@ -120,9 +120,12 @@ The page also reports loaded build assets, including imports that finish after
 the service worker takes control. The shell retains up to 100 recent script
 and style entries, protecting the current report and index assets. A startup
 report is partial: unreported dialogs remain cached instead of being removed
-before an offline page can request them. `npm run test:offline` checks a cold
-offline reload and opens Frame as Tsumego and Paste SGF; its engine control runs
-online.
+before an offline page can request them. `npm run test:offline` analyzes once
+online, then checks a cold offline reload, opens Frame as Tsumego and Paste
+SGF, and requires fresh WASM analysis for a newly played move. HTTP caches are
+disabled and the server refuses responses after cutoff. The final negative
+control deletes app caches and requires navigation to fail. This verifies the
+bundled model after online use in the deployed configuration without COOP/COEP.
 
 ## Updates
 

@@ -10,6 +10,18 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Proven offline inference:** the offline gate previously checked engine
+  analysis only online. It now requires a successful fresh-position worker
+  result and rendered win rate after the offline reload. A fresh Chrome
+  profile and disabled HTTP caches remove disk-cache shortcuts; page and SW
+  targets are offline, and the server refuses every response after cutoff.
+  New inference workers attach before execution and have HTTP caching disabled
+  (Chrome does not support direct offline emulation for these targets). Only
+  browser SW-update probes may attempt the server, where they receive 503.
+  After the positive checks, deleting app caches must make navigation fail.
+  The production gate passed with 25 fresh visits, zero dependency responses
+  from the network, cached dialogs and a passing negative control. This covers
+  the bundled WASM model after one online analysis, without COOP/COEP headers.
 - **Repeatable Guess the Move practice:** revealing an answer removed its
   focused button and left keyboard focus on the page body. Reveal/guess now
   focuses Next, and advancing returns to the board with a fresh cursor. Results

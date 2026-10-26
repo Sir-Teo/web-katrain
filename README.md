@@ -130,6 +130,7 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | `npm run test:responsiveness` | Click-to-response budgets — first board move, dialog open, INP p98, long tasks. ~15s against `dist/`, so run `npm run build` first; not in `verify` or CI. |
 | `npm run test:study` | Chrome benchmarks for deep study operations, 10,000-game library import/copy and numeric sorting, wide/deep folder pickers, and 5,000-game accent matching. Measures dev-store operations separately from production INP; not in `verify` or CI. |
 | `npm run test:report` | Export real desktop and phone report PDFs; check page counts, complete diagrams, and all 24 correction moves per mistake. Writes PDFs to `/tmp/web-katrain-report-print`; not in `verify` or CI. |
+| `npm run test:offline` | Check a cold offline boot, dialogs and fresh WASM analysis after one online analysis. HTTP caches are disabled and the server refuses new requests; deleting app caches must prevent navigation. Uses `dist/`, so build first; not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Type-check and build the production app. |
