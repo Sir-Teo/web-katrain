@@ -59,6 +59,14 @@ export async function assertLibraryCrossTab(devtoolsPort, appUrl, screenshotDir)
           await evaluate(b,"crossTabLibrary.updateStoredLibrary(items=>({items:[crossTabLibrary.createLibraryItem('Tab B','(;SZ[9])'),...items],result:true}))");
         }
         const names=await evaluate(a,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name).sort())');
+        const snapshots=await Promise.all(pages.map(cdp=>evaluate(cdp,`(async()=>({
+          fallback:localStorage.getItem('web-katrain:library:v1'),
+          unflushed:localStorage.getItem('web-katrain:library_fallback_unflushed:v1'),
+          migrated:localStorage.getItem('web-katrain:library_migrated_to_idb:v1'),
+          locks:navigator.locks?await navigator.locks.query():null,
+          stored:window.indexedDB?await new Promise((resolve,reject)=>{const r=indexedDB.open('web-katrain-library');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,q=db.transaction('items').objectStore('items').getAll();q.onsuccess=()=>{db.close();resolve(q.result.map(item=>item.name).sort())}}}):null,
+        }))()`)));
+        console.log('Cross-tab storage outcome',JSON.stringify({fallback,waitedForWrite,names,snapshots}));
         assert.deepEqual(names,['Tab A','Tab B'],'Both successful saves must remain in the shared library');
         if(fallback)assert.deepEqual(await evaluate(b,"JSON.parse(localStorage.getItem('web-katrain:library:v1')).map(item=>item.name).sort()"),names);
         reports.push({storage:fallback?'localStorage':'IndexedDB',waitedForWrite,names,emptyLibraryObserved:true});

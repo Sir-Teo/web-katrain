@@ -29,6 +29,15 @@ reproduced failures separate from candidates that still need investigation.
   tooltip checks passed, but this is an incomplete run. No application failure
   or OOM was recorded; the runner and development server were no longer running.
   Preserve its screenshots/log and establish completion in a subsequent run.
+- The sweep at `f00ea17` reached cross-tab Library checks and exited 1: after
+  both save promises completed, the final read contained Tab A without Tab B.
+  Earlier layouts, save races, scoring, recovery, dialog, notification and lazy
+  loading checks passed. An isolated diagnostic preserved both games in both
+  storage modes; the full-sweep failure remains unresolved. The helper now logs
+  each tab's raw storage and browser lock state alongside the first read.
+  A predefined 20-run isolated series and an eight-run series with the sweep's
+  desktop Chrome launch settings both preserved both games in both storage
+  modes. These controls did not reproduce the failure and are not a storage fix.
 - The later sweep at `2262300` stopped during the 390-pixel Save Copy setup:
   its opening touch stayed a preview and no stone was placed. The unchanged
   isolated scenario passed, including delayed persistence, newer recovery and
