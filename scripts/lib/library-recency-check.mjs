@@ -47,6 +47,7 @@ export async function assertLibraryRecency(cdp, appUrl, runDir, screenshotDir) {
     await click('[aria-labelledby=library-confirm-dialog-title] button.danger');
     await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"&&document.querySelectorAll("[data-library-row=file]").length===4');
     assert.deepEqual(await rows(),names,'Recent must sort newer edits first and number equal-time games naturally');
+    await wait('!document.querySelector("[aria-labelledby=library-confirm-dialog-title]")&&!history.state?.webKatrainOverlay');
     await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});
     await wait('!!document.querySelector("[data-board-snapshot]")');
     if(width===390)await click('#mobile-tab-library');
