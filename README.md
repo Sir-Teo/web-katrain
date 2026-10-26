@@ -94,7 +94,7 @@ PWA. There is no analysis server to run.
   ongoing import; leaving the page asks for confirmation while work is pending.
 - Sync recent finished OGS games into Library. Renamed studies stay recognized
   on later syncs, and their source IDs survive JSON backups and library duplication.
-  Use **Open on OGS** in a synced study's menu to open its original game in a new tab.
+  Use **Open on OGS** in a synced or URL-imported study's menu to open its original game in a new tab.
 - Browse Library games and folders with Up/Down and Home/End, then Enter to
   open. Left/Right collapse, expand or move between a folder and its children.
   Screen readers receive folder depth and navigation instructions.

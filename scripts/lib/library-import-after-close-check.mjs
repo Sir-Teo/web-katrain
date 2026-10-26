@@ -118,6 +118,11 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
   await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');
   await evaluate(cdp,'releaseDroppedImport();delete window.releaseDroppedImport');
   await wait(`!!document.querySelector('[data-library-row-name="Delayed OGS import"]')`);
+  await click('[data-library-row-name="Delayed OGS import"] .library-tree-node-more');
+  await wait('!!document.querySelector("[data-library-ogs-source]")');
+  assert.equal(await evaluate(cdp,'document.querySelector("[data-library-ogs-source]").href'),'https://online-go.com/game/991234');
+  for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await wait('!document.querySelector("[role=menu]")');
   await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});await wait('!!document.querySelector("[data-board-snapshot]")');if(width===390)await click('#mobile-tab-library');
   await wait(`document.querySelector('[data-library-storage-badge]')?.textContent==='IndexedDB'&&!!document.querySelector('[data-library-row-name="Delayed OGS import"]')&&!!document.querySelector('[data-library-row-name="slow-study 4"]')`);
   await evaluate(cdp,installStorageControls);
@@ -136,6 +141,7 @@ export async function assertLibraryImportAfterClose(cdp,appUrl,runDir,screenshot
   assert.equal(persisted.find(item=>item.id==='root-name').name,'Pending root rename');
   assert.equal(persisted.filter(item=>item.type==='file'&&item.name.startsWith('slow-study')).length,4,'A failed import retry must not duplicate a saved game');
   assert.equal(persisted.find(item=>item.name==='Delayed OGS import').parentId,'import-target');
+  assert.equal(persisted.find(item=>item.name==='Delayed OGS import').ogsGameId,991234,'An OGS URL import must retain its source identity across reload');
   reports.push({width,closedPanelImportPersists:true,reopenedPanelReceivesCompletion:true,pendingRenamePreserved:true,failedWriteDoesNotReportSuccess:true,sameFileRetryWorks:true,droppedOgsImportSurvivesClose:true,initialStorageErrorRecovered:true,pendingImportStatusVisible:true,pendingImportBlocksNavigation:true,completedImportReleasesNavigation:true,completedImportVisible:true,existingRootGamePreserved:true,chosenFolderRetained:true,reloadPreserved:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'library-import-after-close.json'),JSON.stringify(reports,null,2));

@@ -62,6 +62,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **OGS URL import identity:** dropped OGS URLs now retain the source ID even
+  when the SGF supplies a descriptive name. Previously a rename/backup round
+  trip made a later sync download the same game again. A regression reproduced
+  that extra download and now passes with the existing identity/sync suites
+  (29 cases). Native desktop/phone checks confirm the source link, persisted ID
+  after reload, delayed completion after closing Library and storage recovery.
+  App/test TypeScript and lint pass.
 - **Open a study's OGS source:** synced games now offer “Open on OGS” in their
   row menu, using the retained ID after rename. The link opens a new tab with
   `noopener noreferrer`, announces that behavior and supports pointer, Enter
