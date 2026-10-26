@@ -15,11 +15,15 @@ reproduced failures separate from candidates that still need investigation.
   for those five metrics and did not reproduce the failure. No performance code
   changed; retain the uninstrumented failure and profile rather than claiming
   a production performance fix or an uninstrumented passing gate.
-- Full verification at `bdafad7` with two test workers: app/test TypeScript,
-  lint, 496 test files and 3,344 tests passed; 77 engine cases are skipped in
+- Full verification at `5ed38ed` with two test workers: app/test TypeScript,
+  lint, 498 test files and 3,383 tests passed; 78 engine cases are skipped in
   CI. Production build passed. An earlier four-worker run at `ed010b9` had seven timing
   failures; the four affected files passed all 38 cases in isolation before
   the full one-worker run. Timing limits were unchanged.
+- Production responsiveness at `5ed38ed` passed the unchanged limits: first move
+  8.5 ms, median 1.3 ms, Settings 65.2 ms, input latency 56 ms and longest task
+  66 ms. This is a new-build result; retain the earlier `c627209` failed sample
+  rather than attributing its variance to a proven performance fix.
 - The complete 11-size browser sweep passed at `3ed2511` without other heavy
   checks running. Every native interaction suite passed, including durable
   imports, OGS storage/deduplication, recovery during search, keyboard Retry,
