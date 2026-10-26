@@ -99,7 +99,8 @@ PWA. There is no analysis server to run.
   Use **Open on OGS** in a synced or URL-imported study's menu to open its original game in a new tab.
 - Browse Library games and folders with Up/Down and Home/End, then Enter to
   open. Left/Right collapse, expand or move between a folder and its children.
-  Screen readers receive folder depth and navigation instructions.
+  Type a name prefix to jump to a visible row, or repeat a letter to cycle
+  matches. Screen readers receive folder depth and navigation instructions.
 - Split a multi-game SGF collection into a numbered Library folder from its
   actions menu. Each game keeps its comments and variations, and the original
   collection stays available.

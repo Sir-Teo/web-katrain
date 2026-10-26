@@ -118,6 +118,21 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Jump to Library names:** typing the start of a name now focuses a
+  matching visible row; repeating a letter cycles through matches and wraps.
+  Longer prefixes retain the current match when appropriate. Matching shares
+  Search’s Latin-accent handling while preserving marks in other scripts.
+  A pause, row action, pointer input or leaving the tree resets the prefix.
+  Collapsed and filtered-out rows remain excluded; typing does not select,
+  load a game or open a folder. Existing Enter/Space, arrow, menu and nested
+  control behavior remains available. Native checks at 1440/390/320 pixels
+  pass prefix/cycle, Unicode, expiry, boundary-arrow reset, visible children,
+  filtering, focus departure and unchanged board/selection; synthetic
+  composition and unbound modified keys remain unclaimed. The existing
+  desktop/phone row-control suite also passes after the change. All 60 cases
+  in four related unit files, app/test TypeScript and lint pass. The new
+  browser check is included in future full sweeps; the complete `f2a1be7`
+  sweep above preceded this feature.
 - **Pasted drafts survive delayed clipboard reads:** a native reproduction
   replaced newly typed SGF with an older clipboard result after a 19 ms held
   read. A revision guard now ignores results superseded by edits, a newer

@@ -34,6 +34,7 @@ import { assertProblemKeyboard } from './lib/problem-keyboard-check.mjs';
 import { assertCommandDialogFocus } from './lib/command-dialog-focus-check.mjs';
 import { assertLibraryRecency } from './lib/library-recency-check.mjs';
 import { assertLibraryRowKeyboard } from './lib/library-row-keyboard-check.mjs';
+import { assertLibraryTypeahead } from './lib/library-typeahead-check.mjs';
 import { assertLibrarySaveComposition } from './lib/library-save-composition-check.mjs';
 import { assertLibraryImportDestination } from './lib/library-import-destination-check.mjs';
 import { assertLibraryImportAfterClose } from './lib/library-import-after-close-check.mjs';
@@ -4256,6 +4257,7 @@ async function main() {
     await assertCommandDialogFocus(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryRecency(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryRowKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryTypeahead(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibrarySaveComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryImportDestination(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryRepeatImport(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);

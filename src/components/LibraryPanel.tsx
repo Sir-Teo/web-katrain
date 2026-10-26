@@ -112,6 +112,7 @@ import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
   getLibraryRowKeyAction,
+  getLibraryTypeaheadMatch,
   isLibraryMenuCloseKey,
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
@@ -473,6 +474,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const libraryTreeRef = useRef<HTMLDivElement>(null);
+  const rowTypeaheadRef = useRef<{ query: string; time: number; row: HTMLElement } | null>(null);
   const libraryRetryFocusPendingRef = useRef(false);
   const libraryKeyboardHelpId = useId();
   const closeContextMenu = useCallback(() => {
@@ -1095,10 +1097,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const navigateLibraryRow = (event: React.KeyboardEvent<HTMLDivElement>): boolean => {
-    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return false;
     const rows = Array.from(libraryTreeRef.current?.querySelectorAll<HTMLDivElement>('[data-library-row]') ?? []);
     const index = rows.indexOf(event.currentTarget);
     if (index < 0) return false;
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      const now = performance.now();
+      const previous = rowTypeaheadRef.current;
+      const query = previous?.row === event.currentTarget && now - previous.time < 1000 ? previous.query : '';
+      const match = getLibraryTypeaheadMatch({
+        key: event.key,
+        query,
+        names: rows.map(row => row.dataset.libraryRowName ?? ''),
+        currentIndex: index,
+      });
+      if (!match) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      const next = match.index === null ? event.currentTarget : rows[match.index]!;
+      rowTypeaheadRef.current = { query: match.query, time: now, row: next };
+      next.focus();
+      return true;
+    }
+    rowTypeaheadRef.current = null;
     let next = index;
     const level = Number(event.currentTarget.getAttribute('aria-level'));
     if (event.key === 'ArrowLeft') {
@@ -1128,6 +1148,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       navigateLibraryRow(event);
       return;
     }
+    rowTypeaheadRef.current = null;
     event.preventDefault();
     event.stopPropagation();
     if (action === 'activate') void handleLoad(item);
@@ -1154,6 +1175,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       navigateLibraryRow(event);
       return;
     }
+    rowTypeaheadRef.current = null;
     event.preventDefault();
     event.stopPropagation();
     if (action === 'activate') activateFolderRow(item);
@@ -2937,6 +2959,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 Use Up and Down arrows to browse games and folders, Home or End to reach either end of the shown rows,
                 and Enter to open. Use the row buttons for selection and other actions.
                 Right expands or enters a folder; Left collapses or returns to its parent.
+                Type a name prefix to jump to a shown row; repeat a letter to cycle matches.
               </span>
               <div
                 ref={libraryTreeRef}
@@ -2949,6 +2972,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 aria-label="Library games"
                 aria-describedby={sortedItems.length > 0 ? libraryKeyboardHelpId : undefined}
                 aria-busy={libraryStatus === 'loading' || importingCount > 0}
+                onPointerDownCapture={() => { rowTypeaheadRef.current = null; }}
+                onBlurCapture={(event) => {
+                  if (!(event.relatedTarget instanceof HTMLElement) || !event.relatedTarget.matches('[data-library-row]')) {
+                    rowTypeaheadRef.current = null;
+                  }
+                }}
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
