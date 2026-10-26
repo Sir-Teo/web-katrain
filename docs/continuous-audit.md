@@ -10,6 +10,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Library nested keyboard controls:** Enter on a folder’s More button opened
+  its folder instead of its menu. Row key handlers now act only when the row
+  itself owns the event; nested native buttons keep Enter/Space activation.
+  Composition, legacy key-code 229 and Ctrl/Alt/Meta chords cannot activate rows.
+  Native desktop/phone checks operate Select, More and expansion with both
+  keys, verify that the board/path stay unchanged, and retain direct row loading
+  and Shift+F10 menus. Fourteen existing keyboard/focus cases and lint pass.
 - **Stable Recent ordering:** equal-time games appeared in backup order before
   reload and IndexedDB key order afterward. A controlled archive changed
   “1, 2, 10” to “10, 2, 1”. Recent sorting now breaks timestamp ties with natural
@@ -19,7 +26,9 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   sorting too; collection extraction now also checks its visible order after
   reload. Sixty-three focused library cases pass, including two new Recent-card
   cases for shuffled/key order and matching titles across folders. The study
-  benchmark now measures 10,000 equal-time records as well as name sorting.
+  benchmark measured 10,000 equal-time records in 42.2 ms (250 ms budget).
+  That run exceeded the separate unchanged 50 ms deep-folder-copy budget at
+  52.6 ms; it is not a complete study-gate pass.
 - **Visible command selection and reliable filtering:** arrowing down a long
   palette list selected a row at y=1456 while its visible list ended at y=760;
   `aria-activedescendant` did not scroll it. Selection and query changes now

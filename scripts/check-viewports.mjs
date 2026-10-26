@@ -30,6 +30,7 @@ import { assertNoteLibrarySemantics } from './lib/note-library-semantics-check.m
 import { assertProblemKeyboard } from './lib/problem-keyboard-check.mjs';
 import { assertCommandDialogFocus } from './lib/command-dialog-focus-check.mjs';
 import { assertLibraryRecency } from './lib/library-recency-check.mjs';
+import { assertLibraryRowKeyboard } from './lib/library-row-keyboard-check.mjs';
 import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
 import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
 import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
@@ -4238,6 +4239,7 @@ async function main() {
     await assertProblemKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertCommandDialogFocus(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryRecency(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryRowKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

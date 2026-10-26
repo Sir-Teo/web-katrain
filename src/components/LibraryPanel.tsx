@@ -1020,6 +1020,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleFileRowKeyDown = (item: LibraryFile) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event)
+      || event.ctrlKey || event.altKey || event.metaKey) return;
     const action = getLibraryRowKeyAction({ key: event.key, shiftKey: event.shiftKey, kind: 'file' });
     if (action === 'none') return;
     event.preventDefault();
@@ -1034,6 +1036,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     hasChildren: boolean,
     allowChildren: boolean
   ) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event)
+      || event.ctrlKey || event.altKey || event.metaKey) return;
     const action = getLibraryRowKeyAction({
       key: event.key,
       shiftKey: event.shiftKey,
