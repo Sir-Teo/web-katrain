@@ -232,6 +232,11 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   now preserves its own node's live textarea before unmounting. Native checks
   cover tab switching, cancel-before-switch, phone/desktop resizing, the text
   shown in both arriving editors, and a later pagehide write.
+- **Safari note composition:** a final composition Enter with key code 229
+  saved and closed the note editor even though the input method still owned
+  the key. Notes now share the common composition guard. Unit and native
+  desktop/phone checks cover Enter, Escape, and command-save keys with both
+  composition signals, while ordinary save/cancel behavior still passes.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

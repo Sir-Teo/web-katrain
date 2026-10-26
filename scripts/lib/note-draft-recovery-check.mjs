@@ -61,6 +61,13 @@ export async function assertNoteDraftRecovery(cdp, appUrl, screenshotDir) {
     await wait('!!document.querySelector("[data-board-snapshot=true]")');await store();
     assert.equal(await evaluate(cdp,'!!document.querySelector("[aria-labelledby=auto-save-recovery-title]")'),false,'Opening an unchanged editor must not create recovery or warn on reload');
     await typeNote('Unfinished reload note');
+    await evaluate(cdp,`(()=>{
+      const editor=document.querySelector('[data-note-editor]');
+      for(const composition of [{isComposing:true},{keyCode:229}]) {
+        for(const key of ['Enter','Escape','s']) editor.dispatchEvent(new KeyboardEvent('keydown',{key,ctrlKey:key==='s',...composition,bubbles:true,cancelable:true}));
+      }
+    })()`);
+    assert.equal(await evaluate(cdp,"document.activeElement===document.querySelector('[data-note-editor]')"),true,'Composition keys must leave the note editor active');
     assert.equal(await note(),'','Typing alone must remain a cancellable draft');
     await assert.rejects(navigate(cdp,appUrl),/Navigation blocked by beforeunload/);
     assert.equal(await note(),'Unfinished reload note','Reload must include the open draft in its unsaved check');

@@ -1,3 +1,5 @@
+import { isComposingKeyEvent } from './compositionKey';
+
 export type NoteEditorKeyAction = 'none' | 'save' | 'cancel';
 
 export type NoteEditorKeyInput = {
@@ -7,10 +9,11 @@ export type NoteEditorKeyInput = {
   shiftKey?: boolean;
   altKey?: boolean;
   isComposing?: boolean;
+  keyCode?: number;
 };
 
 export function getNoteEditorKeyAction(event: NoteEditorKeyInput): NoteEditorKeyAction {
-  if (event.isComposing) return 'none';
+  if (isComposingKeyEvent(event)) return 'none';
 
   if (event.key === 'Escape') return 'cancel';
 

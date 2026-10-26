@@ -533,6 +533,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       metaKey: event.metaKey,
       shiftKey: event.shiftKey,
       isComposing: event.nativeEvent.isComposing,
+      keyCode: event.nativeEvent.keyCode,
     });
     if (action === 'cancel') {
       event.preventDefault();
