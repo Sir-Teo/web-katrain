@@ -6,10 +6,36 @@ is ongoing. It does not claim that
 every line or every workflow has been validated. The starting `src/` tree contained about 84,500 lines. Keep
 reproduced failures separate from candidates that still need investigation.
 
+## Latest verification
+
+- Full verification at `064d0c0`: app/test TypeScript, lint, 491 test files and
+  3,309 tests passed; 77 engine cases are skipped in CI. Production build passed.
+- The complete 11-size browser sweep passed at `5017246`. The newer `15ff520`
+  sweep is running, including the parent/child and page-continuity changes.
+- Production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
+  89.5 ms, p98 input latency 56 ms and longest task 72 ms passed their budgets.
+  Offline checks completed fresh WASM analysis with 25 visits, a visible win-rate
+  result, no dependency responses over the network and a cache-deletion control.
+- The first live-analysis run recorded an AI Stop terminal response at 1,610.5 ms
+  against the unchanged 1,000 ms limit. An isolated rerun passed: desktop Stop
+  210.5 ms, phone Stop 73.0 ms, explicit Stop 81.2 ms, fresh response 957.2 ms and
+  rendered evaluation 988.0 ms. No engine code changed; retain the slower sample
+  as an unresolved timing outlier, rather than claiming a production fix.
+
 ## Changes completed
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Report guide keyboard and Back:** Tab escaped the guide to New Game
+  behind it. The guide now owns a shared focus trap and Escape/Back lifecycle,
+  with explicit return to Guide. Composition Escape stays with the input
+  method. Backdrop dismissal runs on click so the browser’s mouse-down focus
+  action cannot override restoration. Native desktop/phone checks cover Tab,
+  Shift+Tab, background shortcuts, composition, button/backdrop/Escape return,
+  Back closing guide before report and unchanged game state. The old source
+  test now checks labels rather than claiming that manual focus alone traps
+  Tab. Fifty report/modal/focus cases, TypeScript and lint pass. Real PDFs still
+  have 12 pages, 10 mistakes and all 24 correction moves on desktop and phone.
 - **Move-tree composition:** composition ArrowRight on a tree node advanced
   the loaded game from the root to move 1. Nodes and the minimap now ignore
   composition, legacy key-code 229 and Ctrl/Alt/Meta chords. Native desktop/phone

@@ -170,15 +170,14 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain("event.key !== 'Escape' || event.defaultPrevented");
   });
 
-  it('keeps the nested game report guide focus-contained while it is open', () => {
+  it('keeps the game report guide and its actions labeled', () => {
     const source = readFileSync('src/components/GameReportModal.tsx', 'utf8');
 
     expect(source).toContain('reportGuideButtonRef');
     expect(source).toContain('reportGuideCloseRef');
-    expect(source).toContain('reportGuideCloseRef.current?.focus({ preventScroll: true })');
-    expect(source).toContain('event.preventDefault();');
-    expect(source).toContain('event.stopPropagation();');
-    expect(source).toContain("window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0)");
+    expect(source).toContain('aria-labelledby="report-guide-title"');
+    expect(source).toContain('aria-label="Open report guide"');
+    expect(source).toContain('aria-label="Close report guide"');
     expect(source).toContain('ref={reportGuideButtonRef}');
     expect(source).toContain('ref={reportGuideCloseRef}');
   });

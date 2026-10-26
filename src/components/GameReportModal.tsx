@@ -1011,24 +1011,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   useEffect(() => () => setReportHoverMove(null), [setReportHoverMove]);
 
-  useEffect(() => {
-    if (!showReportGuide) return;
-    reportGuideCloseRef.current?.focus({ preventScroll: true });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      setShowReportGuide(false);
-      window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showReportGuide]);
-
-  const closeReportGuide = () => {
-    setShowReportGuide(false);
-    window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0);
-  };
+  const closeReportGuide = () => setShowReportGuide(false);
+  useEscapeToClose(closeReportGuide, showReportGuide);
+  const reportGuideDialogRef = useInitialDialogFocus<HTMLDivElement>(showReportGuide, {
+    initialFocusRef: reportGuideCloseRef,
+    returnFocus: reportGuideButtonRef.current,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
@@ -2259,11 +2247,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       </div>
       {showReportGuide && (
         <div
+          ref={reportGuideDialogRef}
+          tabIndex={-1}
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 print-hide"
           role="dialog"
           aria-modal="true"
           aria-labelledby="report-guide-title"
-          onMouseDown={(event) => {
+          onClick={(event) => {
             if (event.target === event.currentTarget) closeReportGuide();
           }}
         >
