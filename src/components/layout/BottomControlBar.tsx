@@ -20,6 +20,7 @@ import {
   FaCalculator,
 } from 'react-icons/fa';
 import type { Player } from '../../types';
+import { isComposingKeyEvent } from '../../utils/compositionKey';
 import { IconButton } from './ui';
 import { STONE_SIZE } from './types';
 import { publicUrl } from '../../utils/publicUrl';
@@ -279,6 +280,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
       closeMoreControls('pointer');
     };
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isComposingKeyEvent(event)) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         closeMoreControls('keyboard');
@@ -339,6 +341,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
   const handleMoveNumberKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     event.stopPropagation();
+    if (isComposingKeyEvent(event)) return;
     if (event.key === 'Enter' || event.key === 'Escape') {
       if (event.key === 'Escape') cancelMoveNumberEdit();
       event.currentTarget.blur();
@@ -380,6 +383,7 @@ export const BottomControlBar: React.FC<BottomControlBarProps> = ({
 
   const handleBranchIndexKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     event.stopPropagation();
+    if (isComposingKeyEvent(event)) return;
     if (event.key === 'Enter' || event.key === 'Escape') {
       if (event.key === 'Escape') cancelBranchIndexEdit();
       event.currentTarget.blur();

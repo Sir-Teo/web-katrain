@@ -1,5 +1,6 @@
 import type { InsertProgress } from '../../utils/insertMode';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isComposingKeyEvent } from '../../utils/compositionKey';
 import './dashboard.css';
 import { Icon, type IconName } from './icons';
 import type { CandidateMove, GameNode, GameRules, GameSettings, Player } from '../../types';
@@ -928,6 +929,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 onChange={(e) => setMoveInputDraft(e.target.value)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
+                  if (isComposingKeyEvent(e)) return;
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     const trimmedMove = moveInputValue.trim();

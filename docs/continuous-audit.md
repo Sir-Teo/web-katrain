@@ -121,6 +121,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   it accurately. Real phone controls produced archives containing three
   folders, a selected two-folder hierarchy, and a single empty folder; unit
   round trips preserve names and parent relationships.
+- **Numeric text composition:** composition Enter in Move number jumped from
+  move 3 to move 1 and blurred the field on both desktop and phone. The live
+  visits editor also blurred on composition Enter and closed on composition
+  Escape. Numeric move/branch/depth handlers now use the existing composition
+  guard, including the phone sheet's capture handler and Safari's final
+  key-code-229 event. Trusted browser edits verify unchanged position/depth
+  and retained focus during composition, followed by ordinary Enter committing
+  and ordinary Escape dismissing the relevant controls.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

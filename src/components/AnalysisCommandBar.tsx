@@ -1,4 +1,5 @@
 import React from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import type { AnalysisExperience } from '../types';
 import {
   FaChartBar,
@@ -405,6 +406,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       closeDepthPopover();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isComposingKeyEvent(event)) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
@@ -497,6 +499,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onChange={(event) => setDepthDraft(event.currentTarget.value)}
           onBlur={(event) => commitDepthDraft(event.currentTarget.value)}
           onKeyDown={(event) => {
+            if (isComposingKeyEvent(event)) return;
             if (event.key === 'Enter') event.currentTarget.blur();
             if (event.key === 'Escape') {
               setDepthDraft(String(liveVisits));
