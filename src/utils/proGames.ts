@@ -3,7 +3,7 @@ import { parseSgf } from './sgf';
 import { applyCapturesInPlace } from './gameLogic';
 import type { BoardState } from '../types';
 import { toSearchTerms } from './searchTerms';
-import { sgfHeaderText } from './sgfScan';
+import { readRootSgfProperties } from './sgfScan';
 
 export interface ProGameMeta {
   id: string;
@@ -40,36 +40,23 @@ const PRO_GAME_EDITORIALS: Record<string, string> = {
     'A curiosity from the Korean League: Shin Jinseo as a 15-year-old 3-dan, years before he became the world\'s top player. The record ends with a rare "Void" result — the game itself is a snapshot of a prodigy already playing well beyond his rank.',
 };
 
-/** Read a single SGF property value from the root-node header. */
-const readHeaderProp = (header: string, key: string): string | undefined => {
-  // A property usually follows the previous value's `]` directly
-  // (`KM[6.5]RE[B+R]`). Requiring a `;` or whitespace before it missed RE,
-  // BR and WR in every bundled game, so no result or rank ever showed. The
-  // lookbehind still keeps `PB` from matching inside a longer name.
-  const match = header.match(new RegExp(`(?<![A-Za-z])${key}\\[([^\\]]*)\\]`));
-  return match ? match[1]!.trim() || undefined : undefined;
-};
-
 const parseProGameMeta = (game: { name: string; source: string; sgf: string }, index: number): ProGameMeta => {
-  // Not `/;[BW]\[/`: that requires the move to be its node's first property,
-  // which SGF does not promise. The bundled games all happen to satisfy it; a
-  // corpus from anywhere else would not.
-  const header = sgfHeaderText(game.sgf);
-  const size = Number(readHeaderProp(header, 'SZ') ?? '19');
+  const props = readRootSgfProperties(game.sgf);
+  const size = Number(props.SZ?.[0] || '19');
   return {
     id: `pro-${index}`,
     name: game.name,
     source: game.source,
     sgf: game.sgf,
-    black: readHeaderProp(header, 'PB') ?? 'Black',
-    white: readHeaderProp(header, 'PW') ?? 'White',
-    blackRank: readHeaderProp(header, 'BR'),
-    whiteRank: readHeaderProp(header, 'WR'),
-    event: readHeaderProp(header, 'EV'),
-    date: readHeaderProp(header, 'DT'),
-    result: readHeaderProp(header, 'RE'),
+    black: props.PB?.[0] || 'Black',
+    white: props.PW?.[0] || 'White',
+    blackRank: props.BR?.[0] || undefined,
+    whiteRank: props.WR?.[0] || undefined,
+    event: props.EV?.[0] || undefined,
+    date: props.DT?.[0] || undefined,
+    result: props.RE?.[0] || undefined,
     boardSize: Number.isFinite(size) ? size : 19,
-    editorial: PRO_GAME_EDITORIALS[game.name],
+    editorial: Object.hasOwn(PRO_GAME_EDITORIALS, game.name) ? PRO_GAME_EDITORIALS[game.name] : undefined,
   };
 };
 

@@ -164,6 +164,13 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   outer margin, producing zero overlaps on all six diagrams. The existing
   touch-scroll probe now occupies every edge and checks coordinate clipping/
   overlap in wood and paper styles at 320×568 and 568×320.
+- **Matching pro-game detail chips:** the catalog detail reader also treated
+  text before the first move as metadata, including comments and intervening
+  non-move nodes. It now reads only the root, using the same parser as pack
+  titles. Reproduced cases verify escaped/old-style properties, correct result
+  and ranks in search, absent root fields, and an uncurated game named
+  constructor receiving no inherited editorial function. All seven related
+  suites pass.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
