@@ -67,6 +67,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   before cutting the network. It caches 45 entries instead of 42 and boots
   with no failed request when both page and service worker are offline;
   analysis is still verified online by that harness.
+- **Folder paths on phones:** opening six nested collections with ordinary
+  descriptive names made the breadcrumb trail 284 px tall at 390×844 and
+  pushed the saved game behind the bottom navigation. The trail now scrolls
+  horizontally, identifies the current folder for assistive technology, and
+  brings it into view. The same path is 44 px tall and the list begins 340 px
+  higher. Trusted touch and Tab checks retain all ancestors, parent navigation,
+  and the root control. Parent lookups also reuse the existing item index
+  instead of scanning the collection once per ancestor.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

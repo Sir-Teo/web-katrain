@@ -450,6 +450,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
+  const breadcrumbRef = useRef<HTMLDivElement>(null);
   const didLoadLibraryRef = useRef(false);
   /**
    * Settles when the library's own first read has published its snapshot.
@@ -820,25 +821,35 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const breadcrumbs = useMemo(() => {
     if (!activeFolderId) return [];
     const trail: LibraryFolder[] = [];
-    let current: LibraryItem | undefined = items.find((item) => item.id === activeFolderId);
-    while (current && isFolder(current)) {
+    let current: LibraryItem | undefined = itemById.get(activeFolderId);
+    const seen = new Set<string>();
+    while (current && isFolder(current) && !seen.has(current.id)) {
+      seen.add(current.id);
       trail.push(current);
       const parentId = current.parentId ?? null;
-      current = parentId ? items.find((item) => item.id === parentId) : undefined;
+      current = parentId ? itemById.get(parentId) : undefined;
     }
     return trail.reverse();
-  }, [activeFolderId, items]);
+  }, [activeFolderId, itemById]);
+
+  useLayoutEffect(() => {
+    if (isSearching) return;
+    // Keep the current folder in view as a path grows, while earlier folders
+    // remain reachable by horizontal scrolling and ordinary keyboard focus.
+    breadcrumbRef.current?.querySelector<HTMLElement>('[aria-current="location"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeFolderId, breadcrumbs.length, isSearching]);
 
   const activeAncestorIds = useMemo(() => {
     if (!loadedFileId) return new Set<string>();
     const ancestors = new Set<string>();
-    let current = items.find((item) => item.id === loadedFileId);
-    while (current?.parentId) {
+    let current = itemById.get(loadedFileId);
+    while (current?.parentId && !ancestors.has(current.parentId)) {
       ancestors.add(current.parentId);
-      current = items.find((item) => item.id === current?.parentId);
+      current = itemById.get(current.parentId);
     }
     return ancestors;
-  }, [loadedFileId, items]);
+  }, [loadedFileId, itemById]);
 
   const childrenMap = useMemo(() => {
     const map = new Map<string | null, LibraryItem[]>();
@@ -2558,10 +2569,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 {/* The trail sat in a band of its own under a toolbar row that
                     was empty between the root button and the item count. It
                     reads as the same thing, so it shares the row. */}
-                <div className="library-breadcrumbs flex min-w-0 flex-wrap items-center gap-1 text-[0.6875rem] ui-text-faint">
+                <div
+                  ref={breadcrumbRef}
+                  className="library-breadcrumbs flex min-w-24 max-w-full flex-1 basis-24 flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain text-[0.6875rem] ui-text-faint"
+                  role="navigation"
+                  aria-label="Library folder path"
+                >
                   {/* The trail already ends at the current folder, so naming it
                       in the label too printed it twice ("Folder: X  X"). */}
-                  <span>Folder:</span>
+                  <span className="shrink-0">Folder:</span>
                   {isSearching || breadcrumbs.length === 0 ? (
                     <span>{currentFolderName}</span>
                   ) : (
@@ -2569,9 +2585,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                       <button
                         key={crumb.id}
                         type="button"
-                        className="library-breadcrumb-button px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                        className="library-breadcrumb-button shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
                         onClick={() => setCurrentFolderId(crumb.id)}
                         aria-label={`Open folder ${crumb.name}`}
+                        aria-current={index === breadcrumbs.length - 1 ? 'location' : undefined}
+                        title={crumb.name}
                       >
                         {index === 0 ? crumb.name : `/${crumb.name}`}
                       </button>
