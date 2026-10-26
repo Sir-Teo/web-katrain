@@ -29,15 +29,25 @@ reproduced failures separate from candidates that still need investigation.
   verification ran concurrently. Its unchanged isolated scenario and the
   complete idle sweep at `3ed2511` passed with the same deadlines. No gameplay
   code changed for this navigation timing outlier.
-- Production responsiveness at `d8ae640` has an unresolved failure: first move
-  11.3 ms, median 1.6 ms and warm Settings 118.7 ms passed, but p98 input latency
-  was 240 ms against 150 ms. Diagnostic runs showed variable Settings/focus and
-  navigation costs; preventing scroll on focus did not help and was not applied.
-  The earlier `15ff520` build also exceeded the Settings limit on the same host
-  (167.8 ms). A startup-HTML-only removal control still exceeded the long-task
-  limit (232 ms). No cause or production fix is established. Preserve the failed
-  samples and keep all limits unchanged; the checker now prints slow interaction
-  targets, input/processing delays and long-task timings when a limit fails.
+- Production responsiveness at `2567b0a` passed: first move 11.8 ms, median
+  1.5 ms, warm Settings 111.3 ms, p98 input latency 64 ms and longest task 96 ms.
+  Before the Settings filter change, `d8ae640` recorded 240 ms input latency;
+  diagnostics also reproduced slow Settings focus/layout. A same-build CSS
+  override removing its backdrop filters passed at 109.4/72/91 ms for Settings,
+  input latency and longest task before the source change was made. The earlier
+  build and startup-removal controls still had failures; preventing scroll on
+  focus did not improve the result and was not applied. Retain those samples.
+  All limits remain unchanged, and failures now include interaction targets,
+  input/processing delays and long-task timings.
+- Study checks at `948582f` passed all unchanged limits, including 41.5 ms
+  folder copy (50 ms limit), 14.2 ms import naming and 49.0 ms nested SGF import.
+  Offline checks at `2567b0a` booted the cached app, opened dialogs and completed
+  fresh WASM analysis with 25 visits and a visible result, with no dependency
+  responses over the network. Deleting the caches prevented navigation.
+- Live analysis at `2567b0a` passed: desktop/phone AI Stop 490.3/266.2 ms,
+  explicit Stop 337.6 ms, old-request cancellation 924.3 ms, fresh response
+  1,576.2 ms and rendered evaluation 1,616.3 ms. Unsaved-game Cancel/Leave/Restore,
+  restart and no delayed retry also passed. No engine code changed.
 - Earlier production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
   89.5 ms, p98 input latency 56 ms and longest task 72 ms passed their budgets.
   Offline checks completed fresh WASM analysis with 25 visits, a visible win-rate
@@ -52,6 +62,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Settings rendering:** profiling found expensive focus/layout work while
+  opening Settings. Its full-screen and footer backdrop filters were removed;
+  the dimmed board and opaque dialog remain. A controlled CSS override and the
+  actual rebuilt source both passed the original responsiveness limits.
+  Existing desktop/phone keyboard, composition, backend/theme selection and
+  focus checks passed. Production screenshots were reviewed at 1440 and 390
+  pixels: both fit with zero overflow, focus inside, and no backdrop filters.
 - **OGS identity through rename and recovery:** renaming a synced study made
   the next sync download it again and add another record. Files now retain a
   validated source game ID independently of their display name. Older marked
@@ -1095,8 +1112,8 @@ file selection through the success toast and checks persisted content afterward.
 | High | Continue auditing large-tree operations. | Snapshotting, export, clipboard/replay, nested SGF parsing, and solution search are now iterative after reproduced failures. Inspect broad trees, library folder recursion, redundant position copies during import, and responsiveness during analysis next. |
 | High | Professional engine validation needs broader evidence. | The bundled model comes from KataGo's test fixtures. Existing golden/invariant tests are useful but do not prove b18 search equivalence across all supported rules and endgames. Self-capture, area inputs, search-history transport, root pass-alive pruning, and terminal area scoring now have direct regressions. Full-history superko now also has root/deep/browser regressions. Ending bonuses now also follow every offered rule. Consecutive-pass neural history, phase-end signals, friendly-pass presets, and previous ladder selection now also match the recorded reference cases. Validate repeated-position/irregular-turn phase resets, stronger weights, model-specific history modes, seki, handicap compensation, and territory encore next. |
 | High | Analysis provenance is not carried comprehensively through imported records and reports. | `AnalysisResult` exposes evaluation data without model/search identity. The undo revision fix prevents one stale-data path, but imported external analysis can still have unknown provenance. Design explicit origin, model, and settings metadata before presenting mixed-source comparisons as equivalent. |
-| Medium | Continue profiling large-library operations. | ZIP export preparation, batch import naming, single-folder duplication, and selection/deletion now use indexes, with measured gains on large fixtures. OGS sync now merges against current state; dropped-text imports and naming dialogs still use separate paths. Compression still takes most of total export time. The 12,000-folder picker crash and duplication metadata loss are fixed. Bulk duplication across multiple roots still repeats naming, indexing, and array copies. Fully expanded deep folder rendering and breadcrumb traversal remain separate checks. Native folder-copy timing varied: the first post-fix sample took 233–252 ms through its DOM update with 255–261 ms long tasks; the post-commit repeat took 45–72 ms with 68–70 ms long tasks. Profile repeated normalization, whole-store persistence, and rendering under controlled conditions before choosing the next optimization. Intentionally empty library reload now passes in both storage modes. Its empty state now offers a visible Import files button rather than pointing at the overflow menu. |
-| Medium | Initial bundle size and slower-device behavior need targeted profiling. | The current production entry is about 724 kB uncompressed / 213 kB gzip. Idle dialog warming and worker inference already help. Measure cold network loading and CPU-throttled interaction before choosing further split points; do not infer gains from line counts alone. |
+| Medium | Continue profiling large-library operations. | ZIP export preparation, batch import naming, single-folder duplication, and selection/deletion now use indexes, with measured gains on large fixtures. File, dropped-text and OGS sync completion now commit against current storage, and OGS identity survives renaming. Naming dialogs still need further adversarial checks. Compression still takes most of total export time. The 12,000-folder picker crash and duplication metadata loss are fixed. Bulk duplication across multiple roots still repeats naming, indexing, and array copies. Fully expanded deep folder rendering and breadcrumb traversal remain separate checks. Native folder-copy timing varied: the first post-fix sample took 233–252 ms through its DOM update with 255–261 ms long tasks; the post-commit repeat took 45–72 ms with 68–70 ms long tasks. Profile repeated normalization, whole-store persistence, and rendering under controlled conditions before choosing the next optimization. Intentionally empty library reload now passes in both storage modes. Its empty state now offers a visible Import files button rather than pointing at the overflow menu. |
+| Medium | Initial bundle size and slower-device behavior need targeted profiling. | The current production entry is about 761 kB uncompressed / 226 kB gzip. Idle dialog warming and worker inference already help. Measure cold network loading and CPU-throttled interaction before choosing further split points; do not infer gains from line counts alone. |
 | Medium | Browser coverage is Chrome-only in this audit. | Touch capability and viewport sizes were emulated, but WebKit/Firefox, physical phone behavior, and browser-specific WebGPU/WASM fallbacks were not validated. Prioritize load/import/review/scoring and dialog keyboard behavior across engines. |
 
 ## Feature order for beginners and experienced players
