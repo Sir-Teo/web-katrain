@@ -8,6 +8,13 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Production responsiveness at `c627209` recorded first move 9.3 ms, median
+  2.0 ms and warm Settings 112.9 ms within budget, but input latency 160 ms
+  and longest task 209 ms exceeded the unchanged 150/200 ms limits. The slowest
+  interaction was Back 10. A CPU-profiled follow-up measured 4.7/1.1/63.8/48/54 ms
+  for those five metrics and did not reproduce the failure. No performance code
+  changed; retain the uninstrumented failure and profile rather than claiming
+  a production performance fix or an uninstrumented passing gate.
 - Full verification at `bdafad7` with two test workers: app/test TypeScript,
   lint, 496 test files and 3,344 tests passed; 77 engine cases are skipped in
   CI. Production build passed. An earlier four-worker run at `ed010b9` had seven timing
