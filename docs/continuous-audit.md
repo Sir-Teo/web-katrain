@@ -118,6 +118,18 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Newest clipboard command wins:** two overlapping Paste SGF commands
+  reproduced an older 268 ms clipboard read replacing the newer loaded
+  9×9 game with a 13×13 game. A new command now cancels its predecessor,
+  checks cancellation after reading, and passes its signal through OGS
+  loading. Cleanup only clears the controller owned by that request.
+  Native 1280/390/320 checks pass late successes/rejections, three overlapping
+  reads, canceled OGS signals, responses that ignore abort, stale failures,
+  current denial opening the fallback editor, retained drafts and fresh Retry.
+  Existing clipboard-draft and five import-cancellation paths also pass.
+  All 53 cases in seven related unit files, app/test TypeScript and lint pass.
+  The new browser check joins future full sweeps. This change coordinates
+  overlapping clipboard commands; other game-opening paths remain separate.
 - **Jump to Library names:** typing the start of a name now focuses a
   matching visible row; repeating a letter cycles through matches and wraps.
   Longer prefixes retain the current match when appropriate. Matching shares
@@ -132,7 +144,7 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   desktop/phone row-control suite also passes after the change. All 60 cases
   in four related unit files, app/test TypeScript and lint pass. The new
   browser check is included in future full sweeps; the complete `f2a1be7`
-  sweep above preceded this feature.
+  sweep above preceded this feature. Its production build passed in 19.2 s.
 - **Pasted drafts survive delayed clipboard reads:** a native reproduction
   replaced newly typed SGF with an older clipboard result after a 19 ms held
   read. A revision guard now ignores results superseded by edits, a newer

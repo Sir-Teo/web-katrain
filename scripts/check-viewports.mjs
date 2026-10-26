@@ -13,6 +13,7 @@ import { assertHeaderNotificationsFit } from './lib/header-notification-check.mj
 import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
 import { assertPasteImportCancellation } from './lib/paste-import-cancel-check.mjs';
 import { assertPasteClipboardDraft } from './lib/paste-clipboard-draft-check.mjs';
+import { assertClipboardCommandOrder } from './lib/clipboard-command-order-check.mjs';
 import { assertGameInfoNumericEdits } from './lib/game-info-fields-check.mjs';
 import { assertNumericEditorComposition } from './lib/numeric-editor-check.mjs';
 import { assertMetadataRecovery } from './lib/metadata-recovery-check.mjs';
@@ -4228,6 +4229,7 @@ async function main() {
     await assertBoardTooltipsFit(cdp, screenshotDir);
     await assertPasteImportCancellation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPasteClipboardDraft(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertClipboardCommandOrder(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertGameInfoNumericEdits(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNumericEditorComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertMetadataRecovery(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);

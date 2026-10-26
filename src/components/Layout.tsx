@@ -526,6 +526,8 @@ export const Layout: React.FC = () => {
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
   const [photoBoardInitialFile, setPhotoBoardInitialFile] = useState<File | null>(null);
   const [isPasteSgfOpen, setIsPasteSgfOpen] = useState(false);
+  const pendingClipboardImportRef = useRef<AbortController | null>(null);
+  useEffect(() => () => pendingClipboardImportRef.current?.abort(), []);
   const [saveToLibraryDialog, setSaveToLibraryDialog] = useState<SaveToLibraryDialogState | null>(null);
   const [isUnsavedChangesOpen, setIsUnsavedChangesOpen] = useState(false);
   const [pendingResignPlayer, setPendingResignPlayer] = useState<Player | null>(null);
@@ -2494,17 +2496,25 @@ export const Layout: React.FC = () => {
   }, [handleOpenSgfFromText, openPhotoBoard, toast]);
 
   const handlePasteSgfShortcut = useCallback(async () => {
+    pendingClipboardImportRef.current?.abort();
+    const controller = new AbortController();
+    pendingClipboardImportRef.current = controller;
     setViewMenuOpen(false);
     setMenuOpen(false);
 
-    const clipboardText = await readClipboardText();
-    const importText = getDirectGameImportText(clipboardText);
-    if (importText) {
-      await handleOpenSgfFromText(importText);
-      return;
-    }
+    try {
+      const clipboardText = await readClipboardText();
+      if (controller.signal.aborted) return;
+      const importText = getDirectGameImportText(clipboardText);
+      if (importText) {
+        await handleOpenSgfFromText(importText, { signal: controller.signal });
+        return;
+      }
 
-    setIsPasteSgfOpen(true);
+      setIsPasteSgfOpen(true);
+    } finally {
+      if (pendingClipboardImportRef.current === controller) pendingClipboardImportRef.current = null;
+    }
   }, [handleOpenSgfFromText]);
 
   const handlePhotoBoardImport = async (sgfText: string) => {
