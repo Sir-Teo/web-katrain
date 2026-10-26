@@ -29,6 +29,14 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Retry after a rejected initial read:** with an established IndexedDB
+  library and no fallback, the read failed before publishing a snapshot.
+  “Retry saving library” then did nothing, even after storage recovered.
+  That state now offers “Retry loading library” and starts a new read;
+  failures after a valid snapshot retain their save retry. Native checks
+  cover repeated rejected reads, restored original SGF, and an intentionally
+  empty library on desktop/phone. Existing initialization-save retries still
+  pass at 1280, 390 and 320 pixels; 29 focused storage/import cases pass.
 - **Import progress and navigation protection:** Library now announces the
   number of pending source files or dropped items, including after reopening
   the panel. Its tree reports busy until reading and persistence finish.

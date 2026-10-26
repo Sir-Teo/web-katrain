@@ -413,7 +413,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     saveCallbacksRef.current = { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast };
   }, [getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
-  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [libraryError, setLibraryError] = useState<{ message: string; operation: 'load' | 'save' } | null>(null);
+  const [loadRetry, setLoadRetry] = useState(0);
   const [saveRetry, setSaveRetry] = useState(0);
   const localGameSaveRequestsRef = useRef(new Map<string, number>());
   const pendingGameSaveRef = useRef<{
@@ -550,12 +551,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       .catch((error) => {
         if (cancelled) return;
         setLibraryStatus('error');
-        setLibraryError(error instanceof Error ? error.message : 'Failed to load library.');
+        setLibraryError({
+          message: error instanceof Error ? error.message : 'Failed to load library.',
+          operation: didLoadLibraryRef.current ? 'save' : 'load',
+        });
       });
     return () => {
       cancelled = true;
     };
-  }, [hadStoredFolderExpansion, syncItems]);
+  }, [hadStoredFolderExpansion, syncItems, loadRetry]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || (itemsRevision === 0 && saveRetry === 0)) return;
@@ -592,7 +596,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       .catch((error) => {
         if (cancelled) return;
         setLibraryStatus('error');
-        setLibraryError(error instanceof Error ? error.message : 'Failed to save library.');
+        setLibraryError({ message: error instanceof Error ? error.message : 'Failed to save library.', operation: 'save' });
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
           saveCallbacksRef.current.onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error', undefined, pendingGameSave.operationId);
         }
@@ -854,7 +858,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         : indexedDbAvailable
           ? 'IndexedDB'
           : 'Local';
-  const libraryStorageTitle = libraryError
+  const libraryStorageTitle = libraryError?.message
     ?? (indexedDbAvailable
       ? 'IndexedDB library storage'
       : 'Using local fallback storage because IndexedDB is unavailable');
@@ -2910,13 +2914,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 ) : libraryStatus === 'error' ? (
                   <div className="p-6 text-sm ui-text-faint">
                     <div className="font-semibold text-[var(--ui-danger)] mb-2">Library storage error</div>
-                    <div>{libraryError ?? 'The library could not be read or saved.'}</div>
+                    <div>{libraryError?.message ?? 'The library could not be read or saved.'}</div>
                     <button
                       type="button"
                       className="panel-action-button mt-3"
-                      onClick={() => setSaveRetry(retry => retry + 1)}
+                      onClick={() => {
+                        if (didLoadLibraryRef.current) setSaveRetry(retry => retry + 1);
+                        else setLoadRetry(retry => retry + 1);
+                      }}
                     >
-                      Retry saving library
+                      {libraryError?.operation === 'load' ? 'Retry loading library' : 'Retry saving library'}
                     </button>
                   </div>
                 ) : items.length === 0 ? (

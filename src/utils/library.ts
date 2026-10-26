@@ -839,7 +839,7 @@ export const LIBRARY_SAVE_FAILED_MESSAGE =
   'Could not save the library: browser storage is full or unavailable.';
 
 export const LIBRARY_READ_FAILED_MESSAGE =
-  'Could not read the library from browser storage. Your games are still there; reload to try again.';
+  'Could not read the library from browser storage. Your games are still there; try again or reload the page.';
 
 /**
  * Persist the library, preferring IndexedDB and falling back to localStorage.
