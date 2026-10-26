@@ -243,6 +243,15 @@ async function main() {
     await setViewport(cdp, { width: 1280, height: 900, mobile: false });
 
     const url = `http://127.0.0.1:${appPort}/`;
+    // Establish the origin without loading the app or registering its worker.
+    // An update may remove old bundles, but must retain saved Library data.
+    await navigate(cdp, `${url}version.json`);
+    await evaluate(cdp, `(async () => {
+      for (const name of ['web-katrain-library-data-v1', 'web-katrain-library-data-v2', 'web-katrain-old-offline-probe']) {
+        const cache = await caches.open(name);
+        await cache.put('https://web-katrain.invalid/offline-retention-probe', new Response('saved Library data'));
+      }
+    })()`);
     await navigate(cdp, url);
     await sleep(8000);
 
@@ -252,6 +261,20 @@ async function main() {
     })()`);
     assert.equal(state, 'activated', `Service worker not active: ${state}`);
     console.log('Service worker activated');
+    const retention = await evaluate(cdp, `(async () => {
+      const result = {};
+      for (const name of ['web-katrain-library-data-v1', 'web-katrain-library-data-v2', 'web-katrain-old-offline-probe']) {
+        const response = await caches.match('https://web-katrain.invalid/offline-retention-probe', { cacheName:name });
+        result[name] = response ? await response.text() : null;
+      }
+      return result;
+    })()`);
+    assert.deepEqual(retention, {
+      'web-katrain-library-data-v1': 'saved Library data',
+      'web-katrain-library-data-v2': 'saved Library data',
+      'web-katrain-old-offline-probe': null,
+    }, 'Activation must retain Library data while deleting obsolete app-shell caches');
+    console.log('Service-worker activation retained both Library data namespaces and removed the obsolete app shell.');
 
     const cached = await evaluate(cdp, `(async () => {
       const counts = {};

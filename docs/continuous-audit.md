@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `2943bb8` passes 501 files and 3,425 cases,
+  with 78 engine cases skipped in CI. App/test TypeScript and lint pass.
+  The production build passes in 16.2 s. Production responsiveness passes at
+  10.6/1.4/99.6/64/74 ms for first move, median, Settings, input latency and
+  longest task. The real offline check passes: activation preserves both
+  seeded Library data namespaces while removing an obsolete app cache, then
+  shell, board, dialogs and fresh WASM analysis work without network access.
+  Its negative control still fails navigation after cache deletion. A complete
+  browser sweep is next.
+
 - The fallback cross-tab failure is now reproduced as durable data loss:
   a predefined 12-run Chrome series queued two saves behind a held Web Lock,
   awaited both acknowledgements, closed Chrome and reopened the same profile.
@@ -26,8 +36,8 @@ reproduced failures separate from candidates that still need investigation.
   Library set. Native empty-state, failed-save/update, initial Retry and both
   cross-tab storage modes pass. Cache write failures preserve the previous
   acknowledged records; corrupt cache snapshots reject rather than inventing
-  an empty Library. App/test TypeScript and lint pass. Full current-code
-  verification is in progress.
+  an empty Library. App/test TypeScript and lint pass; the full unit result
+  is recorded above.
 
 - Full unit verification at `9e479f3` passed 499 files and 3,405 cases,
   with 78 engine cases skipped. App/test TypeScript and lint pass, and the
@@ -1389,7 +1399,7 @@ file selection through the success toast and checks persisted content afterward.
 
 | Priority | Finding or opportunity | Evidence and next step |
 | --- | --- | --- |
-| High | Check remaining asynchronous save acknowledgements and storage recovery. | Panel Save/Update, Ctrl+S, the desktop Save button, phone menu saves, and Save Copy now preserve newer recovery data when a save finishes late. Overlapping game saves now run in request order and the panel rejects older game-save notifications. Metadata edits now merge changed fields into the latest stored collection. Restoring a backup replaces the library rather than merging into it and asked nothing first: choosing a one-game backup against the bundled library turned eight items into one, with no dialog and nothing to undo it with, while Clear Library -- equally destructive, more obviously named -- did ask. Restore now validates supported backup content, asks with both counts, and writes only on yes. Remaining full-library replacement and cross-tab writes still need adversarial checks, along with failed Save choices during game replacement. Also inspect recovery from a genuine IndexedDB read failure followed by fallback writes and later database availability. |
+| High | Check remaining asynchronous save acknowledgements and storage recovery. | Panel Save/Update, Ctrl+S, the desktop Save button, phone menu saves, and Save Copy preserve newer recovery data when a save finishes late. Overlapping saves run in request order; metadata edits merge changed fields into the latest collection. Backup restore validates content and confirms replacement with both counts. Queued cross-tab fallback saves now have a durable lost-write reproduction and a shared-backend fix, with restart, failure and database-recovery checks above. Continue adversarial checks of full-library replacement, failed Save choices during game replacement, and storage-capability changes across tabs. |
 | High | Validate remaining manual-count and handicap conventions. | The panel now passes the game's rules and handicap and saves the corresponding count. Its underlying manual estimator still floods empty regions and taxes connected living stone chains; broader seki and independently connected life regions need reference checks. Also compare root-declared `HA` compensation with the engine's root-board-based helper. These are separate from the proven omitted-input bug. |
 | High | Confirm the restored browser gate on Linux CI. | The formerly recorded first-mobile failure now reproduces locally with a cold cache and has a traced cause and fix. The full viewport gate is enabled with failure screenshots. GitHub-hosted validation is tracked by the CI run on the final main commit. |
 | High | Continue auditing large-tree operations. | Snapshotting, export, clipboard/replay, nested SGF parsing, and solution search are now iterative after reproduced failures. Expanded Library rendering is now iterative after a reproduced 1,500-folder crash. Inspect broad trees, redundant position copies during import, and responsiveness during analysis next. |
