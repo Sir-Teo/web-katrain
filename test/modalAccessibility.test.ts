@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { AboutDialog } from '../src/components/AboutDialog';
 
 const modalSources = [
   { path: 'src/components/AboutDialog.tsx', titleId: 'about-title', escape: 'useEscapeToClose(onClose)' },
@@ -257,15 +260,11 @@ describe('modal accessibility semantics', () => {
 
 
   it('names the About dialog after what it is, not after the app', () => {
-    const source = readFileSync('src/components/AboutDialog.tsx', 'utf8');
-
-    // Its visible heading is the product name, which suits the panel but made
-    // the dialog announce as "Web KaTrain" — indistinguishable from the app,
-    // where Settings, Keyboard Shortcuts, Photo Board and the rest all say
-    // what they are. aria-label wins over the labelledby heading, and still
-    // contains the visible text, so the visible name is preserved.
-    expect(source).toContain('aria-label="About Web KaTrain"');
-    expect(source).toContain('aria-labelledby="about-title"');
-    expect(source).toContain('>\n              Web KaTrain\n            </h2>');
+    const html = renderToStaticMarkup(createElement(AboutDialog, { onClose: () => undefined }));
+    // aria-labelledby takes precedence over aria-label. Inspect the referenced
+    // heading text; checking a redundant aria-label missed the actual name.
+    expect(html).toContain('aria-labelledby="about-title"');
+    const heading = html.match(/<h2[^>]*id="about-title"[^>]*>([\s\S]*?)<\/h2>/)?.[1];
+    expect(heading?.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()).toBe('About Web KaTrain');
   });
 });
