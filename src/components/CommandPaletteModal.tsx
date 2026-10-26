@@ -37,6 +37,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   useEscapeToClose(onClose);
   const [query, setQuery] = React.useState('');
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const updateQuery = (next: string) => {
+    setQuery(next);
+    setActiveIndex(0);
+  };
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [commandOpener] = React.useState<HTMLElement | null>(() =>
@@ -103,10 +107,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   );
 
   React.useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
-
-  React.useEffect(() => {
     if (activeIndex >= filteredCommands.length) {
       setActiveIndex(Math.max(0, filteredCommands.length - 1));
     }
@@ -125,6 +125,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
 
   const activeCommand = filteredCommands[activeIndex] ?? null;
   const activeOptionId = activeCommand ? `${listboxId}-option-${activeIndex}` : undefined;
+
+  React.useEffect(() => {
+    if (!activeOptionId) return;
+    // Focus stays in the combobox; aria-activedescendant alone does not scroll
+    // its selected result into view, including after a new query resets it.
+    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
+  }, [activeOptionId, activeCommand?.id, query]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12dvh] mobile-safe-inset mobile-safe-area-bottom">
@@ -196,7 +203,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               autoCorrect="off"
               autoComplete="off"
               spellCheck={false}
-              onChange={(event) => setQuery(event.currentTarget.value)}
+              onChange={(event) => updateQuery(event.currentTarget.value)}
               className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-12 text-sm text-[var(--ui-text)]"
               placeholder="Search commands"
               aria-label="Search commands"
@@ -211,7 +218,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                 type="button"
                 className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                 onClick={() => {
-                  setQuery('');
+                  updateQuery('');
                   inputRef.current?.focus();
                 }}
                 aria-label="Clear command search"

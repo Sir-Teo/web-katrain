@@ -4,7 +4,13 @@ import path from 'node:path';
 import { evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
 
 export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
-  const wait=expression=>waitForExpression(cdp,expression,{label:'Command palette dialog focus'});
+  const wait=expression=>waitForExpression(cdp,expression,{label:'Command palette dialog focus',diagnose:`(()=>{
+    const input=document.querySelector('[data-command-palette-search]');
+    const selected=document.getElementById(input?.getAttribute('aria-activedescendant'));
+    return {query:input?.value,active:document.activeElement?.getAttribute('aria-label'),selected:selected?.getAttribute('data-command-palette-item'),
+      first:document.querySelector('[role=listbox] [role=option]')?.getAttribute('data-command-palette-item'),
+      options:[...document.querySelectorAll('[data-command-palette-item]')].slice(0,4).map(e=>({id:e.dataset.commandPaletteItem,selected:e.getAttribute('aria-selected')}))};
+  })()`});
   const key=async(key,code,virtual,modifiers=0)=>{
     for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{
       type,key,code,windowsVirtualKeyCode:virtual,modifiers,...(type==='keyDown'&&key==='Enter'?{text:'\r'}:{}),
@@ -54,6 +60,24 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
       assert.equal(await evaluate(cdp,'document.activeElement?.getAttribute("aria-label")'),'Clear command search');
       await key('Enter','Enter',13);
       await wait('document.activeElement?.getAttribute("aria-label")==="Search commands" && document.activeElement.value===""');
+      for(let step=0;step<25;step++)await key('ArrowDown','ArrowDown',40);
+      const visibleSelection=()=>evaluate(cdp,`(()=>{
+        const input=document.querySelector('[data-command-palette-search]');
+        const selected=document.getElementById(input.getAttribute('aria-activedescendant'));
+        const list=document.querySelector('[role=listbox][aria-label=Commands]');
+        const a=selected.getBoundingClientRect(),b=list.getBoundingClientRect();
+        return {visible:a.top>=b.top-1&&a.bottom<=b.bottom+1,selectedTop:a.top,selectedBottom:a.bottom,
+          listTop:b.top,listBottom:b.bottom,scrollTop:list.scrollTop,searchFocused:document.activeElement===input};
+      })()`);
+      await evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+      const deepSelection=await visibleSelection();
+      assert.equal(deepSelection.visible,true,`Keyboard selection must stay in view: ${JSON.stringify(deepSelection)}`);
+      assert.equal(deepSelection.searchFocused,true);
+      await cdp.send('Input.insertText',{text:'analysis'});
+      await wait(`document.getElementById(document.querySelector('[data-command-palette-search]').getAttribute('aria-activedescendant'))
+        ===document.querySelector('[role=listbox] [role=option]')`);
+      await evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+      assert.equal((await visibleSelection()).visible,true,'A filtered list must bring its first selection back into view');
       await key('Escape','Escape',27);
       await wait('!document.querySelector("[data-command-palette]")&&!history.state?.webKatrainOverlay');
       assert.equal(await evaluate(cdp,'document.activeElement===paletteReturnOrigin'),true,'Closing the palette itself must retain its original focus');
@@ -82,8 +106,9 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
     }
     reports.push({width,origins:['board','control'],directPaletteClose:true,
       settingsLessonsAndHelpRestoreOrigin:true,pointerAndKeyboardCommands:true,buttonAndEscapeClose:true,
-      resultTabStops:0,arrowSelectionKeepsInputFocus:true,tabCyclesSearchCloseAndClear:true});
+      resultTabStops:0,arrowSelectionKeepsInputFocus:true,tabCyclesSearchCloseAndClear:true,
+      deepSelectionVisible:true,filterBringsFirstSelectionIntoView:true});
   }
   fs.writeFileSync(path.join(screenshotDir,'command-dialog-focus.json'),JSON.stringify(reports,null,2));
-  console.log('Command palette handoffs: desktop/phone Settings, lessons and help restore the original board/control after pointer/keyboard commands and Close/Escape.');
+  console.log('Command palette: desktop/phone compact Tab order, visible keyboard selections, first-match filter resets, and original focus across dialog handoffs passed.');
 }

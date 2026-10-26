@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Visible command selection and reliable filtering:** arrowing down a long
+  palette list selected a row at y=1456 while its visible list ended at y=760;
+  `aria-activedescendant` did not scroll it. Selection and query changes now
+  bring the active result into view without moving focus from search. The
+  browser check also reproduced a filter race: after moving down 25 rows, a
+  shorter result set selected its last match because separate reset/clamp
+  effects overwrote each other. Query and selection now update together.
+  Native desktop/phone checks verify deep selection visibility, first-match
+  selection after filtering, search focus, Tab routes and dialog handoffs.
 - **Command palette Tab order:** its unfiltered results added 99 enabled Tab
   stops even though the search combobox already selects them with arrows and
   Enter. Result options now stay out of the Tab order. Native desktop/phone
