@@ -207,10 +207,11 @@ describe('shortcut utilities', () => {
     { key: 'Dead' },
     { key: 'Unidentified' },
     { key: 'Compose' },
-  ])('does not record input-method events: %j', (init) => {
+  ])('does not record or match input-method events: %j', (init) => {
     const event = { ...keyboardEvent(init.key), ...init };
     expect(eventToShortcutBinding(event)).toBeNull();
     expect(isShortcutRecordingCancelKey(event)).toBe(false);
+    expect(eventMatchesBinding(event, { key: init.key })).toBe(false);
   });
 
   it('recognizes native paste chords so clipboard images can reach paste events', () => {

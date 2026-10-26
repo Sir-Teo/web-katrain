@@ -402,13 +402,8 @@ export const isNativePasteShortcutEvent = (event: KeyboardEvent | React.Keyboard
 
 export const eventMatchesBinding = (event: KeyboardEvent, binding: ShortcutBinding): boolean => {
   const b = normalizeBinding(binding);
-  const eventBinding = normalizeBinding({
-    key: eventKeyName(event),
-    ctrl: event.ctrlKey || event.metaKey,
-    shift: event.shiftKey,
-    alt: event.altKey,
-  });
-  return bindingKey(eventBinding) === bindingKey(b);
+  const eventBinding = eventToShortcutBinding(event);
+  return eventBinding !== null && bindingKey(eventBinding) === bindingKey(b);
 };
 
 export const eventMatchesShortcut = (event: KeyboardEvent, id: string, overrides = loadShortcutOverrides()): boolean => {

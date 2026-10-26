@@ -10,6 +10,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Board input-method keys:** composition Enter placed a real stone on the
+  main board and submitted an answer on the shared study board. Yielding from
+  the main board also exposed the global AI-move shortcut, which still matched
+  composition keys. Both boards now ignore composition (including Safari's
+  final key-code 229); shortcut matching uses the same input-method guard as
+  recording. Modified study-board keys remain available to browser/app
+  shortcuts. The raw scoring/focus Escape handlers also retain their mode
+  during composition. Native desktop and phone checks verify unchanged stones,
+  answers and cursors, no composition-triggered dialogs/modes, retained focus
+  and scoring, and ordinary Enter/Space/arrows/Escape afterward. Existing
+  shortcut cases now check matching as well as recording; 70 focused tests pass.
 - **Reach every game in a collection:** a Library collection's actions menu
   now offers Split collection. It creates a numbered sibling folder, preserves
   each raw game's comments, variations, setup stones and passes, and keeps the

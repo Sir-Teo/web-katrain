@@ -22,6 +22,7 @@ import {
   usesCompactAnalysisHints,
 } from '../utils/analysisHints';
 import { gestureForPointer } from '../utils/pointerGesture';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import { publicUrl } from '../utils/publicUrl';
 import { getBoardTheme } from '../utils/boardThemes';
 import { computeNodePointsLost, DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
@@ -1851,7 +1852,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   };
 
   const handleBoardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (isComposingKeyEvent(event) || event.altKey || event.ctrlKey || event.metaKey) return;
     // Read before anything clears it: this is the only record of whether the
     // board was reached by Tab or by a click, and the two want opposite things
     // from the arrow keys.

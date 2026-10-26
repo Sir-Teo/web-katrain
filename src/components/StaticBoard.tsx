@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import type { BoardState } from '../types';
 import { getHoshiPoints, normalizeBoardSize } from '../utils/boardSize';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import {
   boardKeyboardCursorHandlesKey,
   getInitialBoardKeyboardCursor,
@@ -80,7 +81,7 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
   const pointName = (x: number, y: number) => `${COLUMN_LETTERS[x] ?? '?'}${size - y}`;
 
   const handleKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
-    if (!onPointClick) return;
+    if (!onPointClick || isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
     const ownsKey = boardKeyboardCursorHandlesKey(event.key, {
       active: cursor !== null,
       pointerFocused: pointerFocusRef.current,
