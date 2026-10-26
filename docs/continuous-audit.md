@@ -10,6 +10,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Command palette Tab order:** its unfiltered results added 99 enabled Tab
+  stops even though the search combobox already selects them with arrows and
+  Enter. Result options now stay out of the Tab order. Native desktop/phone
+  checks retain input focus while arrowing, cycle directly through Search,
+  Clear and Close with Tab/Shift+Tab, activate Clear with Enter without running
+  a command, and still run a selected command from search. The existing dialog
+  handoff checks continue to restore the original control after closing.
 - **Command-to-dialog focus:** closing Settings after opening it from the
   command palette lost the board/control where the user started. The next
   dialog captured a temporary palette input or item that then disappeared.

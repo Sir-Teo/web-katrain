@@ -37,6 +37,23 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
       await evaluate(cdp,`window.paletteReturnOrigin=document.querySelector(${JSON.stringify(selector)});paletteReturnOrigin.focus()`);
       await key('k','KeyK',75,2);
       await wait('document.activeElement?.getAttribute("aria-label")==="Search commands"');
+      assert.equal(await evaluate(cdp,`[...document.querySelectorAll('[data-command-palette-item]')]
+        .filter(e=>!e.disabled&&e.tabIndex>=0).length`),0,'Combobox results must not add a Tab stop for every command');
+      await key('ArrowDown','ArrowDown',40);
+      assert.equal(await evaluate(cdp,'document.activeElement?.getAttribute("aria-label")'),'Search commands','Arrow navigation must keep focus on the combobox');
+      await key('Tab','Tab',9);
+      assert.equal(await evaluate(cdp,'document.activeElement?.getAttribute("aria-label")'),'Close command palette','Tab should reach dialog controls without traversing every result');
+      await key('Tab','Tab',9,8);
+      assert.equal(await evaluate(cdp,'document.activeElement?.getAttribute("aria-label")'),'Search commands');
+      await cdp.send('Input.insertText',{text:'settings'});
+      await key('Tab','Tab',9);
+      assert.equal(await evaluate(cdp,'document.activeElement?.getAttribute("aria-label")'),'Clear command search');
+      await key('Tab','Tab',9);
+      assert.equal(await evaluate(cdp,'document.activeElement?.getAttribute("aria-label")'),'Close command palette');
+      await key('Tab','Tab',9,8);
+      assert.equal(await evaluate(cdp,'document.activeElement?.getAttribute("aria-label")'),'Clear command search');
+      await key('Enter','Enter',13);
+      await wait('document.activeElement?.getAttribute("aria-label")==="Search commands" && document.activeElement.value===""');
       await key('Escape','Escape',27);
       await wait('!document.querySelector("[data-command-palette]")&&!history.state?.webKatrainOverlay');
       assert.equal(await evaluate(cdp,'document.activeElement===paletteReturnOrigin'),true,'Closing the palette itself must retain its original focus');
@@ -51,7 +68,7 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
         const option=`[data-command-palette-item="${command.id}"]`;
         await wait(`!!document.querySelector(${JSON.stringify(option)})`);
         if(command.keyboard) {
-          await evaluate(cdp,`document.querySelector(${JSON.stringify(option)}).focus()`);
+          await wait(`document.getElementById(document.querySelector('[data-command-palette-search]').getAttribute('aria-activedescendant'))?.dataset.commandPaletteItem==='${command.id}'`);
           await key('Enter','Enter',13);
         } else await click(option);
         await wait(`!!document.querySelector('[aria-labelledby="${command.dialog}"]')&&!document.querySelector('[data-command-palette]')`);
@@ -64,7 +81,8 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
       }
     }
     reports.push({width,origins:['board','control'],directPaletteClose:true,
-      settingsLessonsAndHelpRestoreOrigin:true,pointerAndKeyboardCommands:true,buttonAndEscapeClose:true});
+      settingsLessonsAndHelpRestoreOrigin:true,pointerAndKeyboardCommands:true,buttonAndEscapeClose:true,
+      resultTabStops:0,arrowSelectionKeepsInputFocus:true,tabCyclesSearchCloseAndClear:true});
   }
   fs.writeFileSync(path.join(screenshotDir,'command-dialog-focus.json'),JSON.stringify(reports,null,2));
   console.log('Command palette handoffs: desktop/phone Settings, lessons and help restore the original board/control after pointer/keyboard commands and Close/Escape.');

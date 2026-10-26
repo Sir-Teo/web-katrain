@@ -237,6 +237,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                     id={`${listboxId}-option-${index}`}
                     type="button"
                     role="option"
+                    tabIndex={-1}
                     aria-label={[
                       command.label,
                       command.disabledReason ? `Unavailable: ${command.disabledReason}` : '',
