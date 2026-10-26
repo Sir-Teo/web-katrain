@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `9e479f3` passed 499 files and 3,405 cases,
+  with 78 engine cases skipped. App/test TypeScript and lint pass, and the
+  production build passed in 16.8 s. Production responsiveness passed at
+  7.8/1.2/90.7/56/72 ms for first move, median, Settings, input latency and
+  longest task. A later run with the same build and updated browser teardown
+  passed at 7.0/1.3/96.6/56/68 ms; this is not a performance-code change.
+- The `9e479f3` full browser sweep exited 1 in the fallback cross-tab case:
+  after Tab A’s completed save, Tab B read `[]` instead of `[Tab A]`. The
+  preceding IndexedDB cross-tab case passed with both records in both raw
+  snapshots. All 11 layouts and completed native checks through loading
+  dialogs passed, including every new command/direct-paste/selection case.
+  The fallback assertion preceded raw-state logging, so this sample does
+  not distinguish delayed visibility from a lost write. Retain it alongside
+  the earlier intermittent cross-tab failure; investigation continues.
+
 - Full unit verification at `b6c5f00` passed all 498 files and 3,396 cases,
   with 78 engine cases skipped in CI. This includes Library name navigation
   and clipboard-command identity checks; it precedes the shared text-import
@@ -123,6 +138,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Bounded graceful browser cleanup:** a controlled Chrome shutdown left
+  six zombie children after SIGTERM and two after `Browser.close`. The shared
+  check helper now requests browser closure before bounded SIGTERM/SIGKILL
+  fallbacks, closes transports/pipes, and releases process listeners. Seven
+  lifecycle cases cover failed startup, normal exit, a lost protocol reply,
+  both fallback signals and a process that never acknowledges exit. All 37
+  related cases and targeted lint pass. A real activated page with a
+  before-unload handler closed in 96 ms without a process signal, and the
+  production responsiveness check completed successfully through the new
+  teardown. The probe still leaves two residual children; this reduces the
+  observed leak rather than eliminating every orphan in this environment.
 - **Shared text-import ownership:** a trusted browser Ctrl+V event bypassed
   the clipboard-command guard and reproduced the same 19×19 → 13×13 late
   replacement after selecting a Library game. Direct paste, clipboard

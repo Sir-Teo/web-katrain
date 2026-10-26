@@ -5,7 +5,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  chromePath,
+  closeBrowser, chromePath,
   chromeTarget,
   connectDevtools,
   evaluate,
@@ -357,16 +357,7 @@ async function main() {
     console.log('Offline check passed: cached shell, board, dialogs, and fresh analysis; no dependency served over the network.');
   } finally {
     offline?.close();
-    cdp?.close();
-    if (chrome && chrome.exitCode === null && chrome.signalCode === null) {
-      const closed = new Promise(resolve => chrome.once('exit', resolve));
-      chrome.kill();
-      await Promise.race([closed, sleep(3000)]);
-      if (chrome.exitCode === null && chrome.signalCode === null) {
-        chrome.kill('SIGKILL');
-        await closed;
-      }
-    }
+    await closeBrowser(cdp, chrome);
     server.close();
     fs.rmSync(profile, { recursive:true, force:true });
   }

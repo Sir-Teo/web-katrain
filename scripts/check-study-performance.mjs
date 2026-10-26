@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { chromePath, chromeTarget, connectDevtools, evaluate, freePort, navigate, setViewport, sleep, waitForHttp } from './lib/browser.mjs';
+import { closeBrowser, chromePath, chromeTarget, connectDevtools, evaluate, freePort, navigate, setViewport, sleep, waitForHttp } from './lib/browser.mjs';
 
 // Measures synchronous study operations in a real browser, using the dev store
 // to construct repeatable fixtures. These are not production INP measurements;
@@ -260,12 +260,7 @@ async function main() {
     }
     console.log('Study performance checks passed.');
   } finally {
-    cdp?.close();
-    if (chrome && chrome.exitCode === null && chrome.signalCode === null) {
-      const closed = new Promise((resolve) => chrome.once('exit', resolve));
-      chrome.kill('SIGTERM');
-      await closed;
-    }
+    await closeBrowser(cdp, chrome);
     server.kill('SIGTERM');
     fs.rmSync(profile, { recursive: true, force: true });
   }

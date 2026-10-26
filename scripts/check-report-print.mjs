@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
-import { chromePath, chromeTarget, connectDevtools, evaluate, freePort, loadedModuleUrl, navigate, setViewport, waitForExpression } from './lib/browser.mjs';
+import { closeBrowser, chromePath, chromeTarget, connectDevtools, evaluate, freePort, loadedModuleUrl, navigate, setViewport, waitForExpression } from './lib/browser.mjs';
 
 // Reproduce the real Print / Save PDF flow with ten known mistakes and the
 // longest displayed correction. The previous layout emitted 24 pages for it.
@@ -93,12 +93,7 @@ async function main() {
     console.log(`Report print checks passed. PDFs: ${output}`);
     console.log(JSON.stringify(results));
   } finally {
-    cdp?.close();
-    if (chrome?.pid && chrome.exitCode === null && chrome.signalCode === null) {
-      const closed = new Promise(resolve => chrome.once('exit', resolve));
-      chrome.kill('SIGTERM');
-      await closed;
-    }
+    await closeBrowser(cdp, chrome);
     await server?.close();
     fs.rmSync(runDir, { recursive: true, force: true });
   }

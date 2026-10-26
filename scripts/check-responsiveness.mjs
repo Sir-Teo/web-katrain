@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  chromePath,
+  closeBrowser, chromePath,
   chromeTarget,
   connectDevtools,
   evaluate,
@@ -67,6 +67,7 @@ async function main() {
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let chrome;
+  let cdp;
   try {
     await waitForHttp(`http://127.0.0.1:${appPort}/`);
     const ciChromeFlags = process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
@@ -76,7 +77,7 @@ async function main() {
       `--remote-debugging-port=${devtoolsPort}`, '--window-size=1280,900', 'about:blank',
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
 
-    const cdp = connectDevtools(await chromeTarget(devtoolsPort));
+    cdp = connectDevtools(await chromeTarget(devtoolsPort));
     await cdp.ready;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
@@ -236,7 +237,6 @@ async function main() {
     record('INP (p98, trusted input)', tail.inp, BUDGETS.inpP98Ms);
     record('worst long task', tail.worstLongTask, BUDGETS.worstLongTaskMs);
 
-    cdp.close();
     if (failures.length > 0) {
       console.log('Responsiveness failure details:', JSON.stringify({
         slowInteractions: tail.slowInteractions,
@@ -246,7 +246,7 @@ async function main() {
     }
     console.log('Responsiveness checks passed.');
   } finally {
-    await stopProcess(chrome);
+    await closeBrowser(cdp, chrome);
     await stopProcess(server);
   }
 }

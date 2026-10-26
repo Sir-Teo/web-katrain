@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  chromePath, chromeTarget, connectDevtools, evaluate, freePort,
+  closeBrowser, chromePath, chromeTarget, connectDevtools, evaluate, freePort,
   navigate, setViewport, sleep, waitForHttp,
 } from './lib/browser.mjs';
 import { assertAiMoveCancellation } from './lib/ai-move-check.mjs';
@@ -246,8 +246,7 @@ async function main() {
     if (spawnErrors.length) console.error(spawnErrors.join('\n'));
     throw error;
   } finally {
-    cdp?.close();
-    await stopProcess(chrome);
+    await closeBrowser(cdp, chrome);
     await stopProcess(server);
     fs.rmSync(profile, { recursive: true, force: true });
   }

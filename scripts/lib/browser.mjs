@@ -389,6 +389,49 @@ export function loadedModuleUrl(pathSuffix, allowFirstImport = false) {
   return resource.name;
 }
 
+/** Try graceful Chrome shutdown before bounded signal fallbacks. */
+export async function closeBrowser(cdp, child) {
+  let onExit;
+  try {
+    if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
+    let exited = false;
+    const closed = new Promise(resolve => {
+      onExit = () => { exited = true; resolve(true); };
+      child.once('exit', onExit);
+    });
+    const waitForExit = async () => {
+      if (exited) return true;
+      let timer;
+      try {
+        return await Promise.race([
+          closed,
+          new Promise(resolve => { timer = setTimeout(() => resolve(false), 1000); }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    if (cdp) {
+      // A closing browser may disconnect before acknowledging the command.
+      // Wait on the child process, not on that protocol response.
+      try { cdp.send('Browser.close')?.catch?.(() => undefined); } catch { /* use the signal fallback */ }
+      if (await waitForExit()) return;
+    }
+    try { child.kill('SIGTERM'); } catch { /* it may already have exited */ }
+    if (await waitForExit()) return;
+    try { child.kill('SIGKILL'); } catch { /* do not replace the check's failure */ }
+    await waitForExit();
+  } finally {
+    if (onExit) child.removeListener('exit', onExit);
+    try { cdp?.close(); } catch { /* the connection may already be gone */ }
+    for (const stream of [child?.stdout, child?.stderr]) {
+      stream?.removeAllListeners();
+      stream?.destroy();
+    }
+    child?.unref?.();
+  }
+}
+
 /**
  * Polls a page expression until it returns something truthy.
  *

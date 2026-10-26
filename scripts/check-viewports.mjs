@@ -59,7 +59,7 @@ import { assertZipPathLimits } from './lib/zip-path-limit-check.mjs';
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
 import {
-  chromePath,
+  closeBrowser, chromePath,
   chromeTarget,
   connectDevtools,
   evaluate,
@@ -1023,6 +1023,7 @@ async function main() {
   const runDir = fs.mkdtempSync(path.resolve('node_modules/.web-katrain-viewport-'));
   let server;
   let chrome;
+  let cdp;
   try {
     server = await createServer({
       cacheDir: path.join(runDir, 'vite'),
@@ -1070,7 +1071,7 @@ async function main() {
     });
 
     const target = await chromeTarget(devtoolsPort);
-    const cdp = connectDevtools(target);
+    cdp = connectDevtools(target);
     await cdp.ready;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
@@ -4210,7 +4211,6 @@ async function main() {
       results.push(result);
     }
     if (viewportFailures.length > 0) {
-      cdp.close();
       throw new Error(
         `${viewportFailures.length} viewport(s) failed:\n  - ${viewportFailures.join('\n  - ')}`,
       );
@@ -4274,18 +4274,13 @@ async function main() {
     await assertReportGuideKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryImportAfterClose(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryReadRetry(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
-    cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {
       const board = result.defaultBoard ?? result.board;
       console.log(`${result.viewport}: board ${Math.round(board.width)}x${Math.round(board.height)}`);
     }
   } finally {
-    if (chrome?.pid && chrome.exitCode === null && chrome.signalCode === null) {
-      const closed = new Promise((resolve) => chrome.once('exit', resolve));
-      chrome.kill('SIGTERM');
-      await closed;
-    }
+    await closeBrowser(cdp, chrome);
     await server?.close();
     fs.rmSync(runDir, { recursive: true, force: true });
   }
