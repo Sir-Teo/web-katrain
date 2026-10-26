@@ -40,6 +40,7 @@ import { assertLibraryReadRetry } from './lib/library-read-retry-check.mjs';
 import { assertLibraryRepeatImport } from './lib/library-repeat-import-check.mjs';
 import { assertLibraryShowMoreFocus } from './lib/library-show-more-focus-check.mjs';
 import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
+import { assertOgsSyncSave } from './lib/ogs-sync-save-check.mjs';
 import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
 import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
 import { assertModelStorageOrdering } from './lib/model-storage-check.mjs';
@@ -4241,6 +4242,7 @@ async function main() {
     await assertPhotoTraceRaces(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBotPickerKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertOgsSyncCancellation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertOgsSyncSave(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryCollectionSplit(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBoardComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPhotoTraceKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);

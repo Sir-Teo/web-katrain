@@ -71,6 +71,7 @@ import {
   beginLibraryImport,
   getLibraryImportCount,
   persistLibraryImports,
+  persistOgsLibraryImports,
   subscribeLibraryImportActivity,
   subscribeLibraryImports,
 } from '../utils/libraryImports';
@@ -102,7 +103,6 @@ import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
 import { getDroppedSgfOrOgsText, hasPotentialGameImportDrag } from '../utils/dragImport';
 import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
-import { mergeOgsLibraryImports } from '../utils/libraryOgsImport';
 import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
@@ -1238,14 +1238,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     });
   };
 
-  const handleOgsSyncImport = (username: string, games: OgsSyncedGame[]) => {
+  const handleOgsSyncImport = async (username: string, games: OgsSyncedGame[]) => {
     if (games.length === 0) return;
     const folderName = ogsSyncFolderName(username);
     const folder = createLibraryFolder(folderName, null);
     const files = games.map((game) => createLibraryItem(ogsSyncFileName(game.summary), game.sgf, folder.id));
-    setItems((prev) => mergeOgsLibraryImports(prev, folder, files));
-    setPendingOgsFileId(files[0]!.id);
-    onToast(`Synced ${games.length} OGS game${games.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
+    const finishImport = beginLibraryImport(files.length);
+    try {
+      const imported = await persistOgsLibraryImports(folder, files);
+      setPendingOgsFileId(imported[0]?.id ?? null);
+      onLibraryUpdated?.();
+      onToast(`Synced ${imported.length} OGS game${imported.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
+    } catch (error) {
+      const message = withFailureReason('Could not save synced games. Try syncing again when browser storage is available.', error);
+      onToast(message, 'error');
+      throw new Error(message);
+    } finally {
+      finishImport();
+    }
   };
 
   const handleClearLibrary = () => {

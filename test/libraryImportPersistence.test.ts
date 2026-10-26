@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LibraryItem } from '../src/utils/library';
 import { createLibraryFolder, createLibraryItem, updateStoredLibrary } from '../src/utils/library';
-import { persistLibraryImports, subscribeLibraryImports } from '../src/utils/libraryImports';
+import { persistLibraryImports, persistOgsLibraryImports, subscribeLibraryImports } from '../src/utils/libraryImports';
 
 const storage = vi.hoisted(() => ({ items: [] as LibraryItem[], gate: Promise.resolve(), fail: false }));
 vi.mock('../src/utils/library', async (load) => {
@@ -94,6 +94,52 @@ describe('durable Library import completion', () => {
     const listener = vi.fn();
     subscribe(listener);
     expect(await persistLibraryImports([])).toEqual([]);
+    expect(updateStoredLibrary).not.toHaveBeenCalled();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('saves OGS games in the current destination before notifying a reopened panel', async () => {
+    let release!: () => void;
+    storage.gate = new Promise<void>(resolve => { release = resolve; });
+    const proposed = createLibraryFolder('OGS - Player');
+    const file = createLibraryItem('Study (ogs-123)', '(;SZ[9]C[Imported notes])', proposed.id);
+    const original = vi.fn(), reopened = vi.fn();
+    const closeOriginal = subscribe(original);
+    const saving = persistOgsLibraryImports(proposed, [file]);
+    closeOriginal();
+    subscribe(reopened);
+    const currentFolder = createLibraryFolder('OGS - Player');
+    const localStudy = createLibraryItem('Keep local notes', '(;SZ[13]C[Local notes])');
+    storage.items = [currentFolder, localStudy];
+    expect(reopened).not.toHaveBeenCalled();
+    release();
+    expect(await saving).toEqual([{ ...file, parentId: currentFolder.id }]);
+    expect(storage.items).toEqual([{ ...file, parentId: currentFolder.id }, currentFolder, localStudy]);
+    expect(original).not.toHaveBeenCalled();
+    expect(reopened).toHaveBeenCalledExactlyOnceWith(storage.items);
+  });
+
+  it('rejects failed OGS persistence without reporting added games or reserving a second copy', async () => {
+    const folder = createLibraryFolder('OGS - Player');
+    const original = createLibraryItem('Keep', '(;SZ[13]C[Original notes])');
+    const file = createLibraryItem('Study (ogs-123)', '(;SZ[9])', folder.id);
+    storage.items = [original];
+    storage.fail = true;
+    const listener = vi.fn();
+    subscribe(listener);
+    await expect(persistOgsLibraryImports(folder, [file])).rejects.toThrow('Storage is full');
+    expect(listener).not.toHaveBeenCalled();
+    expect(storage.items).toEqual([original]);
+    storage.fail = false;
+    expect(await persistOgsLibraryImports(folder, [file])).toEqual([file]);
+    expect(storage.items).toEqual([file, folder, original]);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not create an OGS folder or write when no new games were downloaded', async () => {
+    const listener = vi.fn();
+    subscribe(listener);
+    expect(await persistOgsLibraryImports(createLibraryFolder('OGS - Player'), [])).toEqual([]);
     expect(updateStoredLibrary).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
   });

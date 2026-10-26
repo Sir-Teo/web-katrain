@@ -1,4 +1,5 @@
-import { prependLibraryImports, updateStoredLibrary, type LibraryItem } from './library';
+import { prependLibraryImports, updateStoredLibrary, type LibraryFile, type LibraryFolder, type LibraryItem } from './library';
+import { mergeOgsLibraryImports } from './libraryOgsImport';
 
 const listeners = new Set<(items: LibraryItem[]) => void>();
 const activityListeners = new Set<() => void>();
@@ -47,6 +48,19 @@ export const persistLibraryImports = async (imported: readonly LibraryItem[]): P
   const saved = await updateStoredLibrary((current) => {
     const items = prependLibraryImports(current, imported);
     return { items, result: { items, imported: items.slice(0, imported.length) } };
+  });
+  for (const listener of listeners) listener(saved.items);
+  return saved.imported;
+};
+
+/** Resolve the OGS destination against storage and publish only committed games. */
+export const persistOgsLibraryImports = async (folder: LibraryFolder, files: LibraryFile[]): Promise<LibraryFile[]> => {
+  if (!files.length) return [];
+  const importedIds = new Set(files.map(file => file.id));
+  const saved = await updateStoredLibrary((current) => {
+    const items = mergeOgsLibraryImports(current, folder, files);
+    const imported = items.filter((item): item is LibraryFile => item.type === 'file' && importedIds.has(item.id));
+    return { items, result: { items, imported } };
   });
   for (const listener of listeners) listener(saved.items);
   return saved.imported;

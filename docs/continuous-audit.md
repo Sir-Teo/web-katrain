@@ -35,6 +35,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **OGS sync acknowledges durable saves:** rejected IndexedDB/localStorage
+  writes left the modal saying “Added 1 game” and the success toast saying
+  “Synced”, while no imported game existed in storage. Sync now awaits its
+  shared queued commit, reports storage errors and allows a clean retry.
+  During persistence it says “Saving games to library” and offers Close;
+  closing the dialog or Library preserves the pending save and its progress.
+  The current OGS folder is resolved at commit time and reopened panels receive
+  only committed data. Thirty focused cases, app/test TypeScript and lint pass.
+  Native desktop/phone checks cover failed writes, one-copy retry, delayed
+  saving, Close/Back, closing both panels and reload; existing lookup,
+  pagination and download cancellation checks still pass.
 - **Retry after a rejected initial read:** with an established IndexedDB
   library and no fallback, the read failed before publishing a snapshot.
   “Retry saving library” then did nothing, even after storage recovered.

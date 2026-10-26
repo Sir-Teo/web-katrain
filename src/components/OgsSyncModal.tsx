@@ -21,7 +21,7 @@ import { isComposingKeyEvent } from '../utils/compositionKey';
 interface OgsSyncModalProps {
   items: LibraryItem[];
   onClose: () => void;
-  onImport: (username: string, games: OgsSyncedGame[]) => void;
+  onImport: (username: string, games: OgsSyncedGame[]) => void | Promise<void>;
 }
 
 type SyncSummary = OgsSyncOutcome;
@@ -34,6 +34,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   );
   const [limit, setLimit] = React.useState<number>(25);
   const [isRunning, setIsRunning] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
   const [progress, setProgress] = React.useState<OgsSyncProgress | null>(null);
 
   /**
@@ -81,6 +82,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
     requestRef.current = request;
     const isCurrent = () => requestRef.current === request && !request.signal.aborted;
     setIsRunning(true);
+    setIsSaving(false);
     setError(null);
     setSummary(null);
     setProgress(null);
@@ -102,7 +104,11 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
         request.signal
       );
       if (!isCurrent()) return;
-      if (synced.length > 0) onImport(player.username, synced);
+      if (synced.length > 0) {
+        setIsSaving(true);
+        await onImport(player.username, synced);
+        if (!isCurrent()) return;
+      }
       setSummary({
         added: synced.length,
         skipped,
@@ -117,6 +123,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
       if (requestRef.current === request) {
         requestRef.current = null;
         setIsRunning(false);
+        setIsSaving(false);
         setProgress(null);
       }
     }
@@ -198,7 +205,9 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               role="status"
               aria-live="polite"
             >
-              {backoffSeconds > 0
+              {isSaving
+                ? 'Saving games to library…'
+                : backoffSeconds > 0
                 ? `OGS is rate limiting us - resuming in ${backoffSeconds}s...`
                 : progress && progress.total > 0
                   ? `Downloading ${Math.min(progress.downloaded + 1, progress.total)} of ${progress.total}${
@@ -228,7 +237,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
             onClick={close}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
           >
-            {summary ? 'Done' : 'Cancel'}
+            {summary ? 'Done' : isSaving ? 'Close' : 'Cancel'}
           </button>
           <button
             type="button"
@@ -238,7 +247,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
           >
             <span className="inline-flex items-center gap-2">
               <FaCloudDownloadAlt aria-hidden="true" />
-              {isRunning ? 'Syncing...' : summary ? 'Sync Again' : 'Sync'}
+              {isSaving ? 'Saving...' : isRunning ? 'Syncing...' : summary ? 'Sync Again' : 'Sync'}
             </span>
           </button>
         </div>
