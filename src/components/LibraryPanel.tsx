@@ -451,6 +451,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const breadcrumbRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
   /**
    * Settles when the library's own first read has published its snapshot.
@@ -2474,6 +2475,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <div className="relative flex-1 min-w-[160px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
+                    ref={searchInputRef}
                     type="search"
                     value={query}
                     autoCapitalize="none"
@@ -2577,8 +2579,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 >
                   {/* The trail already ends at the current folder, so naming it
                       in the label too printed it twice ("Folder: X  X"). */}
-                  <span className="shrink-0">Folder:</span>
-                  {isSearching || breadcrumbs.length === 0 ? (
+                  <span className="shrink-0">{isSearching ? 'Searching:' : 'Folder:'}</span>
+                  {isSearching ? (
+                    <span className="shrink-0">All folders</span>
+                  ) : breadcrumbs.length === 0 ? (
                     <span>{currentFolderName}</span>
                   ) : (
                     breadcrumbs.map((crumb, index) => (
@@ -2703,7 +2707,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   sortedItems.length === 0 ? (
                     <div className="p-6 text-sm ui-text-faint">
                       <div className="font-semibold text-[var(--ui-text-muted)] mb-2">No matches</div>
-                      <div>Try a different search term.</div>
+                      <div>
+                        {favoritesOnly || activeTag
+                          ? 'No games match your current search and filters.'
+                          : 'Try a different search term.'}
+                      </div>
+                      <button
+                        type="button"
+                        className="panel-action-button mt-3"
+                        onClick={() => {
+                          setQuery('');
+                          setFavoritesOnly(false);
+                          setActiveTag(null);
+                          searchInputRef.current?.focus();
+                        }}
+                        data-library-reset-filters="true"
+                      >
+                        Clear search and filters
+                      </button>
                     </div>
                   ) : (
                     <div>

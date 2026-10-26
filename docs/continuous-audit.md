@@ -100,6 +100,12 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   clearing komi to zero. Trusted browser input covers Enter, Tab, Escape,
   composition, real zero/negative values, and unchanged undo history/stones
   when an edit is canceled.
+- **Search recovery:** a filtered library now identifies its actual scope as
+  All folders instead of displaying the active folder as though search were
+  limited to it. Empty results explain active filters and offer Clear search
+  and filters. A touch check at 390×844 combined text, favorites, and a tag,
+  then verified that the 44 px reset control clears all three, restores the
+  same nested folder, and returns focus to search.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
