@@ -140,6 +140,13 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   size, rules, komi, and result. The preview layout stays compact. An actual
   296-move PDF retains six pages, with the names and details present on every
   page; its rendered first page was also inspected.
+- **Pro-game header identity:** automatic pack labels still used a broad
+  property regex, allowing comment examples or later games to provide a
+  player's name or source. Pack descriptions now share the root-property
+  reader and decode old identifiers, whitespace, and continuations correctly.
+  Curated titles remain authoritative, and filenames matching inherited
+  object keys cannot be mistaken for curated records. The reproduced header
+  failures and all six pro-game suites pass.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
