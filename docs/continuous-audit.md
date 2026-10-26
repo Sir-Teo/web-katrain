@@ -208,6 +208,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   reference dropped focus to the page body when their clear button disappeared.
   Both now focus their search input explicitly. Native desktop/phone checks
   reproduce the original focus loss and verify immediate typing after clearing.
+- **Fast numeric library sorting:** each name comparison repeated locale setup,
+  costing 681 ms to sort 10,000 names and 741 ms to build 10,000 sibling folder
+  destinations in Chrome. A shared numeric collator retains the same ordering
+  and measured 56 ms / 79 ms in the corresponding probes. Regression cases
+  compare numbers, leading zeros, case, accents, and non-Latin scripts with
+  the prior comparator. Native phone Name sorting and Show more preserve
+  Games 1–60 from a shuffled 5,000-game library. The study benchmark now gives
+  both wide-folder ordering and numeric sorting a 250 ms operation budget.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
