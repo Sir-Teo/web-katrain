@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `9a1febd`, including the local-file ownership
+  extension, passes 501 files and 3,425 cases with 78 engine cases skipped in
+  CI. App/test TypeScript and targeted lint pass. All 36 new native file cases
+  and the existing pasted-import browser suites pass. The production build
+  passes in 13.7 s. Its uninstrumented responsiveness run passes first move,
+  median, input latency and longest task at 7.6/1.7/64/91 ms, but Settings
+  takes 132.6 ms against the unchanged 120 ms limit. A CPU-profile/trace
+  diagnostic adds substantial profiler-start overhead; a lighter timeline
+  records 113.2 ms with no loading fallback and about 52 ms of style/layout
+  work. No performance code changed; retain the uninstrumented failure as
+  unresolved rather than replacing it with the instrumented passing result.
+  The complete integrated browser sweep is next.
+
 - The complete browser sweep at `8fa9aad` passes all 11 viewport sizes and
   every native interaction suite, including both cross-tab storage modes,
   queued fallback saves with reload, all 24 trusted paste events, OGS actions,
