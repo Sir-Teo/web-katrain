@@ -468,6 +468,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const libraryTreeRef = useRef<HTMLDivElement>(null);
+  const libraryRetryFocusPendingRef = useRef(false);
   const libraryKeyboardHelpId = useId();
   const closeContextMenu = useCallback(() => {
     if (contextMenuOpenerRef.current?.isConnected) {
@@ -607,6 +608,21 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     // Only local edits and Retry enqueue writes. Mirrors and callback changes
     // must not save old snapshots or cancel a pending acknowledgement.
   }, [itemsRevision, saveRetry, saveEdits]);
+
+  useLayoutEffect(() => {
+    if (!libraryRetryFocusPendingRef.current || libraryStatus === 'loading' || libraryStatus === 'saving') return;
+    libraryRetryFocusPendingRef.current = false;
+    // Retry's button disappears during I/O. Restore only focus lost with it;
+    // keep a search field or another control the person chose while waiting.
+    if (document.activeElement !== document.body) return;
+    const tree = libraryTreeRef.current;
+    if (!tree?.getClientRects().length) return;
+    const target = tree.querySelector<HTMLElement>(
+      '[data-library-retry], [data-library-row], [data-library-reset-filters], [data-library-empty-import]'
+    );
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [libraryError, libraryStatus]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalFileUpdate) return;
@@ -2885,7 +2901,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   openContextMenu(event, null);
                 }}
               >
-                {isSearching ? (
+                {isSearching && libraryStatus !== 'loading' && libraryStatus !== 'error' ? (
                   sortedItems.length === 0 ? (
                     <div className="p-6 text-sm ui-text-faint">
                       <div className="font-semibold text-[var(--ui-text-muted)] mb-2">No matches</div>
@@ -2922,13 +2938,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     <div>Opening IndexedDB storage and migrating saved SGFs if needed.</div>
                   </div>
                 ) : libraryStatus === 'error' ? (
-                  <div className="p-6 text-sm ui-text-faint">
+                  <div className="p-6 text-sm ui-text-faint" role="alert">
                     <div className="font-semibold text-[var(--ui-danger)] mb-2">Library storage error</div>
                     <div>{libraryError?.message ?? 'The library could not be read or saved.'}</div>
                     <button
                       type="button"
                       className="panel-action-button mt-3"
+                      data-library-retry="true"
                       onClick={() => {
+                        libraryRetryFocusPendingRef.current = true;
                         if (didLoadLibraryRef.current) setSaveRetry(retry => retry + 1);
                         else setLoadRetry(retry => retry + 1);
                       }}

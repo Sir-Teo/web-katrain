@@ -35,6 +35,16 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Recovery remains usable during search:** after an initial read failure,
+  entering a search replaced the storage error and Retry with “No matches”.
+  Loading and errors now take precedence over search results, and storage
+  failures are announced as alerts. Retry previously left focus on the page
+  body after both success and failure. It now restores a useful row/action or
+  the error button, while preserving a search field deliberately selected
+  during I/O. Native desktop/phone checks cover filtered/unfiltered empty
+  libraries, original SGF, repeated failure, Enter retry, delayed loading,
+  retained query and chosen focus. Existing phone save/initialization retries,
+  app/test TypeScript and lint pass.
 - **OGS sync acknowledges durable saves:** rejected IndexedDB/localStorage
   writes left the modal saying “Added 1 game” and the success toast saying
   “Synced”, while no imported game existed in storage. Sync now awaits its
