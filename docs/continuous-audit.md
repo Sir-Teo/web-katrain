@@ -10,6 +10,16 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Settings opening layout:** production timing runs missed the 120 ms
+  dialog budget (130 ms on one run); a fresh run passed it at 110 ms but missed
+  first-move and long-task budgets. Profiling identified the initial tab's
+  `scrollTop = 0` layout effect as a forced-layout path even though a fresh
+  scroller already starts at zero. That write now runs only when the tab
+  changes. The next production gate passed all unchanged budgets: first move
+  4.75 ms, median 0.96 ms, warm Settings 83.6 ms, INP p98 48 ms and longest
+  task 73 ms. Native desktop/phone shortcut checks now first scroll General,
+  Engine and General again and require each next tab to start at the top.
+  Forty-eight focused settings/focus cases and the production build pass.
 - **Photo trace keyboard navigation:** a 19×19 trace exposed 361 Tab stops.
   It now has one entry point, starting at the centre, with arrow navigation,
   edge wrapping, row Home/End, and Control Home/End for board corners. Enter

@@ -296,7 +296,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     // opened the next tab mid-way (or at its foot) with no heading in view.
     // Layout effect, so the reset lands before a search result's reveal runs.
     const contentRef = React.useRef<HTMLDivElement>(null);
+    const previousContentTabRef = React.useRef(activeTab);
     React.useLayoutEffect(() => {
+        // A fresh scroller already starts at zero. Writing scrollTop during
+        // its first commit forces layout before the dialog's focus/layout work.
+        if (previousContentTabRef.current === activeTab) return;
+        previousContentTabRef.current = activeTab;
         if (contentRef.current) contentRef.current.scrollTop = 0;
     }, [activeTab]);
 

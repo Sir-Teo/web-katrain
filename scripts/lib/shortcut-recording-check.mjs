@@ -36,7 +36,17 @@ export async function assertShortcutRecording(cdp, appUrl, screenshotDir) {
       document.activeElement?.blur();
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8', bubbles: true }));
     })()`);
-    await click('#tab-shortcuts');
+    await click('#tab-general');
+    for (const tab of ['ai', 'general', 'shortcuts']) {
+      const scrolled = await evaluate(cdp, `(() => {
+        const content = document.querySelector('.settings-modal-content');
+        content.scrollTop = content.scrollHeight;
+        return content.scrollTop;
+      })()`);
+      assert.ok(scrolled > 0, 'The previous Settings tab must be scrolled before switching');
+      await click(`#tab-${tab}`);
+      await wait(`!!document.querySelector('#panel-${tab}') && document.querySelector('.settings-modal-content').scrollTop===0`);
+    }
     await click('[aria-label="Record shortcut for New game"]');
     await wait('!!document.querySelector("[data-shortcut-recording=true]")');
     const cases = [
