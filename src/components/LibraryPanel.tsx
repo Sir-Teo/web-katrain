@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { isComposingKeyEvent } from '../utils/compositionKey';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
 import {
@@ -459,6 +459,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const libraryTreeRef = useRef<HTMLDivElement>(null);
+  const libraryKeyboardHelpId = useId();
   const closeContextMenu = useCallback(() => {
     if (contextMenuOpenerRef.current?.isConnected) {
       contextMenuOpenerRef.current.focus({ preventScroll: true });
@@ -1038,9 +1039,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setExpandedFolderIds((prev) => new Set(prev).add(item.id));
   };
 
+  const navigateLibraryRow = (event: React.KeyboardEvent<HTMLDivElement>): boolean => {
+    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return false;
+    const rows = Array.from(libraryTreeRef.current?.querySelectorAll<HTMLDivElement>('[data-library-row]') ?? []);
+    const index = rows.indexOf(event.currentTarget);
+    if (index < 0) return false;
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1
+      : Math.max(0, Math.min(rows.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
+    event.preventDefault();
+    event.stopPropagation();
+    rows[next]?.focus();
+    return true;
+  };
+
   const handleFileRowKeyDown = (item: LibraryFile) => (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || isComposingKeyEvent(event)
       || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (navigateLibraryRow(event)) return;
     const action = getLibraryRowKeyAction({ key: event.key, shiftKey: event.shiftKey, kind: 'file' });
     if (action === 'none') return;
     event.preventDefault();
@@ -1057,6 +1072,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   ) => (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || isComposingKeyEvent(event)
       || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (navigateLibraryRow(event)) return;
     const action = getLibraryRowKeyAction({
       key: event.key,
       shiftKey: event.shiftKey,
@@ -1785,6 +1801,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         ].join(' ')}
         style={{ paddingLeft: 12 + depth * 16 }}
         role="treeitem"
+        aria-level={depth + 1}
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
@@ -1976,6 +1993,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           ].join(' ')}
           style={{ paddingLeft: 12 + depth * 16 }}
           role="treeitem"
+          aria-level={depth + 1}
           tabIndex={0}
           aria-selected={isSelected || activeFolderId === item.id}
           aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
@@ -2765,6 +2783,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </button>
                 </div>
               )}
+              <span id={libraryKeyboardHelpId} className="sr-only">
+                Use Up and Down arrows to browse games and folders, Home or End to reach either end,
+                and Enter to open. Use the row buttons for selection and other actions.
+              </span>
               <div
                 ref={libraryTreeRef}
                 className={[
@@ -2774,6 +2796,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 ].join(' ')}
                 role={sortedItems.length > 0 ? 'tree' : 'group'}
                 aria-label="Library games"
+                aria-describedby={sortedItems.length > 0 ? libraryKeyboardHelpId : undefined}
                 aria-busy={libraryStatus === 'loading'}
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}

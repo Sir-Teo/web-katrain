@@ -8,6 +8,7 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
   fs.writeFileSync(fixture, JSON.stringify({ app: 'web-katrain', version: 2, items: [
     { id: 'keys-folder', name: 'Keyboard studies', type: 'folder', parentId: null, createdAt: 1, updatedAt: 1 },
     { id: 'keys-game', name: 'Keyboard game', type: 'file', parentId: 'keys-folder', createdAt: 1, updatedAt: 1, sgf: '(;GM[1]SZ[9];B[dd];W[ee])' },
+    { id: 'keys-other', name: 'Keyboard other', type: 'file', parentId: null, createdAt: 1, updatedAt: 1, sgf: '(;GM[1]SZ[13];B[dd])' },
   ] }));
   const wait = expression => waitForExpression(cdp, expression, {
     label: 'Library row keyboard controls',
@@ -16,7 +17,7 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
   });
   const press = async (key, shiftKey = false) => {
     const code = key === ' ' ? 'Space' : key;
-    const windowsVirtualKeyCode = { Enter: 13, ' ': 32, Escape: 27, F10: 121 }[key];
+    const windowsVirtualKeyCode = { Enter: 13, ' ': 32, Escape: 27, F10: 121, Home: 36, End: 35, ArrowUp: 38, ArrowDown: 40 }[key];
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode,
       modifiers: shiftKey ? 8 : 0, ...(key === 'Enter' ? { text: '\r' } : key === ' ' ? { text: ' ' } : {}) });
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode });
@@ -64,6 +65,9 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
     await wait('!!document.querySelector("[aria-labelledby=library-confirm-dialog-title]")');
     await click('[aria-labelledby=library-confirm-dialog-title] button.danger');
     await wait(`!document.querySelector('[role=dialog]')&&!history.state?.webKatrainOverlay&&!!document.querySelector('${folder}')&&document.querySelector('[data-library-storage-badge]')?.textContent==='IndexedDB'`);
+    const accessibleTree = (await cdp.send('Accessibility.getFullAXTree')).result.nodes
+      .find(node => node.role?.value === 'tree' && node.name?.value === 'Library games');
+    assert.match(accessibleTree?.description?.value ?? '', /Up and Down arrows/, 'Screen readers must receive the row navigation instructions');
     const before = await board();
     const pathBefore = await evaluate(cdp, 'document.querySelector(".library-breadcrumbs")?.innerText');
     // Nested native controls own Enter/Space; neither should activate the row.
@@ -81,8 +85,26 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
       if (await evaluate(cdp, `document.querySelector('${folder}').getAttribute('aria-expanded')==='true'`)) {
         await focus(`${folder} .library-tree-node-arrow`); await press(key);
         await wait(`!document.querySelector('${file}')`);
+        await focus(folder); await press('ArrowDown');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('[data-library-row-name="Keyboard other"]')`), true, 'Collapsed descendants must not receive row navigation');
       }
       await focus(`${folder} .library-tree-node-arrow`); await press(key); await wait(`!!document.querySelector('${file}')`);
+      if (key === 'Enter') {
+        const other = '[data-library-row-name="Keyboard other"]';
+        await focus(folder); await press('ArrowDown');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${file}')`), true, 'Down must browse the next visible row without loading it');
+        await press('ArrowDown'); await press('ArrowDown');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${other}')`), true, 'Down must stop at the last visible row');
+        await press('ArrowUp');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${file}')`), true);
+        await press('Home'); await press('ArrowUp');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${folder}')`), true);
+        await press('End');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${other}')`), true);
+        assert.deepEqual(await evaluate(cdp, `[...document.querySelectorAll('[data-library-row]')].map(e=>e.getAttribute('aria-level'))`), ['1','2','1']);
+        assert.deepEqual(await board(), before);
+        assert.equal(await evaluate(cdp, 'document.querySelector(".library-breadcrumbs")?.innerText'), pathBefore);
+      }
       await focus(`${file} button[aria-label="More actions for Keyboard game"]`); await press(key);
       await wait(`document.querySelector('[role=menu][aria-label="Library actions"]')?.contains(document.activeElement)`);
       await press('Escape'); await wait('!document.querySelector("[role=menu]")');
@@ -98,7 +120,7 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
       await focus(selector);
       await evaluate(cdp, `(()=>{
         const row=document.querySelector(${JSON.stringify(selector)});
-        for(const key of ['Enter',' ','ArrowLeft','ArrowRight','ContextMenu','F10']) {
+        for(const key of ['Enter',' ','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','ContextMenu','F10']) {
           for(const composition of [{isComposing:true},{keyCode:229}]) row.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key,...composition}));
         }
         for(const modifier of ['ctrlKey','altKey','metaKey'])row.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Enter',[modifier]:true}));
@@ -106,7 +128,18 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
       assert.deepEqual(await board(), before);
       assert.equal(await evaluate(cdp, 'document.querySelector(".library-breadcrumbs")?.innerText'), pathBefore);
       assert.equal(await evaluate(cdp, 'document.querySelectorAll("[role=menu]").length'), 0);
+      assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector(${JSON.stringify(selector)})`), true);
     }
+    await click('[aria-label="Search library"]'); await cdp.send('Input.insertText', { text: 'Keyboard game' });
+    await wait('document.querySelectorAll("[data-library-row]").length===1');
+    await focus(file);
+    for (const key of ['ArrowUp', 'ArrowDown', 'Home', 'End']) {
+      await press(key);
+      assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${file}')`), true, 'Navigation must stay within matching search results');
+    }
+    assert.equal(await evaluate(cdp, `document.querySelector('${file}').getAttribute('aria-level')`), '1', 'Search results form a flat list');
+    await click('[aria-label="Clear library search"]');
+    await wait('document.querySelectorAll("[data-library-row]").length===3');
     for (const [selector, name] of [[folder, 'Keyboard studies'], [file, 'Keyboard game']]) {
       const opener = `${selector} button[aria-label="More actions for ${name}"]`;
       await focus(opener); await press('Enter');
@@ -131,8 +164,8 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
     await focus(file); await press('Enter');
     if (width === 390) await wait('!history.state?.webKatrainOverlay');
     await wait('document.querySelector("[data-board-snapshot]")?.dataset.boardSize==="9"');
-    reports.push({ width, enterAndSpaceReachNestedControls:true,compositionAndModifierKeysDoNotActivateRows:true,rowActivationAndKeyboardContextMenuPreserved:true,menuAndRenameDialogRestoreOrigin:true });
+    reports.push({ width, enterAndSpaceReachNestedControls:true,compositionAndModifierKeysDoNotActivateRows:true,rowActivationAndKeyboardContextMenuPreserved:true,menuAndRenameDialogRestoreOrigin:true,arrowsAndHomeEndBrowseVisibleRows:true,collapsedAndFilteredRowsExcluded:true,folderDepthAnnounced:true });
   }
   fs.writeFileSync(path.join(screenshotDir,'library-row-keyboard.json'),JSON.stringify(reports,null,2));
-  console.log('Library row keyboard: desktop/phone Enter and Space operate Select, More and folder expansion without loading/navigating; composition/modifiers stay inert and direct row activation/Shift+F10 still work.');
+  console.log('Library row keyboard: desktop/phone nested controls, menu/dialog focus return, visible-row arrows/Home/End, folder depth, collapsed/search filtering, composition guards and ordinary activation passed.');
 }

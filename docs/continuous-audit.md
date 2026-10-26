@@ -10,6 +10,14 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Library row browsing:** Up/Down and Home/End now move focus through
+  mounted games/folders without loading them, stopping at either end and
+  skipping collapsed descendants and nonmatching search results. Rows expose
+  their depth; the tree has a screen-reader keyboard hint. Native desktop/phone
+  checks exercise these paths, verify flat search depth, read the real Chrome
+  accessibility description, and retain existing controls, menu focus and
+  composition behavior. Seventeen keyboard/focus cases, TypeScript and lint
+  pass.
 - **Bounded diagram rejection:** the broad verification run recorded a
   1,334 ms outlier against the unchanged combined parser fuzz budget. A browser
   profile also showed the diagram reader scanning all 20,000 diagram-like rows
