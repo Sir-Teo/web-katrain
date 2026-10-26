@@ -185,6 +185,21 @@ describe('parseBoardTextDiagram', () => {
     expect(parseBoardTextDiagram(Array(10).fill('.........X').join('\n'))).toBe(null);
   });
 
+  it('rejects oversized row runs and widths without truncating them to a valid board', () => {
+    expect(parseBoardTextDiagram(('X' + '.'.repeat(18) + '\n').repeat(20_000))).toBe(null);
+    expect(parseBoardTextDiagram('X' + '.'.repeat(200_000))).toBe(null);
+    expect(parseBoardTextDiagram(['X........', ...Array(20_000).fill('---------'), '........O'].join('\n'))).toBe(null);
+  });
+
+  it('keeps the largest board and surrounding dash borders valid', () => {
+    const grid = ['X' + '.'.repeat(18), ...Array(17).fill('.'.repeat(19)), '.'.repeat(18) + 'O'];
+    const board = parseBoardTextDiagram(['+' + '-'.repeat(19) + '+', ...grid, '+' + '-'.repeat(19) + '+'].join('\n'));
+    expect(board?.length).toBe(19);
+    expect(board?.[0]?.[0]).toBe('black');
+    expect(board?.[18]?.[18]).toBe('white');
+    expect(parseBoardTextDiagram([...Array(100).fill('---------'), 'X........', ...Array(8).fill('.........'), ...Array(100).fill('---------')].join('\n'))?.length).toBe(9);
+  });
+
   it('stops at the end of the first grid rather than merging two', () => {
     const first = ['..X......', ...Array(8).fill('.........')].join('\n');
     const board = parseBoardTextDiagram(`${first}\n\nand then some prose\n..O......`);

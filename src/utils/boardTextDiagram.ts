@@ -1,6 +1,6 @@
 import { formatGtpMove } from '../lib/gtp';
 import { coordinateToSgf } from './sgf';
-import { createEmptyBoard, getHoshiPoints, isBoardSize, normalizeBoardSize } from './boardSize';
+import { BOARD_SIZES, createEmptyBoard, getHoshiPoints, isBoardSize, normalizeBoardSize } from './boardSize';
 import type { BoardSize, BoardState, Move, Player } from '../types';
 import { DEFAULT_BOARD_SIZE } from '../types';
 
@@ -103,6 +103,7 @@ export function formatBoardTextDiagram(options: BoardTextDiagramOptions): string
 const BLACK_CHARS = new Set(['X', 'x', '#', '@']);
 const WHITE_CHARS = new Set(['O', 'o', '0']);
 const EMPTY_CHARS = new Set(['.', ',', '+', '-', '_', '*']);
+const MAX_DIAGRAM_SIZE = Math.max(...BOARD_SIZES);
 
 /**
  * A row that is nothing but dashes, perhaps capped with the `+` corners a
@@ -145,6 +146,7 @@ function gridRow(line: string): string | null {
 
 export function parseBoardTextDiagram(text: string): BoardState | null {
   const rows: string[] = [];
+  let firstNonDashRow = -1;
   for (const rawLine of text.split(/\r?\n/)) {
     // Sensei's Library prefixes every line of a diagram with `$$`; the first
     // such line is its title, which still fails `gridRow` and is skipped like
@@ -154,7 +156,16 @@ export function parseBoardTextDiagram(text: string): BoardState | null {
     // A column header is all letters, so gridRow already rejected it; anything
     // else that is not a grid row ends the run rather than being skipped over,
     // so two diagrams in one paste do not merge into one impossible board.
-    if (row) rows.push(row);
+    if (row) {
+      if (!isAllDashes(row)) {
+        if (row.length > MAX_DIAGRAM_SIZE) return null;
+        if (firstNonDashRow < 0) firstNonDashRow = rows.length;
+        // Outer dash rows may be borders. Everything between the first and
+        // last other row must fit a board, so a long paste can stop here.
+        if (rows.length - firstNonDashRow >= MAX_DIAGRAM_SIZE) return null;
+      }
+      rows.push(row);
+    }
     else if (rows.length > 0) break;
   }
 

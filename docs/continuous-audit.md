@@ -10,6 +10,14 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Bounded diagram rejection:** the broad verification run recorded a
+  1,334 ms outlier against the unchanged combined parser fuzz budget. A browser
+  profile also showed the diagram reader scanning all 20,000 diagram-like rows
+  before rejecting them. It now stops when the non-border extent exceeds the
+  largest supported board, while retaining outer dash borders and full 19×19
+  positions. Fifty-one diagram/fuzz cases pass, including oversized input,
+  largest-board corners and generous border padding. A full verification rerun
+  is still required before treating that broad gate as passed.
 - **Imports after destination deletion:** a held native file read completed
   after its target folder was deleted. Storage rerooted the orphan, but its
   name had been reserved in the deleted folder, producing two identically named
