@@ -261,6 +261,12 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   to the engine button instead of the page body. The regular viewport suite
   includes native focus cycling, composition Escape, blocked background Pass,
   canceled clears preserving analysis, and a confirmed clear retaining notes.
+- **Keep pending Save Copy modal:** disabling every control during an IndexedDB
+  save moved focus to the page body; Tab reached New Game and the file toolbar
+  behind the overlay. The pending dialog now takes focus synchronously. Native
+  desktop/phone checks hold real storage opens, cycle Tab in both directions,
+  attempt Escape and background New Game, then release storage and verify that
+  the named copy persisted successfully.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

@@ -7,7 +7,7 @@ import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
 import { assertLibraryImportFailures } from './lib/library-import-check.mjs';
 import { assertLibraryTags } from './lib/library-tags-check.mjs';
 import { assertEmptyLibraryPersists } from './lib/library-empty-check.mjs';
-import { assertLibrarySaveRecovery } from './lib/library-save-check.mjs';
+import { assertLibrarySaveRecovery, assertPendingSaveKeyboard } from './lib/library-save-check.mjs';
 import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
 import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
@@ -4199,6 +4199,7 @@ async function main() {
     await assertProGameReplacement(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNoteDraftRecovery(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertCacheClearDialog(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPendingSaveKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

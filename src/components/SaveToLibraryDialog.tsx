@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
@@ -34,6 +34,12 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
   const trimmedName = name.trim();
   useEscapeToClose(onClose, open && !saving);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(open, { focusContainer: false, returnFocus });
+
+  useLayoutEffect(() => {
+    // Disabling the active Save button moves focus to body. Keep the pending
+    // dialog in charge of Tab while all of its controls are disabled.
+    if (saving) dialogRef.current?.focus();
+  }, [dialogRef, saving]);
 
   useEffect(() => {
     if (!open) return;

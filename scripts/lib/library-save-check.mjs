@@ -412,3 +412,60 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
     browser.close();
   }
 }
+
+export async function assertPendingSaveKeyboard(cdp, appUrl, screenshotDir) {
+  const wait=e=>waitForExpression(cdp,e,{label:'Pending Save Copy keyboard access'});
+  const key=async(key,code,windowsVirtualKeyCode,modifiers=0)=>{
+    for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key,code,windowsVirtualKeyCode,modifiers});
+  };
+  const reports=[];
+  for(const width of [1440,390]) {
+    const mobile=width===390;
+    const click=async selector=>{
+      const p=await wait(`(()=>{
+        const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.disabled)return false;
+        e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
+        return r.width&&e.contains(document.elementFromPoint(x,y))?{x,y}:false;
+      })()`);
+      if(mobile) {
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p]});
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      } else for(const type of ['mousePressed','mouseReleased'])await cdp.send('Input.dispatchMouseEvent',{type,...p,button:'left',clickCount:1});
+    };
+    const setup=await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:`
+      localStorage.removeItem('web-katrain:auto_saved_game:v1');
+      localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');
+      localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
+    `});
+    try {
+      await setViewport(cdp,{width,height:mobile?844:900,mobile});
+      await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});
+    } finally {await cdp.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:setup.result.identifier});}
+    await wait('!!document.querySelector("[data-board-snapshot=true]")');
+    await key('k','KeyK',75,2);await wait('!!document.querySelector("[data-command-palette-search]")');
+    await click('[data-command-palette-search]');await cdp.send('Input.insertText',{text:'Save copy to library'});
+    await click('[data-command-palette-item=save-library]');await wait('!!document.querySelector("#save-to-library-name")');
+    await click('#save-to-library-name');await key('a','KeyA',65,2);
+    const name=`Keyboard-safe save ${width}`;await cdp.send('Input.insertText',{text:name});
+    await evaluate(cdp,installStorageControls);await evaluate(cdp,"librarySaveAudit.mode='delay'");
+    try {
+      await click('[aria-labelledby="save-to-library-title"] > .ui-bar:last-child button:last-child');
+      await wait('librarySaveAudit.held.length>0');
+      const inside=()=>evaluate(cdp,"document.querySelector('[aria-labelledby=save-to-library-title]').contains(document.activeElement)");
+      assert.equal(await inside(),true,'Disabling Save must keep focus inside the pending dialog');
+      for(const modifiers of [0,8])for(let i=0;i<4;i++) {
+        await key('Tab','Tab',9,modifiers);assert.equal(await inside(),true,'Tab must not reach the background during a pending save');
+      }
+      await key('Escape','Escape',27);await key('n','KeyN',78,2);
+      assert.equal(await evaluate(cdp,'!!document.querySelector("[aria-labelledby=save-to-library-title]")'),true);
+      assert.equal(await evaluate(cdp,'!!document.querySelector("[aria-labelledby=new-game-title]")'),false);
+    } finally {
+      await evaluate(cdp,"librarySaveAudit.mode='normal';librarySaveAudit.held.splice(0).forEach(release=>release())");
+    }
+    await wait('!document.querySelector("[aria-labelledby=save-to-library-title]")');
+    assert.ok((await evaluate(cdp,storedItems)).some(item=>item.type==='file'&&item.name===name&&item.sgf.startsWith('(')));
+    reports.push({width,tabContained:true,shiftTabContained:true,escapeWhilePendingBlocked:true,backgroundNewGameBlocked:true,persisted:true});
+  }
+  fs.writeFileSync(path.join(screenshotDir,'pending-save-keyboard.json'),JSON.stringify(reports,null,2));
+  console.log('Pending Save Copy: desktop/phone focus containment, blocked background shortcuts, and completed persistence passed.');
+}
