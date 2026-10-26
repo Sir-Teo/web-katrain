@@ -13,7 +13,16 @@ reproduced failures separate from candidates that still need investigation.
   on the new Read Clipboard state. Guarding its hover variant fixes that
   detail; both affected files subsequently pass all 11 cases. The original
   failed full-run log is retained. App/test TypeScript and lint passed before
-  this class-only repair; build and browser validation follow it.
+  this class-only repair. Production build at `f2a1be7` passed in 15.1 s.
+- The complete browser sweep at `f2a1be7` passed all 11 viewport sizes and
+  every native interaction suite, including the new clipboard-ordering
+  regression, OGS checks after the deep ZIP fixture, both cross-tab storage
+  modes with recorded snapshots, 1,500 expanded folders, paged row metadata,
+  Copy SGF, recovery, focus and import retries. Earlier failed and incomplete
+  sweeps remain documented below.
+- Production responsiveness at `f2a1be7` passed the unchanged limits: first
+  move 10.4 ms, median 1.4 ms, Settings 100.9 ms, input latency 112 ms and
+  longest task 83 ms.
 
 - Production responsiveness at `c627209` recorded first move 9.3 ms, median
   2.0 ms and warm Settings 112.9 ms within budget, but input latency 160 ms
