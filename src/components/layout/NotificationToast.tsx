@@ -56,9 +56,21 @@ export function NotificationToast({
   const meta = notificationMeta[notification.type];
   const Icon = meta.Icon;
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
+  const toastRef = React.useRef<HTMLDivElement>(null);
   const canCopy = notification.type === 'error';
   // Tells the install card to step aside while a toast is up (index.css).
   useDocumentFlag('notification-shown', 'true');
+
+  const syncHold = React.useCallback(() => {
+    const node = toastRef.current;
+    onHoldChange?.(!!node && (node.matches(':hover') || node.contains(document.activeElement)));
+  }, [onHoldChange]);
+
+  React.useEffect(() => {
+    syncHold();
+    // Removing a hovered/focused toast does not dispatch leave or blur.
+    return () => onHoldChange?.(false);
+  }, [notification, onHoldChange, syncHold]);
 
   React.useEffect(() => {
     setCopyState('idle');
@@ -80,16 +92,20 @@ export function NotificationToast({
       data-notification-region="true"
     >
       <div
+        ref={toastRef}
         className={`notification-toast notification-toast-${notification.type}`}
         role={meta.role}
         aria-live={meta.live}
         aria-atomic="true"
         data-notification="true"
         data-notification-type={notification.type}
-        onMouseEnter={() => onHoldChange?.(true)}
-        onMouseLeave={() => onHoldChange?.(false)}
-        onFocus={() => onHoldChange?.(true)}
-        onBlur={() => onHoldChange?.(false)}
+        onMouseEnter={syncHold}
+        onMouseLeave={syncHold}
+        onFocus={syncHold}
+        onBlur={(event) => {
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+          syncHold();
+        }}
       >
         <span className="notification-toast-icon" aria-hidden="true">
           <Icon size={16} />

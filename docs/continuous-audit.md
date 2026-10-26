@@ -267,6 +267,13 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   desktop/phone checks hold real storage opens, cycle Tab in both directions,
   attempt Escape and background New Game, then release storage and verify that
   the named copy persisted successfully.
+- **Notification timer ownership:** dismissing a hovered toast left the global
+  timer held, so a later status never expired. Conversely, leaving with the
+  pointer released a toast still being used from the keyboard. Toasts now hold
+  while either hover or focus remains and release the hold on removal or
+  replacement. Native desktop/phone checks verify later messages expire, mixed
+  hover/focus interactions stay visible, and timers resume after both leave.
+  All 43 notification cases and app type checking pass.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
