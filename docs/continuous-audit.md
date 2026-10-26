@@ -198,6 +198,12 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   preserving the underlying picker on Cancel. Native desktop/phone checks
   cover every button's reachability, Escape and footer Cancel, focus return,
   composition Escape, mobile Back, and Discard loading the full chosen game.
+- **Clear pro-game searches:** an explicit clear control restores the catalog
+  and returns focus to search. It meets the 44 px phone touch target, replaces
+  the browser-dependent search decoration, and announces the filtered count.
+  Input uses the existing 200-character search limit; long unmatched words
+  wrap within the empty state. Native checks pass at 1440×900, 320×568, and
+  568×320, including list restoration, focus, and horizontal overflow.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

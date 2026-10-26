@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { FaTimes, FaSearch, FaDownload, FaDice } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { PRO_GAMES, buildFinalBoard, filterProGames, type ProGameMeta } from '../utils/proGames';
 import { tagsFromResult, narrativeTagToneClass } from '../utils/narrativeTags';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 
 interface ProGamesModalProps {
   onClose: () => void;
@@ -36,6 +37,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
 
   const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);
   const [selectedId, setSelectedId] = useState<string>(PRO_GAMES[0]?.id ?? '');
 
@@ -96,18 +98,34 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                 <div className="relative flex-1">
                   <FaSearch aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-muted)]" />
                   <input
+                    ref={searchRef}
                     type="search"
                     value={query}
+                    maxLength={MAX_SEARCH_QUERY_LENGTH}
                     autoCapitalize="none"
                     autoCorrect="off"
                     autoComplete="off"
                     spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search pro games"
+                    data-pro-games-search="true"
                     placeholder="Search by player, event, date…"
-                    className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)] desktop-shell:min-h-0"
+                    className={`min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 text-sm text-[var(--ui-text)] desktop-shell:min-h-0 ${query ? 'pr-12 desktop-shell:pr-10' : 'pr-3'}`}
                     autoFocus
                   />
+                  {query && (
+                    <button
+                      type="button"
+                      className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] desktop-shell:h-8 desktop-shell:w-8"
+                      aria-label="Clear pro game search"
+                      onClick={() => {
+                        setQuery('');
+                        searchRef.current?.focus();
+                      }}
+                    >
+                      <FaTimes aria-hidden="true" size={12} />
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -148,9 +166,12 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                 </div>
               )}
             </div>
+            <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+              {filtered.length} game{filtered.length === 1 ? '' : 's'} found.
+            </div>
             <ul className="pro-games-results min-h-0 flex-1 overflow-y-auto">
               {filtered.length === 0 && (
-                <li className="p-4 text-sm text-[var(--ui-text-muted)]">No games match “{query}”.</li>
+                <li className="p-4 text-sm text-[var(--ui-text-muted)] [overflow-wrap:anywhere]">No games match “{query}”.</li>
               )}
               {filtered.map((g) => {
                 const active = selected?.id === g.id;
