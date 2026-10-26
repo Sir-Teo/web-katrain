@@ -4,6 +4,7 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { LESSONS, getLessonBoard } from '../data/lessons';
+import { advanceLessonProgress, loadLessonProgress, saveLessonProgress } from '../utils/lessonProgress';
 
 interface LessonsModalProps {
   onClose: () => void;
@@ -12,8 +13,10 @@ interface LessonsModalProps {
 export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const lastLessonRef = React.useRef<string | null>(null);
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [progress, setProgress] = useState(() => loadLessonProgress(LESSONS));
   const [stepIndex, setStepIndex] = useState(0);
   const [solved, setSolved] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: string; text: string } | null>(null);
@@ -40,17 +43,33 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
     // drop its focus onto the page behind the dialog. Give the new step an
     // active target and let keyboard users answer directly on the board.
     const board = dialog?.querySelector<SVGSVGElement>('[data-static-board-interactive="true"]');
-    (board ?? dialog)?.focus({ preventScroll: true });
-  }, [stepKey, dialogRef]);
+    const lessonCard = !activeId && lastLessonRef.current
+      ? dialog?.querySelector<HTMLButtonElement>(`[data-lesson-id="${lastLessonRef.current}"]`)
+      : null;
+    (board ?? lessonCard ?? dialog)?.focus({ preventScroll: true });
+    lessonCard?.scrollIntoView({ block: 'nearest' });
+  }, [stepKey, activeId, dialogRef]);
 
   const board = useMemo(() => (step ? getLessonBoard(step, clickMark) : null), [step, clickMark]);
   const isInteractive = !!step?.answers?.length;
   const canAdvance = !isInteractive || solved;
   const isLastStep = lesson ? stepIndex >= lesson.steps.length - 1 : false;
+  const completedCount = LESSONS.filter((item) => progress[item.id]?.completed).length;
+
+  useEffect(() => { saveLessonProgress(progress); }, [progress]);
 
   const openLesson = (id: string) => {
+    lastLessonRef.current = id;
     setActiveId(id);
-    setStepIndex(0);
+    const saved = progress[id];
+    setStepIndex(saved?.completed ? 0 : saved?.stepIndex ?? 0);
+  };
+
+  const advance = () => {
+    if (!lesson || !canAdvance) return;
+    setProgress((previous) => advanceLessonProgress(previous, lesson, stepIndex + 1, isLastStep));
+    if (isLastStep) setActiveId(null);
+    else setStepIndex((index) => index + 1);
   };
 
   const handlePoint = (x: number, y: number) => {
@@ -113,17 +132,26 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
               <p className="lessons-intro text-sm text-[var(--ui-text-muted)]">
                 Short, interactive lessons on the fundamentals. Read each step, then play on the board when asked.
               </p>
+              <div className="lessons-progress text-xs font-medium text-[var(--ui-text-muted)]" role="status">
+                {completedCount} of {LESSONS.length} lessons completed
+              </div>
               <ul className="lessons-list space-y-2">
                 {LESSONS.map((l) => (
                   <li key={l.id}>
                     <button
                       type="button"
+                      data-lesson-id={l.id}
                       onClick={() => openLesson(l.id)}
                       className="w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-3 text-left hover:bg-[var(--ui-surface-2)]"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-[var(--ui-text)]">{l.title}</span>
-                        <span className="rounded-full border border-[var(--ui-border)] px-2 py-0.5 text-xs text-[var(--ui-text-muted)]">{l.level}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 font-semibold text-[var(--ui-text)]">{l.title}</span>
+                        {progress[l.id]?.completed && <FaCheckCircle className="shrink-0 text-[var(--ui-success)]" aria-label="Completed" />}
+                      </div>
+                      <div className="mt-1 text-xs font-medium text-[var(--ui-accent)]">
+                        {progress[l.id]?.completed ? 'Completed · Review lesson' : progress[l.id]?.stepIndex
+                          ? `Continue · Step ${progress[l.id]!.stepIndex + 1} of ${l.steps.length}`
+                          : `${l.level} · ${l.steps.length} step${l.steps.length === 1 ? '' : 's'}`}
                       </div>
                       <div className="mt-1 text-xs text-[var(--ui-text-muted)]">{l.summary}</div>
                     </button>
@@ -134,7 +162,15 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
           ) : (
             <>
               <div className="lessons-step text-xs font-semibold uppercase tracking-wide text-[var(--ui-text-muted)]">
-                Step {stepIndex + 1} of {lesson.steps.length}
+                <div className="flex items-center justify-between gap-2">
+                  <span>Step {stepIndex + 1} of {lesson.steps.length}</span>
+                  <button type="button" onClick={() => setActiveId(null)} className="min-h-11 px-2 text-xs normal-case text-[var(--ui-accent)] hover:underline desktop-shell:min-h-8">
+                    All lessons
+                  </button>
+                </div>
+                <div className="mt-1 flex gap-1" aria-hidden="true">
+                  {lesson.steps.map((_, index) => <span key={index} className="h-1 flex-1 rounded-full" style={{ background: index <= stepIndex ? 'var(--ui-accent)' : 'var(--ui-border)' }} />)}
+                </div>
               </div>
               <div className="lessons-board mx-auto w-full max-w-[320px]">
                 {board && (
@@ -178,7 +214,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
             <button
               type="button"
               disabled={!canAdvance}
-              onClick={() => (isLastStep ? setActiveId(null) : setStepIndex((i) => i + 1))}
+              onClick={advance}
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-50"
             >
               <span className="inline-flex items-center gap-2">

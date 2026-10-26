@@ -1,4 +1,5 @@
 import React from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import { FaSearch, FaTimes } from 'react-icons/fa';
 import {
   getShortcutBindings,
@@ -128,6 +129,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         aria-modal="true"
         aria-labelledby="command-palette-title"
         onKeyDown={(event) => {
+          if (isComposingKeyEvent(event)) return;
           if (event.key === 'ArrowDown') {
             event.preventDefault();
             setActiveIndex((index) => Math.min(Math.max(0, filteredCommands.length - 1), index + 1));

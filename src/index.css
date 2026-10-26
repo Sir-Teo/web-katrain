@@ -6429,6 +6429,17 @@
       display: none;
     }
 
+    .lessons-body[data-lessons-active='false'] {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .lessons-body[data-lessons-active='false'] > * {
+      margin-block: 0 !important;
+      flex-shrink: 0;
+    }
+
     .lessons-list {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6441,7 +6452,7 @@
     }
 
     .lessons-list > li > button {
-      height: 6.6875rem;
+      height: 6rem;
       padding: 6px 12px;
     }
 

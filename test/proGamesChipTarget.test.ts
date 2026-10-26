@@ -44,7 +44,7 @@ describe('the sweep opens dialogs that have no shortcut', () => {
     ]) {
       expect(sweep, name).toContain(`name: '${name}',`);
       expect(sweep, name).toContain(`selector: '[aria-labelledby="${title}"]',`);
-      expect(sweep, name).toContain(`open: openViaPalette('${id}'),`);
+      expect(sweep, name).toContain(`openViaPalette('${id}')`);
     }
   });
 

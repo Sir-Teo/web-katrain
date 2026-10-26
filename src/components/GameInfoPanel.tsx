@@ -5,6 +5,7 @@ import { useGameStore } from '../store/gameStore';
 import { DEFAULT_BOARD_SIZE, type GameSettings } from '../types';
 import { getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { RULES_OPTIONS, rulesOf } from '../utils/goRules';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import {
   formatGameInfoPlayer,
   formatGameInfoTitle,
@@ -90,6 +91,7 @@ const GameInfoTextField: React.FC<{
         onBlur={commit}
         onKeyDown={(e) => {
           e.stopPropagation();
+          if (isComposingKeyEvent(e)) return;
           if (e.key === 'Enter') {
             e.currentTarget.blur();
           } else if (e.key === 'Escape') {
@@ -170,6 +172,7 @@ export const GameInfoPanel: React.FC = () => {
 
   const handleKomiKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleKeyDown(e);
+    if (isComposingKeyEvent(e)) return;
     if (e.key === 'Enter') {
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
@@ -193,6 +196,7 @@ export const GameInfoPanel: React.FC = () => {
 
   const handleHandicapKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleKeyDown(e);
+    if (isComposingKeyEvent(e)) return;
     if (e.key === 'Enter') {
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {

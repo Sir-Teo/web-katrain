@@ -3,6 +3,7 @@ import { FaSave, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { formatLibraryFolderOptionLabel, type LibraryFolderOption } from '../utils/library';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 interface SaveToLibraryDialogProps {
   open: boolean;
@@ -90,6 +91,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
                 event.stopPropagation();
+                if (isComposingKeyEvent(event)) return;
                 if (event.key === 'Enter') {
                   // Or the same Enter reaches the button focus returns to.
                   event.preventDefault();

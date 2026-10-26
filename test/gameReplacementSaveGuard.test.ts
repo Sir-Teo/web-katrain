@@ -39,7 +39,8 @@ describe('a save that failed is not consent to replace the game', () => {
         // Cancel must still stop it, and anything else must still proceed --
         // Discard is how someone says they meant to lose the game.
         expect(body).toContain("if (choice === 'cancel') return false;");
-        expect(body.trimEnd().endsWith('}, [confirmReplaceCurrentGame, handleSaveCurrentSgf]);')).toBe(true);
+        expect(body).toContain("choice === 'save' && hasUnsavedChanges()");
+        expect(body).toContain('gameId !== useGameStore.getState().rootNode.id');
     });
 
     it('leaves no path that awaits the save and ignores it', () => {

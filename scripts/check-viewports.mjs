@@ -446,10 +446,15 @@ function assertViewport(result) {
     if (!result.postMoveMobileStatus.turnVisible) {
       failures.push('mobile turn indicator disappears after a move');
     }
-    if (result.innerWidth <= 380 && result.postMoveMobileStatus.saveVisible) {
+    // In landscape, tabs share the dock and take 304px from the controls.
+    // The viewport width alone called the resulting 264px strip "568px of
+    // room" and required a badge CSS deliberately sheds to keep the turn
+    // stone and navigation targets visible. Measure the control strip itself.
+    const saveStatusFits = result.postMoveMobileStatus.controlsWidth > 380;
+    if (!saveStatusFits && result.postMoveMobileStatus.saveVisible) {
       failures.push('secondary mobile save badge remains visible on the narrowest phone layout');
     }
-    if (result.innerWidth > 380 && !result.postMoveMobileStatus.saveVisible) {
+    if (saveStatusFits && !result.postMoveMobileStatus.saveVisible) {
       failures.push('mobile save feedback is missing where it fits beside the turn indicator');
     }
     if (result.postMoveMobileStatus.overlaps.length > 0) {
@@ -670,16 +675,24 @@ async function assertAutoSaveRecoveryFits(cdp, appUrl) {
 
   for (const [width, height] of [[568, 320], [320, 480], [740, 360], [390, 844], [1440, 900]]) {
     await setViewport(cdp, { width, height, mobile: width < 768 });
-    await evaluate(cdp, `(() => {
-      localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});
-      return 1;
-    })()`);
-    await navigate(cdp, appUrl);
+    // Seed the arriving document. The page being left flushes recovery on
+    // pagehide, so seeding it before navigation lets that flush clear or
+    // overwrite the fixture (reproduced on every second viewport).
+    const seed = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});`,
+    });
+    if (!seed.result?.identifier) throw new Error('Could not install recovery fixture');
+    try {
+      await navigate(cdp, appUrl);
+    } finally {
+      await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: seed.result.identifier });
+    }
     await waitForBoard(cdp);
     await sleep(900);
 
+    const recoveryOpen = await evaluate(cdp, `!!document.querySelector('[aria-labelledby="auto-save-recovery-title"]')`);
     const stranded = await evaluate(cdp, STRANDED_BUTTONS_PROBE);
-    if (stranded === 'NO_MODAL') {
+    if (!recoveryOpen || stranded === 'NO_MODAL') {
       // Without this the check is vacuous: it would pass on every viewport by
       // never finding the dialog it is supposed to be measuring.
       failures.push(`${width}x${height}: the recovery prompt did not open, so nothing was measured`);
@@ -3487,6 +3500,14 @@ async function main() {
         const openViaPalette = (commandId) => async () => {
           dispatchShortcut('k', { ctrlKey: true });
           await waitForFrames(2);
+          const search = document.querySelector('[data-command-palette-search]');
+          for (const key of ['ArrowDown', 'Enter', 'Escape']) {
+            search?.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true, bubbles: true, cancelable: true }));
+          }
+          await waitForFrames(2);
+          if (!document.querySelector('[data-command-palette-search]')) {
+            throw new Error('a composition key dismissed or activated the command palette');
+          }
           document.querySelector('[data-command-palette-item="' + commandId + '"]')?.click();
           await waitForFrames(2);
         };
@@ -3502,7 +3523,10 @@ async function main() {
           name: 'lessons',
           selector: '[aria-labelledby="lessons-title"]',
           closeLabel: 'Close lessons',
-          open: openViaPalette('lessons'),
+          open: async () => {
+            localStorage.removeItem('web-katrain:lesson_progress:v1');
+            await openViaPalette('lessons')();
+          },
           afterOpen: async (dialog) => {
             const capture = Array.from(dialog.querySelectorAll('.lessons-list button'))
               .find((button) => button.textContent.includes('Capturing a stone'));
@@ -3518,6 +3542,18 @@ async function main() {
             if (!dialog.contains(document.activeElement)) {
               throw new Error('advancing to the exercise lost keyboard focus outside the lesson');
             }
+            dialog.querySelector('.lessons-step button')?.click();
+            await waitForFrames(2);
+            const resume = dialog.querySelector('[data-lesson-id="capture"]');
+            if (!resume?.textContent.includes('Continue') || document.activeElement !== resume) {
+              throw new Error('returning to the lesson list lost resume progress or keyboard focus');
+            }
+            resume.click();
+            await waitForFrames(2);
+            if (!dialog.querySelector('.lessons-step')?.textContent.includes('Step 2') ||
+                !dialog.querySelector('.lessons-footer button:last-child')?.disabled) {
+              throw new Error('resuming did not return to the unanswered exercise');
+            }
             const answer = dialog.querySelector('.lessons-board circle[fill="transparent"][cx="4.7"][cy="4.7"]');
             if (!answer) throw new Error('capture lesson answer missing');
             answer.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -3531,6 +3567,20 @@ async function main() {
             }
             if (auditsModalContrast) {
               modalContrastFailures.push(...auditContrastAllThemes(dialog).map((entry) => 'solved lesson -- ' + entry));
+            }
+            dialog.querySelector('.lessons-footer button:last-child')?.click();
+            await waitForFrames(2);
+            const completed = dialog.querySelector('[data-lesson-id="capture"]');
+            if (!completed?.textContent.includes('Completed') || document.activeElement !== completed ||
+                !dialog.querySelector('.lessons-progress')?.textContent.includes('1 of 4')) {
+              throw new Error('finishing the lesson did not record completion and restore focus');
+            }
+            const progress = JSON.parse(localStorage.getItem('web-katrain:lesson_progress:v1') || '{}');
+            if (progress.capture?.completed !== true) throw new Error('lesson completion was not persisted');
+            completed.click();
+            await waitForFrames(2);
+            if (!dialog.querySelector('.lessons-step')?.textContent.includes('Step 1')) {
+              throw new Error('reviewing a completed lesson did not start at the beginning');
             }
           },
         });
@@ -3554,6 +3604,17 @@ async function main() {
           selector: '[aria-labelledby="save-to-library-title"]',
           closeLabel: 'Close save to Library',
           open: openViaPalette('save-library'),
+          afterOpen: async (dialog) => {
+            const name = dialog.querySelector('input');
+            for (const key of ['Enter', 'Escape']) {
+              name?.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true, bubbles: true, cancelable: true }));
+              name?.dispatchEvent(new KeyboardEvent('keydown', { key, keyCode: 229, bubbles: true, cancelable: true }));
+            }
+            await waitForFrames(2);
+            if (!dialog.isConnected || dialog.getAttribute('aria-busy') === 'true') {
+              throw new Error('confirming or canceling text composition submitted or closed Save Copy');
+            }
+          },
         });
         await smokeModal({
           name: 'paste SGF',
@@ -3854,9 +3915,10 @@ async function main() {
           ? {
               turnVisible: isVisibleBox(document.querySelector('[data-mobile-turn-chip="true"]')),
               saveVisible: isVisibleBox(document.querySelector('[data-mobile-save-status="true"]')),
+              controlsWidth: rect(document.querySelector('.mobile-bottom-controls'))?.width ?? 0,
               overlaps: auditMobileBottomControlOverlaps(),
             }
-          : { turnVisible: true, saveVisible: false, overlaps: [] };
+          : { turnVisible: true, saveVisible: false, controlsWidth: 0, overlaps: [] };
         const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
         const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
         // Every notification assertion below used to read an empty slot. Info

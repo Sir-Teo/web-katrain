@@ -7,6 +7,33 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+Work resumed on 2026-10-25 with another UI and reliability pass:
+
+- **Lesson progress:** the lesson list now shows completion and resumes an
+  unfinished lesson at its furthest reached step. Completed lessons replay
+  from the beginning. Returning to the list focuses and reveals the selected
+  card. A progress strip and a direct All lessons control clarify navigation;
+  the four-card list fits a 568×320 landscape screen. Unit checks cover stored
+  data validation, blocked storage, completion, and reviewing earlier steps.
+  Browser checks exercise resume, mandatory answers, completion, and focus;
+  a separate pointer pass verified completion after reload.
+- **Save before replacement:** a pointer move made while a library save was
+  delayed reproduced a third move remaining unsaved while New Game still
+  opened. Replacement now checks that the original game is still current and
+  that Save left no newer changes. The reproduced workflow now keeps the
+  third move and its recovery copy, and explains why replacement stopped.
+- **Text composition:** an Enter key with `isComposing: true` on Save Copy
+  submitted a game, and composition Escape dismissed the command palette.
+  Input-method keys now leave text fields and search controls in charge of
+  composition, including Safari's final key-code-229 event. The shared dialog
+  Escape handler also respects composition. Browser checks verify these keys
+  neither save nor close the relevant dialogs.
+
+The viewport gate also mistook the full landscape viewport for the width
+available to its controls. At 568×320, tabs take 304px from that row; its
+save badge is intentionally hidden to preserve navigation and the turn stone.
+The assertion now measures the control strip before requiring the badge.
+
 | Commit / area | Problem and resulting behavior | Evidence |
 | --- | --- | --- |
 | `e98c9d5` | Undoing a marker could erase existing freehand strokes. Clearing drawings advertised Undo without recording history. Drawing creation, clearing, unrelated edits, and branch copies now preserve independent drawings. | Browser reproduction lost the only stroke before the fix. Real pointer drawing → Undo → Redo → Clear → Undo passed at 1440×900 and 390×844. Five regression tests. |

@@ -67,6 +67,8 @@ PWA. There is no analysis server to run.
   "climb the ranks" tournament ladder against calibrated bots, and a
   searchable pro game library. Open any of them from the menu's Study &
   Practice section or the command palette.
+- Lessons remember your progress on this device, offer unfinished exercises
+  to resume, and mark completed lessons for review.
 
 **Load and save**
 

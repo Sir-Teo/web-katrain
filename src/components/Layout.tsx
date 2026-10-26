@@ -1413,6 +1413,7 @@ export const Layout: React.FC = () => {
   }, [hasUnsavedChanges]);
 
   const prepareForGameReplacement = useCallback(async () => {
+    const gameId = useGameStore.getState().rootNode.id;
     const choice = await confirmReplaceCurrentGame();
     if (choice === 'cancel') return false;
     // Choosing Save and having it fail is not consent to lose the game. The
@@ -1421,8 +1422,15 @@ export const Layout: React.FC = () => {
     // Stopping here leaves the board untouched and the reason on screen, with
     // Discard still there for anyone who meant it.
     if (choice === 'save' && !(await handleSaveCurrentSgf())) return false;
+    // Saving to IndexedDB can take long enough for another move or edit.
+    // The save acknowledgement deliberately keeps those newer edits dirty;
+    // do not replace them on the strength of the earlier Save choice.
+    if (gameId !== useGameStore.getState().rootNode.id || (choice === 'save' && hasUnsavedChanges())) {
+      toast('The game changed while saving. Your latest changes are still here; try again when ready.', 'info');
+      return false;
+    }
     return true;
-  }, [confirmReplaceCurrentGame, handleSaveCurrentSgf]);
+  }, [confirmReplaceCurrentGame, handleSaveCurrentSgf, hasUnsavedChanges, toast]);
 
   const handleUnsavedChangesChoice = useCallback((choice: UnsavedChangesChoice) => {
     setIsUnsavedChangesOpen(false);

@@ -1,4 +1,5 @@
 import React from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import { AnalysisModelNotice } from './AnalysisModelNotice';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -618,6 +619,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                 setActiveSettingsResult(-1);
                             }}
                             onKeyDown={(e) => {
+                                if (isComposingKeyEvent(e)) return;
                                 if (e.key === 'Escape' && settingsQuery) {
                                     // Clear the query first; a second Escape closes the modal.
                                     e.stopPropagation();

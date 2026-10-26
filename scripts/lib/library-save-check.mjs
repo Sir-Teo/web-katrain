@@ -39,7 +39,7 @@ const storedItems = `new Promise((resolve,reject)=>{
   };
 })`;
 
-export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, screenshotDir) {
+export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, screenshotDir, scenarioFilter = () => true) {
   const version = await (await fetch(`http://127.0.0.1:${devtoolsPort}/json/version`)).json();
   const browser = connectDevtools(version.webSocketDebuggerUrl);
   await browser.ready;
@@ -51,6 +51,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
     { width: 1280, action: 'update', mode: 'delay', entry: 'header' },
     ...[390, 320].map(width => ({ width, action: 'update', mode: 'delay', entry: 'menu' })),
     ...[1280, 390, 320].map(width => ({ width, action: 'save', mode: 'delay', entry: 'copy' })),
+    ...[1280, 390, 320].map(width => ({ width, action: 'update', mode: 'delay', entry: 'replacement' })),
     ...[1280, 390, 320].flatMap(width => ['read', 'write'].map(overlap => ({
       width, action: 'update', mode: 'delay', entry: width === 1280 ? 'shortcut' : 'menu', overlap,
     }))),
@@ -63,7 +64,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
     }))),
   ];
   try {
-    for (const scenario of scenarios) {
+    for (const scenario of scenarios.filter(scenarioFilter)) {
       const { width, action, mode, entry, overlap, panelUpdate, metadataEdit } = scenario, mobile = width < 1000, height = width === 320 ? 568 : mobile ? 844 : 800;
       const context = (await browser.send('Target.createBrowserContext')).result.browserContextId;
       const target = (await browser.send('Target.createTarget', { url: 'about:blank', browserContextId: context })).result.targetId;
@@ -90,6 +91,14 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         for (const type of ['keyDown', 'keyUp']) {
           await cdp.send('Input.dispatchKeyEvent', { type, key: 's', code: 'KeyS', windowsVirtualKeyCode: 83, modifiers: copy ? 10 : 2 });
         }
+      };
+      const quickNewGame = async () => {
+        for (const type of ['keyDown', 'keyUp']) {
+          await cdp.send('Input.dispatchKeyEvent', { type, key: 'k', code: 'KeyK', windowsVirtualKeyCode: 75, modifiers: 2 });
+        }
+        await click('[data-command-palette-item="quick-new-game"]');
+        await wait(`!!document.querySelector('[aria-labelledby="unsaved-changes-title"]')`);
+        await clickElement(`[...document.querySelectorAll('[aria-labelledby="unsaved-changes-title"] button')].find(e=>e.textContent.trim()==='Save to Library')`);
       };
       const saveFromMenu = async (copy = false) => {
         await click('button[aria-label="Menu"]');
@@ -120,7 +129,8 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
       const beginSave = async () => {
         if (entry) {
           await evaluate(cdp, `librarySaveAudit.mode=${JSON.stringify(mode)}`);
-          if (entry === 'header') await click('#wk-file-actions button[aria-label="Save SGF"]');
+          if (entry === 'replacement') await quickNewGame();
+          else if (entry === 'header') await click('#wk-file-actions button[aria-label="Save SGF"]');
           else if (entry === 'menu' || (entry === 'copy' && mobile)) await saveFromMenu(entry === 'copy');
           else await saveShortcut(entry === 'copy');
           return;
@@ -135,7 +145,10 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         else await click('button[aria-label="Update loaded library game"]');
       };
       const saveFailure = async expectedRecovery => {
-        await wait('librarySaveAudit.failed>=2');
+        // A failed read with no fallback stops before attempting a write.
+        // Require the error and intact data, not a second storage operation
+        // that this guarded path deliberately never performs.
+        await wait('librarySaveAudit.failed>0');
         await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='Error'`);
         assert.deepEqual(await recovery(), expectedRecovery, 'A rejected save must retain the recovery copy');
         assert.ok(await evaluate(cdp, `document.body.innerText.includes('Could not save the game to Library')`));
@@ -292,6 +305,21 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
             assert.equal((await evaluate(cdp, storedItems)).find(item => item.id === 'original')?.sgf, latestRecovery.sgf);
             assert.equal(await recovery(), null);
             report.stages.push(`${panelUpdate && mobile ? 'Library opening waited for the pending save before Update' : 'Overlapping saves remained ordered'} through a delayed ${overlap}, retained recovery until saved, and preserved both moves after reload`);
+          } else if (entry === 'replacement') {
+            const latestBoard = await boardSnapshot();
+            await evaluate(cdp, `librarySaveAudit.mode='normal';librarySaveAudit.held.splice(0).forEach(release=>release())`);
+            await wait(`document.body.innerText.includes('The game changed while saving.')`);
+            const retainedBoard = await boardSnapshot();
+            for (const key of ['boardSize', 'boardStones', 'boardMoveCount', 'boardCurrentPlayer']) {
+              assert.equal(retainedBoard[key], latestBoard[key], `Replacing after Save must retain ${key} for the newer move`);
+            }
+            assert.deepEqual(await recovery(), latestRecovery, 'The newer move must remain recoverable');
+            assert.equal((await evaluate(cdp, storedItems)).find(item=>item.id==='original')?.sgf, firstRecovery.sgf);
+            await quickNewGame();
+            await wait(`document.querySelector('[data-board-snapshot=true]').dataset.boardMoveCount==='0'`);
+            assert.equal((await evaluate(cdp, storedItems)).find(item=>item.id==='original')?.sgf, latestRecovery.sgf);
+            assert.equal(await recovery(), null);
+            report.stages.push('Save before replacement retained a newer move and recovery; retry saved that move before starting a fresh game');
           } else {
             await evaluate(cdp, `(()=>{librarySaveAudit.mode='normal';const held=librarySaveAudit.held.splice(0);held.forEach(release=>release());return held.length})()`);
             if (entry === 'copy') {

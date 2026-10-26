@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { mediaQueryMatches } from '../utils/mediaQuery';
 import { overlayBackStack } from '../utils/overlayBackStack';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 /**
  * Dismissal by the platform's back gesture, for overlays that handle Escape
@@ -54,7 +55,7 @@ export function useEscapeToClose(onClose: () => void, active = true): void {
     if (!active) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (event.key !== 'Escape' || event.defaultPrevented || isComposingKeyEvent(event)) return;
       event.preventDefault();
       event.stopPropagation();
       onClose();

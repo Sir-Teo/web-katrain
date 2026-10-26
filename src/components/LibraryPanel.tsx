@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
 import {
   FaTimes,
@@ -233,6 +234,7 @@ const LibraryTextDialog: React.FC<{
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
+                if (isComposingKeyEvent(e)) return;
                 if (e.key === 'Enter') {
                   // Unhandled, the same Enter went on to the button focus
                   // returns to and opened the dialog again: a second Enter
