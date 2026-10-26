@@ -85,6 +85,7 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
         {id:'settings-general',query:'general settings',dialog:'settings-title',close:'Close settings'},
         {id:'lessons',query:'lessons',dialog:'lessons-title',close:'Close lessons',keyboard:true},
         {id:'keyboard-help',query:'keyboard',dialog:'keyboard-help-title',close:'Close keyboard shortcuts',escape:true},
+        {id:'about',query:'about',dialog:'about-title',close:'Close about dialog',keyboard:true,escape:origin==='board',name:'About Web KaTrain'},
       ]) {
         await key('k','KeyK',75,2);
         await wait('document.activeElement?.getAttribute("aria-label")==="Search commands"');
@@ -96,6 +97,10 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
           await key('Enter','Enter',13);
         } else await click(option);
         await wait(`!!document.querySelector('[aria-labelledby="${command.dialog}"]')&&!document.querySelector('[data-command-palette]')`);
+        if(command.name) {
+          const dialog=(await cdp.send('Accessibility.getFullAXTree')).result.nodes.find(node=>node.role?.value==='dialog');
+          assert.equal(dialog?.name?.value,command.name,'The dialog must announce its purpose as well as the product name');
+        }
         if(command.escape)await key('Escape','Escape',27);
         else await click(`[aria-label="${command.close}"]`);
         await wait('!document.querySelector("[role=dialog]")&&!history.state?.webKatrainOverlay');
@@ -105,7 +110,7 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
       }
     }
     reports.push({width,origins:['board','control'],directPaletteClose:true,
-      settingsLessonsAndHelpRestoreOrigin:true,pointerAndKeyboardCommands:true,buttonAndEscapeClose:true,
+      settingsLessonsHelpAndAboutRestoreOrigin:true,aboutAccessibleName:'About Web KaTrain',pointerAndKeyboardCommands:true,buttonAndEscapeClose:true,
       resultTabStops:0,arrowSelectionKeepsInputFocus:true,tabCyclesSearchCloseAndClear:true,
       deepSelectionVisible:true,filterBringsFirstSelectionIntoView:true});
   }

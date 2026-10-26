@@ -10,6 +10,12 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **About dialog name:** Chrome announced only “Web KaTrain” because
+  `aria-labelledby` took precedence over the intended “About Web KaTrain”
+  label. The referenced heading now includes the accessible About prefix.
+  Native desktop/phone checks read the actual accessibility name, open About
+  from the palette by keyboard, close by button/Escape and restore the original
+  board/control. Seven existing About/focus cases and lint pass.
 - **Linear repeated-property imports:** a full verification run exceeded the
   unchanged 5-second import fuzz budget at 8.8 seconds for 20,000 repeated
   setup properties. Both SGF readers used `concat` on every occurrence,
