@@ -51,9 +51,52 @@
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <link rel="canonical" href="https://sir-teo.github.io/web-katrain/" />
     <title>Web KaTrain</title>
+    <style>
+      .wk-startup {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 16px;
+        padding: 24px;
+        background: #0f1210;
+        color: #e7ece8;
+        font: 500 16px/1.5 system-ui, sans-serif;
+        text-align: center;
+      }
+      .wk-startup p { margin: 0; }
+      .wk-startup-spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid #8fbd79;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: wk-startup-spin 1s linear infinite;
+      }
+      @keyframes wk-startup-spin { to { transform: rotate(360deg); } }
+      @media (prefers-color-scheme: light) {
+        .wk-startup { background: #f5f7fb; color: #1e293b; }
+        .wk-startup-spinner { border-color: #365b2b; border-right-color: transparent; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .wk-startup-spinner { animation: none; }
+      }
+    </style>
+    <noscript><style>#root { display: none; }</style></noscript>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="wk-startup" role="status" data-startup-loading="true">
+        <span class="wk-startup-spinner" aria-hidden="true"></span>
+        <p>Opening Web KaTrain…</p>
+      </div>
+    </div>
+    <noscript>
+      <div class="wk-startup" data-startup-noscript="true">
+        <p>Enable JavaScript to use Web KaTrain.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

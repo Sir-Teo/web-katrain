@@ -13,8 +13,10 @@ reproduced failures separate from candidates that still need investigation.
   CI. Production build passed. An earlier four-worker run at `ed010b9` had seven timing
   failures; the four affected files passed all 38 cases in isolation before
   the full one-worker run. Timing limits were unchanged.
-- The complete 11-size browser sweep passed at `15ff520`, including the
-  parent/child, page-continuity and move-tree composition changes.
+- The complete 11-size browser sweep passed at `3ed2511` without other heavy
+  checks running. Every native interaction suite passed, including durable
+  imports, OGS storage/deduplication, recovery during search, keyboard Retry,
+  focus preservation, report guide containment and all existing save races.
 - The later sweep at `2262300` stopped during the 390-pixel Save Copy setup:
   its opening touch stayed a preview and no stone was placed. The unchanged
   isolated scenario passed, including delayed persistence, newer recovery and
@@ -24,8 +26,9 @@ reproduced failures separate from candidates that still need investigation.
 - The sweep at `85db473` passed that phone Save Copy scenario, then recorded
   a 15-second navigation timeout in the 320-pixel overlapping-save setup.
   Diagnostics show a new document with an empty app root. Other CPU-heavy
-  verification ran concurrently; keep this sample separate from product
-  failures until its isolated scenario and an idle full sweep are checked.
+  verification ran concurrently. Its unchanged isolated scenario and the
+  complete idle sweep at `3ed2511` passed with the same deadlines. No gameplay
+  code changed for this navigation timing outlier.
 - Production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
   89.5 ms, p98 input latency 56 ms and longest task 72 ms passed their budgets.
   Offline checks completed fresh WASM analysis with 25 visits, a visible win-rate
@@ -40,6 +43,14 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Visible startup:** an entry-script delay left only an empty app root.
+  The HTML now supplies a loading status before application code runs, with
+  system light/dark colors and reduced-motion support. With JavaScript
+  disabled it instead explains how to enable the app. Manual Chrome checks
+  held the actual entry request on desktop/phone, inspected the status in the
+  accessibility tree, confirmed zero overflow and reduced animation, then
+  released the script and reached the board. The JavaScript-disabled check
+  showed the instruction and hid the loading status; screenshots were reviewed.
 - **OGS deduplication at commit:** a held sync downloaded a game after another
   import had already stored it. The old completion path stored a second copy
   and reported it as added. Commit now checks current game IDs across all
