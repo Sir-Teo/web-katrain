@@ -10,6 +10,16 @@ export async function assertBotPickerKeyboard(cdp, appUrl, screenshotDir) {
       await cdp.send('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode, modifiers });
     }
   };
+  const press = async (point, mobile) => {
+    if (mobile) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else {
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 });
+      }
+    }
+  };
   const board = () => evaluate(cdp, `(() => {
     const d = document.querySelector('[data-board-snapshot]').dataset;
     return { size: d.boardSize, stones: d.boardStones, moves: d.boardMoveCount, player: d.boardCurrentPlayer };
@@ -73,22 +83,44 @@ export async function assertBotPickerKeyboard(cdp, appUrl, screenshotDir) {
       const r = e.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
       return e.contains(document.elementFromPoint(x, y)) ? { x, y } : false;
     })()`);
-    if (width === 390) {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    } else {
-      for (const type of ['mousePressed', 'mouseReleased']) {
-        await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 });
-      }
-    }
+    await press(point, width === 390);
     await wait(`document.querySelector('[data-bot-persona][aria-checked=true]')?.dataset.botPersona===${JSON.stringify(ids.at(-1))}`);
     assert.equal(await oneStop(), 1);
     const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(screenshotDir, `bot-picker-keyboard-${width}.png`), Buffer.from(screenshot.result.data, 'base64'));
+    await evaluate(cdp, `(() => {
+      const input = document.querySelector('#new-game-opponent');
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(input, 'black');
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await wait(`document.querySelector('[data-bot-persona][aria-checked=true]')?.dataset.botPersona===${JSON.stringify(ids.at(-1))}`);
+    await evaluate(cdp, `document.querySelector('[data-bot-persona="${ids[0]}"]').click()`);
+    await wait('!!document.querySelector("#new-game-ai-rank-target")');
+    await evaluate(cdp, `(() => {
+      [...document.querySelectorAll('[aria-labelledby=new-game-title] button')]
+        .find(e => e.textContent.trim() === 'Advanced strategy options')?.click();
+      const input = document.querySelector('#new-game-ai-rank-target');
+      input.scrollIntoView({ block: 'center' }); input.focus();
+    })()`);
+    await key('a', 'KeyA', 65, 2);
+    await cdp.send('Input.insertText', { text: '4' });
+    await wait('!document.querySelector("[data-bot-persona][aria-checked=true]")');
+    assert.equal(await evaluate(cdp, 'document.querySelector("#new-game-ai-rank-target").value'), '4');
+    assert.equal(await evaluate(cdp, 'document.activeElement===document.querySelector("#new-game-ai-rank-target")'), true);
+    assert.equal(await oneStop(), 1);
+    const reselectPoint = await wait(`(() => {
+      const e = document.querySelector('[data-bot-persona="${ids[1]}"]');
+      e.scrollIntoView({ block: 'center' });
+      const r = e.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+      return e.contains(document.elementFromPoint(x, y)) ? { x, y } : false;
+    })()`);
+    await press(reselectPoint, width === 390);
+    await wait(`document.querySelector('[data-bot-persona][aria-checked=true]')?.dataset.botPersona===${JSON.stringify(ids[1])}`);
+    assert.notEqual(await evaluate(cdp, 'document.querySelector("#new-game-ai-rank-target").value'), '4', 'Choosing a preset again must apply its rank');
     await key('Escape', 'Escape', 27);
     await wait('!document.querySelector("[aria-labelledby=new-game-title]") && !history.state?.webKatrainOverlay');
     assert.deepEqual(await board(), before, 'Choosing a bot in a cancelled setup must preserve the game');
-    reports.push({ width, bots: ids.length, tabStops: 1, arrowsHomeEndAndWrap: true, compositionAndModifiersIgnored: true, pointerSelectionRetained: true, cancelledSetupPreservesGame: true });
+    reports.push({ width, bots: ids.length, tabStops: 1, arrowsHomeEndAndWrap: true, compositionAndModifiersIgnored: true, pointerSelectionRetained: true, customSettingsClearPreset: true, colourChangePreservesPreset: true, cancelledSetupPreservesGame: true });
   }
   fs.writeFileSync(path.join(screenshotDir, 'bot-picker-keyboard.json'), JSON.stringify(reports, null, 2));
   console.log('Bot picker: one Tab stop, arrow/Home/End selection and focus, wrapping, ignored composition/modifiers, touch selection, and cancelled-setup preservation passed.');

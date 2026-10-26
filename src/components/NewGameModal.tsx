@@ -153,11 +153,14 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
   const aiStrength = estimateAiRank(aiConfig.aiStrategy, aiConfig as unknown as GameSettings);
   const [personaId, setPersonaId] = React.useState<string | null>(null);
   const [showAdvancedAi, setShowAdvancedAi] = React.useState(false);
-  const updateAiConfig = (patch: Partial<AiConfigValues>) =>
+  const updateAiConfig = (patch: Partial<AiConfigValues>) => {
+    if (Object.keys(patch).some(key => key !== 'opponent')) setPersonaId(null);
     setAiConfig((prev) => ({ ...prev, ...patch }));
+  };
   const selectPersona = (persona: BotPersona) => {
     setPersonaId(persona.id);
-    updateAiConfig(botPersonaAiPatch(persona) as Partial<AiConfigValues>);
+    const patch = botPersonaAiPatch(persona) as Partial<AiConfigValues>;
+    setAiConfig((prev) => ({ ...prev, ...patch }));
   };
   const updateTimerConfig = (patch: Partial<TimerConfigValues>) =>
     setTimerConfig((prev) => ({ ...prev, ...patch }));
@@ -492,7 +495,6 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({
                     id="new-game-ai-strategy"
                     value={aiConfig.aiStrategy}
                     onChange={(e) => {
-                      setPersonaId(null);
                       updateAiConfig({ aiStrategy: e.target.value as GameSettings['aiStrategy'] });
                     }}
                     className="w-full ui-input text-[var(--ui-text)] rounded px-2 py-2 text-sm border"

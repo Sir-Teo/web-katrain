@@ -10,6 +10,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Custom bot settings:** changing Sprout's advanced rank from 18k to 4k
+  left its 18k preset card highlighted. Manual strategy-setting changes now
+  clear the preset selection; choosing a preset applies its configuration
+  without clearing itself. Changing only the AI's colour preserves the chosen
+  bot. Native desktop and phone checks type a custom rank, retain editor focus,
+  verify the old highlight clears, select another preset through trusted input,
+  and confirm cancelling still preserves the actual game.
 - **Keyboard bot selection:** all 12 bot cards were separate Tab stops and the
   radio group ignored arrow keys. The group now has one Tab stop at the chosen
   bot (or the first card), supports wrapping arrow navigation and Home/End,
