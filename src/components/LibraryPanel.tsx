@@ -105,6 +105,7 @@ import { getDroppedSgfOrOgsText, hasPotentialGameImportDrag } from '../utils/dra
 import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
 import { getOgsGameId } from '../utils/ogsGameIdentity';
+import { getVisibleLibraryTreeRows, libraryTreeIndent } from '../utils/libraryTreeRows';
 import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
@@ -1852,7 +1853,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       <button
         type="button"
         className="library-show-more"
-        style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
+        data-library-more-parent={key}
+        style={depth > 0 ? { marginLeft: libraryTreeIndent(depth) } : undefined}
         onClick={() => {
           const siblings = isSearching ? sortedItems : childrenMap.get(key || null) ?? [];
           revealFocusIdRef.current = siblings[limitFor(key)]?.id ?? null;
@@ -1898,7 +1900,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
           isLoadedDirty ? 'dirty' : '',
         ].join(' ')}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
         role="treeitem"
         aria-level={depth + 1}
         tabIndex={0}
@@ -2091,7 +2093,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             hasDirtyLoaded ? 'has-loaded-dirty' : '',
             dragOverId === item.id ? 'drop-target' : '',
           ].join(' ')}
-          style={{ paddingLeft: 12 + depth * 16 }}
+          style={{ paddingLeft: libraryTreeIndent(depth) }}
           role="treeitem"
           aria-level={depth + 1}
           tabIndex={0}
@@ -2215,14 +2217,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <FaEllipsisH size={14} />
           </button>
         </div>
-        {allowChildren && isExpanded && children.length > 0 && (
-          <div>
-            {children.slice(0, limitFor(item.id)).map((child) =>
-              isFolder(child) ? renderFolderRow(child, depth + 1, allowChildren) : renderFileRow(child, depth + 1)
-            )}
-            {renderShowMore(item.id, children.length, depth + 1)}
-          </div>
-        )}
       </div>
     );
   };
@@ -3007,10 +3001,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 ) : (
                   <div>
-                    {(childrenMap.get(null) ?? []).slice(0, limitFor('')).map((item) =>
-                      isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
-                    )}
-                    {renderShowMore('', (childrenMap.get(null) ?? []).length)}
+                    {getVisibleLibraryTreeRows(childrenMap, visibleExpandedFolderIds, limitFor).map((row) => (
+                      <React.Fragment key={row.kind === 'item' ? `item:${row.item.id}` : `more:${row.parentId ?? ''}`}>
+                        {row.kind === 'more'
+                          ? renderShowMore(row.parentId ?? '', row.total, row.depth)
+                          : isFolder(row.item) ? renderFolderRow(row.item, row.depth) : renderFileRow(row.item, row.depth)}
+                      </React.Fragment>
+                    ))}
                   </div>
                 )}
               </div>

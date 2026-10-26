@@ -62,6 +62,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Expanded deep Libraries:** a 1,500-folder expanded chain reproduced an
+  app-wide stack overflow. Visible rows now use iterative depth-first traversal,
+  preserving each folder's paging control and complete accessibility depth.
+  Visual indentation is bounded so names and controls remain reachable. A
+  12,000-folder traversal regression and 27 existing cases pass. Native checks
+  at 1280, 390 and 320 pixels verify every row, native parent/child and Home/End
+  navigation, collapse/reexpand, row menus, the unchanged board and persisted
+  records after reload. The first 390-pixel menu sample timed out after the list
+  scrolled; a diagnostic pass succeeded without an additional menu change.
+  Retain that failed sample rather than claiming its cause is established.
+  Existing desktop/phone keyboard and paging workflows are also checked.
 - **Validate backups before replacement:** unrelated JSON objects previously
   became empty folders, invalid entries disappeared silently, and foreign or
   newer-version backups could replace the Library. Restore now rejects those

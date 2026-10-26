@@ -29,19 +29,19 @@ export async function assertLibraryShowMoreFocus(cdp,appUrl,runDir,screenshotDir
   await wait(`!!document.querySelector('[data-library-row-name="Paged folder"]')&&!document.querySelector('[role=dialog]')&&!history.state?.webKatrainOverlay&&document.querySelector('[data-library-storage-badge]')?.textContent==='IndexedDB'`);
   const folderRow='[data-library-row-name="Paged folder"]';
   if(await evaluate(cdp,`document.querySelector('${folderRow}').getAttribute('aria-expanded')==='true'`))await click(`${folderRow} .library-tree-node-arrow`);
-  const revealAll=async(containerExpression,buttonSelector,total)=>{
+  const revealAll=async(rowsExpression,buttonSelector,total)=>{
    const focused=[];
    while(await evaluate(cdp,`!!document.querySelector(${JSON.stringify(buttonSelector)})`)) {
-    const before=await evaluate(cdp,`(${containerExpression}).querySelectorAll('[data-library-row]').length`);
+    const before=await evaluate(cdp,`(${rowsExpression}).length`);
     await evaluate(cdp,`document.querySelector(${JSON.stringify(buttonSelector)}).focus()`);
     if(focused.length%2) await click(buttonSelector);
     else {
      await cdp.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});
      await cdp.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
     }
-    await wait(`(${containerExpression}).querySelectorAll('[data-library-row]').length>${before}`);
+    await wait(`(${rowsExpression}).length>${before}`);
     const state=await evaluate(cdp,`(()=>{
-     const row=(${containerExpression}).querySelectorAll('[data-library-row]')[${before}],tree=document.querySelector('.library-tree');
+     const row=(${rowsExpression})[${before}],tree=document.querySelector('.library-tree');
      const r=row.getBoundingClientRect(),t=tree.getBoundingClientRect();
      return {focused:document.activeElement===row,name:row.dataset.libraryRowName,visible:r.top>=t.top-1&&r.bottom<=t.bottom+1,
        board:{size:document.querySelector('[data-board-snapshot]').dataset.boardSize,moves:document.querySelector('[data-board-snapshot]').dataset.boardMoveCount}};
@@ -50,17 +50,19 @@ export async function assertLibraryShowMoreFocus(cdp,appUrl,runDir,screenshotDir
     assert.equal(state.visible,true,'The new focus must be visible in the Library scroller');
     assert.deepEqual(state.board,{size:'19',moves:'0'},'Revealing rows must not load a game');focused.push(state.name);
    }
-   assert.equal(await evaluate(cdp,`(${containerExpression}).querySelectorAll('[data-library-row]').length`),total);
+   assert.equal(await evaluate(cdp,`(${rowsExpression}).length`),total);
    return focused;
   };
-  const rootFocus=await revealAll(`document.querySelector('.library-tree')`,'.library-tree > div > .library-show-more',126);
+  const allRows=`document.querySelectorAll('[data-library-row]')`;
+  const rootMore='[data-library-more-parent=""]';
+  const rootFocus=await revealAll(allRows,rootMore,126);
   await click(`${folderRow} .library-tree-node-arrow`);
   await wait(`document.querySelector('${folderRow}').getAttribute('aria-expanded')==='true'`);
-  const children=`document.querySelector('${folderRow}').nextElementSibling`;
-  const folderFocus=await revealAll(children,`${folderRow} + div > .library-show-more`,125);
+  const children=`document.querySelectorAll('[data-library-row][aria-level="2"]')`;
+  const folderFocus=await revealAll(children,'[data-library-more-parent="paged-folder"]',125);
   await click('[aria-label="Search library"]');await cdp.send('Input.insertText',{text:'game'});
   await wait('document.querySelector(".library-breadcrumbs")?.textContent.includes("Searching:")');
-  const searchFocus=await revealAll(`document.querySelector('.library-tree')`,'.library-tree > div > .library-show-more',250);
+  const searchFocus=await revealAll(allRows,rootMore,250);
   reports.push({width,rootFocus,folderFocus,searchFocus,allFirstNewRowsVisible:true,lastPageRetainsFocus:true,gameUnchanged:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'library-show-more-focus.json'),JSON.stringify(reports,null,2));
