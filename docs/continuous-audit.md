@@ -297,6 +297,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   Save-failure, delayed-save/replacement, overlapping saves, and initialization
   retry probes pass. Retry verification now checks either accepted store: a
   queued read can already have reconciled the fallback into IndexedDB.
+- **Load the record actually saved:** choosing Save before reopening the
+  current library file persisted two moves, then opened the cached one-move
+  record. Loads now reread the file after the unsaved-game choice and return
+  its current name/folder to the caller. Unchanged SGF avoids a second parse.
+  Recent entries now pass their record ID, fixing a remembered move two
+  reopening at move zero. Native checks cover both cases, externally changed
+  records/names, deleted targets, and a newer move made during a held lookup
+  remaining on the board and in recovery instead of being replaced.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

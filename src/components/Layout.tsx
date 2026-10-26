@@ -2194,10 +2194,34 @@ export const Layout: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [currentNode, loadedLibraryFileId]);
 
-  const handleLoadFromLibrary = async (sgfText: string, itemId?: string): Promise<boolean> => {
+  const handleLoadFromLibrary = async (sgfText: string, itemId?: string): Promise<boolean | LibraryFile> => {
     try {
-      const parsed = parseSgf(sgfText);
+      let textToLoad = sgfText;
+      let parsed = parseSgf(textToLoad);
       if (!(await prepareForGameReplacement())) return false;
+      let loadedFile: LibraryFile | undefined;
+      if (itemId) {
+        const { rootNode: previousRoot, treeVersion: previousVersion } = useGameStore.getState();
+        const previousId = previousRoot.id;
+        // Save can update the very file being reopened; another tab can also
+        // have edited it since this row or Recent entry was rendered.
+        const latest = (await loadLibrary()).find(item => item.id === itemId);
+        finishPendingGameEdits();
+        const current = useGameStore.getState();
+        if (current.rootNode.id !== previousId || (current.treeVersion !== previousVersion && hasUnsavedChanges())) {
+          toast('The game changed while loading. Your latest changes are still here; try again when ready.', 'info');
+          return false;
+        }
+        if (!latest || latest.type !== 'file') {
+          toast('That game is no longer in the Library.', 'info');
+          return false;
+        }
+        loadedFile = latest;
+        if (latest.sgf !== textToLoad) {
+          textToLoad = latest.sgf;
+          parsed = parseSgf(textToLoad);
+        }
+      }
       loadGame(parsed);
       // Back to where this game was left, not move 0.
       const savedPath = itemId ? readLibraryPosition(itemId) : null;
@@ -2207,9 +2231,9 @@ export const Layout: React.FC = () => {
         if (node) store.jumpToNode(node);
       }
       markCurrentGameCleanAndClearAutoSave();
-      const sizeNotice = boardSizeCoercionNotice(sgfText);
+      const sizeNotice = boardSizeCoercionNotice(textToLoad);
       if (sizeNotice) toast(sizeNotice, 'info');
-      return true;
+      return loadedFile ?? true;
     } catch (error) {
       toast(withFailureReason('Could not load that game from the library.', error), 'error');
       return false;
@@ -2426,11 +2450,12 @@ export const Layout: React.FC = () => {
   pwaOpenHandlersRef.current = { openText: handleOpenSgfFromText, openFile: handleOpenLaunchFile };
 
   const handleOpenRecent = async (item: LibraryFile) => {
-    const loaded = await handleLoadFromLibrary(item.sgf);
+    const loaded = await handleLoadFromLibrary(item.sgf, item.id);
     if (!loaded) return;
+    const loadedItem = typeof loaded === 'object' ? loaded : item;
     const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
-    setLoadedLibraryFile(item.id, item.name);
-    toast(appendRestoredAnalysisSummary(`Loaded "${item.name}".`, restoredAnalysisCount), 'success');
+    setLoadedLibraryFile(loadedItem.id, loadedItem.name);
+    toast(appendRestoredAnalysisSummary(`Loaded "${loadedItem.name}".`, restoredAnalysisCount), 'success');
   };
 
   useEffect(() => {
