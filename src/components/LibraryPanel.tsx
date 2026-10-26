@@ -1040,12 +1040,25 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const navigateLibraryRow = (event: React.KeyboardEvent<HTMLDivElement>): boolean => {
-    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return false;
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return false;
     const rows = Array.from(libraryTreeRef.current?.querySelectorAll<HTMLDivElement>('[data-library-row]') ?? []);
     const index = rows.indexOf(event.currentTarget);
     if (index < 0) return false;
-    const next = event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1
-      : Math.max(0, Math.min(rows.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
+    let next = index;
+    const level = Number(event.currentTarget.getAttribute('aria-level'));
+    if (event.key === 'ArrowLeft') {
+      for (let previous = index - 1; previous >= 0; previous--) {
+        if (Number(rows[previous]!.getAttribute('aria-level')) < level) {
+          next = previous;
+          break;
+        }
+      }
+    } else if (event.key === 'ArrowRight') {
+      if (rows[index + 1] && Number(rows[index + 1]!.getAttribute('aria-level')) > level) next = index + 1;
+    } else {
+      next = event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1
+        : Math.max(0, Math.min(rows.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
+    }
     event.preventDefault();
     event.stopPropagation();
     rows[next]?.focus();
@@ -1055,9 +1068,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleFileRowKeyDown = (item: LibraryFile) => (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || isComposingKeyEvent(event)
       || event.ctrlKey || event.altKey || event.metaKey) return;
-    if (navigateLibraryRow(event)) return;
     const action = getLibraryRowKeyAction({ key: event.key, shiftKey: event.shiftKey, kind: 'file' });
-    if (action === 'none') return;
+    if (action === 'none') {
+      navigateLibraryRow(event);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if (action === 'activate') void handleLoad(item);
@@ -1072,7 +1087,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   ) => (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || isComposingKeyEvent(event)
       || event.ctrlKey || event.altKey || event.metaKey) return;
-    if (navigateLibraryRow(event)) return;
     const action = getLibraryRowKeyAction({
       key: event.key,
       shiftKey: event.shiftKey,
@@ -1081,7 +1095,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       hasChildren,
       allowChildren,
     });
-    if (action === 'none') return;
+    if (action === 'none') {
+      navigateLibraryRow(event);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if (action === 'activate') activateFolderRow(item);
@@ -2792,6 +2809,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               <span id={libraryKeyboardHelpId} className="sr-only">
                 Use Up and Down arrows to browse games and folders, Home or End to reach either end,
                 and Enter to open. Use the row buttons for selection and other actions.
+                Right expands or enters a folder; Left collapses or returns to its parent.
               </span>
               <div
                 ref={libraryTreeRef}

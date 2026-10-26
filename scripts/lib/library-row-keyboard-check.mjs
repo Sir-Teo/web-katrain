@@ -17,7 +17,7 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
   });
   const press = async (key, shiftKey = false) => {
     const code = key === ' ' ? 'Space' : key;
-    const windowsVirtualKeyCode = { Enter: 13, ' ': 32, Escape: 27, F10: 121, Home: 36, End: 35, ArrowUp: 38, ArrowDown: 40 }[key];
+    const windowsVirtualKeyCode = { Enter: 13, ' ': 32, Escape: 27, F10: 121, Home: 36, End: 35, ArrowLeft: 37, ArrowRight: 39, ArrowUp: 38, ArrowDown: 40 }[key];
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode,
       modifiers: shiftKey ? 8 : 0, ...(key === 'Enter' ? { text: '\r' } : key === ' ' ? { text: ' ' } : {}) });
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode });
@@ -101,6 +101,13 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
         assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${folder}')`), true);
         await press('End');
         assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${other}')`), true);
+        await focus(folder); await press('ArrowRight');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${file}')`), true, 'Right must enter the first child of an expanded folder');
+        await press('ArrowLeft');
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${folder}')`), true, 'Left must return to the visible parent folder');
+        await press('ArrowLeft'); await wait(`!document.querySelector('${file}')`);
+        await press('ArrowRight'); await wait(`!!document.querySelector('${file}')`);
+        assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${folder}')`), true, 'Right must expand a collapsed folder before entering it');
         assert.deepEqual(await evaluate(cdp, `[...document.querySelectorAll('[data-library-row]')].map(e=>e.getAttribute('aria-level'))`), ['1','2','1']);
         assert.deepEqual(await board(), before);
         assert.equal(await evaluate(cdp, 'document.querySelector(".library-breadcrumbs")?.innerText'), pathBefore);
@@ -133,7 +140,7 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
     await click('[aria-label="Search library"]'); await cdp.send('Input.insertText', { text: 'Keyboard game' });
     await wait('document.querySelectorAll("[data-library-row]").length===1');
     await focus(file);
-    for (const key of ['ArrowUp', 'ArrowDown', 'Home', 'End']) {
+    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']) {
       await press(key);
       assert.equal(await evaluate(cdp, `document.activeElement===document.querySelector('${file}')`), true, 'Navigation must stay within matching search results');
     }
@@ -164,7 +171,7 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
     await focus(file); await press('Enter');
     if (width === 390) await wait('!history.state?.webKatrainOverlay');
     await wait('document.querySelector("[data-board-snapshot]")?.dataset.boardSize==="9"');
-    reports.push({ width, enterAndSpaceReachNestedControls:true,compositionAndModifierKeysDoNotActivateRows:true,rowActivationAndKeyboardContextMenuPreserved:true,menuAndRenameDialogRestoreOrigin:true,arrowsAndHomeEndBrowseVisibleRows:true,collapsedAndFilteredRowsExcluded:true,folderDepthAnnounced:true });
+    reports.push({ width, enterAndSpaceReachNestedControls:true,compositionAndModifierKeysDoNotActivateRows:true,rowActivationAndKeyboardContextMenuPreserved:true,menuAndRenameDialogRestoreOrigin:true,arrowsAndHomeEndBrowseVisibleRows:true,collapsedAndFilteredRowsExcluded:true,folderDepthAnnounced:true,parentAndFirstChildNavigation:true });
   }
   fs.writeFileSync(path.join(screenshotDir,'library-row-keyboard.json'),JSON.stringify(reports,null,2));
   console.log('Library row keyboard: desktop/phone nested controls, menu/dialog focus return, visible-row arrows/Home/End, folder depth, collapsed/search filtering, composition guards and ordinary activation passed.');

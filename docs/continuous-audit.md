@@ -10,6 +10,13 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Library parent/child navigation:** Right enters the first shown child of
+  an expanded folder; Left returns to the visible parent, with existing
+  expand/collapse actions taking precedence. Root and flat search rows stay
+  focused when no parent/child exists. The screen-reader hint describes these
+  controls. Native desktop/phone checks cover expansion, first-child/parent
+  focus, collapse and flat search behavior alongside the existing row flows.
+  Seventeen keyboard/focus cases, TypeScript and lint pass.
 - **Backend keyboard endpoints:** Home/End now select and focus the first/last
   available engine backend, matching the theme and tab selectors. Unavailable
   choices are skipped. Native desktop/phone checks retain ignored-key guards,
