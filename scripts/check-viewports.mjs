@@ -22,6 +22,7 @@ import { assertNotificationInteraction } from './lib/notification-interaction-ch
 import { assertLazyModalInput } from './lib/lazy-modal-input-check.mjs';
 import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
+import { assertModelReplacement } from './lib/model-replacement-check.mjs';
 import { assertShortcutRecording } from './lib/shortcut-recording-check.mjs';
 import { assertZipPathLimits } from './lib/zip-path-limit-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
@@ -4212,6 +4213,7 @@ async function main() {
     await assertLatestLibraryLoads(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertZipPathLimits(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertShortcutRecording(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertModelReplacement(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

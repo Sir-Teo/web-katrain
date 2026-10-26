@@ -137,11 +137,12 @@ export const syncUploadedModelUrl = (currentModelUrl: string): void => {
 };
 
 export const createUploadedModelUrl = (blob: Blob, currentModelUrl: string): string => {
+  // Keep the selected weights usable if allocating their replacement fails.
+  const objectUrl = createObjectUrlOrThrow(blob);
   if (!isUploadedModelUrl(currentModelUrl)) {
     lastManualModelUrl = currentModelUrl;
   }
   revokeUploadedModelUrl();
-  const objectUrl = createObjectUrlOrThrow(blob);
   uploadedModelUrl = objectUrl;
   uploadedModelInfo = modelInfoFromBlob(blob);
   return objectUrl;
@@ -244,16 +245,16 @@ export const loadPersistedUploadedModel = async (): Promise<PersistedUploadedMod
 export const restorePersistedUploadedModelUrl = async (currentModelUrl: string): Promise<RestoredUploadedModel | null> => {
   const model = await loadPersistedUploadedModel();
   if (!model) return null;
-  if (!isUploadedModelUrl(currentModelUrl)) {
-    lastManualModelUrl = currentModelUrl;
-  }
-  revokeUploadedModelUrl();
   let url: string;
   try {
     url = createObjectUrlOrThrow(model.blob);
   } catch {
     return null;
   }
+  if (!isUploadedModelUrl(currentModelUrl)) {
+    lastManualModelUrl = currentModelUrl;
+  }
+  revokeUploadedModelUrl();
   uploadedModelUrl = url;
   uploadedModelInfo = {
     name: model.name,

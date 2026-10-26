@@ -49,7 +49,6 @@ import {
     isUploadedModelUrl,
     MAX_BROWSER_MODEL_UPLOAD_LABEL,
     MODEL_UPLOAD_ACCEPT,
-    revokeUploadedModelUrl,
     savePersistedUploadedModel,
     syncUploadedModelUrl,
     type UploadedModelInfo,
@@ -555,7 +554,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         setDownloadProgress(null);
         setDownloadingUrl(url);
         try {
-            revokeUploadedModelUrl();
             const blob = await fetchBlobWithProgress(url, ({ percent }) => setDownloadProgress(percent));
             const downloadedFile = new File([blob], getModelFileNameFromUrl(url), { type: blob.type });
             updateSettings({ katagoModelUrl: createUploadedModelUrl(downloadedFile, settings.katagoModelUrl) });

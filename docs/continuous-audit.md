@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Failed model replacement:** starting Download & Load revoked the selected
+  browser upload before fetching its replacement. A 503 left the old URL in
+  Settings but made it unreadable and cleared its metadata. Download now keeps
+  the old weights until a replacement is ready. Upload and persisted-model
+  restore also allocate their new object URL before releasing the previous
+  one. Native desktop and phone checks cover HTTP and CORS failures, failed
+  upload and restore URL allocation, unchanged stored bytes and metadata, and
+  successful replacement with persistence and old-URL cleanup. The fixture
+  verifies browser file handling, not the validity or strength of model weights.
 - **Shortcut recording and input methods:** composition Enter and Escape
   consumed recording, while an IME Process key was persisted as a shortcut.
   The recorder now lets composition finish and keeps waiting for a real chord;
