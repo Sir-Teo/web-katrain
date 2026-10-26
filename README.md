@@ -71,6 +71,8 @@ PWA. There is no analysis server to run.
   Practice section or the command palette.
 - Lessons remember your progress on this device, offer unfinished exercises
   to resume, and mark completed lessons for review.
+- Guess the next move in a loaded game, with keyboard answers and a player
+  filter. Start again after the final answer to repeat the drill with a fresh score.
 
 **Load and save**
 

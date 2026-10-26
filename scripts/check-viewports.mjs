@@ -25,6 +25,7 @@ import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
 import { assertLibraryCollectionSplit } from './lib/library-collection-check.mjs';
 import { assertBoardComposition } from './lib/board-composition-check.mjs';
 import { assertPhotoTraceKeyboard } from './lib/photo-trace-keyboard-check.mjs';
+import { assertGuessMoveKeyboard } from './lib/guess-move-keyboard-check.mjs';
 import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
 import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
 import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
@@ -4228,6 +4229,7 @@ async function main() {
     await assertLibraryCollectionSplit(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBoardComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPhotoTraceKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertGuessMoveKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

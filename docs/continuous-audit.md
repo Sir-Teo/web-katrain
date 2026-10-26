@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Repeatable Guess the Move practice:** revealing an answer removed its
+  focused button and left keyboard focus on the page body. Reveal/guess now
+  focuses Next, and advancing returns to the board with a fresh cursor. Results
+  are announced as a polite live status. After the final answer, Start again
+  restarts the selected player filter and clears the score. Native desktop and
+  phone checks import a real three-move SGF, reveal and advance by keyboard,
+  grade an exact guess, restart with reset score/cursor, repeat a one-move
+  filtered drill and verify that the actual game position stays unchanged.
+  Forty-one focused guess, rendering, dialog, board and AI-cancellation cases pass.
 - **Recovery/AI browser fixture:** the analysis gate first recorded a 1.9 s
   AI Stop outlier. Its next run exposed a separate fixture bug: after recovery,
   Tab was dispatched from the focused desktop Analyze button, where it
