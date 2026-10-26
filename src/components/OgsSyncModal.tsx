@@ -55,29 +55,41 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   }, [isRunning]);
   const [summary, setSummary] = React.useState<SyncSummary | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const cancelledRef = React.useRef(false);
+  const requestRef = React.useRef<AbortController | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
-  useEscapeToClose(onClose);
+  const close = React.useCallback(() => {
+    const request = requestRef.current;
+    requestRef.current = null;
+    request?.abort();
+    onClose();
+  }, [onClose]);
+  useEscapeToClose(close);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { initialFocusRef: inputRef });
 
   React.useEffect(() => {
+    const requests = requestRef;
     return () => {
-      cancelledRef.current = true;
+      requests.current?.abort();
+      requests.current = null;
     };
   }, []);
 
   const runSync = async () => {
     const trimmed = username.trim();
-    if (!trimmed || isRunning) return;
-    cancelledRef.current = false;
+    if (!trimmed || requestRef.current) return;
+    const request = new AbortController();
+    requestRef.current = request;
+    const isCurrent = () => requestRef.current === request && !request.signal.aborted;
     setIsRunning(true);
     setError(null);
     setSummary(null);
     setProgress(null);
     try {
-      const player = await resolveOgsPlayer(trimmed);
+      const player = await resolveOgsPlayer(trimmed, request.signal);
+      if (!isCurrent()) return;
       writeLocalStorage(OGS_SYNC_USERNAME_STORAGE_KEY, player.username);
-      const games = await listOgsFinishedGames(player.id, limit);
+      const games = await listOgsFinishedGames(player.id, limit, request.signal);
+      if (!isCurrent()) return;
       if (games.length === 0) {
         setError(`"${player.username}" has no finished games OGS will list.`);
         return;
@@ -85,10 +97,11 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
       const { synced, skipped, failed } = await downloadNewOgsGames(
         games,
         collectExistingOgsGameIds(items),
-        setProgress,
-        () => cancelledRef.current
+        (update) => { if (isCurrent()) setProgress(update); },
+        () => !isCurrent(),
+        request.signal
       );
-      if (cancelledRef.current) return;
+      if (!isCurrent()) return;
       if (synced.length > 0) onImport(player.username, synced);
       setSummary({
         added: synced.length,
@@ -97,12 +110,15 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
         username: player.username,
       });
     } catch (cause) {
-      if (!cancelledRef.current) {
+      if (isCurrent()) {
         setError(cause instanceof Error ? cause.message : 'OGS sync failed.');
       }
     } finally {
-      setIsRunning(false);
-      setProgress(null);
+      if (requestRef.current === request) {
+        requestRef.current = null;
+        setIsRunning(false);
+        setProgress(null);
+      }
     }
   };
 
@@ -122,7 +138,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="ui-control grid place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
             aria-label="Close OGS sync"
           >
@@ -209,7 +225,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
         <div className="ogs-sync-footer ui-bar flex items-center justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
           >
             {summary ? 'Done' : 'Cancel'}

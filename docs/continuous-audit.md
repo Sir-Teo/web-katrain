@@ -10,6 +10,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Cancel the entire OGS sync:** cancelling a held player lookup closed the
+  dialog but did not abort its request. Its late response remembered the
+  username and started fetching game-list pages after dismissal. Sync now
+  passes an AbortSignal through lookup, pagination, and SGF downloads, and
+  invalidates the current request synchronously on Cancel/Close/Escape/Back.
+  Late results cannot change preferences, enqueue more work, report stale
+  progress/errors, or import games. The existing cancellation callback API
+  also rejects an in-flight SGF completed after cancellation. Six unit cases
+  cover each pipeline phase and late bodies; native desktop and phone cases
+  cancel held lookup/page/SGF responses and verify no further requests or
+  library additions, then successfully retry and persist the expected SGF.
 - **Custom bot settings:** changing Sprout's advanced rank from 18k to 4k
   left its 18k preset card highlighted. Manual strategy-setting changes now
   clear the preset selection; choosing a preset applies its configuration
