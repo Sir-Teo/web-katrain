@@ -85,6 +85,7 @@ export async function assertShortcutRecording(cdp, appUrl, screenshotDir) {
     assert.deepEqual(await evaluate(cdp, 'JSON.parse(localStorage.getItem("web-katrain:shortcuts:v1"))'), bindings);
     await click('[aria-label="Close settings"]');
     await wait('!document.querySelector("[aria-labelledby=settings-title]")');
+    await wait('!history.state?.webKatrainOverlay');
     await evaluate(cdp, `(() => {
       localStorage.removeItem('web-katrain:shortcuts:v1');
       window.dispatchEvent(new CustomEvent('web-katrain:shortcuts-updated'));

@@ -180,6 +180,7 @@ export async function assertModelReplacement(cdp, appUrl, runDir, screenshotDir)
       }))()`);
       assert.deepEqual(completed, { text: 'completed download fixture', persisted: 'completed download fixture', aborted: false });
       await click('[aria-label="Close settings"]');
+      await wait('!document.querySelector("[aria-labelledby=settings-title]") && !history.state?.webKatrainOverlay');
     } finally {
       await evaluate(cdp, 'window.fetch = modelReplacementFetch; void 0');
     }

@@ -1,6 +1,7 @@
 import { getIndexedDB, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 import { stripUnsafeFilenameControls } from './filename';
 import { createObjectUrlOrThrow, revokeObjectUrl } from './objectUrl';
+import { createCrossContextTaskQueue } from './crossContextTaskQueue';
 
 export const MAX_BROWSER_MODEL_UPLOAD_BYTES = 128 * 1024 * 1024;
 export const MAX_BROWSER_MODEL_UPLOAD_LABEL = '128 MB';
@@ -18,6 +19,8 @@ const DB_VERSION = 1;
 const MODEL_STORE = 'uploaded-models';
 const CURRENT_MODEL_KEY = 'current';
 const UPLOADED_MODEL_SELECTED_KEY = 'web-katrain:uploaded_model_selected:v1';
+const runModelStorageTask = createCrossContextTaskQueue(DB_NAME);
+let modelStorageRevision = 0;
 
 type ModelFileLike = {
   name?: string;
@@ -121,6 +124,7 @@ export const validateModelUploadFile = (file: ModelFileLike): string | null => {
 };
 
 export const revokeUploadedModelUrl = (): void => {
+  modelStorageRevision++;
   revokeObjectUrl(uploadedModelUrl);
   uploadedModelUrl = null;
   uploadedModelInfo = null;
@@ -145,6 +149,7 @@ export const createUploadedModelUrl = (blob: Blob, currentModelUrl: string): str
   revokeUploadedModelUrl();
   uploadedModelUrl = objectUrl;
   uploadedModelInfo = modelInfoFromBlob(blob);
+  setUploadedModelSelected(false);
   return objectUrl;
 };
 
@@ -195,28 +200,36 @@ const isPersistedUploadedModelSelected = (): boolean => {
 };
 
 export const savePersistedUploadedModel = async (file: Blob & ModelFileLike): Promise<boolean> => {
-  if (!getIndexedDB()) return false;
+  const revision = ++modelStorageRevision;
+  // Until these exact weights finish saving, reload must not restore an older
+  // file left in the shared slot. A newer selection can invalidate this task.
+  setUploadedModelSelected(false);
   const info = modelInfoFromBlob(file);
   const model: PersistedUploadedModel = {
     blob: file,
     ...info,
   };
 
-  let db: IDBDatabase | null = null;
-  try {
-    db = await openUploadedModelDb();
-    const tx = db.transaction(MODEL_STORE, 'readwrite');
-    tx.objectStore(MODEL_STORE).put(model, CURRENT_MODEL_KEY);
-    await transactionDone(tx);
-    setUploadedModelSelected(true);
-    uploadedModelInfo = info;
-    return true;
-  } catch {
-    setUploadedModelSelected(false);
-    return false;
-  } finally {
-    db?.close();
-  }
+  return runModelStorageTask(async () => {
+    let db: IDBDatabase | null = null;
+    try {
+      if (revision !== modelStorageRevision || !getIndexedDB()) return false;
+      db = await openUploadedModelDb();
+      if (revision !== modelStorageRevision) return false;
+      const tx = db.transaction(MODEL_STORE, 'readwrite');
+      tx.objectStore(MODEL_STORE).put(model, CURRENT_MODEL_KEY);
+      await transactionDone(tx);
+      if (revision !== modelStorageRevision) return false;
+      setUploadedModelSelected(true);
+      uploadedModelInfo = info;
+      return true;
+    } catch {
+      if (revision === modelStorageRevision) setUploadedModelSelected(false);
+      return false;
+    } finally {
+      db?.close();
+    }
+  });
 };
 
 export const loadPersistedUploadedModel = async (): Promise<PersistedUploadedModel | null> => {
@@ -243,8 +256,9 @@ export const loadPersistedUploadedModel = async (): Promise<PersistedUploadedMod
 };
 
 export const restorePersistedUploadedModelUrl = async (currentModelUrl: string): Promise<RestoredUploadedModel | null> => {
+  const revision = modelStorageRevision;
   const model = await loadPersistedUploadedModel();
-  if (!model) return null;
+  if (!model || revision !== modelStorageRevision) return null;
   let url: string;
   try {
     url = createObjectUrlOrThrow(model.blob);
@@ -272,24 +286,28 @@ export const restorePersistedUploadedModelUrl = async (currentModelUrl: string):
 };
 
 export const deletePersistedUploadedModel = async (): Promise<void> => {
+  const revision = ++modelStorageRevision;
   setUploadedModelSelected(false);
   uploadedModelInfo = null;
-  if (!getIndexedDB()) return;
-
-  let db: IDBDatabase | null = null;
-  try {
-    db = await openUploadedModelDb();
-    const tx = db.transaction(MODEL_STORE, 'readwrite');
-    tx.objectStore(MODEL_STORE).delete(CURRENT_MODEL_KEY);
-    await transactionDone(tx);
-  } catch {
-    // Ignore unavailable or blocked IndexedDB.
-  } finally {
-    db?.close();
-  }
+  return runModelStorageTask(async () => {
+    let db: IDBDatabase | null = null;
+    try {
+      if (revision !== modelStorageRevision || !getIndexedDB()) return;
+      db = await openUploadedModelDb();
+      if (revision !== modelStorageRevision) return;
+      const tx = db.transaction(MODEL_STORE, 'readwrite');
+      tx.objectStore(MODEL_STORE).delete(CURRENT_MODEL_KEY);
+      await transactionDone(tx);
+    } catch {
+      // Ignore unavailable or blocked IndexedDB.
+    } finally {
+      db?.close();
+    }
+  });
 };
 
 export const resetModelUploadStateForTests = (): void => {
+  modelStorageRevision++;
   uploadedModelUrl = null;
   uploadedModelInfo = null;
   lastManualModelUrl = null;

@@ -10,6 +10,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Model save ordering:** holding an older upload's database open let a newer
+  upload save first, then overwrote its stored bytes and metadata when the old
+  request finished. The selected URL read B while reload would restore A.
+  Model writes and deletions now use one ordered queue with a shared browser
+  lock, and selection revisions invalidate stale writes, restores, and UI
+  acknowledgements. A new upload stops advertising the previous file as the
+  selected persisted weights until its own save completes. Unit cases cover
+  newer uploads, clearing during save, save after deletion, stale restoration,
+  and failed-write retry. Real desktop and phone file-input checks hold
+  IndexedDB, choose a second file or Clear Upload, then reload to verify the
+  newer weights or cleared selection survives with matching metadata.
 - **Cancel model downloads:** pending Download & Load now offers Cancel and
   aborts on Settings dismissal or a different model selection. Cancel restores
   focus to the enabled download control. Request identity and AbortSignal

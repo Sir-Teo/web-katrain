@@ -2070,13 +2070,16 @@ export const Layout: React.FC = () => {
       toast(error, 'error');
       return false;
     }
+    let modelUrl: string;
     try {
-      updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+      modelUrl = createUploadedModelUrl(file, settings.katagoModelUrl);
+      updateSettings({ katagoModelUrl: modelUrl });
     } catch (uploadError) {
       toast(uploadError instanceof Error ? uploadError.message : 'Could not load this model file.', 'error');
       return false;
     }
     const persisted = await savePersistedUploadedModel(file);
+    if (useGameStore.getState().settings.katagoModelUrl !== modelUrl) return true;
     toast(
       persisted
         ? `Loaded and saved KataGo model weights "${file.name}".`

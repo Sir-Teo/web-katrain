@@ -502,6 +502,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
 
     const handleModelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
+        event.target.value = '';
         if (!file) return;
         setModelUploadError(null);
         const error = validateModelUploadFile(file);
@@ -511,8 +512,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
             return;
         }
         try {
-            updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+            const modelUrl = createUploadedModelUrl(file, settings.katagoModelUrl);
+            updateSettings({ katagoModelUrl: modelUrl });
             const persisted = await savePersistedUploadedModel(file);
+            if (useGameStore.getState().settings.katagoModelUrl !== modelUrl) return;
             setUploadedModelInfo(getUploadedModelInfo());
             if (!persisted) {
                 setModelUploadError('Loaded for this session, but browser storage could not save the upload for reload.');
@@ -605,9 +608,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
             request.saving = true;
             setSavingDownloadedModel(true);
             const downloadedFile = new File([blob], getModelFileNameFromUrl(url), { type: blob.type });
-            updateSettings({ katagoModelUrl: createUploadedModelUrl(downloadedFile, settings.katagoModelUrl) });
+            const modelUrl = createUploadedModelUrl(downloadedFile, settings.katagoModelUrl);
+            updateSettings({ katagoModelUrl: modelUrl });
             const persisted = await savePersistedUploadedModel(downloadedFile);
-            if (modelDownloadRef.current !== request) return;
+            if (modelDownloadRef.current !== request || useGameStore.getState().settings.katagoModelUrl !== modelUrl) return;
             setUploadedModelInfo(getUploadedModelInfo());
             if (!persisted) {
                 setDownloadError('Loaded for this session, but browser storage could not save the download for reload.');
