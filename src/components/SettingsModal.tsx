@@ -641,7 +641,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
             <div
                 ref={dialogRef}
                 tabIndex={-1}
@@ -2987,7 +2987,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         )}
                     </div>  
                 </div>
-                <div className="settings-modal-footer sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t backdrop-blur">
+                <div className="settings-modal-footer sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t">
                     <button type="button"
                         onClick={onClose}
                         className="px-5 py-2.5 rounded-lg ui-accent-bg hover:brightness-110 font-semibold shadow-lg shadow-black/20 transition-colors"
