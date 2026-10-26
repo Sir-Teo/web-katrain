@@ -91,6 +91,15 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   Browser coverage verifies Close, Escape, Cancel, mobile Back, Photo Board,
   and a fresh successful retry. The OGS username field also ignores Enter
   used to confirm text composition; ordinary Enter still starts a sync.
+- **Game Info cancel/commit:** pressing Escape after typing a different komi
+  or handicap committed that draft through the synchronous blur handler.
+  Typing 25 then Escape changed komi from 6.5 to 25; typing 4 then Escape
+  added four handicap stones. The blur handler now recognizes cancellation
+  before reading its prior draft. Komi also shares New Game's parser, so a
+  blank, invalid, or out-of-range draft restores the existing value instead of
+  clearing komi to zero. Trusted browser input covers Enter, Tab, Escape,
+  composition, real zero/negative values, and unchanged undo history/stones
+  when an edit is canceled.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

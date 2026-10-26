@@ -6,6 +6,7 @@ import { DEFAULT_BOARD_SIZE, type GameSettings } from '../types';
 import { getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { RULES_OPTIONS, rulesOf } from '../utils/goRules';
 import { isComposingKeyEvent } from '../utils/compositionKey';
+import { parseKomiInput } from '../utils/komiInput';
 import {
   formatGameInfoPlayer,
   formatGameInfoTitle,
@@ -135,6 +136,7 @@ export const GameInfoPanel: React.FC = () => {
   const [isEditingKomi, setIsEditingKomi] = React.useState(false);
   const [handicapInput, setHandicapInput] = React.useState(() => String(handicap));
   const [isEditingHandicap, setIsEditingHandicap] = React.useState(false);
+  const canceledNumericFieldRef = React.useRef<'komi' | 'handicap' | null>(null);
   const [isEditingInfo, setIsEditingInfo] = React.useState(false);
   const title = formatGameInfoTitle(rootProps);
   const blackName = readRootInfoValue(rootProps, 'PB');
@@ -160,8 +162,9 @@ export const GameInfoPanel: React.FC = () => {
   };
 
   const commitKomi = () => {
-    const parsed = Number(komiInput.trim());
-    if (Number.isFinite(parsed)) {
+    const parsed = canceledNumericFieldRef.current === 'komi' ? null : parseKomiInput(komiInput);
+    canceledNumericFieldRef.current = null;
+    if (parsed !== null) {
       setKomi(parsed);
       setKomiInput(String(Number(parsed.toFixed(2))));
     } else {
@@ -176,6 +179,9 @@ export const GameInfoPanel: React.FC = () => {
     if (e.key === 'Enter') {
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
+      // blur fires synchronously, before the draft state reset is rendered.
+      // Tell that handler to skip committing the previous draft.
+      canceledNumericFieldRef.current = 'komi';
       setKomiInput(String(komi));
       setIsEditingKomi(false);
       e.currentTarget.blur();
@@ -183,7 +189,8 @@ export const GameInfoPanel: React.FC = () => {
   };
 
   const commitHandicap = () => {
-    const parsed = Number.parseInt(handicapInput.trim(), 10);
+    const parsed = canceledNumericFieldRef.current === 'handicap' ? NaN : Number.parseInt(handicapInput.trim(), 10);
+    canceledNumericFieldRef.current = null;
     if (Number.isFinite(parsed)) {
       const next = Math.max(0, Math.min(parsed, maxHandicap));
       setHandicap(next);
@@ -200,6 +207,7 @@ export const GameInfoPanel: React.FC = () => {
     if (e.key === 'Enter') {
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
+      canceledNumericFieldRef.current = 'handicap';
       setHandicapInput(String(handicap));
       setIsEditingHandicap(false);
       e.currentTarget.blur();
