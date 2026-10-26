@@ -2215,15 +2215,15 @@ export const Layout: React.FC = () => {
     }
   };
 
-  const handleCopySgf = async () => {
-    const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
+  const handleCopySgf = useCallback(async () => {
+    const sgf = generateCurrentSgfForSave();
     if (await copyTextToClipboard(sgf)) {
       toast('Copied SGF to clipboard.', 'success');
       return;
     }
 
     toast('Copy failed (clipboard unavailable).', 'error');
-  };
+  }, [generateCurrentSgfForSave, toast]);
 
   const handleCopyBoardText = async () => {
     const node = useGameStore.getState().currentNode;
@@ -2259,9 +2259,10 @@ export const Layout: React.FC = () => {
   };
 
   const handleCopyShareLink = async () => {
+    finishPendingGameEdits();
     // The game, not its analysis: saved KT/KA blobs made a 200-move reviewed
     // game a 385,000-character link, past what an opening app will read.
-    const sgf = generateSgfFromTree(rootNode, {
+    const sgf = generateSgfFromTree(useGameStore.getState().rootNode, {
       ...sgfExportOptions,
       trainer: { ...sgfExportOptions.trainer, saveAnalysis: false },
     });
@@ -2660,7 +2661,7 @@ export const Layout: React.FC = () => {
   // Keyboard shortcuts
   useKeyboardShortcuts({
     mode,
-    sgfExportOptions,
+    copySgf: handleCopySgf,
     saveSgf: handleSaveCurrentSgf,
     saveCopyToLibrary: handleOpenSaveToLibraryDialog,
     openSgf: handleLoadClick,

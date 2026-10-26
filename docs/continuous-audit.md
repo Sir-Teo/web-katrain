@@ -237,6 +237,11 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   the key. Notes now share the common composition guard. Unit and native
   desktop/phone checks cover Enter, Escape, and command-save keys with both
   composition signals, while ordinary save/cancel behavior still passes.
+- **Copy the current note draft:** Copy SGF and share links still serialized
+  the older saved comment. Both now finish pending edits before exporting;
+  the copy shortcut calls the same handler. Native desktop/phone checks
+  capture the clipboard writer, verify palette and keyboard SGF copies, and
+  decode the copied share link to inspect its actual comment.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

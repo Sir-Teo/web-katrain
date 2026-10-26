@@ -97,6 +97,30 @@ export async function assertNoteDraftRecovery(cdp, appUrl, screenshotDir) {
     })()`);
     assert.equal(persisted,true,'Save Copy must include a draft even after opening the palette blurs it');
 
+    await evaluate(cdp,`(()=>{
+      window.noteOriginalClipboard=Object.getOwnPropertyDescriptor(navigator,'clipboard');
+      Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.noteDraftCopied=text}}});
+    })()`);
+    try {
+      await typeNote('Note included in copied SGF');await command('copy-sgf','Copy SGF');
+      await wait("window.noteDraftCopied?.includes('C[Note included in copied SGF')");
+      await typeNote('Note included in copy shortcut');await evaluate(cdp,'document.activeElement?.blur()');
+      await key('c','KeyC',67,2);
+      await wait("window.noteDraftCopied?.includes('C[Note included in copy shortcut')");
+      await typeNote('Note included in shared SGF');await command('copy-share-link','Copy share link');
+      const shared=await evaluate(cdp,`(async()=>{
+        const {decodeSgfFromShareUrl}=await import('/src/utils/shareLink.ts');
+        return decodeSgfFromShareUrl(window.noteDraftCopied);
+      })()`);
+      assert.ok(shared?.includes('C[Note included in shared SGF'),'Share links must include the pending note');
+    } finally {
+      await evaluate(cdp,`(()=>{
+        if(window.noteOriginalClipboard)Object.defineProperty(navigator,'clipboard',window.noteOriginalClipboard);
+        else delete navigator.clipboard;
+        delete window.noteOriginalClipboard;delete window.noteDraftCopied;
+      })()`);
+    }
+
     if(mobile) {
       await typeNote('Draft retained across phone tabs');
       await click('#mobile-tab-board');await click('#mobile-tab-info');
@@ -137,5 +161,5 @@ export async function assertNoteDraftRecovery(cdp, appUrl, screenshotDir) {
     reports.push({width,editRequestWorks:true,unchangedDraftStaysClean:true,reloadProtected:true,restored:true,pagehideSaved:true,escapeCancels:true,savedCopyIncludesDraft:true,phoneTabsChecked:mobile,trustedDropChecked:!mobile});
   }
   fs.writeFileSync(path.join(screenshotDir,'note-draft-recovery.json'),JSON.stringify(reports,null,2));
-  console.log('Note drafts: native reload/restore, pagehide, Escape cancellation, persisted Save Copy, and trusted replacement passed.');
+  console.log('Note drafts: edit access, reload/restore, pagehide, cancellation, Save Copy, clipboard/share, tab/resize retention, and trusted replacement passed.');
 }
