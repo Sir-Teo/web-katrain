@@ -109,7 +109,12 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         if (mobile) await click('#mobile-tab-library');
         await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
       };
-      const boardSnapshot = () => evaluate(cdp, `({...document.querySelector('[data-board-snapshot=true]').dataset})`);
+      // The recovery prompt can close before the lazy workspace finishes
+      // mounting. Read its actual board once ready, then compare every field.
+      const boardSnapshot = () => wait(`(() => {
+        const board = document.querySelector('[data-board-snapshot=true]');
+        return board ? {...board.dataset} : false;
+      })()`);
       const recovery = () => evaluate(cdp, `JSON.parse(localStorage.getItem(${JSON.stringify(recoveryKey)}))`);
       const play = async coordinate => {
         const before = await boardSnapshot();
@@ -123,7 +128,10 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         await dispatch(p);
         // The phone board previews the first tap and confirms the second.
         if (mobile) { await sleep(100); await dispatch(p); }
-        await wait(`document.querySelector('[data-board-snapshot=true]').dataset.boardStones!==${JSON.stringify(before.boardStones)}`);
+        await wait(`(() => {
+          const board = document.querySelector('[data-board-snapshot=true]');
+          return !!board && board.dataset.boardStones !== ${JSON.stringify(before.boardStones)};
+        })()`);
         await wait(`!!localStorage.getItem(${JSON.stringify(recoveryKey)})`);
       };
       const beginSave = async () => {
@@ -227,7 +235,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           if (mobile) await click('button[aria-label="More actions for Saved study"]');
           else await dispatch(await point(`document.querySelector('[data-library-row-name="Saved study"]')`), true);
           await clickElement(`[...document.querySelectorAll('[role=menu][aria-label="Library actions"] [role=menuitem]')].find(e=>e.textContent.trim()==='Load')`);
-          await wait(`document.querySelector('[data-board-snapshot=true]').dataset.boardSize==='9'`);
+          await wait(`document.querySelector('[data-board-snapshot=true]')?.dataset.boardSize==='9'`);
         } else if (mobile) await click('#mobile-tab-board');
         await play(4);
         const firstRecovery = await recovery();
@@ -320,7 +328,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
             assert.deepEqual(await recovery(), latestRecovery, 'The newer move must remain recoverable');
             assert.equal((await evaluate(cdp, storedItems)).find(item=>item.id==='original')?.sgf, firstRecovery.sgf);
             await quickNewGame();
-            await wait(`document.querySelector('[data-board-snapshot=true]').dataset.boardMoveCount==='0'`);
+            await wait(`document.querySelector('[data-board-snapshot=true]')?.dataset.boardMoveCount==='0'`);
             assert.equal((await evaluate(cdp, storedItems)).find(item=>item.id==='original')?.sgf, latestRecovery.sgf);
             assert.equal(await recovery(), null);
             report.stages.push('Save before replacement retained a newer move and recovery; retry saved that move before starting a fresh game');
