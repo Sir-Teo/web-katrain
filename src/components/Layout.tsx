@@ -2318,13 +2318,15 @@ export const Layout: React.FC = () => {
 
   const handleOpenSgfFromText = useCallback(async (
     text: string,
-    options: { notifyFailure?: boolean } = {}
+    options: { notifyFailure?: boolean; signal?: AbortSignal } = {}
   ): Promise<PasteSgfSubmitResult> => {
     try {
-      const result = await loadSgfOrOgs(text);
+      const result = await loadSgfOrOgs(text, { signal: options.signal });
+      if (options.signal?.aborted) return 'cancelled';
       if (!result.sgf.trim()) return 'failed';
       const parsed = parseSgf(result.sgf);
       if (!(await prepareForGameReplacement())) return 'cancelled';
+      if (options.signal?.aborted) return 'cancelled';
       loadGame(parsed);
       const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
       setLoadedLibraryFile(null);
@@ -2354,6 +2356,7 @@ export const Layout: React.FC = () => {
       );
       return 'loaded';
     } catch (error) {
+      if (options.signal?.aborted) return 'cancelled';
       if (options.notifyFailure !== false) {
         toast(withFailureReason('Could not load that SGF or OGS link.', error), 'error');
       }
@@ -3919,7 +3922,7 @@ export const Layout: React.FC = () => {
         {isPasteSgfOpen && (
           <PasteSgfModal
             onClose={() => setIsPasteSgfOpen(false)}
-            onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}
+            onSubmit={(text, signal) => handleOpenSgfFromText(text, { notifyFailure: false, signal })}
             onOpenPhotoBoard={() => {
               const returnFocus = modalReturnFocusRef.current;
               setIsPasteSgfOpen(false);

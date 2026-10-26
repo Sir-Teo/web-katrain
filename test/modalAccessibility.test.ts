@@ -9,7 +9,7 @@ const modalSources = [
     escape: "window.addEventListener('keydown', handleKeyDown, true)",
   },
   { path: 'src/components/CommandPaletteModal.tsx', titleId: 'command-palette-title', escape: 'useEscapeToClose(onClose)' },
-  { path: 'src/components/PasteSgfModal.tsx', titleId: 'paste-sgf-title', escape: 'useEscapeToClose(onClose)' },
+  { path: 'src/components/PasteSgfModal.tsx', titleId: 'paste-sgf-title', escape: 'useEscapeToClose(close)' },
   { path: 'src/components/GameAnalysisModal.tsx', titleId: 'game-analysis-title', escape: 'useEscapeToClose(onClose)' },
   { path: 'src/components/GameReportModal.tsx', titleId: 'game-report-title', escape: 'useEscapeToClose(onClose, !showReportGuide)' },
   { path: 'src/components/KeyboardHelpModal.tsx', titleId: 'keyboard-help-title', escape: 'useEscapeToClose(onClose)' },

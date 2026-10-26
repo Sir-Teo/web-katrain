@@ -83,6 +83,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   rules. The same reader also joins continued player names before displaying
   and searching library metadata. Unit cases and actual file-input imports
   cover supported, unsupported, continued, and collection headers.
+- **Cancel pending imports:** closing Paste SGF during a delayed OGS download
+  still let the response replace the board afterward (19×19 became 9×9 in the
+  browser reproduction). The dialog now aborts its request on dismissal or
+  switching to Photo Board. Downloads reject late canceled responses and the
+  final replacement checks cancellation again after any save confirmation.
+  Browser coverage verifies Close, Escape, Cancel, mobile Back, Photo Board,
+  and a fresh successful retry. The OGS username field also ignores Enter
+  used to confirm text composition; ordinary Enter still starts a sync.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
@@ -98,6 +106,9 @@ White through its territory, so its tax is two points and its score is W+86,
 as already asserted in the manual-score unit suite. The corrected browser check
 passes all offered rules, handicap conventions, dead marks, and SGF results at
 1280×800, 390×844, and 320×568.
+The copy-dialect test now reads actual TypeScript string/template literals;
+its former regex could lose quote boundaries and treat a cancellation return
+value as prose. It still checks the same vocabulary and plural conventions.
 
 | Commit / area | Problem and resulting behavior | Evidence |
 | --- | --- | --- |

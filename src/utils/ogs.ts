@@ -69,14 +69,15 @@ export const isOgsUrl = (text: string): boolean => extractOgsGameId(text) !== nu
 
 export const downloadOgsSgf = async (
   gameId: string,
-  options: { isCancelled?: () => boolean } = {}
+  options: { isCancelled?: () => boolean; signal?: AbortSignal } = {}
 ): Promise<string> => {
   const apiUrl = `https://online-go.com/api/v1/games/${gameId}/sgf`;
-  const response = await fetchOgsResource(apiUrl, { method: 'GET' }, options);
+  const response = await fetchOgsResource(apiUrl, { method: 'GET', signal: options.signal }, options);
   if (!response.ok) {
     throw new Error(`Failed to download OGS game ${gameId}: ${response.statusText}`);
   }
   const sgf = await readBoundedResponseText(response, MAX_SGF_IMPORT_BYTES);
+  options.signal?.throwIfAborted();
   if (!sgf || sgf.trim().length === 0) {
     throw new Error(`Empty SGF content received from OGS game ${gameId}`);
   }
@@ -84,8 +85,10 @@ export const downloadOgsSgf = async (
 };
 
 export const loadSgfOrOgs = async (
-  content: string
+  content: string,
+  options: { signal?: AbortSignal } = {}
 ): Promise<{ sgf: string; source: 'direct' | 'ogs' | 'diagram'; gameId?: string }> => {
+  options.signal?.throwIfAborted();
   const trimmed = content.trim();
   if (!trimmed) return { sgf: '', source: 'direct' };
   if (trimmed.startsWith('(')) {
@@ -97,7 +100,7 @@ export const loadSgfOrOgs = async (
   if (shared) return { sgf: shared, source: 'direct' };
   const gameId = extractOgsGameId(trimmed);
   if (gameId) {
-    const sgf = await downloadOgsSgf(gameId);
+    const sgf = await downloadOgsSgf(gameId, options);
     return { sgf, source: 'ogs', gameId };
   }
   // Last, because it is the only branch that guesses. Anything that is really

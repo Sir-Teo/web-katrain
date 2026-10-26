@@ -16,6 +16,7 @@ import { getOgsBackoffRemainingMs } from '../utils/ogsQueue';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import type { LibraryItem } from '../utils/library';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 interface OgsSyncModalProps {
   items: LibraryItem[];
@@ -148,7 +149,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               setSummary(null);
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') void runSync();
+              if (event.key === 'Enter' && !isComposingKeyEvent(event)) void runSync();
             }}
             disabled={isRunning}
             className="min-h-11 w-full rounded-lg border ui-input px-3 py-2 text-sm text-[var(--ui-text)] desktop-shell:min-h-0"

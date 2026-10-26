@@ -36,7 +36,7 @@ describe('library text import', () => {
 
     const result = await createLibraryItemFromSgfOrOgsText('https://online-go.com/game/12345', null);
 
-    expect(fetch).toHaveBeenCalledWith('https://online-go.com/api/v1/games/12345/sgf', { method: 'GET' });
+    expect(fetch).toHaveBeenCalledWith('https://online-go.com/api/v1/games/12345/sgf', expect.objectContaining({ method: 'GET' }));
     expect(result.source).toBe('ogs');
     expect(result.gameId).toBe('12345');
     expect(result.item.name).toBe('Black vs White');
