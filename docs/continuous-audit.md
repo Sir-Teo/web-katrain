@@ -10,6 +10,19 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Recovery/AI browser fixture:** the analysis gate first recorded a 1.9 s
+  AI Stop outlier. Its next run exposed a separate fixture bug: after recovery,
+  Tab was dispatched from the focused desktop Analyze button, where it
+  correctly navigated controls instead of leaving analysis mode. The following
+  phone AI request was repeatedly preempted by that unintended analysis.
+  Cleanup now sends the shortcut from the page, verifies analysis mode is off,
+  and each AI case checks its own layout before starting. Diagnostics retain
+  cancellation dispatch times, batch size and search budget. The corrected
+  gate passed unchanged latency limits: AI Stop 110 ms desktop / 40 ms phone,
+  explicit analysis Stop 178 ms, obsolete-position cancellation 271 ms, and
+  fresh-position display 652 ms. Both layouts also pass no-retry, fresh move,
+  Leave/Cancel, recovery and restored-rules checks. No engine algorithm or
+  timing threshold changed.
 - **Settings opening layout:** production timing runs missed the 120 ms
   dialog budget (130 ms on one run); a fresh run passed it at 110 ms but missed
   first-move and long-task budgets. Profiling identified the initial tab's

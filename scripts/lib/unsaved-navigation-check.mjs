@@ -112,9 +112,17 @@ export async function assertUnsavedNavigation(cdp, appUrl, outputDir, { width, h
     // Desktop Analyze controls continuous search; Tab also leaves analysis
     // mode so the next AI-move fixture cannot schedule a second evaluation.
     if (mobile) await click(analyze);
-    else for (const type of ['keyDown', 'keyUp']) {
-      await cdp.send('Input.dispatchKeyEvent', { type, key: 'Tab', windowsVirtualKeyCode: 9 });
+    else {
+      // Tab from the focused Analyze button navigates to the next control.
+      // The global analysis shortcut belongs to the board/page instead.
+      await evaluate(cdp, 'document.activeElement?.blur()');
+      for (const type of ['keyDown', 'keyUp']) {
+        await cdp.send('Input.dispatchKeyEvent', { type, key: 'Tab', windowsVirtualKeyCode: 9 });
+      }
     }
+    await wait(mobile
+      ? `(${analyze}).getAttribute('aria-pressed')==='false'`
+      : `document.querySelector('#wk-engine-pill-label')?.textContent!=='Analysis mode'`);
     await wait(`auditResponses.some(r=>r.id===${request.id}&&r.type==='katago:analyze_result')`);
     fs.writeFileSync(path.join(outputDir, `${stem}.json`), JSON.stringify({ width, height, gameRules, sgfRule,
       before, restored, request, response, dialogs, cancelMs, navigationMs }, null, 2));
