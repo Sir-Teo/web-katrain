@@ -40,12 +40,10 @@ import {
  * server running. Verified to fail as it should: with the caches deleted first,
  * the offline navigation itself gets net::ERR_FAILED.
  *
- * The app is loaded twice before the network is cut, because that is what the
- * guarantee is. A *first* visit fetches the chunks of the first paint before
- * the worker controls the page, so they never reach a cache;
- * `DesktopDashboard`, `ScoreWinrateGraph` and the dashboard CSS are still
- * missing after one visit and the app offers its error page offline. Closing
- * that needs the build to name its own chunks, which is a separate change.
+ * This cuts the network after the first visit. The worker learns the built
+ * entry and first-paint chunks, and the default board images must be in its
+ * precache: initial image requests can precede service-worker control and
+ * therefore never reach runtime caching.
  *
  * Production only: a dev server registers no worker, so there is nothing to
  * fall back to and this refuses to guess.
@@ -197,6 +195,14 @@ async function main() {
     const total = Object.values(cached).reduce((sum, n) => sum + n, 0);
     assert.ok(total > 0, `Nothing was cached: ${JSON.stringify(cached)}`);
     console.log(`Cached ${total} entries: ${JSON.stringify(cached)}`);
+    const missingBoardImages = await evaluate(cdp, `(async () => {
+      const theme = document.querySelector('[data-board-snapshot=true]')?.dataset.boardTheme;
+      const used = performance.getEntriesByType('resource').filter(e => new URL(e.name).pathname.includes('/themes/' + theme + '/'));
+      const missing = [];
+      for (const asset of used) if (!(await caches.match(asset.name))) missing.push(new URL(asset.name).pathname);
+      return missing;
+    })()`);
+    assert.deepEqual(missingBoardImages, [], `Default board images were not cached: ${JSON.stringify(missingBoardImages)}`);
 
     // Use the engine once online: its worker chunk is fetched lazily, and the
     // promise is that what you actually use stays available offline.

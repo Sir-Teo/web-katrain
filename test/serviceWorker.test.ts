@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { DEFAULT_BOARD_THEME_ID, getBoardTheme } from '../src/utils/boardThemes';
 
 type Listener = (event: never) => void;
 
@@ -172,6 +173,19 @@ function runFetch(options: {
 }
 
 describe('service worker install', () => {
+  it('precaches every image used by the default board before that first page is controlled', async () => {
+    const { added } = await runInstall();
+    const theme = getBoardTheme(DEFAULT_BOARD_THEME_ID);
+    const assets = [theme.board.texture, theme.stones.black.image, theme.stones.white.image,
+      ...(theme.stones.black.imageVariations ?? []), ...(theme.stones.white.imageVariations ?? [])];
+    for (const asset of assets) {
+      if (!asset) continue;
+      const localPath = /\/((?:themes|katrain)\/.+)$/.exec(asset)?.[1];
+      expect(localPath, asset).toBeTruthy();
+      expect(added).toContain(`./${localPath}`);
+    }
+  });
+
   it('caches the whole list when every request succeeds', async () => {
     const { added } = await runInstall();
 

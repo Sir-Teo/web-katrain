@@ -106,7 +106,9 @@ The service worker precaches:
   of the three at runtime, and the other two cannot be chosen here: the threaded
   build needs cross-origin isolation, which GitHub Pages cannot provide, and the
   non-SIMD build is for browsers older than this app supports.
-- The board and stone images the *default* theme draws. The other themes are
+- The board and stone SVGs for the default Hikaru theme, plus the common board
+  overlays. These are precached because the first image requests can precede
+  service-worker control. The other themes are
   cached the first time they are used.
 
 Everything left out stays cache-first at runtime, so anything actually used is

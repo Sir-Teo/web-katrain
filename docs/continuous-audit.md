@@ -58,6 +58,15 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   The same fixture now produces 12 pages (two summary pages and ten complete
   correction pages). `test:report` exports actual PDFs from desktop and phone
   layouts and checks both page counts and every diagram/24-move sequence.
+- **Default board offline:** the production offline check booted without its
+  Hikaru texture and both stone SVGs. First-paint requests preceded service
+  worker control, and the precache still listed only the old common overlays.
+  The three default-theme SVGs are now precached. A shared default-theme
+  constant lets the install test check the real theme's complete image list.
+  The production check now also verifies the initially used theme images
+  before cutting the network. It caches 45 entries instead of 42 and boots
+  with no failed request when both page and service worker are offline;
+  analysis is still verified online by that harness.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

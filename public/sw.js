@@ -43,11 +43,17 @@ const PRECACHE_URLS = [
   // the others stay cache-first at runtime, so a self-hosted deployment that
   // does send the headers still keeps its threaded build after using it once.
   './tfjs/tfjs-backend-wasm-simd.wasm',
-  // Only the images the *default* board draws are here. `dot`, `inner` and
+  // The default Hikaru board uses these SVGs. Its first paint can precede
+  // service-worker control, so runtime caching alone misses them on the first
+  // offline launch. Keep this list covered by the default-theme install test.
+  './themes/hikaru/board.svg',
+  './themes/hikaru/stone-black.svg',
+  './themes/hikaru/stone-white.svg',
+  // The common board overlays are here too. `dot`, `inner` and
   // `topmove` are drawn by GoBoard under every theme, and `graph_bg` is 694
   // bytes.
   //
-  // The other three are 484KB -- 73% of this list -- for surfaces the default
+  // The classic PNG assets are 484KB for surfaces the default
   // experience never renders: `board.png` is the bamboo texture alone, and the
   // two stones belong to bamboo, flat and dark. Anyone who picks one of those
   // themes fetches them once and cache-first keeps them, so a theme that has

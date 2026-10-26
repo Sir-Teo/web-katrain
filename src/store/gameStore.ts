@@ -15,7 +15,7 @@ import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katra
 import { decodeKayaKa } from '../utils/kayaSgfAnalysis';
 import { publicUrl } from '../utils/publicUrl';
 import { isLegacyGameEncoding } from '../utils/gameRecordImport';
-import { isBoardThemeId } from '../utils/boardThemes';
+import { DEFAULT_BOARD_THEME_ID, isBoardThemeId } from '../utils/boardThemes';
 import { isAppLocaleId } from '../utils/locales';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { makeAnalysisPositionKey, makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
@@ -1349,7 +1349,7 @@ const defaultSettings: GameSettings = {
   noteFontScale: 1,
   fuzzyStonePlacement: true,
   showNextMovePreview: true,
-  boardTheme: 'hikaru',
+  boardTheme: DEFAULT_BOARD_THEME_ID,
   // 'system' resolves to noir/light per the device's color-scheme preference.
   uiTheme: 'system',
   uiDensity: 'comfortable',

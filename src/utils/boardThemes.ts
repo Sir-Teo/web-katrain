@@ -1,6 +1,8 @@
 import type { BoardThemeId } from '../types';
 import { publicUrl } from './publicUrl';
 
+export const DEFAULT_BOARD_THEME_ID: BoardThemeId = 'hikaru';
+
 export type ThemeStoneConfig = {
   image?: string;
   imageVariations?: string[];
