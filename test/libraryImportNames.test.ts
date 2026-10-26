@@ -33,6 +33,36 @@ describe('names for imported library batches', () => {
     expect(afterFirst).toEqual([{ ...first, name: 'Race 2' }, second]);
   });
 
+  it('reserves Root names when the destination was deleted during a file read', () => {
+    const existing = Object.freeze(createLibraryItem('Study', sgf));
+    const incoming = Object.freeze(createLibraryItem('study', '(;SZ[13])', 'deleted-folder'));
+    expect(prependLibraryImports([existing], [incoming])).toEqual([
+      { ...incoming, parentId: null, name: 'study 2' }, existing,
+    ]);
+    expect(incoming.parentId).toBe('deleted-folder');
+  });
+
+  it('reroots an archive without flattening its folders when its destination disappears', () => {
+    const existing = createLibraryFolder('Review');
+    const incoming = Object.freeze(createLibraryFolder('Review', 'deleted-folder'));
+    const nested = Object.freeze(createLibraryFolder('Round 1', incoming.id));
+    const child = Object.freeze(createLibraryItem('Game', sgf, nested.id));
+    const result = prependLibraryImports([existing], [child, nested, incoming]);
+    expect(result).toEqual([child, nested, { ...incoming, parentId: null, name: 'Review 2' }, existing]);
+    expect(result[0]).toBe(child);
+    expect(result[1]).toBe(nested);
+  });
+
+  it('rejects file IDs as destinations while preserving a folder moved during the read', () => {
+    const file = createLibraryItem('File', sgf);
+    const outer = createLibraryFolder('Outer');
+    const folder = createLibraryFolder('Moved', outer.id);
+    const rootImport = createLibraryItem('Game', sgf, file.id);
+    const movedImport = createLibraryItem('Game', sgf, folder.id);
+    expect(prependLibraryImports([file, outer, folder], [rootImport, movedImport]).slice(0, 2))
+      .toEqual([{ ...rootImport, parentId: null }, movedImport]);
+  });
+
   it('fills the first available suffix and honors other names reserved in the batch', () => {
     const existing = ['Game', 'Game 3'].map((name) => createLibraryItem(name, sgf));
     const incoming = ['Game', 'Game 4', 'Game', 'Game 2'].map((name) => createLibraryItem(name, sgf));

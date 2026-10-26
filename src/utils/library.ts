@@ -1071,6 +1071,11 @@ export const prependLibraryImports = (
   imported: readonly LibraryItem[]
 ): LibraryItem[] => {
   const pools = new Map<string | null, LibraryNamePool>();
+  // A file read may finish after its destination is deleted. Resolve the
+  // destination before reserving names, including folders inside this batch.
+  const folderIds = new Set<string>();
+  for (const item of items) if (item.type === 'folder') folderIds.add(item.id);
+  for (const item of imported) if (item.type === 'folder') folderIds.add(item.id);
   const poolFor = (parentId: string | null): LibraryNamePool => {
     let pool = pools.get(parentId);
     if (!pool) {
@@ -1081,8 +1086,9 @@ export const prependLibraryImports = (
   };
   for (const item of items) poolFor(item.parentId ?? null).names.add(item.name.toLowerCase());
   const named = imported.map((item) => {
-    const name = reserveLibraryName(item.name.trim() || 'Untitled', poolFor(item.parentId ?? null));
-    return name === item.name ? item : { ...item, name };
+    const parentId = item.parentId && folderIds.has(item.parentId) ? item.parentId : null;
+    const name = reserveLibraryName(item.name.trim() || 'Untitled', poolFor(parentId));
+    return name === item.name && parentId === item.parentId ? item : { ...item, name, parentId };
   });
   return [...named, ...items];
 };

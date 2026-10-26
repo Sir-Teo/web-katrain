@@ -10,6 +10,14 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Imports after destination deletion:** a held native file read completed
+  after its target folder was deleted. Storage rerooted the orphan, but its
+  name had been reserved in the deleted folder, producing two identically named
+  Root games. Completed imports now resolve existing/batch folders before
+  reserving sibling names. Native desktop/phone checks hold the real read,
+  delete its folder, then verify a unique Root name, intact existing SGF and
+  visibility after reload. Forty-nine focused cases pass, including deleted
+  destinations, file IDs, moved folders and nested archive preservation.
 - **Save destinations and header-menu Escape:** composition Escape closed both
   Save Copy and panel Save while their destination picker was focused, losing
   the name draft. Both now use the same composition guard as their name inputs.
