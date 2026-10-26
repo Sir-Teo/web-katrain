@@ -69,6 +69,8 @@ export async function assertNoteLibrarySemantics(cdp, appUrl, screenshotDir) {
     await wait('!!document.querySelector("[data-note-editor]")');
     await key('Escape','Escape',27);
     await wait('!!document.querySelector("[data-note-preview][role=button]")');
+    assert.equal(await evaluate(cdp,'document.activeElement===document.querySelector("[data-note-preview]")'),true,
+      'Cancelling an empty note must return focus to its prompt');
     const documentRoot=(await cdp.send('DOM.getDocument')).result.root;
     const nodeId=(await cdp.send('DOM.querySelector',{nodeId:documentRoot.nodeId,selector:'[data-note-preview][role=button]'})).result.nodeId;
     const ax=(await cdp.send('Accessibility.getPartialAXTree',{nodeId,fetchRelatives:false})).result.nodes[0];
@@ -89,10 +91,39 @@ export async function assertNoteLibrarySemantics(cdp, appUrl, screenshotDir) {
     }
     await key('Enter','Enter',13);
     await wait('document.activeElement===document.querySelector("[data-note-editor]")');
+    await cdp.send('Input.insertText',{text:'Saved keyboard note'});
+    await key('Enter','Enter',13);
+    await wait('document.activeElement===document.querySelector("[data-note-edit]")');
+    await wait('document.querySelector("[data-note-preview]")?.innerText==="Saved keyboard note"');
+    await key('Tab','Tab',9); await key('Tab','Tab',9,8);
+    assert.equal(await evaluate(cdp,'document.activeElement===document.querySelector("[data-note-edit]")'),true,
+      'Tab after saving must navigate controls and return, rather than toggle analysis from the page');
+    await key('Enter','Enter',13);
+    await wait('document.activeElement===document.querySelector("[data-note-editor]")');
+    await cdp.send('Input.insertText',{text:' cancelled draft'});
     await key('Escape','Escape',27);
+    await wait('document.activeElement===document.querySelector("[data-note-edit]")');
+    assert.equal(await evaluate(cdp,'document.querySelector("[data-note-preview]").innerText'),'Saved keyboard note');
+    await click('[data-note-edit]');
+    await wait('document.activeElement===document.querySelector("[data-note-editor]")');
+    await key('a','KeyA',65,2); await key('Backspace','Backspace',8);
+    await click('[data-note-save]');
+    await wait('document.activeElement===document.querySelector("[data-note-preview][role=button]")');
+    await click('[data-note-preview]');
+    await wait('document.activeElement===document.querySelector("[data-note-editor]")');
+    await cdp.send('Input.insertText',{text:'Saved with the pointer'});
+    await click('[data-note-save]');
+    await wait('document.activeElement===document.querySelector("[data-note-edit]")');
+    await click('[data-note-edit]');
+    await wait('document.activeElement===document.querySelector("[data-note-editor]")');
+    await cdp.send('Input.insertText',{text:' discarded'});
+    await click('[data-note-cancel]');
+    await wait('document.activeElement===document.querySelector("[data-note-edit]")');
+    assert.equal(await evaluate(cdp,'document.querySelector("[data-note-preview]").innerText'),'Saved with the pointer');
     reports.push({width,loadingIsBusyGroup:true,noMatchesIsGroup:true,resultsRestoreTree:true,
-      noteName:ax.name.value,noteKeyboardActivation:true});
+      noteName:ax.name.value,noteKeyboardActivation:true,saveAndCancelRestoreFocus:true,
+      deletingNoteFocusesEmptyPrompt:true,tabNavigatesAfterSave:true,cancelRetainsSavedNote:true});
   }
   fs.writeFileSync(path.join(screenshotDir,'note-library-semantics.json'),JSON.stringify(reports,null,2));
-  console.log('Accessible semantics: desktop/phone busy Library loading, empty search groups, restored trees, exact note prompt names, and keyboard editing passed.');
+  console.log('Accessible semantics: desktop/phone Library loading/empty/results, exact note names, composition, editing, Save/Cancel focus, cleared notes, and Tab navigation passed.');
 }

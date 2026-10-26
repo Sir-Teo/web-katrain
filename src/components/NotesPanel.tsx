@@ -361,6 +361,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const [isEditingNote, setIsEditingNote] = React.useState(false);
   const [noteDraft, setNoteDraft] = React.useState(currentNote);
   const noteTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const notePreviewRef = React.useRef<HTMLDivElement>(null);
+  const noteEditButtonRef = React.useRef<HTMLButtonElement>(null);
+  const restoreNoteFocusRef = React.useRef(false);
   const shouldFocusNoteRef = React.useRef(false);
   const previousNoteNodeIdRef = React.useRef(currentNode.id);
   // Written during render so the sync effect can read what was in the editor
@@ -369,6 +372,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const previousNoteTextRef = React.useRef(currentNote);
   const lastFocusRequestRef = React.useRef(0);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
+
+  React.useLayoutEffect(() => {
+    if (isEditingNote || !restoreNoteFocusRef.current) return;
+    restoreNoteFocusRef.current = false;
+    const target = noteHasContent ? noteEditButtonRef.current : notePreviewRef.current;
+    target?.focus({ preventScroll: true });
+  }, [isEditingNote, noteHasContent]);
 
   React.useLayoutEffect(() => () => {
     // Switching phone tabs or shells can remove the editor without changing
@@ -466,6 +476,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [isEditingNote, scrollNoteEditorIntoView]);
 
   const startNoteEdit = React.useCallback(() => {
+    restoreNoteFocusRef.current = false;
     setNoteDraft(currentNote);
     requestNoteEditorFocus();
     setIsEditingNote(true);
@@ -478,6 +489,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [focusRequest, showNotesBlock, startNoteEdit]);
 
   const saveNote = () => {
+    shouldFocusNoteRef.current = false;
+    restoreNoteFocusRef.current = true;
     setCurrentNodeNote(noteDraft);
     setIsEditingNote(false);
   };
@@ -521,6 +534,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   };
 
   const cancelNoteEdit = () => {
+    shouldFocusNoteRef.current = false;
+    restoreNoteFocusRef.current = true;
     setNoteDraft(currentNote);
     setIsEditingNote(false);
   };
@@ -779,6 +794,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
                     : `${noteActionLabel}, keyboard shortcut ${noteShortcutLabel}`
                 }
                 data-note-edit="true"
+                ref={noteEditButtonRef}
               >
                 <FaEdit size={11} aria-hidden="true" />
                 <span>Edit</span>
@@ -811,6 +827,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             <div
               className="min-h-[88px] max-h-44 cursor-text overflow-y-auto rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] p-2 text-sm leading-6 text-[var(--ui-text-muted)]"
               data-note-preview="true"
+              ref={notePreviewRef}
               style={{ fontSize: `${fontScale * 0.875}rem` }}
               onClick={startNoteEdit}
               role={noteHasContent ? undefined : 'button'}

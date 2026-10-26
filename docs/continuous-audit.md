@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Finishing note edits:** Escape from the note editor left focus on the
+  page body; the next Tab could toggle analysis instead of navigating controls.
+  Explicit Save/Cancel now restore focus after the replacement UI mounts: Edit
+  for a saved note, or its Add a note prompt when empty. Passive draft flushes
+  and node changes do not request this focus. Native desktop/phone cases cover
+  Enter saves, Escape cancellation, pointer Save/Cancel, clearing a note,
+  immediate re-entry and Tab/Shift+Tab. The complete note recovery/browser
+  checks still pass for reload, pagehide, Save Copy, clipboard/share, tab/resize
+  retention and trusted replacement.
 - **Accessible empty states:** rendered checks found that the empty note's
   visible “Add a note” prompt was replaced by a different accessible label,
   hiding its instructions. Its button name now comes from the visible text.
