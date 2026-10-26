@@ -424,8 +424,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     previousNoteNodeIdRef.current = currentNode.id;
     previousNoteTextRef.current = currentNote;
     if (!sync) return;
-    setNoteDraft(sync.draft);
-    setIsEditingNote(sync.editing);
+    if (sync.draft !== noteDraftRef.current) setNoteDraft(sync.draft);
+    // On a first-mount focus request, Strict Mode replays this effect before
+    // the requested editor opens. An unchanged false must not cancel it.
+    if (sync.editing !== isEditingNote) setIsEditingNote(sync.editing);
   }, [currentNode.id, currentNote, isEditingNote, setNodeNote]);
 
   React.useEffect(() => {
@@ -786,6 +788,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
               aria-label="User note"
               aria-keyshortcuts="Enter Control+S Meta+S Escape"
               data-note-editor="true"
+              data-note-node-id={currentNode.id}
               data-note-keyboard-aware="true"
               placeholder="Write a note for this position..."
               className="w-full min-h-[88px] max-h-44 ui-input rounded p-2 border focus:border-[var(--ui-accent)] outline-none text-sm font-mono resize-y"

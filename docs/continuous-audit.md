@@ -216,6 +216,17 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   the prior comparator. Native phone Name sorting and Show more preserve
   Games 1–60 from a shuffled 5,000-game library. The study benchmark now gives
   both wide-folder ordering and numeric sorting a 250 ms operation budget.
+- **Keep unfinished notes when leaving or saving:** a native reload silently
+  dropped an open note without warning or recovery. Pending note editors now
+  contribute their live value to reload/pagehide checks, guarded replacement,
+  SGF downloads, and Library saves. Their node identity prevents an old draft
+  from overwriting an imported game. Native desktop/phone checks cover canceled
+  and accepted reloads, Restore, later pagehide snapshots, ordinary Escape,
+  persisted Save Copy, and trusted-drop Cancel/Discard. Unchanged editors stay
+  clean. The desktop dashboard also now receives edit-note requests: C and
+  the palette open the comment section, and C leaves focus mode to reveal the
+  editor. On phone, avoiding a redundant editor reset prevents development
+  effect replay from canceling a first-mount edit request.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

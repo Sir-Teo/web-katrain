@@ -283,9 +283,15 @@ const UNREADABLE_SHARE_LINK_MESSAGE =
 /** How often, at most, a streaming tree change re-checks for unsaved changes. */
 const DIRTY_CHECK_INTERVAL_MS = 1500;
 
-function finishFocusedMetadataEdit(): void {
+function finishPendingGameEdits(): void {
   const focused = document.activeElement;
   if (focused instanceof HTMLElement && focused.closest('[data-game-info-edit-form]')) focused.blur();
+  // Notes have an explicit Save button, so blurring does not commit them.
+  // Capture their live values before serialization or replacing the tree.
+  for (const editor of document.querySelectorAll<HTMLTextAreaElement>('[data-note-editor]')) {
+    const nodeId = editor.dataset.noteNodeId;
+    if (nodeId) useGameStore.getState().setNodeNote(nodeId, editor.value);
+  }
 }
 
 export const Layout: React.FC = () => {
@@ -1141,7 +1147,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      finishFocusedMetadataEdit();
+      finishPendingGameEdits();
       if (!hasUnsavedChanges()) return;
       event.preventDefault();
       event.returnValue = '';
@@ -1312,7 +1318,7 @@ export const Layout: React.FC = () => {
     // half second; the edit made just before would never reach recovery.
     // Leaving the page writes it at once.
     const writeBeforeLeaving = () => {
-      finishFocusedMetadataEdit();
+      finishPendingGameEdits();
       writeNow();
     };
     const writeOnHide = () => {
@@ -1349,8 +1355,14 @@ export const Layout: React.FC = () => {
     }
   }, [autoSaveRecovery, loadGame, navigateEnd, setLoadedLibraryFile, toast]);
 
+  const generateCurrentSgfForSave = useCallback(() => {
+    finishPendingGameEdits();
+    return generateCurrentSgf();
+  }, [generateCurrentSgf]);
+
   /** Whether the game is now saved. `false` means the game is still only here. */
   const handleSaveCurrentSgf = useCallback(async (): Promise<boolean> => {
+    finishPendingGameEdits();
     const sgf = generateCurrentSgf();
     if (await saveLoadedLibraryFile(sgf)) return true;
     try {
@@ -1366,6 +1378,7 @@ export const Layout: React.FC = () => {
 
   const openSaveToLibraryDialog = useCallback(async (returnFocus?: HTMLElement | null) => {
     modalReturnFocusRef.current = returnFocus ?? null;
+    finishPendingGameEdits();
     const sgf = generateCurrentSgf();
     try {
       const items = await loadLibrary();
@@ -1424,9 +1437,9 @@ export const Layout: React.FC = () => {
   }, [hasUnsavedChanges]);
 
   const prepareForGameReplacement = useCallback(async () => {
-    // A drop or delayed download need not blur the editor. Commit its draft
+    // A drop or delayed download need not blur an editor. Commit its draft
     // to the current game before deciding whether that game is safe to leave.
-    finishFocusedMetadataEdit();
+    finishPendingGameEdits();
     const gameId = useGameStore.getState().rootNode.id;
     const choice = await confirmReplaceCurrentGame();
     if (choice === 'cancel') return false;
@@ -1436,9 +1449,9 @@ export const Layout: React.FC = () => {
     // Stopping here leaves the board untouched and the reason on screen, with
     // Discard still there for anyone who meant it.
     if (choice === 'save' && !(await handleSaveCurrentSgf())) return false;
-    // Another metadata edit can begin while IndexedDB is saving, just as a
+    // Another draft edit can begin while IndexedDB is saving, just as a
     // board move can. Include it in the newer-changes guard below.
-    finishFocusedMetadataEdit();
+    finishPendingGameEdits();
     // Saving to IndexedDB can take long enough for another move or edit.
     // The save acknowledgement deliberately keeps those newer edits dirty;
     // do not replace them on the strength of the earlier Save choice.
@@ -1978,6 +1991,7 @@ export const Layout: React.FC = () => {
     if (isMobile) {
       openRightPanelForTab('info');
     } else {
+      setFocusMode(false);
       setShowSidebar(true);
       setRightPanelOpen(true);
     }
@@ -4263,6 +4277,7 @@ export const Layout: React.FC = () => {
             loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
             dirty={currentGameDirty}
             currentNode={currentNode}
+            noteFocusRequest={noteFocusRequest}
             treeVersion={treeVersion}
             drillHidesAnswer={drillHidesAnswer}
             hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
@@ -4302,7 +4317,7 @@ export const Layout: React.FC = () => {
                   open
                   onClose={handleCloseLibrary}
                   docked
-                  getCurrentSgf={generateCurrentSgf}
+                  getCurrentSgf={generateCurrentSgfForSave}
                   legacyGameEncoding={settings.legacyGameEncoding}
                   onLoadSgf={handleLoadFromLibrary}
                   onToast={toast}
@@ -4410,7 +4425,7 @@ export const Layout: React.FC = () => {
               onClose={handleCloseLibrary}
               docked={isDesktop}
               width={leftPanelWidth}
-              getCurrentSgf={generateCurrentSgf}
+              getCurrentSgf={generateCurrentSgfForSave}
               legacyGameEncoding={settings.legacyGameEncoding}
               onLoadSgf={handleLoadFromLibrary}
               onToast={toast}

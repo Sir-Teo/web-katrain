@@ -109,6 +109,7 @@ export interface DesktopDashboardProps {
   libraryWidth?: number;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  noteFocusRequest?: number;
   focusMode?: boolean;
 
   // ---- game analysis ----
@@ -257,7 +258,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     settings, updateControls, updateSettings,
     isInsertMode, insertProgress, toggleInsertMode, isSelectingRegionOfInterest, startSelectRegionOfInterest,
     hasMoveTimes = false,
-    libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, focusMode = false,
+    libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, noteFocusRequest = 0, focusMode = false,
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
     navigateBack, navigateForward, canNavigateBack, canNavigateForward, navigateStart, navigateEnd, navigateToMove,
@@ -281,6 +282,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     candidates: true,
     notes: true,
   });
+  const [handledNoteFocusRequest, setHandledNoteFocusRequest] = useState(0);
+  if (noteFocusRequest !== handledNoteFocusRequest) {
+    setHandledNoteFocusRequest(noteFocusRequest);
+    if (noteFocusRequest > 0 && !sections.notes) setSections({ ...sections, notes: true });
+  }
   // Top game-info strip and bottom metrics bar collapse like the side panels so
   // the board can take the full column; reopen handles mirror the edge toggles.
   const [gamestripOpen, setGamestripOpen] = useState(() => {
@@ -1337,7 +1343,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 {/* "Lock AI details (Play mode)" is a teacher's setting; the
                     other shell honours it, this one used to show the PV and
                     policy text regardless. */}
-                <NotesPanel showInfo detailed={!(mode === 'play' && settings.trainerLockAi)} showNotes />
+                <NotesPanel showInfo detailed={!(mode === 'play' && settings.trainerLockAi)} showNotes focusRequest={noteFocusRequest} />
               </div>
             </div>
           </div>
