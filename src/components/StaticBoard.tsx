@@ -24,6 +24,8 @@ interface StaticBoardProps {
   lastMove?: { x: number; y: number } | null;
   markers?: StaticBoardMarker[];
   showCoordinates?: boolean;
+  /** Paper uses plain stones and a white surface for printable diagrams. */
+  appearance?: 'wood' | 'paper';
   /** Maximum rendered size in CSS pixels. The board scales to fit its container otherwise. */
   maxPx?: number;
   className?: string;
@@ -51,12 +53,14 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
   lastMove,
   markers,
   showCoordinates = false,
+  appearance = 'wood',
   maxPx = 420,
   className,
   ariaLabel = 'Go board position',
   onPointClick,
 }) => {
   const size = normalizeBoardSize(board.length, 19);
+  const paper = appearance === 'paper';
   const hoshi = useMemo(() => getHoshiPoints(size), [size]);
 
   /**
@@ -108,8 +112,9 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
     onPointClick(point.x, point.y);
   };
 
-  // Geometry: 1 unit per intersection spacing, with half-unit margins.
+  // One unit per intersection, with room outside edge stones for coordinates.
   const margin = showCoordinates ? 1.4 : 0.7;
+  const coordinateOffset = 0.95;
   const dim = size - 1 + margin * 2;
   const cell = 1; // logical unit
   const toPx = (i: number) => margin + i * cell;
@@ -149,10 +154,10 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
       </defs>
 
       {/* Board surface */}
-      <rect x={0} y={0} width={dim} height={dim} rx={0.3} fill="#e3b264" />
+      <rect x={0} y={0} width={dim} height={dim} rx={0.3} fill={paper ? '#ffffff' : '#e3b264'} />
 
       {/* Grid lines */}
-      <g stroke="#3a2a14" strokeWidth={0.03} strokeLinecap="round">
+      <g stroke={paper ? '#000000' : '#3a2a14'} strokeWidth={0.03} strokeLinecap="round">
         {Array.from({ length: size }, (_, i) => (
           <React.Fragment key={`line-${i}`}>
             <line x1={toPx(0)} y1={toPx(i)} x2={toPx(size - 1)} y2={toPx(i)} />
@@ -162,7 +167,7 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
       </g>
 
       {/* Star points */}
-      <g fill="#3a2a14">
+      <g fill={paper ? '#000000' : '#3a2a14'}>
         {hoshi.map(([hx, hy]) => (
           <circle key={`star-${hx}-${hy}`} cx={toPx(hx)} cy={toPx(hy)} r={0.08} />
         ))}
@@ -170,11 +175,11 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
 
       {/* Coordinates */}
       {showCoordinates && (
-        <g fill="#5b4423" fontSize={0.42} fontFamily="system-ui, sans-serif" textAnchor="middle">
+        <g fill={paper ? '#000000' : '#5b4423'} fontSize={0.42} fontFamily="system-ui, sans-serif" textAnchor="middle">
           {Array.from({ length: size }, (_, i) => (
             <React.Fragment key={`coord-${i}`}>
-              <text x={toPx(i)} y={margin - 0.55} dominantBaseline="middle">{COLUMN_LETTERS[i]}</text>
-              <text x={margin - 0.6} y={toPx(i)} dominantBaseline="middle">{size - i}</text>
+              <text x={toPx(i)} y={margin - coordinateOffset} dominantBaseline="middle">{COLUMN_LETTERS[i]}</text>
+              <text x={margin - coordinateOffset} y={toPx(i)} dominantBaseline="middle">{size - i}</text>
             </React.Fragment>
           ))}
         </g>
@@ -191,9 +196,9 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
                 cx={toPx(x)}
                 cy={toPx(y)}
                 r={stoneR}
-                fill={cellValue === 'black' ? 'url(#sb-black)' : 'url(#sb-white)'}
-                stroke={cellValue === 'white' ? '#b8b3a7' : 'none'}
-                strokeWidth={cellValue === 'white' ? 0.015 : 0}
+                fill={paper ? (cellValue === 'black' ? '#000000' : '#ffffff') : (cellValue === 'black' ? 'url(#sb-black)' : 'url(#sb-white)')}
+                stroke={cellValue === 'white' ? (paper ? '#000000' : '#b8b3a7') : 'none'}
+                strokeWidth={cellValue === 'white' ? (paper ? 0.025 : 0.015) : 0}
               />
             );
           }),
@@ -233,7 +238,7 @@ export const StaticBoard: React.FC<StaticBoardProps> = ({
         }
         return (
           <g key={`mk-${idx}`}>
-            {!occupant && <circle cx={toPx(m.x)} cy={toPx(m.y)} r={stoneR} fill={fill} />}
+            {!occupant && <circle cx={toPx(m.x)} cy={toPx(m.y)} r={stoneR} fill={fill} stroke={paper ? '#000000' : undefined} strokeWidth={paper ? 0.025 : undefined} />}
             {occupant && m.kind !== 'label' && (
               <circle cx={toPx(m.x)} cy={toPx(m.y)} r={0.22} fill={fill} />
             )}

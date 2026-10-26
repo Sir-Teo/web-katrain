@@ -216,6 +216,7 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
                 </div>
                 <StaticBoard
                   board={diagram.board}
+                  appearance="paper"
                   markers={toStaticMarkers(diagram.markers)}
                   showCoordinates
                   // A cap, not a size: the board is `width: 100%`, so in the

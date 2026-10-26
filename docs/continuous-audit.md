@@ -155,6 +155,15 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   Browser checks cancel and accept the native reload, restore the typed
   player, then verify synchronous komi/handicap snapshots after the previous
   auto-save debounce has already run.
+- **Paper diagrams and clear coordinates:** kifu previews/exports use white
+  boards, solid stones, and outlined white stones instead of a page-filling
+  wood surface. The 296-move PDF remains six pages and shrank from 632,167
+  bytes to about 460 KB. Inspecting its final diagram also exposed coordinate
+  labels touching edge stones: actual SVG bounds counted 9 and 10 overlaps on
+  the last two pages. Static-board coordinates now use more of their existing
+  outer margin, producing zero overlaps on all six diagrams. The existing
+  touch-scroll probe now occupies every edge and checks coordinate clipping/
+  overlap in wood and paper styles at 320×568 and 568×320.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
