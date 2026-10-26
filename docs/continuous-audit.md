@@ -17,6 +17,11 @@ reproduced failures separate from candidates that still need investigation.
   checks running. Every native interaction suite passed, including durable
   imports, OGS storage/deduplication, recovery during search, keyboard Retry,
   focus preservation, report guide containment and all existing save races.
+- The sweep at `9bfb3dc` ended without a final result after Game Info checks.
+  All 11 layouts and the completed import/tag/backup, save-race, scoring and
+  tooltip checks passed, but this is an incomplete run. No application failure
+  or OOM was recorded; the runner and development server were no longer running.
+  Preserve its screenshots/log and establish completion in a subsequent run.
 - The later sweep at `2262300` stopped during the 390-pixel Save Copy setup:
   its opening touch stayed a preview and no stone was placed. The unchanged
   isolated scenario passed, including delayed persistence, newer recovery and
@@ -62,6 +67,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Copy a saved record:** single-game Library menus now offer Copy SGF without
+  loading the record onto the board. The action keeps complete collections and
+  uses the same UTF-8 declaration handling as Download SGF. It supports the
+  existing modern/legacy clipboard paths, explains denied access, and replaces
+  a resolved copy error after retry. Native 1440/390/320 checks use controlled
+  clipboard outcomes and pointer/Enter input; they preserve every game/comment,
+  restore focus, leave board/storage unchanged and omit the action from folders
+  and bulk menus. The focused clipboard/encoding/notification/dialog suites
+  passed all 67 cases; app/test TypeScript and lint also pass.
 - **Keyboard focus during OGS sync:** a real pending download left focus on
   `body` when the active Sync control became disabled, outside the dialog's Tab
   handler. Pending work now focuses the dialog when focus is lost. Failure

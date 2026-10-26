@@ -92,6 +92,8 @@ PWA. There is no analysis server to run.
   `joseki` and `eloise` also find “Jōseki” and “Éloïse”.
 - Library imports keep saving after the panel closes. Reopening it shows the
   ongoing import; leaving the page asks for confirmation while work is pending.
+- Use **Copy SGF** in a saved game's menu to copy its complete record without
+  replacing the game on the board. Collections keep all of their games.
 - Sync recent finished OGS games into Library. Renamed studies stay recognized
   on later syncs, and their source IDs survive JSON backups and library duplication.
   Use **Open on OGS** in a synced or URL-imported study's menu to open its original game in a new tab.

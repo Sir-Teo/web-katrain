@@ -106,6 +106,7 @@ import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
 import { getOgsGameId } from '../utils/ogsGameIdentity';
 import { getVisibleLibraryTreeRows, libraryTreeIndent } from '../utils/libraryTreeRows';
+import { copyTextToClipboard } from '../utils/clipboard';
 import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
@@ -1355,6 +1356,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast(`Exported "${item.name}".`, 'success');
   };
 
+  const handleCopySgf = async (item: LibraryFile) => {
+    const operationId = `library-copy-sgf:${item.id}`;
+    if (await copyTextToClipboard(normalizeSgfUtf8(item.sgf))) {
+      onToast(`Copied "${item.name}" as SGF.`, 'success', undefined, operationId);
+    } else {
+      onToast('Could not copy SGF. Clipboard access is unavailable; use Download SGF to save the file.', 'error', undefined, operationId);
+    }
+  };
+
   const handleSplitCollection = (item: LibraryFile) => {
     try {
       const result = splitLibraryCollection(items, item.id);
@@ -2368,6 +2378,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             >
               <FaDownload size={12} /> {isFile(contextMenuItem) ? 'Download SGF' : 'Export folder as ZIP'}
             </button>
+            {isFile(contextMenuItem) && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => void handleCopySgf(contextMenuItem))}
+                data-library-copy-sgf="true"
+              >
+                <FaCopy size={12} aria-hidden="true" /> Copy SGF
+              </button>
+            )}
             {ogsGameId !== undefined && (
               <a
                 role="menuitem"
