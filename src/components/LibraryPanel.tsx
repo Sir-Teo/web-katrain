@@ -25,6 +25,7 @@ import {
   FaRegStar,
   FaTag,
   FaEllipsisH,
+  FaExternalLinkAlt,
 } from 'react-icons/fa';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
@@ -103,6 +104,7 @@ import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
 import { getDroppedSgfOrOgsText, hasPotentialGameImportDrag } from '../utils/dragImport';
 import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
+import { getOgsGameId } from '../utils/ogsGameIdentity';
 import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
@@ -1028,7 +1030,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
 
     const menuItems = Array.from(
-      contextMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []
+      contextMenuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []
     );
     const currentIndex = menuItems.findIndex((item) => item === document.activeElement);
     const nextIndex = getLibraryMenuNavigationIndex({
@@ -2229,6 +2231,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (!contextMenu) return null;
     const menuButtonClass = 'library-context-menu-item';
     const dangerMenuButtonClass = 'library-context-menu-item danger';
+    const ogsGameId = contextMenuItem && isFile(contextMenuItem) ? getOgsGameId(contextMenuItem) : undefined;
 
     return (
       <div
@@ -2371,6 +2374,26 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             >
               <FaDownload size={12} /> {isFile(contextMenuItem) ? 'Download SGF' : 'Export folder as ZIP'}
             </button>
+            {ogsGameId !== undefined && (
+              <a
+                role="menuitem"
+                className={menuButtonClass}
+                href={`https://online-go.com/game/${ogsGameId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-library-ogs-source="true"
+                onClick={closeContextMenu}
+                onKeyDown={(event) => {
+                  if (event.key !== ' ' || isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  event.currentTarget.click();
+                }}
+              >
+                <FaExternalLinkAlt size={12} aria-hidden="true" /> Open on OGS
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            )}
             {contextMenuItem.parentId && (
               <button
                 type="button"

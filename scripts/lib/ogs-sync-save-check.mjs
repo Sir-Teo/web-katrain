@@ -25,8 +25,8 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2});
   await cdp.send('Input.insertText',{text:'Alice'});
  };
- for(const width of [1440,390]) {
-  mobile=width===390;
+ for(const width of [1440,390,320]) {
+  mobile=width<1000;
   const setup=await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:`
    performance.setResourceTimingBufferSize(5000);
    localStorage.removeItem('web-katrain:auto_saved_game:v1');
@@ -35,9 +35,9 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
    localStorage.setItem('web-katrain:library_open:v1','true');
    localStorage.setItem('web-katrain:settings:v3',JSON.stringify({soundEnabled:false,loadSgfFastAnalysis:false,timerByoPeriods:0,timerMainTimeMinutes:0}));
   `});
-  try{await setViewport(cdp,{width,height:width===390?844:900,mobile:width===390});await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true})}
+  try{await setViewport(cdp,{width,height:width===320?568:mobile?844:900,mobile});await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true})}
   finally{await cdp.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:setup.result.identifier})}
-  await wait('!!document.querySelector("[data-board-snapshot]")');if(width===390)await click('#mobile-tab-library');
+  await wait('!!document.querySelector("[data-board-snapshot]")');if(mobile)await click('#mobile-tab-library');
   await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');
   await evaluate(cdp,installStorageControls);
   const sgf='(;GM[1]SZ[9]PB[Alice]PW[Bob]C[Keep imported comments];B[dd];W[ee])';
@@ -103,17 +103,66 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   assert.equal(await evaluate(cdp,`document.querySelector('[data-library-row-id="${firstFile.id}"]').dataset.libraryRowName`),renamed);
   await click('.library-search-clear');
   await wait(`document.querySelector('[data-library-search]').value===''`);
+
+  // Keep external navigation intercepted while exercising real menu input.
+  await evaluate(cdp,`(()=>{
+   window.ogsSourceClicks=[];window.ogsSourceKeys=[];
+   document.addEventListener('click',event=>{
+    const link=event.target instanceof Element?event.target.closest('[data-library-ogs-source]'):null;
+    if(!link)return;event.preventDefault();
+    ogsSourceClicks.push({href:link.href,target:link.target,rel:link.rel,isTrusted:event.isTrusted});
+   },true);
+   document.addEventListener('keydown',event=>{
+    if(event.target instanceof Element&&event.target.matches('[data-library-ogs-source]'))ogsSourceKeys.push({key:event.key,isTrusted:event.isTrusted});
+   },true);return true;
+  })()`);
+  const sourceBoard=await evaluate(cdp,`({...document.querySelector('[data-board-snapshot]').dataset})`);
+  const sourceLocation=await evaluate(cdp,'location.href');
+  const sourceMore=`[data-library-row-id="${firstFile.id}"] .library-tree-node-more`;
+  const sourceKey=async(key,code,windowsVirtualKeyCode)=>{
+   for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key,code,windowsVirtualKeyCode,...(type==='keyDown'&&key==='Enter'?{text:String.fromCharCode(13)}:{})});
+  };
+  for(const activation of ['pointer','Enter','Space']){
+   await click(sourceMore);await wait(`!!document.querySelector('[data-library-ogs-source]')`);
+   const link=await evaluate(cdp,`(()=>{const e=document.querySelector('[data-library-ogs-source]');return{href:e.href,target:e.target,rel:[...e.relList],label:e.textContent}})()`);
+   assert.equal(link.href,`https://online-go.com/game/${firstId}`);assert.equal(link.target,'_blank');
+   assert.ok(link.rel.includes('noopener')&&link.rel.includes('noreferrer'));assert.ok(link.label.includes('opens in a new tab'));
+   if(activation==='pointer')await click('[data-library-ogs-source]');
+   else{
+    const index=await evaluate(cdp,`[...document.querySelectorAll('[role=menu] [role=menuitem]')].findIndex(e=>e.matches('[data-library-ogs-source]'))`);
+    await sourceKey('Home','Home',36);
+    for(let i=0;i<index;i++)await sourceKey('ArrowDown','ArrowDown',40);
+    await wait(`document.activeElement?.matches('[data-library-ogs-source]')`);
+    await sourceKey('ArrowUp','ArrowUp',38);
+    assert.equal(await evaluate(cdp,'document.activeElement?.textContent.trim()'),'Download SGF');
+    await sourceKey('ArrowDown','ArrowDown',40);
+    await sourceKey(activation==='Space'?' ':'Enter',activation==='Space'?'Space':'Enter',activation==='Space'?32:13);
+   }
+   await wait(`!document.querySelector('[role=menu]')&&document.activeElement===document.querySelector(${JSON.stringify(sourceMore)})`);
+  }
+  const activations=await evaluate(cdp,'ogsSourceClicks');assert.equal(activations.length,3);
+  assert.equal(activations[0].isTrusted,true);assert.equal(activations[1].isTrusted,true);
+  assert.ok(await evaluate(cdp,`ogsSourceKeys.some(event=>event.key===' '&&event.isTrusted)`));
+  assert.deepEqual(await evaluate(cdp,`({...document.querySelector('[data-board-snapshot]').dataset})`),sourceBoard);
+  assert.equal(await evaluate(cdp,'location.href'),sourceLocation);
+  const ordinary=baseline.find(item=>item.type==='file'&&!item.ogsGameId&&!/\(ogs-\d+\)/.test(item.name));
+  for(const id of [ordinary.id,firstFile.parentId]){
+   await click(`[data-library-row-id="${id}"] .library-tree-node-more`);
+   await wait(`!!document.querySelector('[role=menu]')`);
+   assert.equal(await evaluate(cdp,`!!document.querySelector('[data-library-ogs-source]')`),false);
+   await sourceKey('Escape','Escape',27);await wait(`!document.querySelector('[role=menu]')`);
+  }
   // Download succeeds, but its storage read is held while both panels close.
   await evaluate(cdp,'ogsSaveAudit.id++;void 0');await open();
   await evaluate(cdp,"librarySaveAudit.mode='delay'");await click('.ogs-sync-footer button','Sync');
   await wait('librarySaveAudit.held.length>0');
   await wait(`document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent.includes('Saving games to library')`);
   assert.equal(await evaluate(cdp,`document.querySelector('.ogs-sync-footer')?.textContent.includes('Sync Again')`),false);
-  if(width===390)await evaluate(cdp,'history.back()');else await click('.ogs-sync-footer button','Close');
+  if(mobile)await evaluate(cdp,'history.back()');else await click('.ogs-sync-footer button','Close');
   await wait('!document.querySelector("#ogs-sync-username")&&!history.state?.webKatrainOverlay');
-  if(width===390)await click('[aria-label="Back to board"]');else await click('button[title="Hide library"]');
+  if(mobile)await click('[aria-label="Back to board"]');else await click('button[title="Hide library"]');
   await wait('!document.querySelector("[data-library-storage-badge]")');
-  if(width===390)await click('#mobile-tab-library');else await click('button[title="Show library"]');
+  if(mobile)await click('#mobile-tab-library');else await click('button[title="Show library"]');
   await wait(`document.querySelector('[data-library-importing=true]')?.textContent.includes('Importing 1 item')`);
   await evaluate(cdp,"librarySaveAudit.mode='normal';librarySaveAudit.held.splice(0).forEach(release=>release())");
   await wait(`document.querySelector('[data-library-storage-badge]')?.textContent==='IndexedDB'&&!document.querySelector('[data-library-importing=true]')`);
@@ -148,10 +197,10 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   await wait('!document.querySelector("#ogs-sync-username")&&!history.state?.webKatrainOverlay');
   if(await evaluate(cdp,`document.querySelector('[data-library-row-name="Other tab studies"]')?.getAttribute('aria-expanded')!=='true'`))await click('[data-library-row-name="Other tab studies"] .library-tree-node-arrow');
   await wait(`!!document.querySelector('[data-library-row-id="${arrived.id}"]')&&localStorage.getItem('web-katrain:library_folders_expanded:v1')?.includes(${JSON.stringify(arrived.parentId)})`);
-  await navigate(cdp,appUrl,15000);await wait('!!document.querySelector("[data-board-snapshot]")');if(width===390)await click('#mobile-tab-library');
+  await navigate(cdp,appUrl,15000);await wait('!!document.querySelector("[data-board-snapshot]")');if(mobile)await click('#mobile-tab-library');
   await wait(`!![...document.querySelectorAll('[data-library-row]')].find(e=>e.dataset.libraryRowName?.includes('(ogs-${secondId})'))`);
   await wait(`!!document.querySelector('[data-library-row-id="${arrived.id}"]')`);
-  reports.push({width,renamePreservesIdentity:true,renamedGameSkipsRedownload:true,rejectedWriteHasNoSuccess:true,resolvedSaveErrorReplaced:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,duplicateOgsIdSkippedAtCommit:true,otherFolderAnnotationsPreserved:true,skippedCountAccurate:true,reloadPreserved:true});
+  reports.push({width,sourceLinkPreservedAfterRename:true,sourceLinkPointerEnterSpace:true,sourceLinkNewTabProtected:true,sourceLinkHiddenForOrdinaryFilesAndFolders:true,renamePreservesIdentity:true,renamedGameSkipsRedownload:true,rejectedWriteHasNoSuccess:true,resolvedSaveErrorReplaced:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,duplicateOgsIdSkippedAtCommit:true,otherFolderAnnotationsPreserved:true,skippedCountAccurate:true,reloadPreserved:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'ogs-sync-save.json'),JSON.stringify(reports,null,2));
  console.log('OGS sync storage: desktop/phone reject false success, retry once, survive closing both panels, skip games arriving during download and preserve annotations across reload.');

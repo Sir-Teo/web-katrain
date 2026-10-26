@@ -62,6 +62,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Open a study's OGS source:** synced games now offer “Open on OGS” in their
+  row menu, using the retained ID after rename. The link opens a new tab with
+  `noopener noreferrer`, announces that behavior and supports pointer, Enter
+  and Space activation within normal menu navigation. Native checks at 1440,
+  390 and 320 pixels intercept navigation, verify the exact source URL and
+  safety attributes, preserve the game and current location, restore trigger
+  focus and omit the action from ordinary files/folders. Existing persistence,
+  rename/search, retry and reload checks still pass; app/test TypeScript and
+  lint pass.
 - **Settings rendering:** profiling found expensive focus/layout work while
   opening Settings. Its full-screen and footer backdrop filters were removed;
   the dimmed board and opaque dialog remain. A controlled CSS override and the
