@@ -43,6 +43,20 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **OGS identity through rename and recovery:** renaming a synced study made
+  the next sync download it again and add another record. Files now retain a
+  validated source game ID independently of their display name. Older marked
+  filenames migrate on read; rename, SGF edits, JSON backup/restore and Library
+  duplication retain the ID, and search can still find it. Already renamed
+  records whose IDs were previously lost cannot be inferred from their names.
+  A successful retry also replaces its resolved save-error toast, using a
+  canonical player/game-batch operation ID; unrelated error batches remain
+  distinct. The stale error had covered the phone row despite successful
+  persistence. Broader storage/edit/backup cases and targeted identity/notification
+  cases pass, along with app/test TypeScript and lint. Native desktop/phone
+  checks now rename through the real menu, search by ID, skip the SGF download
+  on resync, preserve record count and annotations, clear the resolved error,
+  and retain the existing delayed-save, close/reopen and reload proofs.
 - **Visible startup:** an entry-script delay left only an empty app root.
   The HTML now supplies a loading status before application code runs, with
   system light/dark colors and reduced-motion support. With JavaScript

@@ -1,6 +1,8 @@
 import type { LibraryItem } from './library';
 import { downloadOgsSgf } from './ogs';
 import { fetchOgsResource, isOgsCancelledError, readBoundedResponseText } from './ogsQueue';
+import { getOgsGameId } from './ogsGameIdentity';
+export { OGS_SYNC_GAME_ID_MARKER } from './ogsGameIdentity';
 
 export type OgsPlayer = {
   id: number;
@@ -35,9 +37,12 @@ export type OgsSyncedGame = {
 const OGS_API_BASE = 'https://online-go.com/api/v1';
 const SUPPORTED_BOARD_SIZES = new Set([9, 13, 19]);
 export const OGS_SYNC_USERNAME_STORAGE_KEY = 'web-katrain:ogs_sync_username:v1';
-export const OGS_SYNC_GAME_ID_MARKER = /\(ogs-(\d+)\)/;
 
 export const ogsSyncFolderName = (username: string): string => `OGS - ${username}`;
+
+/** A retry updates its own error without dismissing failures from another batch. */
+export const ogsSyncOperationId = (playerId: number, games: readonly Pick<OgsGameSummary, 'id'>[]): string =>
+  `ogs-sync:${playerId}:${[...new Set(games.map(game => game.id))].sort((a, b) => a - b).join(',')}`;
 
 export type OgsSyncOutcome = {
   added: number;
@@ -87,14 +92,14 @@ export const ogsSyncFileName = (game: OgsGameSummary): string => {
 
 /**
  * Collects the OGS game ids already present anywhere in the library, based on
- * the "(ogs-<id>)" marker that synced files carry in their names.
+ * retained source identity or the filename marker on older synced files.
  */
 export const collectExistingOgsGameIds = (items: LibraryItem[]): Set<number> => {
   const ids = new Set<number>();
   for (const item of items) {
     if (item.type !== 'file') continue;
-    const match = OGS_SYNC_GAME_ID_MARKER.exec(item.name);
-    if (match) ids.add(Number(match[1]));
+    const id = getOgsGameId(item);
+    if (id !== undefined) ids.add(id);
   }
   return ids;
 };

@@ -6,6 +6,7 @@ import { countSgfGames, countSgfMoves, readRootSgfProperties, sgfTrailingGames }
 import { expandSgfPointList } from './sgf';
 import { getIndexedDB, getLocalStorage, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 import { normalizeSearchText, toSearchTerms } from './searchTerms';
+import { getOgsGameId } from './ogsGameIdentity';
 
 export type LibraryBase = {
   id: string;
@@ -38,6 +39,8 @@ export type LibraryFile = LibraryBase & {
   metadata: LibraryFileMetadata;
   favorite?: boolean;
   tags?: string[];
+  /** Source identity survives display-name changes and backup round trips. */
+  ogsGameId?: number;
 };
 
 export type LibraryFolder = LibraryBase & {
@@ -387,6 +390,7 @@ export const getLibraryItemSearchText = (item: LibraryItem): string => {
       typeof metadata.handicap === 'number' ? `handicap ${metadata.handicap}` : undefined,
       typeof metadata.setupStoneCount === 'number' ? `${metadata.setupStoneCount} setup stones` : undefined,
       getLibraryFileMoveSummary(item),
+      item.ogsGameId ? `(ogs-${item.ogsGameId})` : undefined,
       item.favorite ? 'favorite starred' : undefined,
       ...(item.tags ?? []),
     );
@@ -505,6 +509,7 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
       // "( ;", an AB[aa:cc] rectangle, a comment before the first move --
       // never reached games already in the library.
       const metadata: LibraryFileMetadata = extractLibraryMetadata(sgf);
+      const ogsGameId = getOgsGameId({ name, ogsGameId: raw.ogsGameId });
       const tags = Array.isArray(raw.tags)
         ? Array.from(
             new Set(
@@ -515,8 +520,8 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
             )
           )
         : [];
-      // Only attach favorite/tags when meaningful so untagged items keep their
-      // original shape (no forced defaults), which keeps round-trips stable.
+      // Keep optional study fields absent when unused so ordinary records
+      // retain their original shape across storage and backup round trips.
       return {
         id,
         name,
@@ -530,6 +535,7 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         metadata,
         ...(raw.favorite === true ? { favorite: true } : {}),
         ...(tags.length > 0 ? { tags } : {}),
+        ...(ogsGameId !== undefined ? { ogsGameId } : {}),
       } as LibraryFile;
     });
   return rerootUnreachableItems(normalized);
@@ -952,9 +958,11 @@ export const createLibraryItem = (
   parentId: string | null = null,
   timestamp = Date.now()
 ): LibraryFile => {
+  const itemName = name.trim() || 'Untitled';
+  const ogsGameId = getOgsGameId({ name: itemName });
   return {
     id: createId(),
-    name: name.trim() || 'Untitled',
+    name: itemName,
     sgf,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -963,6 +971,7 @@ export const createLibraryItem = (
     metadata: extractLibraryMetadata(sgf),
     parentId,
     type: 'file',
+    ...(ogsGameId !== undefined ? { ogsGameId } : {}),
   };
 };
 

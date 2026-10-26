@@ -6,6 +6,7 @@ import {
   collectExistingOgsGameIds,
   downloadNewOgsGames,
   formatOgsSyncSummary,
+  ogsSyncOperationId,
   listOgsFinishedGames,
   resolveOgsPlayer,
   type OgsSyncOutcome,
@@ -21,7 +22,7 @@ import { isComposingKeyEvent } from '../utils/compositionKey';
 interface OgsSyncModalProps {
   items: LibraryItem[];
   onClose: () => void;
-  onImport: (username: string, games: OgsSyncedGame[]) => number | Promise<number>;
+  onImport: (username: string, games: OgsSyncedGame[], operationId: string) => number | Promise<number>;
 }
 
 type SyncSummary = OgsSyncOutcome;
@@ -107,7 +108,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
       let added = 0;
       if (synced.length > 0) {
         setIsSaving(true);
-        added = await onImport(player.username, synced);
+        added = await onImport(player.username, synced, ogsSyncOperationId(player.id, games));
         if (!isCurrent()) return;
       }
       setSummary({

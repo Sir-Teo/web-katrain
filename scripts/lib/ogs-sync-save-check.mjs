@@ -7,12 +7,17 @@ import {installStorageControls} from './library-save-check.mjs';
 /** Exercise completed downloads against real failed and delayed browser storage. */
 export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
  const reports=[];
+ let mobile=false;
  const wait=expression=>waitForExpression(cdp,expression,{label:'OGS durable save',diagnose:`({held:librarySaveAudit?.held.length,mode:librarySaveAudit?.mode,dialog:document.querySelector('[aria-labelledby=ogs-sync-title]')?.textContent,toast:document.querySelector('.notification-toast-message')?.title,storage:document.querySelector('[data-library-storage-badge]')?.textContent})`});
  const click=async(selector,text)=>{
   const p=await wait(`(()=>{const e=[...document.querySelectorAll(${JSON.stringify(selector)})].find(e=>${text?`e.textContent.trim()===${JSON.stringify(text)}`:'true'});if(!e||e.disabled)return false;e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return r.width&&e.contains(document.elementFromPoint(x,y))?{x,y}:false})()`);
-  for(const type of ['mousePressed','mouseReleased'])await cdp.send('Input.dispatchMouseEvent',{type,...p,button:'left',clickCount:1});
+  if(mobile){
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p]});
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  }else for(const type of ['mousePressed','mouseReleased'])await cdp.send('Input.dispatchMouseEvent',{type,...p,button:'left',clickCount:1});
  };
- const readStored=()=>evaluate(cdp,`new Promise((resolve,reject)=>{const r=librarySaveAudit.open('web-katrain-library');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,q=db.transaction('items','readonly').objectStore('items').getAll();q.onerror=()=>reject(q.error);q.onsuccess=()=>{db.close();resolve(q.result)}}})`);
+ const storedItems=`new Promise((resolve,reject)=>{const r=librarySaveAudit.open('web-katrain-library');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,q=db.transaction('items','readonly').objectStore('items').getAll();q.onerror=()=>reject(q.error);q.onsuccess=()=>{db.close();resolve(q.result)}}})`;
+ const readStored=()=>evaluate(cdp,storedItems);
  const open=async()=>{
   await click('[aria-label="More library actions"]');await click('[role=menuitem]','Sync from OGS');
   await wait('!!document.querySelector("#ogs-sync-username")');
@@ -21,6 +26,7 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   await cdp.send('Input.insertText',{text:'Alice'});
  };
  for(const width of [1440,390]) {
+  mobile=width===390;
   const setup=await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:`
    performance.setResourceTimingBufferSize(5000);
    localStorage.removeItem('web-katrain:auto_saved_game:v1');
@@ -59,12 +65,44 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   await evaluate(cdp,"librarySaveAudit.mode='normal'");
   await click('.ogs-sync-footer button','Sync');
   await wait(`document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent.includes('Added 1 game')`);
+  await wait(`document.querySelector('.notification-toast-message')?.title.startsWith('Synced 1 OGS game')`);
   const firstId=await evaluate(cdp,'ogsSaveAudit.id');
   const firstStored=await readStored();
   assert.equal(firstStored.filter(item=>item.type==='file'&&item.name.includes(`(ogs-${firstId})`)).length,1,'Retry must save exactly one copy');
   assert.equal(firstStored.find(item=>item.type==='file'&&item.name.includes(`(ogs-${firstId})`)).sgf,sgf);
   await click('.ogs-sync-footer button','Done');
   await wait('!document.querySelector("#ogs-sync-username")&&!history.state?.webKatrainOverlay');
+
+  // Renaming a synced game must not make the next sync download it again.
+  const firstFile=firstStored.find(item=>item.type==='file'&&item.name.includes(`(ogs-${firstId})`));
+  const renamed=`My annotated OGS study ${width}`;
+  await click(`[data-library-row-id="${firstFile.id}"] .library-tree-node-more`);
+  await click('[role=menu] button','Rename');
+  await wait('!!document.querySelector("[aria-labelledby=library-text-dialog-title] input")');
+  await click('[aria-labelledby=library-text-dialog-title] input');
+  for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2});
+  await cdp.send('Input.insertText',{text:renamed});
+  for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key:'Enter',code:'Enter',windowsVirtualKeyCode:13,...(type==='keyDown'?{text:'\r'}:{})});
+  await wait('!document.querySelector("[aria-labelledby=library-text-dialog-title]")&&!history.state?.webKatrainOverlay');
+  await wait(`${storedItems}.then(items=>items.find(item=>item.id===${JSON.stringify(firstFile.id)})?.name===${JSON.stringify(renamed)})`);
+  const beforeResync=await readStored(),requestsBefore=await evaluate(cdp,'ogsSaveAudit.requests.length');
+  await open();await click('.ogs-sync-footer button','Sync');
+  await wait(`document.querySelector('.ogs-sync-footer')?.textContent.includes('Sync Again')`);
+  const renamedSummary=await evaluate(cdp,"document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent");
+  const afterResync=await readStored(),requestCount=await evaluate(cdp,'ogsSaveAudit.requests.length');
+  console.log('Sync after rename',JSON.stringify({width,summary:renamedSummary,beforeItems:beforeResync.length,afterItems:afterResync.length,requests:requestCount-requestsBefore}));
+  assert.ok(renamedSummary.includes('already in your library'),'A renamed game must remain already synced');
+  assert.deepEqual(afterResync,beforeResync,'Resync must preserve the renamed study without a duplicate');
+  assert.equal(afterResync.find(item=>item.id===firstFile.id).ogsGameId,firstId);
+  assert.equal(requestCount-requestsBefore,2,'Already synced games must skip the SGF download');
+  await click('.ogs-sync-footer button','Done');
+  await wait('!document.querySelector("#ogs-sync-username")&&!history.state?.webKatrainOverlay');
+
+  await click('[data-library-search]');await cdp.send('Input.insertText',{text:`ogs-${firstId}`});
+  await wait(`!!document.querySelector('[data-library-row-id="${firstFile.id}"]')&&!!document.querySelector('.library-search-clear')`);
+  assert.equal(await evaluate(cdp,`document.querySelector('[data-library-row-id="${firstFile.id}"]').dataset.libraryRowName`),renamed);
+  await click('.library-search-clear');
+  await wait(`document.querySelector('[data-library-search]').value===''`);
   // Download succeeds, but its storage read is held while both panels close.
   await evaluate(cdp,'ogsSaveAudit.id++;void 0');await open();
   await evaluate(cdp,"librarySaveAudit.mode='delay'");await click('.ogs-sync-footer button','Sync');
@@ -113,7 +151,7 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   await navigate(cdp,appUrl,15000);await wait('!!document.querySelector("[data-board-snapshot]")');if(width===390)await click('#mobile-tab-library');
   await wait(`!![...document.querySelectorAll('[data-library-row]')].find(e=>e.dataset.libraryRowName?.includes('(ogs-${secondId})'))`);
   await wait(`!!document.querySelector('[data-library-row-id="${arrived.id}"]')`);
-  reports.push({width,rejectedWriteHasNoSuccess:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,duplicateOgsIdSkippedAtCommit:true,otherFolderAnnotationsPreserved:true,skippedCountAccurate:true,reloadPreserved:true});
+  reports.push({width,renamePreservesIdentity:true,renamedGameSkipsRedownload:true,rejectedWriteHasNoSuccess:true,resolvedSaveErrorReplaced:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,duplicateOgsIdSkippedAtCommit:true,otherFolderAnnotationsPreserved:true,skippedCountAccurate:true,reloadPreserved:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'ogs-sync-save.json'),JSON.stringify(reports,null,2));
  console.log('OGS sync storage: desktop/phone reject false success, retry once, survive closing both panels, skip games arriving during download and preserve annotations across reload.');

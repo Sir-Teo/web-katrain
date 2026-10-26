@@ -1,5 +1,6 @@
 import { prependLibraryImports, type LibraryFile, type LibraryFolder, type LibraryItem } from './library';
-import { collectExistingOgsGameIds, OGS_SYNC_GAME_ID_MARKER } from './ogsSync';
+import { collectExistingOgsGameIds } from './ogsSync';
+import { getOgsGameId } from './ogsGameIdentity';
 
 /** Merge a completed sync without replacing edits or repeating newly arrived OGS IDs. */
 export function mergeOgsLibraryImports(
@@ -10,9 +11,8 @@ export function mergeOgsLibraryImports(
   if (files.length === 0) return items;
   const knownGameIds = collectExistingOgsGameIds(items);
   const newFiles = files.filter(file => {
-    const match = OGS_SYNC_GAME_ID_MARKER.exec(file.name);
-    if (!match) return true;
-    const id = Number(match[1]);
+    const id = getOgsGameId(file);
+    if (id === undefined) return true;
     if (knownGameIds.has(id)) return false;
     knownGameIds.add(id);
     return true;
