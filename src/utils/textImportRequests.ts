@@ -3,7 +3,7 @@ export interface TextImportRequest {
   readonly rootId: string;
 }
 
-/** Own a text import from clipboard read through download and confirmation. */
+/** Own a game-text import from clipboard/file read through download and confirmation. */
 export function createTextImportRequests(readRootId: () => string) {
   let current: {
     request: TextImportRequest;

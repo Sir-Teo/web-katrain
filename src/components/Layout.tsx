@@ -2146,21 +2146,42 @@ export const Layout: React.FC = () => {
     return `Board size ${declared} is not supported, so it opened as ${opened}×${opened}.`;
   };
 
-  const loadLocalSgfText = async (text: string, sourceName: string): Promise<boolean> => {
-    const parsed = parseSgf(text);
-    if (!(await prepareForGameReplacement())) return false;
-    loadGame(parsed);
-    const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
-    setLoadedLibraryFile(null);
-    setLoadedExternalFile({ kind: 'file', name: sourceName || getImportedSgfNameFromProperties(parsed.tree?.props, 'Loaded SGF') });
-    markCurrentGameCleanAndClearAutoSave();
-    const sizeNotice = boardSizeCoercionNotice(text);
-    toast(
-      appendRestoredAnalysisSummary(`Loaded "${sourceName || 'SGF'}".`, restoredAnalysisCount)
-        + (sizeNotice ? ` ${sizeNotice}` : ''),
-      sizeNotice ? 'info' : 'success'
+  const openLocalGameFile = async (file: File, failureMessage: string): Promise<boolean> => {
+    const request = textImportRequests.begin();
+    let replacementStarted = false;
+    const isCancelled = () => !textImportRequests.isCurrent(request) || (
+      !replacementStarted && useGameStore.getState().rootNode.id !== request.rootId
     );
-    return true;
+    try {
+      const sizeError = getSgfImportSizeError(file.size);
+      if (sizeError) {
+        toast(sizeError, 'error');
+        return false;
+      }
+      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
+      if (isCancelled()) return false;
+      const parsed = parseSgf(text);
+      if (!(await prepareForGameReplacement())) return false;
+      if (isCancelled()) return false;
+      replacementStarted = true;
+      loadGame(parsed);
+      const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
+      setLoadedLibraryFile(null);
+      setLoadedExternalFile({ kind: 'file', name: file.name || getImportedSgfNameFromProperties(parsed.tree?.props, 'Loaded SGF') });
+      markCurrentGameCleanAndClearAutoSave();
+      const sizeNotice = boardSizeCoercionNotice(text);
+      toast(
+        appendRestoredAnalysisSummary(`Loaded "${file.name || 'SGF'}".`, restoredAnalysisCount)
+          + (sizeNotice ? ` ${sizeNotice}` : ''),
+        sizeNotice ? 'info' : 'success'
+      );
+      return true;
+    } catch (error) {
+      if (!isCancelled()) toast(withFailureReason(failureMessage, error), 'error');
+      return false;
+    } finally {
+      textImportRequests.finish(request);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2184,13 +2205,7 @@ export const Layout: React.FC = () => {
         toast('Choose an SGF, GIB, or NGF game, board photo, or KataGo model weights.', 'error');
         return;
       }
-      const sizeError = getSgfImportSizeError(file.size);
-      if (sizeError) {
-        toast(sizeError, 'error');
-        return;
-      }
-      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
-      await loadLocalSgfText(text, file.name);
+      await openLocalGameFile(file, `Could not open "${file.name}".`);
     } catch (error) {
       toast(withFailureReason(`Could not open "${file.name}".`, error), 'error');
     } finally {
@@ -2455,17 +2470,7 @@ export const Layout: React.FC = () => {
       return;
     }
     if (isGameRecordFile(file)) {
-      try {
-        const sizeError = getSgfImportSizeError(file.size);
-        if (sizeError) {
-          toast(sizeError, 'error');
-          return;
-        }
-        const text = await readGameRecordFile(file, settings.legacyGameEncoding);
-        await loadLocalSgfText(text, file.name);
-      } catch (error) {
-        toast(withFailureReason('Failed to open the game file.', error), 'error');
-      }
+      await openLocalGameFile(file, 'Failed to open the game file.');
       return;
     }
     toast('Unsupported file type. Open an SGF, GIB, or NGF game or board image.', 'error');
@@ -2678,17 +2683,7 @@ export const Layout: React.FC = () => {
       toast('Drop an SGF, GIB, or NGF game, OGS URL, board photo, or KataGo model weights here.', 'error');
       return;
     }
-    try {
-      const sizeError = getSgfImportSizeError(file.size);
-      if (sizeError) {
-        toast(sizeError, 'error');
-        return;
-      }
-      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
-      await loadLocalSgfText(text, file.name);
-    } catch (error) {
-      toast(withFailureReason('Failed to load the dropped game file.', error), 'error');
-    }
+    await openLocalGameFile(file, 'Failed to load the dropped game file.');
   };
 
   useEffect(() => () => {

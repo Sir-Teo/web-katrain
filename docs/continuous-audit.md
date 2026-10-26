@@ -177,6 +177,29 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **File imports respect later game choices:** a trusted file-picker
+  reproduction held a 13×13 file read, selected a 19×19 Library game, then
+  released the older read; the file replaced the selected game. Picker,
+  dropped-file and launch-file imports now begin the shared text-import
+  request before reading game bytes, check ownership/game identity after
+  reading and confirmation, and ignore stale failures. The original probe
+  now preserves the selected game. All 36 native cases pass at
+  1440/390/320 pixels: each file path preserves later Library selections,
+  suppresses old failures and permits retry; newer files and paste/file
+  ordering retain the exact chosen game. Picker, drop and paste events are
+  trusted browser events; launch cases invoke the registered launch-queue
+  consumer. File-handle acquisition before the byte read is a separate
+  untested phase. All 77 focused cases, app TypeScript and targeted lint pass.
+  Existing clipboard command/draft/cancellation/Library-selection browser
+  suites also pass together against the extension.
+- **Fallback saves survive renderer storage caches:** two acknowledged saves
+  could lose the first game after acquiring consecutive Web Locks because
+  Chrome had not updated the second renderer's synchronous localStorage
+  cache. A shared Cache Storage snapshot now completes inside the same
+  Library lock, with failure rollback and recovery into IndexedDB. The
+  restart-verified comparison and complete browser pass are recorded above.
+  Service-worker activation preserves the Library data namespace while
+  removing obsolete application caches.
 - **Bounded graceful browser cleanup:** a controlled Chrome shutdown left
   six zombie children after SIGTERM and two after `Browser.close`. The shared
   check helper now requests browser closure before bounded SIGTERM/SIGKILL
