@@ -10,6 +10,12 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Library context-menu focus:** Escape removed the focused menu item and
+  left focus on the page. Menus now retain their row/More opener and restore it
+  before dismissal or running an action, so Rename can also return there.
+  Composition Escape leaves the menu open. Native desktop/phone checks verify
+  folder/file More openers, Rename cancellation and Shift+F10 row return; the
+  existing keyboard/focus cases, TypeScript and lint pass.
 - **Library nested keyboard controls:** Enter on a folder’s More button opened
   its folder instead of its menu. Row key handlers now act only when the row
   itself owns the event; nested native buttons keep Enter/Space activation.
@@ -28,7 +34,8 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   cases for shuffled/key order and matching titles across folders. The study
   benchmark measured 10,000 equal-time records in 42.2 ms (250 ms budget).
   That run exceeded the separate unchanged 50 ms deep-folder-copy budget at
-  52.6 ms; it is not a complete study-gate pass.
+  52.6 ms. A subsequent isolated full study run passed all unchanged budgets,
+  with Recent sorting at 35.7 ms and deep-folder copy at 28.6 ms.
 - **Visible command selection and reliable filtering:** arrowing down a long
   palette list selected a row at y=1456 while its visible list ended at y=760;
   `aria-activedescendant` did not scroll it. Selection and query changes now

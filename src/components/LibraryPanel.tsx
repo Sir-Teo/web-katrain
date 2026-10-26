@@ -450,6 +450,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const contextMenuOpenerRef = useRef<HTMLElement | null>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -457,6 +458,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const libraryTreeRef = useRef<HTMLDivElement>(null);
+  const closeContextMenu = useCallback(() => {
+    if (contextMenuOpenerRef.current?.isConnected) {
+      contextMenuOpenerRef.current.focus({ preventScroll: true });
+    }
+    setContextMenu(null);
+  }, []);
   const didLoadLibraryRef = useRef(false);
   /**
    * Settles when the library's own first read has published its snapshot.
@@ -645,7 +652,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
     const close = () => setContextMenu(null);
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      if (event.key !== 'Escape' || isComposingKeyEvent(event)) return;
+      event.preventDefault();
+      closeContextMenu();
     };
 
     const closeOnOutsideScroll = (event: Event) => {
@@ -669,7 +678,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       window.removeEventListener('resize', close);
       window.removeEventListener('keydown', closeOnEscape);
     };
-  }, [contextMenu]);
+  }, [contextMenu, closeContextMenu]);
 
   useEffect(() => {
     if (!headerMenuOpen) return;
@@ -933,7 +942,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
   };
 
-  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null) => {
+  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null, opener: HTMLElement) => {
+    contextMenuOpenerRef.current = item ? opener : searchInputRef.current;
     const position = clampContextMenuPosition(x, y);
     setContextMenu({ ...position, itemId: item?.id ?? null });
   };
@@ -941,7 +951,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {
     event.preventDefault();
     event.stopPropagation();
-    openContextMenuAt(event.clientX, event.clientY, item);
+    openContextMenuAt(event.clientX, event.clientY, item, event.currentTarget);
   };
 
   const openKeyboardContextMenu = (event: React.KeyboardEvent<HTMLElement>, item: LibraryItem | null) => {
@@ -949,7 +959,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     openContextMenuAt(
       rect.left + Math.min(32, rect.width / 2),
       rect.top + Math.min(32, rect.height / 2),
-      item
+      item,
+      event.currentTarget
     );
   };
 
@@ -957,12 +968,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     event.preventDefault();
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    openContextMenuAt(rect.right - 230, rect.bottom + 4, item);
+    openContextMenuAt(rect.right - 230, rect.bottom + 4, item, event.currentTarget);
   };
 
-  const closeContextMenu = () => setContextMenu(null);
-
   const handleContextMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isComposingKeyEvent(event)) return;
     if (isLibraryMenuCloseKey(event.key)) {
       event.preventDefault();
       event.stopPropagation();
