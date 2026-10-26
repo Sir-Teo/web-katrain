@@ -134,6 +134,12 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   status region and uses the singular item when appropriate. Chrome's actual
   accessibility tree reports Black rank, White rank, and the count's live/
   atomic properties; the existing field and toolbar checks also pass.
+- **Identifiable printed kifu:** hiding the screen controls also removed all
+  player and game context from the printed diagrams. Each printed page now
+  repeats a compact player/rank header and the available event/title, date,
+  size, rules, komi, and result. The preview layout stays compact. An actual
+  296-move PDF retains six pages, with the names and details present on every
+  page; its rendered first page was also inspected.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

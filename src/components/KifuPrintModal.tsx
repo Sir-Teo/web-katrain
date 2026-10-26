@@ -9,7 +9,7 @@ import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { buildKifuDiagrams, type MovesPerDiagram } from '../utils/kifuDiagrams';
 import { printWindow } from '../utils/print';
-import { formatGameInfoPlayer, readRootInfoValue } from '../utils/gameInfoDisplay';
+import { formatGameInfoPlayer, formatKomiLabel, readRootInfoValue } from '../utils/gameInfoDisplay';
 import type { GameNode } from '../types';
 
 interface KifuPrintModalProps {
@@ -68,6 +68,8 @@ const KIFU_PRINT_STYLE = `
     }
     .kifu-diagram-page:last-child { break-after: auto !important; page-break-after: auto !important; }
     .kifu-diagram-caption { color: #334155 !important; }
+    .kifu-print-game-header { display: block !important; color: #0f172a !important; }
+    .kifu-print-game-details { color: #334155 !important; }
     .kifu-print .kifu-diagram-repeats { color: #334155 !important; }
   }
 `;
@@ -94,17 +96,26 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
     };
   }, []);
 
-  const { diagrams, playerNames } = useMemo(() => {
+  const { diagrams, playerNames, gameTitle, gameDetails } = useMemo(() => {
     void treeVersion;
     const line = getCurrentLineNodes(currentNode, activeBranchChildIds);
     const moveNodes = line.filter((node) => node.move != null);
     const rootProps = rootPropertiesForNode(currentNode);
+    const boardSize = currentNode.gameState.board.length;
     return {
       diagrams: buildKifuDiagrams(moveNodes, movesPerDiagram),
       playerNames: {
         black: formatGameInfoPlayer(readRootInfoValue(rootProps, 'PB'), readRootInfoValue(rootProps, 'BR'), 'Black'),
         white: formatGameInfoPlayer(readRootInfoValue(rootProps, 'PW'), readRootInfoValue(rootProps, 'WR'), 'White'),
       },
+      gameTitle: readRootInfoValue(rootProps, 'GN') || readRootInfoValue(rootProps, 'EV'),
+      gameDetails: [
+        readRootInfoValue(rootProps, 'DT'),
+        `${boardSize}×${boardSize}`,
+        readRootInfoValue(rootProps, 'RU'),
+        `Komi ${formatKomiLabel(currentNode.gameState.komi)}`,
+        readRootInfoValue(rootProps, 'RE'),
+      ].filter(Boolean).join(' · '),
     };
   }, [activeBranchChildIds, currentNode, movesPerDiagram, treeVersion]);
 
@@ -193,6 +204,11 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
           <div className="kifu-diagram-grid grid grid-cols-1 gap-6 sm:grid-cols-2">
             {diagrams.map((diagram) => (
               <div key={diagram.index} className="kifu-diagram-page flex flex-col items-center">
+                <div className="kifu-print-game-header mb-3 hidden w-full text-center">
+                  <div className="text-base font-semibold">{playerNames.black} vs {playerNames.white}</div>
+                  {gameTitle && <div className="text-sm">{gameTitle}</div>}
+                  <div className="kifu-print-game-details mt-1 text-xs">{gameDetails}</div>
+                </div>
                 <div className="kifu-diagram-caption mb-2 text-sm font-semibold text-[var(--ui-text)]">
                   {diagram.startMove === diagram.endMove
                     ? `Move ${diagram.startMove}`
