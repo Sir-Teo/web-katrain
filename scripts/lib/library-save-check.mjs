@@ -179,8 +179,12 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           await evaluate(cdp, `librarySaveAudit.mode='normal'`);
           await clickElement(`[...document.querySelectorAll('button')].find(e=>e.textContent==='Retry saving library')`);
           await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='IndexedDB'`);
-          // A failed IndexedDB read retains the guarded fallback for this save.
-          const saved = await evaluate(cdp, `JSON.parse(localStorage.getItem('web-katrain:library:v1'))`);
+          // Retry can save to the guarded fallback, and a queued read can
+          // already reconcile that copy into IndexedDB before this check.
+          const saved = await evaluate(cdp, `(async()=>{
+            const fallback=JSON.parse(localStorage.getItem('web-katrain:library:v1'));
+            return Array.isArray(fallback)&&fallback.some(item=>item.type==='file') ? fallback : await ${storedItems};
+          })()`);
           assert.ok(saved.some(item => item.type === 'file'), 'Initialization retry must persist its loaded samples');
           report.stages.push('Retry after rejected initial storage persisted the loaded library');
           assert.deepEqual(errors, []);

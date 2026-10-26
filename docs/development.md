@@ -141,6 +141,12 @@ Browser state can affect manual testing. Useful storage locations:
 - Uploaded model: IndexedDB `web-katrain-models`.
 - Auto-save: web-katrain localStorage keys managed by `src/utils/autoSave.ts`.
 
+Library operations use a local request queue and, where available, the origin's
+`web-katrain-library` Web Lock. Keep the lock across the complete read/modify/write
+operation so another tab cannot overwrite a newer save. Without Web Locks, the
+local queue still preserves request order. The localStorage fallback compares its
+cached snapshot with current storage before reusing it.
+
 Use the app UI when possible to clear analysis cache or uploaded model state.
 For stubborn manual-test state, clear site data in browser devtools.
 

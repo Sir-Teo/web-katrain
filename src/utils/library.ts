@@ -1,5 +1,5 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
-import { createSerialTaskQueue } from './serialTaskQueue';
+import { createCrossContextTaskQueue } from './crossContextTaskQueue';
 import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
 import { stripUnsafeFilenameControls } from './filename';
 import { countSgfGames, countSgfMoves, readRootSgfProperties, sgfTrailingGames } from './sgfScan';
@@ -91,6 +91,7 @@ const ITEM_STORE = 'items';
 const META_STORE = 'meta';
 
 let memoryItems: LibraryItem[] | null = null;
+let memoryFallbackRaw: string | null | undefined;
 
 const createId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -648,12 +649,22 @@ const saveToIndexedDb = async (items: LibraryItem[], alreadyNormalized = false):
   }
 };
 
+const readFallbackRaw = (): string | null | undefined => {
+  try { return getLocalStorage()?.getItem(LEGACY_STORAGE_KEY); } catch { return undefined; }
+};
+
 const loadFallbackLibrary = (): LibraryItem[] => {
-  if (memoryItems) return memoryItems;
+  const raw = readFallbackRaw();
+  // A second tab can change this snapshot. Keep the cache only while its
+  // source is unchanged, or storage is unreadable and memory is all we have.
+  if (memoryItems && (
+    raw === undefined || raw === memoryFallbackRaw || (memoryFallbackRaw === undefined && raw === null)
+  )) return memoryItems;
   // Use the same version check as IndexedDB, including on the first load.
   // Saving records initialization only after the library is persisted.
-  const ensured = ensurePreloadedLibrary(safeParse(readLocalStorage(LEGACY_STORAGE_KEY)));
+  const ensured = ensurePreloadedLibrary(safeParse(raw ?? null));
   memoryItems = ensured.items;
+  memoryFallbackRaw = raw;
   return memoryItems;
 };
 
@@ -670,8 +681,11 @@ const loadFallbackLibrary = (): LibraryItem[] => {
  */
 const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-storage' => {
   memoryItems = normalizeLibraryItems(items);
+  memoryFallbackRaw = readFallbackRaw();
   if (!getLocalStorage()) return 'no-storage';
-  if (!writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems))) return 'rejected';
+  const serialized = JSON.stringify(memoryItems);
+  if (!writeLocalStorage(LEGACY_STORAGE_KEY, serialized)) return 'rejected';
+  memoryFallbackRaw = serialized;
   setPreloadedVersion(PRELOADED_VERSION);
   return 'saved';
 };
@@ -762,6 +776,7 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
       memoryItems = merged;
       setFallbackUnflushed(false);
       markMigrated();
+      memoryFallbackRaw = readFallbackRaw();
       return merged;
     }
     const legacyRaw = readLocalStorage(LEGACY_STORAGE_KEY);
@@ -858,13 +873,14 @@ const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
     memoryItems = normalized;
     if (hasUnflushedFallback()) setFallbackUnflushed(false);
     markMigrated();
+    memoryFallbackRaw = readFallbackRaw();
   } catch {
     persistFallback(normalized);
     setFallbackUnflushed(true);
   }
 };
 
-const runLibraryTask = createSerialTaskQueue();
+const runLibraryTask = createCrossContextTaskQueue(DB_NAME);
 
 let gameSaveRequestId = 0;
 /** Order game-save UI notifications by request, independent of storage latency. */

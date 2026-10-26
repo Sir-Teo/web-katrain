@@ -285,6 +285,18 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   retaining existing Escape cancellation and browser shortcuts. A browser
   regression pauses the actual module, attempts those inputs, releases it, and
   verifies normal keyboard behavior returns after the dialog closes.
+- **Cross-tab library saves:** a held IndexedDB write in one tab erased a game
+  another tab had successfully added. Whole library operations now share a Web
+  Lock when supported, alongside the local request queue. The second tab waits
+  and then edits the newer collection. The fallback had a separate cache issue:
+  it overwrote another tab's game and resurrected cleared samples. Cached
+  fallback data now follows changes to the stored snapshot while retaining
+  known data if storage cannot be read. Real two-tab checks cover both backends;
+  regressions also cover denied locks, failed tasks, external clears, and an old
+  tab attempting to resurrect an outage copy already reconciled elsewhere.
+  Save-failure, delayed-save/replacement, overlapping saves, and initialization
+  retry probes pass. Retry verification now checks either accepted store: a
+  queued read can already have reconciled the fallback into IndexedDB.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
