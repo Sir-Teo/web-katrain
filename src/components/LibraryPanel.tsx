@@ -79,6 +79,7 @@ import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
 import { describeLibraryClear, describeLibraryReplacement } from '../utils/libraryPrompts';
 import { countSgfGames } from '../utils/sgfScan';
+import { splitLibraryCollection } from '../utils/libraryCollection';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
@@ -646,19 +647,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       if (event.key === 'Escape') close();
     };
 
-    // Capture, so a scroll inside any of the panel's own scrollers closes the
-    // menu too -- scroll does not bubble. Passive because it never prevents
+    const closeOnOutsideScroll = (event: Event) => {
+      if (event.target instanceof Node && contextMenuRef.current?.contains(event.target)) return;
+      close();
+    };
+    // Capture scrolls outside the menu so it cannot drift away from its row.
+    // Its own scroller must stay usable when actions exceed the available height.
+    // Scroll does not bubble. Passive because this listener never prevents
     // anything: a blocking listener on window in the capture phase applies to
     // every scroller in the app, and takes scrolling off the compositor's fast
     // path for as long as the menu is open.
     const scrollOptions = { capture: true, passive: true } as const;
     window.addEventListener('pointerdown', close);
-    window.addEventListener('scroll', close, scrollOptions);
+    window.addEventListener('scroll', closeOnOutsideScroll, scrollOptions);
     window.addEventListener('resize', close);
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       window.removeEventListener('pointerdown', close);
-      window.removeEventListener('scroll', close, { capture: true });
+      window.removeEventListener('scroll', closeOnOutsideScroll, { capture: true });
       window.removeEventListener('resize', close);
       window.removeEventListener('keydown', closeOnEscape);
     };
@@ -906,6 +912,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const contextMenuItem = contextMenu?.itemId ? (itemById.get(contextMenu.itemId) ?? null) : null;
+  const contextCollectionGames = useMemo(
+    () => contextMenuItem?.type === 'file' ? countSgfGames(contextMenuItem.sgf) : 0,
+    [contextMenuItem]
+  );
   const contextMenuSelection = useMemo(() => {
     if (!contextMenuItem) return new Set<string>();
     if (visibleSelectedIds.has(contextMenuItem.id)) return visibleSelectedIds;
@@ -1220,6 +1230,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     onToast(`Exported "${item.name}".`, 'success');
+  };
+
+  const handleSplitCollection = (item: LibraryFile) => {
+    try {
+      const result = splitLibraryCollection(items, item.id);
+      setItems(result.items);
+      setCurrentFolderId(result.folder.id);
+      setExpandedFolderIds(prev => new Set(prev).add(result.folder.id));
+      setSelectedIds(new Set());
+      setQuery('');
+      setFavoritesOnly(false);
+      setActiveTag(null);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+      onToast(`Created ${result.files.length} games in "${result.folder.name}".`, 'success');
+    } catch (error) {
+      onToast(error instanceof Error ? error.message : 'Could not split this collection.', 'error');
+    }
   };
 
   const handleBackupLibrary = () => {
@@ -2182,6 +2209,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             >
               <FaCopy size={12} /> Duplicate
             </button>
+            {isFile(contextMenuItem) && contextCollectionGames > 1 && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => handleSplitCollection(contextMenuItem))}
+              >
+                <FaCopy size={12} /> Split collection ({contextCollectionGames} games)
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"

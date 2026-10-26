@@ -86,6 +86,9 @@ PWA. There is no analysis server to run.
 - Store games in an IndexedDB library with folders, bundled famous games, and
   zip backup/restore. Search titles, players, dates, results, and tags;
   `joseki` and `eloise` also find “Jōseki” and “Éloïse”.
+- Split a multi-game SGF collection into a numbered Library folder from its
+  actions menu. Each game keeps its comments and variations, and the original
+  collection stays available.
 - Auto-save the current session and recover after a crash or reload.
 
 **Use it anywhere**

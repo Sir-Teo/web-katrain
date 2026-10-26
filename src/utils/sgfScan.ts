@@ -182,6 +182,42 @@ export const countSgfGames = (sgf: string): number => {
   return games;
 };
 
+/** Extract complete top-level games verbatim, without expanding their trees. */
+export function splitSgfGames(sgf: string): string[] {
+  const games: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inValue = false;
+  for (let i = 0; i < sgf.length; i++) {
+    const ch = sgf[i]!;
+    if (inValue) {
+      if (ch === '\\') i++;
+      else if (ch === ']') inValue = false;
+      continue;
+    }
+    if (depth === 0 && /\s/.test(ch)) continue;
+    if (ch === '(') {
+      if (depth === 0) start = i;
+      let next = i + 1;
+      while (next < sgf.length && /\s/.test(sgf[next]!)) next++;
+      if (sgf[next] !== ';') throw new Error('The collection contains an invalid game tree.');
+      depth++;
+    } else if (ch === ')') {
+      if (depth === 0) throw new Error('The collection contains an unmatched closing parenthesis.');
+      depth--;
+      if (depth === 0) games.push(sgf.slice(start, i + 1));
+    } else if (depth === 0) {
+      throw new Error('The collection contains text outside its game trees.');
+    } else if (ch === '[') {
+      inValue = true;
+    } else if (ch === ']') {
+      throw new Error('The collection contains an unmatched closing bracket.');
+    }
+  }
+  if (depth !== 0 || inValue) throw new Error('The collection contains an incomplete game.');
+  return games;
+}
+
 /**
  * The games after the first, as they were written, or `''`.
  *

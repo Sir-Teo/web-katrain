@@ -10,6 +10,19 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Reach every game in a collection:** a Library collection's actions menu
+  now offers Split collection. It creates a numbered sibling folder, preserves
+  each raw game's comments, variations, setup stones and passes, and keeps the
+  original record intact. New files inherit favourites and independent tag
+  arrays; sibling-name collisions receive a suffix. Search and filters clear
+  so the expanded destination is visible, with focus returned to search.
+  Incomplete collections and non-Go games add nothing; extraction is capped at
+  10,000 games. Eighteen focused cases and native desktop/phone checks cover
+  exact content, metadata, names, loading game two, reload and rejected input.
+  Creating 10,000 two-move games measured 181 ms in Chrome, excluding UI and
+  persistence. The browser check also reproduced an existing menu bug:
+  scrolling its 417-pixel contents inside a 298-pixel viewport closed it.
+  Menu scrolling now stays open; surrounding scroll still dismisses it.
 - **Library action focus:** dismissing OGS Sync left keyboard focus on the page
   body because its opener was a menu item that no longer existed. Header-menu
   actions now focus the persistent More control before opening a dialog or
@@ -734,8 +747,8 @@ file selection through the success toast and checks persisted content afterward.
    holds more. Saving such a record used to delete the games behind the one
    being edited -- 187 bytes of three games became 165 bytes of one, with no
    prompt and no undo -- so the trailing games are now carried across as the
-   verbatim text nothing ever parsed. Splitting a collection into separate
-   library items remains the design task noted above.
+   verbatim text nothing ever parsed. The collection's Library actions now
+   split its games into a numbered folder while retaining the source record.
 3. **Reliable study archives:** harden deep branch editing, add meaningful
    large-library measurements, and keep saved/exported content recoverable.
 4. **Analysis provenance and comparison:** show which model/settings produced
