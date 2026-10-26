@@ -8,6 +8,11 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `b6c5f00` passed all 498 files and 3,396 cases,
+  with 78 engine cases skipped in CI. This includes Library name navigation
+  and clipboard-command identity checks; it precedes the shared text-import
+  extension described below.
+
 - The full unit run at `9a187fb` passed 497 files and 3,382 cases, with
   78 engine cases skipped, and caught one disabled-hover styling assertion
   on the new Read Clipboard state. Guarding its hover variant fixes that
@@ -118,9 +123,27 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Shared text-import ownership:** a trusted browser Ctrl+V event bypassed
+  the clipboard-command guard and reproduced the same 19×19 → 13×13 late
+  replacement after selecting a Library game. Direct paste, clipboard
+  commands and the paste dialog now share one request owner, starting before
+  clipboard reads. New requests cancel older reads/downloads; game identity
+  is checked before replacement, modal cancellation propagates, and old
+  cleanup cannot clear a newer request. Nine unit cases verify ownership,
+  cancellation reasons and listener cleanup. Native checks pass eight trusted
+  paste events per width at 1440/390/320, including both mixed entry-point
+  orders, two queued OGS downloads, Library selection and fresh Retry. The
+  test clears its clipboard fixture and resets test-browser permissions.
+  Existing command/draft/cancellation/selection suites pass together; all 62
+  related unit cases, app/test TypeScript and lint pass. A first phone run
+  stopped in backup setup: old identical rows allowed the helper to advance
+  before the replacement dialog appeared. Both affected helpers now wait for
+  the file input’s processing reset and a committed frame before inspecting
+  confirmation. The failed log/screenshot remains retained; no product code
+  changed for that fixture issue.
 - **A selected game survives earlier clipboard work:** a held clipboard OGS
   download reproduced replacing a subsequently chosen 19×19 Library game
-  with its older 13×13 result. Clipboard commands now retain their starting
+  with its older 13×13 result. Text imports now retain their starting
   game identity and ignore reads, downloads and failures after a different
   game loads. The import checks identity both before and after replacement
   confirmation; its own committed load is excluded from that waiting guard.
@@ -129,8 +152,8 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   text, empty results, denied reads, OGS responses and OGS failures. A fresh
   clipboard import still succeeds afterward. Existing command-ordering,
   draft-preservation and all five cancellation paths pass together. The 53
-  related unit cases, app/test TypeScript and lint pass. This guard applies
-  to clipboard commands; other import entry points remain separate audit work.
+  related unit cases, app/test TypeScript and lint pass. File and image
+  import entry points remain separate audit work.
 - **Newest clipboard command wins:** two overlapping Paste SGF commands
   reproduced an older 268 ms clipboard read replacing the newer loaded
   9×9 game with a 13×13 game. A new command now cancels its predecessor,
@@ -142,7 +165,8 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   Existing clipboard-draft and five import-cancellation paths also pass.
   All 53 cases in seven related unit files, app/test TypeScript and lint pass.
   The new browser check joins future full sweeps. This change coordinates
-  overlapping clipboard commands; other game-opening paths remain separate.
+  overlapping clipboard commands and is extended to the shared text-import
+  paths above. File and image entry points remain separate.
   Its production build passed in 16.8 s.
 - **Jump to Library names:** typing the start of a name now focuses a
   matching visible row; repeating a letter cycles through matches and wraps.

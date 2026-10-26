@@ -91,6 +91,7 @@ import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
 import { AboutDialog } from './AboutDialog';
 import type { CommandPaletteCommand } from './CommandPaletteModal';
 import { getDirectGameImportText, type PasteSgfSubmitResult } from '../utils/pasteSgfInput';
+import { createTextImportRequests, type TextImportRequest } from '../utils/textImportRequests';
 import {
   type UiMode,
   type UiState,
@@ -526,8 +527,8 @@ export const Layout: React.FC = () => {
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
   const [photoBoardInitialFile, setPhotoBoardInitialFile] = useState<File | null>(null);
   const [isPasteSgfOpen, setIsPasteSgfOpen] = useState(false);
-  const pendingClipboardImportRef = useRef<AbortController | null>(null);
-  useEffect(() => () => pendingClipboardImportRef.current?.abort(), []);
+  const [textImportRequests] = useState(() => createTextImportRequests(() => useGameStore.getState().rootNode.id));
+  useEffect(() => () => textImportRequests.cancel(), [textImportRequests]);
   const [saveToLibraryDialog, setSaveToLibraryDialog] = useState<SaveToLibraryDialogState | null>(null);
   const [isUnsavedChangesOpen, setIsUnsavedChangesOpen] = useState(false);
   const [pendingResignPlayer, setPendingResignPlayer] = useState<Player | null>(null);
@@ -2389,16 +2390,17 @@ export const Layout: React.FC = () => {
 
   const handleOpenSgfFromText = useCallback(async (
     text: string,
-    options: { notifyFailure?: boolean; signal?: AbortSignal; expectedRootId?: string } = {}
+    options: { notifyFailure?: boolean; signal?: AbortSignal; request?: TextImportRequest } = {}
   ): Promise<PasteSgfSubmitResult> => {
+    const request = options.request ?? textImportRequests.begin(options.signal);
     // Our own load changes the root; the identity guard applies while waiting.
     let replacementStarted = false;
-    const isCancelled = () => options.signal?.aborted || (
-      !replacementStarted && options.expectedRootId !== undefined
-      && useGameStore.getState().rootNode.id !== options.expectedRootId
+    const isCancelled = () => !textImportRequests.isCurrent(request) || (
+      !replacementStarted && useGameStore.getState().rootNode.id !== request.rootId
     );
     try {
-      const result = await loadSgfOrOgs(text, { signal: options.signal });
+      if (isCancelled()) return 'cancelled';
+      const result = await loadSgfOrOgs(text, { signal: request.signal });
       if (isCancelled()) return 'cancelled';
       if (!result.sgf.trim()) return 'failed';
       const parsed = parseSgf(result.sgf);
@@ -2439,8 +2441,10 @@ export const Layout: React.FC = () => {
         toast(withFailureReason('Could not load that SGF or OGS link.', error), 'error');
       }
       return 'failed';
+    } finally {
+      if (!options.request) textImportRequests.finish(request);
     }
-  }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, toast]);
+  }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, textImportRequests, toast]);
 
   // Plain function (not memoised): only consumed via the handler ref assigned
   // below during render, so it never feeds an effect/callback dependency list.
@@ -2503,27 +2507,24 @@ export const Layout: React.FC = () => {
   }, [handleOpenSgfFromText, openPhotoBoard, toast]);
 
   const handlePasteSgfShortcut = useCallback(async () => {
-    pendingClipboardImportRef.current?.abort();
-    const controller = new AbortController();
-    pendingClipboardImportRef.current = controller;
-    const expectedRootId = useGameStore.getState().rootNode.id;
+    const request = textImportRequests.begin();
     setViewMenuOpen(false);
     setMenuOpen(false);
 
     try {
       const clipboardText = await readClipboardText();
-      if (controller.signal.aborted || useGameStore.getState().rootNode.id !== expectedRootId) return;
+      if (!textImportRequests.isCurrent(request) || useGameStore.getState().rootNode.id !== request.rootId) return;
       const importText = getDirectGameImportText(clipboardText);
       if (importText) {
-        await handleOpenSgfFromText(importText, { signal: controller.signal, expectedRootId });
+        await handleOpenSgfFromText(importText, { request });
         return;
       }
 
       setIsPasteSgfOpen(true);
     } finally {
-      if (pendingClipboardImportRef.current === controller) pendingClipboardImportRef.current = null;
+      textImportRequests.finish(request);
     }
-  }, [handleOpenSgfFromText]);
+  }, [handleOpenSgfFromText, textImportRequests]);
 
   const handlePhotoBoardImport = async (sgfText: string) => {
     try {

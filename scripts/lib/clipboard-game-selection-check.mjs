@@ -41,7 +41,8 @@ export async function assertClipboardGameSelection(cdp, appUrl, runDir, screensh
     await wait('!!document.querySelector("[data-board-snapshot]")');if(mobile)await click('#mobile-tab-library');await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');
     const root=(await cdp.send('DOM.getDocument')).result.root;
     const input=(await cdp.send('DOM.querySelector',{nodeId:root.nodeId,selector:'input[type=file][accept=".json,application/json"]'})).result.nodeId;
-    await cdp.send('DOM.setFileInputFiles',{nodeId:input,files:[fixture]});await wait('!!document.querySelector("[aria-labelledby=library-confirm-dialog-title], [data-library-row-id=clipboard-selected-9]")');
+    await cdp.send('DOM.setFileInputFiles',{nodeId:input,files:[fixture]});
+      await wait(`document.querySelector('input[type=file][accept=".json,application/json"]').files.length===0`);await settle();
     if(await evaluate(cdp,'!!document.querySelector("[aria-labelledby=library-confirm-dialog-title]")'))await click('[aria-labelledby=library-confirm-dialog-title] button.danger');
     await wait('!document.querySelector("[role=dialog]") && !!document.querySelector("[data-library-row-id=clipboard-selected-19]")');
     await evaluate(cdp,`(async()=>{
