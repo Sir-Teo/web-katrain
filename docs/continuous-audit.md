@@ -274,6 +274,11 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   replacement. Native desktop/phone checks verify later messages expire, mixed
   hover/focus interactions stay visible, and timers resume after both leave.
   All 43 notification cases and app type checking pass.
+- **Copy feedback belongs to its message:** completing a delayed copy after
+  dismissing an error marked the next error “copied,” although only the earlier
+  details had been copied. Copy completions now require the current request and
+  message. Native desktop/phone checks complete an old request after promotion,
+  verify the new error stays uncopied, then copy its actual details normally.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

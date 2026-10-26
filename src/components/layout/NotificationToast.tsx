@@ -57,6 +57,7 @@ export function NotificationToast({
   const Icon = meta.Icon;
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
   const toastRef = React.useRef<HTMLDivElement>(null);
+  const copyRequestRef = React.useRef(0);
   const canCopy = notification.type === 'error';
   // Tells the install card to step aside while a toast is up (index.css).
   useDocumentFlag('notification-shown', 'true');
@@ -74,10 +75,14 @@ export function NotificationToast({
 
   React.useEffect(() => {
     setCopyState('idle');
+    return () => { copyRequestRef.current++; };
   }, [notification.copyText, notification.message, notification.type]);
 
   const handleCopy = async () => {
-    setCopyState((await copyTextToClipboard(notification.copyText ?? notification.message)) ? 'copied' : 'failed');
+    const request = ++copyRequestRef.current;
+    const copied = await copyTextToClipboard(notification.copyText ?? notification.message);
+    if (copyRequestRef.current !== request) return;
+    setCopyState(copied ? 'copied' : 'failed');
   };
 
   return (
