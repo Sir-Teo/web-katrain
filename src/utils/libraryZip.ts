@@ -87,7 +87,7 @@ function uniqueZipPath(path: string, used: Set<string>, nextSuffix: Map<string, 
 export async function createLibraryZipBlob(
   items: LibraryItem[],
   selectedIds?: Set<string>
-): Promise<{ blob: Blob; fileCount: number }> {
+): Promise<{ blob: Blob; fileCount: number; folderCount: number }> {
   const exportItems = collectExportItems(items, selectedIds);
   const itemById = new Map(items.map((item) => [item.id, item]));
   const usedPaths = new Set<string>();
@@ -138,7 +138,7 @@ export async function createLibraryZipBlob(
     compression: 'DEFLATE',
     compressionOptions: { level: 6 },
   });
-  return { blob, fileCount };
+  return { blob, fileCount, folderCount: folderPaths.size };
 }
 
 /**

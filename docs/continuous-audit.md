@@ -114,6 +114,13 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   a delayed IndexedDB operation. Browser checks cover player/komi/handicap
   drafts, Cancel, Discard, imported values after blur, and the newer player
   remaining in the game and recovery while replacement is blocked after Save.
+- **Folder-only ZIP exports:** the ZIP utility preserved empty folders, but
+  all three UI export paths rejected an archive with no SGFs. Folder counts
+  now distinguish an empty library from a useful folder structure. Library,
+  selection, and single-folder controls download that structure and describe
+  it accurately. Real phone controls produced archives containing three
+  folders, a selected two-folder hierarchy, and a single empty folder; unit
+  round trips preserve names and parent relationships.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

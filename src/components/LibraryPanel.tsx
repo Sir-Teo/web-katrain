@@ -1234,13 +1234,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleExportLibraryZip = async () => {
     try {
-      const { blob, fileCount } = await createLibraryZipBlob(items);
-      if (fileCount === 0) {
-        onToast('No SGF files to export.', 'info');
+      const { blob, fileCount, folderCount } = await createLibraryZipBlob(items);
+      if (fileCount === 0 && folderCount === 0) {
+        onToast('The library is empty. Add games or folders before exporting.', 'info');
         return;
       }
       downloadBlob(blob, `webkatrain-library-${new Date().toISOString().slice(0, 10)}.zip`);
-      onToast(`Exported ${fileCount} SGF file${fileCount === 1 ? '' : 's'} as ZIP.`, 'success');
+      onToast(fileCount > 0
+        ? `Exported ${fileCount} SGF file${fileCount === 1 ? '' : 's'} as ZIP.`
+        : `Exported ${folderCount} folder${folderCount === 1 ? '' : 's'} as ZIP.`, 'success');
     } catch {
       onToast('Failed to create library ZIP.', 'error');
     }
@@ -1249,12 +1251,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleExportFolderZip = async (item: LibraryFolder) => {
     try {
       const { blob, fileCount } = await createLibraryZipBlob(items, new Set([item.id]));
-      if (fileCount === 0) {
-        onToast(`Folder "${item.name}" has no SGF files to export.`, 'info');
-        return;
-      }
       downloadBlob(blob, `${safeDownloadName(item.name, 'folder')}.zip`);
-      onToast(`Exported "${item.name}" with ${fileCount} SGF file${fileCount === 1 ? '' : 's'}.`, 'success');
+      onToast(fileCount > 0
+        ? `Exported "${item.name}" with ${fileCount} SGF file${fileCount === 1 ? '' : 's'}.`
+        : `Exported "${item.name}" with its folder structure.`, 'success');
     } catch {
       onToast('Failed to export folder ZIP.', 'error');
     }
@@ -1371,13 +1371,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleBulkExport = async () => {
     if (visibleSelectedIds.size === 0) return;
     try {
-      const { blob, fileCount } = await createLibraryZipBlob(items, visibleSelectedIds);
-      if (fileCount === 0) {
-        onToast('No files selected to export.', 'info');
+      const { blob, fileCount, folderCount } = await createLibraryZipBlob(items, visibleSelectedIds);
+      if (fileCount === 0 && folderCount === 0) {
+        onToast('No games or folders selected to export.', 'info');
         return;
       }
       downloadBlob(blob, `webkatrain-selection-${new Date().toISOString().slice(0, 10)}.zip`);
-      onToast(`Exported ${fileCount} selected SGF file${fileCount === 1 ? '' : 's'} as ZIP.`, 'success');
+      onToast(fileCount > 0
+        ? `Exported ${fileCount} selected SGF file${fileCount === 1 ? '' : 's'} as ZIP.`
+        : `Exported ${folderCount} folder${folderCount === 1 ? '' : 's'} as ZIP.`, 'success');
     } catch {
       onToast('Failed to export selected items.', 'error');
       return;

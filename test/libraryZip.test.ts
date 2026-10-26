@@ -81,6 +81,28 @@ describe('library ZIP helpers', () => {
       folders.find((folder) => folder.name === 'Openings')?.id
     );
   });
+
+  it('exports a folder-only library or selection with enough information to offer its archive', async () => {
+    const studies = createLibraryFolder('Studies', null);
+    const nested = createLibraryFolder('Future reviews', studies.id);
+    const ideas = createLibraryFolder('Ideas', null);
+    for (const [selection,count,names] of [
+      [undefined,3,['Studies','Future reviews','Ideas']],
+      [new Set([studies.id]),2,['Studies','Future reviews']],
+      [new Set([nested.id]),2,['Studies','Future reviews']],
+    ] as const) {
+      const {blob,fileCount,folderCount}=await createLibraryZipBlob([studies,nested,ideas],selection);
+      expect(fileCount).toBe(0);
+      expect(folderCount).toBe(count);
+      const imported=await importLibraryItemsFromZip(blob);
+      expect(imported.every(item=>item.type==='folder')).toBe(true);
+      expect(imported.map(item=>item.name).sort()).toEqual([...names].sort());
+      const restoredParent=imported.find(item=>item.name==='Studies');
+      expect(imported.find(item=>item.name==='Future reviews')?.parentId).toBe(restoredParent?.id);
+    }
+    const empty=await createLibraryZipBlob([]);
+    expect(empty).toMatchObject({fileCount:0,folderCount:0});
+  });
 });
 
 describe('an archive someone else made', () => {
