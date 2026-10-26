@@ -221,6 +221,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const humanBlobUrlRef = React.useRef<string | null>(null);
     const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
     const [downloadingUrl, setDownloadingUrl] = React.useState<string | null>(null);
+    const modelDownloadRef = React.useRef<{
+        controller: AbortController;
+        modelUrl: string;
+        saving: boolean;
+        trigger: HTMLButtonElement;
+    } | null>(null);
+    const [savingDownloadedModel, setSavingDownloadedModel] = React.useState(false);
     const [downloadProgress, setDownloadProgress] = React.useState<number | null>(null);
     const [downloadError, setDownloadError] = React.useState<string | null>(null);
     const [modelUploadError, setModelUploadError] = React.useState<string | null>(null);
@@ -229,6 +236,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const [uploadedModelInfo, setUploadedModelInfo] = React.useState<UploadedModelInfo | null>(() => getUploadedModelInfo());
     const [webGpuAvailability, setWebGpuAvailability] = React.useState<BrowserBackendAvailability>(() => detectWebGpuAvailability());
     const shortcutLabels = useShortcutLabels(ANALYSIS_OVERLAY_SHORTCUT_IDS);
+
+    const cancelModelDownload = React.useCallback(() => {
+        const request = modelDownloadRef.current;
+        if (!request || request.saving) return;
+        request.controller.abort();
+        modelDownloadRef.current = null;
+        setDownloadingUrl(null);
+        setDownloadProgress(null);
+        if (request.trigger.parentElement?.contains(document.activeElement)) {
+            requestAnimationFrame(() => {
+                if (request.trigger.isConnected) request.trigger.focus();
+            });
+        }
+    }, []);
+
+    React.useEffect(() => {
+        const request = modelDownloadRef.current;
+        if (request && !request.saving && request.modelUrl !== settings.katagoModelUrl) cancelModelDownload();
+    }, [cancelModelDownload, settings.katagoModelUrl]);
+
+    React.useEffect(() => {
+        const requests = modelDownloadRef;
+        return () => {
+            requests.current?.controller.abort();
+            requests.current = null;
+        };
+    }, []);
 
     const [activeTab, setActiveTab] = React.useState<SettingsTabId>(() => {
         if (focusModel) return 'ai';
@@ -548,25 +582,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         updateSettings({ katagoModelUrl: clearUploadedModelUrl(SMALL_MODEL_URL) });
     };
 
-    const handleDownloadAndLoad = async (url: string) => {
-        if (downloadingUrl) return;
+    const handleDownloadAndLoad = async (url: string, trigger: HTMLButtonElement) => {
+        if (modelDownloadRef.current) return;
+        const request = {
+            controller: new AbortController(),
+            modelUrl: useGameStore.getState().settings.katagoModelUrl,
+            saving: false,
+            trigger,
+        };
+        modelDownloadRef.current = request;
         setDownloadError(null);
         setDownloadProgress(null);
+        setSavingDownloadedModel(false);
         setDownloadingUrl(url);
         try {
-            const blob = await fetchBlobWithProgress(url, ({ percent }) => setDownloadProgress(percent));
+            const blob = await fetchBlobWithProgress(url, ({ percent }) => {
+                if (modelDownloadRef.current === request) setDownloadProgress(percent);
+            }, request.controller.signal);
+            if (modelDownloadRef.current !== request) return;
+            // A selection can change before its cancellation effect runs.
+            if (useGameStore.getState().settings.katagoModelUrl !== request.modelUrl) return;
+            request.saving = true;
+            setSavingDownloadedModel(true);
             const downloadedFile = new File([blob], getModelFileNameFromUrl(url), { type: blob.type });
             updateSettings({ katagoModelUrl: createUploadedModelUrl(downloadedFile, settings.katagoModelUrl) });
             const persisted = await savePersistedUploadedModel(downloadedFile);
+            if (modelDownloadRef.current !== request) return;
             setUploadedModelInfo(getUploadedModelInfo());
             if (!persisted) {
                 setDownloadError('Loaded for this session, but browser storage could not save the download for reload.');
             }
         } catch (error) {
-            setDownloadError(describeModelDownloadError(error));
+            if (modelDownloadRef.current === request && !request.controller.signal.aborted) {
+                setDownloadError(describeModelDownloadError(error));
+            }
         } finally {
-            setDownloadingUrl(null);
-            setDownloadProgress(null);
+            if (modelDownloadRef.current === request) {
+                modelDownloadRef.current = null;
+                setDownloadingUrl(null);
+                setDownloadProgress(null);
+                setSavingDownloadedModel(false);
+            }
         }
     };
 
@@ -2458,16 +2514,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                     {(() => {
                                                                         const isDownloadingModel = downloadingUrl === model.url;
                                                                         const downloadLabel = isDownloadingModel
-                                                                            ? downloadProgress === null
-                                                                                ? 'Downloading...'
-                                                                                : `Downloading ${downloadProgress}%`
+                                                                            ? savingDownloadedModel
+                                                                                ? 'Saving...'
+                                                                                : downloadProgress === null
+                                                                                    ? 'Downloading...'
+                                                                                    : `Downloading ${downloadProgress}%`
                                                                             : 'Download & Load';
                                                                         return (
                                                                             <>
                                                                                 <button
                                                                                     type="button"
                                                                                     className="px-2 py-1 text-xs rounded ui-accent-soft border not-disabled:hover:brightness-110 disabled:opacity-60"
-                                                                                    onClick={() => handleDownloadAndLoad(model.url)}
+                                                                                    onClick={(event) => handleDownloadAndLoad(model.url, event.currentTarget)}
                                                                                     disabled={isDownloadingModel}
                                                                                     aria-label={
                                                                                         isDownloadingModel
@@ -2477,6 +2535,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                                 >
                                                                                     {downloadLabel}
                                                                                 </button>
+                                                                                {isDownloadingModel && !savingDownloadedModel && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className={modelActionClass}
+                                                                                        onClick={cancelModelDownload}
+                                                                                        aria-label={`Cancel download of ${model.name}`}
+                                                                                    >
+                                                                                        Cancel
+                                                                                    </button>
+                                                                                )}
                                                                                 {isDownloadingModel ? (
                                                                                     <span
                                                                                         className="shrink-0 min-w-[5.5rem] overflow-hidden rounded-full border border-[var(--ui-accent)] bg-[var(--ui-surface)] text-[0.625rem] text-[var(--ui-accent)]"
@@ -2506,7 +2574,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                                         </span>
                                                                                     </span>
                                                                                 ) : (
-                                                                                    <span className="text-[0.625rem] text-[var(--ui-accent)]">Saved in browser</span>
+                                                                                    <span className="text-[0.625rem] text-[var(--ui-text-muted)]">Saves in browser</span>
                                                                                 )}
                                                                             </>
                                                                         );

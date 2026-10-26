@@ -56,11 +56,16 @@ export async function responseBlobWithProgress(
 
 export async function fetchBlobWithProgress(
   url: string,
-  onProgress?: DownloadProgressHandler
+  onProgress?: DownloadProgressHandler,
+  signal?: AbortSignal
 ): Promise<Blob> {
-  const response = await fetch(url);
+  signal?.throwIfAborted();
+  const response = await fetch(url, { signal });
+  signal?.throwIfAborted();
   if (!response.ok) {
     throw new Error(`Download failed (${response.status})`);
   }
-  return responseBlobWithProgress(response, onProgress);
+  const blob = await responseBlobWithProgress(response, onProgress);
+  signal?.throwIfAborted();
+  return blob;
 }

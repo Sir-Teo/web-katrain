@@ -117,9 +117,77 @@ export async function assertModelReplacement(cdp, appUrl, runDir, screenshotDir)
     assert.equal(result.oldAvailable, false);
     assert.equal(result.newText, 'replacement weights fixture');
     assert.equal(result.persisted, 'replacement.bin.gz');
-    await click('[aria-label="Close settings"]');
-    reports.push({ width, failedDownloadRetainedWeights: true, failedAllocationRetainedWeights: true, successfulReplacementRevokedPrevious: true });
+    const selectedBeforeDownload = await evaluate(cdp, 'modelReplacementStore.getState().settings.katagoModelUrl');
+    await evaluate(cdp, `(() => {
+      window.modelDownloadRequests = [];
+      window.fetch = (url, ...args) => {
+        if (!String(url).startsWith('https://media.katagotraining.org')) return modelReplacementFetch(url, ...args);
+        return new Promise((resolve, reject) => modelDownloadRequests.push({ signal: args[0]?.signal, resolve, reject }));
+      };
+    })()`);
+    try {
+      await click('button[aria-label^="Download and load"]');
+      await wait('modelDownloadRequests.length===1');
+      const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+      fs.writeFileSync(path.join(screenshotDir, `model-download-${width}.png`), Buffer.from(screenshot.result.data, 'base64'));
+      await click('button[aria-label^="Cancel download of"]');
+      await wait(`!!document.querySelector('button[aria-label^="Download and load"]:not(:disabled)')`);
+      await wait('document.activeElement.getAttribute("aria-label")?.startsWith("Download and load")');
+      assert.equal(await evaluate(cdp, 'modelDownloadRequests[0].signal.aborted'), true);
+      assert.equal(await evaluate(cdp, 'document.activeElement.getAttribute("aria-label").startsWith("Download and load")'), true);
+      await click('button[aria-label^="Download and load"]');
+      await wait('modelDownloadRequests.length===2');
+      // Intentionally ignore AbortSignal in this fetch stub: a cancelled old
+      // completion must neither apply its weights nor clear the new request.
+      await evaluate(cdp, `modelDownloadRequests[0].resolve(new Response('late cancelled weights')); void 0`);
+      await wait(`!!document.querySelector('button[aria-label^="Cancel download of"]')`);
+      assert.equal(await evaluate(cdp, 'modelReplacementStore.getState().settings.katagoModelUrl'), selectedBeforeDownload);
+      for (const type of ['keyDown', 'keyUp']) {
+        await cdp.send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      }
+      await wait('!document.querySelector("[aria-labelledby=settings-title]")');
+      assert.equal(await evaluate(cdp, 'modelDownloadRequests[1].signal.aborted'), true);
+      await evaluate(cdp, 'modelDownloadRequests[1].resolve(new Response("late closed weights")); void 0');
+      await evaluate(cdp, `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
+      assert.equal(await evaluate(cdp, 'modelReplacementStore.getState().settings.katagoModelUrl'), selectedBeforeDownload);
+      await evaluate(cdp, `(() => {
+        document.activeElement?.blur();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8', bubbles: true }));
+      })()`);
+      await click('#tab-ai');
+      await click('button', 'Official model downloads');
+      await click('button[aria-label^="Download and load"]');
+      await wait('modelDownloadRequests.length===3');
+      await click('button[title="Lightweight test weights for trying the app"]');
+      await wait('modelDownloadRequests[2].signal.aborted');
+      const changedSelection = await evaluate(cdp, 'modelReplacementStore.getState().settings.katagoModelUrl');
+      assert.notEqual(changedSelection, selectedBeforeDownload);
+      await evaluate(cdp, 'modelDownloadRequests[2].resolve(new Response("late unselected weights")); void 0');
+      await evaluate(cdp, `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
+      assert.equal(await evaluate(cdp, 'modelReplacementStore.getState().settings.katagoModelUrl'), changedSelection);
+      assert.equal(await evaluate(cdp, `!!document.querySelector('button[aria-label^="Cancel download of"]')`), false);
+      await click('button[aria-label^="Download and load"]');
+      await wait('modelDownloadRequests.length===4');
+      await evaluate(cdp, `modelDownloadRequests[3].resolve(new Response('completed download fixture', {
+        headers: { 'content-type': 'application/gzip', 'content-length': '26' },
+      })); void 0`);
+      await wait(`modelReplacementStore.getState().settings.katagoModelUrl.startsWith('blob:')
+        && !!document.querySelector('button[aria-label^="Download and load"]:not(:disabled)')`);
+      const completed = await evaluate(cdp, `(async () => ({
+        text: await (await modelReplacementFetch(modelReplacementStore.getState().settings.katagoModelUrl)).text(),
+        persisted: await (await modelReplacementApi.loadPersistedUploadedModel()).blob.text(),
+        aborted: modelDownloadRequests[3].signal.aborted,
+      }))()`);
+      assert.deepEqual(completed, { text: 'completed download fixture', persisted: 'completed download fixture', aborted: false });
+      await click('[aria-label="Close settings"]');
+    } finally {
+      await evaluate(cdp, 'window.fetch = modelReplacementFetch; void 0');
+    }
+    reports.push({
+      width, failedDownloadRetainedWeights: true, failedAllocationRetainedWeights: true,
+      successfulReplacementRevokedPrevious: true, downloadCancellationAndLateCompletions: true, successfulDownloadPersisted: true,
+    });
   }
   fs.writeFileSync(path.join(screenshotDir, 'model-replacement.json'), JSON.stringify(reports, null, 2));
-  console.log('Model replacement: failed downloads/uploads/restores retain selected weights; successful replacement persists and revokes the previous URL on desktop/phone.');
+  console.log('Model replacement: failures retain selected weights, successful uploads persist, and download Cancel/close/selection changes reject late completions on desktop/phone.');
 }

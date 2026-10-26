@@ -10,6 +10,18 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Cancel model downloads:** pending Download & Load now offers Cancel and
+  aborts on Settings dismissal or a different model selection. Cancel restores
+  focus to the enabled download control. Request identity and AbortSignal
+  checks reject late responses, preserve a newer retry, and suppress stale
+  progress or errors. Once the bytes arrive, a distinct Saving state prevents
+  offering cancellation after the model has already been selected. The idle
+  label says “Saves in browser” rather than claiming every optional network is
+  already saved. Unit cases cover signal forwarding, pre-cancellation, late
+  non-cooperating fetches, and cancellation while streaming. Native checks on
+  desktop and phone exercise Cancel, retry, Escape dismissal, changing weights,
+  late responses, and successful download persistence; screenshots verify the
+  progress and Cancel controls fit the narrow card.
 - **Failed model replacement:** starting Download & Load revoked the selected
   browser upload before fetching its replacement. A 503 left the old URL in
   Settings but made it unreadable and cleared its metadata. Download now keeps
