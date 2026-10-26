@@ -948,7 +948,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setContextMenu({ ...position, itemId: item?.id ?? null });
   };
 
-  const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {
+  const openContextMenu = (event: React.MouseEvent<HTMLDivElement>, item: LibraryItem | null) => {
     event.preventDefault();
     event.stopPropagation();
     openContextMenuAt(event.clientX, event.clientY, item, event.currentTarget);
