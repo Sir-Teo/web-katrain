@@ -1,6 +1,7 @@
 import React from 'react';
 import { BOT_PERSONAS, type BotPersona, type BotPersonaTraits } from '../data/botPersonas';
 import { formatKyuRank } from '../utils/tournament';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 interface BotPersonaPickerProps {
   selectedId: string | null;
@@ -40,9 +41,29 @@ export const BotPersonaPicker: React.FC<BotPersonaPickerProps> = ({ selectedId, 
     () => [...BOT_PERSONAS].sort((a, b) => b.rankKyu - a.rankKyu),
     []
   );
+  const selectedIndex = Math.max(0, ordered.findIndex(persona => persona.id === selectedId));
+  const handleNavigation = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (isComposingKeyEvent(event) || event.altKey || event.ctrlKey || event.metaKey) return;
+    let next: number;
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown': next = (index + 1) % ordered.length; break;
+      case 'ArrowLeft':
+      case 'ArrowUp': next = (index - 1 + ordered.length) % ordered.length; break;
+      case 'Home': next = 0; break;
+      case 'End': next = ordered.length - 1; break;
+      default: return;
+    }
+    const persona = ordered[next];
+    if (!persona) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (persona.id !== selectedId) onSelect(persona);
+    event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-bot-persona="${persona.id}"]`)?.focus();
+  };
   return (
     <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Choose a bot">
-      {ordered.map((persona) => {
+      {ordered.map((persona, index) => {
         const active = persona.id === selectedId;
         const styleLabel = persona.styleTags.join(' · ');
         return (
@@ -51,7 +72,10 @@ export const BotPersonaPicker: React.FC<BotPersonaPickerProps> = ({ selectedId, 
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={index === selectedIndex ? 0 : -1}
+            data-bot-persona={persona.id}
             onClick={() => onSelect(persona)}
+            onKeyDown={(event) => handleNavigation(event, index)}
             className={[
               'min-h-16 rounded-lg border p-2 text-left transition-colors',
               active

@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Keyboard bot selection:** all 12 bot cards were separate Tab stops and the
+  radio group ignored arrow keys. The group now has one Tab stop at the chosen
+  bot (or the first card), supports wrapping arrow navigation and Home/End,
+  and moves focus with selection. Tab exits the group; Shift+Tab returns to
+  the chosen card. Composition and browser modifier chords leave selection
+  alone. Native desktop and phone checks exercise every navigation key, both
+  wrap directions, pointer selection, focus re-entry, and cancelling the draft
+  setup without changing the actual game. SSR checks retain one Tab stop for
+  both an unselected roster and a selected expanded card.
 - **Score quiz input:** blank and negative margins silently became zero or a
   positive guess, and input-method Enter (including Safari key-code 229)
   started an evaluation. The quiz now requires a finite margin of zero or more,

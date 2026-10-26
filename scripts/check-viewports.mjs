@@ -22,6 +22,7 @@ import { assertNotificationInteraction } from './lib/notification-interaction-ch
 import { assertLazyModalInput } from './lib/lazy-modal-input-check.mjs';
 import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
+import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
 import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
 import { assertModelStorageOrdering } from './lib/model-storage-check.mjs';
 import { assertModelReplacement } from './lib/model-replacement-check.mjs';
@@ -4218,6 +4219,7 @@ async function main() {
     await assertModelReplacement(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertModelStorageOrdering(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertPhotoTraceRaces(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertBotPickerKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {
