@@ -39,7 +39,13 @@ export async function assertSettingsChoiceKeyboard(cdp,appUrl,screenshotDir) {
   finally{await cdp.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:setup.result.identifier})}
   await wait('!!document.querySelector("[data-board-snapshot]")');await evaluate(cdp,'document.activeElement?.blur()');await press('F8');
   await click('#tab-ai');await click('[data-katago-backend-option=wasm]');
-  await guards('[data-katago-backend-option=wasm]',['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Enter',' ']);
+  await guards('[data-katago-backend-option=wasm]',['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End','Enter',' ']);
+  const availableBackends=await evaluate(cdp,`[...document.querySelectorAll('[data-katago-backend-option][data-katago-backend-available=true]')].map(e=>e.dataset.katagoBackendOption)`);
+  await press('End');await evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  assert.equal(await evaluate(cdp,`document.activeElement?.dataset.katagoBackendOption`),availableBackends.at(-1),'End must focus the last available backend');
+  assert.equal(await evaluate(cdp,`document.activeElement?.getAttribute('aria-checked')`),'true');
+  await press('Home');await wait(`document.activeElement?.dataset.katagoBackendOption===${JSON.stringify(availableBackends[0])}&&document.activeElement.getAttribute('aria-checked')==='true'`);
+  await click('[data-katago-backend-option=wasm]');
   await press('ArrowDown');await wait(`document.querySelector('[data-katago-backend-option=cpu]')?.getAttribute('aria-checked')==='true'&&document.activeElement?.dataset.katagoBackendOption==='cpu'`);
   await press('ArrowUp');await wait(`document.querySelector('[data-katago-backend-option=wasm]')?.getAttribute('aria-checked')==='true'&&document.activeElement?.dataset.katagoBackendOption==='wasm'`);
   await click('#tab-general');
@@ -53,7 +59,7 @@ export async function assertSettingsChoiceKeyboard(cdp,appUrl,screenshotDir) {
    await press(key);await wait(`document.activeElement?.id==='tab-${id}'&&document.activeElement.getAttribute('aria-selected')==='true'`);
   }
   await click('[aria-label="Close settings"]');await wait('!document.querySelector("[aria-labelledby=settings-title]")&&!history.state?.webKatrainOverlay');
-  reports.push({width,compositionAndModifierKeysPreserveSettingsAndFocus:true,backendArrowsStillSelect:true,themeHomeEndAndWrapRetained:true,tabHomeEndAndWrapRetained:true});
+  reports.push({width,compositionAndModifierKeysPreserveSettingsAndFocus:true,backendArrowsStillSelect:true,backendHomeEndSelectAvailableEndpoints:true,availableBackends,themeHomeEndAndWrapRetained:true,tabHomeEndAndWrapRetained:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'settings-choice-keyboard.json'),JSON.stringify(reports,null,2));
  console.log('Settings choices: desktop/phone composition/modifier keys preserve backend/theme/tab selection and focus; ordinary arrows, Home/End and wrapping still work.');

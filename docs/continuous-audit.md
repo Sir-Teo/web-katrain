@@ -10,6 +10,11 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Backend keyboard endpoints:** Home/End now select and focus the first/last
+  available engine backend, matching the theme and tab selectors. Unavailable
+  choices are skipped. Native desktop/phone checks retain ignored-key guards,
+  verify the selected endpoints and restore ordinary arrow navigation.
+  Twenty-five Settings/backend cases, TypeScript and lint pass.
 - **Settings choice composition:** composition ArrowDown changed the selected
   engine backend from WASM to CPU. Backend/theme radio groups and Settings tabs
   now ignore composition, legacy key-code 229 and Ctrl/Alt/Meta chords. Native
@@ -28,7 +33,9 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   label. The referenced heading now includes the accessible About prefix.
   Native desktop/phone checks read the actual accessibility name, open About
   from the palette by keyboard, close by button/Escape and restore the original
-  board/control. Seven existing About/focus cases and lint pass.
+  board/control. The existing accessibility test now reads the rendered
+  referenced heading instead of checking a redundant label; all 15 About/modal
+  cases and lint pass.
 - **Linear repeated-property imports:** a full verification run exceeded the
   unchanged 5-second import fuzz budget at 8.8 seconds for 20,000 repeated
   setup properties. Both SGF readers used `concat` on every occurrence,
@@ -37,7 +44,8 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   changed from 273 to 23 ms for full parsing and 566 to 14 ms for root reading.
   Ninety parser/fuzz cases pass, including ordered comments/setup stones,
   variation isolation and a 160,000-value group. The full study gate also passes
-  with all budgets unchanged. Broad verification will be rerun.
+  with all budgets unchanged. The subsequent full verification passed all
+  3,309 tests, app/test TypeScript, lint and the production build.
 - **Library row browsing:** Up/Down and Home/End now move focus through
   mounted games/folders without loading them, stopping at either end and
   skipping collapsed descendants and nonmatching search results. Rows expose
@@ -52,8 +60,8 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   before rejecting them. It now stops when the non-border extent exceeds the
   largest supported board, while retaining outer dash borders and full 19×19
   positions. Fifty-one diagram/fuzz cases pass, including oversized input,
-  largest-board corners and generous border padding. A full verification rerun
-  is still required before treating that broad gate as passed.
+  largest-board corners and generous border padding. The subsequent full
+  verification passed both fuzz suites and all 3,309 tests.
 - **Imports after destination deletion:** a held native file read completed
   after its target folder was deleted. Storage rerooted the orphan, but its
   name had been reserved in the deleted folder, producing two identically named

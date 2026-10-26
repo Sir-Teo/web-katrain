@@ -433,6 +433,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
             return;
         }
 
+        if (event.key === 'Home' || event.key === 'End') {
+            const availableOptions = backendOptions.filter((option) => isKataGoBackendAvailable(option.value, webGpuAvailability));
+            const nextOption = event.key === 'Home' ? availableOptions[0] : availableOptions.at(-1);
+            if (!nextOption) return;
+            event.preventDefault();
+            updateSettings({ katagoBackend: nextOption.value });
+            focusBackendOption(nextOption.value);
+            return;
+        }
+
         const direction =
             event.key === 'ArrowRight' || event.key === 'ArrowDown'
                 ? 1
