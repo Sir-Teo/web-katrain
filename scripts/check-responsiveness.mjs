@@ -104,12 +104,31 @@ async function main() {
     await evaluate(cdp, `(() => {
       window.__lt = [];
       window.__events = [];
+      window.__longTaskDetails = [];
+      window.__interactionDetails = [];
       try {
-        new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt.push(e.duration); })
+        new PerformanceObserver((l) => {
+          for (const e of l.getEntries()) {
+            window.__lt.push(e.duration);
+            window.__longTaskDetails.push({ start: e.startTime, duration: e.duration });
+          }
+        })
           .observe({ entryTypes: ['longtask'] });
         new PerformanceObserver((l) => {
           for (const e of l.getEntries()) {
-            if (e.interactionId > 0) window.__events.push(e.duration);
+            if (e.interactionId > 0) {
+              window.__events.push(e.duration);
+              const target = e.target?.closest?.('button') ?? e.target;
+              window.__interactionDetails.push({
+                event: e.name,
+                start: e.startTime,
+                duration: e.duration,
+                inputDelay: e.processingStart - e.startTime,
+                processing: e.processingEnd - e.processingStart,
+                interactionId: e.interactionId,
+                target: (target?.getAttribute?.('aria-label') || target?.title || target?.textContent || target?.tagName || '').slice(0, 100),
+              });
+            }
           }
         }).observe({ type: 'event', durationThreshold: 16, buffered: true });
       } catch {}
@@ -206,6 +225,8 @@ async function main() {
       return JSON.stringify({
         inp: durs.length ? +durs[Math.max(0, Math.ceil(durs.length * 0.98) - 1)].toFixed(1) : null,
         interactions: durs.length,
+        slowInteractions: (window.__interactionDetails || []).sort((a, b) => b.duration - a.duration).slice(0, 8),
+        longTasks: (window.__longTaskDetails || []).sort((a, b) => b.duration - a.duration).slice(0, 8),
         worstLongTask: lt.length ? +Math.max(...lt).toFixed(1) : 0,
       });
     })()`));
@@ -217,6 +238,10 @@ async function main() {
 
     cdp.close();
     if (failures.length > 0) {
+      console.log('Responsiveness failure details:', JSON.stringify({
+        slowInteractions: tail.slowInteractions,
+        longTasks: tail.longTasks,
+      }, null, 2));
       throw new Error(`${failures.length} responsiveness budget(s) exceeded:\n  - ${failures.join('\n  - ')}`);
     }
     console.log('Responsiveness checks passed.');

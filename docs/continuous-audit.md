@@ -8,8 +8,8 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
-- Full verification at `85db473` with one test worker: app/test TypeScript,
-  lint, 493 test files and 3,320 tests passed; 77 engine cases are skipped in
+- Full verification at `d8ae640` with two test workers: app/test TypeScript,
+  lint, 494 test files and 3,331 tests passed; 77 engine cases are skipped in
   CI. Production build passed. An earlier four-worker run at `ed010b9` had seven timing
   failures; the four affected files passed all 38 cases in isolation before
   the full one-worker run. Timing limits were unchanged.
@@ -29,7 +29,16 @@ reproduced failures separate from candidates that still need investigation.
   verification ran concurrently. Its unchanged isolated scenario and the
   complete idle sweep at `3ed2511` passed with the same deadlines. No gameplay
   code changed for this navigation timing outlier.
-- Production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
+- Production responsiveness at `d8ae640` has an unresolved failure: first move
+  11.3 ms, median 1.6 ms and warm Settings 118.7 ms passed, but p98 input latency
+  was 240 ms against 150 ms. Diagnostic runs showed variable Settings/focus and
+  navigation costs; preventing scroll on focus did not help and was not applied.
+  The earlier `15ff520` build also exceeded the Settings limit on the same host
+  (167.8 ms). A startup-HTML-only removal control still exceeded the long-task
+  limit (232 ms). No cause or production fix is established. Preserve the failed
+  samples and keep all limits unchanged; the checker now prints slow interaction
+  targets, input/processing delays and long-task timings when a limit fails.
+- Earlier production checks at `15ff520`: first move 11.7 ms, median 1.0 ms, warm Settings
   89.5 ms, p98 input latency 56 ms and longest task 72 ms passed their budgets.
   Offline checks completed fresh WASM analysis with 25 visits, a visible win-rate
   result, no dependency responses over the network and a cache-deletion control.
