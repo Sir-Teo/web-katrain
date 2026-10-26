@@ -75,7 +75,9 @@ export function NotificationToast({
 
   React.useEffect(() => {
     setCopyState('idle');
-    return () => { copyRequestRef.current++; };
+    // Capture the counter object; cleanup must invalidate its latest request.
+    const requests = copyRequestRef;
+    return () => { requests.current++; };
   }, [notification.copyText, notification.message, notification.type]);
 
   const handleCopy = async () => {
