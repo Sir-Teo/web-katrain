@@ -1,7 +1,7 @@
 import type { LibraryItem } from './library';
 
 export type LibraryTreeRow =
-  | { kind: 'item'; item: LibraryItem; depth: number }
+  | { kind: 'item'; item: LibraryItem; depth: number; position: number; total: number }
   | { kind: 'more'; parentId: string | null; total: number; depth: number };
 
 /** Visible depth-first rows, with each folder's paging control after its children. */
@@ -18,7 +18,7 @@ export function getVisibleLibraryTreeRows(
     const count = Math.min(siblings.length, limitFor(parentId ?? ''));
     if (count < siblings.length) pending.push({ kind: 'more', parentId, total: siblings.length, depth });
     for (let index = count - 1; index >= 0; index--) {
-      pending.push({ kind: 'item', item: siblings[index]!, depth });
+      pending.push({ kind: 'item', item: siblings[index]!, depth, position: index + 1, total: siblings.length });
     }
   };
   appendChildren(null, 0);

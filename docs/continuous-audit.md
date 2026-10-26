@@ -42,6 +42,13 @@ reproduced failures separate from candidates that still need investigation.
   A predefined 20-run isolated series and an eight-run series with the sweep's
   desktop Chrome launch settings both preserved both games in both storage
   modes. These controls did not reproduce the failure and are not a storage fix.
+- The sweep at `6e033d0` passed cross-tab checks with both stored games in each
+  tab, then exited on an outdated OGS menu assertion: Copy SGF now precedes
+  Open on OGS where the check expected Download SGF. The assertion now checks
+  the actual neighboring item. Follow-up runs exposed and fixed real menu
+  timing bugs described below. All 20 remaining native suites subsequently
+  passed together against the updated Library, including the new sibling
+  metadata checks. This follow-up is recorded separately from a complete sweep.
 - The later sweep at `2262300` stopped during the 390-pixel Save Copy setup:
   its opening touch stayed a preview and no stone was placed. The unchanged
   isolated scenario passed, including delayed persistence, newer recovery and
@@ -87,6 +94,27 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Stable Library menus:** Escape from a menu opener reproduced closing the
+  whole Library. Menu Escape now runs before workspace shortcuts and yields to
+  open dialogs. A held-frame regression also showed autofocus resetting a
+  chosen Rename item to New folder; a pointer diagnostic caught Duplicate
+  activating instead of Copy SGF with no clipboard call. Menus now take focus
+  during layout, before the next input event, preserve an existing choice and
+  avoid scrolling. Breadcrumb scroll events no longer dismiss a menu anchored
+  elsewhere; scrolling the list or an anchor ancestor still dismisses it.
+  Desktop/phone checks cover immediate focus, choices across held frames,
+  opener Escape, unrelated/menu scrolling and composition. Three predefined
+  Copy SGF repetitions passed across 1440/390/320 widths, then all 20 remaining
+  native suites passed together. Earlier failing samples remain retained.
+  The 82 focused keyboard, accessibility, clipboard and notification cases,
+  both TypeScript checks and lint pass.
+- **Complete paged-tree positions:** Library rows now expose their position
+  and full sibling count through `aria-posinset` and `aria-setsize`, preserving
+  their existing depth. Hidden pages count toward the total, including flat
+  search results. The traversal regression verifies independent folder counts;
+  native desktop/phone root, folder and search paging checks verify every newly
+  revealed position, focus and visibility. Deep-folder checks retain all 1,500
+  folders at three widths without changing the board or saved records.
 - **Free handicap placement:** a record with `HA[2];B[pd];B[dp]` acquired
   two invented setup stones before replay. The import regression failed;
   authored placement now loads without extra stones or an invented White turn,

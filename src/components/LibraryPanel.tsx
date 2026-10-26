@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { isComposingKeyEvent } from '../utils/compositionKey';
+import { isDialogOpen } from '../utils/keyboardTarget';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
 import {
   FaTimes,
@@ -695,17 +696,21 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
     const close = () => setContextMenu(null);
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || isComposingKeyEvent(event)) return;
+      if (event.key !== 'Escape' || isComposingKeyEvent(event) || isDialogOpen(document)) return;
       event.preventDefault();
+      event.stopPropagation();
       closeContextMenu();
     };
 
     const closeOnOutsideScroll = (event: Event) => {
       if (event.target instanceof Node && contextMenuRef.current?.contains(event.target)) return;
-      close();
+      const target = event.target;
+      const opener = contextMenuOpenerRef.current;
+      if (target === window || target === libraryTreeRef.current || (target instanceof Node && opener && target.contains(opener))) close();
     };
-    // Capture scrolls outside the menu so it cannot drift away from its row.
-    // Its own scroller must stay usable when actions exceed the available height.
+    // Close when scrolling can move the anchor, while unrelated scrollers
+    // (including a breadcrumb settling after folder navigation) leave it open.
+    // Its own scroller stays usable when actions exceed the available height.
     // Scroll does not bubble. Passive because this listener never prevents
     // anything: a blocking listener on window in the capture phase applies to
     // every scroller in the app, and takes scrolling off the compositor's fast
@@ -714,31 +719,29 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     window.addEventListener('pointerdown', close);
     window.addEventListener('scroll', closeOnOutsideScroll, scrollOptions);
     window.addEventListener('resize', close);
-    window.addEventListener('keydown', closeOnEscape);
+    // The menu owns Escape even if focus returns to its opener. Capture it
+    // before the workspace shortcut can close the entire Library.
+    window.addEventListener('keydown', closeOnEscape, true);
     return () => {
       window.removeEventListener('pointerdown', close);
       window.removeEventListener('scroll', closeOnOutsideScroll, { capture: true });
       window.removeEventListener('resize', close);
-      window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('keydown', closeOnEscape, true);
     };
   }, [contextMenu, closeContextMenu]);
 
   useEffect(() => {
     if (!headerMenuOpen) return;
 
-    const frame = window.requestAnimationFrame(() => {
-      headerMenuRef.current
-        ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-        ?.focus({ preventScroll: true });
-    });
     const closeOnOutsidePointer = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (headerMenuRef.current?.contains(target) || headerMenuButtonRef.current?.contains(target)) return;
       setHeaderMenuOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (!isLibraryMenuCloseKey(event.key) || isComposingKeyEvent(event)) return;
+      if (!isLibraryMenuCloseKey(event.key) || isComposingKeyEvent(event) || isDialogOpen(document)) return;
       event.preventDefault();
+      event.stopPropagation();
       setHeaderMenuOpen(false);
       headerMenuButtonRef.current?.focus({ preventScroll: true });
     };
@@ -749,25 +752,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const closeMenu = () => setHeaderMenuOpen(false);
     window.addEventListener('pointerdown', closeOnOutsidePointer);
     window.addEventListener('resize', closeMenu);
-    window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('keydown', closeOnEscape, true);
     return () => {
-      window.cancelAnimationFrame(frame);
       window.removeEventListener('pointerdown', closeOnOutsidePointer);
       window.removeEventListener('resize', closeMenu);
-      window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('keydown', closeOnEscape, true);
     };
   }, [headerMenuOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!headerMenuOpen) return;
+    const menu = headerMenuRef.current;
+    if (!menu || menu.contains(document.activeElement)) return;
+    menu.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+  }, [headerMenuOpen]);
+
+  useLayoutEffect(() => {
     if (!contextMenu) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      contextMenuRef.current
-        ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-        ?.focus();
-    });
-
-    return () => window.cancelAnimationFrame(frame);
+    // Own navigation before another key or pointer event can arrive. A later
+    // focus can scroll the menu and change the action under the pointer.
+    const menu = contextMenuRef.current;
+    if (!menu || menu.contains(document.activeElement)) return;
+    menu.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
   }, [contextMenu]);
 
   const availableTags = useMemo(() => getAllLibraryTags(items), [items]);
@@ -1879,7 +1885,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     );
   };
 
-  const renderFileRow = (item: LibraryFile, depth: number) => {
+  const renderFileRow = (item: LibraryFile, depth: number, position: number, total: number) => {
     const isSelected = visibleSelectedIds.has(item.id);
     const isLoaded = loadedFileId === item.id;
     const isLoadedDirty = isLoaded && loadedFileDirty;
@@ -1913,6 +1919,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         style={{ paddingLeft: libraryTreeIndent(depth) }}
         role="treeitem"
         aria-level={depth + 1}
+        aria-posinset={position}
+        aria-setsize={total}
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
@@ -2079,7 +2087,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     );
   };
 
-  const renderFolderRow = (item: LibraryFolder, depth: number, allowChildren = true) => {
+  const renderFolderRow = (item: LibraryFolder, depth: number, position: number, total: number, allowChildren = true) => {
     const isExpanded = visibleExpandedFolderIds.has(item.id);
     const children = childrenMap.get(item.id) ?? [];
     const isSelected = visibleSelectedIds.has(item.id);
@@ -2106,6 +2114,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           style={{ paddingLeft: libraryTreeIndent(depth) }}
           role="treeitem"
           aria-level={depth + 1}
+          aria-posinset={position}
+          aria-setsize={total}
           tabIndex={0}
           aria-selected={isSelected || activeFolderId === item.id}
           aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
@@ -2972,8 +2982,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     </div>
                   ) : (
                     <div>
-                      {sortedItems.slice(0, limitFor('')).map((item) =>
-                        isFolder(item) ? renderFolderRow(item, 0, false) : renderFileRow(item, 0)
+                      {sortedItems.slice(0, limitFor('')).map((item, index) =>
+                        isFolder(item) ? renderFolderRow(item, 0, index + 1, sortedItems.length, false) : renderFileRow(item, 0, index + 1, sortedItems.length)
                       )}
                       {renderShowMore('', sortedItems.length)}
                     </div>
@@ -3026,7 +3036,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                       <React.Fragment key={row.kind === 'item' ? `item:${row.item.id}` : `more:${row.parentId ?? ''}`}>
                         {row.kind === 'more'
                           ? renderShowMore(row.parentId ?? '', row.total, row.depth)
-                          : isFolder(row.item) ? renderFolderRow(row.item, row.depth) : renderFileRow(row.item, row.depth)}
+                          : isFolder(row.item) ? renderFolderRow(row.item, row.depth, row.position, row.total) : renderFileRow(row.item, row.depth, row.position, row.total)}
                       </React.Fragment>
                     ))}
                   </div>

@@ -10,7 +10,7 @@ export async function assertLibraryCopy(cdp, appUrl, runDir, screenshotDir) {
     { id: 'copy-folder', type: 'folder', name: 'Copy folder', parentId: null, createdAt: 1, updatedAt: 1 },
     { id: 'copy-game', type: 'file', name: 'Copy archive', sgf, parentId: null, createdAt: 1, updatedAt: 1 },
   ] }));
-  const wait = expression => waitForExpression(cdp, expression, { label: 'Library clipboard', diagnose: `({focus:document.activeElement?.getAttribute('aria-label'),toast:document.querySelector('.notification-toast-message')?.title,mode:window.libraryCopyAudit?.mode,modern:window.libraryCopyAudit?.modern,legacy:window.libraryCopyAudit?.legacy})` });
+  const wait = expression => waitForExpression(cdp, expression, { label: 'Library clipboard', diagnose: `({focus:document.activeElement?.getAttribute('aria-label'),toast:document.querySelector('.notification-toast-message')?.title,clipboard:window.libraryCopyAudit})` });
   let mobile = false;
   const click = async selector => {
     const point = await wait(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.disabled)return false;e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return r.width&&e.contains(document.elementFromPoint(x,y))?{x,y}:false})()`);
@@ -46,12 +46,15 @@ export async function assertLibraryCopy(cdp, appUrl, runDir, screenshotDir) {
     const beforeItems = await evaluate(cdp, readStored);
     const beforeBoard = await evaluate(cdp, '({...document.querySelector("[data-board-snapshot]").dataset})');
     await evaluate(cdp, `(()=>{
-      window.libraryCopyAudit={mode:'modern',modern:[],legacy:[]};
+      window.libraryCopyAudit={mode:'modern',width:${width},modern:[],legacy:[],attempts:[],clicks:[]};
+      document.addEventListener('click',event=>{const e=event.target instanceof Element?event.target.closest('[role=menuitem]'):null;if(e)libraryCopyAudit.clicks.push({label:e.textContent.trim(),mode:libraryCopyAudit.mode,trusted:event.isTrusted})},true);
       Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{
+        libraryCopyAudit.attempts.push({route:'modern',mode:libraryCopyAudit.mode});
         if(libraryCopyAudit.mode!=='modern')throw new DOMException('Clipboard access denied','NotAllowedError');
         libraryCopyAudit.modern.push(text);
       }}});
       document.execCommand=command=>{
+        libraryCopyAudit.attempts.push({route:'legacy',mode:libraryCopyAudit.mode});
         if(command!=='copy'||libraryCopyAudit.mode!=='legacy')return false;
         libraryCopyAudit.legacy.push(document.activeElement.value);return true;
       };return true;
@@ -60,6 +63,7 @@ export async function assertLibraryCopy(cdp, appUrl, runDir, screenshotDir) {
       await evaluate(cdp, `libraryCopyAudit.mode=${JSON.stringify(mode)};void 0`);
       await click('[data-library-row-id=copy-game] .library-tree-node-more');
       await wait('!!document.querySelector("[data-library-copy-sgf]")');
+      assert.equal(await evaluate(cdp, 'document.querySelector("[role=menu]").contains(document.activeElement)'), true, 'Copy menu must be ready for keyboard navigation when it appears');
       if (mode === 'legacy') {
         await press('Home', 'Home', 36);
         const index = await evaluate(cdp, '[...document.querySelectorAll("[role=menu] [role=menuitem]")].findIndex(e=>e.matches("[data-library-copy-sgf]"))');

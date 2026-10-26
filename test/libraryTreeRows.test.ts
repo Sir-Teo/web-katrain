@@ -28,6 +28,8 @@ describe('visible Library tree traversal', () => {
     const rows = getVisibleLibraryTreeRows(children, expanded, key => key === '' ? 2 : 1);
     expect(rows.map(row => row.kind === 'item' ? [row.item.id, row.depth] : ['more', row.parentId, row.total, row.depth]))
       .toEqual([['a', 0], ['nested', 1], ['inside', 2], ['more', 'a', 2, 1], ['b', 0], ['more', null, 3, 0]]);
+    expect(rows.filter(row => row.kind === 'item').map(row => [row.item.id, row.position, row.total]))
+      .toEqual([['a', 1, 3], ['nested', 1, 2], ['inside', 1, 1], ['b', 2, 3]]);
     expect(getVisibleLibraryTreeRows(children, expanded, () => 10).filter(row => row.kind === 'more')).toEqual([]);
     expect(children.get(null)).toEqual([a, b, c]);
   });

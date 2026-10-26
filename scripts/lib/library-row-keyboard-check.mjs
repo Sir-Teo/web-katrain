@@ -147,6 +147,26 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
     assert.equal(await evaluate(cdp, `document.querySelector('${file}').getAttribute('aria-level')`), '1', 'Search results form a flat list');
     await click('[aria-label="Clear library search"]');
     await wait('document.querySelectorAll("[data-library-row]").length===3');
+    for (const opener of ['[aria-label="More library actions"]', `${folder} .library-tree-node-more`, `${file} .library-tree-node-more`]) {
+      await evaluate(cdp, `(()=>{window.libraryOriginalRaf=window.requestAnimationFrame;window.libraryMenuFrames=[];window.requestAnimationFrame=callback=>{libraryMenuFrames.push(callback);return 100000+libraryMenuFrames.length};return true})()`);
+      await click(opener);
+      await wait('!!document.querySelector("[role=menu]")');
+      assert.equal(await evaluate(cdp, 'document.querySelector("[role=menu]").contains(document.activeElement)'), true, 'An opened menu must own keyboard focus immediately');
+      await evaluate(cdp, `document.querySelector('[role=menu] [role=menuitem]').focus();void 0`);
+      await press('ArrowDown');
+      await evaluate(cdp, 'window.libraryChosenMenuItem=document.activeElement;void 0');
+      await evaluate(cdp, '(()=>{window.requestAnimationFrame=libraryOriginalRaf;libraryMenuFrames.splice(0).forEach(callback=>callback(performance.now()));return true})()');
+      assert.equal(await evaluate(cdp, 'document.activeElement===libraryChosenMenuItem'), true, 'Deferred menu focus must preserve an item already chosen with the keyboard');
+      if (opener !== '[aria-label="More library actions"]') {
+        await evaluate(cdp, `(()=>{document.querySelector('.library-breadcrumbs').dispatchEvent(new Event('scroll'));document.querySelector('[role=menu]').dispatchEvent(new Event('scroll'));return true})()`);
+        assert.equal(await evaluate(cdp, '!!document.querySelector("[role=menu]")'), true, 'Breadcrumb and menu scrolling must not dismiss a row menu anchored elsewhere');
+      }
+      // Exercise Escape while focus is on the opener, including the window
+      // before deferred menu autofocus would normally claim it.
+      await evaluate(cdp, `new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>{document.querySelector(${JSON.stringify(opener)}).focus();resolve(true)})))`);
+      await press('Escape');
+      await wait(`!document.querySelector('[role=menu]')&&!!document.querySelector('[data-library-storage-badge]')&&document.activeElement===document.querySelector(${JSON.stringify(opener)})`);
+    }
     for (const [selector, name] of [[folder, 'Keyboard studies'], [file, 'Keyboard game']]) {
       const opener = `${selector} button[aria-label="More actions for ${name}"]`;
       await focus(opener); await press('Enter');
@@ -171,7 +191,7 @@ export async function assertLibraryRowKeyboard(cdp, appUrl, runDir, screenshotDi
     await focus(file); await press('Enter');
     if (width === 390) await wait('!history.state?.webKatrainOverlay');
     await wait('document.querySelector("[data-board-snapshot]")?.dataset.boardSize==="9"');
-    reports.push({ width, enterAndSpaceReachNestedControls:true,compositionAndModifierKeysDoNotActivateRows:true,rowActivationAndKeyboardContextMenuPreserved:true,menuAndRenameDialogRestoreOrigin:true,arrowsAndHomeEndBrowseVisibleRows:true,collapsedAndFilteredRowsExcluded:true,folderDepthAnnounced:true,parentAndFirstChildNavigation:true });
+    reports.push({ width, enterAndSpaceReachNestedControls:true,compositionAndModifierKeysDoNotActivateRows:true,rowActivationAndKeyboardContextMenuPreserved:true,menuAndRenameDialogRestoreOrigin:true,openerEscapeClosesOnlyMenu:true,deferredFocusPreservesChosenItem:true,unrelatedScrollPreservesMenu:true,arrowsAndHomeEndBrowseVisibleRows:true,collapsedAndFilteredRowsExcluded:true,folderDepthAnnounced:true,parentAndFirstChildNavigation:true });
   }
   fs.writeFileSync(path.join(screenshotDir,'library-row-keyboard.json'),JSON.stringify(reports,null,2));
   console.log('Library row keyboard: desktop/phone nested controls, menu/dialog focus return, visible-row arrows/Home/End, folder depth, collapsed/search filtering, composition guards and ordinary activation passed.');
