@@ -37,7 +37,7 @@ async function main() {
       const { parseSgf, generateSgfFromTree } = await import('/src/utils/sgf.ts');
       const { findSolutionPath } = await import('/src/utils/problemMode.ts');
       const { createLibraryItem, prependLibraryImports, getLibraryFolderOptions, formatLibraryFolderOptionLabel,
-        duplicateLibraryItem, deleteLibraryItems, getLibrarySelectionIds } = await import('/src/utils/library.ts');
+        duplicateLibraryItem, duplicateLibraryItems, deleteLibraryItems, getLibrarySelectionIds } = await import('/src/utils/library.ts');
       const state = () => useGameStore.getState();
       state().updateSettings({ soundEnabled: false, loadSgfFastAnalysis: false });
       const sgf = '(;GM[1]SZ[9]' + Array.from({ length: 2000 }, (_, i) => ';' + (i % 2 ? 'W' : 'B') + '[]').join('') + ')';
@@ -124,6 +124,16 @@ async function main() {
       if (merged.length !== 20000 || new Set(merged.map(item => item.name.toLowerCase())).size !== 20000) {
         throw Error('Library import lost games or produced duplicate names');
       }
+      const sameNamedGames = existing.map(item => ({...item, name:'Study.sgf'}));
+      operationStart = performance.now();
+      const copiedBatch = duplicateLibraryItems(sameNamedGames, sameNamedGames.map(item => item.id));
+      const libraryBulkCopyMs = performance.now() - operationStart;
+      if (copiedBatch.items.length !== 20000 || copiedBatch.duplicatedIds.length !== 10000 ||
+          new Set(copiedBatch.items.map(item => item.id)).size !== 20000 ||
+          new Set(copiedBatch.items.slice(0, 10000).map(item => item.name.toLowerCase())).size !== 10000 ||
+          copiedBatch.items.slice(10000).some((item, index) => item !== sameNamedGames[index])) {
+        throw Error('Bulk duplicate lost original games, independent IDs, or unique copy names');
+      }
       const folders = Array.from({length:12000}, (_, i) => ({
         id:'folder-'+i, name:'Folder '+i, type:'folder', parentId:i ? 'folder-'+(i-1) : null, createdAt:i, updatedAt:i,
       })).reverse();
@@ -201,7 +211,7 @@ async function main() {
         }
         superkoChecks.push({distinct, positions:400, candidates:361, coldMs, candidatesMs:performance.now() - operationStart});
       }
-      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, libraryHierarchy, superkoChecks };
+      return { markerMedianMs, markerSamplesMs: times, exportMs, comments, exportedBytes: new TextEncoder().encode(exported).length, nestedImportMs, solutionSearchMs, branchCopyMs, branchPasteMs, setupReplayMs, libraryImportNamingMs, libraryBulkCopyMs, libraryFolderOptionsMs, libraryFolderLabelCharacters, libraryHierarchy, superkoChecks };
     })()`);
     console.log(JSON.stringify(result, null, 2));
     // The old snapshot path measured 38ms median. Generous headroom over the
@@ -209,7 +219,7 @@ async function main() {
     assert.ok(result.markerMedianMs < 25, `Marker edit took ${result.markerMedianMs}ms; budget is 25ms`);
     assert.equal(result.comments, 12000);
     assert.ok(result.exportMs < 500, `Study export took ${result.exportMs}ms; budget is 500ms`);
-    for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs', 'libraryFolderOptionsMs']) {
+    for (const operation of ['nestedImportMs', 'solutionSearchMs', 'branchCopyMs', 'branchPasteMs', 'setupReplayMs', 'libraryImportNamingMs', 'libraryBulkCopyMs', 'libraryFolderOptionsMs']) {
       assert.ok(result[operation] < 500, `${operation} took ${result[operation]}ms; budget is 500ms`);
     }
     for (const [operation, ms] of Object.entries(result.libraryHierarchy)) {

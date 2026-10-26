@@ -1109,19 +1109,15 @@ const libraryChildrenByParent = (items: readonly LibraryItem[]): Map<string, Lib
   return children;
 };
 
-export const duplicateLibraryItem = (
-  items: LibraryItem[],
-  id: string,
-  timestamp = Date.now()
+const copyLibraryTree = (
+  source: LibraryItem,
+  rootCopyName: string,
+  children: Map<string, LibraryItem[]>,
+  timestamp: number,
 ): DuplicateLibraryItemResult => {
-  const source = items.find((item) => item.id === id);
-  if (!source) return { items, duplicated: null, duplicatedIds: [] };
-
   const copies: LibraryItem[] = [];
   const duplicatedIds: string[] = [];
   const idMap = new Map<string, string>();
-  const siblings = items.filter((item) => (item.parentId ?? null) === (source.parentId ?? null) && item.id !== source.id);
-  const rootCopyName = uniqueLibraryName(createCopyName(source.name), siblings);
 
   const copyOne = (item: LibraryItem, parentId: string | null, name: string): LibraryItem => {
     const newId = createId();
@@ -1155,7 +1151,6 @@ export const duplicateLibraryItem = (
   copies.push(rootCopy);
 
   if (source.type === 'folder') {
-    const children = libraryChildrenByParent(items);
     const pending = [...(children.get(source.id) ?? [])].reverse();
     while (pending.length > 0) {
       const item = pending.pop()!;
@@ -1171,10 +1166,24 @@ export const duplicateLibraryItem = (
   }
 
   return {
-    items: [...copies, ...items],
+    items: copies,
     duplicated: rootCopy,
     duplicatedIds,
   };
+};
+
+export const duplicateLibraryItem = (
+  items: LibraryItem[],
+  id: string,
+  timestamp = Date.now(),
+): DuplicateLibraryItemResult => {
+  const source = items.find((item) => item.id === id);
+  if (!source) return { items, duplicated: null, duplicatedIds: [] };
+  const siblings = items.filter((item) => (item.parentId ?? null) === (source.parentId ?? null) && item.id !== source.id);
+  const name = uniqueLibraryName(createCopyName(source.name), siblings);
+  const children = source.type === 'folder' ? libraryChildrenByParent(items) : new Map<string, LibraryItem[]>();
+  const copied = copyLibraryTree(source, name, children, timestamp);
+  return { ...copied, items: [...copied.items, ...items] };
 };
 
 export const duplicateLibraryItems = (
@@ -1183,26 +1192,52 @@ export const duplicateLibraryItems = (
   timestamp = Date.now()
 ): DuplicateLibraryItemResult => {
   const selectedIds = Array.from(ids);
-  const selectedIdSet = new Set(selectedIds);
-  const parentById = new Map(items.map((item) => [item.id, item.parentId ?? null]));
-  const rootSelectedIds = selectedIds.filter((id) => {
-    let parentId = parentById.get(id) ?? null;
-    while (parentId) {
-      if (selectedIdSet.has(parentId)) return false;
-      parentId = parentById.get(parentId) ?? null;
-    }
-    return true;
-  });
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const children = libraryChildrenByParent(items);
+  // Selected descendants are already copied with their ancestor. Visit them
+  // once rather than walking the same deep parent chain for every selection.
+  const coveredIds = new Set<string>();
+  const pending: LibraryItem[] = [];
+  for (const id of selectedIds) {
+    for (const child of children.get(id) ?? []) pending.push(child);
+  }
+  while (pending.length) {
+    const item = pending.pop()!;
+    if (coveredIds.has(item.id)) continue;
+    coveredIds.add(item.id);
+    for (const child of children.get(item.id) ?? []) pending.push(child);
+  }
+  const rootSelectedIds = selectedIds.filter(id => !coveredIds.has(id));
 
-  let nextItems = items;
+  // Index the original library and reserve names once for the whole action.
+  // Repeated single-item copies scanned and copied an ever-growing library;
+  // selecting 5,000 games blocked Chrome for over six seconds.
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+  for (const item of items) poolFor(item.parentId ?? null).names.add(item.name.toLowerCase());
+
+  const groups: LibraryItem[][] = [];
   const duplicatedIds: string[] = [];
   let firstDuplicated: LibraryItem | null = null;
   for (const id of rootSelectedIds) {
-    const result = duplicateLibraryItem(nextItems, id, timestamp);
-    nextItems = result.items;
+    const source = byId.get(id);
+    if (!source) continue;
+    const name = reserveLibraryName(createCopyName(source.name), poolFor(source.parentId ?? null));
+    const result = copyLibraryTree(source, name, children, timestamp);
+    groups.push(result.items);
     if (!firstDuplicated) firstDuplicated = result.duplicated;
-    duplicatedIds.push(...result.duplicatedIds);
+    for (const copiedId of result.duplicatedIds) duplicatedIds.push(copiedId);
   }
+  // Each selected root used to be prepended in turn. Keep that visible order
+  // and the first-copy selection while assembling the final array only once.
+  const nextItems = groups.length ? [...groups.reverse().flat(), ...items] : items;
   return { items: nextItems, duplicated: firstDuplicated, duplicatedIds };
 };
 

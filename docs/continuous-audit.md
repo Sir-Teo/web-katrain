@@ -28,11 +28,26 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   composition, including Safari's final key-code-229 event. The shared dialog
   Escape handler also respects composition. Browser checks verify these keys
   neither save nor close the relevant dialogs.
+- **Bulk library copying:** copying 5,000 selected games took 6,166 ms in a
+  real Chrome utility probe. The action now indexes the library and reserves
+  copy names once, shares a subtree copier with single-item duplication, and
+  assembles the resulting list once. The same probe measured 52 ms afterward.
+  Tests cover 10,000 copies, case-insensitive per-folder name collisions,
+  independent metadata, and cyclic ancestors. `test:study` now includes a
+  10,000-game copy with a 500 ms operation budget (176 ms in the recorded run).
+  Real desktop and phone Duplicate selected controls produced 10,000 stored
+  games with every original, SGF, favorite, and tag intact. Those dev UI passes
+  took 711 ms and 433 ms to paint respectively; storage and rendering still
+  add work beyond the utility timing.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
 save badge is intentionally hidden to preserve navigation and the turn stone.
 The assertion now measures the control strip before requiring the badge.
+Recovery-dialog fixtures are installed in the arriving document so the departing
+page's recovery flush cannot erase them. Failed-save checks accept a guarded
+read failure before fallback writes, while still requiring visible failure,
+unchanged stored games, retained recovery, and a successful retry.
 
 | Commit / area | Problem and resulting behavior | Evidence |
 | --- | --- | --- |
