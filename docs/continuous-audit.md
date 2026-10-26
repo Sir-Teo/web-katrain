@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Command-to-dialog focus:** closing Settings after opening it from the
+  command palette lost the board/control where the user started. The next
+  dialog captured a temporary palette input or item that then disappeared.
+  Commands now restore the connected original opener before closing the
+  palette and running. Native desktop/phone checks open Settings, lessons and
+  keyboard help from both the board and a persistent header control, use
+  pointer and keyboard activation, close by button/Escape, and verify return
+  to the exact original element. Direct palette dismissal still restores it.
+  Forty-four focused command-palette and dialog cases pass.
 - **Problem Practice keyboard flow:** a correct keyboard answer left focus
   on a board that no longer accepted answers. Success now focuses the next
   problem when available; a failed line or final problem focuses Retry.

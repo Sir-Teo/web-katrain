@@ -39,6 +39,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [commandOpener] = React.useState<HTMLElement | null>(() =>
+    typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null
+  );
   const listboxId = React.useId();
   // The search field is the right landing spot here, so only the Tab wrap and the
   // focus restore are wanted from the dialog focus hook.
@@ -112,9 +115,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const runCommand = React.useCallback((command: CommandPaletteCommand) => {
     if (command.disabledReason) return;
     writeRecentCommandIds(addRecentCommandId(command.id));
+    // A destination dialog captures its opener while rendering. Give it the
+    // original connected control before the palette's temporary input/item
+    // disappears, so closing that dialog can return to the same place.
+    if (commandOpener?.isConnected) commandOpener.focus?.({ preventScroll: true });
     onClose();
     command.run();
-  }, [onClose]);
+  }, [onClose, commandOpener]);
 
   const activeCommand = filteredCommands[activeIndex] ?? null;
   const activeOptionId = activeCommand ? `${listboxId}-option-${activeIndex}` : undefined;
