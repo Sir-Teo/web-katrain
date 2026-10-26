@@ -92,7 +92,6 @@ describe('PhotoBoardModal', () => {
     expect(source).toContain('PHOTO_BOARD_IMAGE_ACCEPT');
     expect(source).toContain('PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE');
     expect(source).toContain('if (!isPhotoBoardImageFile(file))');
-    expect(source).toContain('setPhotoUrl(null);');
     expect(source).toContain('setPhotoError(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE);');
     expect(source).toContain('accept={PHOTO_BOARD_IMAGE_ACCEPT}');
     expect(source).toContain('id="photo-board-photo-error"');

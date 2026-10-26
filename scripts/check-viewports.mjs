@@ -22,6 +22,7 @@ import { assertNotificationInteraction } from './lib/notification-interaction-ch
 import { assertLazyModalInput } from './lib/lazy-modal-input-check.mjs';
 import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
+import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
 import { assertModelStorageOrdering } from './lib/model-storage-check.mjs';
 import { assertModelReplacement } from './lib/model-replacement-check.mjs';
 import { assertShortcutRecording } from './lib/shortcut-recording-check.mjs';
@@ -2614,13 +2615,13 @@ async function main() {
          */
         const openPhotoBoard = async () => {
           if (${viewport.mobile}) {
-            const toolsButton = findButtonByLabel('Tools');
-            if (!toolsButton) throw new Error('Tools button missing');
-            toolsButton.click();
-            const toolsDialog = await waitForSelector('[data-mobile-tools-dialog="true"]');
-            if (!toolsDialog) throw new Error('Tools dialog did not open');
-            const photoBoardButton = findPhotoBoardButton(toolsDialog);
-            if (!photoBoardButton) throw new Error('photo board action missing in tools');
+            const menuButton = findButtonByLabel('Menu');
+            if (!menuButton) throw new Error('Menu button missing');
+            menuButton.click();
+            const menu = await waitForSelector('[aria-labelledby="menu-title"]');
+            if (!menu) throw new Error('Mobile menu did not open');
+            const photoBoardButton = menu.querySelector('[aria-label="Open photo board"]');
+            if (!photoBoardButton) throw new Error('photo board action missing in menu');
             photoBoardButton.click();
             await waitForFrames(2);
             return;
@@ -4216,6 +4217,7 @@ async function main() {
     await assertShortcutRecording(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertModelReplacement(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertModelStorageOrdering(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertPhotoTraceRaces(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

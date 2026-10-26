@@ -139,12 +139,18 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [liveCameraSupported, setLiveCameraSupported] = React.useState(false);
   const [cameraCaptureOpen, setCameraCaptureOpen] = React.useState(false);
   const [isAutoTracing, setIsAutoTracing] = React.useState(false);
+  const autoTraceRequestRef = React.useRef(0);
   const [autoTraceStatus, setAutoTraceStatus] = React.useState<string | null>(null);
   const [autoTraceSensitivity, setAutoTraceSensitivity] = React.useState(DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY);
   const photoImgRef = React.useRef<HTMLImageElement | null>(null);
   const [photoNatural, setPhotoNatural] = React.useState<{ width: number; height: number } | null>(null);
   const [cornerFractions, setCornerFractions] = React.useState<CornerFractions | null>(null);
   const [draggingCorner, setDraggingCorner] = React.useState<number | null>(null);
+  const invalidateAutoTrace = React.useCallback(() => {
+    autoTraceRequestRef.current++;
+    setIsAutoTracing(false);
+    setAutoTraceStatus(null);
+  }, []);
   useEscapeToClose(onClose, !cameraCaptureOpen);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
 
@@ -215,7 +221,9 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const canCompareCurrentBoard = !!currentBoard && currentBoardSize === boardSize;
 
   React.useEffect(() => {
+    const requests = autoTraceRequestRef;
     return () => {
+      requests.current++;
       revokeObjectUrl(photoUrlRef.current);
     };
   }, []);
@@ -280,11 +288,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   const choosePhoto = React.useCallback((file: File | undefined) => {
     if (!file) return;
-    revokeObjectUrl(photoUrlRef.current);
-    photoUrlRef.current = null;
     if (!isPhotoBoardImageFile(file)) {
-      setPhotoName('');
-      setPhotoUrl(null);
       setPhotoError(PHOTO_BOARD_UNSUPPORTED_IMAGE_MESSAGE);
       return;
     }
@@ -292,11 +296,11 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     const objectUrl = createObjectUrl(file);
     setPhotoError(null);
     if (!objectUrl) {
-      setPhotoName('');
-      setPhotoUrl(null);
       setPhotoError('Photo preview is unavailable in this browser.');
       return;
     }
+    invalidateAutoTrace();
+    revokeObjectUrl(photoUrlRef.current);
     photoUrlRef.current = objectUrl;
     setPhotoName(file.name || 'Camera photo');
     setPhotoUrl(objectUrl);
@@ -312,7 +316,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     // one a phone photo actually needs. Auto trace still moves to the grid
     // afterwards, so the order is choose, align, trace, review.
     setMobileTab('photo');
-  }, []);
+  }, [invalidateAutoTrace]);
 
   const handlePhotoInputChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     choosePhoto(event.target.files?.[0]);
@@ -338,11 +342,13 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   const updateBoardSize = (next: BoardSize) => {
     if (next === boardSize) return;
+    invalidateAutoTrace();
     setBoardSize(next);
     setStones((prev) => resizePhotoBoardStones(prev, boardSize, next));
   };
 
   const setStoneAt = React.useCallback((index: number, value: PhotoBoardStone) => {
+    invalidateAutoTrace();
     setStones((prev) => {
       if (index < 0 || index >= prev.length) return prev;
       if ((prev[index] ?? null) === value) return prev;
@@ -350,7 +356,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       next[index] = value;
       return next;
     });
-  }, []);
+  }, [invalidateAutoTrace]);
 
   const traceIndexFromPoint = React.useCallback((clientX: number, clientY: number): number | null => {
     const root = traceBoardRef.current;
@@ -391,9 +397,6 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const endTracePaint = React.useCallback(() => {
     isTracePaintingRef.current = false;
     lastTracePaintIndexRef.current = null;
-    window.setTimeout(() => {
-      ignoreNextTraceClickRef.current = false;
-    }, 0);
   }, []);
 
   const handleTracePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -437,21 +440,27 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [cameraCaptureOpen, setTraceTool]);
 
-  const clearBoard = () => setStones(makeEmptyStones(boardSize));
+  const clearBoard = () => {
+    invalidateAutoTrace();
+    setStones(makeEmptyStones(boardSize));
+  };
 
   const useCurrentBoard = () => {
     if (!currentBoardSize || !currentBoardStones || !canUseCurrentBoard) return;
+    invalidateAutoTrace();
     setBoardSize(currentBoardSize);
     setStones(currentBoardStones);
   };
 
   const transformTrace = (transform: PhotoBoardTraceTransform) => {
     if (!canTransformTrace) return;
+    invalidateAutoTrace();
     setStones((prev) => transformPhotoBoardStones(prev, boardSize, transform));
   };
 
   const swapTraceColors = () => {
     if (!canTransformTrace) return;
+    invalidateAutoTrace();
     setStones((prev) => swapPhotoBoardStoneColors(prev));
   };
 
@@ -472,6 +481,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const moveCorner = React.useCallback((index: number, clientX: number, clientY: number) => {
     const img = photoImgRef.current;
     if (!img || !photoNatural) return;
+    invalidateAutoTrace();
     const rect = img.getBoundingClientRect();
     const next = cornerFractionFromPointer(
       clientX - rect.left,
@@ -488,7 +498,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       // handle stops at the last shape that still describes a board.
       return areCornersUsable(updated) ? updated : current;
     });
-  }, [photoNatural]);
+  }, [invalidateAutoTrace, photoNatural]);
 
   const [photoBox, setPhotoBox] = React.useState<{ width: number; height: number } | null>(null);
   React.useEffect(() => {
@@ -508,11 +518,13 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   const resetCorners = React.useCallback(() => {
     if (!photoNatural) return;
+    invalidateAutoTrace();
     setCornerFractions(defaultCornerFractions(photoNatural.width, photoNatural.height));
-  }, [photoNatural]);
+  }, [invalidateAutoTrace, photoNatural]);
 
   const autoTracePhoto = React.useCallback(async () => {
     if (!photoUrl) return;
+    const request = ++autoTraceRequestRef.current;
     setIsAutoTracing(true);
     setAutoTraceStatus('Reading photo...');
     try {
@@ -524,6 +536,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
         ...getPhotoBoardRecognitionOptionsForSensitivity(autoTraceSensitivity),
         ...(corners ? { corners } : {}),
       });
+      if (autoTraceRequestRef.current !== request) return;
       setStones(result.stones);
       setMobileTab('trace');
       setAutoTraceStatus(
@@ -532,13 +545,16 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
           : 'No stones detected. Trace manually or adjust the photo.'
       );
     } catch (error) {
-      setAutoTraceStatus(error instanceof Error ? error.message : 'Could not auto trace this photo.');
+      if (autoTraceRequestRef.current === request) {
+        setAutoTraceStatus(error instanceof Error ? error.message : 'Could not auto trace this photo.');
+      }
     } finally {
-      setIsAutoTracing(false);
+      if (autoTraceRequestRef.current === request) setIsAutoTracing(false);
     }
   }, [autoTraceSensitivity, boardSize, cornerFractions, photoNatural, photoUrl]);
 
   const updateAutoTraceSensitivity = (value: number) => {
+    invalidateAutoTrace();
     const next = Math.max(0, Math.min(100, Number.isFinite(value) ? value : DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY));
     setAutoTraceSensitivity(next);
     setAutoTraceStatus(null);
@@ -1399,11 +1415,13 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                           ignoreNextTraceClickRef.current = true;
                           beginTracePaint(index, event.currentTarget, event.pointerId);
                         }}
-                        onClick={() => {
-                          if (ignoreNextTraceClickRef.current) {
-                            ignoreNextTraceClickRef.current = false;
-                            return;
-                          }
+                        onClick={(event) => {
+                          // A touch click can arrive after pointerup's next
+                          // task. Keep it suppressed until it arrives, while
+                          // allowing keyboard/assistive activation (detail 0).
+                          const alreadyPainted = ignoreNextTraceClickRef.current && event.detail > 0;
+                          ignoreNextTraceClickRef.current = false;
+                          if (alreadyPainted) return;
                           setStoneAt(index, getPhotoBoardTracePaintValue(stones[index] ?? null, toolRef.current));
                         }}
                         aria-label={`${gtpPoint(index, boardSize)} ${stoneLabel(stone)}`}

@@ -10,6 +10,23 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Photo trace consistency:** holding recognition while switching from 19×19
+  to 9×9 let the old result restore 361 trace points under a 9×9 selector.
+  Recognition now validates its request before changing the grid, status, or
+  busy indicator. New photos, size/alignment/sensitivity changes, manual edits,
+  Clear, transforms, and current-board setup invalidate older results. A late
+  request cannot clear a newer retry's busy state. Unsupported replacement
+  formats and preview URL failures retain the previous photo and corners.
+  Native desktop and phone checks hold actual image load callbacks, exercise
+  size/manual/retry/clear/sensitivity/source/alignment changes, and verify both
+  failed-selection paths preserve the source. Phone checks use the visible
+  Menu import action; the old smoke fixture clicked a hidden Tools duplicate.
+- **Photo trace taps:** a trusted phone tap placed a stone on pointerdown, then
+  its delayed click toggled the stone away after the zero-delay suppression
+  timer expired. The pointer's click now remains suppressed until it arrives;
+  keyboard and assistive clicks still activate normally. Native tap and real
+  Enter/character-event checks verify a single tap paints once and keyboard
+  activation can remove and replace that stone on both viewport types.
 - **Truthful model storage status:** a held upload displayed “saved” before
   IndexedDB accepted it, and failed persistence kept the same claim. Uploaded
   weights now expose live saving, saved, and session-only states. Settings
