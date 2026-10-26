@@ -1,7 +1,8 @@
 # Repository audit findings
 
 Started 2026-09-12 at `d868c00` on `codex/repo-audit-improvements`; merged into `main`.
-This audit is being wrapped up at the user’s request. It does not claim that
+The initial audit was wrapped up at the user’s request; a new improvement pass
+is ongoing. It does not claim that
 every line or every workflow has been validated. The starting `src/` tree contained about 84,500 lines. Keep
 reproduced failures separate from candidates that still need investigation.
 
@@ -247,6 +248,12 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   phone padding previously cleared only the smaller desktop icons; native
   measured bounds now show four pixels between the text area and each clear
   control at both desktop and phone sizes, and immediate typing works.
+- **Patched development dependencies:** the audit reported two moderate
+  findings through Vitest's mocker and a high-severity finding in Zod used by
+  the hooks linter. Vitest/mocker are now 4.1.12 and transitive Zod is 4.6.7,
+  within the existing major-version ranges. The installed tree matches the
+  lockfile, `npm audit` reports zero findings, and full verification passes
+  3,235 tests plus both type checks, lint, and the production build.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
