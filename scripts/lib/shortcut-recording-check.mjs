@@ -5,7 +5,22 @@ import { evaluate, navigate, setViewport, waitForExpression } from './browser.mj
 
 export async function assertShortcutRecording(cdp, appUrl, screenshotDir) {
   const reports = [];
-  const wait = (expression) => waitForExpression(cdp, expression, { label: 'Shortcut recording' });
+  let currentWidth;
+  let lastClick;
+  const wait = async (expression) => {
+    try {
+      return await waitForExpression(cdp, expression, { label: 'Shortcut recording',
+        diagnose: `({width:innerWidth,focus:document.activeElement?.getAttribute('aria-label'),
+          dialog:!!document.querySelector('[aria-labelledby=settings-title]'),
+          recording:!!document.querySelector('[data-shortcut-recording=true]'),
+          conflict:!!document.querySelector('[data-shortcut-collision]'),
+          reset:!!document.querySelector('[data-shortcut-reset-confirm]'),history:history.state})` });
+    } catch (error) {
+      const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+      fs.writeFileSync(path.join(screenshotDir, `shortcut-recording-failure-${currentWidth}.png`), Buffer.from(screenshot.result.data, 'base64'));
+      throw new Error(`${error.message}; last click: ${JSON.stringify(lastClick)}`, { cause: error });
+    }
+  };
   const click = async (selector) => {
     const point = await wait(`(() => {
       const e = document.querySelector(${JSON.stringify(selector)});
@@ -14,11 +29,13 @@ export async function assertShortcutRecording(cdp, appUrl, screenshotDir) {
       const r = e.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
       return r.width && e.contains(document.elementFromPoint(x, y)) ? { x, y } : false;
     })()`);
+    lastClick = { selector, ...point };
     for (const type of ['mousePressed', 'mouseReleased']) {
       await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 });
     }
   };
   for (const width of [1440, 390]) {
+    currentWidth = width;
     const setup = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
       localStorage.removeItem('web-katrain:auto_saved_game:v1');
       localStorage.removeItem('web-katrain:shortcuts:v1');
