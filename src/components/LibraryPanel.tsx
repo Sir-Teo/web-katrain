@@ -260,6 +260,7 @@ const LibraryTextDialog: React.FC<{
                 onChange={(e) => setFolderId(e.target.value || null)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
+                  if (isComposingKeyEvent(e)) return;
                   if (e.key === 'Escape') onClose();
                 }}
                 className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none desktop-shell:min-h-0"
@@ -694,7 +695,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       setHeaderMenuOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (!isLibraryMenuCloseKey(event.key)) return;
+      if (!isLibraryMenuCloseKey(event.key) || isComposingKeyEvent(event)) return;
       event.preventDefault();
       setHeaderMenuOpen(false);
       headerMenuButtonRef.current?.focus({ preventScroll: true });
@@ -1002,6 +1003,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleHeaderMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isComposingKeyEvent(event)) return;
+    if (isLibraryMenuCloseKey(event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      setHeaderMenuOpen(false);
+      headerMenuButtonRef.current?.focus({ preventScroll: true });
+      return;
+    }
     const menuItems = Array.from(
       headerMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []
     );

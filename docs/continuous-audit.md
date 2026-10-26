@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Save destinations and header-menu Escape:** composition Escape closed both
+  Save Copy and panel Save while their destination picker was focused, losing
+  the name draft. Both now use the same composition guard as their name inputs.
+  The Library header menu also ignored composition and let ordinary Escape
+  reach Layout first, closing the entire Library and leaving focus on the page.
+  Its own key handler now consumes ordinary Escape, restores More, and leaves
+  composition Escape/arrows alone. Native desktop/phone checks preserve names
+  and destinations in both dialogs, retain menu choices during composition,
+  navigate with real arrows and verify ordinary dismissal/focus return.
 - **Library context-menu focus:** Escape removed the focused menu item and
   left focus on the page. Menus now retain their row/More opener and restore it
   before dismissal or running an action, so Rename can also return there.

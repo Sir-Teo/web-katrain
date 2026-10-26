@@ -120,6 +120,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               onChange={(event) => setFolderId(event.target.value || null)}
               onKeyDown={(event) => {
                 event.stopPropagation();
+                if (isComposingKeyEvent(event)) return;
                 if (event.key === 'Escape') onClose();
               }}
               className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60 desktop-shell:min-h-0"
