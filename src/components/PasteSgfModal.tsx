@@ -178,7 +178,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
               type="button"
               onClick={readClipboard}
               disabled={isSubmitting}
-              className="disabled:cursor-not-allowed disabled:opacity-50 min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+              className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="inline-flex items-center gap-2"><FaClipboard /> Read Clipboard</span>
             </button>

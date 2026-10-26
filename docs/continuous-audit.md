@@ -8,6 +8,13 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The full unit run at `9a187fb` passed 497 files and 3,382 cases, with
+  78 engine cases skipped, and caught one disabled-hover styling assertion
+  on the new Read Clipboard state. Guarding its hover variant fixes that
+  detail; both affected files subsequently pass all 11 cases. The original
+  failed full-run log is retained. App/test TypeScript and lint passed before
+  this class-only repair; build and browser validation follow it.
+
 - Production responsiveness at `c627209` recorded first move 9.3 ms, median
   2.0 ms and warm Settings 112.9 ms within budget, but input latency 160 ms
   and longest task 209 ms exceeded the unchanged 150/200 ms limits. The slowest
