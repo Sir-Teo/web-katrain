@@ -31,6 +31,49 @@ export interface SgfScan {
 const isLetter = (ch: string): boolean => (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
 const isSpace = (ch: string): boolean => ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t';
 
+/** Read the first game's root without building its move tree. Values are trimmed. */
+export function readRootSgfProperties(sgf: string): Record<string, string[]> {
+  const props: Record<string, string[]> = {};
+  let i = sgf.indexOf('(');
+  if (i < 0) return props;
+  i += 1;
+  const skipSpace = () => {
+    while (i < sgf.length && /\s/.test(sgf[i]!)) i += 1;
+  };
+  skipSpace();
+  if (sgf[i] !== ';') return props;
+  i += 1;
+  skipSpace();
+  while (i < sgf.length && isLetter(sgf[i]!)) {
+    let key = '';
+    while (i < sgf.length && isLetter(sgf[i]!)) {
+      const letter = sgf[i]!;
+      if (letter >= 'A' && letter <= 'Z') key += letter;
+      i += 1;
+    }
+    skipSpace();
+    const values: string[] = [];
+    while (sgf[i] === '[') {
+      i += 1;
+      const start = i;
+      while (i < sgf.length && sgf[i] !== ']') {
+        i += sgf[i] === '\\' ? 2 : 1;
+      }
+      if (i >= sgf.length) break;
+      // Decode in one pass: an escaped backslash before a newline is not a
+      // continuation. Match CRLF together, as the full parser does.
+      values.push(sgf.slice(start, i).replace(/\\(?:\r\n|\r|\n)|\\([\s\S])/g,
+        (_match, escaped: string | undefined) => escaped ?? '').trim());
+      i += 1;
+      skipSpace();
+    }
+    // FF[3] lowercase filler is dropped, including wholly lowercase keys.
+    if (key && values.length) props[key] = props[key] ? props[key]!.concat(values) : values;
+    skipSpace();
+  }
+  return props;
+}
+
 export function scanSgf(sgf: string): SgfScan {
   if (!sgf) return { moveCount: 0, firstMoveIndex: -1 };
   let moveCount = 0;

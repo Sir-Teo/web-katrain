@@ -37,6 +37,18 @@ describe('unsupported SGF board size', () => {
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]XSZ[5]SZ[19];B[cc])')).toBeNull();
   });
 
+  it('ignores size-looking text in a root comment and in later games', () => {
+    expect(unsupportedSgfBoardSize('(;C[Example uses SZ[5\\] in its header]SZ[19];B[dd])')).toBeNull();
+    expect(unsupportedSgfBoardSize('(;C[No board declaration here];B[dd])(;SZ[5];B[aa])')).toBeNull();
+    expect(unsupportedSgfBoardSize('(;C[Compare SZ[9\\] with this board]SZ[21];B[dd])')).toBe('21');
+  });
+
+  it('reads the same whitespace, old identifiers, and continuations as the SGF parser', () => {
+    expect(unsupportedSgfBoardSize('( ; GM[1] SZ [5];B[aa])')).toBe('5');
+    expect(unsupportedSgfBoardSize('(;SiZe[7];B[aa])')).toBe('7');
+    expect(unsupportedSgfBoardSize('(;SZ[1\\\n9];B[dd])')).toBeNull();
+  });
+
 
   it('reports the coercion on every path that loads a user-supplied SGF', () => {
     const layout = readFileSync('src/components/Layout.tsx', 'utf8');

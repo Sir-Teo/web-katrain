@@ -1,7 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { countSgfGames, countSgfMoves, scanSgf, sgfHeaderText } from '../src/utils/sgfScan';
+import { countSgfGames, countSgfMoves, readRootSgfProperties, scanSgf, sgfHeaderText } from '../src/utils/sgfScan';
 import { parseSgf, type ParsedSgfNode } from '../src/utils/sgf';
 import { PRELOADED_GAMES } from '../src/data/preloadedGames';
+
+describe('readRootSgfProperties', () => {
+  it('keeps comment contents, child nodes, and later games out of the root properties', () => {
+    const sgf = '(;C[Example SZ[5\\] and PB[Fake\\]; (;SZ[7\\])]SZ[19]PB[Real];PW[Child])(;PW[Other])';
+    expect(readRootSgfProperties(sgf)).toEqual({
+      C: ['Example SZ[5] and PB[Fake]; (;SZ[7])'], SZ: ['19'], PB: ['Real'],
+    });
+  });
+
+  it('matches the parser for old identifiers, repeated values, escaped brackets and continuations', () => {
+    const sgf = '( \n;SiZe [19]PlayerBlack[A\\\nlice]PW[Bo\\\r\nb]GN[Title\\\rgame]' +
+      'C[Bracket \\] and backslash \\\\]C[second]AB[aa]\n[bb]ignored[not a key];B[dd])';
+    expect(readRootSgfProperties(sgf)).toEqual(parseSgf(sgf).tree!.props);
+    expect(readRootSgfProperties(sgf)).toMatchObject({
+      SZ: ['19'], PB: ['Alice'], PW: ['Bob'], GN: ['Titlegame'],
+      C: ['Bracket ] and backslash \\', 'second'], AB: ['aa', 'bb'],
+    });
+  });
+
+  it('preserves a literal escaped backslash before a line break', () => {
+    const sgf = '(;PB[Alice\\\\\nSmith]SZ[19])';
+    expect(readRootSgfProperties(sgf).PB).toEqual(['Alice\\\nSmith']);
+    expect(readRootSgfProperties(sgf)).toEqual(parseSgf(sgf).tree!.props);
+  });
+
+  it('reads only closed values and requires the first tree to start with a root', () => {
+    expect(readRootSgfProperties('')).toEqual({});
+    expect(readRootSgfProperties('(invalid)(;SZ[5])')).toEqual({});
+    expect(readRootSgfProperties('(;PB[Alice]PW[unfinished')).toEqual({ PB: ['Alice'] });
+  });
+});
 
 describe('countSgfMoves', () => {
   it('counts a move whose node names another property first', () => {

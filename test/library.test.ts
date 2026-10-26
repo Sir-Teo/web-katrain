@@ -74,6 +74,12 @@ describe('library storage helpers', () => {
     expect(libraryItemMatchesQuery(item, '3 setup')).toBe(true);
   });
 
+  it('joins SGF line continuations before displaying or searching metadata', () => {
+    const item = createLibraryItem('Imported', '(;SZ[19]PB[A\\\nlice]PW[Bo\\\r\nb]GN[Final\\\rround])', null, 123);
+    expect(item.metadata).toMatchObject({ black: 'Alice', white: 'Bob', gameName: 'Finalround' });
+    expect(libraryItemMatchesQuery(item, 'Alice Bob Finalround')).toBe(true);
+  });
+
   it('creates file records with metadata, move count, and size', () => {
     const item = createLibraryItem('Game', sgf, null, 123);
     expect(item.type).toBe('file');

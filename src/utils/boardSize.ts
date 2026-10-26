@@ -1,4 +1,5 @@
 import type { BoardSize, BoardState } from '../types';
+import { readRootSgfProperties } from './sgfScan';
 
 export const BOARD_SIZES: BoardSize[] = [9, 13, 19];
 
@@ -16,11 +17,7 @@ export const normalizeBoardSize = (value: number | null | undefined, fallback: B
  * Returns null for junk like SZ[abc]: there is no real board to name there.
  */
 export const unsupportedSgfBoardSize = (sgfText: string): string | null => {
-  // Properties run together as FF[4]SZ[19], so anchor on "not part of a
-  // longer identifier" rather than on a preceding delimiter.
-  const match = /(?<![A-Za-z])SZ\[([^\]]*)\]/.exec(sgfText);
-  if (!match) return null;
-  const raw = (match[1] ?? '').trim();
+  const raw = readRootSgfProperties(sgfText).SZ?.[0]?.trim();
   if (!raw) return null;
   const [width, height] = raw.split(':').map((part) => part.trim());
   const parsedWidth = Number.parseInt(width ?? '', 10);

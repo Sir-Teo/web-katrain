@@ -2,7 +2,7 @@ import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { createSerialTaskQueue } from './serialTaskQueue';
 import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
 import { stripUnsafeFilenameControls } from './filename';
-import { countSgfGames, countSgfMoves, sgfTrailingGames } from './sgfScan';
+import { countSgfGames, countSgfMoves, readRootSgfProperties, sgfTrailingGames } from './sgfScan';
 import { expandSgfPointList } from './sgf';
 import { getIndexedDB, getLocalStorage, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 import { toSearchTerms } from './searchTerms';
@@ -97,50 +97,6 @@ const createId = (): string => {
     return crypto.randomUUID();
   }
   return `lib_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-};
-
-const unescapeSgfValue = (value: string): string => value.replace(/\\([\s\S])/g, '$1').trim();
-
-const readRootSgfProperties = (sgf: string): Record<string, string[]> => {
-  // SGF allows whitespace between '(' and ';', and the parser accepts it; a
-  // bare indexOf('(;') read such a file as having no metadata at all.
-  const opening = /\(\s*;/.exec(sgf);
-  if (!opening) return {};
-  const rootStart = opening.index + opening[0].length;
-  let i = rootStart;
-  let inValue = false;
-  let escaped = false;
-  while (i < sgf.length) {
-    const ch = sgf[i]!;
-    if (escaped) {
-      escaped = false;
-    } else if (ch === '\\') {
-      escaped = true;
-    } else if (ch === '[') {
-      inValue = true;
-    } else if (ch === ']') {
-      inValue = false;
-    } else if (!inValue && (ch === ';' || ch === '(' || ch === ')')) {
-      break;
-    }
-    i++;
-  }
-
-  const root = sgf.slice(rootStart, i);
-  const props: Record<string, string[]> = {};
-  // Values may be separated by whitespace, as wrapped AB lists are.
-  const propRe = /([A-Za-z]+)((?:\s*\[(?:\\.|[^\]])*\])+)/g;
-  let propMatch: RegExpExecArray | null;
-  while ((propMatch = propRe.exec(root))) {
-    const key = propMatch[1]!.replace(/[a-z]/g, '');
-    const valuesRaw = propMatch[2]!;
-    const values: string[] = [];
-    const valueRe = /\[((?:\\.|[^\]])*)\]/g;
-    let valueMatch: RegExpExecArray | null;
-    while ((valueMatch = valueRe.exec(valuesRaw))) values.push(unescapeSgfValue(valueMatch[1] ?? ''));
-    if (values.length > 0) props[key] = props[key] ? props[key]!.concat(values) : values;
-  }
-  return props;
 };
 
 const numberProp = (value: string | undefined): number | undefined => {

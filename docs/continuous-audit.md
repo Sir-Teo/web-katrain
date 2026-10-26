@@ -75,6 +75,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   higher. Trusted touch and Tab checks retain all ancestors, parent navigation,
   and the root control. Parent lookups also reuse the existing item index
   instead of scanning the collection once per ancestor.
+- **Accurate SGF size notices:** importing a supported game with `SZ[5]`
+  inside its comment incorrectly announced an unsupported board. The notice
+  now shares a root-property reader with library metadata, so comments, child
+  nodes, and later games cannot supply its board size. Whitespace, old FF[3]
+  identifiers, escaped brackets, and line continuations follow the parser's
+  rules. The same reader also joins continued player names before displaying
+  and searching library metadata. Unit cases and actual file-input imports
+  cover supported, unsupported, continued, and collection headers.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
