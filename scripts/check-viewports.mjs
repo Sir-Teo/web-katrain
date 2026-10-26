@@ -33,6 +33,7 @@ import { assertLibraryRecency } from './lib/library-recency-check.mjs';
 import { assertLibraryRowKeyboard } from './lib/library-row-keyboard-check.mjs';
 import { assertLibrarySaveComposition } from './lib/library-save-composition-check.mjs';
 import { assertLibraryImportDestination } from './lib/library-import-destination-check.mjs';
+import { assertLibraryRepeatImport } from './lib/library-repeat-import-check.mjs';
 import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
 import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
 import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
@@ -4244,6 +4245,7 @@ async function main() {
     await assertLibraryRowKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibrarySaveComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryImportDestination(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryRepeatImport(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

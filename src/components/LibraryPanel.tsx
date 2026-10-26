@@ -1510,7 +1510,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleImportFilesToFolder = async (files: FileList | null, folderId: string | null) => {
-    if (!files || files.length === 0) return;
+    // FileList belongs to the input/drop event. Retain the chosen files before
+    // the chooser resets or an asynchronous initial Library read yields.
+    const selectedFiles = files ? Array.from(files) : [];
+    if (selectedFiles.length === 0) return;
     // Before the first read publishes, `setItems` here would be overwritten by
     // it and never saved. Reading the files is asynchronous anyway.
     await waitForInitialLibraryLoad();
@@ -1525,7 +1528,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const rememberFailure = (name: string, error: unknown) => {
       firstFailure ??= describeLibraryImportFailure(name, error);
     };
-    for (const file of Array.from(files)) {
+    for (const file of selectedFiles) {
       const name = file.name.toLowerCase();
       try {
         if (isPhotoBoardImageFile(file)) {
@@ -2459,7 +2462,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               type="file"
               accept={libraryImportAccept}
               multiple
-              onChange={(e) => void handleImportFiles(e.target.files)}
+              onChange={(e) => {
+                void handleImportFiles(e.target.files);
+                e.target.value = '';
+              }}
               className="hidden"
             />
             <input

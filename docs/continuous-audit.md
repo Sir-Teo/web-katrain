@@ -10,6 +10,12 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Repeat file imports:** choosing the same Library file twice produced only
+  one native change event. The chooser now resets immediately after capturing
+  a file snapshot, before awaiting initial storage or reading the batch. Native
+  desktop/phone checks choose the same path twice, hold a later two-file read
+  while the chooser is empty, and verify unique names and every file after
+  reload. Seventeen import/focus cases, TypeScript and lint pass.
 - **About dialog name:** Chrome announced only “Web KaTrain” because
   `aria-labelledby` took precedence over the intended “About Web KaTrain”
   label. The referenced heading now includes the accessible About prefix.
