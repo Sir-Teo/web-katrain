@@ -106,6 +106,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   and filters. A touch check at 390×844 combined text, favorites, and a tag,
   then verified that the 44 px reset control clears all three, restores the
   same nested folder, and returns focus to search.
+- **Metadata before replacement:** a trusted drop while Black's name was
+  being edited loaded the new game, then the old field's blur overwrote the
+  imported player. Replacement now finishes the focused Game Info edit before
+  checking for unsaved work, so it belongs to the original game's Save/Discard
+  decision. It finishes it again after a save, covering metadata typed during
+  a delayed IndexedDB operation. Browser checks cover player/komi/handicap
+  drafts, Cancel, Discard, imported values after blur, and the newer player
+  remaining in the game and recovery while replacement is blocked after Save.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

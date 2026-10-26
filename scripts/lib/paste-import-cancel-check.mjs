@@ -56,7 +56,7 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
     for (const dismissal of ['close','escape','cancel','back','photo']) {
       mobile = ['cancel','back','photo'].includes(dismissal);
       await setViewport(cdp, {width:mobile?390:1280,height:mobile?844:800,mobile});
-      await navigate(cdp, appUrl);
+      await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
       await wait('!!document.querySelector("[data-board-snapshot=true]")');
       await evaluate(cdp, `(() => {
         Object.defineProperty(navigator,'clipboard',{configurable:true,value:{readText:async()=>''}});
@@ -93,7 +93,7 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
       }
     }
     // A composition-confirming Enter belongs to the username editor, too.
-    await navigate(cdp, appUrl);
+    await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
     await wait('!!document.querySelector("#mobile-tab-library")');
     await click('#mobile-tab-library');
     await click('button[aria-label="More library actions"]');

@@ -1413,6 +1413,13 @@ export const Layout: React.FC = () => {
   }, [hasUnsavedChanges]);
 
   const prepareForGameReplacement = useCallback(async () => {
+    const finishMetadataEdit = () => {
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused.closest('[data-game-info-edit-form]')) focused.blur();
+    };
+    // A drop or delayed download need not blur the editor. Commit its draft
+    // to the current game before deciding whether that game is safe to leave.
+    finishMetadataEdit();
     const gameId = useGameStore.getState().rootNode.id;
     const choice = await confirmReplaceCurrentGame();
     if (choice === 'cancel') return false;
@@ -1422,6 +1429,9 @@ export const Layout: React.FC = () => {
     // Stopping here leaves the board untouched and the reason on screen, with
     // Discard still there for anyone who meant it.
     if (choice === 'save' && !(await handleSaveCurrentSgf())) return false;
+    // Another metadata edit can begin while IndexedDB is saving, just as a
+    // board move can. Include it in the newer-changes guard below.
+    finishMetadataEdit();
     // Saving to IndexedDB can take long enough for another move or edit.
     // The save acknowledgement deliberately keeps those newer edits dirty;
     // do not replace them on the strength of the earlier Save choice.
