@@ -190,6 +190,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   for three phone queries; these are not production INP measurements.
   `test:study` adds a 100 ms budget for 5,000-game accent matching (18 ms in the
   recorded run). The related 106 unit cases and both type checks pass.
+- **Reachable nested save confirmation:** loading a pro game over an unsaved
+  game put Save/Discard behind the pro-game browser at the same stacking
+  level. Pointer hit testing found the game picker above the confirmation,
+  and Escape closed the picker while leaving the question open. The
+  confirmation now sits above workflow dialogs and claims Escape in capture,
+  preserving the underlying picker on Cancel. Native desktop/phone checks
+  cover every button's reachability, Escape and footer Cancel, focus return,
+  composition Escape, mobile Back, and Discard loading the full chosen game.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

@@ -1,7 +1,8 @@
 import React from 'react';
 import { FaDownload, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
-import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { useBackGestureToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 export type UnsavedChangesChoice = 'save' | 'discard' | 'cancel';
 
@@ -13,7 +14,19 @@ interface UnsavedChangesModalProps {
 export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoice, saveTarget = 'download' }) => {
   const savesToLibrary = saveTarget === 'library';
   const SaveIcon = savesToLibrary ? FaSave : FaDownload;
-  useEscapeToClose(() => onChoice('cancel'));
+  // This confirmation can sit above another dialog. Claim Escape before that
+  // dialog's bubble listener, so Cancel keeps the underlying picker open.
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || isComposingKeyEvent(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onChoice('cancel');
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [onChoice]);
+  useBackGestureToClose(() => onChoice('cancel'));
   const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
     focusContainer: false,
@@ -22,7 +35,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-3 mobile-safe-inset mobile-safe-area-bottom"
       onClick={() => onChoice('cancel')}
     >
       <div

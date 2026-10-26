@@ -25,7 +25,7 @@ const modalSources = [
   },
   { path: 'src/components/SaveToLibraryDialog.tsx', titleId: 'save-to-library-title', escape: 'useEscapeToClose(onClose, open && !saving)' },
   { path: 'src/components/SettingsModal.tsx', titleId: 'settings-title', escape: 'useEscapeToClose(onClose)' },
-  { path: 'src/components/UnsavedChangesModal.tsx', titleId: 'unsaved-changes-title', escape: "useEscapeToClose(() => onChoice('cancel'))" },
+  { path: 'src/components/UnsavedChangesModal.tsx', titleId: 'unsaved-changes-title', escape: "window.addEventListener('keydown', handleKeyDown, true)" },
   { path: 'src/components/layout/MenuDrawer.tsx', titleId: 'menu-title', escape: 'useEscapeToClose(onClose, open)' },
   { path: 'src/components/MobileHome.tsx', titleId: 'mobile-home-title', escape: 'useEscapeToClose(onClose, open)' },
 ] as const;
