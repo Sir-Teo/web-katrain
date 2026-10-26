@@ -141,7 +141,7 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
     for(let i=0;i<index;i++)await sourceKey('ArrowDown','ArrowDown',40);
     await wait(`document.activeElement?.matches('[data-library-ogs-source]')`);
     await sourceKey('ArrowUp','ArrowUp',38);
-    assert.equal(await evaluate(cdp,'document.activeElement?.textContent.trim()'),'Download SGF');
+    assert.equal(await evaluate(cdp,`[...document.querySelectorAll('[role=menu] [role=menuitem]')].indexOf(document.activeElement)`),index-1,'ArrowUp must focus the preceding menu item');
     await sourceKey('ArrowDown','ArrowDown',40);
     await sourceKey(activation==='Space'?' ':'Enter',activation==='Space'?'Space':'Enter',activation==='Space'?32:13);
    }
