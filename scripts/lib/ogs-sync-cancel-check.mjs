@@ -95,6 +95,7 @@ export async function assertOgsSyncCancellation(cdp, appUrl, screenshotDir) {
         else if (mobile) await evaluate(cdp, 'history.back()');
         else await key('Escape', 'Escape', 27);
         await wait('!document.querySelector("#ogs-sync-username") && !history.state?.webKatrainOverlay');
+        await wait('document.activeElement?.getAttribute("aria-label")==="More library actions"');
         assert.equal(await evaluate(cdp, `ogsSyncCancelRequests[${pending}].signal?.aborted`), true);
         const count = await evaluate(cdp, 'ogsSyncCancelRequests.length');
         if (stage === 'lookup') await release(pending, player);
@@ -128,6 +129,7 @@ export async function assertOgsSyncCancellation(cdp, appUrl, screenshotDir) {
       assert.equal(await evaluate(cdp, `ogsSyncCancelRequests[${start + 2}].signal.aborted`), false);
       await click('.ogs-sync-footer button', 'Done');
       await wait('!document.querySelector("#ogs-sync-username") && !history.state?.webKatrainOverlay');
+      await wait('document.activeElement?.getAttribute("aria-label")==="More library actions"');
       reports.push({ width, retryImported: 1, requests: 3 });
     } finally {
       await evaluate(cdp, 'window.fetch = ogsSyncCancelOriginalFetch; void 0');

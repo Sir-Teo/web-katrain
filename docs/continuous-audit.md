@@ -10,6 +10,12 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Library action focus:** dismissing OGS Sync left keyboard focus on the page
+  body because its opener was a menu item that no longer existed. Header-menu
+  actions now focus the persistent More control before opening a dialog or
+  picker. The shared focus hook can then return to that control. Native
+  desktop and phone sync checks verify focus after Cancel, Close, Escape,
+  Back, and successful Done, alongside request cancellation and exact imports.
 - **Cancel the entire OGS sync:** cancelling a held player lookup closed the
   dialog but did not abort its request. Its late response remembered the
   username and started fetching game-list pages after dismissal. Sync now

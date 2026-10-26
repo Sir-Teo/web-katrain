@@ -999,6 +999,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const runHeaderAction = (action: () => void) => {
     setHeaderMenuOpen(false);
+    headerMenuButtonRef.current?.focus({ preventScroll: true });
     action();
   };
 
