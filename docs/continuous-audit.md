@@ -10,6 +10,14 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Shortcut recording and input methods:** composition Enter and Escape
+  consumed recording, while an IME Process key was persisted as a shortcut.
+  The recorder now lets composition finish and keeps waiting for a real chord;
+  Process, Dead, Unidentified, and Compose keys are not bindings. Shared key
+  utilities cover browser and React events, including Safari key-code 229.
+  Native desktop and phone checks verify ignored events leave both overrides
+  and recording intact, then record a real Ctrl+Shift+F9 chord and cancel a new
+  recording with ordinary Escape while keeping Settings open.
 - **ZIP path limits:** a supported hierarchy of 180 folders, each with a
   96-character Unicode name, produced a ZIP reporting one game while reopening
   the archive yielded zero games. ZIP filename and extra-field lengths are

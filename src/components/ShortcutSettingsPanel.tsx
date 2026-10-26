@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaSearch, FaTimes } from 'react-icons/fa';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import {
   bindingToDisplay,
   createShortcutCollisionReplacement,
@@ -73,7 +74,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
 
   const handleRecordEvent = React.useCallback((event: KeyboardEvent | React.KeyboardEvent) => {
     const id = recordingId;
-    if (!id) return;
+    if (!id || isComposingKeyEvent(event)) return;
     event.preventDefault();
     event.stopPropagation();
     if (isShortcutRecordingCancelKey(event)) {

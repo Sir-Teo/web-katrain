@@ -1,4 +1,5 @@
 import { readLocalStorage, writeLocalStorage } from './storage';
+import { isComposingKeyEvent } from './compositionKey';
 import type { EditTool } from '../types';
 
 export type ShortcutCategory =
@@ -381,6 +382,7 @@ const eventKeyName = (event: KeyboardEvent | React.KeyboardEvent): string => {
 };
 
 export const eventToShortcutBinding = (event: KeyboardEvent | React.KeyboardEvent): ShortcutBinding | null => {
+  if (isComposingKeyEvent(event) || ['Process', 'Dead', 'Unidentified', 'Compose'].includes(event.key)) return null;
   const binding = normalizeBinding({
     key: eventKeyName(event),
     ctrl: event.ctrlKey || event.metaKey,
@@ -393,7 +395,7 @@ export const eventToShortcutBinding = (event: KeyboardEvent | React.KeyboardEven
 };
 
 export const isShortcutRecordingCancelKey = (event: KeyboardEvent | React.KeyboardEvent): boolean =>
-  normalizeKey(event.key) === 'Escape';
+  !isComposingKeyEvent(event) && normalizeKey(event.key) === 'Escape';
 
 export const isNativePasteShortcutEvent = (event: KeyboardEvent | React.KeyboardEvent): boolean =>
   normalizeKey(event.key) === 'v' && (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey;
