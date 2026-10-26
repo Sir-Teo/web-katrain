@@ -412,7 +412,7 @@ describe('service worker activation', () => {
     // GitHub Pages serves several apps from one origin, and CacheStorage is
     // per origin: the old filter deleted everything but our own.
     const listeners = new Map<string, Listener>();
-    const existing = ['web-chess-v1:runtime', 'web-katrain-v2:shell', 'web-katrain-v3:shell', 'web-katrain-v30:shell'];
+    const existing = ['web-chess-v1:runtime', 'web-katrain-v2:shell', 'web-katrain-v3:shell', 'web-katrain-v30:shell', 'web-katrain-library-data-v1', 'web-katrain-library-data-v2'];
     const deleted: string[] = [];
     const selfStub = {
       addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),

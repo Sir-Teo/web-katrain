@@ -7,6 +7,7 @@ import { expandSgfPointList } from './sgf';
 import { getIndexedDB, getLocalStorage, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
 import { normalizeSearchText, toSearchTerms } from './searchTerms';
 import { getOgsGameId } from './ogsGameIdentity';
+import { clearFallbackCache, readFallbackCache, writeFallbackCache } from './libraryFallbackCache';
 
 export type LibraryBase = {
   id: string;
@@ -668,7 +669,7 @@ const readFallbackRaw = (): string | null | undefined => {
   try { return getLocalStorage()?.getItem(LEGACY_STORAGE_KEY); } catch { return undefined; }
 };
 
-const loadFallbackLibrary = (): LibraryItem[] => {
+const loadLegacyFallbackLibrary = (): LibraryItem[] => {
   const raw = readFallbackRaw();
   // A second tab can change this snapshot. Keep the cache only while its
   // source is unchanged, or storage is unreadable and memory is all we have.
@@ -680,6 +681,26 @@ const loadFallbackLibrary = (): LibraryItem[] => {
   const ensured = ensurePreloadedLibrary(safeParse(raw ?? null));
   memoryItems = ensured.items;
   memoryFallbackRaw = raw;
+  return memoryItems;
+};
+
+const parseFallbackCache = (raw: string): LibraryItem[] => {
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed)) throw new Error('The Library fallback snapshot is invalid.');
+  const items = normalizeLibraryItems(parsed);
+  if (items.length !== parsed.length) throw new Error('The Library fallback snapshot is invalid.');
+  return items;
+};
+
+const loadFallbackLibrary = async (): Promise<LibraryItem[]> => {
+  // Chrome can grant a Web Lock before its renderer has received the previous
+  // writer's localStorage update. Cache Storage reads go to the shared backend;
+  // its completed put remains inside the same Library lock as the local copy.
+  const cached = await readFallbackCache();
+  if (typeof cached !== 'string') return loadLegacyFallbackLibrary();
+  memoryItems = parseFallbackCache(cached);
+  memoryFallbackRaw = readFallbackRaw();
+  setPreloadedVersion(PRELOADED_VERSION);
   return memoryItems;
 };
 
@@ -785,9 +806,12 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // would destroy everything stored before the outage. A union keeps both
     // sides -- an item deleted during the outage comes back, which is the
     // failure worth having when the alternative is losing one for good.
-    if (hasUnflushedFallback()) {
-      const merged = mergeLibrariesByNewest(items, loadFallbackLibrary());
+    const cachedFallback = await readFallbackCache();
+    if (hasUnflushedFallback() || typeof cachedFallback === 'string') {
+      const fallback = typeof cachedFallback === 'string' ? parseFallbackCache(cachedFallback) : await loadFallbackLibrary();
+      const merged = mergeLibrariesByNewest(items, fallback);
       await saveToIndexedDb(merged);
+      if (typeof cachedFallback === 'string') await clearFallbackCache();
       memoryItems = merged;
       setFallbackUnflushed(false);
       markMigrated();
@@ -825,7 +849,7 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // showing. An empty one says nothing, so say that instead of inventing an
     // answer: every caller already handles this rejection, and the panel has a
     // storage-error state waiting for it.
-    const fallback = loadFallbackLibrary();
+    const fallback = await loadFallbackLibrary();
     if (fallback.length > 0) return fallback;
     const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
     throw new Error(`${LIBRARY_READ_FAILED_MESSAGE}${reason}`);
@@ -871,26 +895,55 @@ const persistFallback = (items: LibraryItem[]): void => {
   }
 };
 
+const persistCoherentFallback = async (items: LibraryItem[]): Promise<void> => {
+  const cached = await readFallbackCache();
+  if (cached === undefined) {
+    persistFallback(items);
+    return;
+  }
+  const previous = typeof cached === 'string' ? parseFallbackCache(cached) : loadLegacyFallbackLibrary();
+  const previousRaw = JSON.stringify(previous);
+  const previousVersion = readLocalStorage(PRELOADED_VERSION_KEY);
+  // Check the legacy store before changing either record snapshot. Retain a
+  // backend copy of the prior records so a failed commit cannot erase them.
+  if (!writeLocalStorage(LEGACY_STORAGE_KEY, previousRaw)) throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
+  if (cached === null) await writeFallbackCache(previousRaw);
+  try {
+    persistFallback(items);
+    await writeFallbackCache(JSON.stringify(memoryItems));
+  } catch (error) {
+    writeLocalStorage(LEGACY_STORAGE_KEY, previousRaw);
+    if (typeof cached === 'string') setPreloadedVersion(PRELOADED_VERSION);
+    else if (previousVersion === null) removeLocalStorage(PRELOADED_VERSION_KEY);
+    else writeLocalStorage(PRELOADED_VERSION_KEY, previousVersion);
+    memoryItems = previous;
+    memoryFallbackRaw = previousRaw;
+    throw error;
+  }
+};
+
 /** @see the note above `persistFallback` for why a fallback can reject. */
 const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
   const hasIndexedDb = !!getIndexedDB();
   if (!hasIndexedDb || idbLoadFailed) {
-    persistFallback(normalized);
+    await persistCoherentFallback(normalized);
     // Only a database that exists can come back and read over this. Where
     // there is none, the fallback is simply the store.
     if (hasIndexedDb) setFallbackUnflushed(true);
     return;
   }
   try {
+    const cachedFallback = await readFallbackCache();
     // Normalised just above; a second pass re-read every game's metadata.
     await saveToIndexedDb(normalized, true);
+    if (typeof cachedFallback === 'string') await clearFallbackCache();
     memoryItems = normalized;
     if (hasUnflushedFallback()) setFallbackUnflushed(false);
     markMigrated();
     memoryFallbackRaw = readFallbackRaw();
   } catch {
-    persistFallback(normalized);
+    await persistCoherentFallback(normalized);
     setFallbackUnflushed(true);
   }
 };

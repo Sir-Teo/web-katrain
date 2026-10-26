@@ -17,6 +17,21 @@ export async function assertLibraryCrossTab(devtoolsPort, appUrl, screenshotDir)
           const cdp=connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);await cdp.ready;pages.push(cdp);
           await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:`
             ${fallback?"Object.defineProperty(window,'indexedDB',{configurable:true,get:()=>undefined});":''}
+            window.crossTabStorageAudit=[];window.crossTabStoragePhase='startup';
+            for(const method of ['getItem','setItem','removeItem']){
+              const original=Storage.prototype[method];
+              Storage.prototype[method]=function(...args){
+                const result=original.apply(this,args);
+                if(args[0]==='web-katrain:library:v1'){
+                  crossTabStorageAudit.push({type:method,phase:crossTabStoragePhase,time:performance.now(),raw:method==='getItem'?result:args[1]??null});
+                  if(crossTabStorageAudit.length>80)crossTabStorageAudit.shift();
+                }
+                return result;
+              };
+            }
+            window.addEventListener('storage',event=>{
+              if(event.key==='web-katrain:library:v1')crossTabStorageAudit.push({type:'event',phase:crossTabStoragePhase,time:performance.now(),raw:event.newValue});
+            });
             localStorage.removeItem('web-katrain:auto_saved_game:v1');
             localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');
             localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
@@ -27,8 +42,20 @@ export async function assertLibraryCrossTab(devtoolsPort, appUrl, screenshotDir)
           await evaluate(cdp,`(async()=>{const url=${loadedModuleUrl.toString()};window.crossTabLibrary=await import(url('/src/utils/library.ts'));await crossTabLibrary.loadLibrary()})()`);
         }));
         const [a,b]=pages;
+        const storageAudit=()=>Promise.all(pages.map(cdp=>evaluate(cdp,`(async()=>({
+          visible:document.visibilityState,
+          raw:localStorage.getItem('web-katrain:library:v1'),
+          locks:navigator.locks?await navigator.locks.query():null,
+          operations:crossTabStorageAudit.slice(-40).map(({raw,...entry})=>{
+            let names;try{names=JSON.parse(raw??'null')?.map(item=>item.name)}catch{names='invalid JSON'}
+            return {...entry,names};
+          }),
+        }))()`)));
+        await Promise.all(pages.map(cdp=>evaluate(cdp,"crossTabStoragePhase='clear';void 0")));
         await evaluate(a,'crossTabLibrary.saveLibrary([])');
-        assert.deepEqual(await evaluate(b,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name))'),[], 'The other tab must see an emptied library');
+        const cleared=await evaluate(b,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name))');
+        if(cleared.length)console.log('Cross-tab clear failure',JSON.stringify({fallback,cleared,snapshots:await storageAudit()}));
+        assert.deepEqual(cleared,[], 'The other tab must see an emptied library');
         let waitedForWrite=false;
         if(!fallback) {
           await evaluate(a,`(()=>{
@@ -54,8 +81,12 @@ export async function assertLibraryCrossTab(devtoolsPort, appUrl, screenshotDir)
           await evaluate(a,'releaseCrossTabWrite()');
           await Promise.all(pages.map(cdp=>evaluate(cdp,'crossTabOperation.then(()=>true)')));
         } else {
+          await Promise.all(pages.map(cdp=>evaluate(cdp,"crossTabStoragePhase='first save';void 0")));
           await evaluate(a,"crossTabLibrary.updateStoredLibrary(items=>({items:[crossTabLibrary.createLibraryItem('Tab A','(;SZ[9])'),...items],result:true}))");
-          assert.deepEqual(await evaluate(b,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name))'),['Tab A']);
+          const firstRead=await evaluate(b,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name))');
+          console.log('Cross-tab fallback first read',JSON.stringify({firstRead,snapshots:await storageAudit()}));
+          assert.deepEqual(firstRead,['Tab A']);
+          await Promise.all(pages.map(cdp=>evaluate(cdp,"crossTabStoragePhase='second save';void 0")));
           await evaluate(b,"crossTabLibrary.updateStoredLibrary(items=>({items:[crossTabLibrary.createLibraryItem('Tab B','(;SZ[9])'),...items],result:true}))");
         }
         const names=await evaluate(a,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name).sort())');
@@ -69,7 +100,28 @@ export async function assertLibraryCrossTab(devtoolsPort, appUrl, screenshotDir)
         console.log('Cross-tab storage outcome',JSON.stringify({fallback,waitedForWrite,names,snapshots}));
         assert.deepEqual(names,['Tab A','Tab B'],'Both successful saves must remain in the shared library');
         if(fallback)assert.deepEqual(await evaluate(b,"JSON.parse(localStorage.getItem('web-katrain:library:v1')).map(item=>item.name).sort()"),names);
-        reports.push({storage:fallback?'localStorage':'IndexedDB',waitedForWrite,names,emptyLibraryObserved:true});
+        let queuedNames;
+        if(fallback){
+          await Promise.all(pages.map(cdp=>evaluate(cdp,"crossTabStoragePhase='queued handoff';void 0")));
+          await evaluate(a,'crossTabLibrary.saveLibrary([])');
+          assert.deepEqual(await evaluate(b,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name))'),[]);
+          await evaluate(a,"window.queuedGate=navigator.locks.request('web-katrain-library',()=>new Promise(resolve=>window.releaseQueuedGate=resolve));void 0");
+          await waitForExpression(a,'!!window.releaseQueuedGate');
+          for(const [page,name] of [[a,'Queued A'],[b,'Queued B']]){
+            await evaluate(page,`window.queuedOperation=crossTabLibrary.updateStoredLibrary(items=>({items:[crossTabLibrary.createLibraryItem(${JSON.stringify(name)},'(;SZ[9])'),...items],result:true}));void 0`);
+          }
+          await waitForExpression(a,"navigator.locks.query().then(state=>state.pending.filter(lock=>lock.name==='web-katrain-library').length>=2)");
+          await evaluate(a,'releaseQueuedGate();void 0');
+          await Promise.all(pages.map(page=>evaluate(page,'queuedOperation')));
+          queuedNames=await evaluate(b,'crossTabLibrary.loadLibrary().then(items=>items.map(item=>item.name).sort())');
+          if(JSON.stringify(queuedNames)!==JSON.stringify(['Queued A','Queued B']))console.log('Cross-tab queued failure',JSON.stringify({queuedNames,snapshots:await storageAudit()}));
+          assert.deepEqual(queuedNames,['Queued A','Queued B'],'Queued fallback saves must read their predecessor’s committed snapshot');
+          await navigate(a,appUrl);await waitForExpression(a,'!!document.querySelector("[data-board-snapshot]")');
+          const reloaded=await evaluate(a,`(async()=>{const url=${loadedModuleUrl.toString()};const lib=await import(url('/src/utils/library.ts'));return(await lib.loadLibrary()).map(item=>item.name).sort()})()`);
+          assert.deepEqual(reloaded,queuedNames,'Both queued saves must survive a reload');
+          console.log('Cross-tab queued fallback saves',JSON.stringify({queuedNames,reloaded}));
+        }
+        reports.push({storage:fallback?'localStorage':'IndexedDB',waitedForWrite,names,emptyLibraryObserved:true,queuedNames});
       } finally {
         for(const cdp of pages)cdp.close();
         await browser.send('Target.disposeBrowserContext',{browserContextId:context});
@@ -77,5 +129,5 @@ export async function assertLibraryCrossTab(devtoolsPort, appUrl, screenshotDir)
     }
   } finally {browser.close();}
   fs.writeFileSync(path.join(screenshotDir,'library-cross-tab.json'),JSON.stringify(reports,null,2));
-  console.log('Cross-tab library: held IndexedDB writes preserve both games; fallback reads observe additions and clears without resurrecting samples.');
+  console.log('Cross-tab library: held IndexedDB writes preserve both games; fallback reads, queued saves and reload preserve additions and clears without resurrecting samples.');
 }

@@ -8,6 +8,27 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The fallback cross-tab failure is now reproduced as durable data loss:
+  a predefined 12-run Chrome series queued two saves behind a held Web Lock,
+  awaited both acknowledgements, closed Chrome and reopened the same profile.
+  Four runs retained only the second game. The second renderer could read its
+  stale localStorage cache after acquiring the lock; the first game's storage
+  event arrived after the second write. Yielding one event-loop turn still lost
+  a game in three of 12 runs. These failed controls are retained.
+- Fallback saves now retain a shared Cache Storage snapshot, with both writes
+  completed inside the existing Library lock. The same restart-verified series
+  retains both games in all 12 runs, including six with CPU pressure. The normal
+  native cross-tab gate also queues both writers and verifies a page reload.
+  Unsupported Cache Storage keeps the legacy fallback behavior; this does not
+  establish cross-browser storage consistency. Service-worker activation keeps
+  Library data caches when replacing app-shell caches.
+- The storage change passes 49 focused cases and the wider 43-file, 329-case
+  Library set. Native empty-state, failed-save/update, initial Retry and both
+  cross-tab storage modes pass. Cache write failures preserve the previous
+  acknowledged records; corrupt cache snapshots reject rather than inventing
+  an empty Library. App/test TypeScript and lint pass. Full current-code
+  verification is in progress.
+
 - Full unit verification at `9e479f3` passed 499 files and 3,405 cases,
   with 78 engine cases skipped. App/test TypeScript and lint pass, and the
   production build passed in 16.8 s. Production responsiveness passed at
@@ -21,7 +42,8 @@ reproduced failures separate from candidates that still need investigation.
   dialogs passed, including every new command/direct-paste/selection case.
   The fallback assertion preceded raw-state logging, so this sample does
   not distinguish delayed visibility from a lost write. Retain it alongside
-  the earlier intermittent cross-tab failure; investigation continues.
+  the earlier intermittent cross-tab failure and the later restart-verified
+  reproduction above; this remains a failed full sweep.
 
 - Full unit verification at `b6c5f00` passed all 498 files and 3,396 cases,
   with 78 engine cases skipped in CI. This includes Library name navigation

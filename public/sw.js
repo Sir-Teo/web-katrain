@@ -223,7 +223,9 @@ self.addEventListener('install', (event) => {
  * caches the moment this worker activated. The ':' keeps a future v30 from
  * passing for v3.
  */
-const isStaleOwnCache = (key) => key.startsWith('web-katrain-') && !key.startsWith(`${CACHE_VERSION}:`);
+const isStaleOwnCache = (key) => key.startsWith('web-katrain-')
+  && !key.startsWith('web-katrain-library-data-')
+  && !key.startsWith(`${CACHE_VERSION}:`);
 
 /** Move a completed install into the live shell, now that it is ours to serve. */
 const promoteStagedShell = async () => {
