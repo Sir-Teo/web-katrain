@@ -490,6 +490,7 @@ export const Layout: React.FC = () => {
   const boardShellRef = useRef<HTMLDivElement>(null);
   const analysisCommandBarRef = useRef<HTMLDivElement>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
+  const cacheClearReturnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
   // A previewed candidate belongs to the position it came from. Kept across a
@@ -3636,12 +3637,13 @@ export const Layout: React.FC = () => {
     setPendingResignPlayer(null);
   }, []);
 
-  const requestClearAnalysisCache = useCallback(() => {
+  const requestClearAnalysisCache = useCallback((returnFocus?: HTMLElement | null) => {
     if (isGameAnalysisRunning) return;
     if (analysisCacheSize <= 0) {
       clearAnalysisCache();
       return;
     }
+    cacheClearReturnFocusRef.current = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     setIsClearAnalysisCacheConfirmOpen(true);
   }, [analysisCacheSize, clearAnalysisCache, isGameAnalysisRunning]);
 
@@ -4844,6 +4846,7 @@ export const Layout: React.FC = () => {
       )}
       {isClearAnalysisCacheConfirmOpen && (
         <AnalysisCacheClearConfirmModal
+          returnFocus={cacheClearReturnFocusRef.current}
           count={analysisCacheSize}
           onCancel={cancelClearAnalysisCache}
           onConfirm={confirmClearAnalysisCache}

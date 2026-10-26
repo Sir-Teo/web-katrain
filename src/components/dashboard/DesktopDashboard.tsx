@@ -120,7 +120,7 @@ export interface DesktopDashboardProps {
   startQuickGameAnalysis: () => void;
   startFastGameAnalysis: () => void;
   stopGameAnalysis: () => void;
-  onClearAnalysisCache: () => void;
+  onClearAnalysisCache: (returnFocus?: HTMLElement | null) => void;
   onOpenGameReport: () => void;
 
   // ---- navigation / play ----
@@ -1370,7 +1370,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           visits={settings.katagoVisits}
           visitsDisabled={isGameAnalysisRunning}
           onVisitsChange={(katagoVisits) => updateSettings({ katagoVisits })}
-          onClearCache={() => { closePop(); onClearAnalysisCache(); }}
+          onClearCache={() => { const returnFocus = popTriggerRef.current; closePop(); onClearAnalysisCache(returnFocus); }}
         />
       )}
       {pop?.id === 'file' && (

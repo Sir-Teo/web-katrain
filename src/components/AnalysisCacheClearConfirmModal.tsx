@@ -2,11 +2,13 @@ import React from 'react';
 import { FaTimes, FaTrash } from 'react-icons/fa';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { useBackGestureToClose } from '../hooks/useEscapeToClose';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 interface AnalysisCacheClearConfirmModalProps {
   count: number;
   onCancel: () => void;
   onConfirm: () => void;
+  returnFocus?: HTMLElement | null;
 }
 
 const formatAnalysisCount = (count: number): string =>
@@ -16,18 +18,15 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
   count,
   onCancel,
   onConfirm,
+  returnFocus,
 }) => {
-  // Capture phase on purpose, and it swallows *every* key: this dialog is
-  // modal over a board whose single-letter shortcuts would otherwise keep
-  // firing behind it. That rules out `useEscapeToClose`, whose bubble listener
-  // would run after Layout's own Escape handlers -- and the back gesture it
-  // also provides was lost with it, so an Android back press left the app
-  // rather than cancelling.
+  // Claim Escape before Layout's mode handlers. Other keys must reach the
+  // dialog controls and their Tab trap; app shortcuts already yield to dialogs.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      event.stopPropagation();
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !isComposingKeyEvent(event)) {
         event.preventDefault();
+        event.stopPropagation();
         onCancel();
       }
     };
@@ -40,6 +39,7 @@ export const AnalysisCacheClearConfirmModal: React.FC<AnalysisCacheClearConfirmM
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, {
     focusContainer: false,
     initialFocusRef: cancelButtonRef,
+    returnFocus,
   });
   const label = formatAnalysisCount(count);
 

@@ -254,6 +254,13 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   within the existing major-version ranges. The installed tree matches the
   lockfile, `npm audit` reports zero findings, and full verification passes
   3,235 tests plus both type checks, lint, and the production build.
+- **Cache-clear keyboard containment:** its capture handler stopped every
+  key before the dialog's Tab trap could run. Native Tab walked from Clear
+  into the board and background toolbar. Only Escape is claimed now; both
+  Tab directions stay within all three controls. Cancel and Clear return focus
+  to the engine button instead of the page body. The regular viewport suite
+  includes native focus cycling, composition Escape, blocked background Pass,
+  canceled clears preserving analysis, and a confirmed clear retaining notes.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
