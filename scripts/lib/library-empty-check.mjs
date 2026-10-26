@@ -106,6 +106,22 @@ export async function assertEmptyLibraryPersists(devtoolsPort, appUrl, runDir, s
           const initial = await evaluate(cdp, readStoredItems);
           assert.ok(initial.length > 1, 'A first visit must still offer the sample collection');
           report.initialCount = initial.length;
+          for (const [label, backup] of [
+            ['unrelated', { items: [{ product: 'Unrelated JSON' }] }],
+            ['damaged', { app: 'web-katrain', version: 2, items: [initial[0], null] }],
+            ['foreign', { app: 'another-app', version: 2, items: [] }],
+            ['future', { app: 'web-katrain', version: 3, items: [] }],
+          ]) {
+            await upload('input[type=file][accept=".json,application/json"]', `${label}.json`, JSON.stringify(backup));
+            await wait(`document.querySelector('.notification-toast-message')?.title.startsWith('Failed to restore library backup.')`);
+            assert.equal(await evaluate(cdp, `!!document.querySelector('${dialog}')`), false, 'An invalid backup must not offer replacement');
+            assert.deepEqual(await evaluate(cdp, readStoredItems), initial, `${label}: all stored games must remain unchanged`);
+            const message = await evaluate(cdp, `document.querySelector('.notification-toast-message').title`);
+            assert.ok(message.length > 'Failed to restore library backup.'.length, 'Restore must explain why the file was rejected');
+            report.stages.push({ stage: `${label} backup rejected`, count: initial.length });
+            await click('[aria-label="Dismiss notification"]');
+            await wait('!document.querySelector(".notification-toast-message")');
+          }
           await click('button[aria-label="Select all"]');
           await click('button[aria-label="Delete selected"]');
           const message = await wait(`document.querySelector('${dialog} p')?.textContent`);

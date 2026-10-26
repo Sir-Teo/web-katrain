@@ -1437,8 +1437,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let restored: LibraryItem[];
     try {
       restored = parseLibraryBackup(await file.text());
-    } catch {
-      onToast('Failed to restore library backup.', 'error');
+    } catch (error) {
+      onToast(withFailureReason('Failed to restore library backup.', error), 'error');
       if (backupInputRef.current) backupInputRef.current.value = '';
       return;
     }

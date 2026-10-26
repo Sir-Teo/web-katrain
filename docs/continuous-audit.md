@@ -62,6 +62,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Validate backups before replacement:** unrelated JSON objects previously
+  became empty folders, invalid entries disappeared silently, and foreign or
+  newer-version backups could replace the Library. Restore now rejects those
+  files before offering replacement and displays the reason. Normalization
+  still repairs supported legacy records, and intentionally empty backups
+  remain supported. Nine new regressions and 57 existing cases pass. Native
+  desktop/phone checks reject all four invalid backup fixtures without changing
+  any stored game, then verify Cancel, normal deletion and empty-backup restore
+  across IndexedDB and localStorage, including reload. TypeScript and lint pass.
 - **OGS URL import identity:** dropped OGS URLs now retain the source ID even
   when the SGF supplies a descriptive name. Previously a rename/backup round
   trip made a later sync download the same game again. A regression reproduced

@@ -1409,11 +1409,36 @@ export const createLibraryBackup = (items: LibraryItem[]): string => {
 
 export const parseLibraryBackup = (raw: string): LibraryItem[] => {
   const parsed = JSON.parse(raw) as unknown;
-  if (Array.isArray(parsed)) return normalizeLibraryItems(parsed);
-  if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
-    return normalizeLibraryItems((parsed as { items: unknown }).items);
+  let items: unknown[];
+  if (Array.isArray(parsed)) {
+    items = parsed;
+  } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
+    const backup = parsed as { app?: unknown; version?: unknown; items: unknown[] };
+    if (backup.app !== undefined && backup.app !== 'web-katrain') {
+      throw new Error('This file is not a Web KaTrain library backup.');
+    }
+    if (backup.version !== undefined && backup.version !== 1 && backup.version !== 2) {
+      throw new Error('This library backup version is not supported.');
+    }
+    items = backup.items;
+  } else {
+    throw new Error('Invalid library backup. Choose a Web KaTrain JSON backup.');
   }
-  throw new Error('Invalid library backup');
+  // Normalization repairs old names, IDs and folder links. It also drops
+  // primitives and turns arbitrary objects into folders, which must never
+  // silently convert a damaged backup into a destructive replacement.
+  for (const [index, item] of items.entries()) {
+    const record = item && typeof item === 'object' && !Array.isArray(item)
+      ? item as Record<string, unknown>
+      : null;
+    const isFolder = record?.type === 'folder';
+    const isFile = record && (record.type === undefined || record.type === 'file') &&
+      typeof record.sgf === 'string' && record.sgf.trim().length > 0;
+    if (!isFolder && !isFile) {
+      throw new Error(`Invalid library backup item ${index + 1}. No games were replaced.`);
+    }
+  }
+  return normalizeLibraryItems(items);
 };
 
 export const restoreLibrary = async (raw: string): Promise<LibraryItem[]> => {
