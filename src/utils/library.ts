@@ -44,6 +44,11 @@ export type LibraryFolder = LibraryBase & {
   type: 'folder';
 };
 
+export type LibraryLoadResult = {
+  item: LibraryFile;
+  notice?: string;
+};
+
 export type LibraryItem = LibraryFile | LibraryFolder;
 
 export type LibraryBackup = {

@@ -61,6 +61,7 @@ import {
   getAllLibraryTags,
   type LibraryItem,
   type LibraryFile,
+  type LibraryLoadResult,
   type LibraryFolder,
   nextUntitledGameName,
   compareLibraryNames,
@@ -358,7 +359,7 @@ interface LibraryPanelProps {
   isMobile?: boolean;
   getCurrentSgf: () => string;
   /** `itemId` identifies the saved record/resume point; the host may return its refreshed file metadata. */
-  onLoadSgf: (sgf: string, itemId?: string) => boolean | LibraryFile | Promise<boolean | LibraryFile>;
+  onLoadSgf: (sgf: string, itemId?: string) => boolean | LibraryLoadResult | Promise<boolean | LibraryLoadResult>;
   onToast: (msg: string, type: 'info' | 'error' | 'success', copyText?: string, operationId?: string) => void;
   onOpenPhotoBoard?: (file: File) => void;
   onLibraryUpdated?: () => void;
@@ -1427,10 +1428,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     try {
       const loaded = await onLoadSgf(item.sgf, item.id);
       if (!loaded) return;
-      const loadedItem = typeof loaded === 'object' ? loaded : item;
+      const loadedItem = typeof loaded === 'object' ? loaded.item : item;
+      const notice = typeof loaded === 'object' ? loaded.notice : undefined;
       onLoadedFileChange?.(loadedItem.id, loadedItem.name);
       setCurrentFolderId(loadedItem.parentId ?? null);
-      onToast(`Loaded "${loadedItem.name}".`, 'success');
+      onToast(`Loaded "${loadedItem.name}".${notice ? ` ${notice}` : ''}`, notice ? 'info' : 'success');
       if (isMobileLayoutViewport()) {
         onClose();
       }

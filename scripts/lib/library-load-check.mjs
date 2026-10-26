@@ -71,10 +71,18 @@ export async function assertLatestLibraryLoads(devtoolsPort, appUrl, screenshotD
     const resumed=await read();assert.equal(resumed.currentMove,2,'Recent must restore the remembered position');
     assert.equal(resumed.lineMoves,3);
 
+    await evaluate(cdp,"libraryLoadApi.updateStoredLibrary(items=>({items:libraryLoadApi.updateLibraryFileSgf(items,'load-study','(;SZ[25];B[dd];W[ee];B[ff])'),result:true}))");
+    await click('button[aria-label="Menu"]');await wait('!!document.querySelector("[data-menu-recent] button")');
+    await click('[data-menu-recent] button');
+    await wait("document.querySelector('.notification-toast-message')?.title.includes('Board size 25 is not supported, so it opened as 19×19.')");
+    assert.equal(await evaluate(cdp,"document.querySelector('[data-board-snapshot]').dataset.boardSize"),'19');
+
     mobile=false;await setViewport(cdp,{width:1440,height:900,mobile:false});
     await wait('!!document.querySelector(".wk-dashboard button[aria-label=Library]")');
     if(await evaluate(cdp,"document.querySelector('.wk-dashboard button[aria-label=Library]').getAttribute('aria-expanded')==='false'"))await click('.wk-dashboard button[aria-label=Library]');
     await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');
+    await click('[data-library-row=file]');
+    await wait("document.querySelector('.notification-toast-message')?.title.includes('Board size 25 is not supported, so it opened as 19×19.')");
     await evaluate(cdp,'libraryLoadApi.loadLibrary().then(()=>true)');
     await evaluate(cdp,`(()=>{
       const open=indexedDB.open.bind(indexedDB);window.libraryLoadHeld=[];
@@ -93,8 +101,8 @@ export async function assertLatestLibraryLoads(devtoolsPort, appUrl, screenshotD
     await click('[aria-labelledby="unsaved-changes-title"] .ui-bar:last-child button:nth-child(2)');
     await wait('document.body.textContent.includes("That game is no longer in the Library.")');
     assert.equal((await read()).rootId,retained.rootId,'A deleted target must leave the current game intact');
-    fs.writeFileSync(path.join(screenshotDir,'library-latest-load.json'),JSON.stringify({saveBeforeReloadMoves:reloaded.lineMoves,latestStoredMoves:3,renamedFileObserved:true,resumedMove:resumed.currentMove,editsDuringLookupRetained:true,recoveryRetained:true,deletedTargetPreservesGame:true},null,2));
-    console.log('Library loads: just-saved/current records, latest names, Recent resume, newer edits during lookup, recovery, and deleted targets passed.');
+    fs.writeFileSync(path.join(screenshotDir,'library-latest-load.json'),JSON.stringify({saveBeforeReloadMoves:reloaded.lineMoves,latestStoredMoves:3,renamedFileObserved:true,resumedMove:resumed.currentMove,unsupportedSizeNoticeRetained:true,editsDuringLookupRetained:true,recoveryRetained:true,deletedTargetPreservesGame:true},null,2));
+    console.log('Library loads: saved/current records, names, Recent resume, visible size notices, newer edits, recovery, and deleted targets passed.');
   } finally {
     cdp.close();await browser.send('Target.disposeBrowserContext',{browserContextId:context});browser.close();
   }

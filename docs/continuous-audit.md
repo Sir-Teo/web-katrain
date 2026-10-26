@@ -305,6 +305,12 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   reopening at move zero. Native checks cover both cases, externally changed
   records/names, deleted targets, and a newer move made during a held lookup
   remaining on the board and in recovery instead of being replaced.
+- **Keep library size warnings visible:** the host's unsupported-board notice
+  was immediately replaced by the caller's Loaded toast. The load result now
+  carries its notice with the refreshed file, and Library/Recent append it to
+  one message. Browser checks open a stored 25×25 record through both entry
+  points and require the visible 19×19 coercion notice. The source-based path
+  assertion now checks the refreshed SGF variable used by the loader.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its

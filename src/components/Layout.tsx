@@ -28,6 +28,7 @@ import {
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
   type LibraryFile,
+  type LibraryLoadResult,
   type LibraryFolderOption,
   nextUntitledGameName,
   selectRecentLibraryFiles,
@@ -2194,7 +2195,7 @@ export const Layout: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [currentNode, loadedLibraryFileId]);
 
-  const handleLoadFromLibrary = async (sgfText: string, itemId?: string): Promise<boolean | LibraryFile> => {
+  const handleLoadFromLibrary = async (sgfText: string, itemId?: string): Promise<boolean | LibraryLoadResult> => {
     try {
       let textToLoad = sgfText;
       let parsed = parseSgf(textToLoad);
@@ -2232,8 +2233,9 @@ export const Layout: React.FC = () => {
       }
       markCurrentGameCleanAndClearAutoSave();
       const sizeNotice = boardSizeCoercionNotice(textToLoad);
+      if (loadedFile) return { item: loadedFile, notice: sizeNotice || undefined };
       if (sizeNotice) toast(sizeNotice, 'info');
-      return loadedFile ?? true;
+      return true;
     } catch (error) {
       toast(withFailureReason('Could not load that game from the library.', error), 'error');
       return false;
@@ -2452,10 +2454,11 @@ export const Layout: React.FC = () => {
   const handleOpenRecent = async (item: LibraryFile) => {
     const loaded = await handleLoadFromLibrary(item.sgf, item.id);
     if (!loaded) return;
-    const loadedItem = typeof loaded === 'object' ? loaded : item;
+    const loadedItem = typeof loaded === 'object' ? loaded.item : item;
+    const notice = typeof loaded === 'object' ? loaded.notice : undefined;
     const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
     setLoadedLibraryFile(loadedItem.id, loadedItem.name);
-    toast(appendRestoredAnalysisSummary(`Loaded "${loadedItem.name}".`, restoredAnalysisCount), 'success');
+    toast(appendRestoredAnalysisSummary(`Loaded "${loadedItem.name}".`, restoredAnalysisCount) + (notice ? ` ${notice}` : ''), notice ? 'info' : 'success');
   };
 
   useEffect(() => {

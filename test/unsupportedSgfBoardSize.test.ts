@@ -55,14 +55,13 @@ describe('unsupported SGF board size', () => {
 
     // One helper, called after loadGame so it can report the size actually
     // opened. Paste and file-open append it to their existing toast; the
-    // library load is silent on success, so it speaks only when there is
-    // something to say.
+    // library load passes the actual loaded record's notice to its caller.
     expect(layout).toContain('const boardSizeCoercionNotice = (sgfText: string): string =>');
     // The definition reads `boardSizeCoercionNotice = (`, so only calls match.
     const calls = layout.match(/boardSizeCoercionNotice\(/g) ?? [];
     expect(calls).toHaveLength(3);
 
-    for (const source of ['result.sgf', 'text', 'sgfText']) {
+    for (const source of ['result.sgf', 'text', 'textToLoad']) {
       expect(layout).toContain(`boardSizeCoercionNotice(${source})`);
     }
   });
