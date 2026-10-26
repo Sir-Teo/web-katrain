@@ -39,6 +39,14 @@ Work resumed on 2026-10-25 with another UI and reliability pass:
   games with every original, SGF, favorite, and tag intact. Those dev UI passes
   took 711 ms and 433 ms to paint respectively; storage and rendering still
   add work beyond the utility timing.
+- **Hover details clear the variation:** [issue #17](https://github.com/Sir-Teo/web-katrain/issues/17)
+  remained reproducible: a 240×234 px statistics card covered the variation
+  despite empty space beside a 1440×900 board. Hover cards now render in the
+  surrounding board stage and choose a nearby side margin when it fits. Their
+  measured height keeps the normal placement for cards that cannot fit there,
+  and clamps that fallback vertically. Browser checks cover both margins,
+  compact and short desktop layouts, all statistics/PV text, and resizing.
+  The same positioning is shared by played-stone details.
 
 The viewport gate also mistook the full landscape viewport for the width
 available to its controls. At 568×320, tabs take 304px from that row; its
@@ -48,6 +56,12 @@ Recovery-dialog fixtures are installed in the arriving document so the departing
 page's recovery flush cannot erase them. Failed-save checks accept a guarded
 read failure before fallback writes, while still requiring visible failure,
 unchanged stored games, retained recovery, and a successful retry.
+The manual-scoring browser fixture also retained the old W+84 expectation after
+the established region-based group-tax fix. Lifting all Black stones joins
+White through its territory, so its tax is two points and its score is W+86,
+as already asserted in the manual-score unit suite. The corrected browser check
+passes all offered rules, handicap conventions, dead marks, and SGF results at
+1280×800, 390×844, and 320×568.
 
 | Commit / area | Problem and resulting behavior | Evidence |
 | --- | --- | --- |

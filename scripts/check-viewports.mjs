@@ -10,6 +10,7 @@ import { assertEmptyLibraryPersists } from './lib/library-empty-check.mjs';
 import { assertLibrarySaveRecovery } from './lib/library-save-check.mjs';
 import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
+import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
@@ -4183,6 +4184,7 @@ async function main() {
     await assertLibrarySaveRecovery(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertManualScoring(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertBoardTooltipsFit(cdp, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

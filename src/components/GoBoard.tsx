@@ -47,7 +47,7 @@ import { setTimedNotification, type TimedNotificationType } from '../utils/timed
 import { getTapConfirmAction, TAP_CONFIRM_TIMEOUT_MS, type TapConfirmPoint } from '../utils/tapConfirm';
 import { playNavigationHaptic, playStoneHaptic } from '../utils/haptics';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
-import { getBoardTooltipPlacement } from '../utils/boardTooltipPlacement';
+import { BoardTooltip } from './BoardTooltip';
 import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
 import {
   boardKeyboardCursorHandlesKey,
@@ -3069,7 +3069,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
   return (
     <div
       ref={containerRef}
-      className="go-board-container w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center"
+      className="go-board-container relative w-full h-full min-w-0 max-w-full overflow-hidden flex items-center justify-center"
       data-board-container="true"
     >
       {/* `shrink-0` keeps the board square. `cellSize` rounds *up* (the `+ 0.1`
@@ -3627,23 +3627,14 @@ export const GoBoard: React.FC<GoBoardProps> = ({
         {hoveredStoneMoveNumber !== null && !(hasAnalysisOverlay && hoveredMove) && cursorPt && (
           (() => {
             const d = toDisplay(cursorPt.x, cursorPt.y);
-            const placement = getBoardTooltipPlacement({
-              anchorX: originX + d.x * cellSize,
-              anchorY: originY + d.y * cellSize,
-              boardWidth,
-              boardHeight,
-              cellSize,
-            });
             return (
-              <div
-                className="absolute z-20 bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs px-2 py-1 rounded-lg shadow-xl pointer-events-none border border-[var(--ui-border-strong)] w-max"
-                style={{
-                  left: placement.left,
-                  top: placement.top,
-                  transform: placement.transform,
-                  maxWidth: placement.maxWidth,
-                }}
-                data-stone-move-tooltip={hoveredStoneMoveNumber}
+              <BoardTooltip
+                key={`stone-${hoveredStoneMoveNumber}`}
+                boardRef={boardSnapshotRef}
+                anchorX={originX + d.x * cellSize}
+                anchorY={originY + d.y * cellSize}
+                cellSize={cellSize}
+                stoneMoveNumber={hoveredStoneMoveNumber}
               >
                 <span className="font-semibold whitespace-nowrap">Move {hoveredStoneMoveNumber}</span>
                 {/* Spaces between the parts stay outside the nowrap spans: they
@@ -3662,7 +3653,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                 )}
                 {' '}
                 <span className="ui-text-faint whitespace-nowrap">· Alt-click to jump</span>
-              </div>
+              </BoardTooltip>
             );
           })()
         )}
@@ -3673,23 +3664,13 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             const d = toDisplay(hoveredMove.x, hoveredMove.y);
             const anchorX = originX + d.x * cellSize;
             const anchorY = originY + d.y * cellSize;
-            const tooltipPlacement = getBoardTooltipPlacement({
-              anchorX,
-              anchorY,
-              boardWidth,
-              boardHeight,
-              cellSize,
-            });
             return (
-              <div
-                className="absolute z-20 bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs p-2 rounded-lg shadow-xl pointer-events-none border border-[var(--ui-border-strong)]"
-                style={{
-                  left: tooltipPlacement.left,
-                  top: tooltipPlacement.top,
-                  transform: tooltipPlacement.transform,
-                  minWidth: tooltipPlacement.minWidth,
-                  maxWidth: tooltipPlacement.maxWidth,
-                }}
+              <BoardTooltip
+                key={`candidate-${hoveredMove.x}-${hoveredMove.y}`}
+                boardRef={boardSnapshotRef}
+                anchorX={anchorX}
+                anchorY={anchorY}
+                cellSize={cellSize}
               >
                 <div className="font-bold mb-1">Move: {formatBoardMoveLabel(hoveredMove, boardSize)}</div>
                 <div>Win Rate: {(hoveredMove.winRate * 100).toFixed(1)}%</div>
@@ -3721,7 +3702,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                     PV: {hoveredMove.pv.join(' ')}
                   </div>
                 )}
-              </div>
+              </BoardTooltip>
             );
           })()
         )}

@@ -209,7 +209,9 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
               return b.contains(document.elementFromPoint(x,y))?{x,y}:false;
             })()`);
             await press(point);
-            await wait(`document.querySelector('.manual-score-result>span')?.textContent==='W+84.0'`);
+            // Lifting Black joins White through its territory: 81 area + 7
+            // komi - one two-point group tax, matching manualScorePanel.test.
+            await wait(`document.querySelector('.manual-score-result>span')?.textContent==='W+86.0'`);
             await click('.manual-score-actions button[title="Clear dead stones"]');
             await wait(`document.querySelector('.manual-score-result>span')?.textContent==='B+16.0'`);
           }
