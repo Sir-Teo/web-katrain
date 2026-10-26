@@ -50,8 +50,8 @@ import {
     MAX_BROWSER_MODEL_UPLOAD_LABEL,
     MODEL_UPLOAD_ACCEPT,
     savePersistedUploadedModel,
+    subscribeUploadedModelInfo,
     syncUploadedModelUrl,
-    type UploadedModelInfo,
     validateModelUploadFile,
 } from '../utils/modelUpload';
 import { copyTextToClipboard } from '../utils/clipboard';
@@ -233,7 +233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const [modelUploadError, setModelUploadError] = React.useState<string | null>(null);
     const [humanModelError, setHumanModelError] = React.useState<string | null>(null);
     const [humanModelFileName, setHumanModelFileName] = React.useState<string | null>(null);
-    const [uploadedModelInfo, setUploadedModelInfo] = React.useState<UploadedModelInfo | null>(() => getUploadedModelInfo());
+    const uploadedModelInfo = React.useSyncExternalStore(subscribeUploadedModelInfo, getUploadedModelInfo, () => null);
     const [webGpuAvailability, setWebGpuAvailability] = React.useState<BrowserBackendAvailability>(() => detectWebGpuAvailability());
     const shortcutLabels = useShortcutLabels(ANALYSIS_OVERLAY_SHORTCUT_IDS);
 
@@ -487,11 +487,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         setWebGpuAvailability(detectWebGpuAvailability());
     }, []);
 
-    React.useEffect(() => {
-        setUploadedModelInfo(isUploadedModel ? getUploadedModelInfo() : null);
-    }, [isUploadedModel, settings.katagoModelUrl]);
-
-    const uploadedModelSavedLabel = uploadedModelInfo?.updatedAt
+    const uploadedModelSavedLabel = uploadedModelInfo?.persistence === 'saved' && uploadedModelInfo.updatedAt
         ? new Date(uploadedModelInfo.updatedAt).toLocaleString([], {
             month: 'short',
             day: 'numeric',
@@ -516,7 +512,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
             updateSettings({ katagoModelUrl: modelUrl });
             const persisted = await savePersistedUploadedModel(file);
             if (useGameStore.getState().settings.katagoModelUrl !== modelUrl) return;
-            setUploadedModelInfo(getUploadedModelInfo());
             if (!persisted) {
                 setModelUploadError('Loaded for this session, but browser storage could not save the upload for reload.');
             }
@@ -581,7 +576,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const handleClearUpload = () => {
         if (!isUploadedModel) return;
         setModelUploadError(null);
-        setUploadedModelInfo(null);
         updateSettings({ katagoModelUrl: clearUploadedModelUrl(SMALL_MODEL_URL) });
     };
 
@@ -612,7 +606,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
             updateSettings({ katagoModelUrl: modelUrl });
             const persisted = await savePersistedUploadedModel(downloadedFile);
             if (modelDownloadRef.current !== request || useGameStore.getState().settings.katagoModelUrl !== modelUrl) return;
-            setUploadedModelInfo(getUploadedModelInfo());
             if (!persisted) {
                 setDownloadError('Loaded for this session, but browser storage could not save the download for reload.');
             }
@@ -2447,10 +2440,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                     <div className="mt-1 min-w-0 truncate font-mono">
                                                         {uploadedModelInfo?.name ?? 'Uploaded weights'}
                                                     </div>
-                                                    <div className="mt-1 text-[var(--ui-text-muted)]">
-                                                        {uploadedModelInfo
-                                                            ? `${formatUploadedModelSize(uploadedModelInfo.size)}${uploadedModelSavedLabel ? ` / saved ${uploadedModelSavedLabel}` : ''}`
-                                                            : 'Saved in this browser and restored after reload.'}
+                                                        <div
+                                                            className="mt-1 text-[var(--ui-text-muted)]"
+                                                            role="status"
+                                                            data-model-upload-persistence={uploadedModelInfo?.persistence ?? 'session'}
+                                                        >
+                                                            {uploadedModelInfo && `${formatUploadedModelSize(uploadedModelInfo.size)} / `}
+                                                            {uploadedModelInfo?.persistence === 'saving'
+                                                                ? 'Saving in browser…'
+                                                                : uploadedModelSavedLabel
+                                                                    ? `Saved ${uploadedModelSavedLabel}`
+                                                                    : 'Available for this session'}
                                                     </div>
                                                 </div>
                                             ) : null}

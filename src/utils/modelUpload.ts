@@ -28,24 +28,34 @@ type ModelFileLike = {
   type?: string;
 };
 
-export type UploadedModelInfo = {
+type ModelFileInfo = {
   name: string;
   size: number;
   type: string;
   updatedAt: number;
 };
 
-export type PersistedUploadedModel = {
-  blob: Blob;
-  name: string;
-  size: number;
-  type: string;
-  updatedAt: number;
+export type UploadedModelInfo = ModelFileInfo & {
+  persistence: 'saving' | 'saved' | 'session';
 };
+
+export type PersistedUploadedModel = ModelFileInfo & { blob: Blob };
 
 let uploadedModelUrl: string | null = null;
 let uploadedModelInfo: UploadedModelInfo | null = null;
 let lastManualModelUrl: string | null = null;
+const modelInfoListeners = new Set<() => void>();
+
+const updateUploadedModelInfo = (info: UploadedModelInfo | null): void => {
+  if (uploadedModelInfo === info) return;
+  uploadedModelInfo = info;
+  for (const listener of modelInfoListeners) listener();
+};
+
+export const subscribeUploadedModelInfo = (listener: () => void): (() => void) => {
+  modelInfoListeners.add(listener);
+  return () => { modelInfoListeners.delete(listener); };
+};
 
 export const sanitizeModelDisplayName = (
   name: string | null | undefined,
@@ -105,7 +115,7 @@ export const formatUploadedModelSize = (size: number): string => {
   return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} MB`;
 };
 
-const modelInfoFromBlob = (file: Blob & ModelFileLike): UploadedModelInfo => ({
+const modelInfoFromBlob = (file: Blob & ModelFileLike): ModelFileInfo => ({
   name: sanitizeModelDisplayName(file.name),
   size: typeof file.size === 'number' && Number.isFinite(file.size) ? file.size : 0,
   type: file.type || 'application/octet-stream',
@@ -127,7 +137,7 @@ export const revokeUploadedModelUrl = (): void => {
   modelStorageRevision++;
   revokeObjectUrl(uploadedModelUrl);
   uploadedModelUrl = null;
-  uploadedModelInfo = null;
+  updateUploadedModelInfo(null);
 };
 
 export const syncUploadedModelUrl = (currentModelUrl: string): void => {
@@ -148,7 +158,7 @@ export const createUploadedModelUrl = (blob: Blob, currentModelUrl: string): str
   }
   revokeUploadedModelUrl();
   uploadedModelUrl = objectUrl;
-  uploadedModelInfo = modelInfoFromBlob(blob);
+  updateUploadedModelInfo({ ...modelInfoFromBlob(blob), persistence: 'session' });
   setUploadedModelSelected(false);
   return objectUrl;
 };
@@ -205,6 +215,7 @@ export const savePersistedUploadedModel = async (file: Blob & ModelFileLike): Pr
   // file left in the shared slot. A newer selection can invalidate this task.
   setUploadedModelSelected(false);
   const info = modelInfoFromBlob(file);
+  updateUploadedModelInfo({ ...info, persistence: 'saving' });
   const model: PersistedUploadedModel = {
     blob: file,
     ...info,
@@ -213,7 +224,11 @@ export const savePersistedUploadedModel = async (file: Blob & ModelFileLike): Pr
   return runModelStorageTask(async () => {
     let db: IDBDatabase | null = null;
     try {
-      if (revision !== modelStorageRevision || !getIndexedDB()) return false;
+      if (revision !== modelStorageRevision) return false;
+      if (!getIndexedDB()) {
+        updateUploadedModelInfo({ ...info, persistence: 'session' });
+        return false;
+      }
       db = await openUploadedModelDb();
       if (revision !== modelStorageRevision) return false;
       const tx = db.transaction(MODEL_STORE, 'readwrite');
@@ -221,10 +236,13 @@ export const savePersistedUploadedModel = async (file: Blob & ModelFileLike): Pr
       await transactionDone(tx);
       if (revision !== modelStorageRevision) return false;
       setUploadedModelSelected(true);
-      uploadedModelInfo = info;
+      updateUploadedModelInfo({ ...info, persistence: 'saved' });
       return true;
     } catch {
-      if (revision === modelStorageRevision) setUploadedModelSelected(false);
+      if (revision === modelStorageRevision) {
+        setUploadedModelSelected(false);
+        updateUploadedModelInfo({ ...info, persistence: 'session' });
+      }
       return false;
     } finally {
       db?.close();
@@ -270,12 +288,13 @@ export const restorePersistedUploadedModelUrl = async (currentModelUrl: string):
   }
   revokeUploadedModelUrl();
   uploadedModelUrl = url;
-  uploadedModelInfo = {
+  updateUploadedModelInfo({
     name: model.name,
     size: model.size,
     type: model.type,
     updatedAt: model.updatedAt,
-  };
+    persistence: 'saved',
+  });
   return {
     url,
     name: model.name,
@@ -288,7 +307,7 @@ export const restorePersistedUploadedModelUrl = async (currentModelUrl: string):
 export const deletePersistedUploadedModel = async (): Promise<void> => {
   const revision = ++modelStorageRevision;
   setUploadedModelSelected(false);
-  uploadedModelInfo = null;
+  updateUploadedModelInfo(null);
   return runModelStorageTask(async () => {
     let db: IDBDatabase | null = null;
     try {
@@ -309,7 +328,7 @@ export const deletePersistedUploadedModel = async (): Promise<void> => {
 export const resetModelUploadStateForTests = (): void => {
   modelStorageRevision++;
   uploadedModelUrl = null;
-  uploadedModelInfo = null;
+  updateUploadedModelInfo(null);
   lastManualModelUrl = null;
   setUploadedModelSelected(false);
 };

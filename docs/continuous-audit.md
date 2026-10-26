@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Truthful model storage status:** a held upload displayed “saved” before
+  IndexedDB accepted it, and failed persistence kept the same claim. Uploaded
+  weights now expose live saving, saved, and session-only states. Settings
+  subscribes to that state so saves begun through the main file loader also
+  update an open dialog without changing the selected URL. The compact status
+  shows a saved timestamp only after success and announces changes accessibly.
+  Subscriber checks and native desktop/phone tests cover a held write, confirmed
+  save, and rejected persistence with still-readable session weights. Phone
+  screenshots verify both pending and failure status within the model card.
 - **Model save ordering:** holding an older upload's database open let a newer
   upload save first, then overwrote its stored bytes and metadata when the old
   request finished. The selected URL read B while reload would restore A.

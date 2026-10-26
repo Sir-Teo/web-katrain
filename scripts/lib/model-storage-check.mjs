@@ -96,9 +96,15 @@ export async function assertModelStorageOrdering(cdp, appUrl, runDir, screenshot
       await wait('modelStorageAudit.held.length===1');
       await upload(files[1]);
       await wait("document.querySelector('[data-katago-uploaded-model-summary]')?.textContent.includes('storage-B.bin.gz')");
+      await wait('document.querySelector("[data-model-upload-persistence]")?.dataset.modelUploadPersistence==="saving"');
+      assert.equal(await evaluate(cdp, 'document.querySelector("[data-model-upload-persistence]").textContent.includes("Saving in browser")'), true);
+      await evaluate(cdp, 'document.querySelector("[data-katago-uploaded-model-summary]").scrollIntoView({ block: "center" }); void 0');
+      const pendingScreenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+      fs.writeFileSync(path.join(screenshotDir, `model-storage-pending-${width}.png`), Buffer.from(pendingScreenshot.result.data, 'base64'));
       assert.equal(await evaluate(cdp, 'localStorage.getItem("web-katrain:uploaded_model_selected:v1")'), null);
       await evaluate(cdp, 'modelStorageAudit.held.splice(0).forEach(release => release()); void 0');
       await wait('localStorage.getItem("web-katrain:uploaded_model_selected:v1")==="true"');
+      await wait('document.querySelector("[data-model-upload-persistence]")?.dataset.modelUploadPersistence==="saved"');
       assert.deepEqual(await evaluate(cdp, stored), { name: 'storage-B.bin.gz', text: 'storage weights B' });
       assert.equal(await evaluate(cdp, 'modelStorageApi.getUploadedModelInfo().name'), 'storage-B.bin.gz');
       assert.equal(await evaluate(cdp, `document.querySelector('#panel-ai').textContent.includes('could not save')`), false);
@@ -122,11 +128,30 @@ export async function assertModelStorageOrdering(cdp, appUrl, runDir, screenshot
       await openSettings();
       assert.equal(await evaluate(cdp, '!!document.querySelector("[data-katago-uploaded-model-summary]")'), false);
       assert.equal(await evaluate(cdp, 'modelStorageStore.getState().settings.katagoModelUrl.startsWith("blob:")'), false);
+      await evaluate(cdp, `(() => {
+        window.modelStatusOriginalOpen = indexedDB.open.bind(indexedDB);
+        indexedDB.open = (...args) => {
+          if (args[0] === 'web-katrain-models') throw new DOMException('Storage full', 'QuotaExceededError');
+          return modelStatusOriginalOpen(...args);
+        };
+      })()`);
+      try {
+        await upload(files[0]);
+        await wait('document.querySelector("[data-model-upload-persistence]")?.dataset.modelUploadPersistence==="session"');
+        await wait("document.querySelector('#panel-ai').textContent.includes('could not save the upload')");
+        assert.equal(await evaluate(cdp, 'document.querySelector("[data-model-upload-persistence]").textContent.includes("Available for this session")'), true);
+        assert.equal(await evaluate(cdp, '(async () => (await fetch(modelStorageStore.getState().settings.katagoModelUrl)).text())()'), 'storage weights A');
+        await evaluate(cdp, 'document.querySelector("[data-katago-uploaded-model-summary]").scrollIntoView({ block: "center" }); void 0');
+        const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(screenshotDir, `model-storage-session-${width}.png`), Buffer.from(screenshot.result.data, 'base64'));
+      } finally {
+        await evaluate(cdp, 'indexedDB.open = modelStatusOriginalOpen; void 0');
+      }
       await closeSettings();
     } finally {
       await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: recorder.result.identifier });
     }
-    reports.push({ width, newerUploadSurvivesReload: true, clearDuringPendingSaveSurvivesReload: true, staleStorageErrors: 0 });
+    reports.push({ width, newerUploadSurvivesReload: true, clearDuringPendingSaveSurvivesReload: true, liveSavingSavedSessionStatus: true, staleStorageErrors: 0 });
   }
   fs.writeFileSync(path.join(screenshotDir, 'model-storage-ordering.json'), JSON.stringify(reports, null, 2));
   console.log('Model storage: newer uploads and Clear Upload overtake held saves, preserve metadata, and survive reload on desktop/phone.');

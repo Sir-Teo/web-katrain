@@ -47,11 +47,13 @@ describe('model storage ordering', () => {
     const bUrl = model.createUploadedModelUrl(b, aUrl);
     const bSave = model.savePersistedUploadedModel(b);
     expect(storage.getItem(selectedKey)).toBeNull();
+    expect(model.getUploadedModelInfo()?.persistence).toBe('saving');
     held.splice(0).forEach(release => release());
     expect(await aSave).toBe(false);
     expect(await bSave).toBe(true);
     expect(await (await model.loadPersistedUploadedModel())?.blob.text()).toBe('weights B');
     expect(model.getUploadedModelInfo()?.name).toBe('B.bin.gz');
+    expect(model.getUploadedModelInfo()?.persistence).toBe('saved');
     expect(await (await fetch(bUrl)).text()).toBe('weights B');
     model.clearUploadedModelUrl('/models/manual.bin.gz');
     await model.deletePersistedUploadedModel();
@@ -118,6 +120,7 @@ describe('model storage ordering', () => {
     model.createUploadedModelUrl(a, '/models/manual.bin.gz');
     idb.failWrites = true;
     expect(await model.savePersistedUploadedModel(a)).toBe(false);
+    expect(model.getUploadedModelInfo()?.persistence).toBe('session');
     expect(storage.getItem(selectedKey)).toBeNull();
     expect(await model.loadPersistedUploadedModel()).toBeNull();
     idb.failWrites = false;
@@ -125,5 +128,20 @@ describe('model storage ordering', () => {
     expect(await (await model.loadPersistedUploadedModel())?.blob.text()).toBe('weights A');
     model.clearUploadedModelUrl('/models/manual.bin.gz');
     await model.deletePersistedUploadedModel();
+  });
+
+  it('notifies status subscribers when a save finishes outside the Settings component', async () => {
+    const model = await import('../src/utils/modelUpload');
+    const states: Array<string | null> = [];
+    const unsubscribe = model.subscribeUploadedModelInfo(() => states.push(model.getUploadedModelInfo()?.persistence ?? null));
+    const file = weights('A');
+    model.createUploadedModelUrl(file, '/models/manual.bin.gz');
+    await model.savePersistedUploadedModel(file);
+    expect(states).toEqual(['session', 'saving', 'saved']);
+    expect(model.getUploadedModelInfo()).toBe(model.getUploadedModelInfo());
+    unsubscribe();
+    model.clearUploadedModelUrl('/models/manual.bin.gz');
+    await model.deletePersistedUploadedModel();
+    expect(states).toEqual(['session', 'saving', 'saved']);
   });
 });
