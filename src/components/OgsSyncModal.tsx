@@ -59,6 +59,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   const [error, setError] = React.useState<string | null>(null);
   const requestRef = React.useRef<AbortController | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const doneRef = React.useRef<HTMLButtonElement>(null);
   const close = React.useCallback(() => {
     const request = requestRef.current;
     requestRef.current = null;
@@ -67,6 +68,22 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   }, [onClose]);
   useEscapeToClose(close);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { initialFocusRef: inputRef });
+
+  React.useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    if (isRunning) {
+      // Disabling the active input or Sync button drops focus onto body,
+      // outside the dialog's Tab handler. Keep the pending dialog in charge.
+      if (active === document.body || (active instanceof HTMLElement && active.matches(':disabled'))) {
+        dialog.focus({ preventScroll: true });
+      }
+    } else if (active === dialog || active === document.body) {
+      if (error) inputRef.current?.focus({ preventScroll: true });
+      else if (summary) doneRef.current?.focus({ preventScroll: true });
+    }
+  }, [dialogRef, isRunning, error, summary]);
 
   React.useEffect(() => {
     const requests = requestRef;
@@ -235,6 +252,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
 
         <div className="ogs-sync-footer ui-bar flex items-center justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
+            ref={doneRef}
             type="button"
             onClick={close}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"

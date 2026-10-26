@@ -55,9 +55,15 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
    };return true;
   })()`);
   const baseline=await readStored();
-  await open();await evaluate(cdp,"librarySaveAudit.mode='fail'");
+  await open();await evaluate(cdp,"librarySaveAudit.mode='fail';ogsSaveAudit.holdNext=true");
   await click('.ogs-sync-footer button','Sync');
+  await wait('!!window.releaseConcurrentOgsDownload');
+  const pendingFocus=await evaluate(cdp,'({inside:document.querySelector("[aria-labelledby=ogs-sync-title]").contains(document.activeElement),tag:document.activeElement?.tagName,label:document.activeElement?.getAttribute("aria-label")})');
+  console.log('OGS pending focus',JSON.stringify({width,...pendingFocus}));
+  assert.equal(pendingFocus.inside,true,'Pending OGS sync must keep focus in its dialog when the active control is disabled');
+  await evaluate(cdp,'releaseConcurrentOgsDownload();delete window.releaseConcurrentOgsDownload');
   await wait(`document.querySelector('[aria-labelledby=ogs-sync-title] [role=alert]')?.textContent.includes('Could not save synced games')`);
+  assert.equal(await evaluate(cdp,'document.activeElement===document.querySelector("#ogs-sync-username")'),true,'An unsuccessful OGS sync must restore the username field for correction or retry');
   assert.equal(await evaluate(cdp,`[...document.querySelectorAll('[aria-labelledby=ogs-sync-title] [role=status]')].some(e=>e.textContent.includes('Added 1 game'))`),false);
   assert.equal(await evaluate(cdp,`document.querySelector('.notification-toast-message')?.title.startsWith('Synced')`),false);
   assert.deepEqual(await readStored(),baseline,'Rejected OGS save must preserve every stored record');
@@ -65,6 +71,7 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   await evaluate(cdp,"librarySaveAudit.mode='normal'");
   await click('.ogs-sync-footer button','Sync');
   await wait(`document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent.includes('Added 1 game')`);
+  assert.equal(await evaluate(cdp,'document.activeElement?.textContent.trim()'), 'Done', 'Completed OGS sync should offer its Done action to the keyboard');
   await wait(`document.querySelector('.notification-toast-message')?.title.startsWith('Synced 1 OGS game')`);
   const firstId=await evaluate(cdp,'ogsSaveAudit.id');
   const firstStored=await readStored();
@@ -176,6 +183,11 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   await evaluate(cdp,'ogsSaveAudit.id++;ogsSaveAudit.holdNext=true;void 0');
   await open();await click('.ogs-sync-footer button','Sync');
   await wait('!!window.releaseConcurrentOgsDownload');
+  for(let index=0;index<4;index++){
+   for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:index%2?8:0});
+   assert.equal(await evaluate(cdp,'document.querySelector("[aria-labelledby=ogs-sync-title]").contains(document.activeElement)'),true,'Tab and Shift+Tab must remain in a pending OGS sync');
+  }
+  await evaluate(cdp,'window.ogsPendingFocus=document.activeElement;void 0');
   const thirdId=secondId+1;
   const annotatedSgf='(;GM[1]SZ[9]C[Preserve other tab notes];B[ee])';
   const arrived=await evaluate(cdp,`(async()=>{
@@ -189,6 +201,7 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   })()`);
   await evaluate(cdp,'releaseConcurrentOgsDownload();delete window.releaseConcurrentOgsDownload');
   await wait(`document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent.includes('already in your library')`);
+  assert.equal(await evaluate(cdp,'document.activeElement===window.ogsPendingFocus'),true,'Completion must preserve a control chosen while the sync was pending');
   assert.equal(await evaluate(cdp,`document.querySelector('[aria-labelledby=ogs-sync-title] [role=status]')?.textContent.includes('Added')`),false);
   const afterRace=await readStored();
   const copies=afterRace.filter(item=>item.type==='file'&&item.name.includes(`(ogs-${thirdId})`));
@@ -200,7 +213,7 @@ export async function assertOgsSyncSave(cdp,appUrl,screenshotDir) {
   await navigate(cdp,appUrl,15000);await wait('!!document.querySelector("[data-board-snapshot]")');if(mobile)await click('#mobile-tab-library');
   await wait(`!![...document.querySelectorAll('[data-library-row]')].find(e=>e.dataset.libraryRowName?.includes('(ogs-${secondId})'))`);
   await wait(`!!document.querySelector('[data-library-row-id="${arrived.id}"]')`);
-  reports.push({width,sourceLinkPreservedAfterRename:true,sourceLinkPointerEnterSpace:true,sourceLinkNewTabProtected:true,sourceLinkHiddenForOrdinaryFilesAndFolders:true,renamePreservesIdentity:true,renamedGameSkipsRedownload:true,rejectedWriteHasNoSuccess:true,resolvedSaveErrorReplaced:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,duplicateOgsIdSkippedAtCommit:true,otherFolderAnnotationsPreserved:true,skippedCountAccurate:true,reloadPreserved:true});
+  reports.push({width,pendingFocusInsideDialog:true,failureRestoresUsername:true,successFocusesDone:true,pendingTabContained:true,completionPreservesChosenFocus:true,sourceLinkPreservedAfterRename:true,sourceLinkPointerEnterSpace:true,sourceLinkNewTabProtected:true,sourceLinkHiddenForOrdinaryFilesAndFolders:true,renamePreservesIdentity:true,renamedGameSkipsRedownload:true,rejectedWriteHasNoSuccess:true,resolvedSaveErrorReplaced:true,retrySavesOneCopy:true,originalSgfPreserved:true,savingStatusVisible:true,closeAndReopenDuringSave:true,currentFolderReused:true,duplicateOgsIdSkippedAtCommit:true,otherFolderAnnotationsPreserved:true,skippedCountAccurate:true,reloadPreserved:true});
  }
  fs.writeFileSync(path.join(screenshotDir,'ogs-sync-save.json'),JSON.stringify(reports,null,2));
  console.log('OGS sync storage: desktop/phone reject false success, retry once, survive closing both panels, skip games arriving during download and preserve annotations across reload.');
