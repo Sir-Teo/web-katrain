@@ -10,6 +10,15 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Score quiz input:** blank and negative margins silently became zero or a
+  positive guess, and input-method Enter (including Safari key-code 229)
+  started an evaluation. The quiz now requires a finite margin of zero or more,
+  explains invalid input beside the field, and leaves composition keys alone.
+  Ordinary Enter still submits a valid guess; an explicit zero is accepted
+  and a level score is graded correctly. The real-dialog engine-client check
+  covers invalid values, composition, zero-point grading, duplicate submission,
+  random-position changes, stale success/error replies, and close/reopen on
+  desktop and a 320-pixel phone viewport.
 - **Shortcut editor focus:** Cancel and Reset Defaults left focus on the page
   body when their inline confirmation disappeared. Cancel now returns to Reset
   All; confirming returns to search. Conflicts are announced, scrolled into

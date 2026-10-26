@@ -6,6 +6,7 @@ import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { evaluateNode } from '../utils/positionEval';
 import { collectQuizPositions, selectQuizJumpCandidates } from '../utils/scoreQuizPositions';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 interface ScoreQuizModalProps {
   onClose: () => void;
@@ -39,6 +40,9 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   const [phase, setPhase] = useState<Phase>('guess');
   const [winner, setWinner] = useState<Winner>('black');
   const [margin, setMargin] = useState<string>('5');
+  const marginValue = margin.trim() ? Number(margin) : NaN;
+  const isMarginValid = Number.isFinite(marginValue) && marginValue >= 0;
+  const marginInputRef = useRef<HTMLInputElement>(null);
   const [actual, setActual] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<QuizStats>({ rounds: 0, sumError: 0, leaderHits: 0 });
@@ -64,7 +68,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   }
 
   const handleReveal = useCallback(async () => {
-    if (phase !== 'guess' || pendingReveal.current) return;
+    if (phase !== 'guess' || pendingReveal.current || !isMarginValid) return;
     const request = {};
     pendingReveal.current = request;
     const isCurrentRequest = () => pendingReveal.current === request
@@ -76,7 +80,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
       if (!isCurrentRequest()) return;
       const lead = result.blackScoreLead;
       setActual(lead);
-      const signedGuess = (winner === 'black' ? 1 : -1) * Math.abs(Number(margin) || 0);
+      const signedGuess = (winner === 'black' ? 1 : -1) * marginValue;
       const err = Math.abs(signedGuess - lead);
       const leaderRight = Math.sign(signedGuess) === Math.sign(lead) || Math.abs(lead) < 0.5;
       // One round per position. "Guess again" after seeing the answer is
@@ -98,7 +102,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
     } finally {
       if (pendingReveal.current === request) pendingReveal.current = null;
     }
-  }, [currentNode, nodeId, settings, winner, margin, phase]);
+  }, [currentNode, nodeId, settings, winner, marginValue, isMarginValid, phase]);
 
   const quizPositions = useMemo(() => collectQuizPositions(rootNode), [rootNode]);
 
@@ -117,12 +121,10 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
     setErrorMsg(null);
   }, [quizPositions, jumpToNode, nodeId]);
 
-  const signedGuess = (winner === 'black' ? 1 : -1) * Math.abs(Number(margin) || 0);
+  const signedGuess = (winner === 'black' ? 1 : -1) * (isMarginValid ? marginValue : 0);
   const roundError = actual !== null ? Math.abs(signedGuess - actual) : 0;
   const rating = useMemo(() => ratingFor(roundError), [roundError]);
   const avgError = stats.rounds > 0 ? stats.sumError / stats.rounds : 0;
-
-  const marginInputRef = useRef<HTMLInputElement>(null);
 
   const actualLeader: Winner | 'even' = actual === null
     ? 'even'
@@ -201,12 +203,25 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
                   min={0}
                   step={0.5}
                   value={margin}
+                  aria-invalid={!isMarginValid}
+                  aria-describedby={!isMarginValid ? 'score-quiz-margin-error' : undefined}
                   disabled={phase === 'evaluating'}
                   onChange={(e) => setMargin(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') void handleReveal(); }}
+                  onKeyDown={(e) => {
+                    if (isComposingKeyEvent(e)) return;
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void handleReveal();
+                    }
+                  }}
                   className="min-h-11 w-24 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-right text-[var(--ui-text)]"
                 />
               </label>
+              {!isMarginValid && (
+                <p id="score-quiz-margin-error" role="status" className="text-xs text-[var(--ui-danger)]">
+                  Enter a margin of 0 or more points.
+                </p>
+              )}
               {errorMsg && (
                 <div className="rounded border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] px-3 py-2 text-sm text-[var(--ui-danger)]">
                   {errorMsg}
@@ -271,7 +286,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
             <button
               type="button"
               onClick={() => void handleReveal()}
-              disabled={phase === 'evaluating'}
+              disabled={phase === 'evaluating' || !isMarginValid}
               aria-label={phase === 'evaluating' ? 'Evaluating score' : 'Reveal score'}
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
             >
