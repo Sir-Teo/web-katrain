@@ -13,6 +13,7 @@ import { assertHeaderNotificationsFit } from './lib/header-notification-check.mj
 import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
 import { assertPasteImportCancellation } from './lib/paste-import-cancel-check.mjs';
 import { assertPasteClipboardDraft } from './lib/paste-clipboard-draft-check.mjs';
+import { assertPasteSubmitKeyboard } from './lib/paste-submit-keyboard-check.mjs';
 import { assertClipboardCommandOrder } from './lib/clipboard-command-order-check.mjs';
 import { assertClipboardGameSelection } from './lib/clipboard-game-selection-check.mjs';
 import { assertDirectPasteOrder } from './lib/direct-paste-order-check.mjs';
@@ -4248,6 +4249,7 @@ async function main() {
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBoardTooltipsFit(cdp, screenshotDir);
     await assertPasteImportCancellation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPasteSubmitKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPasteClipboardDraft(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertClipboardCommandOrder(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertClipboardGameSelection(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);

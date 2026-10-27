@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The SGF/OGS paste editor now accepts Ctrl+Enter and ⌘+Enter through its
+  existing cancellable submit action, with a visible hint and accessible
+  shortcut metadata. Ordinary Enter still inserts a newline; empty input,
+  composition confirmation and repeated pending requests are ignored.
+  Four native screen-size flows pass, including a failed OGS download,
+  preserved editor focus, correction and successful SGF import. Evidence is
+  under `katrain-paste-submit-keyboard-native-BnJf4E`; app TypeScript, targeted
+  lint and 24 related cases pass. The production build passes (Vite phase
+  15.0 s), and the four flows also pass against that bundle under
+  `katrain-paste-submit-production-FmC20V`. An initial combined diagnostic failed a
+  selector expression, and its corrected run then failed an older held-read
+  precondition at 1,690 ms before the shortcut cases. Both logs remain under
+  `/tmp/katrain-paste-submit-native*.log`; the older clipboard fixture is
+  unchanged. The focused shortcut checks do not replace that failed run.
+
 - Lesson feedback now scrolls only its own pane when a short screen would hide
   the hint or answer explanation behind the footer. The 320×568 baseline hid
   44–64 px of feedback; the corrected pane moves 51–71 px while preserving

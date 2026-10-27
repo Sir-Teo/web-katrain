@@ -80,6 +80,7 @@ PWA. There is no analysis server to run.
 **Load and save**
 
 - Import SGF files by picker, paste, drag and drop, or Online-Go game URL.
+  In the paste editor, Ctrl+Enter or ⌘+Enter opens the record; Enter adds a new line.
   File and library ZIP imports honor SGF charset declarations, including
   Shift-JIS, EUC-KR, GBK, and Latin-1; downloads preserve text as UTF-8.
 - Import board positions from a photo or live camera capture, or by pasting a

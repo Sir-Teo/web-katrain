@@ -4,6 +4,7 @@ import { readClipboardText } from '../utils/clipboard';
 import { getPasteSgfInputInfo, type PasteSgfSubmitResult } from '../utils/pasteSgfInput';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 type PasteSgfStatusTone = 'info' | 'error';
 
@@ -145,6 +146,15 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
             ref={textareaRef}
             value={text}
             onChange={(event) => updateText(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)
+                || event.altKey || event.shiftKey || isComposingKeyEvent(event)
+              ) return;
+              event.preventDefault();
+              event.stopPropagation();
+              if (!event.repeat) void submit();
+            }}
             className="paste-sgf-modal-textarea min-h-40 w-full resize-y rounded-lg border ui-input px-3 py-2 font-mono text-sm text-[var(--ui-text)] sm:min-h-[220px]"
             placeholder="(;GM[1]...) or https://online-go.com/game/12345"
             aria-label="SGF text or OGS game URL"
@@ -152,6 +162,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
           />
           <div id="paste-sgf-helper" className="text-xs ui-text-faint">
             Paste a complete SGF, a game tree snippet, or a public Online-Go game URL.
+            <span className="block mt-1">Ctrl+Enter or ⌘+Enter to open.</span>
           </div>
           <div
             id="paste-sgf-detection"
@@ -211,6 +222,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
               onClick={submit}
               disabled={!text.trim() || isSubmitting}
               aria-label="Open pasted SGF or OGS URL"
+              aria-keyshortcuts="Control+Enter Meta+Enter"
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Opening...' : 'Open'}
