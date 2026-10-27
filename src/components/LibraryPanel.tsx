@@ -2792,7 +2792,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     autoComplete="off"
                     spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'ArrowDown' || isComposingKeyEvent(event)
+                        || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+                      const firstRow = libraryTreeRef.current?.querySelector<HTMLElement>('[data-library-row]');
+                      if (!firstRow) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      firstRow.focus();
+                    }}
                     aria-label="Search library"
+                    aria-keyshortcuts="ArrowDown"
                     placeholder="Search library…"
                     // Matching truncates past this anyway; stopping it at the
                     // input keeps a pasted record out of React state as well.

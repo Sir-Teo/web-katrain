@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Library search now supports Arrow Down to focus the first shown result;
+  the existing row arrow keys and Enter then browse and open games. The input
+  exposes `aria-keyshortcuts="ArrowDown"`. Modifier keys, IME composition and
+  an empty result set keep focus in search. Production baseline `FyUYRo`
+  confirms the prior key left focus in the field at all four sizes; candidate
+  `IR4Acl` passes desktop, two portrait phones and short landscape. Real
+  two-file SGF imports are filtered, browsed with native keys and opened;
+  each resulting 9x9 setup position matches the selected file exactly. The
+  same run checks no-result behavior, all four modifier keys and both
+  composition-event forms. Targeted lint, 61 existing Library/accessibility/
+  keyboard/search cases and the build pass (Vite phase 16.2 s). The environment
+  restarted during the initial build, which produced no completion result;
+  the reported build is its successful fresh replacement. The earlier
+  full-suite timing failure remains unresolved.
+
 - Clear Analysis Cache confirmation now scrolls within the screen and keeps
   its Close target from shrinking. Development baseline `ktMwAU` put the
   200%-text dialog at -500..1068 px on a 320x568 screen, with both action
