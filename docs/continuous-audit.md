@@ -345,6 +345,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Variation-copy feedback respects the latest copy action:** a native
+  regression held one variation write, completed a second, then rejected the
+  first. The clipboard correctly held the variation, but its success toast
+  was replaced by the old failure. The candidate list now checks the shared
+  clipboard request identity before publishing feedback. Its retry updates
+  share an operation identity so a successful retry replaces that failure.
+  All 12 native cases pass across 1440/390/320 px: rejection, timeout, a newer
+  SGF copy and genuine failure followed by native retry. Actual clipboard
+  contents and legacy attempt counts are checked; only the deliberately denied
+  current copy uses legacy fallback. App/test TypeScript, full lint and 42
+  related cases pass. The first phone fixture omitted the normally collapsed
+  Candidates section; opening it through its existing control repairs the
+  fixture without changing deadlines. That failed probe is retained.
+
 - **Lessons retain progress from other open tabs:** a two-tab native regression
   reached Capture's exercise in one tab, then finished Atari in the other.
   The second save replaced the entire record and deleted the reached exercise.
