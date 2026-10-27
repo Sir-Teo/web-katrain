@@ -8,6 +8,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Verification at `b7a92c3`, including report-aware engine-error copy feedback
+  and focused mobile actions clearing their toast, passes all 503 unit files
+  and 3,445 cases, with the existing 78 engine cases skipped in CI.
+  App/test TypeScript, full lint and 74 related cases pass. The production
+  build passes (Vite phase 13.1 s). This standard responsiveness sample meets
+  all five unchanged limits: first move 8.0 ms, median 1.2 ms, Settings 86.7 ms,
+  input latency 48 ms and longest task 67 ms. Earlier latency failures remain
+  unresolved; this sample does not establish their cause or a performance fix.
+  The complete integrated browser sweep passes all 11 layouts and every native
+  suite, with no competing test jobs. This includes the four Lessons practice
+  sizes, 28 engine-copy cases with touch/keyboard retry and preserved focus,
+  fast navigation, two-tab naming, image/text ordering, real clipboard reads,
+  PNG geometry/coordinates, import ownership, 1,500 nested folders, cross-tab
+  storage and final read/import recovery. Evidence is retained under
+  `/workspace/.katrain-audit-artifacts/katrain-batch-seventy-two-viewports`.
+
 - Verification at `59bd883`, including the Lessons practice-board shortcut,
   passes all 503 unit files and 3,445 cases, with 78 engine cases skipped in
   CI. App/test TypeScript, targeted lint and 38 related cases pass. The build
