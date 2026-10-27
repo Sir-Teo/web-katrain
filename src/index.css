@@ -5739,7 +5739,9 @@
 
     .settings-modal .settings-modal-body {
       display: grid !important;
-      grid-template-columns: minmax(9rem, 0.42fr) minmax(0, 1fr);
+      /* Enlarged text grows rems; keep the search minimum from consuming
+         the tab strip's space on a narrow landscape screen. */
+      grid-template-columns: minmax(min(9rem, 42%), 0.42fr) minmax(0, 1fr);
       grid-template-rows: auto minmax(0, 1fr);
       column-gap: 8px;
       row-gap: 8px;
@@ -6235,7 +6237,7 @@
     }
 
     .settings-modal .settings-modal-body {
-      grid-template-columns: 7rem minmax(0, 1fr);
+      grid-template-columns: min(7rem, 42%) minmax(0, 1fr);
     }
 
     .settings-modal .settings-tabs [role='tab'] {

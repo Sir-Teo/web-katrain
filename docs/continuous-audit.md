@@ -8,6 +8,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Landscape Settings now caps the search column's rem minimum at 42% of
+  its row, preserving room for the tab strip with enlarged text. Baseline
+  `YZMr6t` measured 288 px for search and only 177 px for a roughly 190 px
+  selected tab at 667x375/200%; at 320x240/200%, the strip had zero width.
+  Prototype `Hky2th` and built candidate `7RIoSN` pass eight landscape/text
+  cases with each selected tab fully visible, native filter/clear and tab
+  navigation working. Candidate Settings search also reveals the focused
+  board-theme choice in every case. The tightest strip now has 111 px, and
+  the earlier eight desktop/portrait/landscape cases plus three live resizes
+  pass again. The first extended baseline could not open the palette command
+  at 320x240/200% (`5cwZGc`); the measured baseline uses the direct F8 route to
+  the saved Shortcuts tab. An intervening environment restart interrupted a
+  second baseline; it is not counted as a pass. Targeted lint, 70 existing
+  cases and the build pass (Vite phase 17.5 s). The previous full-suite timing
+  failure remains unresolved.
+
 - Settings retains a usable content pane when enlarged text fills its
   header/search/tabs/footer. Production baseline `fOHQ4H` measured a zero-height
   pane and unreachable shortcut filter at 320x568 with 200% root text; narrow
