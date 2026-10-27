@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { unsupportedSgfBoardSize } from '../src/utils/boardSize';
 
 describe('unsupported SGF board size', () => {
+  it.each(['09:9', '9:09', '013:13', '19:019'])('accepts numerically square supported size %s', (size) => {
+    expect(unsupportedSgfBoardSize(`(;GM[1]FF[4]SZ[${size}];B[cc])`)).toBeNull();
+  });
   it('says nothing for the sizes the app actually supports', () => {
     for (const size of [9, 13, 19]) {
       expect(unsupportedSgfBoardSize(`(;GM[1]FF[4]SZ[${size}]KM[6.5];B[cc])`)).toBeNull();
@@ -18,10 +21,17 @@ describe('unsupported SGF board size', () => {
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[7];B[cc])')).toBe('7');
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[21];B[cc])')).toBe('21');
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[25];B[cc])')).toBe('25');
+    expect(unsupportedSgfBoardSize('(;SZ[05:5];B[cc])')).toBe('05:5');
   });
 
   it('names a non-square board, which has no layout here at all', () => {
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[19:13];B[cc])')).toBe('19:13');
+    expect(unsupportedSgfBoardSize('(;SZ[09:13])')).toBe('09:13');
+    expect(unsupportedSgfBoardSize('(;SZ[13:019])')).toBe('13:019');
+  });
+
+  it.each(['9:9junk', '9:9.5', '19:0x13', '19:1.9e1', '9junk:9'])('retains the warning for malformed composed size %s', (size) => {
+    expect(unsupportedSgfBoardSize(`(;SZ[${size}])`)).toBe(size);
   });
 
   it('stays quiet when there is no real board to name', () => {

@@ -22,8 +22,9 @@ export const unsupportedSgfBoardSize = (sgfText: string): string | null => {
   const [width, height] = raw.split(':').map((part) => part.trim());
   const parsedWidth = Number.parseInt(width ?? '', 10);
   if (!Number.isFinite(parsedWidth)) return null;
-  // SGF allows a non-square SZ[w:h]; this app has no layout for one.
-  if (height !== undefined && height !== width) return raw;
+  // SGF allows a non-square SZ[w:h]; compare integer values so 09:9 is square.
+  const integer = /^[+-]?\d+$/;
+  if (height !== undefined && (!integer.test(width ?? '') || !integer.test(height) || Number(height) !== parsedWidth)) return raw;
   return isBoardSize(parsedWidth) ? null : raw;
 };
 

@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- SGF square sizes now compare numeric dimensions, so valid `SZ[09:9]`,
+  `9:09`, `013:13` and `19:019` no longer produce an unsupported-size notice.
+  Four new cases failed before the fix; native desktop/phone file imports
+  also showed a 9×9 board alongside a warning that `09:9` was unsupported
+  (`cmbdML`). Integer-format checks retain warnings for malformed components,
+  rectangles and unsupported squares such as `05:5`. All 36 related cases,
+  targeted lint, test TypeScript and the build pass (Vite phase 13.7 s).
+  Fourteen production file imports pass for supported/malformed/unsupported
+  values, including exact setup-stone coordinates and the actual fallback
+  board size, under `katrain-sgf-square-production-IB5tEe` (`PSvtv4`).
+
 - Camera capture now keeps focus inside while encoding a JPEG and focuses
   Cancel after an encoding failure, preserving an enabled control chosen while
   waiting. A synthetic-camera baseline moved focus to Body and let Tab leave
