@@ -54,7 +54,7 @@ import {
     syncUploadedModelUrl,
     validateModelUploadFile,
 } from '../utils/modelUpload';
-import { copyTextToClipboard } from '../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../utils/clipboard';
 import { OBJECT_URL_UNAVAILABLE_MESSAGE, createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
 import { fetchBlobWithProgress } from '../utils/downloadProgress';
 import {
@@ -220,6 +220,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const humanModelUploadInputRef = React.useRef<HTMLInputElement>(null);
     const humanBlobUrlRef = React.useRef<string | null>(null);
     const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
+    const copyUrlFeedback = React.useRef<{ mounted: boolean; timer: number | null }>({ mounted: false, timer: null });
+    React.useEffect(() => {
+        const feedback = copyUrlFeedback.current;
+        feedback.mounted = true;
+        return () => {
+            feedback.mounted = false;
+            if (feedback.timer !== null) window.clearTimeout(feedback.timer);
+        };
+    }, []);
     const [downloadingUrl, setDownloadingUrl] = React.useState<string | null>(null);
     const modelDownloadRef = React.useRef<{
         controller: AbortController;
@@ -570,15 +579,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     };
 
     const handleCopyUrl = async (url: string) => {
-        const onCopied = () => {
+        const request = beginClipboardWriteRequest();
+        const copied = await copyTextToClipboard(url, undefined, undefined, request);
+        const feedback = copyUrlFeedback.current;
+        if (copied && isClipboardWriteRequestCurrent(request) && feedback.mounted) {
+            if (feedback.timer !== null) window.clearTimeout(feedback.timer);
             setCopiedUrl(url);
-            window.setTimeout(() => {
-                setCopiedUrl((current) => (current === url ? null : current));
+            feedback.timer = window.setTimeout(() => {
+                feedback.timer = null;
+                setCopiedUrl(null);
             }, 2000);
-        };
-
-        if (await copyTextToClipboard(url)) {
-            onCopied();
         }
     };
 

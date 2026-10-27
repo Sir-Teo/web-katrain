@@ -345,6 +345,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Model-URL feedback follows the latest copy and its lifetime:** a native
+  regression held URL A's completion, copied URL B, then completed A. The
+  clipboard held B but "Copied" moved to A's row. Model-URL feedback now
+  checks shared request ownership. A second native regression copied the same
+  URL twice one second apart; the first reset cleared the second acknowledgement
+  after 1.1 s. A new success now replaces the earlier reset timer, retaining
+  the existing two-second duration. Closing Settings clears the timer and
+  prevents pending completions from scheduling feedback after unmount.
+  All 18 native cases pass at 1440/390/320 px: late success/rejection/timeout,
+  repeat-copy lifetime and eventual expiry, current denial/retry and closing
+  while pending. Real clipboard contents and legacy counts are checked, with
+  only the intentionally denied current copy using fallback. App/test TypeScript,
+  full lint and 65 related cases pass. Both original failures, JSON evidence
+  and the URL-ordering screenshots are retained.
+
 - **Variation actions name their context for screen readers:** the browser's
   accessibility tree previously exposed just "Copy" and "Keep in tree".
   Their names now identify the variation's starting move and the tree action's

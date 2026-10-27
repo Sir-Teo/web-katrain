@@ -62,6 +62,7 @@ import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
 import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
 import { assertModelStorageOrdering } from './lib/model-storage-check.mjs';
 import { assertModelReplacement } from './lib/model-replacement-check.mjs';
+import { assertModelUrlCopy } from './lib/model-url-copy-check.mjs';
 import { assertShortcutRecording } from './lib/shortcut-recording-check.mjs';
 import { assertSettingsChoiceKeyboard } from './lib/settings-choice-keyboard-check.mjs';
 import { assertZipPathLimits } from './lib/zip-path-limit-check.mjs';
@@ -4269,6 +4270,7 @@ async function main() {
     await assertShortcutRecording(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertSettingsChoiceKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertModelReplacement(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertModelUrlCopy(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertModelStorageOrdering(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertPhotoTraceRaces(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBotPickerKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
