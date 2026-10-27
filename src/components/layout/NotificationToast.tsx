@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaCheck, FaCheckCircle, FaCopy, FaExclamationTriangle, FaInfoCircle, FaTimes } from 'react-icons/fa';
-import { copyTextToClipboard } from '../../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../../utils/clipboard';
 import { useDocumentFlag } from '../../hooks/useDocumentFlag';
 import { revealFocusedButton } from '../../utils/revealFocusedButton';
 
@@ -92,8 +92,9 @@ export function NotificationToast({
 
   const handleCopy = async () => {
     const request = ++copyRequestRef.current;
-    const copied = await copyTextToClipboard(notification.copyText ?? notification.message);
-    if (copyRequestRef.current !== request) return;
+    const clipboardRequest = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(notification.copyText ?? notification.message, undefined, undefined, clipboardRequest);
+    if (copyRequestRef.current !== request || !isClipboardWriteRequestCurrent(clipboardRequest)) return;
     setCopyState(copied ? 'copied' : 'failed');
   };
 

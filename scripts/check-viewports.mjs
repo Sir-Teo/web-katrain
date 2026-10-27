@@ -25,6 +25,7 @@ import { assertProGameReplacement } from './lib/pro-game-replacement-check.mjs';
 import { assertNoteDraftRecovery } from './lib/note-draft-recovery-check.mjs';
 import { assertCacheClearDialog } from './lib/cache-clear-dialog-check.mjs';
 import { assertNotificationInteraction } from './lib/notification-interaction-check.mjs';
+import { assertNotificationCopyOrder } from './lib/notification-copy-order-check.mjs';
 import { assertLazyModalInput } from './lib/lazy-modal-input-check.mjs';
 import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
 import { assertLibraryPendingNames } from './lib/library-pending-names-check.mjs';
@@ -4262,6 +4263,7 @@ async function main() {
     await assertCacheClearDialog(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPendingSaveKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNotificationInteraction(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNotificationCopyOrder(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLazyModalInput(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryCrossTab(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryPendingNames(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);

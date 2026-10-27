@@ -368,6 +368,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Notification-copy feedback respects newer clipboard actions:** a native
+  regression copied error details, opened Settings and copied a model URL,
+  then completed the held error copy. The clipboard held the model URL but
+  the error's button incorrectly said "Notification copied". Notification
+  copy now checks shared clipboard request ownership alongside its existing
+  notification-specific counter. All 18 native cases pass at 1440/390/320 px:
+  old success/rejection/timeout after a newer URL copy, changed notification,
+  a newer notification copy and actual denial followed by native retry.
+  Actual clipboard contents and legacy counts are checked. App/test TypeScript,
+  full lint, 56 related cases and the build pass (Vite phase 15.3 s). The
+  original failed acknowledgement and its screenshot/JSON remain recorded.
+
 - **Denied model-URL copies explain what happened:** failed modern and legacy
   copies previously left the model row unchanged. The affected row now shows
   a persistent inline explanation linked to Copy URL through `aria-describedby`
