@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Changing the selected Pro Library game now starts its detail pane at the
+  top. Native wheel scrolling followed by keyboard selection previously kept
+  the new preview 186/342 px down on phone/narrow phone, leaving its board
+  above the pane (`eiQzNR`). Both keyboard and pointer changes now reset that
+  pane while preserving row focus, page position and the loaded game; selecting
+  the same game retains its reading position (`6v4PXz`). The desktop and short
+  landscape fixtures fit without detail scrolling and are recorded separately.
+  Targeted lint, 37 related cases and the build pass (Vite phase 25.6 s).
+  The same checks pass against production under
+  `katrain-pro-detail-scroll-production-sLLpbw` (`JIABtE`).
+
 - Pro Library now supports Down Arrow from search into the displayed game,
   then Up/Down/Home/End browsing with local results-pane scrolling. Browsing
   changes the preview while leaving the loaded board unchanged; composition

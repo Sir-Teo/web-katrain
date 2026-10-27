@@ -41,6 +41,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLUListElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const browseHelpId = React.useId();
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);
   const [selectedId, setSelectedId] = useState<string>(PRO_GAMES[0]?.id ?? '');
@@ -49,6 +50,10 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
     () => filtered.find((g) => g.id === selectedId) ?? filtered[0],
     [filtered, selectedId],
   );
+
+  React.useLayoutEffect(() => {
+    if (detailRef.current) detailRef.current.scrollTop = 0;
+  }, [selected?.id]);
 
   const focusGame = (index: number) => {
     const next = Math.max(0, Math.min(filtered.length - 1, index));
@@ -262,7 +267,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
           </div>
 
           {/* Detail / preview */}
-          <div className="pro-games-detail flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+          <div ref={detailRef} className="pro-games-detail flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
             {selected ? (
               <>
                 <div className="pro-games-preview mx-auto w-full max-w-[280px]">
