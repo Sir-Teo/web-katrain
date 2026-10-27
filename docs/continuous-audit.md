@@ -8,6 +8,25 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Mobile-panel notifications now anchor above the tab bar without reserving
+  room for a PWA card that yields while the notice is shown. Full attempt 114
+  passes all 11 base layouts and the native prefix through Library tags, then
+  fails a 390 px IndexedDB case when Dismiss leaves an error visible. Pointer
+  capture `ELd8co` reproduces the failure: the helper locates Close at y=598,
+  but its trusted touch/click lands on the Library status bar after the toast
+  moves. The PWA card's ResizeObserver clears a stale 131 px reserve after the
+  notification appears. Controlled baseline `7wcr1w` holds only that hidden-card
+  measurement, then releases it between locating and tapping Close. All four
+  normal/200% phone cases move 131 px and miss. The first baseline additionally
+  stalls cleaning up an underlying menu opened by a missed tap; the corrected
+  baseline resets through navigation. A CSS prototype and final production
+  `9w3WYs` keep Close stationary in all four cases, dismiss via the original
+  coordinates and preserve board and Library contents. The original four empty
+  Library cases and three header-notification layouts pass. Fifty-nine existing
+  tests, runner/helper lint and build pass (Vite 16.6 s). Attempt 114 remains a
+  failed full run; later workflows were not executed. Large-text message width
+  in the narrow toast remains a separate visual follow-up.
+
 - Full unit verification passes at `f31dd5b`: 515 files and 3,560 tests pass,
   with two files/eight tests skipped, in 707.2 s. Repository-wide lint passes.
   A new external clipboard diagnostic retains the original assertions and
