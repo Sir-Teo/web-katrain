@@ -8,6 +8,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification now passes at `4de8828`: 515 files pass and two are
+  skipped; 3,553 tests pass and eight are skipped, in 761.1 s. Repository-wide
+  lint also passes on that revision. This is a fresh complete run after the
+  stale Kifu source assertion was corrected; the earlier failed run remains
+  recorded below. The diagnostic wrapper around the original engine-error
+  copy helper passes all four isolated cases (`6K1xsg`), retaining every
+  assertion and timing budget. Successful native writes take at most 22.7 ms
+  there. Its snapshots identify each case before viewport changes and retain
+  native-promise, long-task and debugging-call timings for a subsequent full
+  browser run. That isolated pass does not explain the older full-browser
+  timing failure, and no new complete browser pass is claimed yet.
+
 - Long unbroken Kifu player names and study titles now wrap in print, keeping
   the board within the page. Baseline `4sfNNV` expands the print header to
   1,671/3,343 px at normal/200% text; all eight PDFs lose full names/title and
