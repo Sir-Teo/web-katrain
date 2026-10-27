@@ -9,6 +9,7 @@ import { getIndexedDB, getLocalStorage, readLocalStorage, removeLocalStorage, wr
 import { normalizeSearchText, toSearchTerms } from './searchTerms';
 import { getOgsGameId } from './ogsGameIdentity';
 import { clearFallbackCache, readFallbackCache, writeFallbackCache } from './libraryFallbackCache';
+import { normalizeSgfUtf8 } from './sgfEncoding';
 
 export type LibraryBase = {
   id: string;
@@ -37,6 +38,7 @@ export type LibraryFile = LibraryBase & {
   type: 'file';
   sgf: string;
   moveCount: number;
+  /** Bytes in the exported UTF-8 SGF, including its charset declaration. */
   size: number;
   metadata: LibraryFileMetadata;
   favorite?: boolean;
@@ -109,6 +111,10 @@ const createId = (): string => {
   }
   return `lib_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 };
+
+// Match Blob/ZIP exports, rather than counting UTF-16 string code units.
+const getSgfByteSize = (sgf: string): number =>
+  new TextEncoder().encode(normalizeSgfUtf8(sgf)).byteLength;
 
 const numberProp = (value: string | undefined): number | undefined => {
   if (!value) return undefined;
@@ -533,7 +539,7 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         type: 'file',
         sgf,
         moveCount: countMoves(sgf),
-        size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
+        size: getSgfByteSize(sgf),
         metadata,
         ...(raw.favorite === true ? { favorite: true } : {}),
         ...(tags.length > 0 ? { tags } : {}),
@@ -1021,7 +1027,7 @@ export const createLibraryItem = (
     createdAt: timestamp,
     updatedAt: timestamp,
     moveCount: countMoves(sgf),
-    size: sgf.length,
+    size: getSgfByteSize(sgf),
     metadata: extractLibraryMetadata(sgf),
     parentId,
     type: 'file',
@@ -1062,7 +1068,7 @@ export const updateLibraryFileSgf = (
       sgf: nextSgf,
       updatedAt: timestamp,
       moveCount: countMoves(nextSgf),
-      size: nextSgf.length,
+      size: getSgfByteSize(nextSgf),
       metadata: extractLibraryMetadata(nextSgf),
     };
   });

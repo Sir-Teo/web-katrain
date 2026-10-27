@@ -90,6 +90,38 @@ describe('library storage helpers', () => {
     expect(item.metadata.black).toBe('Black Player');
   });
 
+  it.each(['ASCII', '碁の研究', 'Éloïse', 'Review 🏆', 'Unpaired \ud800'])('counts UTF-8 download bytes for %s', (comment) => {
+    const text = `(;FF[4]CA[UTF-8]SZ[9]C[${comment}])`;
+    const item = createLibraryItem('Byte size', text);
+    expect(item.size).toBe(new Blob([text]).size);
+  });
+
+  it.each(['', 'CA[ISO-8859-1]'])('includes the exported UTF-8 declaration when the stored declaration is %s', (declaration) => {
+    const item = createLibraryItem('Charset bytes', `(;${declaration}SZ[9]C[碁])`);
+    expect(item.size).toBe(new Blob(['(;CA[UTF-8]SZ[9]C[碁])']).size);
+    expect(item.sgf).toBe(`(;${declaration}SZ[9]C[碁])`);
+  });
+
+  it('repairs legacy character counts when reading saved games and backups', () => {
+    const text = '(;FF[4]CA[UTF-8]SZ[9]PB[井山裕太]C[Review 🏆])';
+    const item = { ...createLibraryItem('Legacy bytes', text), size: text.length };
+    const expected = new Blob([text]).size;
+    const normalized = normalizeLibraryItems([item]);
+    expect(normalized[0]).toMatchObject({ id: item.id, sgf: text, size: expected });
+    expect(getLibraryStats(normalized).size).toBe(expected);
+    const backup = parseLibraryBackup(JSON.stringify({ version: 2, items: [item] }));
+    expect(backup[0]).toMatchObject({ id: item.id, sgf: text, size: expected });
+  });
+
+  it('counts UTF-8 bytes across an edited game and preserved collection games', () => {
+    const tail = '(;SZ[9]PB[趙治勲]C[Second game 🏆])';
+    const item = createLibraryItem('Collection bytes', `(;SZ[9]PB[First])\n${tail}`);
+    const [updated] = updateLibraryFileSgf([item], item.id, '(;CA[UTF-8]SZ[9]PB[Éloïse];B[cc])');
+    if (updated.type !== 'file') throw new Error('expected a file');
+    expect(updated.sgf).toContain(tail);
+    expect(updated.size).toBe(new Blob([updated.sgf]).size);
+  });
+
   it('matches library search queries against SGF metadata', () => {
     const item = createLibraryItem(
       'Round 3',

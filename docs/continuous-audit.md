@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Library sizes now count UTF-8 export bytes, including the encoding
+  declaration, when creating, updating or reading games and backups. The
+  native desktop/phone baseline displayed 1.5 KB for an actual 2,752-byte SGF
+  (`dMpOvw`); restored, imported and reloaded rows now display 2.7 KB (`PGby78`).
+  Actual downloads preserve the complete game and match the byte count.
+  All 328 cases in 42 related files, targeted lint, test/application type
+  checks and the build pass (Vite phase 32.6 s). The same native import,
+  restore, reload and download checks pass against production under
+  `katrain-library-utf8-production-zpKBgh` (`txI4V0`). Earlier standalone probe
+  selector, hover and restore-readiness corrections are retained separately.
+
 - The full viewport run at `8360a09` passed all 11 base layouts and the
   workflows through Library copying, clipboard fallback and image copying,
   including the new four-size camera regression. It stopped inside compact
