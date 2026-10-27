@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The next integrated browser sweep at `dbff8cc` also failed a timing
+  precondition: a held clipboard read completed at 1,211 ms while choosing a
+  Library game at 320 px, beyond the unchanged 1,000 ms fixture limit and
+  1,200 ms read timeout. All 11 layouts and earlier Library/scoring/import
+  suites passed; new-game and later suites did not run. Evidence remains under
+  `/workspace/.katrain-audit-artifacts/katrain-batch-seventy-eight-viewports`.
+  Diagnostic-only phase timings and root history now accompany this fixture.
+  Its isolated 18 cases pass at 1440/390/320 px, with read completions at
+  18–253 ms, under `katrain-clipboard-selection-diagnostic-WZIyJE`. That focused
+  pass does not replace the failed integrated run or establish its cause.
+
 - Full unit verification at `f39d2c8` passes 503 files and 3,450 cases, with
   78 existing engine skips. The build passes (Vite phase 12.9 s), and this
   standard responsiveness sample meets all five unchanged limits at
