@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Resignation confirmation now scrolls within the viewport and keeps its
+  Close button from shrinking beside the heading. Production baseline
+  `Mnb1Mk` placed the dialog at -124..692 px on a 320x568 screen with 200%
+  root text, and -143..463 px on a 568x320 screen; the latter also left the
+  initially focused Cancel partly outside the viewport. The narrow Close
+  target shrank to 32.6 px. Candidate `WMJeMX` passes all eight combinations
+  of desktop, two portrait phones and short landscape at 100%/200% text:
+  the dialog fits, initial Cancel is visible, every button can be scrolled
+  into view and activated, and mobile targets remain at least 44x44 px.
+  Native Cancel preserves the board; native Confirm preserves its move and
+  exports the expected resignation result in all eight actual SGF copies.
+  Targeted lint, 45 existing dialog/layout cases and the build pass (Vite
+  phase 13.1 s). These checks cover text enlargement, not physical-device
+  browser zoom. The earlier full-suite timing failure remains unresolved.
+
 - Closing Library during a game save now retains the save acknowledgement.
   Baseline `prGrT5` persisted the exact current SGF at 1440, 390 and 320 px,
   but unmounting the panel suppressed its title update and success feedback,
