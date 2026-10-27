@@ -70,6 +70,7 @@ export async function assertClipboardFallbackOrder(cdp,appUrl,runDir,screenshotD
         const elapsed=await evaluate(cdp,`performance.now()-fallbackAudit.requests[${index}].started`);
         assert.ok(elapsed<1000,`The newer copy must finish before the old 1200 ms timeout (${elapsed} ms)`);
         const expectedLegacy=legacyBefore+(newerRoute==='legacy'?1:0);
+        const latestFeedback=await evaluate(cdp,'document.querySelector(".notification-toast-message")?.title');
         assert.equal(await evaluate(cdp,'fallbackAudit.legacy.length'),expectedLegacy);
         assert.ok((await evaluate(cdp,'fallbackOriginals.clipboard.readText()')).includes('GN[Newer clipboard]'));
         if(outcome==='rejection')await evaluate(cdp,`fallbackAudit.requests[${index}].reject(new Error('Old write denied'));void 0`);
@@ -77,6 +78,7 @@ export async function assertClipboardFallbackOrder(cdp,appUrl,runDir,screenshotD
         await settle();
         assert.ok((await evaluate(cdp,'fallbackOriginals.clipboard.readText()')).includes('GN[Newer clipboard]'),'A stale fallback must not overwrite the newer native clipboard content');
         assert.equal(await evaluate(cdp,'fallbackAudit.legacy.length'),expectedLegacy,'Only the latest request may use the legacy route');
+        assert.equal(await evaluate(cdp,'document.querySelector(".notification-toast-message")?.title'),latestFeedback,'An older copy must not replace the latest copy feedback');
         cases.push({newerRoute,outcome});
       }
       const audit=await evaluate(cdp,'({clicks:fallbackAudit.clicks,legacy:fallbackAudit.legacy})');

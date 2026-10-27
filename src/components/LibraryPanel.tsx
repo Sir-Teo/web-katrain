@@ -107,7 +107,7 @@ import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
 import { getOgsGameId } from '../utils/ogsGameIdentity';
 import { getVisibleLibraryTreeRows, libraryTreeIndent } from '../utils/libraryTreeRows';
-import { copyTextToClipboard } from '../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../utils/clipboard';
 import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
@@ -1393,7 +1393,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleCopySgf = async (item: LibraryFile) => {
     const operationId = `library-copy-sgf:${item.id}`;
-    if (await copyTextToClipboard(normalizeSgfUtf8(item.sgf))) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(normalizeSgfUtf8(item.sgf), undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
       onToast(`Copied "${item.name}" as SGF.`, 'success', undefined, operationId);
     } else {
       onToast('Could not copy SGF. Clipboard access is unavailable; use Download SGF to save the file.', 'error', undefined, operationId);

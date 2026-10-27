@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `449d389` passes 502 files and 3,439 cases, with
+  78 engine cases skipped in CI. This run uses one worker and keeps the
+  existing timeouts; the earlier two-worker failure is retained below.
+  App/test TypeScript, full lint and all 18 native two-tab naming cases pass.
+  The production build passes (Vite phase 13.4 s). Standard responsiveness
+  passes first move, median, Settings and longest task at
+  11.0/1.1/100.3/149 ms, but input latency reaches 216 ms against the unchanged
+  150 ms limit on Back 10. This is a failed timing run; the much larger prior
+  Settings stall also remains unresolved. Integrated browser verification
+  is running on the frozen `449d389` worktree.
+
 - Verification at `96e0e08` passes 3,433 cases but retains one full-suite
   failure: the New Zealand engine-history case exceeds its unchanged 5 s
   timeout at 5.175 s. One isolated diagnostic passes all 30 cases in that
@@ -268,6 +279,15 @@ reproduced failures separate from candidates that still need investigation.
   as an unresolved timing outlier, rather than claiming a production fix.
 
 ## Changes completed
+
+- **Older Library copies no longer replace newer success messages:** a native
+  browser regression showed that the clipboard correctly held the newer
+  game's SGF, but an older rejected copy replaced its success toast with
+  "Could not copy SGF." Library copy feedback now checks the same shared
+  request as the clipboard write. All 12 native rejection/timeout cases pass
+  across desktop and phone widths, using 24 trusted Copy SGF actions and six
+  real legacy copies; both clipboard contents and the latest toast persist.
+  App TypeScript, targeted lint and all 16 clipboard unit cases pass.
 
 - **Pending Library names are checked when they are saved:** three regressions
   reproduced conflicting names when another tab saved a game or folder after
