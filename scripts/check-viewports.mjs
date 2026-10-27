@@ -3669,7 +3669,9 @@ async function main() {
         });
         await smokeModal({
           name: 'save to library',
-          selector: '[aria-labelledby="save-to-library-title"]',
+          // Folder loading has the same visible title. Composition belongs to
+          // the ready naming form, after the cancellable read completes.
+          selector: '[aria-labelledby="save-to-library-title"]:has(#save-to-library-name)',
           closeLabel: 'Close save to Library',
           open: openViaPalette('save-library'),
           afterOpen: async (dialog) => {

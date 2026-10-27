@@ -8,6 +8,15 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The full browser attempt at `7db8dbe` completed all 11 base viewports but
+  failed four of them. Its Save Copy composition smoke selected the new
+  folder-loading dialog by title, then treated replacement with the ready
+  naming form as a close. The unclosed form caused subsequent covered-board
+  and shortcut failures. The composition selector now requires the actual
+  name input, retaining the original composition assertions and wait budget.
+  The failed attempt remains under `katrain-batch-eighty-two-layouts`; it did
+  not reach the later native helper suite and is not a complete browser pass.
+
 - Save Copy now shows a cancellable dialog while reading Library folders.
   A held native IndexedDB read previously left no overlay at four sizes:
   Pass changed the board and Escape did not prevent the older save dialog
