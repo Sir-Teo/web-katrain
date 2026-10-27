@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Camera capture now keeps focus inside while encoding a JPEG and focuses
+  Cancel after an encoding failure, preserving an enabled control chosen while
+  waiting. A synthetic-camera baseline moved focus to Body and let Tab leave
+  the camera on desktop and phone (`XJmsW6`). The new four-size native regression
+  passes pending Tab/Shift+Tab containment, real JPEG bytes, successful focus
+  return, null-encoding recovery, chosen-control preservation, stream shutdown
+  and rejection of a late result after camera reopening (`GHaR47`). It owns a
+  separate fake-camera browser; other viewport checks keep their device flags.
+  Targeted lint, 37 related cases and the build pass (Vite phase 12.2 s).
+  The same regression passes against production under
+  `katrain-camera-focus-production-orK9DX`. An earlier navigation timeout
+  occurred before camera checks; its evidence is retained (`WMcvRb`). The
+  owned dev server responded in 8.3 s, was restarted, and the baseline then
+  completed with the original timeout. This is not an application timing fix.
+
 - Pro Library now reveals the selected result after Surprise Me and featured
   game choices while keeping focus on the initiating control. The native
   baseline left the selected name outside the results pane on phone/narrow/

@@ -67,6 +67,7 @@ import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
 import { assertOgsSyncSave } from './lib/ogs-sync-save-check.mjs';
 import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
 import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
+import { assertCameraCaptureFocus } from './lib/camera-capture-focus-check.mjs';
 import { assertModelStorageOrdering } from './lib/model-storage-check.mjs';
 import { assertModelReplacement } from './lib/model-replacement-check.mjs';
 import { assertModelUrlCopy } from './lib/model-url-copy-check.mjs';
@@ -4288,6 +4289,7 @@ async function main() {
     await assertModelUrlCopy(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertModelStorageOrdering(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertPhotoTraceRaces(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertCameraCaptureFocus(`http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBotPickerKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertOgsSyncCancellation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertOgsSyncSave(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
