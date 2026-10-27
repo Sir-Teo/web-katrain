@@ -53,7 +53,7 @@ describe('SettingsModal', () => {
     const shortLandscapeBodyRule = css.match(/\.settings-modal \.settings-modal-body \{[^}]+\}/)?.[0] ?? '';
 
     expect(source).toContain('settings-modal-body min-h-0');
-    expect(source).toContain('settings-modal-content min-h-0 flex-1 overflow-y-auto');
+    expect(source).toContain('settings-modal-content min-h-32 flex-1 overflow-y-auto');
     expect(source).toContain('settings-modal-header sticky');
     expect(source).toContain('settings-modal-footer sticky');
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.settings-modal \.settings-modal-header,[\s\S]*padding-top: 8px !important;/);

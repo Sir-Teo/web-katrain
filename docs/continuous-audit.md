@@ -8,6 +8,28 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Settings retains a usable content pane when enlarged text fills its
+  header/search/tabs/footer. Production baseline `fOHQ4H` measured a zero-height
+  pane and unreachable shortcut filter at 320x568 with 200% root text; narrow
+  tab labels also overlapped. The pane now has an 8rem minimum, the body can
+  scroll when needed and tabs keep their label widths in their own horizontal
+  scroller. Selection and resize reveal the active tab horizontally without
+  scrolling the current setting. Prototype `oTOyDk` passes eight cases;
+  built candidate `UYjWSL` passes all eight plus three live resizes, native
+  filtering/clearing, all tab clicks and keyboard navigation, with the board
+  unchanged. The previously blocked long-search run now passes all 32 cases
+  (`1kSEQG`), followed by the original Settings backend/theme/tab keyboard and
+  search-reveal checks. Targeted lint and 86 existing cases pass after updating
+  one source assertion that required the obsolete zero-height minimum. Build
+  passes (Vite phase 23.1 s). The unchanged production responsiveness check
+  passes: Settings 40/120 ms, first move 7.72/25 ms, subsequent median 1.12/5 ms,
+  trusted-input INP 88/150 ms and no long tasks. Its first launch produced no
+  measurements because the temporary path exceeded Chrome's socket-path limit;
+  captured stderr identifies that cause, and a shorter workspace temp path
+  fixes launch without changing assertions or budgets. Root-text enlargement
+  is not physical-browser zoom. The prior full-suite timing failure remains
+  unresolved.
+
 - Command search, Settings search, keyboard help and shortcut customization
   now use the shared 200-character input limit, matching Library and Pro Games.
   Their no-results messages wrap long tokens. Production baseline `Q0PHqs`

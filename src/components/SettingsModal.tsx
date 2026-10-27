@@ -308,6 +308,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     // opened the next tab mid-way (or at its foot) with no heading in view.
     // Layout effect, so the reset lands before a search result's reveal runs.
     const contentRef = React.useRef<HTMLDivElement>(null);
+    const tabsRef = React.useRef<HTMLDivElement>(null);
+    React.useLayoutEffect(() => {
+        const tabs = tabsRef.current;
+        if (!tabs) return;
+        const revealSelectedTab = () => {
+            const selected = tabs.querySelector<HTMLElement>('[aria-selected="true"]');
+            if (!selected || tabs.scrollWidth <= tabs.clientWidth) return;
+            const bounds = tabs.getBoundingClientRect();
+            const item = selected.getBoundingClientRect();
+            // Scroll only the tab strip, keeping the current setting in view.
+            if (item.left < bounds.left) tabs.scrollLeft += item.left - bounds.left;
+            else if (item.right > bounds.right) tabs.scrollLeft += item.right - bounds.right;
+        };
+        revealSelectedTab();
+        const observer = new ResizeObserver(revealSelectedTab);
+        observer.observe(tabs);
+        return () => observer.disconnect();
+    }, [activeTab]);
     React.useLayoutEffect(() => {
         if (!failedCopyUrl || activeTab !== 'ai') return;
         const index = OFFICIAL_MODELS.findIndex(model => model.url === failedCopyUrl);
@@ -697,11 +715,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         <FaTimes />
                     </button>
                 </div>
-                <div className="settings-modal-body min-h-0 px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">
+                <div className="settings-modal-body min-h-0 px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-x-hidden overflow-y-auto">
                     {/* Search. Four tabs and 80-odd controls is more than anyone
                         should have to hunt through by eye; typing a word jumps
                         straight to the control, switching tabs on the way. */}
-                    <div className="settings-search relative mb-4">
+                    <div className="settings-search relative mb-4 shrink-0">
                         <input
                             type="search"
                             maxLength={MAX_SEARCH_QUERY_LENGTH}
@@ -771,7 +789,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                     </div>
 
                     {/* Tab Navigation */}
-                    <div className="settings-tabs flex w-full min-w-0 border-b mb-5"
+                    <div ref={tabsRef} className="settings-tabs flex w-full min-w-0 shrink-0 overflow-x-auto border-b mb-5"
                         role="tablist"
                         aria-orientation="horizontal"
                     >
@@ -798,7 +816,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                         setActiveTab(nextTabId);
                                         focusSettingsTab(nextTabId);
                                     }}
-                                    className={`settings-tab min-w-0 flex-1 whitespace-nowrap px-2 py-2 text-sm font-medium transition-colors sm:px-4 ${
+                                    className={`settings-tab min-w-max flex-1 shrink-0 whitespace-nowrap px-2 py-2 text-sm font-medium transition-colors sm:px-4 ${
                                         isActive
                                             ? 'settings-tab-active border-b-2'
                                             : ''
@@ -811,8 +829,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         })}
                     </div>  
                 
-                    {/* Tab Content */}  
-                    <div ref={contentRef} className="settings-modal-content min-h-0 flex-1 overflow-y-auto space-y-6">
+                    {/* Keep room for controls when enlarged text fills the
+                        chrome; the outer body can scroll to this pane. */}
+                    <div ref={contentRef} className="settings-modal-content min-h-32 flex-1 overflow-y-auto space-y-6">
                         {activeTab === 'general' && (  
                             <div
                                 id="panel-general"
