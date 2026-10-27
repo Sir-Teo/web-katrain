@@ -14,7 +14,7 @@ export async function assertModelUrlCopy(cdp, appUrl, output) {
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await cdp.send('Browser.grantPermissions', { origin: new URL(appUrl).origin, permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
   try {
-    for (const width of [1440, 390, 320]) {
+    for (const width of [1440, 390, 320, 568]) {
       activeWidth = width;
       const mobile = width < 600;
       const click = async (selector, text) => {
@@ -30,7 +30,7 @@ export async function assertModelUrlCopy(cdp, appUrl, output) {
         localStorage.setItem('web-katrain:settings:v3',JSON.stringify({soundEnabled:false,loadSgfFastAnalysis:false}));
       ` });
       try {
-        await setViewport(cdp, { width, height: mobile ? (width === 320 ? 568 : 844) : 900, mobile });
+        await setViewport(cdp, { width, height: width === 568 ? 320 : mobile ? (width === 320 ? 568 : 844) : 900, mobile });
         await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
       } finally { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: setup.result.identifier }); }
       await wait('!!document.querySelector("[data-board-snapshot]")');await settle();
@@ -79,6 +79,7 @@ export async function assertModelUrlCopy(cdp, appUrl, output) {
         else await evaluate(cdp, `modelUrlWrites[${index}].${outcome === 'success' ? 'resolve()' : "reject(new Error('Older copy denied'))"};void 0`);
         await settle();assert.equal(await evaluate(cdp, label(names[1])), 'Copied');assert.equal(await evaluate(cdp, label(names[0])), 'Copy URL');
         assert.equal(await readClipboard(), current);assert.equal(await evaluate(cdp, 'modelUrlLegacy'), 0);
+        assert.equal(await evaluate(cdp, '[...document.querySelectorAll("#settings-official-models [role=status]")].some(p=>p.textContent.includes("Could not copy"))'), false);
         if (outcome === 'timeout') await evaluate(cdp, `modelUrlWrites[${index}].resolve();void 0`);
         cases.push(`newer-url-${outcome}`);
       }
@@ -90,7 +91,16 @@ export async function assertModelUrlCopy(cdp, appUrl, output) {
       const previous = await readClipboard();
       await evaluate(cdp, 'modelUrlFail=true;modelUrlDenyLegacy=true;void 0');await copy(names[0]);
       assert.equal(await evaluate(cdp, label(names[0])), 'Copy URL');assert.equal(await readClipboard(), previous);
+      const denial = await evaluate(cdp, `(()=>{const b=document.querySelector(${JSON.stringify(selector(names[0]))}),id=b?.getAttribute('aria-describedby'),status=id?document.getElementById(id):null;const r=status?.getBoundingClientRect();return {message:status?.textContent,role:status?.getAttribute('role'),visible:!!status&&getComputedStyle(status).position!=='absolute'&&r.height>0,exposed:!!status&&[[r.left+1,r.top+1],[r.right-1,r.top+1],[r.left+1,r.bottom-1],[r.right-1,r.bottom-1]].every(([x,y])=>status.contains(document.elementFromPoint(x,y))),focused:document.activeElement===b}})()`);
+      fs.writeFileSync(path.join(output, `model-url-denial-${width}.json`), JSON.stringify(denial, null, 2));
+      const denialShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+      fs.writeFileSync(path.join(output, `model-url-denial-${width}.png`), Buffer.from(denialShot.result.data, 'base64'));
+      assert.equal(denial.message, 'Could not copy this URL. Try Copy URL again.');
+      assert.equal(denial.role, 'status');assert.equal(denial.visible, true);assert.equal(denial.exposed, true);assert.equal(denial.focused, true);
+
       await evaluate(cdp, 'modelUrlDenyLegacy=false;void 0');await copy(names[0]);await wait(`${label(names[0])}==='Copied'`);
+      assert.equal(await evaluate(cdp, `document.querySelector(${JSON.stringify(selector(names[0]))})?.getAttribute('aria-describedby')`), null);
+      assert.equal(await evaluate(cdp, '[...document.querySelectorAll("#settings-official-models [role=status]")].some(p=>p.textContent.includes("Could not copy"))'), false);
       assert.equal(await evaluate(cdp, 'modelUrlLegacy'), 1);cases.push('current-denial-and-native-retry');
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(path.join(output, `model-url-copy-${width}.png`), Buffer.from(shot.result.data, 'base64'));

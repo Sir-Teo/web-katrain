@@ -368,6 +368,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Denied model-URL copies explain what happened:** failed modern and legacy
+  copies previously left the model row unchanged. The affected row now shows
+  a persistent inline explanation linked to Copy URL through `aria-describedby`
+  and a stable live-status region. Retry clears the error; stale completions
+  cannot show it for a newer request. A four-corner hit test also found the
+  new explanation clipped below the desktop pane. Settings now scrolls only
+  its content pane enough to reveal the message, preserving button focus.
+  All 24 native cases pass at 1440/390/320 px and 568×320, checking visible
+  feedback, focus, retry cleanup, ordering, expiry and closure. Portrait and
+  landscape screenshots were reviewed. App/test TypeScript, full lint, 65
+  related cases and the build pass (Vite phase 14.6 s). The original silent
+  failure and clipped-message probes remain recorded with screenshots/JSON.
+
 - **Model-URL feedback follows the latest copy and its lifetime:** a native
   regression held URL A's completion, copied URL B, then completed A. The
   clipboard held B but "Copied" moved to A's row. Model-URL feedback now

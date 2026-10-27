@@ -220,6 +220,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const humanModelUploadInputRef = React.useRef<HTMLInputElement>(null);
     const humanBlobUrlRef = React.useRef<string | null>(null);
     const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
+    const [failedCopyUrl, setFailedCopyUrl] = React.useState<string | null>(null);
+    const copyUrlStatusId = React.useId();
     const copyUrlFeedback = React.useRef<{ mounted: boolean; timer: number | null }>({ mounted: false, timer: null });
     React.useEffect(() => {
         const feedback = copyUrlFeedback.current;
@@ -305,6 +307,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     // opened the next tab mid-way (or at its foot) with no heading in view.
     // Layout effect, so the reset lands before a search result's reveal runs.
     const contentRef = React.useRef<HTMLDivElement>(null);
+    React.useLayoutEffect(() => {
+        if (!failedCopyUrl || activeTab !== 'ai') return;
+        const index = OFFICIAL_MODELS.findIndex(model => model.url === failedCopyUrl);
+        const status = document.getElementById(`${copyUrlStatusId}-${index}`);
+        const pane = contentRef.current;
+        if (!pane || !status || !pane.contains(status)) return;
+        const bounds = pane.getBoundingClientRect();
+        const message = status.getBoundingClientRect();
+        // Reveal the explanation without moving focus or scrolling the page.
+        if (message.bottom > bounds.bottom) pane.scrollTop += message.bottom - bounds.bottom + 4;
+        else if (message.top < bounds.top) pane.scrollTop -= bounds.top - message.top + 4;
+    }, [failedCopyUrl, copyUrlStatusId, activeTab]);
     const previousContentTabRef = React.useRef(activeTab);
     React.useLayoutEffect(() => {
         // A fresh scroller already starts at zero. Writing scrollTop during
@@ -580,15 +594,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
 
     const handleCopyUrl = async (url: string) => {
         const request = beginClipboardWriteRequest();
+        setFailedCopyUrl(null);
         const copied = await copyTextToClipboard(url, undefined, undefined, request);
         const feedback = copyUrlFeedback.current;
-        if (copied && isClipboardWriteRequestCurrent(request) && feedback.mounted) {
+        if (isClipboardWriteRequestCurrent(request) && feedback.mounted) {
             if (feedback.timer !== null) window.clearTimeout(feedback.timer);
-            setCopiedUrl(url);
-            feedback.timer = window.setTimeout(() => {
-                feedback.timer = null;
-                setCopiedUrl(null);
-            }, 2000);
+            feedback.timer = null;
+            setCopiedUrl(copied ? url : null);
+            setFailedCopyUrl(copied ? null : url);
+            if (copied) {
+                feedback.timer = window.setTimeout(() => {
+                    feedback.timer = null;
+                    setCopiedUrl(null);
+                }, 2000);
+            }
         }
     };
 
@@ -2511,7 +2530,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                             {officialModelsOpen ? (
                                             <div id="settings-official-models" className="space-y-2">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                {OFFICIAL_MODELS.map((model) => (
+                                                {OFFICIAL_MODELS.map((model, index) => (
                                                     <div
                                                         key={model.url}
                                                         className={modelCardClass}
@@ -2621,6 +2640,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                 type="button"
                                                                 className={modelActionClass}
                                                                 onClick={() => handleCopyUrl(model.url)}
+                                                                aria-describedby={failedCopyUrl === model.url ? `${copyUrlStatusId}-${index}` : undefined}
                                                                 // One of these per model, all reading "Copy URL" — name them
                                                                 // like the download progress bar above already does.
                                                                 aria-label={
@@ -2632,6 +2652,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                 {copiedUrl === model.url ? 'Copied' : 'Copy URL'}
                                                             </button>
                                                         </div>
+                                                        <p
+                                                            id={`${copyUrlStatusId}-${index}`}
+                                                            role="status"
+                                                            aria-atomic="true"
+                                                            className={failedCopyUrl === model.url ? 'mt-2 text-xs text-[var(--ui-danger)]' : 'sr-only'}
+                                                        >
+                                                            {failedCopyUrl === model.url ? 'Could not copy this URL. Try Copy URL again.' : ''}
+                                                        </p>
                                                     </div>
                                                 ))}
                                             </div>
