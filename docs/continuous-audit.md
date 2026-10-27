@@ -16,8 +16,15 @@ reproduced failures separate from candidates that still need investigation.
   passes first move, median, Settings and longest task at
   11.0/1.1/100.3/149 ms, but input latency reaches 216 ms against the unchanged
   150 ms limit on Back 10. This is a failed timing run; the much larger prior
-  Settings stall also remains unresolved. Integrated browser verification
-  is running on the frozen `449d389` worktree.
+  Settings stall also remains unresolved. The integrated browser sweep on
+  frozen `449d389` fails a held clipboard-command fixture: its read completes
+  at 1,641 ms, after the unchanged 1,200 ms operation deadline. Another native
+  browser check overlapped this portion, so contention is a possible influence;
+  timed sweeps must run without competing checks. All 11 layout sizes, completed
+  Library save/retry/overlap cases, manual scoring, header/tooltips and pasted
+  draft/focus checks precede this failure. Later suites, including the new
+  two-tab naming gate, did not run in this sweep; their focused results above
+  do not make this an integrated pass.
 
 - Verification at `96e0e08` passes 3,433 cases but retains one full-suite
   failure: the New Zealand engine-history case exceeds its unchanged 5 s
@@ -279,6 +286,21 @@ reproduced failures separate from candidates that still need investigation.
   as an unresolved timing outlier, rather than claiming a production fix.
 
 ## Changes completed
+
+- **Fast navigation publishes one final position:** a trusted desktop Back 10
+  click previously published ten positions; the regression captured all ten
+  while still reaching the expected move. The store now traverses the chosen
+  branch before publishing, and toolbar, keyboard, palette and controller
+  shortcuts share that action. Comment/setup nodes still count as navigation
+  steps; selected branches, position fields and boundaries are preserved.
+  Insert-mode take-back retains its existing temporary-node deletion behavior.
+  All 43 related tests pass, including six new regressions and 40 randomized
+  navigation/editing seeds. All 18 native desktop/phone cases reach the right
+  move with one publication for both directions through buttons, shortcuts
+  and palette commands. App/test TypeScript and full lint pass. Early probe failures used
+  the wrong SGF loader, a malformed selector expression, then a phone title
+  selector where the control exposes an accessible name; those diagnostics
+  are retained. Production latency improvements have not yet been measured.
 
 - **Older Library copies no longer replace newer success messages:** a native
   browser regression showed that the clipboard correctly held the newer

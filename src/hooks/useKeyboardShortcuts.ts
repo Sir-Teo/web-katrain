@@ -67,6 +67,7 @@ export function useKeyboardShortcuts({
     rotateBoard,
     navigateBack,
     navigateForward,
+    navigateByNodes,
     navigateStart,
     navigateEnd,
     switchBranch,
@@ -101,6 +102,7 @@ export function useKeyboardShortcuts({
       rotateBoard: state.rotateBoard,
       navigateBack: state.navigateBack,
       navigateForward: state.navigateForward,
+      navigateByNodes: state.navigateByNodes,
       navigateStart: state.navigateStart,
       navigateEnd: state.navigateEnd,
       switchBranch: state.switchBranch,
@@ -142,10 +144,10 @@ export function useKeyboardShortcuts({
       const matches = (id: string) => eventMatchesShortcut(e, id, overrides);
 
       const jumpBack = (n: number) => {
-        for (let i = 0; i < n; i++) navigateBack();
+        navigateByNodes(-n);
       };
       const jumpForward = (n: number) => {
-        for (let i = 0; i < n; i++) navigateForward();
+        navigateByNodes(n);
       };
 
       // File operations
@@ -568,6 +570,7 @@ export function useKeyboardShortcuts({
   }, [
     navigateBack,
     navigateForward,
+    navigateByNodes,
     navigateStart,
     navigateEnd,
     toggleContinuousAnalysis,

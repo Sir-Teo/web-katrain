@@ -193,6 +193,7 @@ interface GameStore extends GameState {
   undoMove: () => void; // Go back
   navigateBack: () => void;
   navigateForward: () => void; // Go forward (main branch)
+  navigateByNodes: (steps: number) => void;
   navigateToMove: (moveNumber: number) => void;
   navigateStart: () => void;
   navigateEnd: () => void;
@@ -5509,6 +5510,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
           activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, nextNode),
       };
   }),
+
+  /** Fast navigation publishes the destination without visiting every board. */
+  navigateByNodes: (steps) => {
+      if (!Number.isFinite(steps)) return;
+      const count = Math.trunc(Math.abs(steps));
+      if (!count) return;
+      // Taking back inserted moves also deletes their temporary tree nodes.
+      if (steps < 0 && get().isInsertMode) {
+          for (let i = 0; i < count && get().currentNode.parent; i++) get().navigateBack();
+          return;
+      }
+      set((state) => {
+          let node = state.currentNode;
+          for (let i = 0; i < count; i++) {
+              const next = steps < 0 ? node.parent : getActiveChild(node, state.activeBranchChildIds);
+              if (!next) break;
+              node = next;
+          }
+          if (node === state.currentNode) return state;
+          return {
+              currentNode: node,
+              board: node.gameState.board,
+              currentPlayer: node.gameState.currentPlayer,
+              moveHistory: node.gameState.moveHistory,
+              capturedBlack: node.gameState.capturedBlack,
+              capturedWhite: node.gameState.capturedWhite,
+              analysisData: node.analysis || null,
+              activeBranchChildIds: steps > 0
+                  ? rememberActiveBranchPath(state.activeBranchChildIds, node)
+                  : state.activeBranchChildIds,
+          };
+      });
+  },
 
   navigateStart: () => set((state) => {
       let node = state.currentNode;

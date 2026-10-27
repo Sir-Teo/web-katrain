@@ -310,6 +310,7 @@ export const Layout: React.FC = () => {
     aiColor,
     navigateBack,
     navigateForward,
+    navigateByNodes,
     navigateToMove,
     pinnedVariations,
     pinCurrentVariation,
@@ -399,6 +400,7 @@ export const Layout: React.FC = () => {
       aiColor: state.aiColor,
       navigateBack: state.navigateBack,
       navigateForward: state.navigateForward,
+      navigateByNodes: state.navigateByNodes,
       navigateToMove: state.navigateToMove,
       pinnedVariations: state.pinnedVariations,
       pinCurrentVariation: state.pinCurrentVariation,
@@ -2941,7 +2943,7 @@ export const Layout: React.FC = () => {
         category: 'Navigation',
         shortcutId: 'nav-back-10',
         disabledReason: historyNavigation.back ? undefined : 'Already at the first move',
-        run: () => { for (let i = 0; i < 10; i++) navigateBack(); },
+        run: () => navigateByNodes(-10),
         keywords: ['rewind'],
       },
       {
@@ -2950,7 +2952,7 @@ export const Layout: React.FC = () => {
         category: 'Navigation',
         shortcutId: 'nav-forward-10',
         disabledReason: historyNavigation.forward ? undefined : 'Already at the last move',
-        run: () => guardNavigation(() => { for (let i = 0; i < 10; i++) navigateForward(); }),
+        run: () => guardNavigation(() => navigateByNodes(10)),
         keywords: ['advance'],
       },
       {
@@ -3645,10 +3647,10 @@ export const Layout: React.FC = () => {
   })();
 
   const jumpBack = (n: number) => {
-    for (let i = 0; i < n; i++) navigateBack();
+    navigateByNodes(-n);
   };
   const jumpForward = (n: number) => {
-    for (let i = 0; i < n; i++) navigateForward();
+    navigateByNodes(n);
   };
 
   const blackName = getRootProp('PB') || 'Black';
