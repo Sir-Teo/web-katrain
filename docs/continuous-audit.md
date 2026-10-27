@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The third PR CI attempt passes all 41 Library save-recovery cases, all
+  restore/background-save/OS-open cases, scoring and notification layouts.
+  It fails a Page.navigate with net::ERR_ABORTED immediately after the Photo
+  Board cancellation case. Original local traces FkB9Sz and 6lrV6y pass but
+  confirm the next navigation starts with Photo Board and its history marker
+  still open. The fixture now requires the handoff to open, closes Photo Board,
+  waits for the exact original history entry at each dismissal, and closes the
+  final OGS sync dialog before returning. Original cancellation, abort, late
+  response, focus and composition assertions remain unchanged; navigation does
+  not retry. Candidate jsERIS passes the photo cleanup; XKVb4Y passes the full
+  cleanup under the CI root-URL redirect and repository base path. Helper lint
+  passes. The CI abort is not reproduced locally and its cause is not claimed
+  proven; a complete updated-head CI run remains required.
+
 - The second PR CI attempt passes the original 320 px recovery failure and
   both enlarged-text retry stages. Its 200% case then fails the second board
   touch before producing a preview. An offline-ready card is visible, but its

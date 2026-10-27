@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluate, navigate, setViewport, sleep, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, evaluate, navigate, setViewport, sleep, waitForExpression, waitForHistoryEntry } from './browser.mjs';
 
 export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) {
   const wait = (expression) => waitForExpression(cdp, expression, { label: 'Cancel pending SGF import' });
@@ -69,6 +69,7 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
           }) : original(url,init);
       })()`);
       const before = await board();
+      const originalEntry = await captureHistoryEntry(cdp);
       await openImport();
       const pendingFocus = await evaluate(cdp, `({inside:document.querySelector('[aria-labelledby=paste-sgf-title]').contains(document.activeElement),tag:document.activeElement?.tagName})`);
       console.log('Paste import pending focus', JSON.stringify({ dismissal, ...pendingFocus }));
@@ -90,18 +91,28 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
       assert.equal(await evaluate(cdp, 'window.heldImportSignal?.aborted'), true, `${dismissal} must abort the download`);
       assert.equal(await evaluate(cdp, `!!document.querySelector('.notification-toast-message')?.textContent.includes('Downloaded OGS')`), false);
       results.push({dismissal,mobile,before,after,aborted:true});
+      if (dismissal === 'photo') {
+        // Finish the handoff and unwind its history entry before navigating to
+        // the next fixture. A missing Paste dialog alone is not that boundary.
+        await wait('!!document.querySelector("[aria-labelledby=photo-board-title]")');
+        await click('[aria-label="Close photo board"]');
+        await waitForHistoryEntry(cdp, originalEntry, '!document.querySelector("[aria-labelledby=photo-board-title]")&&!document.querySelector("[data-lazy-modal-loading]")');
+        results.push({photoHandoffOpened:true,photoClosedToOriginalEntry:true});
+      } else await waitForHistoryEntry(cdp, originalEntry, '!document.querySelector(".paste-sgf-modal-textarea")');
       if (dismissal === 'close') {
         // A new dialog owns a new request; cancellation must not poison retries.
         await evaluate(cdp, 'window.releaseHeldImport=null');
         await openImport();
         await evaluate(cdp, 'window.releaseHeldImport()');
         await wait('!document.querySelector(".paste-sgf-modal-textarea") && document.querySelector("[data-board-snapshot=true]")?.dataset.boardSize === "9"');
+        await waitForHistoryEntry(cdp, originalEntry, '!document.querySelector(".paste-sgf-modal-textarea")');
         results.push({retryLoaded:true});
       }
     }
     // A failed download leaves the editor ready for a correction or retry.
     await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
     await wait('!!document.querySelector("[data-board-snapshot=true]")');
+    const failureEntry = await captureHistoryEntry(cdp);
     const beforeFailure = await board();
     await evaluate(cdp, `(()=>{const original=window.fetch;window.fetch=(url,init)=>String(url).includes('online-go.com/api/v1/games/')?new Promise(resolve=>window.releaseHeldImport=()=>resolve(new Response('not an SGF game'))):original(url,init)})()`);
     await openImport();
@@ -111,7 +122,7 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
     assert.deepEqual(await board(), beforeFailure);
     results.push({ failedImportRestoresEditor: true, failedImportPreservesBoard: true });
     await click('[aria-label="Close paste SGF"]');
-    await wait('!document.querySelector(".paste-sgf-modal-textarea")');
+    await waitForHistoryEntry(cdp, failureEntry, '!document.querySelector(".paste-sgf-modal-textarea")');
     // A history marker restored by reload is not popped by this document:
     // overlayBackStack deliberately avoids navigating away over a stale marker.
     results.push({ afterFailedImportClose: await evaluate(cdp, '({history:history.state,dialogs:[...document.querySelectorAll("[role=dialog]")].map(e=>e.getAttribute("aria-labelledby"))})') });
@@ -119,6 +130,7 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
     await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
     await wait('!!document.querySelector("#mobile-tab-library")');
     await click('#mobile-tab-library');
+    const syncEntry = await captureHistoryEntry(cdp);
     await click('button[aria-label="More library actions"]');
     await click('[role=menu][aria-label="More library actions"] button:nth-of-type(4)');
     await wait('!!document.querySelector("#ogs-sync-username")');
@@ -138,6 +150,8 @@ export async function assertPasteImportCancellation(cdp, appUrl, screenshotDir) 
     await key('Enter','Enter',13);
     await wait('window.ogsLookupCount > 0');
     results.push({compositionEnterIgnored:true,ordinaryEnterStartsSync:true});
+    await click('[aria-label="Close OGS sync"]');
+    await waitForHistoryEntry(cdp, syncEntry, '!document.querySelector("[aria-labelledby=ogs-sync-title]")');
   } finally {
     await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier:setup.result.identifier});
   }
