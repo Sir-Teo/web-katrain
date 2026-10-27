@@ -89,6 +89,8 @@ PWA. There is no analysis server to run.
   share link that carries the whole game in the URL, the board as a PNG, a
   numbered kifu as PDF, or the position as a text diagram. Every one is in the
   command palette, and all but the file save sit together under File.
+  Setup-only records print as an unnumbered board diagram; search **Print position**
+  in the palette to print a problem or handicap setup without recording a move.
 - Store games in an IndexedDB library with folders, bundled famous games, and
   zip backup/restore. Search titles, players, dates, results, and tags;
   `joseki` and `eloise` also find “Jōseki” and “Éloïse”.
@@ -101,6 +103,7 @@ PWA. There is no analysis server to run.
   Use **Open on OGS** in a synced or URL-imported study's menu to open its original game in a new tab.
 - Browse Library games and folders with Up/Down and Home/End, then Enter to
   open. Left/Right collapse, expand or move between a folder and its children.
+  Press Down in the search field to focus its first result and continue browsing.
   Type a name prefix to jump to a visible row, or repeat a letter to cycle
   matches. Screen readers receive folder depth and navigation instructions.
 - Split a multi-game SGF collection into a numbered Library folder from its
