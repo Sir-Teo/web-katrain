@@ -107,7 +107,24 @@ export async function assertVariationCopy(cdp, appUrl, output) {
       cases.push('current-failure-and-native-retry');
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(path.join(output, `variation-copy-${width}.png`), Buffer.from(shot.result.data, 'base64'));
-      reports.push({ width, cases, nativeClipboard: true, staleLegacyCopies: 0 });
+      const targets = await evaluate(cdp, '[...document.querySelectorAll(".cl-pv-action")].map(b=>({label:b.textContent.trim(),width:b.offsetWidth,height:b.offsetHeight,mobilePanel:!!b.closest(".mobile-safe-bottom")}))');
+      fs.writeFileSync(path.join(output, `variation-copy-targets-${width}.json`), JSON.stringify(targets, null, 2));
+      if (mobile) for (const target of targets) {
+        assert.ok(target.width >= 44 && target.height >= 44, `${target.label} needs a 44 px touch target; found ${target.width}×${target.height}`);
+      }
+      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: !mobile, maxTouchPoints: mobile ? 1 : 5 });
+      await settle();
+      const alternate = await evaluate(cdp, '({coarse:matchMedia("(pointer:coarse)").matches,targets:[...document.querySelectorAll(".cl-pv-action")].map(b=>({label:b.textContent.trim(),width:b.offsetWidth,height:b.offsetHeight}))})');
+      assert.equal(alternate.coarse, !mobile);
+      for (const target of alternate.targets) assert.ok(target.width >= 44 && target.height >= 44, 'Touch devices and narrow mouse layouts both need reachable actions');
+      fs.writeFileSync(path.join(output, `variation-copy-alternate-pointer-${width}.json`), JSON.stringify(alternate, null, 2));
+      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: mobile, maxTouchPoints: mobile ? 5 : 1 });
+      const beforeKeep = await evaluate(cdp, '({node:variationStore.getState().currentNode.id,stones:document.querySelector("[data-board-snapshot]").dataset.boardStones})');
+      await click('.cl-pv-action:nth-child(2)');
+      await wait('(()=>{const first=variationStore.getState().currentNode.children[0],second=first?.children[0],third=second?.children[0];return first?.move.x===4&&first.move.y===4&&second?.move.x===5&&second.move.y===4&&third?.move.x===4&&third.move.y===3})()');
+      assert.deepEqual(await evaluate(cdp, '({node:variationStore.getState().currentNode.id,stones:document.querySelector("[data-board-snapshot]").dataset.boardStones})'), beforeKeep);
+      cases.push('native-keep-in-tree');
+      reports.push({ width, cases, nativeClipboard: true, staleLegacyCopies: 0, alternatePointerTargets: alternate.targets });
       fs.writeFileSync(path.join(output, 'variation-copy.json'), JSON.stringify(reports, null, 2));
       console.log('Variation copy', JSON.stringify(reports.at(-1)));
     }

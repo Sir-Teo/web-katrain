@@ -345,6 +345,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Variation actions are easier to tap:** native measurements found Copy
+  at 41×24 px and Keep in tree at 94×24 px on phones. Their controls now
+  have a 44 px minimum width/height in mobile panels and on coarse-pointer
+  devices. Fine-pointer desktop sizing stays compact. All 15 native cases
+  pass at 1440/390/320 px, including copy ordering, failed-copy retry and
+  actually keeping the three-move variation without changing the current
+  board. Alternate pointer checks verify narrow mouse layouts and desktop
+  touch input too. The failing size assertion, before/after geometry and
+  screenshots are retained; the 320 px result was visually reviewed. Script
+  lint and the production build pass (Vite phase 13.3 s).
+
 - **Variation-copy feedback respects the latest copy action:** a native
   regression held one variation write, completed a second, then rejected the
   first. The clipboard correctly held the variation, but its success toast

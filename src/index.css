@@ -6972,7 +6972,9 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  min-height: 1.5rem;
+  justify-content: center;
+  min-width: var(--candidate-action-size, auto);
+  min-height: var(--candidate-action-size, 1.5rem);
 }
 .candidate-list .cl-pv-action:focus-visible {
   color: var(--ui-text);
@@ -7151,9 +7153,14 @@
 }
 
 /* Touch targets need the room the desktop rows do not. */
+.mobile-safe-bottom .candidate-list {
+  --candidate-action-size: 2.75rem;
+}
+
 @media (pointer: coarse) {
   .candidate-list {
     --candidate-row-height: 2.75rem;
+    --candidate-action-size: 2.75rem;
   }
 
   .analysis-experience-toggle > button {
