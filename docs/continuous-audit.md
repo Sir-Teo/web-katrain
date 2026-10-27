@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Pro Library's Surprise Me action now chooses a different displayed game
+  whenever alternatives exist. It excludes the actual filtered fallback, clears
+  the search, and still recovers from an empty result set. A deterministic
+  baseline retained the current game (`katrain-pro-surprise-tbigMD`); all four
+  native desktop/phone/landscape flows now change selection, recover search
+  and leave the loaded board unchanged (`katrain-pro-surprise-9WU1wn`).
+  The button's accessible name includes its visible “Surprise me” label.
+  App TypeScript, targeted lint and all 33 related cases pass.
+  The build passes (Vite phase 21.5 s), and the same four native flows pass
+  against that production bundle under `katrain-pro-surprise-lIF6vu`.
+
 - The focused sweep at `f654c22` passes all 11 base layout/modal sizes, then
   fails the quiz helper's history cleanup assertion: it expected no marker
   even when the arriving document already contained a restored overlay marker.

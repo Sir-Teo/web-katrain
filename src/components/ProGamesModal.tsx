@@ -41,17 +41,21 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);
   const [selectedId, setSelectedId] = useState<string>(PRO_GAMES[0]?.id ?? '');
 
-  const surpriseMe = () => {
-    if (PRO_GAMES.length === 0) return;
-    const pick = PRO_GAMES[Math.floor(Math.random() * PRO_GAMES.length)]!;
-    setQuery('');
-    setSelectedId(pick.id);
-  };
-
   const selected: ProGameMeta | undefined = useMemo(
     () => filtered.find((g) => g.id === selectedId) ?? filtered[0],
     [filtered, selectedId],
   );
+
+  const surpriseMe = () => {
+    // A search can display a fallback while selectedId is hidden. Exclude
+    // the game the reader actually sees when another game is available.
+    const alternatives = PRO_GAMES.filter(game => game.id !== selected?.id);
+    const choices = alternatives.length ? alternatives : PRO_GAMES;
+    if (!choices.length) return;
+    const pick = choices[Math.floor(Math.random() * choices.length)]!;
+    setQuery('');
+    setSelectedId(pick.id);
+  };
 
   const preview = useMemo(() => {
     if (!selected) return null;
@@ -130,6 +134,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                 <button
                   type="button"
                   onClick={surpriseMe}
+                  aria-label="Surprise me: choose another pro game"
                   className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] desktop-shell:min-h-0 desktop-shell:min-w-0"
                   title="Jump to a random pro game"
                 >
