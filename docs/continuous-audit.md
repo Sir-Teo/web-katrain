@@ -8,6 +8,25 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Command Palette now keeps a full command row beside its search field in
+  very short windows. Baseline `UEZLs2` showed only 24–31 px of a 74 px row
+  at 240 px height with 200% text. Nearby narrow 320 px-high windows also
+  clipped rows. Below 280 px height, or below 360 px when narrower than 420 px,
+  the palette uses the available inset height, keeps its title on one line
+  and makes its count visually hidden while retaining the polite live region.
+  Safe-area padding and 44 px phone controls remain. Production `897Uhz` and
+  `9Il1Yj` pass 16 short/nearby cases: search and the complete row are visible,
+  native activation opens Save Copy, Close/Clear are hit-testable, the board
+  stays unchanged and the full dialog name/count remain in the accessibility
+  tree. The earlier eight reflow cases and original keyboard/filter/focus
+  handoff helper also pass. An initial accessibility assertion incorrectly
+  required a single count text node; the corrected check inspects the actual
+  live region and concatenates its text children. A subsequent production
+  probe exposed the height utility overriding the compact rule; an explicit
+  override fixes that observed clipping. Neither failure is counted as a
+  pass. Targeted lint, 66 existing cases and the final build pass (Vite phase
+  14.4 s). The earlier full-suite timing failure remains unresolved.
+
 - Landscape Settings now caps the search column's rem minimum at 42% of
   its row, preserving room for the tab strip with enlarged text. Baseline
   `YZMr6t` measured 288 px for search and only 177 px for a roughly 190 px
