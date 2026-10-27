@@ -8,6 +8,15 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- A separate, non-gating Settings experiment compared three fresh profiles
+  per variant, measuring DOM availability and the next painted frame. Baseline
+  medians were 105.1/135.7 ms; preventing initial dialog scroll gave
+  95.1/138.0 ms; offscreen section containment gave 36.8/140.1 ms. Focus,
+  page position and basic end scrolling were preserved, but painted latency
+  did not improve in this small comparison. Neither prototype was adopted;
+  the original standard timing failure remains unresolved. Samples and
+  screenshots are under `katrain-settings-layout-experiment-qjSRZi`.
+
 - Verification at `c3a8995` passes all 503 unit files and 3,464 cases, with
   78 existing engine skips, in 408.3 s. Current app/test TypeScript, full lint
   and the production build pass (Vite phase 21.5 s). The focused browser sweep
