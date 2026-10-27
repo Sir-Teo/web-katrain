@@ -223,10 +223,26 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const printRequestRef = useRef<object | null>(null);
+  const printButtonRef = useRef<HTMLButtonElement>(null);
+  const wasPreparingPdfRef = useRef(false);
   const [pdfSnapshots, setPdfSnapshots] = useState<Array<{ id: string; dataUrl: string | null; entry: MoveReportEntry }>>([]);
   const [showReportGuide, setShowReportGuide] = useState(false);
   useEscapeToClose(onClose, !showReportGuide);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  React.useLayoutEffect(() => () => {
+    printRequestRef.current = null;
+  }, []);
+  React.useLayoutEffect(() => {
+    const wasPreparing = wasPreparingPdfRef.current;
+    wasPreparingPdfRef.current = isPreparingPdf;
+    if (!isPreparingPdf && !wasPreparing) return;
+    const dialog = dialogRef.current;
+    const active = document.activeElement;
+    if (active === document.body || active === dialog || (active instanceof HTMLElement && active.matches(':disabled'))) {
+      (isPreparingPdf ? dialog : printButtonRef.current)?.focus({ preventScroll: true });
+    }
+  }, [isPreparingPdf, dialogRef]);
   const reportGuideButtonRef = useRef<HTMLButtonElement>(null);
   const reportGuideCloseRef = useRef<HTMLButtonElement>(null);
   const snapshotTimerRef = useRef<number | null>(null);
@@ -755,7 +771,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   }, [boardSize, phaseFilter]);
 
   const preparePrint = async () => {
-    if (isPreparingPdf) return;
+    if (printRequestRef.current) return;
+    const request = {};
+    printRequestRef.current = request;
     setIsPreparingPdf(true);
     try {
       const snapshots = pdfMistakes.map((entry) => ({
@@ -769,11 +787,15 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       }));
       setPdfSnapshots(snapshots);
       await afterAnimationFrames(2);
+      if (printRequestRef.current !== request) return;
       if (!printWindow()) {
         setTimedNotification('Print dialog unavailable in this browser.', 'error');
       }
     } finally {
-      setIsPreparingPdf(false);
+      if (printRequestRef.current === request) {
+        printRequestRef.current = null;
+        setIsPreparingPdf(false);
+      }
     }
   };
 
@@ -1027,6 +1049,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         role="dialog"
         aria-modal="true"
         aria-labelledby="game-report-title"
+        aria-busy={isPreparingPdf}
       >
         <div className="game-report-modal-header flex items-center justify-between px-5 py-4 border-b border-[var(--ui-border)] ui-bar print-hide">
           <div>
@@ -2227,6 +2250,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <button
                 type="button"
                 onClick={handlePrintReport}
+                ref={printButtonRef}
                 className="min-h-11 px-4 py-2 bg-[var(--ui-surface-2)] not-disabled:hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
                 disabled={isPreparingPdf}
               >

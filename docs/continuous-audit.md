@@ -8,6 +8,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Report printing now cancels its delayed browser print action when the
+  report is dismissed, and keeps focus inside during preparation. A native
+  baseline showed focus on Body and one print call after Escape closed the
+  report (`katrain-report-print-probe-rsm0Db`). The guarded request now makes
+  zero calls after dismissal and restores Print focus on normal completion,
+  preserving controls chosen while waiting. All four native size flows pass
+  under `katrain-report-print-focus-native-CTzR00`; app/test TypeScript, full
+  lint and 52 related cases pass. The unchanged real PDF regression produces
+  12 pages on desktop and phone, including ten diagrams and 24-move correction
+  trees, under `katrain-report-print-focus-pdf`. The first expanded fixture's
+  DOM serialization error is retained separately from these application checks.
+  The report-guide keyboard regression also passes at desktop/phone widths.
+  The build passes (Vite phase 13.8 s), and all four print-focus/cancellation
+  flows pass against that production bundle under
+  `katrain-report-print-focus-production-TG9UFL`.
+
 - A separate, non-gating Settings experiment compared three fresh profiles
   per variant, measuring DOM availability and the next painted frame. Baseline
   medians were 105.1/135.7 ms; preventing initial dialog scroll gave
