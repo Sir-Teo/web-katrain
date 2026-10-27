@@ -550,6 +550,16 @@ export async function assertSaveDialogLoading(cdp, appUrl, screenshotDir) {
       const inside = () => evaluate(cdp, "document.querySelector('[data-save-to-library-loading]').contains(document.activeElement)");
       try {
         assert.equal(await evaluate(cdp, "document.querySelector('[data-save-to-library-loading]').getAttribute('aria-busy')"), 'true');
+        if (dismissal === 'escape') {
+          await cdp.send('Accessibility.enable');
+          try {
+            const tree = await cdp.send('Accessibility.getFullAXTree');
+            const dialog = tree.result.nodes.find(node => node.role?.value === 'dialog' && node.name?.value === 'Save Copy to Library');
+            assert.equal(dialog?.description?.value, 'Reading saved folders…', 'The loading dialog must expose the reason for waiting');
+          } finally {
+            await cdp.send('Accessibility.disable');
+          }
+        }
         await wait("document.querySelector('[data-save-to-library-loading]').contains(document.activeElement)");
         for (const modifiers of [0, 8]) for (let i = 0; i < 3; i++) {
           await key('Tab', 'Tab', 9, modifiers);

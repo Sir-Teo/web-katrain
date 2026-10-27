@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Save Copy's loading dialog now exposes its existing “Reading saved folders…”
+  status as an accessible description. The baseline Chrome accessibility tree
+  had a title and busy state but no description at all four sizes (`6ojQ2q`).
+  The associated description now passes an accessibility-tree assertion in
+  the existing four-size loading regression (`wZNuCK`), alongside cancellation,
+  overlapping requests and pending-write keyboard checks. Targeted lint and
+  the build pass (Vite phase 13.8 s); those same native checks pass against
+  production under `katrain-save-description-production-jot6c7`. This verifies
+  the exposed accessibility-tree description, not screen-reader speech.
+
 - The focused browser remainder at `21ada61` passes all 46 original helper
   calls from note-draft recovery through initial Library-read retry, in their
   original order, under `katrain-batch-eighty-four-remaining-LDE8ii`. It includes
