@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification passes at `f31dd5b`: 515 files and 3,560 tests pass,
+  with two files/eight tests skipped, in 707.2 s. Repository-wide lint passes.
+  A new external clipboard diagnostic retains the original assertions and
+  1,000/1,200 ms limits while recording reads, real timeout firings, main-thread
+  tasks and debugging calls. Development smoke `ouk4yV` passes two widths but
+  fails the final 320 px retry: its read resolves after 3,257 ms; the real timer
+  fires first, alongside 771/1,529 ms main-thread tasks. This is a failed smoke,
+  not a completed browser pass or a newly identified production defect.
+  Source serving with `NODE_ENV=production` (`1LRE80`) passes six OS-open cases,
+  three original source-store Save Copy cases and all three clipboard-ordering
+  widths. Source module probes remain available. Its 42 clipboard reads have
+  maximum completion times of 427/327/220 ms by width; no read timer fires.
+  This comparison motivates a full production-React source-server attempt; it
+  does not explain all development delays or change the existing CI default.
+
 - A pending Save Copy now acknowledges only the game that requested it.
   Baseline `jQVtFp` opens a file through the registered OS launch callback while
   the copy is writing. All six cases attach the completed copy to the new file;
