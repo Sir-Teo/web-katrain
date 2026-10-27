@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Verification at `96e0e08` passes 3,433 cases but retains one full-suite
+  failure: the New Zealand engine-history case exceeds its unchanged 5 s
+  timeout at 5.175 s. One isolated diagnostic passes all 30 cases in that
+  file, with the affected case taking 265 ms; this does not replace the
+  failed full run. The production build passes (Vite phase 21.9 s).
+  Standard production responsiveness passes first move and median at
+  20.6/4.2 ms, but fails Settings, input latency and longest task at
+  9,691.9/1,104/9,828 ms. This much larger stall remains unresolved and
+  the limits are unchanged. The integrated browser sweep captures all
+  11 viewport sizes and passes preview touch scrolling and Library tags,
+  then an environment restart interrupts it during empty-Library cases.
+  No completion status was written; this is an incomplete run.
+
 - The complete browser sweep at `3138e33` passes all 11 sizes and every native
   suite, including the 24 trusted Copy SGF actions with real clipboard reads
   and six successful legacy copies. The PNG size/rotation matrix, import
