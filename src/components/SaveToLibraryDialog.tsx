@@ -68,7 +68,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
         aria-modal="true"
         aria-labelledby="save-to-library-title"
         aria-busy={saving}
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
           <h2 id="save-to-library-title" className="text-base font-semibold text-[var(--ui-text)]">

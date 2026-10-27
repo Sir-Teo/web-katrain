@@ -8,6 +8,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Save Copy now limits its height to the viewport and scrolls when enlarged
+  text needs more room. At 200% text, baseline `SrxZx7` put its top at −114 px
+  on a 320×568 phone and −138 px in 568×320 landscape, with Save outside the
+  viewport. Final production checks `CIzZ4z` (normal text) and `eehwp5`
+  (200% text) pass at four sizes: every control is reachable, native saves
+  persist, Escape closes the reopened form and the game remains unchanged.
+  The original horizontal spacing is retained. The pending-save helper now
+  additionally covers enlarged 320×568 and 568×320 layouts; all four cases
+  preserve focus containment, block background shortcuts and persist after
+  the delayed write completes. Targeted lint, five existing component cases
+  and the final production build pass (Vite phase 16.4 s). Earlier candidate
+  evidence `R0rvLn` retains a separate enlarged-palette reopening failure;
+  the final Save Copy probe restores normal text for that palette transition,
+  then reapplies 200% inside the naming form. Palette reflow remains under
+  investigation and is not covered by this fix.
+
 - Settings search now scrolls to the selected radio choice rather than the
   entire group. Production reproduction `vfvCMY` found only 9 px of the chosen
   theme visible at 390×844 and none at 320×568 or 568×320 after scrolling

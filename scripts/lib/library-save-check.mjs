@@ -454,8 +454,8 @@ export async function assertPendingSaveKeyboard(cdp, appUrl, screenshotDir) {
     for(const type of ['keyDown','keyUp'])await cdp.send('Input.dispatchKeyEvent',{type,key,code,windowsVirtualKeyCode,modifiers});
   };
   const reports=[];
-  for(const width of [1440,390]) {
-    const mobile=width===390;
+  for(const [width,height,largeText] of [[1440,900,false],[390,844,false],[320,568,true],[568,320,true]]) {
+    const mobile=width<1000;
     const click=async selector=>{
       const p=await wait(`(()=>{
         const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.disabled)return false;
@@ -473,13 +473,18 @@ export async function assertPendingSaveKeyboard(cdp, appUrl, screenshotDir) {
       localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
     `});
     try {
-      await setViewport(cdp,{width,height:mobile?844:900,mobile});
+      await setViewport(cdp,{width,height,mobile});
       await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});
     } finally {await cdp.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:setup.result.identifier});}
     await wait('!!document.querySelector("[data-board-snapshot=true]")');
     await key('k','KeyK',75,2);await wait('!!document.querySelector("[data-command-palette-search]")');
     await click('[data-command-palette-search]');await cdp.send('Input.insertText',{text:'Save copy to library'});
     await click('[data-command-palette-item=save-library]');await wait('!!document.querySelector("#save-to-library-name")');
+    if(largeText) {
+      await evaluate(cdp,"document.documentElement.style.fontSize='200%';new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
+      const bounds=await evaluate(cdp,"(()=>{const d=document.querySelector('[aria-labelledby=save-to-library-title]'),r=d.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right}})()");
+      assert.ok(bounds.top>=0&&bounds.bottom<=height&&bounds.left>=0&&bounds.right<=width,'Enlarged Save Copy must remain inside the viewport');
+    }
     await click('#save-to-library-name');await key('a','KeyA',65,2);
     const name=`Keyboard-safe save ${width}`;await cdp.send('Input.insertText',{text:name});
     await evaluate(cdp,installStorageControls);await evaluate(cdp,"librarySaveAudit.mode='delay'");
@@ -499,10 +504,10 @@ export async function assertPendingSaveKeyboard(cdp, appUrl, screenshotDir) {
     }
     await wait('!document.querySelector("[aria-labelledby=save-to-library-title]")');
     assert.ok((await evaluate(cdp,storedItems)).some(item=>item.type==='file'&&item.name===name&&item.sgf.startsWith('(')));
-    reports.push({width,tabContained:true,shiftTabContained:true,escapeWhilePendingBlocked:true,backgroundNewGameBlocked:true,persisted:true});
+    reports.push({width,height,textSize:largeText?'200%':'100%',tabContained:true,shiftTabContained:true,escapeWhilePendingBlocked:true,backgroundNewGameBlocked:true,persisted:true});
   }
   fs.writeFileSync(path.join(screenshotDir,'pending-save-keyboard.json'),JSON.stringify(reports,null,2));
-  console.log('Pending Save Copy: desktop/phone focus containment, blocked background shortcuts, and completed persistence passed.');
+  console.log('Pending Save Copy: desktop/phone and enlarged-text reflow, focus containment, blocked background shortcuts, and completed persistence passed.');
 }
 
 export async function assertSaveDialogLoading(cdp, appUrl, screenshotDir) {
