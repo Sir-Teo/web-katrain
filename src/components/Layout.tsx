@@ -2942,7 +2942,7 @@ export const Layout: React.FC = () => {
         label: 'Print kifu (PDF)',
         category: 'File',
         run: () => openSimpleModal(() => setIsKifuPrintOpen(true)),
-        keywords: ['print', 'pdf', 'diagram', 'kifu', 'export', 'moves per diagram'],
+        keywords: ['print', 'pdf', 'diagram', 'kifu', 'export', 'moves per diagram', 'position', 'setup', 'problem', 'handicap'],
       },
       {
         id: 'paste-sgf',

@@ -8,6 +8,24 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Kifu printing now supports non-empty positions with no recorded moves,
+  such as an SGF problem or handicap setup. They produce one unnumbered board
+  diagram with a Position caption and hide the irrelevant moves-per-diagram
+  controls. Blank boards retain the no-moves guard; records with moves retain
+  numbered diagrams. Command search also recognizes position/setup/problem/
+  handicap terms. Production baseline `jwrP1j` disables printing for setup-only
+  SGFs across all four widths. Candidate `pudxkh` passes all 12 empty/setup/move
+  combinations using real file inputs and native command/print actions, exact
+  preview stone coordinates/colors and unchanged live boards. Eight actual
+  PDFs have one page each with the expected title, caption and board metadata;
+  a rendered setup page was visually inspected. A regression covers imported
+  black/white setup stones without invented moves. Its first server render
+  read Zustand's initial snapshot instead of the imported live state; the
+  fixture now supplies and restores that server snapshot. All 64 focused
+  cases pass after that correction, as do lint, test type-checking and the
+  build (Vite phase 25.0 s). The earlier full-suite timing failure remains
+  unresolved.
+
 - Command Palette now keeps a full command row beside its search field in
   very short windows. Baseline `UEZLs2` showed only 24–31 px of a 74 px row
   at 240 px height with 200% text. Nearby narrow 320 px-high windows also
