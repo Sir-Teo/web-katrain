@@ -3360,6 +3360,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             {Array.from({ length: boardSize }).map((_, i) => (
               <div
                 key={`bottom-${i}`}
+                data-board-coordinate="column"
                 /* No opacity here: each board theme's coordColor carries its own
                    alpha, and multiplying the two dropped coordinate contrast as
                    low as 1.8:1 against the wood. */
@@ -3384,6 +3385,7 @@ export const GoBoard: React.FC<GoBoardProps> = ({
             {Array.from({ length: boardSize }).map((_, i) => (
               <div
                 key={`left-${i}`}
+                data-board-coordinate="row"
                 /* No opacity here: each board theme's coordColor carries its own
                    alpha, and multiplying the two dropped coordinate contrast as
                    low as 1.8:1 against the wood. */

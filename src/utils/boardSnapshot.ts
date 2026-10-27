@@ -81,6 +81,29 @@ export async function captureBoardSnapshot(selector = DEFAULT_SELECTOR): Promise
       }
     }
 
+    // Coordinates are HTML labels above the canvas layers. Preserve the text
+    // actually displayed, including rotated axes, before waiting for textures.
+    for (const label of board.querySelectorAll<HTMLElement>('[data-board-coordinate]')) {
+      const text = label.textContent?.trim();
+      if (!text) continue;
+      const labelRect = label.getBoundingClientRect();
+      if (labelRect.width <= 0 || labelRect.height <= 0) continue;
+      const labelStyle = getElementStyle(label);
+      const fontSize = Number.parseFloat(labelStyle?.fontSize ?? '');
+      const lineHeight = Number.parseFloat(labelStyle?.lineHeight ?? '');
+      const scale = lineHeight > 0 ? labelRect.height / lineHeight : 1;
+      ctx.save();
+      ctx.font = Number.isFinite(fontSize)
+        ? `${labelStyle?.fontStyle || 'normal'} ${labelStyle?.fontWeight || 'bold'} ${fontSize * scale}px ${labelStyle?.fontFamily || 'sans-serif'}`
+        : labelStyle?.font || 'bold 12px sans-serif';
+      ctx.fillStyle = labelStyle?.color || '#000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if ('letterSpacing' in ctx) ctx.letterSpacing = labelStyle?.letterSpacing || '0px';
+      ctx.fillText(text, labelRect.left - boardRect.left + labelRect.width / 2, labelRect.top - boardRect.top + labelRect.height / 2);
+      ctx.restore();
+    }
+
     // Paint underneath the frozen layers so texture and fallback color keep
     // their original order without reading the live board a second time.
     ctx.globalCompositeOperation = 'destination-over';

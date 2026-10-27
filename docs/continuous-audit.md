@@ -8,6 +8,10 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `41b7a1f`, including the board-snapshot freeze,
+  passes 501 files and 3,427 cases with 78 engine cases skipped in CI. The
+  coordinate-export follow-up below has separate focused/native coverage.
+
 - The complete browser sweep at `204b4c7` passes all 11 sizes and every
   native suite, including all 54 file/acquisition cases, 24 trusted paste
   events, both cross-tab storage modes and queued fallback reloads. Deep
@@ -217,6 +221,18 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **PNG exports include displayed coordinates:** coordinate labels were HTML
+  above the canvas layers and disappeared from exports. A native pixel check
+  found no coordinate ink for all 18 visible labels on a 9×9 board. Snapshots
+  now paint the displayed labels, font and color into their frozen foreground,
+  using the UI's actual axis text so rotations stay consistent. Native checks
+  pass every 9/13/19 board at 1440/390/320 pixels, all four rotations and the
+  coordinates-off setting, while retaining exact pending-export pixels after
+  navigation and resize. Compact 19×19 normal/rotated PNGs were reviewed.
+  The pixel harness uses measured glyph bounds because J extends outside its
+  HTML advance box; its unchanged color tolerance remains two channel levels.
+  All 23 focused board/export cases, app/test TypeScript and targeted lint
+  pass; the initial missing-label unit and native failures remain retained.
 - **Board PNGs freeze the selected position:** snapshot capture awaited a
   texture before copying the live board canvases. A delayed texture success
   or failure reproduced capturing a later move and changed geometry instead

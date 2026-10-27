@@ -20,7 +20,6 @@ async function referenceSnapshot() {
 
 export async function assertBoardSnapshotOrder(cdp,appUrl,runDir,screenshotDir) {
   const fixture=path.join(runDir,'snapshot-position.sgf');
-  fs.writeFileSync(fixture,'(;GM[1]SZ[9]GN[Snapshot position];B[dd];W[ff];B[fg])');
   const wait=expression=>waitForExpression(cdp,expression,{label:'Board image snapshot position',diagnose:`({moves:document.querySelector('[data-board-snapshot]')?.dataset.boardMoveCount,texture:window.snapshotHeldTexture?{ready:snapshotHeldTexture.ready,failed:snapshotHeldTexture.failed}:null})`});
   const settle=()=>evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
   let mobile=false;
@@ -34,7 +33,9 @@ export async function assertBoardSnapshotOrder(cdp,appUrl,runDir,screenshotDir) 
     await wait(`document.querySelector('[data-board-snapshot]').dataset.boardMoveCount===${JSON.stringify(String(count))}`);await settle();
   };
   const reports=[];
-  for(const width of [1440,390,320]){
+  for(const {width,boardSize} of [1440,390,320].flatMap(width=>[9,13,19].map(boardSize=>({width,boardSize})))){
+    const caseKey=`${width}-${boardSize}`;
+    fs.writeFileSync(fixture,`(;GM[1]SZ[${boardSize}]GN[Snapshot position];B[dd];W[ff];B[fg])`);
     mobile=width<600;const height=mobile?(width===320?568:844):900;
     const setup=await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:`
       localStorage.removeItem('web-katrain:auto_saved_game:v1');localStorage.removeItem('web-katrain:shortcuts:v1');
@@ -48,20 +49,39 @@ export async function assertBoardSnapshotOrder(cdp,appUrl,runDir,screenshotDir) 
     const root=(await cdp.send('DOM.getDocument')).result.root;
     const input=(await cdp.send('DOM.querySelector',{nodeId:root.nodeId,selector:'input[type=file][accept*=".sgf"][accept*=".bin"]'})).result.nodeId;
     assert.ok(input);await cdp.send('DOM.setFileInputFiles',{nodeId:input,files:[fixture]});
-    await wait(`document.querySelector('input[type=file][accept*=".bin"]').files.length===0 && document.querySelector('[data-board-snapshot]').dataset.boardSize==='9'`);
+    await wait(`document.querySelector('input[type=file][accept*=".bin"]').files.length===0 && document.querySelector('[data-board-snapshot]').dataset.boardSize===${JSON.stringify(String(boardSize))}`);
     await advance(1);
     await evaluate(cdp,`(async()=>{const url=${loadedModuleUrl.toString()};window.snapshotModule=await import(url('/src/utils/boardSnapshot.ts'));window.snapshotReference=await (${referenceSnapshot.toString()})();window.snapshotBefore=await snapshotModule.captureBoardSnapshot();return true})()`);
+    for(const [name,expression] of [['reference','snapshotReference'],['stable','snapshotBefore']]){
+      const png=await evaluate(cdp,expression);fs.writeFileSync(path.join(screenshotDir,`board-snapshot-${caseKey}-${name}.png`),Buffer.from(png.split(',')[1],'base64'));
+    }
     // Alpha compositing can round a channel differently when its order changes.
     // Compare actual decoded pixels, allowing at most two 8-bit channel levels.
-    const comparison=await evaluate(cdp,`(async()=>{
+    const comparison=await evaluate(cdp,`(window.compareBoardSnapshotPixels=async()=>{
       const decode=src=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src});
       const [a,b]=await Promise.all([decode(snapshotReference),decode(snapshotBefore)]);
       const c=document.createElement('canvas');c.width=a.width;c.height=a.height;const ctx=c.getContext('2d');
       ctx.drawImage(a,0,0);const original=ctx.getImageData(0,0,c.width,c.height).data;ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(b,0,0);const actual=ctx.getImageData(0,0,c.width,c.height).data;
-      let maximumDelta=0;for(let i=0;i<original.length;i++)maximumDelta=Math.max(maximumDelta,Math.abs(original[i]-actual[i]));
-      return {width:a.width,height:a.height,maximumDelta};
+      const board=document.querySelector('[data-board-snapshot]'),box=board.getBoundingClientRect(),dpr=window.devicePixelRatio||1,mask=new Uint8Array(c.width*c.height);
+      const coordinates=[...board.querySelectorAll('[data-board-coordinate]')].map(label=>{
+        const r=label.getBoundingClientRect(),style=getComputedStyle(label);let inkPixels=0;
+        ctx.font=style.font;ctx.textAlign='center';ctx.textBaseline='middle';if('letterSpacing'in ctx)ctx.letterSpacing=style.letterSpacing;
+        const metrics=ctx.measureText(label.textContent),centerX=(r.left+r.right)/2,centerY=(r.top+r.bottom)/2;
+        // Glyph bearings can extend outside the HTML advance box (notably J).
+        const left=Math.min(r.left,centerX-metrics.actualBoundingBoxLeft),right=Math.max(r.right,centerX+metrics.actualBoundingBoxRight);
+        const top=Math.min(r.top,centerY-metrics.actualBoundingBoxAscent),bottom=Math.max(r.bottom,centerY+metrics.actualBoundingBoxDescent);
+        for(let y=Math.max(0,Math.floor((top-box.top)*dpr)-1);y<Math.min(c.height,Math.ceil((bottom-box.top)*dpr)+1);y++)for(let x=Math.max(0,Math.floor((left-box.left)*dpr)-1);x<Math.min(c.width,Math.ceil((right-box.left)*dpr)+1);x++){
+          const pixel=y*c.width+x,i=pixel*4;mask[pixel]=1;
+          if(Math.max(Math.abs(original[i]-actual[i]),Math.abs(original[i+1]-actual[i+1]),Math.abs(original[i+2]-actual[i+2]))>20)inkPixels++;
+        }
+        return {text:label.textContent,inkPixels};
+      });
+      let maximumDelta=0,maximumAt;for(let i=0;i<original.length;i++)if(!mask[Math.floor(i/4)]){const delta=Math.abs(original[i]-actual[i]);if(delta>maximumDelta){maximumDelta=delta;maximumAt={x:Math.floor(i/4)%c.width,y:Math.floor(Math.floor(i/4)/c.width)}}}
+      return {width:a.width,height:a.height,maximumDelta,maximumAt,coordinates};
     })()`);
     assert.ok(comparison.maximumDelta<=2,`Stable board colors must preserve their layer order: ${JSON.stringify(comparison)}`);
+    assert.equal(comparison.coordinates.length,boardSize*2,'The fixture must display both complete coordinate axes');
+    assert.ok(comparison.coordinates.every(label=>label.inkPixels>0),`Every visible coordinate must appear in the PNG: ${JSON.stringify(comparison.coordinates)}`);
     await evaluate(cdp,`(()=>{
       const Original=window.Image,descriptor=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
       const url=/url\\(["']?(.+?)["']?\\)/.exec(getComputedStyle(document.querySelector('[data-board-snapshot]')).backgroundImage)?.[1];
@@ -85,9 +105,23 @@ export async function assertBoardSnapshotOrder(cdp,appUrl,runDir,screenshotDir) 
     assert.equal(await evaluate(cdp,'snapshotCaptured!==snapshotAfter'),true,'A fresh export must reflect the later position and viewport');
     for(const [name,expression] of [['chosen','snapshotCaptured'],['later','snapshotAfter']]){
       const png=await evaluate(cdp,expression);assert.ok(png?.startsWith('data:image/png;base64,'));
-      fs.writeFileSync(path.join(screenshotDir,`board-snapshot-${width}-${name}.png`),Buffer.from(png.split(',')[1],'base64'));
+      fs.writeFileSync(path.join(screenshotDir,`board-snapshot-${caseKey}-${name}.png`),Buffer.from(png.split(',')[1],'base64'));
     }
-    reports.push({viewportWidth:width,pngWidth:comparison.width,pngHeight:comparison.height,maximumChannelDelta:comparison.maximumDelta,preservedPosition:true,preservedGeometry:true,freshExport:true});console.log('Board snapshot ordering',JSON.stringify(reports.at(-1)));
+    await evaluate(cdp,`(async()=>{const url=${loadedModuleUrl.toString()};window.snapshotStore=(await import(url('/src/store/gameStore.ts'))).useGameStore;return true})()`);
+    const letters='ABCDEFGHJKLMNOPQRST'.split('').slice(0,boardSize),numbers=Array.from({length:boardSize},(_,index)=>String(index+1));
+    const rotatedAxes=[[...numbers,...letters],[...letters.toReversed(),...numbers],[...numbers.toReversed(),...letters.toReversed()]];
+    for(const [index,axes] of rotatedAxes.entries()){
+      await evaluate(cdp,'snapshotStore.getState().rotateBoard();void 0');await settle();
+      const rotated=await evaluate(cdp,`(async()=>{snapshotReference=await (${referenceSnapshot.toString()})();snapshotBefore=await snapshotModule.captureBoardSnapshot();return compareBoardSnapshotPixels()})()`);
+      assert.deepEqual(rotated.coordinates.map(label=>label.text),axes,`Rotation ${index+1} must display the correct axes`);
+      assert.ok(rotated.coordinates.every(label=>label.inkPixels>0));assert.ok(rotated.maximumDelta<=2,JSON.stringify(rotated));
+    }
+    const rotatedPng=await evaluate(cdp,'snapshotBefore');fs.writeFileSync(path.join(screenshotDir,`board-snapshot-${caseKey}-rotated.png`),Buffer.from(rotatedPng.split(',')[1],'base64'));
+    await evaluate(cdp,'snapshotStore.getState().updateSettings({showCoordinates:false});void 0');await wait('document.querySelectorAll("[data-board-coordinate]").length===0');await settle();
+    const hidden=await evaluate(cdp,`(async()=>{snapshotReference=await (${referenceSnapshot.toString()})();snapshotBefore=await snapshotModule.captureBoardSnapshot();return compareBoardSnapshotPixels()})()`);
+    assert.equal(hidden.coordinates.length,0);assert.ok(hidden.maximumDelta<=2,JSON.stringify(hidden));
+    await evaluate(cdp,'snapshotStore.getState().updateSettings({showCoordinates:true});snapshotStore.getState().rotateBoard();void 0');await settle();
+    reports.push({viewportWidth:width,boardSize,pngWidth:comparison.width,pngHeight:comparison.height,maximumChannelDelta:comparison.maximumDelta,coordinateLabels:comparison.coordinates.length,allRotations:true,coordinatesOff:true,preservedPosition:true,preservedGeometry:true,freshExport:true});console.log('Board snapshot ordering',JSON.stringify(reports.at(-1)));
   }
   fs.writeFileSync(path.join(screenshotDir,'board-snapshot-order.json'),JSON.stringify(reports,null,2));
 }
