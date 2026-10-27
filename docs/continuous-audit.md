@@ -19,6 +19,9 @@ reproduced failures separate from candidates that still need investigation.
   targeted lint and the build pass (Vite phase 15.7 s). The same checks,
   including game integrity after dismissal, pass against production under
   `katrain-long-error-toast-production-o3PcVs` (`j0l1He`).
+  The original notification interaction/timer and copy-order helpers also
+  pass at `3fbbc89`, including combined hover/focus holds, stale results,
+  timeout/denial handling and native retry (`Mc3fLi`).
 
 - The compact engine-error copy control now has a 44×44 target. Its status
   column sizes to its contents so the complete “Error” label remains visible.
