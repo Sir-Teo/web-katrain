@@ -330,6 +330,7 @@ const LibraryConfirmDialog: React.FC<{
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-confirm-dialog-title"
+        aria-describedby="library-confirm-dialog-description"
         className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
@@ -346,7 +347,7 @@ const LibraryConfirmDialog: React.FC<{
           </button>
         </div>
         <div className="p-4 space-y-4">
-          <p className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
+          <p id="library-confirm-dialog-description" className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
           <div className="flex justify-end gap-2">
             <button type="button" className="panel-action-button" onClick={onClose} ref={cancelRef}>
               Cancel

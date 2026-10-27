@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Library confirmations now associate their full message with the dialog as
+  its accessible description. Chrome's baseline accessibility tree in `7L0esW`
+  exposed the name “Delete Folder” with no description. Production `LSieau`
+  now exposes the exact visible message, including the affected folder and
+  irreversible-deletion warning, at all eight size/text combinations. The
+  same checks retain layout/control reachability, persisted creation/deletion,
+  cancellation preserving storage and the unchanged game. Targeted lint,
+  17 existing Library accessibility cases and the build pass (Vite phase
+  17.3 s). This verifies Chrome accessibility data, not screen-reader speech.
+
 - Library naming and confirmation dialogs now stay within the viewport and
   scroll when needed. Baseline `zPNaJ8` at 200% text placed New Folder at
   −19.5…339.5 px in 568×320 landscape; a long-name delete confirmation reached
