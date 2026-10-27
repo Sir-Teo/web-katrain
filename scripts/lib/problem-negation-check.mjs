@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, waitForHistoryEntry, evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
 
 export async function assertProblemNegation(cdp, appUrl, runDir, screenshotDir) {
   const comments = ['Not correct.', 'NOT RIGHT', '不正解', '不正确', '不正確'];
@@ -56,6 +56,7 @@ export async function assertProblemNegation(cdp, appUrl, runDir, screenshotDir) 
     const input = (await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'input[type=file][accept^=".sgf"]:not([multiple])' })).result.nodeId;
     await cdp.send('DOM.setFileInputFiles', { nodeId: input, files: [fixture] });
     await wait('document.querySelector("[data-board-snapshot]")?.dataset.boardSize==="9"');
+    const entryHistory=await captureHistoryEntry(cdp);
     await key('k', 'KeyK', 75, 2);await click('[data-command-palette-search]');
     await cdp.send('Input.insertText', { text: 'problem practice' });await click('[data-command-palette-item=problem-practice]');
     for (const [index, comment] of comments.entries()) {
@@ -92,7 +93,7 @@ export async function assertProblemNegation(cdp, appUrl, runDir, screenshotDir) 
       reports.push({ width, height, comment, gradedWrong: true, retryFocused: true, correctSolution: true });
     }
     await click('[aria-label="Close problem practice"]');
-    await wait('!document.querySelector("[data-problem-modal]")&&!history.state?.webKatrainOverlay');
+    await waitForHistoryEntry(cdp,entryHistory,'!document.querySelector("[data-problem-modal]")');
     assert.equal(await evaluate(cdp, 'document.querySelector("[data-board-snapshot]").dataset.boardMoveCount'), '0');
     console.log('Negated problem verdicts', JSON.stringify({ width, height, cases: comments.length, gameUnchanged: true }));
   }

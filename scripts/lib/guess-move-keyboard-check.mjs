@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, waitForHistoryEntry, evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
 
 export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir) {
   const fixture = path.join(runDir, 'guess-keyboard.sgf');
@@ -67,6 +67,7 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
     const node = (await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'input[type=file][accept^=".sgf"]:not([multiple])' })).result.nodeId;
     await cdp.send('DOM.setFileInputFiles', { nodeId: node, files: [fixture] });
     await wait('document.querySelector("[data-board-snapshot]")?.dataset.boardSize==="9"');
+    const entryHistory=await captureHistoryEntry(cdp);
     await evaluate(cdp, 'document.activeElement?.blur()');
     await key('k', 'KeyK', 75, 2);
     await wait('document.activeElement?.getAttribute("aria-label")==="Search commands"');
@@ -121,7 +122,7 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
     const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(screenshotDir, `guess-keyboard-${width}.png`), Buffer.from(shot.result.data, 'base64'));
     await click('[aria-label="Close guess the move"]');
-    await wait('!document.querySelector("[data-guess-move-modal]") && !history.state?.webKatrainOverlay');
+    await waitForHistoryEntry(cdp,entryHistory,'!document.querySelector("[data-guess-move-modal]")');
     assert.equal(await evaluate(cdp, 'document.querySelector("[data-board-snapshot]").dataset.boardMoveCount'), '0', 'Practice must leave the loaded position unchanged');
     reports.push({ width, revealFocusesNext: true, nextFocusesBoard: true, answersAnnounced: true,
       keyboardGuessGraded: true, finalRoundCanRestart: true, restartResetsScoreAndCursor: true,

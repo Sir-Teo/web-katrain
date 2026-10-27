@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, waitForHistoryEntry, evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
 
 export async function assertScoreQuizFocus(cdp, appUrl, screenshotDir) {
   let mobile = false;
@@ -75,7 +75,8 @@ export async function assertScoreQuizFocus(cdp, appUrl, screenshotDir) {
     ` });
     try { await setViewport(cdp, { width, height, mobile });await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true }); }
     finally { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: setup.result.identifier }); }
-    await wait('!!document.querySelector("[data-board-snapshot]")');await settle();await open();
+    await wait('!!document.querySelector("[data-board-snapshot]")');await settle();
+    const entryHistory=await captureHistoryEntry(cdp);await open();
     const original = await evaluate(cdp, `({stones:document.querySelector('[data-board-snapshot]').dataset.boardStones,moves:document.querySelector('[data-board-snapshot]').dataset.boardMoveCount})`);
     await key('Enter', 'Enter', 13);await pending(1);
     await respond(0, 0, 'Could not evaluate this position. Check that the model is available, then try again.');
@@ -98,11 +99,11 @@ export async function assertScoreQuizFocus(cdp, appUrl, screenshotDir) {
     await click('.score-quiz-footer button', 'Guess again');await wait(inputFocused);
     await click('[aria-label="Reveal score"]');await pending(4);
     await key('Tab', 'Tab', 9);await key('Enter', 'Enter', 13);
-    await wait(`!document.querySelector('${quiz}')&&!history.state?.webKatrainOverlay`);
+    await waitForHistoryEntry(cdp,entryHistory,`!document.querySelector('${quiz}')`);
     await respond(3, 99);await settle();assert.equal(await evaluate(cdp, `!!document.querySelector('${quiz}')`), false, 'A dismissed evaluation must not restore the quiz');
     assert.deepEqual(await evaluate(cdp, `({stones:document.querySelector('[data-board-snapshot]').dataset.boardStones,moves:document.querySelector('[data-board-snapshot]').dataset.boardMoveCount})`), original);
     await open();assert.equal(await evaluate(cdp, '!!document.querySelector(".score-quiz-stats")'), false, 'Reopening starts a fresh quiz');
-    await click('[aria-label="Close quiz"]');await wait(`!document.querySelector('${quiz}')&&!history.state?.webKatrainOverlay`);
+    await click('[aria-label="Close quiz"]');await waitForHistoryEntry(cdp,entryHistory,`!document.querySelector('${quiz}')`);
     reports.push({ width, height, error: failure, result, pendingTabContained: true, retryFocus: true, resultFocus: true, chosenFocusPreserved: true, lateReplyIgnored: true, gameUnchanged: true });
     console.log('Score quiz focus', JSON.stringify({ width, height, retry: true, result: true, pendingTabs: true, lateReply: true }));
   }

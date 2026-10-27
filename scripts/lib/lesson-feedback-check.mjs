@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, waitForHistoryEntry, evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
 
 export async function assertLessonFeedback(cdp, appUrl, screenshotDir) {
   const reports = [];
@@ -44,6 +44,7 @@ export async function assertLessonFeedback(cdp, appUrl, screenshotDir) {
     finally { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: init.result.identifier }); }
     await wait('!!document.querySelector("[data-board-snapshot]")');
     await settle();
+    const entryHistory=await captureHistoryEntry(cdp);
     await key('k', 'KeyK', 75, 2);
     await click('[data-command-palette-search]');
     await cdp.send('Input.insertText', { text: 'Interactive lessons' });
@@ -98,7 +99,7 @@ export async function assertLessonFeedback(cdp, appUrl, screenshotDir) {
       reports.push({ width, height, input: 'keyboard', outcome, ...state });
     }
     await click('[aria-label="Close lessons"]');
-    await wait('!document.querySelector("[aria-labelledby=lessons-title]")&&!history.state?.webKatrainOverlay');
+    await waitForHistoryEntry(cdp,entryHistory,'!document.querySelector("[aria-labelledby=lessons-title]")');
     console.log('Lesson feedback', JSON.stringify({ width, height, wrong: true, correct: true, keyboard: true, focusPreserved: true, reset: true }));
   }
   fs.writeFileSync(path.join(screenshotDir, 'lesson-feedback.json'), JSON.stringify(reports, null, 2));

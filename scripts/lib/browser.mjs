@@ -481,3 +481,18 @@ export async function waitForExpression(
   throw new Error(`${label} timed out after ${timeoutMs}ms: ${expression}${state}`);
 }
 
+
+/** Remember the entry an overlay must return to, including a restored marker. */
+export function captureHistoryEntry(cdp) {
+  return evaluate(cdp, `({state:JSON.stringify(history.state),key:globalThis.navigation?.currentEntry?.key??null})`);
+}
+
+/** Closing must restore the original entry, rather than erase foreign state. */
+export function waitForHistoryEntry(cdp, entry, closedExpression) {
+  return waitForExpression(cdp, `(${closedExpression})
+    && JSON.stringify(history.state)===${JSON.stringify(entry.state)}
+    && (globalThis.navigation?.currentEntry?.key??null)===${JSON.stringify(entry.key)}`, {
+    label: 'Overlay returns to its original history entry',
+    diagnose: `({state:history.state,key:globalThis.navigation?.currentEntry?.key,expected:${JSON.stringify(entry)}})`,
+  });
+}

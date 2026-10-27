@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The focused sweep at `f654c22` passes all 11 base layout/modal sizes, then
+  fails the quiz helper's history cleanup assertion: it expected no marker
+  even when the arriving document already contained a restored overlay marker.
+  The app deliberately preserves entries it did not push. Shared fixture
+  helpers now require the original entry state and navigation key after close,
+  preserving owned-entry checks without clearing foreign history. The failed
+  run remains under `katrain-batch-eighty-layouts`. Selected restored-entry
+  regressions pass for score, problem, lesson and guess flows (`r1kkiR`), then
+  Home cancellation, score ordering, board scrolling and paste (`0q80sI`).
+  A fresh 320 px quiz flow also returns to its original entry (`rrNcnX`).
+  These are separate focused passes, not a complete integrated sweep; the
+  application is unchanged by this fixture repair. Targeted lint and all
+  42 existing browser/history cases pass after the helper changes.
+
 - The score quiz now keeps focus inside while an estimate evaluates, restores
   the margin after failure or Guess Again, and focuses the next action on a
   result without overriding a control chosen while waiting. Native baselines

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, waitForHistoryEntry, evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
 
 export async function assertNewGameBoard(cdp, appUrl, output) {
   const reports = [];
+  let entryHistory=await captureHistoryEntry(cdp);
   let currentCase;
   const settle = () => evaluate(cdp, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
   const wait = expression => waitForExpression(cdp, expression, {
@@ -35,7 +36,7 @@ export async function assertNewGameBoard(cdp, appUrl, output) {
         if (await evaluate(cdp, '!!document.querySelector("[data-mobile-home=true]")')) {
           await click('[data-mobile-home=true] [aria-label="Return to board"]');
         }
-        await wait('!document.querySelector("[role=dialog]")&&!history.state?.webKatrainOverlay');
+        await waitForHistoryEntry(cdp,entryHistory,'!document.querySelector("[role=dialog]")');
       };
       const reset = async () => {
         // Cancelled Home flows deliberately restore Home. Dismiss it natively
@@ -50,6 +51,7 @@ export async function assertNewGameBoard(cdp, appUrl, output) {
           await setViewport(cdp, viewport);await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
         } finally { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: setup.result.identifier }); }
         await wait('!!document.querySelector("[data-board-snapshot]")');await settle();
+        entryHistory=await captureHistoryEntry(cdp);
       };
       const routes = viewport.mobile ? ['board', 'library', 'review', 'home', 'scoring'] : ['board', 'scoring'];
       for (const entry of routes) for (const action of ['setup', 'quick']) {
