@@ -30,6 +30,7 @@ import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
 import { assertLibraryPendingNames } from './lib/library-pending-names-check.mjs';
 import { assertFastNavigation } from './lib/fast-navigation-check.mjs';
 import { assertLessonPractice } from './lib/lesson-practice-check.mjs';
+import { assertLessonProgressPeers } from './lib/lesson-progress-peer-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
 import { assertLibraryCollectionSplit } from './lib/library-collection-check.mjs';
 import { assertBoardComposition } from './lib/board-composition-check.mjs';
@@ -3578,6 +3579,9 @@ async function main() {
           selector: '[aria-labelledby="lessons-title"]',
           closeLabel: 'Close lessons',
           open: async () => {
+            for (const key of Object.keys(localStorage)) {
+              if (key.startsWith('web-katrain:lesson_progress:v2:')) localStorage.removeItem(key);
+            }
             localStorage.removeItem('web-katrain:lesson_progress:v1');
             await openViaPalette('lessons')();
           },
@@ -3629,8 +3633,9 @@ async function main() {
                 !dialog.querySelector('.lessons-progress')?.textContent.includes('1 of 4')) {
               throw new Error('finishing the lesson did not record completion and restore focus');
             }
-            const progress = JSON.parse(localStorage.getItem('web-katrain:lesson_progress:v1') || '{}');
-            if (progress.capture?.completed !== true) throw new Error('lesson completion was not persisted');
+            if (localStorage.getItem('web-katrain:lesson_progress:v2:capture:completed') !== '1') {
+              throw new Error('lesson completion was not persisted');
+            }
             completed.click();
             await waitForFrames(2);
             if (!dialog.querySelector('.lessons-step')?.textContent.includes('Step 1')) {
@@ -4246,6 +4251,7 @@ async function main() {
     await assertBoardSnapshotOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertFastNavigation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLessonPractice(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLessonProgressPeers(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertGameInfoNumericEdits(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNumericEditorComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertMetadataRecovery(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);

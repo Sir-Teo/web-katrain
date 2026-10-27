@@ -4,7 +4,7 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { LESSONS, getLessonBoard } from '../data/lessons';
-import { advanceLessonProgress, loadLessonProgress, saveLessonProgress } from '../utils/lessonProgress';
+import { advanceLessonProgress, LESSON_PROGRESS_KEY, LESSON_PROGRESS_MILESTONE_PREFIX, loadLessonProgress, mergeLessonProgress, saveLessonProgress } from '../utils/lessonProgress';
 
 interface LessonsModalProps {
   onClose: () => void;
@@ -58,6 +58,19 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose, onPractice 
   const completedCount = LESSONS.filter((item) => progress[item.id]?.completed).length;
 
   useEffect(() => { saveLessonProgress(progress); }, [progress]);
+
+  useEffect(() => {
+    const refresh = () => setProgress(previous => mergeLessonProgress(previous, loadLessonProgress(LESSONS)));
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === LESSON_PROGRESS_KEY || event.key?.startsWith(LESSON_PROGRESS_MILESTONE_PREFIX)) refresh();
+    };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
 
   const openLesson = (id: string) => {
     lastLessonRef.current = id;

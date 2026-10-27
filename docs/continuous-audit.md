@@ -334,6 +334,24 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Lessons retain progress from other open tabs:** a two-tab native regression
+  reached Capture's exercise in one tab, then finished Atari in the other.
+  The second save replaced the entire record and deleted the reached exercise.
+  Progress now records bounded, immutable reached-step/completion milestones;
+  concurrent or stale snapshots cannot erase another tab's milestones.
+  Existing v1 records are read and carried forward, and reached progress clamps
+  if a lesson is shortened. Open lesson lists merge peer updates on storage
+  events and window focus, retaining local completion and later steps.
+  Five regression cases cover stale reads, independent lessons, completion,
+  migration, content changes and no-op merges. App/test TypeScript, full lint
+  and 22 related cases pass. Native two-tab flows pass at 1440/390/320 px,
+  including visible updates and both reloads; the four practice-board sizes
+  also pass together with these flows. The initial diagnostic fixture missed
+  a resource-timing entry; increasing its recording buffer (as in other native
+  checks) exposed the actual failed persistence assertion. Both failures and
+  screenshots are retained. Integrated lesson fixtures now clear milestone
+  records along with legacy progress and check persisted completion directly.
+
 - **Mobile feedback leaves its focused action reachable:** at 320×568,
   a failed engine-error copy displayed a toast over the Review copy button.
   Mobile-panel notifications now reveal an overlapping focused button by
