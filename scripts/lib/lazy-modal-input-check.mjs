@@ -22,6 +22,9 @@ export async function assertLazyModalInput(cdp, appUrl, screenshotDir) {
   let intercepted=0;
   try {
     await cdp.send('Network.enable');await cdp.send('Network.setCacheDisabled',{cacheDisabled:true});
+    // A controlling worker fetches outside page-level Fetch interception.
+    // Hold the real page request even after earlier PWA/offline workflows.
+    await cdp.send('Network.setBypassServiceWorker',{bypass:true});
     await cdp.send('Fetch.enable',{patterns:[{urlPattern:'*LessonsModal.tsx*',requestStage:'Request'}]});
     // An intentionally held module can delay the load event. Start from the
     // blank document and wait for the requested app's board instead.
@@ -52,6 +55,7 @@ export async function assertLazyModalInput(cdp, appUrl, screenshotDir) {
   } finally {
     for(const requestId of paused)await cdp.send('Fetch.continueRequest',{requestId});
     await cdp.send('Fetch.disable');await cdp.send('Network.setCacheDisabled',{cacheDisabled:false});
+    await cdp.send('Network.setBypassServiceWorker',{bypass:false});
     await cdp.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:setup.result.identifier});stopListening();
   }
   await wait('!!document.querySelector("[aria-labelledby=lessons-title]")&&!document.querySelector("[data-lazy-modal-loading]")');

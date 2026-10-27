@@ -8,6 +8,27 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Publication checks retain the complete local history. Attempt 115 at
+  `fe8ef01` passes all 11 base layouts and the native workflows through
+  notification copying, including the new PWA-anchor and OS-open save checks.
+  It then fails the deliberately delayed Lessons module fixture: HTTP cache
+  disabling does not prevent a controlling service worker from fetching outside
+  page-level interception. Diagnostic `vrbkfq` records zero paused requests and
+  a successful Lessons response with fromServiceWorker=true. Worker-bypass
+  reproduction `GXxmJ2` passes the original loading/input assertions.
+  The fixture now bypasses the worker only while holding that real request and
+  restores normal worker handling in cleanup. The repaired-fixture remainder
+  run passes every subsequent original workflow through Library read retry.
+  These are a failed full attempt and a passing remainder, not one full pass;
+  the complete current-head CI run is required before merging.
+- The latest complete unit run passes 3,560 tests in 515 files, with eight
+  skipped tests; later notification CSS changes pass all 59 focused tests and
+  the production interaction checks recorded below. Publication test typecheck,
+  helper lint and dependency audit pass; the audit reports zero vulnerabilities.
+  CI's browser step now uses production React with source-module probes. Its
+  overall job ceiling is 60 minutes for verify and the expanded native sweep;
+  all individual assertions and clipboard timeout budgets remain unchanged.
+
 - Mobile notification spacing stays compact as text grows. At 320 px and 200%
   text, baseline message width is 58 px while the short phrase "Failed to" needs
   120 px; the card breaks ordinary words into fragments. Fixed mobile padding,
