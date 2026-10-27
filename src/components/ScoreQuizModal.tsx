@@ -7,6 +7,7 @@ import { StaticBoard } from './StaticBoard';
 import { evaluateNode } from '../utils/positionEval';
 import { collectQuizPositions, selectQuizJumpCandidates } from '../utils/scoreQuizPositions';
 import { isComposingKeyEvent } from '../utils/compositionKey';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 
 interface ScoreQuizModalProps {
   onClose: () => void;
@@ -30,7 +31,12 @@ const ratingFor = (error: number): { label: string; tone: string } => {
 
 export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   useEscapeToClose(onClose);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const marginInputRef = useRef<HTMLInputElement>(null);
+  const guessAgainRef = useRef<HTMLButtonElement>(null);
+  const guessAgainRequestedRef = useRef(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { initialFocusRef: marginInputRef });
 
   const currentNode = useGameStore((s) => s.currentNode);
   const rootNode = useGameStore((s) => s.rootNode);
@@ -42,10 +48,26 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   const [margin, setMargin] = useState<string>('5');
   const marginValue = margin.trim() ? Number(margin) : NaN;
   const isMarginValid = Number.isFinite(marginValue) && marginValue >= 0;
-  const marginInputRef = useRef<HTMLInputElement>(null);
   const [actual, setActual] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<QuizStats>({ rounds: 0, sumError: 0, leaderHits: 0 });
+
+  React.useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    const guessAgainRequested = guessAgainRequestedRef.current;
+    guessAgainRequestedRef.current = false;
+    // Disabling the submitted field, or removing it for the result, can send
+    // focus to the page behind the quiz. Keep the keyboard in this workflow.
+    if (guessAgainRequested || active === document.body || active === dialog || (active instanceof HTMLElement && active.matches(':disabled'))) {
+      const target = phase === 'evaluating' ? dialog : phase === 'guess' ? marginInputRef.current : guessAgainRef.current;
+      target?.focus({ preventScroll: true });
+    }
+    const feedback = phase === 'reveal' ? resultRef.current : errorMsg ? errorRef.current : null;
+    const body = dialog.querySelector<HTMLElement>('.score-quiz-body');
+    if (feedback && body) revealPaneFeedback(feedback, body);
+  }, [phase, errorMsg, dialogRef]);
 
   const nodeId = currentNode.id;
   const pendingReveal = useRef<object | null>(null);
@@ -142,6 +164,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="score-quiz-title"
+        aria-busy={phase === 'evaluating'}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="score-quiz-header ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
@@ -204,7 +227,10 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
                   step={0.5}
                   value={margin}
                   aria-invalid={!isMarginValid}
-                  aria-describedby={!isMarginValid ? 'score-quiz-margin-error' : undefined}
+                  aria-describedby={[
+                    !isMarginValid && 'score-quiz-margin-error',
+                    errorMsg && 'score-quiz-evaluation-error',
+                  ].filter(Boolean).join(' ') || undefined}
                   disabled={phase === 'evaluating'}
                   onChange={(e) => setMargin(e.target.value)}
                   onKeyDown={(e) => {
@@ -223,13 +249,13 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
                 </p>
               )}
               {errorMsg && (
-                <div className="rounded border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] px-3 py-2 text-sm text-[var(--ui-danger)]">
+                <div ref={errorRef} id="score-quiz-evaluation-error" role="alert" className="rounded border border-[var(--ui-danger)] bg-[var(--ui-danger-soft)] px-3 py-2 text-sm text-[var(--ui-danger)]">
                   {errorMsg}
                 </div>
               )}
             </div>
           ) : (
-            <div className="score-quiz-response space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
+            <div ref={resultRef} role="status" aria-live="polite" aria-atomic="true" className="score-quiz-response space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
               <div className="text-base font-semibold" style={{ color: rating.tone }}>{rating.label}</div>
               <div className="flex justify-between text-[var(--ui-text)]">
                 <span>Actual</span>
@@ -276,8 +302,9 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           </button>
           {phase === 'reveal' ? (
             <button
+              ref={guessAgainRef}
               type="button"
-              onClick={() => { setPhase('guess'); setActual(null); }}
+              onClick={() => { guessAgainRequestedRef.current = true; setPhase('guess'); setActual(null); }}
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
             >
               Guess again

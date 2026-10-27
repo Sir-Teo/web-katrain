@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
 import { assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
+import { assertScoreQuizFocus } from './lib/score-quiz-focus-check.mjs';
 import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
 import { assertLibraryImportFailures } from './lib/library-import-check.mjs';
 import { assertLibraryTags } from './lib/library-tags-check.mjs';
@@ -4240,6 +4241,7 @@ async function main() {
     await assertLongMetadataStaysRecoverable(cdp);
     await assertPwaCardsClearTheBoard(cdp, `http://127.0.0.1:${appPort}/`);
     await assertAutoSaveRecoveryFits(cdp, `http://127.0.0.1:${appPort}/`);
+    await assertScoreQuizFocus(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertScoreQuizRequests(cdp);
     await assertStaticBoardScroll(cdp);
     await assertLibraryImportFailures(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);

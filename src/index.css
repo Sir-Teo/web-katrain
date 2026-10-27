@@ -5641,7 +5641,9 @@
     .score-quiz-response {
       grid-column: 2;
       grid-row: 1;
-      align-self: center;
+      /* Keep tall results reachable when the stats row shrinks this track. */
+      align-self: start;
+      align-self: safe center;
     }
 
     .score-quiz-stats {

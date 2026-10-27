@@ -8,6 +8,25 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The score quiz now keeps focus inside while an estimate evaluates, restores
+  the margin after failure or Guess Again, and focuses the next action on a
+  result without overriding a control chosen while waiting. Native baselines
+  showed focus on Body and Tab outside the quiz (`katrain-score-focus-probe-BnVt8Z`),
+  plus a hidden, unannounced 320 px error (`katrain-score-focus-probe-DBS7S3`). Errors
+  now have alert semantics and describe the margin field; results announce as
+  status, and both reveal inside their own pane. Expanded checks also found
+  and fixed focus retained on the reused Guess Again/Reveal button, and 1.8 px
+  landscape clipping caused by centered grid overflow. All four native screen
+  flows pass with delayed real worker-protocol replies, including retry,
+  Tab containment, preserved chosen focus, late dismissal and fresh reopening,
+  under `katrain-score-quiz-focus-native-Nh3VuA`. App/test TypeScript, full lint
+  and 65 related cases pass. The unchanged desktop/phone evaluation-ordering
+  checks also pass under `katrain-score-quiz-ordering-TaVxXU`.
+  The production build passes (Vite phase 35.6 s). Its combined browser batch
+  passes all four quiz flows, 80 problem feedback checks, 16 lesson answers,
+  12 guess results and four paste-shortcut flows under
+  `katrain-score-quiz-feedback-production-FRdEFq`.
+
 - Repeated unrecorded problem moves now reveal their hint again after the
   learner scrolls back to the board. The message text stays the same, so it
   previously skipped the reveal effect. A native 320 px wheel/keyboard
@@ -15,8 +34,8 @@ reproduced failures separate from candidates that still need investigation.
   All 80 problem feedback checks now pass at four sizes, including 20 repeated
   attempts with preserved cursor, focus, page position and correct solution
   selection, under `katrain-problem-negation-native-sY4nxR`. App TypeScript,
-  targeted lint and 47 related cases pass. Production validation still
-  precedes this small follow-up.
+  targeted lint and 47 related cases pass. The subsequent combined production
+  batch above also passes all 80 checks for this follow-up.
 
 - Full unit verification at `ae9f45a` passes 503 files and 3,464 cases, with
   78 existing engine skips, in 338.1 s. App/test TypeScript, full lint, 70
